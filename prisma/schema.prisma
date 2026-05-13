@@ -1,24 +1,63 @@
 generator client { provider = "prisma-client-js" }
 datasource db { provider = "postgresql" url = env("DATABASE_URL") directUrl = env("DIRECT_URL") }
 
-enum Role { client manager admin }
+enum Role { admin manager partner organization student }
 enum OrderStatus { new in_progress waiting_client completed }
 
 model User {
-  id String @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  email String @unique
-  passwordHash String
-  name String
-  role Role @default(client)
-  companyId String
-  company Company @relation(fields:[companyId], references:[id])
-  managedOrders Order[] @relation("OrderManager")
-  comments Comment[]
-  auditLogs AuditLog[]
+  id               String   @id @default(cuid())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  email            String   @unique
+  passwordHash     String
+  name             String
+  role             Role     @default(organization)
+  companyId        String?
+  company          Company? @relation(fields:[companyId], references:[id])
+  partnerId        String?
+  partner          Partner? @relation(fields:[partnerId], references:[id])
+  organizationId   String?
+  organization     Organization? @relation("UserOrganization", fields:[organizationId], references:[id])
+  externalStudentId String?
+  managedOrders    Order[]  @relation("OrderManager")
+  comments         Comment[]
+  auditLogs        AuditLog[]
 }
-model Company { id String @id @default(cuid()) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt name String users User[] orders Order[] }
+
+model Partner {
+  id            String @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  name          String
+  organizations Organization[]
+  users         User[]
+}
+
+model Organization {
+  id            String @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  name          String
+  partnerId     String
+  partner       Partner @relation(fields:[partnerId], references:[id])
+  companyId     String?
+  company       Company? @relation(fields:[companyId], references:[id])
+  students      Student[]
+  users         User[] @relation("UserOrganization")
+}
+
+model Student {
+  id                String @id @default(cuid())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  email             String @unique
+  name              String
+  organizationId    String
+  organization      Organization @relation(fields:[organizationId], references:[id])
+  externalStudentId String?
+}
+
+model Company { id String @id @default(cuid()) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt name String users User[] orders Order[] organizations Organization[] }
 model Order { id String @id @default(cuid()) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt title String status OrderStatus @default(new) deadline DateTime? companyId String company Company @relation(fields:[companyId], references:[id]) managerId String? manager User? @relation("OrderManager", fields:[managerId], references:[id]) documents Document[] comments Comment[] uploads Upload[] }
 model Document { id String @id @default(cuid()) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt name String path String mimeType String orderId String order Order @relation(fields:[orderId], references:[id]) uploadedById String uploadedBy User @relation(fields:[uploadedById], references:[id]) }
 model Comment { id String @id @default(cuid()) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt body String orderId String order Order @relation(fields:[orderId], references:[id]) authorId String author User @relation(fields:[authorId], references:[id]) attachmentPath String? }

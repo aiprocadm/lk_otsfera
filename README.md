@@ -18,7 +18,7 @@ docker compose exec app npx prisma migrate deploy
 ```
 
 ## Features
-- Auth via JWT cookie + RBAC (client/manager/admin)
+- Auth via JWT cookie + RBAC (organization/partner/student/manager/admin)
 - Dashboard with orders/documents/comments summary
 - Orders list/detail
 - Documents metadata + upload endpoint
@@ -30,3 +30,10 @@ docker compose exec app npx prisma migrate deploy
 ## Deployment
 - Works on VPS by Docker
 - Works on Vercel + managed Postgres/Supabase
+
+
+## New cabinets (MVP)
+- `/partner/dashboard` — dashboard партнера с агрегированными метриками.
+- `/organization/dashboard` — dashboard организации.
+- `/student` + `/student/redirect` — временный SSO-like переход во внешний LMS по signed JWT.
+- Middleware ограничивает доступ по ролям и изолирует кабинеты.
