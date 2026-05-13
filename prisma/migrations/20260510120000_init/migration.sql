@@ -1,0 +1,1 @@
+-- Use prisma migrate deploy with this migration in real env
