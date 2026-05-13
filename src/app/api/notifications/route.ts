@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requireRole, requireSession } from '@/lib/auth/guard';
 
-async function buildScopeWhere(session: NonNullable<Awaited<ReturnType<typeof getSession>>>) {
+import type { SessionPayload } from '@/lib/auth/jwt';
+
+async function buildScopeWhere(session: SessionPayload) {
   if (session.role === 'admin') return {};
 
   if (session.role === 'manager') {
@@ -36,8 +38,12 @@ async function buildScopeWhere(session: NonNullable<Awaited<ReturnType<typeof ge
 }
 
 export async function GET() {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const sessionResult = await requireSession();
+  if (!sessionResult.ok) return sessionResult.response;
+  const session = sessionResult.value;
+
+  const roleResult = requireRole(session, ['admin', 'manager', 'partner', 'organization']);
+  if (!roleResult.ok) return roleResult.response;
 
   const where = await buildScopeWhere(session);
 
@@ -51,8 +57,12 @@ export async function GET() {
 }
 
 export async function PATCH(req: Request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const sessionResult = await requireSession();
+  if (!sessionResult.ok) return sessionResult.response;
+  const session = sessionResult.value;
+
+  const roleResult = requireRole(session, ['admin', 'manager', 'partner', 'organization']);
+  if (!roleResult.ok) return roleResult.response;
 
   const { id, ids, isRead = true } = await req.json();
   const where = await buildScopeWhere(session);

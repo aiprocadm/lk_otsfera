@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requireRole, requireSession } from '@/lib/auth/guard';
 
 const DEFAULT_TAKE = 20;
 const MAX_TAKE = 100;
@@ -12,8 +12,12 @@ function parsePositiveInt(value: string | null, fallback: number) {
 }
 
 export async function GET(req: Request) {
-  const s = await getSession();
-  if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const sessionResult = await requireSession();
+  if (!sessionResult.ok) return sessionResult.response;
+  const s = sessionResult.value;
+
+  const roleResult = requireRole(s, ['admin', 'organization', 'partner', 'manager']);
+  if (!roleResult.ok) return roleResult.response;
 
   const searchParams = new URL(req.url).searchParams;
   const take = Math.min(parsePositiveInt(searchParams.get('take'), DEFAULT_TAKE), MAX_TAKE);
@@ -26,18 +30,8 @@ export async function GET(req: Request) {
         ? { company: { organizations: { some: { id: s.organizationId } } } }
         : s.role === 'partner' && s.partnerId
           ? { company: { organizations: { some: { partnerId: s.partnerId } } } }
-          : s.role === 'manager'
-            ? { company: { organizations: { some: { organizationUsers: { some: { userId: s.sub, isActive: true } } } } } }
-            : null;
+          : { company: { organizations: { some: { organizationUsers: { some: { userId: s.sub, isActive: true } } } } } };
 
-  if (where === null) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-
-  const orders = await prisma.order.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    take,
-    skip
-  });
-
+  const orders = await prisma.order.findMany({ where, orderBy: { createdAt: 'desc' }, take, skip });
   return NextResponse.json(orders);
 }
