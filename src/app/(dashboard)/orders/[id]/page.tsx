@@ -1,0 +1,2 @@
+import { prisma } from '@/lib/db/prisma';
+export default async function OrderDetails({params}:{params:{id:string}}){ const order=await prisma.order.findUnique({where:{id:params.id},include:{comments:{include:{author:true}},documents:true,manager:true}}); if(!order) return <div>Not found</div>; return <main className='p-6 space-y-3'><h1 className='text-2xl font-semibold'>{order.title}</h1><p>Status: {order.status}</p><p>Deadline: {order.deadline?.toISOString().slice(0,10) ?? '—'}</p></main>; }
