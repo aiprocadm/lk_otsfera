@@ -3,16 +3,18 @@ import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
 import { notifyStatusChanged, triggerNotificationEmail } from '@/lib/notifications';
 import { getPrimaryOrganizationId } from '@/lib/auth/organization';
+import { canReadOrder, forbiddenResponse } from '@/lib/auth/policy';
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const s = await getSession();
   if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const membership = await prisma.organizationUser.findFirst({ where: { userId: s.sub, isActive: true } });
-  if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const order = await prisma.order.findUnique({ where: { id: params.id } });
+  if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!(await canReadOrder(s, order))) return forbiddenResponse('You do not have access to this order');
 
   const { status } = await req.json();
-  const order = await prisma.order.update({ where: { id: params.id }, data: { status } });
+  const updatedOrder = await prisma.order.update({ where: { id: params.id }, data: { status } });
   const organizationId = await getPrimaryOrganizationId(s);
 
   await notifyStatusChanged({
@@ -20,11 +22,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     organizationId,
     partnerId: s.partnerId,
     title: 'Смена статуса заказа',
-    body: `Заказ ${order.title} переведен в статус ${status}`,
-    meta: { orderId: order.id, status }
+    body: `Заказ ${updatedOrder.title} переведен в статус ${status}`,
+    meta: { orderId: updatedOrder.id, status }
   });
 
-  await triggerNotificationEmail({ userId: s.sub, title: 'Смена статуса заказа', body: `Заказ ${order.title}: ${status}`, type: 'status_changed' });
+  await triggerNotificationEmail({ userId: s.sub, title: 'Смена статуса заказа', body: `Заказ ${updatedOrder.title}: ${status}`, type: 'status_changed' });
 
-  return NextResponse.json(order);
+  return NextResponse.json(updatedOrder);
 }

@@ -14,15 +14,15 @@ export async function createNotification(input: NotificationInput) {
   return prisma.notification.create({ data: input });
 }
 
-export async function notifyDocumentCreated(params: NotificationInput) {
+export async function notifyDocumentCreated(params: Omit<NotificationInput, "type">) {
   return createNotification({ ...params, type: 'document_created' });
 }
 
-export async function notifyStatusChanged(params: NotificationInput) {
+export async function notifyStatusChanged(params: Omit<NotificationInput, "type">) {
   return createNotification({ ...params, type: 'status_changed' });
 }
 
-export async function notifyMessageCreated(params: NotificationInput) {
+export async function notifyMessageCreated(params: Omit<NotificationInput, "type">) {
   return createNotification({ ...params, type: 'message_created' });
 }
 
