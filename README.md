@@ -12,7 +12,12 @@ cp .env.example .env
 ```bash
 docker compose up --build
 ```
-3. Run migrations:
+3. Run migrations (local development):
+```bash
+docker compose exec app npx prisma migrate dev
+```
+
+For production/deploy use:
 ```bash
 docker compose exec app npx prisma migrate deploy
 ```
