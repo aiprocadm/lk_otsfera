@@ -2,13 +2,33 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
 
-function buildScopeWhere(session: NonNullable<Awaited<ReturnType<typeof getSession>>>) {
+async function buildScopeWhere(session: NonNullable<Awaited<ReturnType<typeof getSession>>>) {
   if (session.role === 'admin') return {};
+
+  if (session.role === 'manager') {
+    const memberships = await prisma.organizationUser.findMany({
+      where: { userId: session.sub, isActive: true },
+      select: { organizationId: true }
+    });
+
+    const organizationIds = memberships.map((membership) => membership.organizationId);
+
+    if (organizationIds.length === 0) {
+      return { id: { in: [] } };
+    }
+
+    return {
+      OR: [
+        { userId: session.sub },
+        { organizationId: { in: organizationIds } }
+      ]
+    };
+  }
 
   const scope: Array<Record<string, unknown>> = [{ userId: session.sub }];
 
   if (session.role === 'partner' && session.partnerId) scope.push({ partnerId: session.partnerId });
-  if ((session.role === 'organization' || session.role === 'manager') && session.organizationId) {
+  if (session.role === 'organization' && session.organizationId) {
     scope.push({ organizationId: session.organizationId });
   }
 
@@ -19,8 +39,10 @@ export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const where = await buildScopeWhere(session);
+
   const notifications = await prisma.notification.findMany({
-    where: buildScopeWhere(session),
+    where,
     orderBy: { createdAt: 'desc' },
     take: 50
   });
@@ -33,7 +55,7 @@ export async function PATCH(req: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id, ids, isRead = true } = await req.json();
-  const where = buildScopeWhere(session);
+  const where = await buildScopeWhere(session);
 
   if (id) {
     const notification = await prisma.notification.updateMany({
