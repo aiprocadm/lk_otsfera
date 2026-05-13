@@ -37,3 +37,19 @@ docker compose exec app npx prisma migrate deploy
 - `/organization/dashboard` — dashboard организации.
 - `/student` + `/student/redirect` — временный SSO-like переход во внешний LMS по signed JWT.
 - Middleware ограничивает доступ по ролям и изолирует кабинеты.
+
+## Smoke-checklist: admin/manager навигация и редиректы
+
+1. Неавторизованный пользователь:
+   - открыть `/admin/dashboard` → редирект на `/login`.
+   - открыть `/manager/dashboard` → редирект на `/login`.
+2. Авторизованный `admin`:
+   - открыть `/` или `/dashboard` → редирект на `/admin/dashboard`.
+   - открыть `/admin/orders`, `/admin/documents`, `/admin/messages` → страницы доступны.
+   - открыть любой `/manager/*` → редирект на `/forbidden`.
+3. Авторизованный `manager`:
+   - открыть `/` или `/dashboard` → редирект на `/manager/dashboard`.
+   - открыть `/manager/orders`, `/manager/documents`, `/manager/messages` → страницы доступны.
+   - открыть любой `/admin/*` → редирект на `/forbidden`.
+4. Авторизованный пользователь другой роли (`partner`, `organization`, `student`):
+   - открыть `/admin/*` и `/manager/*` → редирект на `/forbidden`.

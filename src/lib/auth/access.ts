@@ -1,7 +1,7 @@
 import type { Role } from './jwt';
 
 export const roleHome: Record<Role, string> = {
-  admin: '/organization/dashboard',
+  admin: '/admin/dashboard',
   manager: '/manager/dashboard',
   partner: '/partner/dashboard',
   organization: '/organization/dashboard',
@@ -9,8 +9,9 @@ export const roleHome: Record<Role, string> = {
 };
 
 export const protectedPrefixes: Record<string, Role[]> = {
+  '/admin': ['admin'],
+  '/manager': ['manager'],
   '/partner': ['partner', 'admin', 'manager'],
   '/organization': ['organization', 'admin', 'manager'],
-  '/manager': ['manager', 'admin'],
   '/student': ['student', 'organization', 'admin', 'manager']
 };
