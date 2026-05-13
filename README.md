@@ -91,3 +91,18 @@ docker compose exec app npx prisma migrate deploy
   - `jti` помечается как использованный в таблице `StudentBridgeTokenJti`; повторное использование блокируется как replay.
 
 Рекомендация по эксплуатации: периодически очищать из `StudentBridgeTokenJti` записи с `expiresAt < now()` фоновым job/cron.
+
+## API RBAC matrix
+
+| Endpoint | Method | Allowed roles |
+| --- | --- | --- |
+| `/api/orders` | `GET` | `admin`, `organization`, `partner`, `manager` |
+| `/api/orders/:id` | `PATCH` | `admin`, `organization`, `partner`, `manager` (with order access scope check) |
+| `/api/documents` | `GET` | `admin`, `organization`, `partner`, `manager` |
+| `/api/documents/upload` | `POST` | `admin`, `organization`, `partner`, `manager` (with order access scope check) |
+| `/api/documents/:id/download` | `POST` | `admin`, `organization`, `partner`, `manager` (with document/order access scope check) |
+| `/api/comments` | `POST` | `admin`, `organization`, `partner`, `manager` (with order access scope check) |
+| `/api/notifications` | `GET`, `PATCH` | `admin`, `organization`, `partner`, `manager` |
+| `/api/student/bridge/token` | `POST` | `student` |
+
+Все указанные endpoint'ы возвращают `401`, если сессия отсутствует, и `403`, если роль пользователя не разрешена для конкретного ресурса.

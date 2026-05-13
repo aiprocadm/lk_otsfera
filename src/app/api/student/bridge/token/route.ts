@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { requireRole, requireSession } from '@/lib/auth/guard';
 
 export async function POST(req: NextRequest) {
+  const sessionResult = await requireSession();
+  if (!sessionResult.ok) return sessionResult.response;
+
+  const roleResult = requireRole(sessionResult.value, ['student']);
+  if (!roleResult.ok) return roleResult.response;
+
   const body = await req.json().catch(() => null) as { code?: string } | null;
   const code = body?.code?.trim();
 

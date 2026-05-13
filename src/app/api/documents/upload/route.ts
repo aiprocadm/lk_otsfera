@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requireOrderAccess, requireSession } from '@/lib/auth/guard';
 import { notifyDocumentCreated, triggerNotificationEmail } from '@/lib/notifications';
 import { getPrimaryOrganizationId } from '@/lib/auth/organization';
-import { canReadOrder, forbiddenResponse } from '@/lib/auth/policy';
 import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
 
 const ALLOWED_MIME_TYPES = [
@@ -27,8 +26,9 @@ function sanitizeFilename(filename: string) {
 
 export async function POST(req: Request) {
   const correlationId = crypto.randomUUID();
-  const s = await getSession();
-  if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const sessionResult = await requireSession();
+  if (!sessionResult.ok) return sessionResult.response;
+  const s = sessionResult.value;
 
   const form = await req.formData();
   const orderId = String(form.get('orderId') ?? '');
@@ -51,7 +51,8 @@ export async function POST(req: Request) {
 
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (!(await canReadOrder(s, order))) return forbiddenResponse('You do not have access to upload documents for this order');
+  const orderAccess = await requireOrderAccess(s, order);
+  if (!orderAccess.ok) return orderAccess.response;
 
   const organization = await prisma.organization.findFirst({ where: { companyId: order.companyId }, select: { id: true, partnerId: true } });
   if (!organization) {

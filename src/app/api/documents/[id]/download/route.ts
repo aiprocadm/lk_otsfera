@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requireSession } from '@/lib/auth/guard';
 import { canReadDocument, forbiddenResponse } from '@/lib/auth/policy';
 import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
 
@@ -16,8 +16,9 @@ function resolveTtl(queryTtl?: string | null) {
 
 export async function POST(_req: Request, { params }: { params: { id: string } }) {
   const correlationId = crypto.randomUUID();
-  const s = await getSession();
-  if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const sessionResult = await requireSession();
+  if (!sessionResult.ok) return sessionResult.response;
+  const s = sessionResult.value;
 
   const doc = await prisma.document.findUnique({ where: { id: params.id }, include: { order: { select: { companyId: true } } } });
   if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 });

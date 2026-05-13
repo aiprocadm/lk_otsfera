@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requireRole, requireSession } from '@/lib/auth/guard';
 
 export async function GET() {
-  const s = await getSession();
-  if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const sessionResult = await requireSession();
+  if (!sessionResult.ok) return sessionResult.response;
+  const s = sessionResult.value;
+
+  const roleResult = requireRole(s, ['admin', 'organization', 'partner', 'manager']);
+  if (!roleResult.ok) return roleResult.response;
 
   const where =
     s.role === 'admin'
@@ -15,9 +19,7 @@ export async function GET() {
           ? { order: { company: { organizations: { some: { partnerId: s.partnerId } } } } }
           : s.role === 'manager'
             ? { order: { company: { organizations: { some: { organizationUsers: { some: { userId: s.sub, isActive: true } } } } } } }
-            : null;
-
-  if (where === null) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            : { order: { company: { organizations: { some: { organizationUsers: { some: { userId: s.sub, isActive: true } } } } } } };
 
   const docs = await prisma.document.findMany({
     where,
