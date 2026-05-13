@@ -1,7 +1,10 @@
+import { randomUUID } from 'crypto';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth/session';
 import { signStudentBridgeToken } from '@/lib/auth/jwt';
 import { prisma } from '@/lib/db/prisma';
+
+const bridgeCodeTtlSec = Number(process.env.STUDENT_BRIDGE_CODE_TTL_SEC ?? 60);
 
 export default async function StudentRedirectPage() {
   const session = await getSession();
@@ -19,22 +22,41 @@ export default async function StudentRedirectPage() {
     externalStudentId: session.externalStudentId
   });
 
-  await prisma.auditLog.create({
-    data: {
-      action: 'STUDENT_BRIDGE_TOKEN_ISSUED',
-      entity: 'student_bridge_token',
-      entityId: jti,
-      userId: session.sub,
-      meta: { iat, organizationId: session.organizationId, externalStudentId: session.externalStudentId }
-    }
-  });
+  const code = randomUUID();
+  const expiresAt = new Date(Date.now() + Math.max(10, bridgeCodeTtlSec) * 1000);
+
+  await prisma.$transaction([
+    prisma.auditLog.create({
+      data: {
+        action: 'STUDENT_BRIDGE_TOKEN_ISSUED',
+        entity: 'student_bridge_token',
+        entityId: jti,
+        userId: session.sub,
+        meta: { iat, organizationId: session.organizationId, externalStudentId: session.externalStudentId }
+      }
+    }),
+    prisma.studentBridgeGrant.create({
+      data: {
+        code,
+        jti,
+        token: bridge,
+        userId: session.sub,
+        expiresAt
+      }
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: 'STUDENT_BRIDGE_CODE_ISSUED',
+        entity: 'student_bridge_code',
+        entityId: jti,
+        userId: session.sub,
+        meta: { code, expiresAt: expiresAt.toISOString() }
+      }
+    })
+  ]);
 
   const url = new URL(externalUrl);
-  url.searchParams.set('token', bridge);
-  url.searchParams.set('email', session.email ?? '');
-  url.searchParams.set('name', session.name ?? '');
-  url.searchParams.set('organizationId', session.organizationId ?? '');
-  url.searchParams.set('external_student_id', session.externalStudentId ?? '');
+  url.searchParams.set('code', code);
 
   redirect(url.toString());
 }

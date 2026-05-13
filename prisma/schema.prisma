@@ -44,6 +44,7 @@ model User {
   documents         Document[]
   auditLogs         AuditLog[]
   notifications     Notification[]
+  studentBridgeGrants StudentBridgeGrant[]
 }
 
 model Partner {
@@ -193,4 +194,20 @@ model Notification {
   @@index([organizationId])
   @@index([partnerId])
   @@index([createdAt])
+}
+
+model StudentBridgeGrant {
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  code       String    @unique
+  jti        String    @unique
+  token      String
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  expiresAt  DateTime
+  usedAt     DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
 }
