@@ -2,8 +2,6 @@ import { randomUUID } from 'crypto';
 import { JWTPayload, SignJWT, jwtVerify } from 'jose';
 import { prisma } from '@/lib/db/prisma';
 
-const studentBridgeSecret = new TextEncoder().encode(process.env.STUDENT_BRIDGE_JWT_SECRET ?? process.env.JWT_SECRET ?? '');
-
 export type Role = 'admin' | 'manager' | 'partner' | 'organization' | 'student';
 
 export type SessionPayload = {
@@ -18,6 +16,16 @@ export type SessionPayload = {
 };
 
 export type StudentBridgePayload = Pick<SessionPayload, 'sub' | 'role' | 'organizationId' | 'email' | 'name' | 'externalStudentId'>;
+
+
+function getStudentBridgeSecret() {
+  const studentBridgeSecret = (process.env.STUDENT_BRIDGE_JWT_SECRET ?? process.env.JWT_SECRET ?? '').trim();
+  if (!studentBridgeSecret) {
+    throw new Error('Student bridge JWT secret is not configured');
+  }
+
+  return new TextEncoder().encode(studentBridgeSecret);
+}
 
 function getJwtSecret() {
   const jwtSecret = process.env.JWT_SECRET?.trim();
@@ -74,7 +82,7 @@ export async function signStudentBridgeToken(payload: StudentBridgePayload) {
     .setIssuedAt(now)
     .setJti(jti)
     .setExpirationTime(`${getStudentBridgeTtl()}s`)
-    .sign(studentBridgeSecret);
+    .sign(getStudentBridgeSecret());
 
   return { token, jti, iat: now };
 }
@@ -86,7 +94,7 @@ export async function verifyToken(token: string) {
 
 
 export async function verifyStudentBridgeToken(token: string) {
-  const { payload } = await jwtVerify(token, studentBridgeSecret, {
+  const { payload } = await jwtVerify(token, getStudentBridgeSecret(), {
     audience: 'external-student-portal',
     issuer: getStudentBridgeIssuer()
   });
