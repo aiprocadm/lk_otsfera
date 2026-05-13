@@ -3,8 +3,17 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth/session';
 import { signStudentBridgeToken } from '@/lib/auth/jwt';
 import { prisma } from '@/lib/db/prisma';
+import { assertAllowedStudentPortalUrl } from '@/lib/security/redirect';
 
 const bridgeCodeTtlSec = Number(process.env.STUDENT_BRIDGE_CODE_TTL_SEC ?? 60);
+
+const studentPortalAllowlist = [
+  'otsfera.cdoprof.com',
+  ...(process.env.STUDENT_PORTAL_ALLOWED_HOSTS ?? '')
+    .split(',')
+    .map(host => host.trim())
+    .filter(Boolean)
+];
 
 export default async function StudentRedirectPage() {
   const session = await getSession();
@@ -12,6 +21,20 @@ export default async function StudentRedirectPage() {
 
   const externalUrl = process.env.STUDENT_PORTAL_URL;
   if (!externalUrl) return <div className='p-6'>STUDENT_PORTAL_URL не настроен</div>;
+
+  let url: URL;
+  try {
+    url = assertAllowedStudentPortalUrl(externalUrl, { allowlist: studentPortalAllowlist });
+  } catch (error) {
+    const parsed = URL.canParse(externalUrl) ? new URL(externalUrl) : null;
+    console.error('Blocked student portal redirect URL', {
+      reason: error instanceof Error ? error.message : 'Unknown error',
+      protocol: parsed?.protocol,
+      hostname: parsed?.hostname
+    });
+
+    return <div className='p-6'>Не удалось выполнить безопасный переход. Обратитесь в поддержку.</div>;
+  }
 
   const { token: bridge, jti, iat } = await signStudentBridgeToken({
     sub: session.sub,
@@ -55,7 +78,6 @@ export default async function StudentRedirectPage() {
     })
   ]);
 
-  const url = new URL(externalUrl);
   url.searchParams.set('code', code);
 
   redirect(url.toString());
