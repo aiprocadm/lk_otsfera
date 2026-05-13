@@ -36,6 +36,7 @@ docker compose exec app npx prisma migrate deploy
 
 - `SUPABASE_ANON_KEY` — публичный ключ для клиентских сценариев (если используются).
 - `SUPABASE_STORAGE_BUCKET` — имя bucket для документов (по умолчанию `documents`).
+- `DOCUMENT_MAX_FILE_SIZE_MB` — максимальный размер загружаемого файла в MB; значение должно быть конечным числом больше `0` (рекомендуемый диапазон `1..100`, по умолчанию `10`).
 
 ## Features
 - Auth via JWT cookie + RBAC (organization/partner/student/manager/admin)

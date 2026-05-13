@@ -17,8 +17,19 @@ const ALLOWED_MIME_TYPES = [
 const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.xlsx', '.png', '.jpg', '.jpeg', '.zip'] as const;
 const ALLOWED_FORMATS_ERROR = `Unsupported file format. Allowed formats: ${ALLOWED_EXTENSIONS.join(', ')}`;
 
-const MAX_FILE_SIZE_MB = Number(process.env.DOCUMENT_MAX_FILE_SIZE_MB ?? 10);
+const DEFAULT_MAX_FILE_SIZE_MB = 10;
+const MAX_FILE_SIZE_MB_RAW = Number(process.env.DOCUMENT_MAX_FILE_SIZE_MB ?? DEFAULT_MAX_FILE_SIZE_MB);
+const MAX_FILE_SIZE_MB = Number.isFinite(MAX_FILE_SIZE_MB_RAW) && MAX_FILE_SIZE_MB_RAW > 0 ? MAX_FILE_SIZE_MB_RAW : DEFAULT_MAX_FILE_SIZE_MB;
+if (MAX_FILE_SIZE_MB !== MAX_FILE_SIZE_MB_RAW) {
+  console.warn('[documents/upload] Invalid DOCUMENT_MAX_FILE_SIZE_MB, fallback to default', {
+    fallbackMb: DEFAULT_MAX_FILE_SIZE_MB
+  });
+}
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+function errorResponse(code: string, message: string, status: number, correlationId?: string) {
+  return NextResponse.json({ code, message, ...(correlationId ? { correlationId } : {}) }, { status });
+}
 
 function sanitizeFilename(filename: string) {
   return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -35,28 +46,28 @@ export async function POST(req: Request) {
   const file = form.get('file');
 
   if (!orderId || !(file instanceof File)) {
-    return NextResponse.json({ error: 'orderId and file are required' }, { status: 400 });
+    return errorResponse('BAD_REQUEST', 'orderId and file are required', 400, correlationId);
   }
 
   const fileName = file.name.toLowerCase();
   const hasAllowedExtension = ALLOWED_EXTENSIONS.some((ext) => fileName.endsWith(ext));
 
   if (!ALLOWED_MIME_TYPES.includes(file.type as (typeof ALLOWED_MIME_TYPES)[number]) || !hasAllowedExtension) {
-    return NextResponse.json({ error: ALLOWED_FORMATS_ERROR }, { status: 400 });
+    return errorResponse('INVALID_FILE_FORMAT', ALLOWED_FORMATS_ERROR, 400, correlationId);
   }
 
   if (file.size > MAX_FILE_SIZE_BYTES) {
-    return NextResponse.json({ error: `File exceeds ${MAX_FILE_SIZE_MB}MB limit` }, { status: 400 });
+    return errorResponse('FILE_TOO_LARGE', `File exceeds ${MAX_FILE_SIZE_MB}MB limit`, 400, correlationId);
   }
 
   const order = await prisma.order.findUnique({ where: { id: orderId } });
-  if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!order) return errorResponse('NOT_FOUND', 'Not found', 404, correlationId);
   const orderAccess = await requireOrderAccess(s, order);
   if (!orderAccess.ok) return orderAccess.response;
 
   const organization = await prisma.organization.findFirst({ where: { companyId: order.companyId }, select: { id: true, partnerId: true } });
   if (!organization) {
-    return NextResponse.json({ error: 'Organization context not found' }, { status: 400 });
+    return errorResponse('ORGANIZATION_CONTEXT_NOT_FOUND', 'Organization context not found', 400, correlationId);
   }
 
   const tenantPath = `partner/${organization.partnerId}/org/${organization.id}/order/${order.id}`;
@@ -78,7 +89,7 @@ export async function POST(req: Request) {
       storagePath: internalPath,
       providerError: uploadError.message
     });
-    return NextResponse.json({ error: 'Failed to upload document', correlationId }, { status: 502 });
+    return errorResponse('STORAGE_UPLOAD_FAILED', 'Failed to upload document', 502, correlationId);
   }
 
   const doc = await prisma.document.create({
