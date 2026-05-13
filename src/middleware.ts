@@ -4,7 +4,11 @@ import { jwtVerify } from 'jose';
 import { protectedPrefixes, roleHome } from '@/lib/auth/access';
 import type { Role } from '@/lib/auth/jwt';
 
-const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+function getJwtSecret() {
+  const jwtSecret = process.env.JWT_SECRET?.trim();
+  if (!jwtSecret) return null;
+  return new TextEncoder().encode(jwtSecret);
+}
 
 export async function middleware(req: NextRequest) {
   const token = req.cookies.get('session')?.value;
@@ -13,6 +17,12 @@ export async function middleware(req: NextRequest) {
 
   if (!token) {
     if (isAuthPage) return NextResponse.next();
+    return NextResponse.redirect(new URL('/login', req.url));
+  }
+
+  const secret = getJwtSecret();
+  if (!secret) {
+    console.error('[auth] JWT secret is not configured; redirecting to /login');
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
