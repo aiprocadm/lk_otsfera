@@ -18,7 +18,8 @@ export async function POST(req: Request) {
     partnerId: user.partnerId,
     organizationId: user.organizationId,
     email: user.email,
-    name: user.name
+    name: user.name,
+    externalStudentId: user.externalStudentId
   });
 
   const res = NextResponse.json({ ok: true });
