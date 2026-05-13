@@ -11,7 +11,7 @@ export const roleHome: Record<Role, string> = {
 export const protectedPrefixes: Record<string, Role[]> = {
   '/admin': ['admin'],
   '/manager': ['manager'],
-  '/partner': ['partner', 'admin', 'manager'],
-  '/organization': ['organization', 'admin', 'manager'],
+  '/partner': ['partner', 'admin'],
+  '/organization': ['organization', 'admin'],
   '/student': ['student', 'organization', 'admin', 'manager']
 };

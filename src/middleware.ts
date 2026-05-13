@@ -34,14 +34,6 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL(roleHome[role], req.url));
     }
 
-    if (pathname.startsWith('/admin') && role !== 'admin') {
-      return NextResponse.redirect(new URL('/forbidden', req.url));
-    }
-
-    if (pathname.startsWith('/manager') && role !== 'manager') {
-      return NextResponse.redirect(new URL('/forbidden', req.url));
-    }
-
     for (const [prefix, allowedRoles] of Object.entries(protectedPrefixes)) {
       if (pathname.startsWith(prefix) && !allowedRoles.includes(role)) {
         return NextResponse.redirect(new URL('/forbidden', req.url));
