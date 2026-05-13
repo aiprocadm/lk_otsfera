@@ -211,3 +211,14 @@ model StudentBridgeGrant {
   @@index([userId])
   @@index([expiresAt])
 }
+
+
+model StudentBridgeTokenJti {
+  jti       String   @id
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  expiresAt DateTime
+  usedAt    DateTime
+
+  @@index([expiresAt])
+}

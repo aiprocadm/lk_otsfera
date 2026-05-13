@@ -53,3 +53,25 @@ docker compose exec app npx prisma migrate deploy
    - открыть любой `/admin/*` → редирект на `/forbidden`.
 4. Авторизованный пользователь другой роли (`partner`, `organization`, `student`):
    - открыть `/admin/*` и `/manager/*` → редирект на `/forbidden`.
+
+## Student bridge JWT contract
+
+Для перехода в внешний student-портал используется короткоживущий JWT (`signStudentBridgeToken`) со следующими правилами:
+
+- **Claims**:
+  - `sub`: идентификатор пользователя-студента.
+  - `role`: всегда `student`.
+  - `organizationId`, `email`, `name`, `externalStudentId`: контекст студента.
+  - `jti`: уникальный идентификатор токена для одноразовой валидации.
+  - `iat`, `exp`: время выпуска и окончания действия.
+  - `aud`: `external-student-portal`.
+  - `iss`: значение `STUDENT_BRIDGE_ISSUER` (fallback на `APP_URL`).
+- **TTL**: берется из `STUDENT_BRIDGE_TTL` в секундах, ограничивается диапазоном **300..900** (по умолчанию `600`).
+- **Подпись**: HS256, секрет `STUDENT_BRIDGE_JWT_SECRET` (fallback на `JWT_SECRET`).
+- **Валидация** (`verifyStudentBridgeToken`):
+  - обязательная проверка `aud=external-student-portal`;
+  - обязательная проверка `iss=STUDENT_BRIDGE_ISSUER|APP_URL`;
+  - обязательная проверка наличия `jti` и `exp`;
+  - `jti` помечается как использованный в таблице `StudentBridgeTokenJti`; повторное использование блокируется как replay.
+
+Рекомендация по эксплуатации: периодически очищать из `StudentBridgeTokenJti` записи с `expiresAt < now()` фоновым job/cron.
