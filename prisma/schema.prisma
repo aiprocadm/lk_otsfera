@@ -37,6 +37,7 @@ model User {
   partner           Partner?       @relation(fields: [partnerId], references: [id])
   organizationId    String?
   organization      Organization?  @relation("UserOrganization", fields: [organizationId], references: [id])
+  organizationUsers OrganizationUser[]
   externalStudentId String?
   managedOrders     Order[]        @relation("OrderManager")
   comments          Comment[]
@@ -66,7 +67,25 @@ model Organization {
   company       Company?        @relation(fields: [companyId], references: [id])
   students      Student[]
   users         User[]          @relation("UserOrganization")
+  organizationUsers OrganizationUser[]
   notifications Notification[]
+}
+
+model OrganizationUser {
+  id             String       @id @default(cuid())
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  roleInOrg      String?
+  isActive       Boolean      @default(true)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([organizationId, isActive])
 }
 
 model Student {
