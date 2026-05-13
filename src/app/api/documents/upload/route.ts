@@ -8,8 +8,15 @@ import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-];
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'image/png',
+  'image/jpeg',
+  'application/zip'
+] as const;
+
+const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.xlsx', '.png', '.jpg', '.jpeg', '.zip'] as const;
+const ALLOWED_FORMATS_ERROR = `Unsupported file format. Allowed formats: ${ALLOWED_EXTENSIONS.join(', ')}`;
 
 const MAX_FILE_SIZE_MB = Number(process.env.DOCUMENT_MAX_FILE_SIZE_MB ?? 10);
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -30,8 +37,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'orderId and file are required' }, { status: 400 });
   }
 
-  if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-    return NextResponse.json({ error: 'Unsupported file type' }, { status: 400 });
+  const fileName = file.name.toLowerCase();
+  const hasAllowedExtension = ALLOWED_EXTENSIONS.some((ext) => fileName.endsWith(ext));
+
+  if (!ALLOWED_MIME_TYPES.includes(file.type as (typeof ALLOWED_MIME_TYPES)[number]) || !hasAllowedExtension) {
+    return NextResponse.json({ error: ALLOWED_FORMATS_ERROR }, { status: 400 });
   }
 
   if (file.size > MAX_FILE_SIZE_BYTES) {
