@@ -22,6 +22,21 @@ For production/deploy use:
 docker compose exec app npx prisma migrate deploy
 ```
 
+## Environment variables
+
+Минимально обязательные переменные для запуска:
+
+- `DATABASE_URL`
+- `DIRECT_URL`
+- `JWT_SECRET`
+- `SUPABASE_URL` — URL проекта Supabase для server-only кода (storage/admin client).
+- `SUPABASE_SERVICE_ROLE_KEY` — сервисный ключ Supabase для серверных API.
+
+Дополнительно:
+
+- `SUPABASE_ANON_KEY` — публичный ключ для клиентских сценариев (если используются).
+- `SUPABASE_STORAGE_BUCKET` — имя bucket для документов (по умолчанию `documents`).
+
 ## Features
 - Auth via JWT cookie + RBAC (organization/partner/student/manager/admin)
 - Dashboard with orders/documents/comments summary
