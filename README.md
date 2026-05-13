@@ -38,6 +38,17 @@ docker compose exec app npx prisma migrate deploy
 - `/student` + `/student/redirect` — временный SSO-like переход во внешний LMS по signed JWT.
 - Middleware ограничивает доступ по ролям и изолирует кабинеты.
 
+
+## RBAC matrix (expected behavior)
+
+| Route prefix | Allowed roles |
+| --- | --- |
+| `/admin/*` | `admin` |
+| `/manager/*` | `manager` |
+| `/partner/*` | `partner`, `admin` |
+| `/organization/*` | `organization`, `admin` |
+| `/student/*` | `student`, `organization`, `admin`, `manager` |
+
 ## Smoke-checklist: admin/manager навигация и редиректы
 
 1. Неавторизованный пользователь:
