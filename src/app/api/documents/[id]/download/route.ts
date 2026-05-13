@@ -15,6 +15,7 @@ function resolveTtl(queryTtl?: string | null) {
 }
 
 export async function POST(_req: Request, { params }: { params: { id: string } }) {
+  const correlationId = crypto.randomUUID();
   const s = await getSession();
   if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -26,7 +27,15 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
   const { data, error } = await supabaseAdmin.storage.from(documentBucket).createSignedUrl(doc.path, ttl);
 
   if (error || !data?.signedUrl) {
-    return NextResponse.json({ error: error?.message ?? 'Failed to create signed URL' }, { status: 500 });
+    console.error('Failed to create document signed URL', {
+      correlationId,
+      documentId: doc.id,
+      storageBucket: documentBucket,
+      storagePath: doc.path,
+      ttl,
+      providerError: error?.message ?? 'Missing signed URL from provider'
+    });
+    return NextResponse.json({ error: 'Failed to create document download link', correlationId }, { status: 502 });
   }
 
   await prisma.auditLog.create({

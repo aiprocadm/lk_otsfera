@@ -26,6 +26,7 @@ function sanitizeFilename(filename: string) {
 }
 
 export async function POST(req: Request) {
+  const correlationId = crypto.randomUUID();
   const s = await getSession();
   if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -66,7 +67,17 @@ export async function POST(req: Request) {
     .upload(internalPath, Buffer.from(arrayBuffer), { contentType: file.type, upsert: false });
 
   if (uploadError) {
-    return NextResponse.json({ error: uploadError.message }, { status: 500 });
+    console.error('Document upload failed', {
+      correlationId,
+      orderId,
+      fileName: file.name,
+      fileSize: file.size,
+      mimeType: file.type,
+      storageBucket: documentBucket,
+      storagePath: internalPath,
+      providerError: uploadError.message
+    });
+    return NextResponse.json({ error: 'Failed to upload document', correlationId }, { status: 502 });
   }
 
   const doc = await prisma.document.create({
