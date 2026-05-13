@@ -1,7 +1,6 @@
 import { randomUUID } from 'crypto';
 import { SignJWT, jwtVerify } from 'jose';
 
-const secret = new TextEncoder().encode(process.env.JWT_SECRET);
 const studentBridgeSecret = new TextEncoder().encode(process.env.STUDENT_BRIDGE_JWT_SECRET ?? process.env.JWT_SECRET ?? '');
 
 export type Role = 'admin' | 'manager' | 'partner' | 'organization' | 'student';
@@ -19,8 +18,17 @@ export type SessionPayload = {
 
 export type StudentBridgePayload = Pick<SessionPayload, 'sub' | 'role' | 'organizationId' | 'email' | 'name' | 'externalStudentId'>;
 
+function getJwtSecret() {
+  const jwtSecret = process.env.JWT_SECRET?.trim();
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET is not configured');
+  }
+
+  return new TextEncoder().encode(jwtSecret);
+}
+
 export async function signToken(payload: SessionPayload) {
-  return new SignJWT(payload).setProtectedHeader({ alg: 'HS256' }).setExpirationTime('7d').sign(secret);
+  return new SignJWT(payload).setProtectedHeader({ alg: 'HS256' }).setExpirationTime('7d').sign(getJwtSecret());
 }
 
 function getStudentBridgeTtl() {
@@ -44,6 +52,6 @@ export async function signStudentBridgeToken(payload: StudentBridgePayload) {
 }
 
 export async function verifyToken(token: string) {
-  const { payload } = await jwtVerify(token, secret);
+  const { payload } = await jwtVerify(token, getJwtSecret());
   return payload as unknown as SessionPayload;
 }
