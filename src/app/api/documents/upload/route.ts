@@ -8,14 +8,25 @@ import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'image/png',
+  'image/jpeg',
+  'application/zip'
 ];
+
+const ALLOWED_EXTENSIONS = ['pdf', 'docx', 'xlsx', 'png', 'jpg', 'jpeg', 'zip'];
 
 const MAX_FILE_SIZE_MB = Number(process.env.DOCUMENT_MAX_FILE_SIZE_MB ?? 10);
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 function sanitizeFilename(filename: string) {
   return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+function getExtension(filename: string) {
+  const parts = filename.split('.');
+  return parts.length > 1 ? parts.pop()?.toLowerCase() : '';
 }
 
 export async function POST(req: Request) {
@@ -30,8 +41,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'orderId and file are required' }, { status: 400 });
   }
 
-  if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-    return NextResponse.json({ error: 'Unsupported file type' }, { status: 400 });
+  const fileExt = getExtension(file.name);
+  if (!ALLOWED_MIME_TYPES.includes(file.type) || !fileExt || !ALLOWED_EXTENSIONS.includes(fileExt)) {
+    return NextResponse.json({ error: 'Unsupported file type. Allowed: PDF, DOCX, XLSX, PNG, JPG, ZIP' }, { status: 400 });
   }
 
   if (file.size > MAX_FILE_SIZE_BYTES) {
@@ -56,7 +68,8 @@ export async function POST(req: Request) {
     .upload(internalPath, Buffer.from(arrayBuffer), { contentType: file.type, upsert: false });
 
   if (uploadError) {
-    return NextResponse.json({ error: uploadError.message }, { status: 500 });
+    console.error('[documents.upload] storage upload failed', { orderId, userId: s.sub, message: uploadError.message });
+    return NextResponse.json({ error: 'Failed to upload document' }, { status: 500 });
   }
 
   const doc = await prisma.document.create({

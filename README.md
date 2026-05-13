@@ -86,3 +86,19 @@ docker compose exec app npx prisma migrate deploy
   - `jti` помечается как использованный в таблице `StudentBridgeTokenJti`; повторное использование блокируется как replay.
 
 Рекомендация по эксплуатации: периодически очищать из `StudentBridgeTokenJti` записи с `expiresAt < now()` фоновым job/cron.
+
+
+## Local checks
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+## Student redirect security
+
+- `STUDENT_PORTAL_URL` must be HTTPS.
+- Host must be allowlisted via `STUDENT_PORTAL_ALLOWED_HOSTS` (comma-separated), default: `otsfera.cdoprof.com`.
+- Redirect uses short-lived code exchange flow (`/api/student/bridge/token`).

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth/session';
 import { signStudentBridgeToken } from '@/lib/auth/jwt';
 import { prisma } from '@/lib/db/prisma';
+import { assertAllowedStudentPortalUrl } from '@/lib/security/redirect';
 
 const bridgeCodeTtlSec = Number(process.env.STUDENT_BRIDGE_CODE_TTL_SEC ?? 60);
 
@@ -55,8 +56,13 @@ export default async function StudentRedirectPage() {
     })
   ]);
 
-  const url = new URL(externalUrl);
-  url.searchParams.set('code', code);
+  let url: URL;
+  try {
+    url = assertAllowedStudentPortalUrl(externalUrl);
+  } catch {
+    return <div className='p-6'>Некорректная конфигурация STUDENT_PORTAL_URL</div>;
+  }
 
+  url.searchParams.set('code', code);
   redirect(url.toString());
 }
