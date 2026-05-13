@@ -1,65 +1,177 @@
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "postgresql" url = env("DATABASE_URL") directUrl = env("DIRECT_URL") }
+generator client {
+  provider = "prisma-client-js"
+}
 
-enum Role { admin manager partner organization student }
-enum OrderStatus { new in_progress waiting_client completed }
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  admin
+  manager
+  partner
+  organization
+  student
+}
+
+enum OrderStatus {
+  new
+  in_progress
+  waiting_client
+  completed
+}
 
 model User {
-  id               String   @id @default(cuid())
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  email            String   @unique
-  passwordHash     String
-  name             String
-  role             Role     @default(organization)
-  companyId        String?
-  company          Company? @relation(fields:[companyId], references:[id])
-  partnerId        String?
-  partner          Partner? @relation(fields:[partnerId], references:[id])
-  organizationId   String?
-  organization     Organization? @relation("UserOrganization", fields:[organizationId], references:[id])
+  id                String         @id @default(cuid())
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  email             String         @unique
+  passwordHash      String
+  name              String
+  role              Role           @default(organization)
+  companyId         String?
+  company           Company?       @relation(fields: [companyId], references: [id])
+  partnerId         String?
+  partner           Partner?       @relation(fields: [partnerId], references: [id])
+  organizationId    String?
+  organization      Organization?  @relation("UserOrganization", fields: [organizationId], references: [id])
   externalStudentId String?
-  managedOrders    Order[]  @relation("OrderManager")
-  comments         Comment[]
-  auditLogs        AuditLog[]
+  managedOrders     Order[]        @relation("OrderManager")
+  comments          Comment[]
+  documents         Document[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
 }
 
 model Partner {
-  id            String @id @default(cuid())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id            String          @id @default(cuid())
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
   name          String
   organizations Organization[]
   users         User[]
+  notifications Notification[]
 }
 
 model Organization {
-  id            String @id @default(cuid())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id            String          @id @default(cuid())
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
   name          String
   partnerId     String
-  partner       Partner @relation(fields:[partnerId], references:[id])
+  partner       Partner         @relation(fields: [partnerId], references: [id])
   companyId     String?
-  company       Company? @relation(fields:[companyId], references:[id])
+  company       Company?        @relation(fields: [companyId], references: [id])
   students      Student[]
-  users         User[] @relation("UserOrganization")
+  users         User[]          @relation("UserOrganization")
+  notifications Notification[]
 }
 
 model Student {
-  id                String @id @default(cuid())
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  email             String @unique
+  id                String       @id @default(cuid())
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  email             String       @unique
   name              String
   organizationId    String
-  organization      Organization @relation(fields:[organizationId], references:[id])
+  organization      Organization @relation(fields: [organizationId], references: [id])
   externalStudentId String?
 }
 
-model Company { id String @id @default(cuid()) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt name String users User[] orders Order[] organizations Organization[] }
-model Order { id String @id @default(cuid()) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt title String status OrderStatus @default(new) deadline DateTime? companyId String company Company @relation(fields:[companyId], references:[id]) managerId String? manager User? @relation("OrderManager", fields:[managerId], references:[id]) documents Document[] comments Comment[] uploads Upload[] }
-model Document { id String @id @default(cuid()) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt name String path String mimeType String orderId String order Order @relation(fields:[orderId], references:[id]) uploadedById String uploadedBy User @relation(fields:[uploadedById], references:[id]) }
-model Comment { id String @id @default(cuid()) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt body String orderId String order Order @relation(fields:[orderId], references:[id]) authorId String author User @relation(fields:[authorId], references:[id]) attachmentPath String? }
-model Upload { id String @id @default(cuid()) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt filename String path String size Int orderId String order Order @relation(fields:[orderId], references:[id]) }
-model AuditLog { id String @id @default(cuid()) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt action String entity String entityId String userId String user User @relation(fields:[userId], references:[id]) meta Json? }
+model Company {
+  id            String         @id @default(cuid())
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  name          String
+  users         User[]
+  orders        Order[]
+  organizations Organization[]
+}
+
+model Order {
+  id        String      @id @default(cuid())
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  title     String
+  status    OrderStatus @default(new)
+  deadline  DateTime?
+  companyId String
+  company   Company     @relation(fields: [companyId], references: [id])
+  managerId String?
+  manager   User?       @relation("OrderManager", fields: [managerId], references: [id])
+  documents Document[]
+  comments  Comment[]
+  uploads   Upload[]
+}
+
+model Document {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  name         String
+  path         String
+  mimeType     String
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id])
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+}
+
+model Comment {
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  body           String
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id])
+  authorId       String
+  author         User     @relation(fields: [authorId], references: [id])
+  attachmentPath String?
+}
+
+model Upload {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  filename  String
+  path      String
+  size      Int
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  action    String
+  entity    String
+  entityId  String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  meta      Json?
+}
+
+model Notification {
+  id             String        @id @default(cuid())
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  userId         String
+  user           User          @relation(fields: [userId], references: [id])
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  partnerId      String?
+  partner        Partner?      @relation(fields: [partnerId], references: [id])
+  type           String
+  title          String
+  body           String
+  isRead         Boolean       @default(false)
+  meta           Json?
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([partnerId])
+  @@index([createdAt])
+}
