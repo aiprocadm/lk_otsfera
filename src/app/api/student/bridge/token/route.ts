@@ -6,14 +6,6 @@ const WINDOW_MS = Number(process.env.STUDENT_BRIDGE_RATE_LIMIT_WINDOW_MS ?? 60_0
 const LIMIT_PER_WINDOW = Number(process.env.STUDENT_BRIDGE_RATE_LIMIT_MAX ?? 10);
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 
-function maskCode(code?: string) {
-  if (!code) return null;
-  const trimmed = code.trim();
-  if (!trimmed) return null;
-  const head = trimmed.slice(0, 4);
-  return `${head}***(${trimmed.length})`;
-}
-
 function isRateLimited(key: string) {
   const now = Date.now();
   const current = rateLimitStore.get(key);
@@ -28,24 +20,25 @@ function isRateLimited(key: string) {
 
 async function auditBridgeFailure(params: {
   action: string;
-  userId?: string;
+  userId: string;
   entityId?: string;
-  code?: string;
   clientId?: string;
   ip?: string | null;
   reason: string;
 }) {
+  const resolvedEntityId = params.entityId ?? params.clientId ?? 'unknown';
+
   await prisma.auditLog.create({
     data: {
       action: params.action,
       entity: 'student_bridge_code',
-      entityId: params.entityId ?? params.clientId ?? 'unknown',
+      entityId: resolvedEntityId,
       userId: params.userId,
       meta: {
         reason: params.reason,
         clientId: params.clientId ?? null,
         ip: params.ip ?? null,
-        code: maskCode(params.code)
+        entityId: resolvedEntityId
       }
     }
   });
@@ -112,7 +105,6 @@ export async function POST(req: NextRequest) {
       userId: sessionResult.value.sub,
       clientId,
       ip,
-      code,
       reason: 'missing-or-invalid-code'
     });
     return NextResponse.json(safeError, { status: 400 });
@@ -126,7 +118,6 @@ export async function POST(req: NextRequest) {
       action: 'STUDENT_BRIDGE_CODE_REUSE_BLOCKED',
       entityId: grant.jti,
       userId: sessionResult.value.sub,
-      code,
       clientId,
       ip,
       reason: grant.usedAt ? 'already-used' : 'expired'
