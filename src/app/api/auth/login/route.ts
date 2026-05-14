@@ -4,12 +4,25 @@ import bcrypt from 'bcryptjs';
 import { signToken } from '@/lib/auth/jwt';
 
 export async function POST(req: Request) {
-  const { email, password } = await req.json();
+  let payload: unknown;
+  try {
+    payload = await req.json();
+  } catch {
+    return NextResponse.json({ code: 'INVALID_REQUEST', message: 'Invalid request' }, { status: 400 });
+  }
+
+  const email = typeof payload === 'object' && payload !== null ? (payload as { email?: unknown }).email : undefined;
+  const password = typeof payload === 'object' && payload !== null ? (payload as { password?: unknown }).password : undefined;
+
+  if (typeof email !== 'string' || !email.includes('@') || typeof password !== 'string' || password.length === 0) {
+    return NextResponse.json({ code: 'INVALID_REQUEST', message: 'Invalid request' }, { status: 400 });
+  }
+
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return NextResponse.json({ error: 'Invalid' }, { status: 401 });
+  if (!user) return NextResponse.json({ code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' }, { status: 401 });
 
   const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) return NextResponse.json({ error: 'Invalid' }, { status: 401 });
+  if (!ok) return NextResponse.json({ code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' }, { status: 401 });
 
   const token = await signToken({
     sub: user.id,
