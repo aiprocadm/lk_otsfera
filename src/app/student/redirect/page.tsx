@@ -7,20 +7,47 @@ import { assertAllowedStudentPortalUrl } from '@/lib/security/redirect';
 
 const bridgeCodeTtlSec = Number(process.env.STUDENT_BRIDGE_CODE_TTL_SEC ?? 60);
 
-const studentPortalAllowlist = [
-  'otsfera.cdoprof.com',
-  ...(process.env.STUDENT_PORTAL_ALLOWED_HOSTS ?? '')
+function parseCsvHosts(value: string | undefined): string[] {
+  return (value ?? '')
     .split(',')
     .map(host => host.trim())
     .filter(Boolean)
-];
+    .filter(host => !host.includes('*'));
+}
+
+function getStudentRedirectConfig() {
+  const newRedirectUrl = process.env.STUDENT_REDIRECT_URL?.trim();
+  const legacyRedirectUrl = process.env.STUDENT_PORTAL_URL?.trim();
+  const redirectUrl = newRedirectUrl || legacyRedirectUrl;
+
+  if (!newRedirectUrl && legacyRedirectUrl) {
+    console.warn(
+      '[student-redirect] STUDENT_PORTAL_URL is deprecated. Please migrate to STUDENT_REDIRECT_URL.'
+    );
+  }
+
+  const newAllowlist = process.env.STUDENT_REDIRECT_ALLOWED_DOMAINS;
+  const legacyAllowlist = process.env.STUDENT_PORTAL_ALLOWED_HOSTS;
+  const allowlistRaw = (newAllowlist && newAllowlist.trim()) || legacyAllowlist;
+
+  if ((!newAllowlist || !newAllowlist.trim()) && legacyAllowlist) {
+    console.warn(
+      '[student-redirect] STUDENT_PORTAL_ALLOWED_HOSTS is deprecated. Please migrate to STUDENT_REDIRECT_ALLOWED_DOMAINS.'
+    );
+  }
+
+  return {
+    redirectUrl,
+    allowlist: ['otsfera.cdoprof.com', ...parseCsvHosts(allowlistRaw)]
+  };
+}
 
 export default async function StudentRedirectPage() {
   const session = await getSession();
   if (!session) return null;
 
-  const externalUrl = process.env.STUDENT_PORTAL_URL;
-  if (!externalUrl) return <div className='p-6'>STUDENT_PORTAL_URL не настроен</div>;
+  const { redirectUrl: externalUrl, allowlist: studentPortalAllowlist } = getStudentRedirectConfig();
+  if (!externalUrl) return <div className='p-6'>STUDENT_REDIRECT_URL не настроен</div>;
 
   let url: URL;
   try {

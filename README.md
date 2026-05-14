@@ -33,7 +33,8 @@ npm run prisma:generate
 - `STUDENT_BRIDGE_ISSUER` — issuer bridge JWT (если не задан, используется `APP_URL`).
 - `STUDENT_BRIDGE_TTL` — TTL bridge JWT в секундах, ограничен диапазоном `300..900`.
 - `STUDENT_REDIRECT_URL` — базовый URL внешнего student/LMS портала для редиректа.
-- `STUDENT_REDIRECT_ALLOWED_DOMAINS` — список разрешенных доменов для redirect URL (через запятую).
+- `STUDENT_REDIRECT_ALLOWED_DOMAINS` — единый allowlist разрешенных доменов для redirect URL (CSV хостов, без wildcard).
+- Переходный период совместимости: если `STUDENT_REDIRECT_URL` или `STUDENT_REDIRECT_ALLOWED_DOMAINS` пусты, код читает legacy-переменные `STUDENT_PORTAL_URL` и `STUDENT_PORTAL_ALLOWED_HOSTS` и пишет server-side warning без секретов.
 
 Дополнительно:
 
@@ -177,7 +178,7 @@ npm run build
 ### Allowed domain policy
 
 - Redirect разрешен только на домены из `STUDENT_REDIRECT_ALLOWED_DOMAINS`.
-- Рекомендуется хранить allowlist строго по хостам без wildcard.
+- Allowlist парсится как CSV-список хостов, wildcard (`*`) игнорируется.
 - Запрещены редиректы на произвольные URL пользователя без валидации against allowlist.
 
 ## Troubleshooting
