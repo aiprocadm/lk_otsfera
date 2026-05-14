@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
   if (!clientId || !expectedSecret || sharedSecret !== expectedSecret) {
     await auditBridgeFailure({
       action: 'STUDENT_BRIDGE_CLIENT_DENIED',
-      userId: sessionResult.value.user.id,
+      userId: sessionResult.value.sub,
       clientId,
       ip,
       reason: 'client-auth-failed'
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
   if (isRateLimited(rateLimitKey)) {
     await auditBridgeFailure({
       action: 'STUDENT_BRIDGE_RATE_LIMITED',
-      userId: sessionResult.value.user.id,
+      userId: sessionResult.value.sub,
       clientId,
       ip,
       reason: 'rate-limit-exceeded'
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
   if (!code) {
     await auditBridgeFailure({
       action: 'STUDENT_BRIDGE_CODE_REJECTED',
-      userId: sessionResult.value.user.id,
+      userId: sessionResult.value.sub,
       clientId,
       ip,
       reason: 'missing-or-invalid-code'
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
   if (!grant) {
     await auditBridgeFailure({
       action: 'STUDENT_BRIDGE_CODE_REJECTED',
-      userId: sessionResult.value.user.id,
+      userId: sessionResult.value.sub,
       clientId,
       ip,
       code,
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
     await auditBridgeFailure({
       action: 'STUDENT_BRIDGE_CODE_REUSE_BLOCKED',
       entityId: grant.jti,
-      userId: grant.userId,
+      userId: sessionResult.value.sub,
       code,
       clientId,
       ip,
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
         action: 'STUDENT_BRIDGE_CODE_EXCHANGED',
         entity: 'student_bridge_code',
         entityId: grant.jti,
-        userId: grant.userId,
+        userId: sessionResult.value.sub,
         meta: { clientId, ip: ip ?? null, exchangedAt: now.toISOString() }
       }
     })
