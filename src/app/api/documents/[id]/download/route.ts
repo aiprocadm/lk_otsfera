@@ -14,13 +14,14 @@ function resolveTtl(queryTtl?: string | null) {
   return Math.min(MAX_TTL, Math.max(MIN_TTL, Number.isFinite(requested) ? requested : DEFAULT_TTL));
 }
 
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const correlationId = crypto.randomUUID();
   const sessionResult = await requireSession();
   if (!sessionResult.ok) return sessionResult.response;
   const s = sessionResult.value;
 
-  const doc = await prisma.document.findUnique({ where: { id: params.id }, include: { order: { select: { companyId: true } } } });
+  const { id } = await params;
+  const doc = await prisma.document.findUnique({ where: { id }, include: { order: { select: { companyId: true } } } });
   if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (!(await canReadDocument(s, doc))) return forbiddenResponse('You do not have access to this document');
 

@@ -1,10 +1,11 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth/session';
 import { navByRole } from '@/lib/navigation/cabinet';
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const session = await getSession();
-  if (!session) return null;
+  if (!session) redirect('/login');
 
   return (
     <div className='min-h-screen bg-slate-50'>

@@ -62,6 +62,27 @@ describe('orders visibility', () => {
   });
 });
 
+describe('orders patch role guard', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('student cannot change order status', async () => {
+    requireSession.mockResolvedValue({ ok: true, value: { role: 'student', sub: 'u-student' } });
+    requireRole.mockReturnValue({
+      ok: false,
+      response: Response.json({ error: 'Forbidden' }, { status: 403 })
+    });
+
+    const response = await PATCH(new Request('https://app.local/api/orders/o1', {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'completed' }),
+      headers: { 'content-type': 'application/json' }
+    }), { params: Promise.resolve({ id: 'o1' }) });
+
+    expect(response.status).toBe(403);
+    expect(update).not.toHaveBeenCalled();
+  });
+});
+
 describe('orders patch status validation', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -81,7 +102,7 @@ describe('orders patch status validation', () => {
       method: 'PATCH',
       body: JSON.stringify({ status: 'completed' }),
       headers: { 'content-type': 'application/json' }
-    }), { params: { id: 'o1' } });
+    }), { params: Promise.resolve({ id: 'o1' }) });
 
     expect(response.status).toBe(200);
     expect(update).toHaveBeenCalledWith({ where: { id: 'o1' }, data: { status: 'completed' } });
@@ -92,7 +113,7 @@ describe('orders patch status validation', () => {
       method: 'PATCH',
       body: JSON.stringify({ status: 'bad_status' }),
       headers: { 'content-type': 'application/json' }
-    }), { params: { id: 'o1' } });
+    }), { params: Promise.resolve({ id: 'o1' }) });
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: 'INVALID_STATUS' });
@@ -104,7 +125,7 @@ describe('orders patch status validation', () => {
       method: 'PATCH',
       body: JSON.stringify({}),
       headers: { 'content-type': 'application/json' }
-    }), { params: { id: 'o1' } });
+    }), { params: Promise.resolve({ id: 'o1' }) });
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: 'INVALID_STATUS' });

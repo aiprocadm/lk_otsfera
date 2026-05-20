@@ -76,6 +76,9 @@ export async function PATCH(req: Request) {
   }
 
   if (Array.isArray(ids) && ids.length > 0) {
+    if (ids.length > 100) {
+      return NextResponse.json({ error: 'Too many ids' }, { status: 400 });
+    }
     const notifications = await prisma.notification.updateMany({
       where: { AND: [{ id: { in: ids } }, where] },
       data: { isRead }

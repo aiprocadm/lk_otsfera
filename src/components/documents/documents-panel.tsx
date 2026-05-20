@@ -22,6 +22,7 @@ export function DocumentsPanel() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async load pattern, setState called in async callback
     void loadDocs();
   }, []);
 

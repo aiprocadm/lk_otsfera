@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 
 type NotificationInput = {
@@ -11,7 +12,12 @@ type NotificationInput = {
 };
 
 export async function createNotification(input: NotificationInput) {
-  return prisma.notification.create({ data: input });
+  return prisma.notification.create({
+    data: {
+      ...input,
+      meta: input.meta != null ? (input.meta as Prisma.InputJsonValue) : Prisma.JsonNull
+    }
+  });
 }
 
 export async function notifyDocumentCreated(params: Omit<NotificationInput, "type">) {
