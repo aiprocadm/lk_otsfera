@@ -1,4 +1,20 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-body { @apply bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100; }
+
+:root {
+  --brand-orange: #F97316;
+  --brand-orange-dark: #EA580C;
+  --brand-orange-light: #FFF7ED;
+  --brand-black: #111111;
+}
+
+body {
+  @apply bg-white text-[#111111] antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { @apply bg-gray-100; }
+::-webkit-scrollbar-thumb { @apply bg-gray-300 rounded-full; }
+::-webkit-scrollbar-thumb:hover { background: var(--brand-orange); }

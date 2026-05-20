@@ -1,12 +1,12 @@
 export default function Loading() {
   return (
-    <main className='p-6 space-y-4'>
-      <div className='h-8 w-64 bg-slate-200 rounded animate-pulse' />
-      <div className='grid gap-3 md:grid-cols-4'>
+    <div className='space-y-4'>
+      <div className='h-8 w-64 bg-gray-200 rounded-lg animate-pulse' />
+      <div className='grid gap-4 md:grid-cols-4'>
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className='h-24 bg-slate-200 rounded animate-pulse' />
+          <div key={i} className={`h-24 rounded-xl animate-pulse ${i === 0 ? 'bg-orange-200' : 'bg-gray-200'}`} />
         ))}
       </div>
-    </main>
+    </div>
   );
 }

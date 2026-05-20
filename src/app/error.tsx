@@ -13,13 +13,16 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <main className='min-h-screen grid place-items-center p-6 bg-slate-50'>
-      <div className='text-center space-y-4'>
-        <h1 className='text-2xl font-semibold'>Что-то пошло не так</h1>
-        <p className='text-slate-500 text-sm'>Произошла непредвиденная ошибка. Попробуйте ещё раз.</p>
+    <main className='min-h-screen flex items-center justify-center bg-gray-50 p-6'>
+      <div className='text-center max-w-md'>
+        <div className='w-16 h-16 bg-[#F97316] rounded-2xl flex items-center justify-center mx-auto mb-6'>
+          <span className='text-white text-2xl font-bold'>!</span>
+        </div>
+        <h1 className='text-2xl font-bold text-[#111111] mb-2'>Что-то пошло не так</h1>
+        <p className='text-gray-500 mb-6'>Произошла непредвиденная ошибка. Попробуйте ещё раз.</p>
         <button
           onClick={reset}
-          className='bg-zinc-900 text-white px-4 py-2 rounded text-sm hover:bg-zinc-700 transition-colors'
+          className='bg-[#F97316] hover:bg-[#EA580C] text-white font-semibold px-6 py-2.5 rounded-lg text-sm transition-colors'
         >
           Попробовать снова
         </button>
