@@ -1,6 +1,16 @@
 import { randomUUID } from 'crypto';
 import { JWTPayload, SignJWT, jwtVerify } from 'jose';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
+
+const MIN_JWT_SECRET_LENGTH = 32;
+
+function assertSecretStrength(secret: string, varName: string): string {
+  if (secret.length < MIN_JWT_SECRET_LENGTH) {
+    throw new Error(`${varName} must be at least ${MIN_JWT_SECRET_LENGTH} characters`);
+  }
+  return secret;
+}
 
 export type Role = 'admin' | 'manager' | 'partner' | 'organization' | 'student';
 
@@ -19,12 +29,14 @@ export type StudentBridgePayload = Pick<SessionPayload, 'sub' | 'role' | 'organi
 
 
 function getStudentBridgeSecret() {
-  const studentBridgeSecret = (process.env.STUDENT_BRIDGE_JWT_SECRET ?? process.env.JWT_SECRET ?? '').trim();
+  const fromBridgeVar = process.env.STUDENT_BRIDGE_JWT_SECRET?.trim();
+  const studentBridgeSecret = (fromBridgeVar || process.env.JWT_SECRET?.trim() || '');
   if (!studentBridgeSecret) {
     throw new Error('Student bridge JWT secret is not configured');
   }
 
-  return new TextEncoder().encode(studentBridgeSecret);
+  const varName = fromBridgeVar ? 'STUDENT_BRIDGE_JWT_SECRET' : 'JWT_SECRET';
+  return new TextEncoder().encode(assertSecretStrength(studentBridgeSecret, varName));
 }
 
 function getJwtSecret() {
@@ -33,7 +45,7 @@ function getJwtSecret() {
     throw new Error('JWT_SECRET is not configured');
   }
 
-  return new TextEncoder().encode(jwtSecret);
+  return new TextEncoder().encode(assertSecretStrength(jwtSecret, 'JWT_SECRET'));
 }
 
 export async function signToken(payload: SessionPayload) {
@@ -51,19 +63,18 @@ function getStudentBridgeIssuer() {
 }
 
 async function consumeStudentBridgeJti(jti: string, exp: number) {
-  const existing = await prisma.studentBridgeTokenJti.findUnique({ where: { jti }, select: { usedAt: true } });
-
-  if (existing?.usedAt) {
-    throw new Error('student bridge token replay detected');
-  }
-
   const expiresAt = new Date(exp * 1000);
 
-  await prisma.studentBridgeTokenJti.upsert({
-    where: { jti },
-    create: { jti, expiresAt, usedAt: new Date() },
-    update: { usedAt: new Date(), expiresAt }
-  });
+  try {
+    await prisma.studentBridgeTokenJti.create({
+      data: { jti, expiresAt, usedAt: new Date() }
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new Error('student bridge token replay detected');
+    }
+    throw error;
+  }
 }
 
 function getStudentBridgeTtl() {

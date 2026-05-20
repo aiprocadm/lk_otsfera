@@ -16,7 +16,7 @@ function req(pathname: string, token?: string) {
 describe('auth middleware', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    process.env.JWT_SECRET = 'secret';
+    process.env.JWT_SECRET = 'middleware-test-secret-with-at-least-32-chars';
   });
 
   it('allows unauthenticated user to pass on /login and /reset-password', async () => {

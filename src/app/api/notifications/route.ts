@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { requireRole, requireSession } from '@/lib/auth/guard';
 
 import type { SessionPayload } from '@/lib/auth/jwt';
+
+const patchSchema = z.object({
+  id: z.string().min(1).max(64).optional(),
+  ids: z.array(z.string().min(1).max(64)).max(100).optional(),
+  isRead: z.boolean().optional()
+}).refine((d) => d.id || (d.ids && d.ids.length > 0), {
+  message: 'id or ids required'
+});
 
 async function buildScopeWhere(session: SessionPayload) {
   if (session.role === 'admin') return {};
@@ -64,7 +73,19 @@ export async function PATCH(req: Request) {
   const roleResult = requireRole(session, ['admin', 'manager', 'partner', 'organization']);
   if (!roleResult.ok) return roleResult.response;
 
-  const { id, ids, isRead = true } = await req.json();
+  let payload: unknown;
+  try {
+    payload = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+  }
+
+  const parsed = patchSchema.safeParse(payload);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'id or ids required' }, { status: 400 });
+  }
+
+  const { id, ids, isRead = true } = parsed.data;
   const where = await buildScopeWhere(session);
 
   if (id) {
@@ -75,10 +96,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json(notification);
   }
 
-  if (Array.isArray(ids) && ids.length > 0) {
-    if (ids.length > 100) {
-      return NextResponse.json({ error: 'Too many ids' }, { status: 400 });
-    }
+  if (ids && ids.length > 0) {
     const notifications = await prisma.notification.updateMany({
       where: { AND: [{ id: { in: ids } }, where] },
       data: { isRead }
