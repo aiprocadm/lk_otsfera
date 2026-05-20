@@ -1,9 +1,57 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import bcrypt from 'bcryptjs';
 import { signToken } from '@/lib/auth/jwt';
 
+const DUMMY_BCRYPT_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
+
+const loginSchema = z.object({
+  email: z.string().email().max(254),
+  password: z.string().min(1).max(256)
+});
+
+const WINDOW_MS = Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS ?? 60_000);
+const MAX_ATTEMPTS = Number(process.env.LOGIN_RATE_LIMIT_MAX ?? 10);
+const MAX_RATE_LIMIT_ENTRIES = 10_000;
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+
+function cleanupAttempts(now: number) {
+  if (loginAttempts.size < MAX_RATE_LIMIT_ENTRIES) return;
+  for (const [key, entry] of loginAttempts) {
+    if (entry.resetAt <= now) loginAttempts.delete(key);
+  }
+}
+
+function isLoginRateLimited(key: string): boolean {
+  const now = Date.now();
+  cleanupAttempts(now);
+  const current = loginAttempts.get(key);
+  if (!current || current.resetAt <= now) {
+    loginAttempts.set(key, { count: 1, resetAt: now + WINDOW_MS });
+    return false;
+  }
+  current.count += 1;
+  return current.count > MAX_ATTEMPTS;
+}
+
+function clientIp(req: Request): string {
+  const headers = req.headers;
+  const fwd = headers.get('x-forwarded-for');
+  if (fwd) return fwd.split(',')[0]!.trim();
+  return headers.get('x-real-ip') ?? 'unknown';
+}
+
 export async function POST(req: Request) {
+  const ip = clientIp(req);
+
+  if (isLoginRateLimited(ip)) {
+    return NextResponse.json(
+      { code: 'TOO_MANY_REQUESTS', message: 'Too many login attempts. Try again later.' },
+      { status: 429 }
+    );
+  }
+
   let payload: unknown;
   try {
     payload = await req.json();
@@ -11,18 +59,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ code: 'INVALID_REQUEST', message: 'Invalid request' }, { status: 400 });
   }
 
-  const email = typeof payload === 'object' && payload !== null ? (payload as { email?: unknown }).email : undefined;
-  const password = typeof payload === 'object' && payload !== null ? (payload as { password?: unknown }).password : undefined;
-
-  if (typeof email !== 'string' || !email.includes('@') || typeof password !== 'string' || password.length === 0) {
+  const parsed = loginSchema.safeParse(payload);
+  if (!parsed.success) {
     return NextResponse.json({ code: 'INVALID_REQUEST', message: 'Invalid request' }, { status: 400 });
   }
 
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return NextResponse.json({ code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' }, { status: 401 });
+  const { email, password } = parsed.data;
 
-  const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) return NextResponse.json({ code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' }, { status: 401 });
+  const user = await prisma.user.findUnique({ where: { email } });
+  const hashToCompare = user?.passwordHash ?? DUMMY_BCRYPT_HASH;
+  const ok = await bcrypt.compare(password, hashToCompare);
+
+  if (!user || !ok) {
+    return NextResponse.json({ code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' }, { status: 401 });
+  }
 
   const token = await signToken({
     sub: user.id,
@@ -36,6 +86,11 @@ export async function POST(req: Request) {
   });
 
   const res = NextResponse.json({ ok: true });
-  res.cookies.set('session', token, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/' });
+  res.cookies.set('session', token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/'
+  });
   return res;
 }

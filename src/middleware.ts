@@ -4,9 +4,15 @@ import { jwtVerify } from 'jose';
 import { protectedPrefixes, roleHome } from '@/lib/auth/access';
 import type { Role } from '@/lib/auth/jwt';
 
+const MIN_JWT_SECRET_LENGTH = 32;
+
 function getJwtSecret() {
   const jwtSecret = process.env.JWT_SECRET?.trim();
   if (!jwtSecret) return null;
+  if (jwtSecret.length < MIN_JWT_SECRET_LENGTH) {
+    console.error('[auth] JWT_SECRET is too short; require at least', MIN_JWT_SECRET_LENGTH, 'chars');
+    return null;
+  }
   return new TextEncoder().encode(jwtSecret);
 }
 

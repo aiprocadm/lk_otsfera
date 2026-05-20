@@ -24,7 +24,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const orderAccess = await requireOrderAccess(s, order);
   if (!orderAccess.ok) return orderAccess.response;
 
-  const body = await req.json();
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'INVALID_STATUS' }, { status: 400 });
+  }
   const parsedBody = patchOrderSchema.safeParse(body);
   if (!parsedBody.success) {
     return NextResponse.json({ error: 'INVALID_STATUS' }, { status: 400 });

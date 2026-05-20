@@ -1,14 +1,13 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-const { upsert } = vi.hoisted(() => ({
-  upsert: vi.fn()
+const { create } = vi.hoisted(() => ({
+  create: vi.fn().mockResolvedValue({})
 }));
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     studentBridgeTokenJti: {
-      findUnique: vi.fn().mockResolvedValue(null),
-      upsert
+      create
     }
   }
 }));
@@ -18,7 +17,9 @@ import { assertAllowedStudentPortalUrl } from '@/lib/security/redirect';
 
 describe('student bridge token and redirect', () => {
   beforeEach(() => {
-    process.env.STUDENT_BRIDGE_JWT_SECRET = 'bridge-secret';
+    create.mockClear();
+    create.mockResolvedValue({});
+    process.env.STUDENT_BRIDGE_JWT_SECRET = 'bridge-secret-with-at-least-32-chars-XYZ';
     process.env.STUDENT_BRIDGE_ISSUER = 'https://issuer.local';
     process.env.STUDENT_BRIDGE_TTL = '600';
   });
@@ -39,7 +40,7 @@ describe('student bridge token and redirect', () => {
     expect(payload.exp).toBeTruthy();
     expect(payload.exp! - iat).toBeGreaterThanOrEqual(300);
     expect(payload.exp! - iat).toBeLessThanOrEqual(900);
-    expect(upsert).toHaveBeenCalled();
+    expect(create).toHaveBeenCalled();
   });
 
   it('redirect allows only allowlisted domain', () => {
