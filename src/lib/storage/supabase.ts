@@ -1,18 +1,25 @@
-import { createClient } from '@supabase/supabase-js';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!SUPABASE_URL) {
-  throw new Error('SUPABASE_URL is not configured');
+function buildSupabaseAdmin(): SupabaseClient<any> {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url) throw new Error('SUPABASE_URL is not configured');
+  if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not configured');
+  return createClient(url, key, { auth: { persistSession: false } });
 }
 
-if (!supabaseServiceRoleKey) {
-  throw new Error('SUPABASE_SERVICE_ROLE_KEY is not configured');
+let _admin: SupabaseClient<any> | null = null;
+
+function getAdmin(): SupabaseClient<any> {
+  if (!_admin) _admin = buildSupabaseAdmin();
+  return _admin;
 }
 
-export const supabaseAdmin = createClient(SUPABASE_URL, supabaseServiceRoleKey, {
-  auth: { persistSession: false }
+export const supabaseAdmin = new Proxy({} as SupabaseClient<any>, {
+  get(_, prop: string | symbol) {
+    return (getAdmin() as any)[prop];
+  }
 });
 
 export const documentBucket = process.env.SUPABASE_STORAGE_BUCKET ?? 'documents';

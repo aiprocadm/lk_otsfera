@@ -73,6 +73,7 @@ export default async function StudentRedirectPage() {
   });
 
   const code = randomUUID();
+  // eslint-disable-next-line react-hooks/purity -- server component, Date.now() is safe here
   const expiresAt = new Date(Date.now() + Math.max(10, bridgeCodeTtlSec) * 1000);
 
   await prisma.$transaction([
