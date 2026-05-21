@@ -23,34 +23,98 @@ enum OrderStatus {
   completed
 }
 
+enum ExecutionStatus {
+  pending
+  in_progress
+  completed
+  cancelled
+  on_hold
+}
+
+enum FinancialStatus {
+  not_billed
+  billed
+  partially_paid
+  paid
+  refunded
+}
+
+enum DocumentType {
+  contract
+  extra_agreement
+  invoice
+  act
+  waybill
+  certificate
+  report
+  commission_statement
+  other
+}
+
+enum DocumentDirection {
+  incoming
+  outgoing
+}
+
+enum GenerationSource {
+  user
+  system
+}
+
+enum NotificationType {
+  lead_status_changed
+  order_status_changed
+  payment_received
+  document_uploaded
+  commission_statement_ready
+  mention_in_comment
+  partner_assignment_changed
+  sync_error
+}
+
+enum LeadStatus {
+  new
+  in_review
+  qualified
+  promoted_to_order
+  rejected
+}
+
+enum CommissionStatementStatus {
+  draft
+  approved
+  paid
+  superseded
+}
+
 model User {
-  id                String         @id @default(cuid())
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  email             String         @unique
-  passwordHash      String
-  name              String
-  role              Role           @default(organization)
-  companyId         String?
-  company           Company?       @relation(fields: [companyId], references: [id])
-  partnerId         String?
-  partner           Partner?       @relation(fields: [partnerId], references: [id])
-  organizationId    String?
-  organization      Organization?  @relation("UserOrganization", fields: [organizationId], references: [id])
-  organizationUsers OrganizationUser[]
-  externalStudentId String?
-  managedOrders     Order[]        @relation("OrderManager")
-  comments          Comment[]
-  documents         Document[]
-  auditLogs         AuditLog[]
-  notifications     Notification[]
+  id                  String               @id @default(cuid())
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  email               String               @unique
+  passwordHash        String
+  name                String
+  role                Role                 @default(organization)
+  companyId           String?
+  company             Company?             @relation(fields: [companyId], references: [id])
+  partnerId           String?
+  partner             Partner?             @relation(fields: [partnerId], references: [id])
+  organizationId      String?
+  organization        Organization?        @relation("UserOrganization", fields: [organizationId], references: [id])
+  organizationUsers   OrganizationUser[]
+  externalStudentId   String?
+  managedOrders       Order[]              @relation("OrderManager")
+  comments            Comment[]
+  documents           Document[]
+  auditLogs           AuditLog[]
+  notifications       Notification[]
   studentBridgeGrants StudentBridgeGrant[]
 }
 
 model Partner {
-  id            String          @id @default(cuid())
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id            String         @id @default(cuid())
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   name          String
   organizations Organization[]
   users         User[]
@@ -58,18 +122,18 @@ model Partner {
 }
 
 model Organization {
-  id            String          @id @default(cuid())
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  name          String
-  partnerId     String
-  partner       Partner         @relation(fields: [partnerId], references: [id])
-  companyId     String?
-  company       Company?        @relation(fields: [companyId], references: [id])
-  students      Student[]
-  users         User[]          @relation("UserOrganization")
+  id                String             @id @default(cuid())
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  name              String
+  partnerId         String
+  partner           Partner            @relation(fields: [partnerId], references: [id])
+  companyId         String?
+  company           Company?           @relation(fields: [companyId], references: [id])
+  students          Student[]
+  users             User[]             @relation("UserOrganization")
   organizationUsers OrganizationUser[]
-  notifications Notification[]
+  notifications     Notification[]
 }
 
 model OrganizationUser {
@@ -197,21 +261,20 @@ model Notification {
 }
 
 model StudentBridgeGrant {
-  id         String    @id @default(cuid())
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  code       String    @unique
-  jti        String    @unique
-  token      String
-  userId     String
-  user       User      @relation(fields: [userId], references: [id])
-  expiresAt  DateTime
-  usedAt     DateTime?
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  code      String    @unique
+  jti       String    @unique
+  token     String
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  usedAt    DateTime?
 
   @@index([userId])
   @@index([expiresAt])
 }
-
 
 model StudentBridgeTokenJti {
   jti       String   @id
