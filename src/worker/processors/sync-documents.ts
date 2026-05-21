@@ -3,26 +3,26 @@ import type { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import type { SyncJobPayload } from '@/lib/jobs/types';
 import { getOneCAdapter } from '@/lib/services/oneCSync';
-import { mapOrderDto } from '@/lib/services/oneCSync/mappers';
+import { mapDocumentDto } from '@/lib/services/oneCSync/mappers';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 
-export type SyncOrdersResult = {
+export type SyncDocumentsResult = {
   pulled: number;
   created: number;
   updated: number;
   skipped: number;
 };
 
-type SkipReason = 'organization_not_found';
+type SkipReason = 'order_not_found';
 
-export async function syncOrdersProcessor(
+export async function syncDocumentsProcessor(
   job: Job<SyncJobPayload>,
   db: PrismaClient = prisma
-): Promise<SyncOrdersResult> {
+): Promise<SyncDocumentsResult> {
   const startedAt = Date.now();
-  console.log('[worker] sync-orders job started', { id: job.id });
+  console.log('[worker] sync-documents job started', { id: job.id });
 
-  const summary: SyncOrdersResult = {
+  const summary: SyncDocumentsResult = {
     pulled: 0,
     created: 0,
     updated: 0,
@@ -32,57 +32,47 @@ export async function syncOrdersProcessor(
 
   try {
     const adapter = getOneCAdapter();
-    const dtos = await adapter.pullOrders({});
+    const dtos = await adapter.pullDocuments({});
     summary.pulled = dtos.length;
 
     for (const dto of dtos) {
-      const input = mapOrderDto(dto);
-      const org = await db.organization.findUnique({
-        where: { externalId: input.organizationExternalId },
-        select: { id: true, partnerId: true, companyId: true }
+      const input = mapDocumentDto(dto);
+      const order = await db.order.findUnique({
+        where: { externalId: input.orderExternalId },
+        select: { id: true }
       });
 
-      if (!org || !org.companyId) {
+      if (!order) {
         summary.skipped += 1;
-        skips.push({ externalId: input.externalId, reason: 'organization_not_found' });
+        skips.push({ externalId: input.externalId, reason: 'order_not_found' });
         continue;
       }
 
-      const existing = await db.order.findUnique({
+      const existing = await db.document.findUnique({
         where: { externalId: input.externalId },
         select: { id: true }
       });
 
-      const ownedBy1C = {
-        orderNumber: input.orderNumber,
-        title: input.title,
-        totalAmount: input.totalAmount,
-        paidAmount: input.paidAmount,
-        paidAt: input.paidAt,
-        contractSignedAt: input.contractSignedAt,
-        completedAt: input.completedAt,
-        closedAt: input.closedAt,
-        vatIncluded: input.vatIncluded,
-        vatRate: input.vatRate,
-        financialStatus: input.financialStatus,
-        productMix: input.productMix,
-        lastSyncedAt: new Date()
+      const updatable = {
+        name: input.name,
+        path: input.downloadUrl,
+        mimeType: input.mimeType,
+        size: input.size,
+        type: input.type,
+        signedAt: input.signedAt
       };
 
       if (existing) {
-        await db.order.update({
-          where: { id: existing.id },
-          data: ownedBy1C
-        });
+        await db.document.update({ where: { id: existing.id }, data: updatable });
         summary.updated += 1;
       } else {
-        await db.order.create({
+        await db.document.create({
           data: {
-            ...ownedBy1C,
+            ...updatable,
             externalId: input.externalId,
-            executionStatus: input.executionStatus,
-            companyId: org.companyId,
-            partnerId: org.partnerId
+            orderId: order.id,
+            direction: 'incoming',
+            generatedBy: 'system'
           }
         });
         summary.created += 1;
@@ -90,7 +80,7 @@ export async function syncOrdersProcessor(
     }
 
     await writeSyncLog({
-      entity: 'order',
+      entity: 'document',
       direction: 'inbound',
       operation: summary.created > 0 ? 'create' : 'update',
       status: skips.length > 0 ? 'warn' : 'success',
@@ -101,7 +91,7 @@ export async function syncOrdersProcessor(
     return summary;
   } catch (err) {
     await writeSyncLog({
-      entity: 'order',
+      entity: 'document',
       direction: 'inbound',
       operation: 'skip',
       status: 'error',

@@ -2,6 +2,9 @@ import { Worker, type Processor } from 'bullmq';
 import { getRedisConnection, closeRedisConnection } from '@/lib/jobs/connection';
 import { closeAllQueues, type QueueName } from '@/lib/jobs/queues';
 import { syncOrdersProcessor } from './processors/sync-orders';
+import { syncPaymentsProcessor } from './processors/sync-payments';
+import { syncDocumentsProcessor } from './processors/sync-documents';
+import { syncOrganizationsProcessor } from './processors/sync-organizations';
 
 const workers: Worker[] = [];
 
@@ -22,7 +25,10 @@ function startWorker<T = unknown>(queueName: QueueName, processor: Processor<T>)
 
 async function main() {
   console.log('[worker] starting...');
+  startWorker('oneCSync.pullOrganizations', syncOrganizationsProcessor as Processor);
   startWorker('oneCSync.pullOrders', syncOrdersProcessor as Processor);
+  startWorker('oneCSync.pullPayments', syncPaymentsProcessor as Processor);
+  startWorker('oneCSync.pullDocuments', syncDocumentsProcessor as Processor);
   console.log('[worker] ready, listening on queues');
 }
 
