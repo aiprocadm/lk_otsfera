@@ -227,16 +227,28 @@ model Order {
 }
 
 model Document {
-  id           String   @id @default(cuid())
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  name         String
-  path         String
-  mimeType     String
-  orderId      String
-  order        Order    @relation(fields: [orderId], references: [id])
-  uploadedById String
-  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+  id                 String            @id @default(cuid())
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  name               String
+  path               String
+  mimeType           String
+  size               Int?
+  type               DocumentType      @default(other)
+  direction          DocumentDirection @default(incoming)
+  version            Int               @default(1)
+  replacesDocumentId String?
+  signedAt           DateTime?
+  generatedBy        GenerationSource  @default(user)
+  externalId         String?           @unique
+  orderId            String
+  order              Order             @relation(fields: [orderId], references: [id])
+  uploadedById       String?
+  uploadedBy         User?             @relation(fields: [uploadedById], references: [id])
+
+  @@index([orderId, type])
+  @@index([type, createdAt])
+  @@index([externalId])
 }
 
 model Comment {
