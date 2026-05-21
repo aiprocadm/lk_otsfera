@@ -3,26 +3,38 @@ import type { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import type { SyncJobPayload } from '@/lib/jobs/types';
 import { getOneCAdapter } from '@/lib/services/oneCSync';
-import { mapOrderDto } from '@/lib/services/oneCSync/mappers';
+import { mapOrgDto } from '@/lib/services/oneCSync/mappers';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 
-export type SyncOrdersResult = {
+export type SyncOrganizationsResult = {
   pulled: number;
   created: number;
   updated: number;
   skipped: number;
 };
 
-type SkipReason = 'organization_not_found';
+type SkipReason = 'partner_not_found' | 'no_partner_external_id';
 
-export async function syncOrdersProcessor(
+async function resolvePartnerId(
+  db: PrismaClient,
+  partnerExternalId: string | null
+): Promise<string | null> {
+  if (!partnerExternalId) return null;
+  const partner = await db.partner.findUnique({
+    where: { slug: partnerExternalId },
+    select: { id: true }
+  });
+  return partner?.id ?? null;
+}
+
+export async function syncOrganizationsProcessor(
   job: Job<SyncJobPayload>,
   db: PrismaClient = prisma
-): Promise<SyncOrdersResult> {
+): Promise<SyncOrganizationsResult> {
   const startedAt = Date.now();
-  console.log('[worker] sync-orders job started', { id: job.id });
+  console.log('[worker] sync-organizations job started', { id: job.id });
 
-  const summary: SyncOrdersResult = {
+  const summary: SyncOrganizationsResult = {
     pulled: 0,
     created: 0,
     updated: 0,
@@ -32,57 +44,47 @@ export async function syncOrdersProcessor(
 
   try {
     const adapter = getOneCAdapter();
-    const dtos = await adapter.pullOrders({});
+    const dtos = await adapter.pullOrganizations({});
     summary.pulled = dtos.length;
 
     for (const dto of dtos) {
-      const input = mapOrderDto(dto);
-      const org = await db.organization.findUnique({
-        where: { externalId: input.organizationExternalId },
-        select: { id: true, partnerId: true, companyId: true }
-      });
+      const input = mapOrgDto(dto);
+      const partnerId = await resolvePartnerId(db, input.partnerExternalId);
 
-      if (!org || !org.companyId) {
+      if (!partnerId) {
         summary.skipped += 1;
-        skips.push({ externalId: input.externalId, reason: 'organization_not_found' });
+        skips.push({
+          externalId: input.externalId,
+          reason: input.partnerExternalId ? 'partner_not_found' : 'no_partner_external_id'
+        });
         continue;
       }
 
-      const existing = await db.order.findUnique({
+      const existing = await db.organization.findUnique({
         where: { externalId: input.externalId },
-        select: { id: true }
+        select: { id: true, companyId: true }
       });
 
-      const ownedBy1C = {
-        orderNumber: input.orderNumber,
-        title: input.title,
-        totalAmount: input.totalAmount,
-        paidAmount: input.paidAmount,
-        paidAt: input.paidAt,
-        contractSignedAt: input.contractSignedAt,
-        completedAt: input.completedAt,
-        closedAt: input.closedAt,
-        vatIncluded: input.vatIncluded,
-        vatRate: input.vatRate,
-        financialStatus: input.financialStatus,
-        productMix: input.productMix,
-        lastSyncedAt: new Date()
-      };
-
       if (existing) {
-        await db.order.update({
+        await db.organization.update({
           where: { id: existing.id },
-          data: ownedBy1C
+          data: {
+            name: input.name,
+            inn: input.inn,
+            kpp: input.kpp
+          }
         });
         summary.updated += 1;
       } else {
-        await db.order.create({
+        const company = await db.company.create({ data: { name: input.name } });
+        await db.organization.create({
           data: {
-            ...ownedBy1C,
             externalId: input.externalId,
-            executionStatus: input.executionStatus,
-            companyId: org.companyId,
-            partnerId: org.partnerId
+            name: input.name,
+            inn: input.inn,
+            kpp: input.kpp,
+            partnerId,
+            companyId: company.id
           }
         });
         summary.created += 1;
@@ -90,7 +92,7 @@ export async function syncOrdersProcessor(
     }
 
     await writeSyncLog({
-      entity: 'order',
+      entity: 'organization',
       direction: 'inbound',
       operation: summary.created > 0 ? 'create' : 'update',
       status: skips.length > 0 ? 'warn' : 'success',
@@ -101,7 +103,7 @@ export async function syncOrdersProcessor(
     return summary;
   } catch (err) {
     await writeSyncLog({
-      entity: 'order',
+      entity: 'organization',
       direction: 'inbound',
       operation: 'skip',
       status: 'error',
