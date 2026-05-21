@@ -110,6 +110,8 @@ model User {
   notifications       Notification[]
   studentBridgeGrants StudentBridgeGrant[]
   partnerMemberships  PartnerUser[]        @relation("PartnerMembership")
+  leadsAuthored       Lead[]               @relation("LeadAuthor")
+  leadsManaged        Lead[]               @relation("LeadManager")
 }
 
 model PartnerUser {
@@ -129,6 +131,51 @@ model PartnerUser {
   @@index([userId])
 }
 
+model Lead {
+  id                 String           @id @default(cuid())
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  partnerId          String
+  partner            Partner          @relation(fields: [partnerId], references: [id])
+  createdByUserId    String
+  createdByUser      User             @relation("LeadAuthor", fields: [createdByUserId], references: [id])
+  organizationId     String?
+  organization       Organization?    @relation(fields: [organizationId], references: [id])
+  clientCompanyName  String
+  clientInn          String?
+  clientContactName  String
+  clientContactPhone String?
+  clientContactEmail String?
+  subject            String
+  estimatedAmount    Decimal?         @db.Decimal(14, 2)
+  productType        String[]
+  status             LeadStatus       @default(new)
+  assignedManagerId  String?
+  assignedManager    User?            @relation("LeadManager", fields: [assignedManagerId], references: [id])
+  promotedOrderId    String?          @unique
+  promotedOrder      Order?           @relation("LeadPromoted", fields: [promotedOrderId], references: [id])
+  rejectedReason     String?
+  notes              String?
+  attachments        LeadAttachment[]
+
+  @@index([partnerId, status])
+  @@index([assignedManagerId])
+  @@index([createdAt])
+}
+
+model LeadAttachment {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id])
+  name      String
+  path      String
+  mimeType  String
+  size      Int
+
+  @@index([leadId])
+}
+
 model Partner {
   id             String         @id @default(cuid())
   createdAt      DateTime       @default(now())
@@ -141,6 +188,7 @@ model Partner {
   users          User[]
   orders         Order[]
   partnerUsers   PartnerUser[]
+  leads          Lead[]
   notifications  Notification[]
 }
 
@@ -165,6 +213,7 @@ model Organization {
   users                          User[]             @relation("UserOrganization")
   organizationUsers              OrganizationUser[]
   notifications                  Notification[]
+  leads                          Lead[]
 
   @@index([partnerId])
   @@index([externalId])
@@ -238,6 +287,7 @@ model Order {
   documents        Document[]
   comments         Comment[]
   uploads          Upload[]
+  promotedFromLead Lead?           @relation("LeadPromoted")
 
   @@index([partnerId, executionStatus])
   @@index([partnerId, financialStatus])
