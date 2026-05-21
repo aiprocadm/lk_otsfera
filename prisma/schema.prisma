@@ -221,6 +221,24 @@ model CommissionStatementItem {
   @@index([orderId])
 }
 
+model Payment {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id])
+  externalId String?  @unique
+  amount     Decimal  @db.Decimal(14, 2)
+  paidAt     DateTime
+  method     String?
+  isRefund   Boolean  @default(false)
+  note       String?
+
+  @@index([orderId])
+  @@index([paidAt])
+  @@index([externalId])
+}
+
 model Partner {
   id             String         @id @default(cuid())
   createdAt      DateTime       @default(now())
@@ -333,6 +351,7 @@ model Order {
   documents        Document[]
   comments         Comment[]
   uploads          Upload[]
+  payments         Payment[]
   promotedFromLead Lead?           @relation("LeadPromoted")
   commissionItems  CommissionStatementItem[]
 
