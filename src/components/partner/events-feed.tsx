@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { DashboardEvent } from '@/lib/services/partner/dashboard';
 
 const kindIcon: Record<DashboardEvent['kind'], string> = {
@@ -5,6 +6,10 @@ const kindIcon: Record<DashboardEvent['kind'], string> = {
   lead_created: '👤',
   payment_received: '💰'
 };
+
+function refHref(ref: DashboardEvent['ref']): string {
+  return ref.kind === 'lead' ? `/partner/leads/${ref.id}` : `/partner/deals/${ref.id}`;
+}
 
 export function EventsFeed({ events }: { events: DashboardEvent[] }) {
   if (events.length === 0) {
@@ -20,10 +25,13 @@ export function EventsFeed({ events }: { events: DashboardEvent[] }) {
       <ul className='space-y-2 text-sm'>
         {events.map((e, i) => (
           <li key={i} className='flex items-center justify-between gap-3'>
-            <span className='text-gray-700'>
+            <Link
+              href={refHref(e.ref)}
+              className='text-gray-700 hover:text-[#F97316] flex-1 min-w-0 truncate'
+            >
               <span className='mr-1'>{kindIcon[e.kind]}</span>
               {e.title}
-            </span>
+            </Link>
             <span className='text-gray-400 text-xs whitespace-nowrap'>{e.at.toLocaleString('ru-RU')}</span>
           </li>
         ))}

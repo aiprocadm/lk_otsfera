@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { Attention } from '@/lib/services/partner/dashboard';
 
 export function AttentionList({ data }: { data: Attention }) {
@@ -20,20 +21,35 @@ export function AttentionList({ data }: { data: Attention }) {
       <ul className='space-y-2 text-sm'>
         {data.stuckOrders.map((o) => (
           <li key={`stuck-${o.id}`} className='flex items-center justify-between gap-3'>
-            <span className='text-gray-700'>🕒 Сделка «{o.title}» зависла</span>
-            <span className='text-gray-400 text-xs'>обн. {o.updatedAt.toLocaleDateString('ru-RU')}</span>
+            <Link
+              href={`/partner/deals/${o.id}`}
+              className='text-gray-700 hover:text-[#F97316] flex-1 min-w-0 truncate'
+            >
+              🕒 Сделка «{o.title}» зависла
+            </Link>
+            <span className='text-gray-400 text-xs whitespace-nowrap'>обн. {o.updatedAt.toLocaleDateString('ru-RU')}</span>
           </li>
         ))}
         {data.overdueOrders.map((o) => (
           <li key={`overdue-${o.id}`} className='flex items-center justify-between gap-3'>
-            <span className='text-red-700'>⚠ Просрочка: «{o.title}»</span>
-            <span className='text-gray-400 text-xs'>до {o.deadline?.toLocaleDateString('ru-RU') ?? '—'}</span>
+            <Link
+              href={`/partner/deals/${o.id}`}
+              className='text-red-700 hover:underline flex-1 min-w-0 truncate'
+            >
+              ⚠ Просрочка: «{o.title}»
+            </Link>
+            <span className='text-gray-400 text-xs whitespace-nowrap'>до {o.deadline?.toLocaleDateString('ru-RU') ?? '—'}</span>
           </li>
         ))}
         {data.staleLeads.map((l) => (
           <li key={`lead-${l.id}`} className='flex items-center justify-between gap-3'>
-            <span className='text-gray-700'>👤 Лид «{l.clientCompanyName}» без квалификации</span>
-            <span className='text-gray-400 text-xs'>с {l.createdAt.toLocaleDateString('ru-RU')}</span>
+            <Link
+              href={`/partner/leads/${l.id}`}
+              className='text-gray-700 hover:text-[#F97316] flex-1 min-w-0 truncate'
+            >
+              👤 Лид «{l.clientCompanyName}» без квалификации
+            </Link>
+            <span className='text-gray-400 text-xs whitespace-nowrap'>с {l.createdAt.toLocaleDateString('ru-RU')}</span>
           </li>
         ))}
       </ul>
