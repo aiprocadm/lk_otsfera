@@ -7,8 +7,8 @@ type Tab = { href: string; label: string; icon: string; disabled?: boolean };
 const TABS: Tab[] = [
   { href: '/partner/dashboard', label: 'Кабинет', icon: '⌂' },
   { href: '/partner/portfolio', label: 'Портфель', icon: '🏢' },
-  { href: '/partner/team', label: 'Команда', icon: '👥' },
-  { href: '/partner/deals', label: 'Сделки', icon: '📋', disabled: true }
+  { href: '/partner/deals', label: 'Сделки', icon: '📋' },
+  { href: '/partner/team', label: 'Команда', icon: '👥' }
 ];
 
 export function BottomTabBar() {

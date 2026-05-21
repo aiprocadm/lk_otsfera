@@ -2,17 +2,17 @@ import { describe, it, expect } from 'vitest';
 import { navByRole } from '@/lib/navigation/cabinet';
 
 describe('navByRole.partner', () => {
-  it('contains Phase 1 active items', () => {
+  it('contains active items', () => {
     const labels = navByRole.partner.filter((i) => !i.disabled).map((i) => i.label);
     expect(labels).toEqual(
-      expect.arrayContaining(['Дашборд', 'Портфель', 'Команда'])
+      expect.arrayContaining(['Дашборд', 'Портфель', 'Сделки', 'Команда'])
     );
   });
 
   it('contains Phase 2+ items as disabled', () => {
     const disabled = navByRole.partner.filter((i) => i.disabled).map((i) => i.label);
     expect(disabled).toEqual(
-      expect.arrayContaining(['Сделки', 'Заявки', 'Документы', 'Финансы'])
+      expect.arrayContaining(['Заявки', 'Документы', 'Финансы'])
     );
   });
 
