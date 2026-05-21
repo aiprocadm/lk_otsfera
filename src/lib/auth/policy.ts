@@ -74,3 +74,34 @@ export async function canReadDocument(session: SessionPayload, document: Documen
 
   return canReadOrder(session, { id: doc.id, companyId: doc.order.companyId });
 }
+
+export function isPartnerAdmin(session: SessionPayload): boolean {
+  return session.role === 'partner' && session.partnerRole === 'admin';
+}
+
+export async function canPartnerAccessOrg(
+  session: SessionPayload,
+  organizationId: string
+): Promise<boolean> {
+  if (session.role !== 'partner' || !session.partnerId) return false;
+
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { partnerId: true }
+  });
+  if (!org || org.partnerId !== session.partnerId) return false;
+
+  const scope = session.assignedOrgIds ?? [];
+  if (scope.length === 0) return true;
+  return scope.includes(organizationId);
+}
+
+export function partnerOrgScopeFilter(
+  session: SessionPayload
+): { partnerId: string } | { partnerId: string; id: { in: string[] } } | { id: { in: never[] } } {
+  if (!session.partnerId) return { id: { in: [] } };
+
+  const scope = session.assignedOrgIds ?? [];
+  if (scope.length === 0) return { partnerId: session.partnerId };
+  return { partnerId: session.partnerId, id: { in: scope } };
+}
