@@ -112,6 +112,7 @@ model User {
   partnerMemberships  PartnerUser[]        @relation("PartnerMembership")
   leadsAuthored       Lead[]               @relation("LeadAuthor")
   leadsManaged        Lead[]               @relation("LeadManager")
+  commissionStatementsAuthored CommissionStatement[] @relation("CommissionAuthor")
 }
 
 model PartnerUser {
@@ -176,6 +177,50 @@ model LeadAttachment {
   @@index([leadId])
 }
 
+model CommissionStatement {
+  id                    String                    @id @default(cuid())
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  partnerId             String
+  partner               Partner                   @relation(fields: [partnerId], references: [id])
+  periodFrom            DateTime
+  periodTo              DateTime
+  calculatedAt          DateTime                  @default(now())
+  calculatedByUserId    String?
+  calculatedByUser      User?                     @relation("CommissionAuthor", fields: [calculatedByUserId], references: [id])
+  totalBaseAmount       Decimal                   @default(0) @db.Decimal(14, 2)
+  averageRate           Decimal                   @default(0) @db.Decimal(6, 4)
+  totalCommissionAmount Decimal                   @default(0) @db.Decimal(14, 2)
+  status                CommissionStatementStatus @default(draft)
+  pdfPath               String?
+  xlsxPath              String?
+  approvedByUserId      String?
+  approvedAt            DateTime?
+  paidAt                DateTime?
+  supersededBy          String?
+  notes                 String?
+  items                 CommissionStatementItem[]
+
+  @@index([partnerId, periodFrom, periodTo])
+  @@index([status])
+}
+
+model CommissionStatementItem {
+  id               String              @id @default(cuid())
+  statementId      String
+  statement        CommissionStatement @relation(fields: [statementId], references: [id])
+  orderId          String
+  order            Order               @relation(fields: [orderId], references: [id])
+  orderNumber      String?
+  organizationName String
+  baseAmount       Decimal             @db.Decimal(14, 2)
+  rate             Decimal             @db.Decimal(6, 4)
+  commissionAmount Decimal             @db.Decimal(14, 2)
+
+  @@index([statementId])
+  @@index([orderId])
+}
+
 model Partner {
   id             String         @id @default(cuid())
   createdAt      DateTime       @default(now())
@@ -184,12 +229,13 @@ model Partner {
   legalName      String?
   slug           String?        @unique
   commissionRate Decimal        @default(0) @db.Decimal(6, 4)
-  organizations  Organization[]
-  users          User[]
-  orders         Order[]
-  partnerUsers   PartnerUser[]
-  leads          Lead[]
-  notifications  Notification[]
+  organizations        Organization[]
+  users                User[]
+  orders               Order[]
+  partnerUsers         PartnerUser[]
+  leads                Lead[]
+  commissionStatements CommissionStatement[]
+  notifications        Notification[]
 }
 
 model Organization {
@@ -288,6 +334,7 @@ model Order {
   comments         Comment[]
   uploads          Upload[]
   promotedFromLead Lead?           @relation("LeadPromoted")
+  commissionItems  CommissionStatementItem[]
 
   @@index([partnerId, executionStatus])
   @@index([partnerId, financialStatus])
