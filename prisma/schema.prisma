@@ -109,6 +109,24 @@ model User {
   auditLogs           AuditLog[]
   notifications       Notification[]
   studentBridgeGrants StudentBridgeGrant[]
+  partnerMemberships  PartnerUser[]        @relation("PartnerMembership")
+}
+
+model PartnerUser {
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  partnerId      String
+  partner        Partner  @relation(fields: [partnerId], references: [id])
+  userId         String
+  user           User     @relation("PartnerMembership", fields: [userId], references: [id])
+  roleInPartner  String   @default("manager")
+  assignedOrgIds String[]
+  isActive       Boolean  @default(true)
+
+  @@unique([partnerId, userId])
+  @@index([partnerId, isActive])
+  @@index([userId])
 }
 
 model Partner {
@@ -122,6 +140,7 @@ model Partner {
   organizations  Organization[]
   users          User[]
   orders         Order[]
+  partnerUsers   PartnerUser[]
   notifications  Notification[]
 }
 
