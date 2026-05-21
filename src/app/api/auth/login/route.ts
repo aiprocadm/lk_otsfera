@@ -74,6 +74,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' }, { status: 401 });
   }
 
+  let partnerRole: 'admin' | 'manager' | undefined;
+  let assignedOrgIds: string[] | undefined;
+
+  if (user.role === 'partner' && user.partnerId) {
+    const membership = await prisma.partnerUser.findUnique({
+      where: { partnerId_userId: { partnerId: user.partnerId, userId: user.id } }
+    });
+
+    if (membership) {
+      if (!membership.isActive) {
+        return NextResponse.json({ code: 'ACCOUNT_DEACTIVATED', message: 'Account deactivated' }, { status: 403 });
+      }
+      partnerRole = membership.roleInPartner === 'admin' ? 'admin' : 'manager';
+      assignedOrgIds = membership.assignedOrgIds;
+    }
+  }
+
   const token = await signToken({
     sub: user.id,
     role: user.role,
@@ -82,7 +99,9 @@ export async function POST(req: Request) {
     organizationId: user.organizationId,
     email: user.email,
     name: user.name,
-    externalStudentId: user.externalStudentId
+    externalStudentId: user.externalStudentId,
+    ...(partnerRole !== undefined ? { partnerRole } : {}),
+    ...(assignedOrgIds !== undefined ? { assignedOrgIds } : {})
   });
 
   const res = NextResponse.json({ ok: true });
