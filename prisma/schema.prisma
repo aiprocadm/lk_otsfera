@@ -23,53 +23,296 @@ enum OrderStatus {
   completed
 }
 
+enum ExecutionStatus {
+  pending
+  in_progress
+  completed
+  cancelled
+  on_hold
+}
+
+enum FinancialStatus {
+  not_billed
+  billed
+  partially_paid
+  paid
+  refunded
+}
+
+enum DocumentType {
+  contract
+  extra_agreement
+  invoice
+  act
+  waybill
+  certificate
+  report
+  commission_statement
+  other
+}
+
+enum DocumentDirection {
+  incoming
+  outgoing
+}
+
+enum GenerationSource {
+  user
+  system
+}
+
+enum NotificationType {
+  lead_status_changed
+  order_status_changed
+  payment_received
+  document_uploaded
+  commission_statement_ready
+  mention_in_comment
+  partner_assignment_changed
+  sync_error
+}
+
+enum LeadStatus {
+  new
+  in_review
+  qualified
+  promoted_to_order
+  rejected
+}
+
+enum CommissionStatementStatus {
+  draft
+  approved
+  paid
+  superseded
+}
+
 model User {
-  id                String         @id @default(cuid())
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  email             String         @unique
-  passwordHash      String
-  name              String
-  role              Role           @default(organization)
-  companyId         String?
-  company           Company?       @relation(fields: [companyId], references: [id])
-  partnerId         String?
-  partner           Partner?       @relation(fields: [partnerId], references: [id])
-  organizationId    String?
-  organization      Organization?  @relation("UserOrganization", fields: [organizationId], references: [id])
-  organizationUsers OrganizationUser[]
-  externalStudentId String?
-  managedOrders     Order[]        @relation("OrderManager")
-  comments          Comment[]
-  documents         Document[]
-  auditLogs         AuditLog[]
-  notifications     Notification[]
+  id                  String               @id @default(cuid())
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  email               String               @unique
+  passwordHash        String
+  name                String
+  role                Role                 @default(organization)
+  companyId           String?
+  company             Company?             @relation(fields: [companyId], references: [id])
+  partnerId           String?
+  partner             Partner?             @relation(fields: [partnerId], references: [id])
+  organizationId      String?
+  organization        Organization?        @relation("UserOrganization", fields: [organizationId], references: [id])
+  organizationUsers   OrganizationUser[]
+  externalStudentId   String?
+  managedOrders       Order[]              @relation("OrderManager")
+  comments            Comment[]
+  documents           Document[]
+  auditLogs           AuditLog[]
+  notifications       Notification[]
   studentBridgeGrants StudentBridgeGrant[]
+  partnerMemberships  PartnerUser[]        @relation("PartnerMembership")
+  leadsAuthored       Lead[]               @relation("LeadAuthor")
+  leadsManaged        Lead[]               @relation("LeadManager")
+  commissionStatementsAuthored CommissionStatement[] @relation("CommissionAuthor")
+  savedViews          SavedView[]          @relation("SavedViewOwner")
+}
+
+model PartnerUser {
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  partnerId      String
+  partner        Partner  @relation(fields: [partnerId], references: [id])
+  userId         String
+  user           User     @relation("PartnerMembership", fields: [userId], references: [id])
+  roleInPartner  String   @default("manager")
+  assignedOrgIds String[]
+  isActive       Boolean  @default(true)
+
+  @@unique([partnerId, userId])
+  @@index([partnerId, isActive])
+  @@index([userId])
+}
+
+model Lead {
+  id                 String           @id @default(cuid())
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  partnerId          String
+  partner            Partner          @relation(fields: [partnerId], references: [id])
+  createdByUserId    String
+  createdByUser      User             @relation("LeadAuthor", fields: [createdByUserId], references: [id])
+  organizationId     String?
+  organization       Organization?    @relation(fields: [organizationId], references: [id])
+  clientCompanyName  String
+  clientInn          String?
+  clientContactName  String
+  clientContactPhone String?
+  clientContactEmail String?
+  subject            String
+  estimatedAmount    Decimal?         @db.Decimal(14, 2)
+  productType        String[]
+  status             LeadStatus       @default(new)
+  assignedManagerId  String?
+  assignedManager    User?            @relation("LeadManager", fields: [assignedManagerId], references: [id])
+  promotedOrderId    String?          @unique
+  promotedOrder      Order?           @relation("LeadPromoted", fields: [promotedOrderId], references: [id])
+  rejectedReason     String?
+  notes              String?
+  attachments        LeadAttachment[]
+
+  @@index([partnerId, status])
+  @@index([assignedManagerId])
+  @@index([createdAt])
+}
+
+model LeadAttachment {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id])
+  name      String
+  path      String
+  mimeType  String
+  size      Int
+
+  @@index([leadId])
+}
+
+model CommissionStatement {
+  id                    String                    @id @default(cuid())
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  partnerId             String
+  partner               Partner                   @relation(fields: [partnerId], references: [id])
+  periodFrom            DateTime
+  periodTo              DateTime
+  calculatedAt          DateTime                  @default(now())
+  calculatedByUserId    String?
+  calculatedByUser      User?                     @relation("CommissionAuthor", fields: [calculatedByUserId], references: [id])
+  totalBaseAmount       Decimal                   @default(0) @db.Decimal(14, 2)
+  averageRate           Decimal                   @default(0) @db.Decimal(6, 4)
+  totalCommissionAmount Decimal                   @default(0) @db.Decimal(14, 2)
+  status                CommissionStatementStatus @default(draft)
+  pdfPath               String?
+  xlsxPath              String?
+  approvedByUserId      String?
+  approvedAt            DateTime?
+  paidAt                DateTime?
+  supersededBy          String?
+  notes                 String?
+  items                 CommissionStatementItem[]
+
+  @@index([partnerId, periodFrom, periodTo])
+  @@index([status])
+}
+
+model CommissionStatementItem {
+  id               String              @id @default(cuid())
+  statementId      String
+  statement        CommissionStatement @relation(fields: [statementId], references: [id])
+  orderId          String
+  order            Order               @relation(fields: [orderId], references: [id])
+  orderNumber      String?
+  organizationName String
+  baseAmount       Decimal             @db.Decimal(14, 2)
+  rate             Decimal             @db.Decimal(6, 4)
+  commissionAmount Decimal             @db.Decimal(14, 2)
+
+  @@index([statementId])
+  @@index([orderId])
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id])
+  externalId String?  @unique
+  amount     Decimal  @db.Decimal(14, 2)
+  paidAt     DateTime
+  method     String?
+  isRefund   Boolean  @default(false)
+  note       String?
+
+  @@index([orderId])
+  @@index([paidAt])
+  @@index([externalId])
+}
+
+model SavedView {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  user      User     @relation("SavedViewOwner", fields: [userId], references: [id])
+  scope     String
+  name      String
+  filters   Json
+  isDefault Boolean  @default(false)
+  isShared  Boolean  @default(false)
+
+  @@index([userId, scope])
+}
+
+model SyncLog {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  entity       String
+  externalId   String?
+  direction    String
+  operation    String
+  status       String
+  errorMessage String?
+  payload      Json?
+  durationMs   Int?
+
+  @@index([entity, createdAt])
+  @@index([status, createdAt])
 }
 
 model Partner {
-  id            String          @id @default(cuid())
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  name          String
-  organizations Organization[]
-  users         User[]
-  notifications Notification[]
+  id             String         @id @default(cuid())
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  name           String
+  legalName      String?
+  slug           String?        @unique
+  commissionRate Decimal        @default(0) @db.Decimal(6, 4)
+  organizations        Organization[]
+  users                User[]
+  orders               Order[]
+  partnerUsers         PartnerUser[]
+  leads                Lead[]
+  commissionStatements CommissionStatement[]
+  notifications        Notification[]
 }
 
 model Organization {
-  id            String          @id @default(cuid())
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  name          String
-  partnerId     String
-  partner       Partner         @relation(fields: [partnerId], references: [id])
-  companyId     String?
-  company       Company?        @relation(fields: [companyId], references: [id])
-  students      Student[]
-  users         User[]          @relation("UserOrganization")
-  organizationUsers OrganizationUser[]
-  notifications Notification[]
+  id                             String             @id @default(cuid())
+  createdAt                      DateTime           @default(now())
+  updatedAt                      DateTime           @updatedAt
+  name                           String
+  externalId                     String?            @unique
+  inn                            String?
+  kpp                            String?
+  partnerId                      String
+  partner                        Partner            @relation(fields: [partnerId], references: [id])
+  companyId                      String?
+  company                        Company?           @relation(fields: [companyId], references: [id])
+  assignedManagerUserId          String?
+  partnerCommissionRate          Decimal?           @db.Decimal(6, 4)
+  partnerCommissionRateNote      String?
+  partnerCommissionRateChangedAt DateTime?
+  partnerCommissionRateChangedBy String?
+  students                       Student[]
+  users                          User[]             @relation("UserOrganization")
+  organizationUsers              OrganizationUser[]
+  notifications                  Notification[]
+  leads                          Lead[]
+
+  @@index([partnerId])
+  @@index([externalId])
 }
 
 model OrganizationUser {
@@ -111,32 +354,68 @@ model Company {
 }
 
 model Order {
-  id        String      @id @default(cuid())
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  title     String
-  status    OrderStatus @default(new)
-  deadline  DateTime?
-  companyId String
-  company   Company     @relation(fields: [companyId], references: [id])
-  managerId String?
-  manager   User?       @relation("OrderManager", fields: [managerId], references: [id])
-  documents Document[]
-  comments  Comment[]
-  uploads   Upload[]
+  id               String          @id @default(cuid())
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  externalId       String?         @unique
+  orderNumber      String?
+  title            String
+  status           OrderStatus     @default(new)
+  executionStatus  ExecutionStatus @default(pending)
+  financialStatus  FinancialStatus @default(not_billed)
+  totalAmount      Decimal         @default(0) @db.Decimal(14, 2)
+  paidAmount       Decimal         @default(0) @db.Decimal(14, 2)
+  paidAt           DateTime?
+  contractSignedAt DateTime?
+  completedAt      DateTime?
+  closedAt         DateTime?
+  lastSyncedAt     DateTime?
+  vatIncluded      Boolean         @default(true)
+  vatRate          Decimal?        @db.Decimal(5, 4)
+  productMix       String[]
+  deadline         DateTime?
+  companyId        String
+  company          Company         @relation(fields: [companyId], references: [id])
+  partnerId        String?
+  partner          Partner?        @relation(fields: [partnerId], references: [id])
+  managerId        String?
+  manager          User?           @relation("OrderManager", fields: [managerId], references: [id])
+  documents        Document[]
+  comments         Comment[]
+  uploads          Upload[]
+  payments         Payment[]
+  promotedFromLead Lead?           @relation("LeadPromoted")
+  commissionItems  CommissionStatementItem[]
+
+  @@index([partnerId, executionStatus])
+  @@index([partnerId, financialStatus])
+  @@index([externalId])
+  @@index([closedAt])
 }
 
 model Document {
-  id           String   @id @default(cuid())
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  name         String
-  path         String
-  mimeType     String
-  orderId      String
-  order        Order    @relation(fields: [orderId], references: [id])
-  uploadedById String
-  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+  id                 String            @id @default(cuid())
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  name               String
+  path               String
+  mimeType           String
+  size               Int?
+  type               DocumentType      @default(other)
+  direction          DocumentDirection @default(incoming)
+  version            Int               @default(1)
+  replacesDocumentId String?
+  signedAt           DateTime?
+  generatedBy        GenerationSource  @default(user)
+  externalId         String?           @unique
+  orderId            String
+  order              Order             @relation(fields: [orderId], references: [id])
+  uploadedById       String?
+  uploadedBy         User?             @relation(fields: [uploadedById], references: [id])
+
+  @@index([orderId, type])
+  @@index([type, createdAt])
+  @@index([externalId])
 }
 
 model Comment {
@@ -197,21 +476,20 @@ model Notification {
 }
 
 model StudentBridgeGrant {
-  id         String    @id @default(cuid())
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  code       String    @unique
-  jti        String    @unique
-  token      String
-  userId     String
-  user       User      @relation(fields: [userId], references: [id])
-  expiresAt  DateTime
-  usedAt     DateTime?
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  code      String    @unique
+  jti       String    @unique
+  token     String
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  usedAt    DateTime?
 
   @@index([userId])
   @@index([expiresAt])
 }
-
 
 model StudentBridgeTokenJti {
   jti       String   @id

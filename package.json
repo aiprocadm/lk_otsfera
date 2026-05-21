@@ -14,13 +14,17 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "worker": "tsx src/worker/index.ts",
+    "worker:dev": "tsx watch src/worker/index.ts",
     "format": "prettier --write ."
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",
     "@supabase/supabase-js": "^2.49.8",
     "bcryptjs": "^2.4.3",
+    "bullmq": "^5.76.10",
     "clsx": "^2.1.1",
+    "ioredis": "^5.10.1",
     "jose": "^5.9.6",
     "lucide-react": "^0.511.0",
     "next": "^15.0.0",
