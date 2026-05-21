@@ -121,6 +121,7 @@ model Partner {
   commissionRate Decimal        @default(0) @db.Decimal(6, 4)
   organizations  Organization[]
   users          User[]
+  orders         Order[]
   notifications  Notification[]
 }
 
@@ -189,19 +190,40 @@ model Company {
 }
 
 model Order {
-  id        String      @id @default(cuid())
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  title     String
-  status    OrderStatus @default(new)
-  deadline  DateTime?
-  companyId String
-  company   Company     @relation(fields: [companyId], references: [id])
-  managerId String?
-  manager   User?       @relation("OrderManager", fields: [managerId], references: [id])
-  documents Document[]
-  comments  Comment[]
-  uploads   Upload[]
+  id               String          @id @default(cuid())
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  externalId       String?         @unique
+  orderNumber      String?
+  title            String
+  status           OrderStatus     @default(new)
+  executionStatus  ExecutionStatus @default(pending)
+  financialStatus  FinancialStatus @default(not_billed)
+  totalAmount      Decimal         @default(0) @db.Decimal(14, 2)
+  paidAmount       Decimal         @default(0) @db.Decimal(14, 2)
+  paidAt           DateTime?
+  contractSignedAt DateTime?
+  completedAt      DateTime?
+  closedAt         DateTime?
+  lastSyncedAt     DateTime?
+  vatIncluded      Boolean         @default(true)
+  vatRate          Decimal?        @db.Decimal(5, 4)
+  productMix       String[]
+  deadline         DateTime?
+  companyId        String
+  company          Company         @relation(fields: [companyId], references: [id])
+  partnerId        String?
+  partner          Partner?        @relation(fields: [partnerId], references: [id])
+  managerId        String?
+  manager          User?           @relation("OrderManager", fields: [managerId], references: [id])
+  documents        Document[]
+  comments         Comment[]
+  uploads          Upload[]
+
+  @@index([partnerId, executionStatus])
+  @@index([partnerId, financialStatus])
+  @@index([externalId])
+  @@index([closedAt])
 }
 
 model Document {
