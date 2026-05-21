@@ -1,0 +1,26 @@
+{
+  "name": "Промтехносфера — личный кабинет",
+  "short_name": "ОТСФЕРА",
+  "description": "Личный кабинет партнёра Промтехносферы",
+  "start_url": "/partner/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F9FAFB",
+  "theme_color": "#F97316",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
