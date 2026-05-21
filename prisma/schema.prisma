@@ -113,6 +113,7 @@ model User {
   leadsAuthored       Lead[]               @relation("LeadAuthor")
   leadsManaged        Lead[]               @relation("LeadManager")
   commissionStatementsAuthored CommissionStatement[] @relation("CommissionAuthor")
+  savedViews          SavedView[]          @relation("SavedViewOwner")
 }
 
 model PartnerUser {
@@ -237,6 +238,21 @@ model Payment {
   @@index([orderId])
   @@index([paidAt])
   @@index([externalId])
+}
+
+model SavedView {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  user      User     @relation("SavedViewOwner", fields: [userId], references: [id])
+  scope     String
+  name      String
+  filters   Json
+  isDefault Boolean  @default(false)
+  isShared  Boolean  @default(false)
+
+  @@index([userId, scope])
 }
 
 model Partner {
