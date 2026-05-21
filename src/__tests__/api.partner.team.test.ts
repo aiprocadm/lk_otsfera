@@ -4,7 +4,11 @@ vi.mock('@/lib/auth/session', () => ({ getSession: vi.fn() }));
 vi.mock('@/lib/services/partner/team', () => ({
   listTeam: vi.fn(), inviteMember: vi.fn(), assignOrgs: vi.fn(), deactivateMember: vi.fn()
 }));
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: {
+    auditLog: { create: vi.fn().mockResolvedValue(undefined) }
+  }
+}));
 
 import { getSession } from '@/lib/auth/session';
 import { listTeam, inviteMember, assignOrgs, deactivateMember } from '@/lib/services/partner/team';
