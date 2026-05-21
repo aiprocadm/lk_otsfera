@@ -1,0 +1,130 @@
+import { notFound, redirect } from 'next/navigation';
+import Link from 'next/link';
+import type { DocumentType } from '@prisma/client';
+import { prisma } from '@/lib/db/prisma';
+import { getSession } from '@/lib/auth/session';
+import { canPartnerAccessOrg, isPartnerAdmin } from '@/lib/auth/policy';
+import { getOrgCard } from '@/lib/services/partner/orgCard';
+import { getOrgDocuments } from '@/lib/services/partner/orgDocuments';
+import { OrgCardHeader } from '@/components/partner/org-card-header';
+import { OrgTabs } from '@/components/partner/org-tabs';
+import { DocumentsList } from '@/components/partner/documents-list';
+
+const VALID_TYPES: DocumentType[] = [
+  'contract',
+  'extra_agreement',
+  'invoice',
+  'act',
+  'waybill',
+  'certificate',
+  'report',
+  'commission_statement',
+  'other'
+];
+
+const TYPE_LABELS: Record<DocumentType, string> = {
+  contract: 'Договоры',
+  extra_agreement: 'Доп. соглашения',
+  invoice: 'Счета',
+  act: 'Акты',
+  waybill: 'Накладные',
+  certificate: 'Сертификаты',
+  report: 'Отчёты',
+  commission_statement: 'Комиссия',
+  other: 'Прочее'
+};
+
+export default async function OrgDocumentsPage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ orgId: string }>;
+  searchParams: Promise<{ type?: string }>;
+}) {
+  const session = await getSession();
+  if (!session?.partnerId) redirect('/login');
+
+  const { orgId } = await params;
+
+  const access = await canPartnerAccessOrg(session, orgId);
+  if (!access) redirect('/forbidden');
+
+  const card = await getOrgCard(prisma, { orgId, partnerId: session.partnerId });
+  if (!card) notFound();
+
+  const sp = await searchParams;
+  const typeFilter = VALID_TYPES.includes(sp.type as DocumentType)
+    ? (sp.type as DocumentType)
+    : undefined;
+
+  const { rows, countsByType, total } = await getOrgDocuments(prisma, {
+    orgId,
+    partnerId: session.partnerId,
+    type: typeFilter
+  });
+
+  return (
+    <div className='space-y-4'>
+      <OrgCardHeader card={card} />
+      <OrgTabs orgId={orgId} active='documents' isAdmin={isPartnerAdmin(session)} />
+
+      <TypeFilter
+        orgId={orgId}
+        active={typeFilter}
+        countsByType={countsByType}
+        total={total}
+      />
+
+      <DocumentsList rows={rows} />
+    </div>
+  );
+}
+
+function TypeFilter({
+  orgId,
+  active,
+  countsByType,
+  total
+}: {
+  orgId: string;
+  active?: DocumentType;
+  countsByType: Partial<Record<DocumentType, number>>;
+  total: number;
+}) {
+  const base = `/partner/portfolio/${orgId}/documents`;
+  const present = VALID_TYPES.filter((t) => (countsByType[t] ?? 0) > 0);
+
+  if (total === 0) return null;
+
+  return (
+    <nav className='flex flex-wrap gap-1.5'>
+      <Chip href={base} active={!active} label='Все' count={total} />
+      {present.map((t) => (
+        <Chip
+          key={t}
+          href={`${base}?type=${t}`}
+          active={active === t}
+          label={TYPE_LABELS[t]}
+          count={countsByType[t] ?? 0}
+        />
+      ))}
+    </nav>
+  );
+}
+
+function Chip({
+  href, label, count, active
+}: { href: string; label: string; count: number; active: boolean }) {
+  return (
+    <Link
+      href={href}
+      className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
+        active
+          ? 'bg-[#F97316] text-white border-[#F97316]'
+          : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+      }`}
+    >
+      {label} <span className={active ? 'text-white/80' : 'text-gray-400'}>{count}</span>
+    </Link>
+  );
+}

@@ -1,9 +1,10 @@
 import Link from 'next/link';
 
-export type TabKey = 'employees' | 'comments' | 'history' | 'settings';
+export type TabKey = 'employees' | 'comments' | 'history' | 'documents' | 'settings';
 
 const ALL_TABS: { key: TabKey; label: string; adminOnly?: boolean }[] = [
   { key: 'employees', label: 'Сотрудники' },
+  { key: 'documents', label: 'Документы' },
   { key: 'comments', label: 'Комментарии' },
   { key: 'history', label: 'История' },
   { key: 'settings', label: 'Настройки', adminOnly: true }
@@ -20,6 +21,8 @@ export function OrgTabs({
         const isActive = t.key === active;
         const href = t.key === 'settings'
           ? `/partner/portfolio/${orgId}/settings`
+          : t.key === 'documents'
+          ? `/partner/portfolio/${orgId}/documents`
           : `/partner/portfolio/${orgId}?tab=${t.key}`;
         return (
           <Link
