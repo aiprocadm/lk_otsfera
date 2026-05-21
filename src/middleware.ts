@@ -46,6 +46,17 @@ export async function middleware(req: NextRequest) {
       }
     }
 
+    if (role === 'partner') {
+      const partnerRole = (payload as { partnerRole?: 'admin' | 'manager' }).partnerRole;
+      const isAdminOnly =
+        pathname.startsWith('/partner/team') ||
+        /^\/partner\/portfolio\/[^/]+\/settings(?:\/|$)/.test(pathname);
+
+      if (isAdminOnly && partnerRole !== 'admin') {
+        return NextResponse.redirect(new URL('/forbidden', req.url));
+      }
+    }
+
     if (pathname === '/' || pathname === '/dashboard') {
       return NextResponse.redirect(new URL(roleHome[role], req.url));
     }

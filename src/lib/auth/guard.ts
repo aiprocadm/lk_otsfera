@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from './session';
-import { canReadOrder } from './policy';
+import { canReadOrder, isPartnerAdmin } from './policy';
 import type { Role, SessionPayload } from './jwt';
 
 type GuardResult<T> = { ok: true; value: T } | { ok: false; response: Response };
@@ -28,4 +28,20 @@ export async function requireOrderAccess(session: SessionPayload, order: { id: s
   const canRead = await canReadOrder(session, order);
   if (!canRead) return { ok: false, response: forbiddenResponse() };
   return { ok: true, value: session };
+}
+
+export function requirePartner(session: SessionPayload): GuardResult<SessionPayload & { partnerId: string }> {
+  if (session.role !== 'partner' || !session.partnerId) {
+    return { ok: false, response: forbiddenResponse('Partner access only') };
+  }
+  return { ok: true, value: session as SessionPayload & { partnerId: string } };
+}
+
+export function requirePartnerAdmin(session: SessionPayload): GuardResult<SessionPayload & { partnerId: string }> {
+  const partnerResult = requirePartner(session);
+  if (!partnerResult.ok) return partnerResult;
+  if (!isPartnerAdmin(session)) {
+    return { ok: false, response: forbiddenResponse('Partner admin only') };
+  }
+  return partnerResult;
 }

@@ -14,11 +14,15 @@ function assertSecretStrength(secret: string, varName: string): string {
 
 export type Role = 'admin' | 'manager' | 'partner' | 'organization' | 'student';
 
+export type PartnerRoleInPartner = 'admin' | 'manager';
+
 export type SessionPayload = {
   sub: string;
   role: Role;
   companyId?: string | null;
   partnerId?: string | null;
+  partnerRole?: PartnerRoleInPartner | null;
+  assignedOrgIds?: string[];
   organizationId?: string | null;
   email?: string;
   name?: string;

@@ -1,18 +1,39 @@
-import { getSession } from '@/lib/auth/session';
+import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
-import { AppShell } from '@/components/dashboard/app-shell';
-import { StatCard } from '@/components/dashboard/stat-card';
+import { getSession } from '@/lib/auth/session';
+import { kpis, attention, recentEvents } from '@/lib/services/partner/dashboard';
+import { KpiGrid } from '@/components/partner/kpi-grid';
+import { AttentionList } from '@/components/partner/attention-list';
+import { EventsFeed } from '@/components/partner/events-feed';
 
 export default async function PartnerDashboard() {
   const session = await getSession();
-  if (!session?.partnerId) return null;
+  if (!session?.partnerId) redirect('/login');
 
-  const [organizationsCount, activeOrders, newDocuments, unreadNotifications] = await Promise.all([
-    prisma.organization.count({ where: { partnerId: session.partnerId } }),
-    prisma.order.count({ where: { company: { organizations: { some: { partnerId: session.partnerId } } }, status: { in: ['new', 'in_progress'] } } }),
-    prisma.document.count({ where: { order: { company: { organizations: { some: { partnerId: session.partnerId } } } } } }),
-    prisma.notification.count({ where: { partnerId: session.partnerId, isRead: false } })
+  const scope = {
+    partnerId: session.partnerId,
+    scopeOrgIds: session.assignedOrgIds ?? []
+  };
+
+  const [k, a, events] = await Promise.all([
+    kpis(prisma, scope),
+    attention(prisma, scope),
+    recentEvents(prisma, scope, 10)
   ]);
 
-  return <AppShell><h1 className='mb-4 text-2xl font-semibold'>Кабинет партнера</h1><div className='grid gap-3 md:grid-cols-4'><StatCard title='Организации' value={organizationsCount}/><StatCard title='Активные заказы' value={activeOrders}/><StatCard title='Документы' value={newDocuments}/><StatCard title='Новые уведомления' value={unreadNotifications}/></div></AppShell>;
+  return (
+    <div className='space-y-5'>
+      <div>
+        <h1 className='text-2xl font-bold text-[#111111]'>Кабинет партнёра</h1>
+        <p className='text-sm text-gray-500 mt-0.5'>Обзор ключевых показателей и активности</p>
+      </div>
+
+      <KpiGrid kpis={k} />
+
+      <div className='grid gap-4 md:grid-cols-2'>
+        <AttentionList data={a} />
+        <EventsFeed events={events} />
+      </div>
+    </div>
+  );
 }

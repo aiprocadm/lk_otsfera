@@ -43,16 +43,28 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         {/* Sidebar */}
         <aside className='w-56 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col'>
           <nav className='flex-1 p-3 space-y-0.5 overflow-y-auto'>
-            {navByRole[session.role].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className='flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-[#FFF7ED] hover:text-[#F97316] transition-all group'
-              >
-                <span className='w-1.5 h-1.5 rounded-full bg-gray-300 group-hover:bg-[#F97316] transition-colors flex-shrink-0' />
-                {item.label}
-              </Link>
-            ))}
+            {navByRole[session.role].map((item) =>
+              item.disabled ? (
+                <div
+                  key={item.href}
+                  className='flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 cursor-not-allowed'
+                  title='Доступно в следующей фазе'
+                >
+                  <span className='w-1.5 h-1.5 rounded-full bg-gray-200 flex-shrink-0' />
+                  {item.label}
+                  <span className='ml-auto text-[10px] uppercase tracking-wide text-gray-300 bg-gray-50 px-1.5 py-0.5 rounded'>скоро</span>
+                </div>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className='flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-[#FFF7ED] hover:text-[#F97316] transition-all group'
+                >
+                  <span className='w-1.5 h-1.5 rounded-full bg-gray-300 group-hover:bg-[#F97316] transition-colors flex-shrink-0' />
+                  {item.label}
+                </Link>
+              )
+            )}
           </nav>
           <div className='p-3 border-t border-gray-100'>
             <div className='text-xs text-gray-400 text-center'>ОТСФЕРА &copy; 2024</div>
