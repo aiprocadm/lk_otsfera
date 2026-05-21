@@ -112,13 +112,16 @@ model User {
 }
 
 model Partner {
-  id            String         @id @default(cuid())
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  name          String
-  organizations Organization[]
-  users         User[]
-  notifications Notification[]
+  id             String         @id @default(cuid())
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  name           String
+  legalName      String?
+  slug           String?        @unique
+  commissionRate Decimal        @default(0) @db.Decimal(6, 4)
+  organizations  Organization[]
+  users          User[]
+  notifications  Notification[]
 }
 
 model Organization {
