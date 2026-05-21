@@ -4,3 +4,8 @@ tsconfig.tsbuildinfo
 .env
 .env.local
 .env.*.local
+
+# Local-only assistant/session state — never commit
+.claude/
+.remember/
+.pr-body.md
