@@ -1,0 +1,120 @@
+import type { OneCOrderDto, OneCPaymentDto, OneCDocumentDto } from '../dto';
+
+export const FAKE_ORDERS: OneCOrderDto[] = [
+  {
+    externalId: '1c-order-1001',
+    orderNumber: '2410-15',
+    title: 'Курс ОТ для 12 сотрудников',
+    organizationExternalId: '1c-org-001',
+    totalAmount: 250000,
+    paidAmount: 250000,
+    paidAt: '2026-04-20T14:00:00Z',
+    contractSignedAt: '2026-04-12T10:00:00Z',
+    completedAt: '2026-05-10T18:00:00Z',
+    closedAt: '2026-05-12T10:00:00Z',
+    vatIncluded: true,
+    vatRate: 0.2,
+    executionStatus: 'completed',
+    financialStatus: 'paid',
+    productMix: ['training'],
+    updatedAt: '2026-05-12T10:00:00Z'
+  },
+  {
+    externalId: '1c-order-1002',
+    orderNumber: '2410-16',
+    title: 'Аудит промбезопасности',
+    organizationExternalId: '1c-org-002',
+    totalAmount: 480000,
+    paidAmount: 240000,
+    paidAt: '2026-04-25T14:00:00Z',
+    contractSignedAt: '2026-04-15T11:00:00Z',
+    vatIncluded: true,
+    vatRate: 0.2,
+    executionStatus: 'in_progress',
+    financialStatus: 'partially_paid',
+    productMix: ['service'],
+    updatedAt: '2026-05-15T12:00:00Z'
+  },
+  {
+    externalId: '1c-order-1003',
+    orderNumber: '2410-17',
+    title: 'Поставка оборудования + пусконаладка',
+    organizationExternalId: '1c-org-003',
+    totalAmount: 1200000,
+    paidAmount: 1080000,
+    paidAt: '2026-05-01T10:00:00Z',
+    contractSignedAt: '2026-04-18T09:00:00Z',
+    completedAt: '2026-05-05T16:00:00Z',
+    vatIncluded: true,
+    vatRate: 0.2,
+    executionStatus: 'completed',
+    financialStatus: 'partially_paid',
+    productMix: ['supply', 'service'],
+    updatedAt: '2026-05-05T16:00:00Z'
+  }
+];
+
+export const FAKE_PAYMENTS: OneCPaymentDto[] = [
+  {
+    externalId: '1c-pay-001',
+    orderExternalId: '1c-order-1001',
+    amount: 250000,
+    paidAt: '2026-04-20T14:00:00Z',
+    method: 'wire',
+    isRefund: false,
+    updatedAt: '2026-04-20T14:00:00Z'
+  },
+  {
+    externalId: '1c-pay-002',
+    orderExternalId: '1c-order-1002',
+    amount: 240000,
+    paidAt: '2026-04-25T14:00:00Z',
+    method: 'wire',
+    isRefund: false,
+    updatedAt: '2026-04-25T14:00:00Z'
+  },
+  {
+    externalId: '1c-pay-003',
+    orderExternalId: '1c-order-1003',
+    amount: 1080000,
+    paidAt: '2026-05-01T10:00:00Z',
+    method: 'wire',
+    isRefund: false,
+    updatedAt: '2026-05-01T10:00:00Z'
+  }
+];
+
+export const FAKE_DOCUMENTS: OneCDocumentDto[] = [
+  {
+    externalId: '1c-doc-1',
+    orderExternalId: '1c-order-1001',
+    type: 'contract',
+    name: 'Договор 245.pdf',
+    mimeType: 'application/pdf',
+    size: 248_000,
+    signedAt: '2026-04-12T10:00:00Z',
+    downloadUrl: 'fake://1c-doc-1.pdf',
+    updatedAt: '2026-04-12T10:00:00Z'
+  },
+  {
+    externalId: '1c-doc-2',
+    orderExternalId: '1c-order-1001',
+    type: 'invoice',
+    name: 'Счёт 1023.pdf',
+    mimeType: 'application/pdf',
+    size: 80_000,
+    downloadUrl: 'fake://1c-doc-2.pdf',
+    updatedAt: '2026-04-15T11:00:00Z'
+  },
+  {
+    externalId: '1c-doc-3',
+    orderExternalId: '1c-order-1001',
+    type: 'act',
+    name: 'Акт 401.pdf',
+    mimeType: 'application/pdf',
+    size: 120_000,
+    signedAt: '2026-05-10T18:00:00Z',
+    downloadUrl: 'fake://1c-doc-3.pdf',
+    updatedAt: '2026-05-10T18:00:00Z'
+  }
+];
