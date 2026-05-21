@@ -5,14 +5,14 @@ describe('navByRole.partner', () => {
   it('contains active items', () => {
     const labels = navByRole.partner.filter((i) => !i.disabled).map((i) => i.label);
     expect(labels).toEqual(
-      expect.arrayContaining(['Дашборд', 'Портфель', 'Сделки', 'Документы', 'Команда'])
+      expect.arrayContaining(['Дашборд', 'Портфель', 'Сделки', 'Заявки', 'Документы', 'Команда'])
     );
   });
 
-  it('contains Phase 3+ items as disabled', () => {
+  it('contains Phase 4+ items as disabled', () => {
     const disabled = navByRole.partner.filter((i) => i.disabled).map((i) => i.label);
     expect(disabled).toEqual(
-      expect.arrayContaining(['Заявки', 'Финансы'])
+      expect.arrayContaining(['Финансы'])
     );
   });
 

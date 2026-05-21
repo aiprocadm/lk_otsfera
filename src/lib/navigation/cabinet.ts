@@ -19,7 +19,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { href: '/partner/dashboard', label: 'Дашборд' },
     { href: '/partner/portfolio', label: 'Портфель' },
     { href: '/partner/deals', label: 'Сделки' },
-    { href: '/partner/leads', label: 'Заявки', disabled: true },
+    { href: '/partner/leads', label: 'Заявки' },
     { href: '/partner/documents', label: 'Документы' },
     { href: '/partner/finance', label: 'Финансы', disabled: true },
     { href: '/partner/team', label: 'Команда' }
