@@ -1,6 +1,6 @@
 import type { Role } from '@/lib/auth/jwt';
 
-export type NavItem = { href: string; label: string };
+export type NavItem = { href: string; label: string; disabled?: boolean };
 
 export const navByRole: Record<Role, NavItem[]> = {
   admin: [
@@ -15,7 +15,15 @@ export const navByRole: Record<Role, NavItem[]> = {
     { href: '/manager/documents', label: 'Documents' },
     { href: '/manager/messages', label: 'Messages' }
   ],
-  partner: [{ href: '/partner/dashboard', label: 'Dashboard партнера' }],
+  partner: [
+    { href: '/partner/dashboard', label: 'Дашборд' },
+    { href: '/partner/portfolio', label: 'Портфель' },
+    { href: '/partner/deals', label: 'Сделки', disabled: true },
+    { href: '/partner/leads', label: 'Заявки', disabled: true },
+    { href: '/partner/documents', label: 'Документы', disabled: true },
+    { href: '/partner/finance', label: 'Финансы', disabled: true },
+    { href: '/partner/team', label: 'Команда' }
+  ],
   organization: [
     { href: '/organization/dashboard', label: 'Dashboard организации' },
     { href: '/student', label: 'Кабинет слушателя' }
