@@ -54,7 +54,7 @@ export default async function PartnerDealDetailPage({
             <DocumentsList rows={deal.documents} />
           </div>
 
-          <DealComments comments={deal.comments} />
+          <DealComments comments={deal.comments} orderId={deal.id} />
         </div>
 
         <div className='space-y-4'>

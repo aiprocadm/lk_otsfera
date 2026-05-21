@@ -1,4 +1,5 @@
 import type { DealCommentRow } from '@/lib/services/partner/dealDetail';
+import { AddCommentForm } from './add-comment-form';
 
 function fmtDateTime(d: Date): string {
   return new Intl.DateTimeFormat('ru-RU', {
@@ -7,7 +8,13 @@ function fmtDateTime(d: Date): string {
   }).format(d);
 }
 
-export function DealComments({ comments }: { comments: DealCommentRow[] }) {
+export function DealComments({
+  comments,
+  orderId
+}: {
+  comments: DealCommentRow[];
+  orderId: string;
+}) {
   return (
     <div className='bg-white border border-gray-200 rounded-xl p-5 space-y-3'>
       <h2 className='text-sm font-semibold text-[#111111]'>
@@ -34,6 +41,8 @@ export function DealComments({ comments }: { comments: DealCommentRow[] }) {
           ))}
         </ul>
       )}
+
+      <AddCommentForm orderId={orderId} />
     </div>
   );
 }
