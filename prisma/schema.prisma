@@ -255,6 +255,22 @@ model SavedView {
   @@index([userId, scope])
 }
 
+model SyncLog {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  entity       String
+  externalId   String?
+  direction    String
+  operation    String
+  status       String
+  errorMessage String?
+  payload      Json?
+  durationMs   Int?
+
+  @@index([entity, createdAt])
+  @@index([status, createdAt])
+}
+
 model Partner {
   id             String         @id @default(cuid())
   createdAt      DateTime       @default(now())
