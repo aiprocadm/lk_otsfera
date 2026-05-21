@@ -125,18 +125,29 @@ model Partner {
 }
 
 model Organization {
-  id                String             @id @default(cuid())
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  name              String
-  partnerId         String
-  partner           Partner            @relation(fields: [partnerId], references: [id])
-  companyId         String?
-  company           Company?           @relation(fields: [companyId], references: [id])
-  students          Student[]
-  users             User[]             @relation("UserOrganization")
-  organizationUsers OrganizationUser[]
-  notifications     Notification[]
+  id                             String             @id @default(cuid())
+  createdAt                      DateTime           @default(now())
+  updatedAt                      DateTime           @updatedAt
+  name                           String
+  externalId                     String?            @unique
+  inn                            String?
+  kpp                            String?
+  partnerId                      String
+  partner                        Partner            @relation(fields: [partnerId], references: [id])
+  companyId                      String?
+  company                        Company?           @relation(fields: [companyId], references: [id])
+  assignedManagerUserId          String?
+  partnerCommissionRate          Decimal?           @db.Decimal(6, 4)
+  partnerCommissionRateNote      String?
+  partnerCommissionRateChangedAt DateTime?
+  partnerCommissionRateChangedBy String?
+  students                       Student[]
+  users                          User[]             @relation("UserOrganization")
+  organizationUsers              OrganizationUser[]
+  notifications                  Notification[]
+
+  @@index([partnerId])
+  @@index([externalId])
 }
 
 model OrganizationUser {
