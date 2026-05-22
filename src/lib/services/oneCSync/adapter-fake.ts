@@ -34,7 +34,14 @@ export class FakeOneCAdapter implements OneCAdapter {
     return afterCursor(FAKE_DOCUMENTS, cursor);
   }
 
-  async pushLead(_payload: OneCLeadPushPayload): Promise<OneCLeadPushResult> {
+  async pushLead(payload: OneCLeadPushPayload): Promise<OneCLeadPushResult> {
+    const failureRateStr = process.env.FAKE_ONEC_FAILURE_RATE;
+    const failureRate = failureRateStr ? Number(failureRateStr) : 0;
+    if (Number.isFinite(failureRate) && failureRate > 0 && Math.random() < failureRate) {
+      throw new Error(
+        `FakeOneC simulated failure (rate=${failureRate}) for lead ${payload.cabinetLeadId}`
+      );
+    }
     return {
       acceptedAt: new Date().toISOString(),
       oneCRequestId: `fake-req-${Date.now()}`

@@ -1,18 +1,30 @@
-import { prisma } from '@/lib/db/prisma';
+import type { PrismaClient } from '@prisma/client';
+import { prisma as defaultPrisma } from '@/lib/db/prisma';
+
+export type SyncLogEntity =
+  | 'order'
+  | 'payment'
+  | 'document'
+  | 'organization'
+  | 'lead'
+  | 'reconcile';
 
 export type SyncLogEntry = {
-  entity: 'order' | 'payment' | 'document' | 'organization' | 'lead';
+  entity: SyncLogEntity;
   externalId?: string;
   direction: 'inbound' | 'outbound';
-  operation: 'create' | 'update' | 'skip' | 'delete';
+  operation: 'create' | 'update' | 'skip' | 'delete' | 'check';
   status: 'success' | 'error' | 'warn';
   errorMessage?: string;
   payload?: unknown;
   durationMs?: number;
 };
 
-export async function writeSyncLog(entry: SyncLogEntry): Promise<void> {
-  await prisma.syncLog.create({
+export async function writeSyncLog(
+  entry: SyncLogEntry,
+  db: PrismaClient = defaultPrisma
+): Promise<void> {
+  await db.syncLog.create({
     data: {
       entity: entry.entity,
       externalId: entry.externalId ?? null,

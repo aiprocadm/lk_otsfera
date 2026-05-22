@@ -3,8 +3,12 @@ import Link from 'next/link';
 import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
 import { getLead } from '@/lib/services/partner/leads';
+import { listLeadAttachments } from '@/lib/services/partner/leadAttachments';
+import { isPartnerAdmin } from '@/lib/auth/policy';
 import { LeadStatusBadge } from '@/components/partner/lead-status-badge';
 import { LeadWithdrawButton } from '@/components/partner/lead-withdraw-button';
+import { LeadAttachmentDropzone } from '@/components/partner/lead-attachment-dropzone';
+import { LeadAttachmentsList } from '@/components/partner/lead-attachments-list';
 
 function fmtMoney(s: string | null): string {
   if (!s) return '—';
@@ -40,7 +44,15 @@ export default async function PartnerLeadDetailPage({
   const lead = await getLead(prisma, { leadId: id, partnerId: session.partnerId, scopeOrgIds: scope });
   if (!lead) notFound();
 
+  const attachments = await listLeadAttachments(prisma, {
+    leadId: id,
+    partnerId: session.partnerId,
+    scopeOrgIds: scope
+  });
+
   const canWithdraw = lead.status === 'new' || lead.status === 'in_review';
+  const canEditAttachments = canWithdraw;
+  const partnerAdmin = isPartnerAdmin(session);
 
   return (
     <div className='space-y-4 max-w-3xl'>
@@ -131,6 +143,26 @@ export default async function PartnerLeadDetailPage({
               </Field>
             )}
           </Card>
+
+          <div className='bg-white border border-gray-200 rounded-xl p-5 space-y-3'>
+            <h2 className='text-sm font-semibold text-[#111111]'>Вложения</h2>
+            <LeadAttachmentsList
+              leadId={lead.id}
+              rows={attachments.map((a) => ({
+                id: a.id,
+                name: a.name,
+                size: a.size,
+                mimeType: a.mimeType,
+                createdAt: a.createdAt.toISOString(),
+                createdByUserId: a.createdByUserId,
+                createdByUserName: a.createdByUserName
+              }))}
+              canDelete={canEditAttachments}
+              currentUserId={session.sub}
+              isPartnerAdmin={partnerAdmin}
+            />
+            {canEditAttachments && <LeadAttachmentDropzone leadId={lead.id} />}
+          </div>
         </div>
 
         <div className='space-y-4'>
