@@ -11,6 +11,7 @@ export const QUEUE_NAMES = [
   'docs.generateCommissionPdf',
   'docs.generateCommissionXlsx',
   'docs.calculateMonthlyCommissions',
+  'docs.scanDocument',
   'notifications.dispatch',
   'emails.send'
 ] as const;
