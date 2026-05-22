@@ -1,5 +1,6 @@
-import { renderToBuffer, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { renderToBuffer, Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import React from 'react';
+import QRCode from 'qrcode';
 import type { CommissionStatement, CommissionStatementItem } from '@prisma/client';
 
 export type RenderStatementPdfArgs = {
@@ -35,6 +36,9 @@ const styles = StyleSheet.create({
   totalsValue: { width: '16%', textAlign: 'right', fontFamily: 'Helvetica-Bold', fontSize: 9, color: BRAND },
   footer: { position: 'absolute', bottom: 30, left: 40, right: 40, flexDirection: 'row', justifyContent: 'space-between' },
   footerText: { fontSize: 7, color: '#aaa' },
+  qrWrap: { position: 'absolute', bottom: 30, right: 40, alignItems: 'center' },
+  qrImage: { width: 80, height: 80 },
+  qrLabel: { fontSize: 6, color: '#888', marginTop: 2 },
 });
 
 function fmt(val: unknown): string {
@@ -57,7 +61,9 @@ function periodLabel(from: Date, to: Date): string {
   return `${f.toLocaleDateString('ru-RU')} — ${t.toLocaleDateString('ru-RU')}`;
 }
 
-function StatementDocument({ statement, items, partner }: RenderStatementPdfArgs) {
+type StatementDocumentProps = RenderStatementPdfArgs & { qrDataUrl: string | null };
+
+function StatementDocument({ statement, items, partner, qrDataUrl }: StatementDocumentProps) {
   const period = periodLabel(statement.periodFrom, statement.periodTo);
   const calculatedAtStr = new Date(statement.calculatedAt).toLocaleDateString('ru-RU');
 
@@ -129,13 +135,41 @@ function StatementDocument({ statement, items, partner }: RenderStatementPdfArgs
         { style: styles.footer, fixed: true },
         React.createElement(Text, { style: styles.footerText }, 'Сформировано в кабинете ОТСФЕРА'),
         React.createElement(Text, { style: styles.footerText }, calculatedAtStr)
-      )
+      ),
+      // QR code in bottom-right corner (only when verifyUrl provided)
+      qrDataUrl
+        ? React.createElement(
+            View,
+            { style: styles.qrWrap },
+            React.createElement(Image, { src: qrDataUrl, style: styles.qrImage }),
+            React.createElement(Text, { style: styles.qrLabel }, 'Проверить отчёт')
+          )
+        : null
     )
   );
 }
 
+async function generateQrDataUrl(verifyUrl: string | null): Promise<string | null> {
+  if (!verifyUrl) return null;
+  try {
+    return await QRCode.toDataURL(verifyUrl, {
+      errorCorrectionLevel: 'M',
+      margin: 1,
+      width: 160, // 2x of render size for retina-quality print
+      color: { dark: '#111111', light: '#ffffff' },
+    });
+  } catch (err) {
+    console.warn('[commission/pdf] QR generation failed; rendering PDF without it', {
+      verifyUrl,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+}
+
 export async function renderStatementPdf(args: RenderStatementPdfArgs): Promise<Buffer> {
-  const element = React.createElement(StatementDocument, args);
+  const qrDataUrl = await generateQrDataUrl(args.verifyUrl);
+  const element = React.createElement(StatementDocument, { ...args, qrDataUrl });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return renderToBuffer(element as any);
 }

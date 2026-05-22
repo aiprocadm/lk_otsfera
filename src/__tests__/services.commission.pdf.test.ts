@@ -91,4 +91,38 @@ describe('renderStatementPdf', () => {
       })
     ).resolves.toBeDefined();
   });
+
+  it('embeds QR code when verifyUrl is provided (output size delta vs null)', async () => {
+    const without = await renderStatementPdf({
+      statement: baseStatement as any,
+      items: baseItems as any,
+      partner,
+      verifyUrl: null,
+    });
+    const withQr = await renderStatementPdf({
+      statement: baseStatement as any,
+      items: baseItems as any,
+      partner,
+      verifyUrl: 'https://lk.otsfera.ru/verify/stmt-1?token=abc',
+    });
+    expect(Buffer.isBuffer(withQr)).toBe(true);
+    expect(withQr.slice(0, 4).toString()).toBe('%PDF');
+    // QR PNG (~300-500B) + PDF image stream overhead — easily 500B+ delta.
+    expect(withQr.length - without.length).toBeGreaterThan(500);
+  }, 15000);
+
+  it('does not throw if QR generation fails (graceful fallback)', async () => {
+    // Pass an obviously huge string that exceeds QR capacity (~4296 alphanumeric
+    // for L correction). qrcode will reject → generateQrDataUrl returns null →
+    // PDF rendered without QR, no exception bubbles up.
+    const tooLong = 'x'.repeat(10_000);
+    const buf = await renderStatementPdf({
+      statement: baseStatement as any,
+      items: baseItems as any,
+      partner,
+      verifyUrl: tooLong,
+    });
+    expect(Buffer.isBuffer(buf)).toBe(true);
+    expect(buf.length).toBeGreaterThan(1000);
+  }, 15000);
 });
