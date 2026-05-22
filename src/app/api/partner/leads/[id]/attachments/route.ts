@@ -27,6 +27,15 @@ function mapErrorToResponse(err: unknown): Response {
         return NextResponse.json({ error: err.message }, { status: 413 });
       case 'INVALID_FILENAME':
         return NextResponse.json({ error: err.message }, { status: 400 });
+      case 'INFECTED':
+        return NextResponse.json(
+          {
+            code: 'INFECTED',
+            error: err.message,
+            scanReason: err.meta?.scanReason ?? undefined
+          },
+          { status: 410 }
+        );
       case 'STORAGE_FAILURE':
       default:
         return NextResponse.json({ error: err.message }, { status: 500 });

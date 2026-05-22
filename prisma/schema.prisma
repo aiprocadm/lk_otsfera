@@ -178,9 +178,13 @@ model LeadAttachment {
   path            String
   mimeType        String
   size            Int
+  scanStatus      String    @default("pending")
+  scanReason      String?
+  scannedAt       DateTime?
 
   @@index([leadId])
   @@index([createdByUserId])
+  @@index([scanStatus])
 }
 
 model CommissionStatement {
@@ -417,10 +421,14 @@ model Document {
   order              Order             @relation(fields: [orderId], references: [id])
   uploadedById       String?
   uploadedBy         User?             @relation(fields: [uploadedById], references: [id])
+  scanStatus         String            @default("pending")
+  scanReason         String?
+  scannedAt          DateTime?
 
   @@index([orderId, type])
   @@index([type, createdAt])
   @@index([externalId])
+  @@index([scanStatus])
 }
 
 model Comment {

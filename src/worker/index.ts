@@ -12,6 +12,7 @@ import { pushLeadProcessor, notifyPushLeadFinalFailure } from './processors/push
 import { generateCommissionPdfProcessor } from './processors/generate-commission-pdf';
 import { generateCommissionXlsxProcessor } from './processors/generate-commission-xlsx';
 import { calculateMonthlyCommissionsProcessor } from './processors/calculate-monthly-commissions';
+import { scanDocumentProcessor } from './processors/scan-document';
 import type { PushLeadJobPayload } from '@/lib/jobs/types';
 
 const workers: Worker[] = [];
@@ -59,6 +60,7 @@ async function main() {
   startWorker('docs.generateCommissionPdf', generateCommissionPdfProcessor as Processor);
   startWorker('docs.generateCommissionXlsx', generateCommissionXlsxProcessor as Processor);
   startWorker('docs.calculateMonthlyCommissions', calculateMonthlyCommissionsProcessor as Processor);
+  startWorker('docs.scanDocument', scanDocumentProcessor as Processor);
 
   if (process.env.ENABLE_SYNC_CRON === '1') {
     const syncSchedules = await registerSyncSchedules();

@@ -27,3 +27,10 @@ export type SendEmailPayload = {
   template: string;
   variables: Record<string, unknown>;
 };
+
+export type ScanDocumentTarget = 'document' | 'leadAttachment';
+
+export type ScanDocumentPayload = {
+  kind: ScanDocumentTarget;
+  id: string;
+};

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { requireRole, requireSession } from '@/lib/auth/guard';
+import { hideInfectedForSession } from '@/lib/services/scan/visibility';
 
 export async function GET() {
   const sessionResult = await requireSession();
@@ -10,7 +11,7 @@ export async function GET() {
   const roleResult = requireRole(s, ['admin', 'organization', 'partner', 'manager']);
   if (!roleResult.ok) return roleResult.response;
 
-  const where =
+  const accessWhere =
     s.role === 'admin'
       ? {}
       : s.role === 'organization' && s.organizationId
@@ -22,7 +23,7 @@ export async function GET() {
             : { order: { company: { organizations: { some: { organizationUsers: { some: { userId: s.sub, isActive: true } } } } } } };
 
   const docs = await prisma.document.findMany({
-    where,
+    where: { ...accessWhere, ...hideInfectedForSession(s) },
     orderBy: { createdAt: 'desc' },
     select: { id: true, name: true, mimeType: true, createdAt: true, orderId: true }
   });

@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
 import { requirePartner } from '@/lib/auth/guard';
 import { listLeads, createLead } from '@/lib/services/partner/leads';
+import { notFoundIfDisabled } from '@/lib/featureFlags';
 
 const VALID_STATUS: LeadStatus[] = [
   'new',
@@ -31,6 +32,9 @@ const createSchema = z.object({
 });
 
 export async function GET(req: Request) {
+  const disabled = notFoundIfDisabled('partner_leads');
+  if (disabled) return disabled;
+
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -68,6 +72,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const disabled = notFoundIfDisabled('partner_leads');
+  if (disabled) return disabled;
+
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

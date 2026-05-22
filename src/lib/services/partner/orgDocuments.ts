@@ -1,4 +1,5 @@
 import type { PrismaClient, DocumentType, DocumentDirection } from '@prisma/client';
+import { INFECTED_HIDDEN_WHERE } from '@/lib/services/scan/visibility';
 
 export type OrgDocumentRow = {
   id: string;
@@ -44,6 +45,7 @@ export async function getOrgDocuments(
     prisma.document.findMany({
       where: {
         order: orderFilter,
+        ...INFECTED_HIDDEN_WHERE,
         ...(filter.type ? { type: filter.type } : {})
       },
       orderBy: [{ createdAt: 'desc' }],
@@ -62,7 +64,7 @@ export async function getOrgDocuments(
     }),
     prisma.document.groupBy({
       by: ['type'],
-      where: { order: orderFilter },
+      where: { order: orderFilter, ...INFECTED_HIDDEN_WHERE },
       _count: { _all: true }
     })
   ]);

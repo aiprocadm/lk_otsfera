@@ -34,6 +34,16 @@ export async function GET(
       if (err.code === 'NOT_FOUND') {
         return NextResponse.json({ error: err.message }, { status: 404 });
       }
+      if (err.code === 'INFECTED') {
+        return NextResponse.json(
+          {
+            code: 'INFECTED',
+            error: err.message,
+            scanReason: err.meta?.scanReason ?? undefined
+          },
+          { status: 410 }
+        );
+      }
       return NextResponse.json({ error: err.message }, { status: 500 });
     }
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
