@@ -3,6 +3,11 @@ import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 import { protectedPrefixes, roleHome } from '@/lib/auth/access';
 import type { Role } from '@/lib/auth/jwt';
+import { isFeatureEnabled, type FeatureFlag } from '@/lib/featureFlags';
+
+const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
+  { prefix: '/partner/leads', flag: 'partner_leads' },
+];
 
 const MIN_JWT_SECRET_LENGTH = 32;
 
@@ -59,6 +64,16 @@ export async function middleware(req: NextRequest) {
 
     if (pathname === '/' || pathname === '/dashboard') {
       return NextResponse.redirect(new URL(roleHome[role], req.url));
+    }
+
+    // Feature-flag gate: 404 for prefixes whose flag is disabled. Runs after
+    // auth so we don't leak existence to unauthenticated callers — and
+    // returns a plain 404 (the app's not-found.tsx renders for app routes
+    // that fall through, but middleware returns the status directly here).
+    for (const { prefix, flag } of FEATURE_PREFIXES) {
+      if (pathname.startsWith(prefix) && !isFeatureEnabled(flag)) {
+        return new NextResponse('Not Found', { status: 404 });
+      }
     }
 
     return NextResponse.next();
