@@ -62,6 +62,44 @@ export type RegisteredSchedule = {
 
 export type GetQueueFn = (name: QueueName) => Queue;
 
+export type CommissionSchedule = {
+  queueName: Extract<QueueName, 'docs.calculateMonthlyCommissions'>;
+  schedulerId: string;
+  pattern: string;
+  tz: string;
+};
+
+export const COMMISSION_SCHEDULES: ReadonlyArray<CommissionSchedule> = [
+  {
+    queueName: 'docs.calculateMonthlyCommissions',
+    schedulerId: 'docs.calculateMonthlyCommissions.cron',
+    pattern: '0 6 1 * *',
+    tz: DEFAULT_SYNC_TZ
+  }
+] as const;
+
+export async function registerCommissionSchedules(
+  getQueueFn: GetQueueFn = getQueue
+): Promise<Array<{ schedulerId: string; queueName: string; pattern: string; tz: string }>> {
+  const results = [];
+  const triggeredAt = new Date().toISOString();
+  for (const schedule of COMMISSION_SCHEDULES) {
+    const queue = getQueueFn(schedule.queueName);
+    await queue.upsertJobScheduler(
+      schedule.schedulerId,
+      { pattern: schedule.pattern, tz: schedule.tz },
+      { data: { triggeredAt, reason: 'cron' } }
+    );
+    results.push({
+      schedulerId: schedule.schedulerId,
+      queueName: schedule.queueName,
+      pattern: schedule.pattern,
+      tz: schedule.tz
+    });
+  }
+  return results;
+}
+
 export async function registerSyncSchedules(
   getQueueFn: GetQueueFn = getQueue
 ): Promise<RegisteredSchedule[]> {
