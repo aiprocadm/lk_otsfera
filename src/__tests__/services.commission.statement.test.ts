@@ -107,7 +107,7 @@ describe('calculateStatementForPartner', () => {
       where: { id: orgId },
       data: { partnerCommissionRate: 0.05 }
     });
-    const order = await createPaidOrder(100000, CLOSED_AT);
+    await createPaidOrder(100000, CLOSED_AT);
     // Link order to organization by setting companyId is not enough; we use Organization for resolution
     // The current schema has Order.companyId but no direct organizationId. Our service must resolve via
     // Organization.partnerId + companyId match. For this test, we set org override and expect 0.05 rate

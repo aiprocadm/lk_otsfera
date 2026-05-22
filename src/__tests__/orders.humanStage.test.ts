@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { humanStage, type StageInput } from '@/lib/orders/humanStage';
+import { humanStage } from '@/lib/orders/humanStage';
 
 describe('humanStage', () => {
   it('returns "Новая, не выставлен счёт" for pending + not_billed', () => {
