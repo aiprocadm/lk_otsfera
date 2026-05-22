@@ -1,4 +1,5 @@
 import type { PrismaClient, DocumentType } from '@prisma/client';
+import { INFECTED_HIDDEN_WHERE } from '@/lib/services/scan/visibility';
 import type { OrgDocumentRow } from './orgDocuments';
 
 export type PartnerDocumentsFilter = {
@@ -45,6 +46,7 @@ export async function listPartnerDocuments(
 
   const docWhere = {
     order: orderFilter,
+    ...INFECTED_HIDDEN_WHERE,
     ...(filter.type ? { type: filter.type } : {}),
     ...(filter.search
       ? { name: { contains: filter.search, mode: 'insensitive' as const } }
@@ -72,7 +74,11 @@ export async function listPartnerDocuments(
     }),
     prisma.document.groupBy({
       by: ['type'],
-      where: { order: orderFilter, ...(filter.search ? { name: { contains: filter.search, mode: 'insensitive' as const } } : {}) },
+      where: {
+        order: orderFilter,
+        ...INFECTED_HIDDEN_WHERE,
+        ...(filter.search ? { name: { contains: filter.search, mode: 'insensitive' as const } } : {})
+      },
       _count: { _all: true }
     })
   ]);

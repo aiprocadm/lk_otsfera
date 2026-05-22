@@ -4,6 +4,8 @@ import { requireOrderAccess, requireSession } from '@/lib/auth/guard';
 import { notifyDocumentCreated, triggerNotificationEmail } from '@/lib/notifications';
 import { getPrimaryOrganizationId } from '@/lib/auth/organization';
 import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
+import { getQueue } from '@/lib/jobs/queues';
+import type { ScanDocumentPayload } from '@/lib/jobs/types';
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
@@ -105,6 +107,19 @@ export async function POST(req: Request) {
       meta: { orderId, path: internalPath, mimeType: file.type, size: file.size }
     }
   });
+
+  // Best-effort enqueue of async ClamAV scan. Failure leaves scanStatus='pending'
+  // (graceful — file stays usable; backfill job sweeps stuck rows separately).
+  try {
+    const payload: ScanDocumentPayload = { kind: 'document', id: doc.id };
+    await getQueue('docs.scanDocument').add('scan', payload);
+  } catch (err) {
+    console.warn('[documents/upload] enqueue scan failed', {
+      correlationId,
+      documentId: doc.id,
+      error: err instanceof Error ? err.message : String(err)
+    });
+  }
 
   const organizationId = await getPrimaryOrganizationId(s);
 

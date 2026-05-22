@@ -7,7 +7,11 @@ vi.mock('@/lib/services/partner/leadAttachments', () => ({
   getLeadAttachmentDownloadUrl: vi.fn(),
   listLeadAttachments: vi.fn(),
   LeadAttachmentError: class LeadAttachmentError extends Error {
-    constructor(public code: string, message: string) {
+    constructor(
+      public code: string,
+      message: string,
+      public meta?: { scanReason?: string | null }
+    ) {
       super(message);
       this.name = 'LeadAttachmentError';
     }
@@ -176,5 +180,19 @@ describe('GET /api/partner/leads/[id]/attachments/[attachmentId]/download', () =
       params: Promise.resolve({ id: 'lead-1', attachmentId: 'att-1' })
     });
     expect(res.status).toBe(404);
+  });
+
+  it('410 Gone when attachment was flagged INFECTED, propagating virus name', async () => {
+    vi.mocked(getSession).mockResolvedValue(partnerSession());
+    vi.mocked(getLeadAttachmentDownloadUrl).mockRejectedValue(
+      new LeadAttachmentError('INFECTED', 'quarantined', { scanReason: 'Win.Test.EICAR_HDB-1' })
+    );
+    const res = await downloadGET(new Request('http://t/'), {
+      params: Promise.resolve({ id: 'lead-1', attachmentId: 'att-1' })
+    });
+    expect(res.status).toBe(410);
+    const body = await res.json();
+    expect(body.code).toBe('INFECTED');
+    expect(body.scanReason).toBe('Win.Test.EICAR_HDB-1');
   });
 });

@@ -21,9 +21,18 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const s = sessionResult.value;
 
   const { id } = await params;
-  const doc = await prisma.document.findUnique({ where: { id }, include: { order: { select: { companyId: true } } } });
+  const doc = await prisma.document.findUnique({
+    where: { id },
+    include: { order: { select: { companyId: true } } }
+  });
   if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (!(await canReadDocument(s, doc))) return forbiddenResponse('You do not have access to this document');
+  if (doc.scanStatus === 'infected' && s.role !== 'admin') {
+    return NextResponse.json(
+      { code: 'INFECTED', message: 'Document was quarantined by malware scan', scanReason: doc.scanReason ?? undefined },
+      { status: 410 }
+    );
+  }
 
   const ttl = resolveTtl(new URL(_req.url).searchParams.get('ttl'));
   const { data, error } = await supabaseAdmin.storage.from(documentBucket).createSignedUrl(doc.path, ttl);

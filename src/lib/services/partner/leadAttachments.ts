@@ -8,6 +8,9 @@ import {
 } from '@/lib/storage/mimeValidator';
 import { isPartnerAdmin } from '@/lib/auth/policy';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { getQueue } from '@/lib/jobs/queues';
+import type { ScanDocumentPayload } from '@/lib/jobs/types';
+import { INFECTED_HIDDEN_WHERE } from '@/lib/services/scan/visibility';
 
 const DELETABLE_STATUSES: LeadStatus[] = ['new', 'in_review'];
 
@@ -45,8 +48,10 @@ export class LeadAttachmentError extends Error {
       | 'FILE_TOO_LARGE'
       | 'INVALID_FILENAME'
       | 'STORAGE_FAILURE'
-      | 'LEAD_NOT_EDITABLE',
-    message: string
+      | 'LEAD_NOT_EDITABLE'
+      | 'INFECTED',
+    message: string,
+    public meta?: { scanReason?: string | null }
   ) {
     super(message);
     this.name = 'LeadAttachmentError';
@@ -152,6 +157,19 @@ export async function uploadLeadAttachment(
       });
       return created;
     });
+
+    // Best-effort enqueue of async ClamAV scan. Failure leaves scanStatus='pending'
+    // (graceful — attachment stays usable; backfill sweeps stuck rows).
+    try {
+      const payload: ScanDocumentPayload = { kind: 'leadAttachment', id: attachment.id };
+      await getQueue('docs.scanDocument').add('scan', payload);
+    } catch (err) {
+      console.warn('[leadAttachments] enqueue scan failed', {
+        attachmentId: attachment.id,
+        error: err instanceof Error ? err.message : String(err)
+      });
+    }
+
     return attachment;
   } catch (err) {
     // Compensate: best-effort delete the orphan object so storage stays consistent.
@@ -242,6 +260,13 @@ export async function getLeadAttachmentDownloadUrl(
       input.scopeOrgIds.includes(attachment.lead.organizationId);
     if (!inScope) throw new LeadAttachmentError('NOT_FOUND', 'Вложение не найдено');
   }
+  if (attachment.scanStatus === 'infected') {
+    throw new LeadAttachmentError(
+      'INFECTED',
+      'Файл помещён в карантин антивирусом',
+      { scanReason: attachment.scanReason }
+    );
+  }
 
   const signed = await getServerClient()
     .storage.from(documentBucket)
@@ -266,7 +291,7 @@ export async function listLeadAttachments(
   if (!lead) throw new LeadAttachmentError('NOT_FOUND', 'Заявка не найдена');
 
   const rows = await prisma.leadAttachment.findMany({
-    where: { leadId: lead.id },
+    where: { leadId: lead.id, ...INFECTED_HIDDEN_WHERE },
     orderBy: { createdAt: 'desc' },
     include: { createdByUser: { select: { name: true } } }
   });

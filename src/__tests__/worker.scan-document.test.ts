@@ -39,7 +39,7 @@ function makeDb(opts: { documentPath?: string | null; attachmentPath?: string | 
       update: attachmentUpdate,
     },
     syncLog: { create: syncLogCreate },
-  } as unknown as Parameters<typeof scanDocumentProcessor>[1];
+  } as any;
 }
 
 function makeJob(data: ScanDocumentPayload, id = 'job-1'): Job<ScanDocumentPayload> {
