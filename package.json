@@ -20,10 +20,12 @@
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",
+    "@react-pdf/renderer": "^4.5.1",
     "@supabase/supabase-js": "^2.49.8",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.76.10",
     "clsx": "^2.1.1",
+    "exceljs": "^4.4.0",
     "ioredis": "^5.10.1",
     "jose": "^5.9.6",
     "lucide-react": "^0.511.0",
