@@ -54,24 +54,65 @@ async function cleanupAll() {
   await cleanupOrgs();
 }
 
+async function deletePartnerCascade(pid: string) {
+  const orgs = await prisma.organization.findMany({
+    where: { partnerId: pid },
+    select: { id: true, companyId: true }
+  });
+  const orgIds = orgs.map((o) => o.id);
+  const companyIds = orgs.map((o) => o.companyId).filter((id): id is string => Boolean(id));
+
+  const orderIds = (
+    await prisma.order.findMany({
+      where: { OR: [{ partnerId: pid }, { companyId: { in: companyIds } }] },
+      select: { id: true }
+    })
+  ).map((o) => o.id);
+  if (orderIds.length) {
+    await prisma.document.deleteMany({ where: { orderId: { in: orderIds } } });
+    await prisma.payment.deleteMany({ where: { orderId: { in: orderIds } } });
+    await prisma.order.deleteMany({ where: { id: { in: orderIds } } });
+  }
+
+  await prisma.lead.deleteMany({ where: { partnerId: pid } });
+  await prisma.commissionStatement.deleteMany({ where: { partnerId: pid } });
+  await prisma.notification.deleteMany({ where: { partnerId: pid } });
+  await prisma.partnerUser.deleteMany({ where: { partnerId: pid } });
+  await prisma.user.deleteMany({ where: { partnerId: pid } });
+  if (orgIds.length) {
+    await prisma.organization.deleteMany({ where: { id: { in: orgIds } } });
+  }
+  if (companyIds.length) {
+    await prisma.company.deleteMany({ where: { id: { in: companyIds } } });
+  }
+  await prisma.partner.deleteMany({ where: { id: pid } });
+}
+
+async function deleteStalePartner() {
+  const stale = await prisma.partner.findUnique({
+    where: { slug: PARTNER_SLUG },
+    select: { id: true }
+  });
+  if (stale) await deletePartnerCascade(stale.id);
+}
+
 beforeAll(async () => {
   process.env.ONE_C_ADAPTER = 'fake';
   resetOneCAdapter();
   prisma = new PrismaClient();
-  await prisma.partner.deleteMany({ where: { slug: PARTNER_SLUG } });
+  await deleteStalePartner();
+  await cleanupAll();
   const partner = await prisma.partner.create({
     data: { name: 'OneCSyncTestPartner', slug: PARTNER_SLUG, commissionRate: 0.1 }
   });
   partnerId = partner.id;
-  await cleanupAll();
 });
 
 afterAll(async () => {
-  await cleanupAll();
   await prisma.syncLog.deleteMany({
     where: { entity: { in: ['organization', 'order', 'payment', 'document'] } }
   });
-  await prisma.partner.deleteMany({ where: { id: partnerId } });
+  await deletePartnerCascade(partnerId);
   resetOneCAdapter();
   await prisma.$disconnect();
 });
