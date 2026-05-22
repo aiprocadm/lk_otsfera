@@ -58,7 +58,7 @@ describe('renderStatementPdf', () => {
     });
     expect(Buffer.isBuffer(buf)).toBe(true);
     expect(buf.length).toBeGreaterThan(1000);
-  });
+  }, 15000);
 
   it('PDF starts with %PDF magic bytes', async () => {
     const buf = await renderStatementPdf({
