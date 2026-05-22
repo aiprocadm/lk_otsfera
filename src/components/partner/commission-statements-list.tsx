@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { StatementListItem } from '@/lib/services/partner/finance';
+import type { CommissionStatementItem } from '@prisma/client';
 
 type Props = {
   statements: StatementListItem[];
@@ -59,8 +60,27 @@ function StatementRow({
   canManage: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<CommissionStatementItem[] | null>(null);
+  const [loadingItems, setLoadingItems] = useState(false);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  async function toggleOpen() {
+    const next = !open;
+    setOpen(next);
+    if (next && items === null) {
+      setLoadingItems(true);
+      try {
+        const res = await fetch(`/api/partner/finance/statements/${stmt.id}`);
+        if (res.ok) {
+          const data = await res.json() as { statement?: { items?: CommissionStatementItem[] } };
+          setItems(data.statement?.items ?? []);
+        }
+      } finally {
+        setLoadingItems(false);
+      }
+    }
+  }
 
   async function handleApprove() {
     startTransition(async () => {
@@ -78,7 +98,7 @@ function StatementRow({
     <div className='border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm'>
       {/* Header row */}
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggleOpen}
         className='w-full text-left px-5 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors'
       >
         <div className='flex-1 min-w-0'>
@@ -146,7 +166,14 @@ function StatementRow({
               </tr>
             </thead>
             <tbody>
-              {(stmt as any).items?.map((item: any) => (
+              {loadingItems && (
+                <tr>
+                  <td colSpan={5} className='px-4 py-4 text-center text-gray-400 text-xs'>
+                    Загружаю…
+                  </td>
+                </tr>
+              )}
+              {!loadingItems && items?.map((item) => (
                 <tr key={item.id} className='border-t border-gray-50'>
                   <td className='px-4 py-2 text-gray-700'>{item.orderNumber ?? '—'}</td>
                   <td className='px-4 py-2 text-gray-700'>{item.organizationName}</td>
@@ -155,7 +182,7 @@ function StatementRow({
                   <td className='px-4 py-2 text-right font-medium text-gray-700'>{fmtMoney(item.commissionAmount)}</td>
                 </tr>
               ))}
-              {!(stmt as any).items?.length && (
+              {!loadingItems && items !== null && items.length === 0 && (
                 <tr>
                   <td colSpan={5} className='px-4 py-4 text-center text-gray-400 text-xs'>
                     Нет данных

@@ -23,7 +23,6 @@ import { getSession } from '@/lib/auth/session';
 import { getFinanceKpis, listStatements, getStatementWithItems } from '@/lib/services/partner/finance';
 import { calculateStatementForPartner } from '@/lib/services/commission/statement';
 import { approveStatement, markStatementPaid } from '@/lib/services/commission/lifecycle';
-import { prisma } from '@/lib/db/prisma';
 import { GET } from '@/app/api/partner/finance/route';
 import { POST } from '@/app/api/partner/finance/statements/route';
 import { GET as GET_STMT, PATCH } from '@/app/api/partner/finance/statements/[id]/route';

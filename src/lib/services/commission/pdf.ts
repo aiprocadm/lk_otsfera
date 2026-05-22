@@ -136,5 +136,6 @@ function StatementDocument({ statement, items, partner }: RenderStatementPdfArgs
 
 export async function renderStatementPdf(args: RenderStatementPdfArgs): Promise<Buffer> {
   const element = React.createElement(StatementDocument, args);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return renderToBuffer(element as any);
 }
