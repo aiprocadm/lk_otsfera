@@ -1,10 +1,15 @@
 import { Worker, type Processor } from 'bullmq';
 import { getRedisConnection, closeRedisConnection } from '@/lib/jobs/connection';
 import { closeAllQueues, type QueueName } from '@/lib/jobs/queues';
+import { registerSyncSchedules } from '@/lib/jobs/scheduling';
+import { prisma } from '@/lib/db/prisma';
 import { syncOrdersProcessor } from './processors/sync-orders';
 import { syncPaymentsProcessor } from './processors/sync-payments';
 import { syncDocumentsProcessor } from './processors/sync-documents';
 import { syncOrganizationsProcessor } from './processors/sync-organizations';
+import { syncReconcileProcessor } from './processors/sync-reconcile';
+import { pushLeadProcessor, notifyPushLeadFinalFailure } from './processors/push-lead';
+import type { PushLeadJobPayload } from '@/lib/jobs/types';
 
 const workers: Worker[] = [];
 
@@ -29,6 +34,39 @@ async function main() {
   startWorker('oneCSync.pullOrders', syncOrdersProcessor as Processor);
   startWorker('oneCSync.pullPayments', syncPaymentsProcessor as Processor);
   startWorker('oneCSync.pullDocuments', syncDocumentsProcessor as Processor);
+  startWorker('oneCSync.reconcile', syncReconcileProcessor as Processor);
+
+  const pushLeadWorker = startWorker(
+    'oneCSync.pushLead',
+    pushLeadProcessor as Processor
+  );
+  pushLeadWorker.on('failed', async (job, err) => {
+    if (!job) return;
+    if ((job.attemptsMade ?? 0) >= (job.opts?.attempts ?? 1)) {
+      const data = job.data as PushLeadJobPayload | undefined;
+      if (data?.leadId) {
+        await notifyPushLeadFinalFailure(prisma, {
+          leadId: data.leadId,
+          errorMessage: err.message
+        }).catch((e) => console.error('[worker] notifyPushLeadFinalFailure failed', e));
+      }
+    }
+  });
+
+  if (process.env.ENABLE_SYNC_CRON === '1') {
+    const registered = await registerSyncSchedules();
+    for (const r of registered) {
+      console.log('[worker] schedule registered', {
+        schedulerId: r.schedulerId,
+        queue: r.queueName,
+        pattern: r.pattern,
+        tz: r.tz
+      });
+    }
+  } else {
+    console.log('[worker] ENABLE_SYNC_CRON!=1 — cron schedules NOT registered (hot standby mode)');
+  }
+
   console.log('[worker] ready, listening on queues');
 }
 

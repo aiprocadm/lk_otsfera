@@ -30,6 +30,11 @@ export async function requireOrderAccess(session: SessionPayload, order: { id: s
   return { ok: true, value: session };
 }
 
+export function requireAdmin(session: SessionPayload): GuardResult<SessionPayload> {
+  if (session.role !== 'admin') return { ok: false, response: forbiddenResponse('Admin access only') };
+  return { ok: true, value: session };
+}
+
 export function requirePartner(session: SessionPayload): GuardResult<SessionPayload & { partnerId: string }> {
   if (session.role !== 'partner' || !session.partnerId) {
     return { ok: false, response: forbiddenResponse('Partner access only') };

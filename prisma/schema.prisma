@@ -112,6 +112,7 @@ model User {
   partnerMemberships  PartnerUser[]        @relation("PartnerMembership")
   leadsAuthored       Lead[]               @relation("LeadAuthor")
   leadsManaged        Lead[]               @relation("LeadManager")
+  leadAttachmentsAuthored LeadAttachment[] @relation("LeadAttachmentAuthor")
   commissionStatementsAuthored CommissionStatement[] @relation("CommissionAuthor")
   savedViews          SavedView[]          @relation("SavedViewOwner")
 }
@@ -158,6 +159,7 @@ model Lead {
   promotedOrder      Order?           @relation("LeadPromoted", fields: [promotedOrderId], references: [id])
   rejectedReason     String?
   notes              String?
+  externalIdInOneC   String?
   attachments        LeadAttachment[]
 
   @@index([partnerId, status])
@@ -166,16 +168,19 @@ model Lead {
 }
 
 model LeadAttachment {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  leadId    String
-  lead      Lead     @relation(fields: [leadId], references: [id])
-  name      String
-  path      String
-  mimeType  String
-  size      Int
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  leadId          String
+  lead            Lead     @relation(fields: [leadId], references: [id])
+  createdByUserId String?
+  createdByUser   User?    @relation("LeadAttachmentAuthor", fields: [createdByUserId], references: [id])
+  name            String
+  path            String
+  mimeType        String
+  size            Int
 
   @@index([leadId])
+  @@index([createdByUserId])
 }
 
 model CommissionStatement {

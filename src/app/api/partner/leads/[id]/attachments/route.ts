@@ -1,0 +1,105 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/db/prisma';
+import { getSession } from '@/lib/auth/session';
+import { requirePartner } from '@/lib/auth/guard';
+import {
+  listLeadAttachments,
+  uploadLeadAttachment,
+  LeadAttachmentError
+} from '@/lib/services/partner/leadAttachments';
+
+function scopeOf(session: { assignedOrgIds?: string[] }): string[] | undefined {
+  const arr = session.assignedOrgIds ?? [];
+  return arr.length > 0 ? arr : undefined;
+}
+
+function mapErrorToResponse(err: unknown): Response {
+  if (err instanceof LeadAttachmentError) {
+    switch (err.code) {
+      case 'NOT_FOUND':
+        return NextResponse.json({ error: err.message }, { status: 404 });
+      case 'FORBIDDEN':
+      case 'LEAD_NOT_EDITABLE':
+        return NextResponse.json({ error: err.message }, { status: 403 });
+      case 'UNSUPPORTED_MEDIA_TYPE':
+        return NextResponse.json({ error: err.message }, { status: 415 });
+      case 'FILE_TOO_LARGE':
+        return NextResponse.json({ error: err.message }, { status: 413 });
+      case 'INVALID_FILENAME':
+        return NextResponse.json({ error: err.message }, { status: 400 });
+      case 'STORAGE_FAILURE':
+      default:
+        return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+  }
+  return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+}
+
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const partnerResult = requirePartner(session);
+  if (!partnerResult.ok) return partnerResult.response;
+
+  const { id } = await params;
+  try {
+    const rows = await listLeadAttachments(prisma, {
+      leadId: id,
+      partnerId: partnerResult.value.partnerId,
+      scopeOrgIds: scopeOf(session)
+    });
+    return NextResponse.json({ rows });
+  } catch (err) {
+    return mapErrorToResponse(err);
+  }
+}
+
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const partnerResult = requirePartner(session);
+  if (!partnerResult.ok) return partnerResult.response;
+
+  const { id } = await params;
+  const form = await req.formData().catch(() => null);
+  if (!form) return NextResponse.json({ error: 'Expected multipart form-data' }, { status: 400 });
+
+  const file = form.get('file');
+  if (!(file instanceof File)) {
+    return NextResponse.json({ error: 'Field "file" is required' }, { status: 400 });
+  }
+  const arrayBuf = await file.arrayBuffer();
+
+  try {
+    const attachment = await uploadLeadAttachment(prisma, {
+      leadId: id,
+      partnerId: partnerResult.value.partnerId,
+      scopeOrgIds: scopeOf(session),
+      uploadedByUserId: session.sub,
+      file: {
+        buffer: new Uint8Array(arrayBuf),
+        name: file.name,
+        declaredMimeType: file.type || 'application/octet-stream',
+        size: file.size
+      }
+    });
+    return NextResponse.json(
+      {
+        id: attachment.id,
+        name: attachment.name,
+        size: attachment.size,
+        mimeType: attachment.mimeType,
+        createdAt: attachment.createdAt
+      },
+      { status: 201 }
+    );
+  } catch (err) {
+    return mapErrorToResponse(err);
+  }
+}

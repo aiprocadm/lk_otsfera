@@ -1,0 +1,61 @@
+import type { Job } from 'bullmq';
+import type { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/db/prisma';
+import type { PushLeadJobPayload } from '@/lib/jobs/types';
+import { pushLeadToOneC } from '@/lib/services/oneCSync/push';
+
+export type PushLeadProcessorResult = {
+  leadId: string;
+  externalIdInOneC: string | null;
+};
+
+export async function pushLeadProcessor(
+  job: Job<PushLeadJobPayload>,
+  db: PrismaClient = prisma
+): Promise<PushLeadProcessorResult> {
+  console.log('[worker] push-lead job started', { id: job.id, leadId: job.data.leadId });
+
+  const res = await pushLeadToOneC(db, job.data.leadId);
+  if (!res.ok) {
+    throw new Error(res.error);
+  }
+
+  return { leadId: job.data.leadId, externalIdInOneC: res.externalIdInOneC };
+}
+
+export async function notifyPushLeadFinalFailure(
+  db: PrismaClient,
+  args: { leadId: string; errorMessage: string }
+): Promise<void> {
+  const lead = await db.lead.findUnique({
+    where: { id: args.leadId },
+    select: { partnerId: true, clientCompanyName: true }
+  });
+  if (!lead) return;
+
+  const admins = await db.partnerUser.findMany({
+    where: { partnerId: lead.partnerId, roleInPartner: 'admin', isActive: true },
+    select: { userId: true }
+  });
+
+  if (admins.length === 0) return;
+
+  await db.$transaction(
+    admins.map((a) =>
+      db.notification.create({
+        data: {
+          userId: a.userId,
+          partnerId: lead.partnerId,
+          type: 'sync_error',
+          title: 'Не удалось отправить заявку в 1С',
+          body: `Заявка ${lead.clientCompanyName} (${args.leadId}) не была принята: ${args.errorMessage}`,
+          meta: {
+            kind: 'push_lead_failed',
+            leadId: args.leadId,
+            error: args.errorMessage
+          }
+        }
+      })
+    )
+  );
+}
