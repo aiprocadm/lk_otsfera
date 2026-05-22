@@ -9,6 +9,8 @@ import { syncDocumentsProcessor } from './processors/sync-documents';
 import { syncOrganizationsProcessor } from './processors/sync-organizations';
 import { syncReconcileProcessor } from './processors/sync-reconcile';
 import { pushLeadProcessor, notifyPushLeadFinalFailure } from './processors/push-lead';
+import { generateCommissionPdfProcessor } from './processors/generate-commission-pdf';
+import { generateCommissionXlsxProcessor } from './processors/generate-commission-xlsx';
 import type { PushLeadJobPayload } from '@/lib/jobs/types';
 
 const workers: Worker[] = [];
@@ -52,6 +54,9 @@ async function main() {
       }
     }
   });
+
+  startWorker('docs.generateCommissionPdf', generateCommissionPdfProcessor as Processor);
+  startWorker('docs.generateCommissionXlsx', generateCommissionXlsxProcessor as Processor);
 
   if (process.env.ENABLE_SYNC_CRON === '1') {
     const registered = await registerSyncSchedules();

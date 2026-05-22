@@ -20,7 +20,8 @@ function periodLabel(from: Date, to: Date): string {
   return `${f.toLocaleDateString('ru-RU')} — ${t.toLocaleDateString('ru-RU')}`;
 }
 
-export async function renderStatementXlsx(args: RenderStatementXlsxArgs): Promise<Buffer> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function renderStatementXlsx(args: RenderStatementXlsxArgs): Promise<any> {
   const { statement, items, partner } = args;
   const wb = new ExcelJS.Workbook();
   wb.creator = 'ОТСФЕРА';
@@ -107,6 +108,5 @@ export async function renderStatementXlsx(args: RenderStatementXlsxArgs): Promis
     }
   });
 
-  const buf = await wb.xlsx.writeBuffer();
-  return Buffer.from(buf);
+  return wb.xlsx.writeBuffer();
 }
