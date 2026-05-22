@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../src/lib/db/prisma';
 import { uploadLeadAttachment } from '../src/lib/services/partner/leadAttachments';
+import { calculateStatementForPartner } from '../src/lib/services/commission/statement';
 
 async function main() {
   const company = await prisma.company.upsert({
@@ -124,6 +125,67 @@ async function main() {
         console.warn(`[seed] failed to upload ${filename} for lead ${lead.id}: ${msg}`);
       }
     }
+  }
+
+  // ─── Demo: paid order + commission statement for prev month ─────────
+  const demoOrg = await prisma.organization.upsert({
+    where: { id: 'demo-org-commission' },
+    update: {},
+    create: {
+      id: 'demo-org-commission',
+      name: 'Demo Org (комиссия)',
+      partnerId: partner.id,
+      companyId: company.id
+    }
+  });
+
+  const prevMonthFrom = new Date();
+  prevMonthFrom.setDate(1);
+  prevMonthFrom.setMonth(prevMonthFrom.getMonth() - 1);
+  prevMonthFrom.setHours(0, 0, 0, 0);
+
+  const prevMonthTo = new Date(prevMonthFrom.getFullYear(), prevMonthFrom.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  const demoOrder = await prisma.order.upsert({
+    where: { id: 'demo-order-commission' },
+    update: {},
+    create: {
+      id: 'demo-order-commission',
+      externalId: 'DEMO-COMM-001',
+      orderNumber: 'DEMO-COMM-001',
+      title: 'Демо-заказ для комиссии',
+      companyId: company.id,
+      partnerId: partner.id,
+      totalAmount: 100000,
+      vatIncluded: true,
+      vatRate: 0.2,
+      financialStatus: 'paid',
+      executionStatus: 'completed',
+      closedAt: new Date(prevMonthFrom.getFullYear(), prevMonthFrom.getMonth(), 15)
+    }
+  });
+  void demoOrg; // org was created for completeness but Order links to Company
+  console.log(`[seed] demo paid order: ${demoOrder.id}`);
+
+  const existingStatement = await prisma.commissionStatement.findFirst({
+    where: {
+      partnerId: partner.id,
+      periodFrom: prevMonthFrom,
+      periodTo: prevMonthTo,
+      supersededBy: null
+    }
+  });
+
+  if (!existingStatement) {
+    const { statement, itemCount } = await calculateStatementForPartner(prisma, {
+      partnerId: partner.id,
+      periodFrom: prevMonthFrom,
+      periodTo: prevMonthTo,
+      calculatedByUserId: null
+    });
+    console.log(`[seed] created commission statement ${statement.id} with ${itemCount} items`);
+  } else {
+    console.log(`[seed] commission statement already exists: ${existingStatement.id}`);
   }
 
   console.log('[seed] done');
