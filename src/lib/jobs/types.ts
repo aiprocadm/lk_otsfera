@@ -13,6 +13,10 @@ export type GenerateCommissionPdfPayload = {
   statementId: string;
 };
 
+export type GenerateCommissionXlsxPayload = {
+  statementId: string;
+};
+
 export type NotificationDispatchPayload = {
   notificationId: string;
 };

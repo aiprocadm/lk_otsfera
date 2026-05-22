@@ -22,7 +22,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { href: '/partner/deals', label: 'Сделки' },
     { href: '/partner/leads', label: 'Заявки' },
     { href: '/partner/documents', label: 'Документы' },
-    { href: '/partner/finance', label: 'Финансы', disabled: true },
+    { href: '/partner/finance', label: 'Финансы' },
     { href: '/partner/team', label: 'Команда' }
   ],
   organization: [

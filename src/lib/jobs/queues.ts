@@ -10,6 +10,7 @@ export const QUEUE_NAMES = [
   'oneCSync.reconcile',
   'docs.generateCommissionPdf',
   'docs.generateCommissionXlsx',
+  'docs.calculateMonthlyCommissions',
   'notifications.dispatch',
   'emails.send'
 ] as const;

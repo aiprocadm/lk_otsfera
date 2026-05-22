@@ -6,6 +6,7 @@ import { syncOrganizationsProcessor } from '../src/worker/processors/sync-organi
 import { syncOrdersProcessor } from '../src/worker/processors/sync-orders';
 import { syncPaymentsProcessor } from '../src/worker/processors/sync-payments';
 import { syncDocumentsProcessor } from '../src/worker/processors/sync-documents';
+import { calculateStatementForPartner } from '../src/lib/services/commission/statement';
 import type { SyncJobPayload } from '../src/lib/jobs/types';
 
 const PARTNER_SLUG = '1c-partner-001';
@@ -116,10 +117,60 @@ async function main() {
     payments: paymentsResult,
     documents: documentsResult
   });
+
+  // ─── Demo: paid order + commission statement for prev month ─────────
+  const prevMonthFrom = new Date();
+  prevMonthFrom.setDate(1);
+  prevMonthFrom.setMonth(prevMonthFrom.getMonth() - 1);
+  prevMonthFrom.setHours(0, 0, 0, 0);
+
+  const prevMonthTo = new Date(prevMonthFrom.getFullYear(), prevMonthFrom.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  await prisma.order.upsert({
+    where: { id: 'demo-order-commission' },
+    update: {},
+    create: {
+      id: 'demo-order-commission',
+      externalId: 'DEMO-COMM-001',
+      orderNumber: 'DEMO-COMM-001',
+      title: 'Демо-заказ для комиссии',
+      companyId: company.id,
+      partnerId: partner.id,
+      totalAmount: 100000,
+      vatIncluded: true,
+      vatRate: 0.2,
+      financialStatus: 'paid',
+      executionStatus: 'completed',
+      closedAt: new Date(prevMonthFrom.getFullYear(), prevMonthFrom.getMonth(), 15)
+    }
+  });
+
+  const existingStatement = await prisma.commissionStatement.findFirst({
+    where: {
+      partnerId: partner.id,
+      periodFrom: prevMonthFrom,
+      periodTo: prevMonthTo,
+      supersededBy: null
+    }
+  });
+
+  if (!existingStatement) {
+    const { statement, itemCount } = await calculateStatementForPartner(prisma, {
+      partnerId: partner.id,
+      periodFrom: prevMonthFrom,
+      periodTo: prevMonthTo,
+      calculatedByUserId: null
+    });
+    console.log(`[seed] created commission statement ${statement.id} with ${itemCount} items`);
+  } else {
+    console.log(`[seed] commission statement already exists: ${existingStatement.id}`);
+  }
+
   console.log('[seed] demo accounts (password = ' + PASSWORD + '):');
   console.log('  - admin@demo.local (role=admin)');
   console.log('  - partner@demo.local (partner admin, sees all orgs)');
   console.log('  - partner-mgr@demo.local (partner manager, scope=' + managerScope.length + ' org)');
+  console.log('[seed] done');
 }
 
 main()
