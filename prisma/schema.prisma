@@ -92,7 +92,7 @@ model User {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   email               String               @unique
-  passwordHash        String
+  passwordHash        String?
   name                String
   role                Role                 @default(organization)
   companyId           String?
