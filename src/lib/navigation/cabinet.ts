@@ -9,6 +9,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { href: '/admin/orders', label: 'Orders' },
     { href: '/admin/documents', label: 'Documents' },
     { href: '/admin/messages', label: 'Messages' },
+    { href: '/admin/commission-statements', label: 'Комиссии' },
     { href: '/admin/sync', label: 'Синхронизация' },
     { href: '/admin/health', label: 'Здоровье' }
   ],
