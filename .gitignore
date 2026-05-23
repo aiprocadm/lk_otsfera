@@ -9,3 +9,8 @@ tsconfig.tsbuildinfo
 .claude/
 .remember/
 .pr-body.md
+
+# Playwright runtime output (kept locally for diffs, never committed).
+# Baseline snapshots under src/e2e/snapshots/*-snapshots/ are committed.
+playwright-report/
+test-results/

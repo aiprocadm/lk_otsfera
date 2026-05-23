@@ -1,0 +1,71 @@
+name: Visual regression
+
+# Manual + main pushes. Per Phase 5 plan: snapshot diffs are too noisy for
+# every PR, so this is opt-in.
+on:
+  workflow_dispatch:
+    inputs:
+      update-snapshots:
+        description: 'Regenerate baselines (commit & PR the diff manually).'
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cabinet
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cabinet
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/cabinet
+      REDIS_URL: redis://localhost:6379
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      JWT_SECRET: github-actions-test-secret-not-for-production-use
+      SUPABASE_URL: http://localhost:9999
+      SUPABASE_ANON_KEY: anon
+      SUPABASE_SERVICE_ROLE_KEY: service
+      SUPABASE_STORAGE_BUCKET: documents
+      ONE_C_ADAPTER: fake
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run prisma:generate
+      - run: npm run prisma:migrate:deploy
+      - run: npm run prisma:seed
+      - name: Run visual tests
+        run: |
+          if [ "${{ inputs.update-snapshots }}" = "true" ]; then
+            npm run e2e:visual:update
+          else
+            npm run e2e:visual
+          fi
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
