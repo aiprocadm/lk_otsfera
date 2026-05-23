@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import {
   defaultTransport,
   getEmailFrom,
@@ -32,6 +31,16 @@ export type SendOptions = {
 export type SendResult =
   | { status: 'sent'; id: string | null }
   | { status: 'skipped'; reason: 'disabled' | 'no-api-key' | 'no-recipient' };
+
+/**
+ * Dynamic import keeps `react-dom/server` out of the static module graph.
+ * Next.js disallows importing it from non-RSC server modules at build time,
+ * so we defer the resolve until first send.
+ */
+async function renderHtml(element: React.ReactElement): Promise<string> {
+  const mod = await import('react-dom/server');
+  return `<!DOCTYPE html>\n${mod.renderToStaticMarkup(element)}`;
+}
 
 /**
  * Send a pre-rendered email. Returns `skipped` rather than throwing when the
@@ -72,7 +81,7 @@ export async function sendNotificationEmail(
     {
       to,
       subject: props.title,
-      html: renderHtml(<NotificationTemplate {...props} />),
+      html: await renderHtml(<NotificationTemplate {...props} />),
       text: notificationText(props),
     },
     options,
@@ -88,7 +97,7 @@ export async function sendCommissionReadyEmail(
     {
       to,
       subject: commissionReadySubject(props.period),
-      html: renderHtml(<CommissionReadyTemplate {...props} />),
+      html: await renderHtml(<CommissionReadyTemplate {...props} />),
       text: commissionReadyText(props),
     },
     options,
@@ -104,7 +113,7 @@ export async function sendLeadPromotedEmail(
     {
       to,
       subject: leadPromotedSubject(props.orderNumber),
-      html: renderHtml(<LeadPromotedTemplate {...props} />),
+      html: await renderHtml(<LeadPromotedTemplate {...props} />),
       text: leadPromotedText(props),
     },
     options,
@@ -120,13 +129,9 @@ export async function sendDocumentUploadedEmail(
     {
       to,
       subject: documentUploadedSubject(props.orderNumber),
-      html: renderHtml(<DocumentUploadedTemplate {...props} />),
+      html: await renderHtml(<DocumentUploadedTemplate {...props} />),
       text: documentUploadedText(props),
     },
     options,
   );
-}
-
-function renderHtml(element: React.ReactElement): string {
-  return `<!DOCTYPE html>\n${renderToStaticMarkup(element)}`;
 }

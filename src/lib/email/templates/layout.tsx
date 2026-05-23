@@ -1,3 +1,5 @@
+/* eslint-disable @next/next/no-head-element -- emails render via
+   renderToStaticMarkup, not via Next.js, so <head> is the correct primitive. */
 import * as React from 'react';
 
 /**
