@@ -92,8 +92,9 @@ model User {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   email               String               @unique
-  passwordHash        String
+  passwordHash        String?
   name                String
+  isActive            Boolean              @default(true)
   role                Role                 @default(organization)
   companyId           String?
   company             Company?             @relation(fields: [companyId], references: [id])
@@ -115,6 +116,7 @@ model User {
   leadAttachmentsAuthored LeadAttachment[] @relation("LeadAttachmentAuthor")
   commissionStatementsAuthored CommissionStatement[] @relation("CommissionAuthor")
   savedViews          SavedView[]          @relation("SavedViewOwner")
+  passwordResetTokens PasswordResetToken[]
 }
 
 model PartnerUser {
@@ -288,6 +290,7 @@ model Partner {
   legalName      String?
   slug           String?        @unique
   commissionRate Decimal        @default(0) @db.Decimal(6, 4)
+  isActive       Boolean        @default(true)
   organizations        Organization[]
   users                User[]
   orders               Order[]
@@ -497,6 +500,20 @@ model StudentBridgeGrant {
   token     String
   userId    String
   user      User      @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  token     String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  purpose   String    // "invite" | "reset"
   expiresAt DateTime
   usedAt    DateTime?
 

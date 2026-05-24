@@ -6,7 +6,12 @@ const { findUnique, compare, signToken } = vi.hoisted(() => ({
   signToken: vi.fn()
 }));
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: { user: { findUnique } } }));
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: {
+    user: { findUnique },
+    partnerUser: { findUnique: vi.fn().mockResolvedValue(null) }
+  }
+}));
 vi.mock('bcryptjs', () => ({ default: { compare } }));
 vi.mock('@/lib/auth/jwt', () => ({ signToken }));
 
@@ -45,6 +50,34 @@ describe('auth login route', () => {
       message: 'Invalid request'
     });
     expect(findUnique).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 with account_not_activated when passwordHash is null', async () => {
+    findUnique.mockResolvedValue({
+      id: 'u2',
+      role: 'partner',
+      companyId: null,
+      partnerId: null,
+      organizationId: null,
+      email: 'invited@example.com',
+      name: 'Invited User',
+      externalStudentId: null,
+      passwordHash: null
+    });
+
+    const res = await POST(new Request('https://app.local/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'invited@example.com', password: 'anything' }),
+      headers: { 'content-type': 'application/json' }
+    }));
+
+    expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toEqual({
+      code: 'ACCOUNT_NOT_ACTIVATED',
+      message: 'Activate your account via the invite link.'
+    });
+    expect(compare).not.toHaveBeenCalled();
+    expect(signToken).not.toHaveBeenCalled();
   });
 
   it('returns 200 and sets cookie for valid credentials', async () => {

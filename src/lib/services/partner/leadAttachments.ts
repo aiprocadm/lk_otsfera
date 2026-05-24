@@ -8,6 +8,7 @@ import {
 } from '@/lib/storage/mimeValidator';
 import { isPartnerAdmin } from '@/lib/auth/policy';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { recordAudit } from '@/lib/auth/audit';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { INFECTED_HIDDEN_WHERE } from '@/lib/services/scan/visibility';
@@ -140,20 +141,18 @@ export async function uploadLeadAttachment(
           size: input.file.size
         }
       });
-      await tx.auditLog.create({
-        data: {
-          userId: input.uploadedByUserId,
-          action: 'lead_attachment_uploaded',
-          entity: 'LeadAttachment',
-          entityId: created.id,
-          meta: {
-            leadId: input.leadId,
-            partnerId: input.partnerId,
-            name: input.file.name,
-            mimeType: validation.mime,
-            size: input.file.size
-          }
-        }
+      await recordAudit(tx, {
+        userId: input.uploadedByUserId,
+        action: 'lead_attachment_uploaded',
+        entity: 'lead_attachment',
+        entityId: created.id,
+        after: {
+          leadId: input.leadId,
+          partnerId: input.partnerId,
+          name: input.file.name,
+          mimeType: validation.mime,
+          size: input.file.size,
+        },
       });
       return created;
     });
@@ -216,18 +215,16 @@ export async function deleteLeadAttachment(
     throw new LeadAttachmentError('FORBIDDEN', 'Только автор или partner-admin может удалить вложение');
   }
 
-  await prisma.$transaction([
-    prisma.leadAttachment.delete({ where: { id: attachment.id } }),
-    prisma.auditLog.create({
-      data: {
-        userId,
-        action: 'lead_attachment_deleted',
-        entity: 'LeadAttachment',
-        entityId: attachment.id,
-        meta: { leadId: lead.id, partnerId: input.partnerId, name: attachment.name }
-      }
-    })
-  ]);
+  await prisma.$transaction(async (tx) => {
+    await tx.leadAttachment.delete({ where: { id: attachment.id } });
+    await recordAudit(tx, {
+      userId,
+      action: 'lead_attachment_deleted',
+      entity: 'lead_attachment',
+      entityId: attachment.id,
+      after: { leadId: lead.id, partnerId: input.partnerId, name: attachment.name },
+    });
+  });
 
   await getServerClient()
     .storage.from(documentBucket)

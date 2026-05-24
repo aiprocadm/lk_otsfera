@@ -1,4 +1,5 @@
 import type { PrismaClient, CommissionStatement } from '@prisma/client';
+import { recordAudit } from '@/lib/auth/audit';
 
 export type ApproveInput = {
   statementId: string;
@@ -38,25 +39,24 @@ export async function approveStatement(
   }
 
   const now = new Date();
-  const [updated] = await prisma.$transaction([
-    prisma.commissionStatement.update({
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.commissionStatement.update({
       where: { id: statement.id },
       data: {
         status: 'approved',
         approvedByUserId: input.approvedByUserId,
         approvedAt: now
       }
-    }),
-    prisma.auditLog.create({
-      data: {
-        userId: input.approvedByUserId,
-        action: 'commission_statement_approved',
-        entity: 'CommissionStatement',
-        entityId: statement.id,
-        meta: { partnerId: input.partnerId, approvedAt: now.toISOString() }
-      }
-    })
-  ]);
+    });
+    await recordAudit(tx, {
+      userId: input.approvedByUserId,
+      action: 'commission_statement_approved',
+      entity: 'commission_statement',
+      entityId: statement.id,
+      after: { partnerId: input.partnerId, approvedAt: now.toISOString() },
+    });
+    return result;
+  });
 
   return updated;
 }
@@ -97,27 +97,26 @@ export async function markStatementPaid(
   }
 
   const paidAt = input.paidAt ?? new Date();
-  const [updated] = await prisma.$transaction([
-    prisma.commissionStatement.update({
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.commissionStatement.update({
       where: { id: statement.id },
       data: {
         status: 'paid',
         paidAt
       }
-    }),
-    prisma.auditLog.create({
-      data: {
-        userId: input.paidByUserId,
-        action: 'commission_statement_paid',
-        entity: 'CommissionStatement',
-        entityId: statement.id,
-        meta: {
-          partnerId: statement.partnerId,
-          paidAt: paidAt.toISOString()
-        }
-      }
-    })
-  ]);
+    });
+    await recordAudit(tx, {
+      userId: input.paidByUserId,
+      action: 'commission_statement_paid',
+      entity: 'commission_statement',
+      entityId: statement.id,
+      after: {
+        partnerId: statement.partnerId,
+        paidAt: paidAt.toISOString(),
+      },
+    });
+    return result;
+  });
 
   return updated;
 }

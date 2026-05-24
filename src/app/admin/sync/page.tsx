@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requireAdmin } from '@/lib/auth/requireRole';
 import { getSyncSummary, type SyncSummaryRow } from '@/lib/services/syncSummary';
 
 const ENTITY_RU: Record<SyncSummaryRow['entity'], string> = {
@@ -34,9 +33,7 @@ function formatDate(d: Date | null): string {
 }
 
 export default async function AdminSyncPage() {
-  const session = await getSession();
-  if (!session) redirect('/login');
-  if (session.role !== 'admin') redirect('/login');
+  const session = await requireAdmin();
 
   const rows = await getSyncSummary(prisma);
 

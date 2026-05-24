@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
 import { requirePartner } from '@/lib/auth/guard';
 import { getLead, withdrawLead } from '@/lib/services/partner/leads';
+import { recordAudit } from '@/lib/auth/audit';
 
 const patchSchema = z.object({
   action: z.literal('withdraw'),
@@ -66,17 +67,15 @@ export async function PATCH(
       reason: parsed.data.reason ?? ''
     });
 
-    await prisma.auditLog.create({
-      data: {
-        action: 'lead_withdrawn',
-        entity: 'lead',
-        entityId: lead.id,
-        userId: session.sub,
-        meta: {
-          partnerId: partnerResult.value.partnerId,
-          reason: lead.rejectedReason
-        }
-      }
+    await recordAudit(prisma, {
+      action: 'lead_withdrawn',
+      entity: 'lead',
+      entityId: lead.id,
+      userId: session.sub,
+      reason: lead.rejectedReason ?? undefined,
+      after: {
+        partnerId: partnerResult.value.partnerId,
+      },
     });
 
     return NextResponse.json({ id: lead.id, status: lead.status });

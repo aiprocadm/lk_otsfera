@@ -6,6 +6,7 @@ import { getSession } from '@/lib/auth/session';
 import { requirePartner } from '@/lib/auth/guard';
 import { listLeads, createLead } from '@/lib/services/partner/leads';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
+import { recordAudit } from '@/lib/auth/audit';
 
 const VALID_STATUS: LeadStatus[] = [
   'new',
@@ -114,18 +115,16 @@ export async function POST(req: Request) {
       notes: data.notes ?? null
     });
 
-    await prisma.auditLog.create({
-      data: {
-        action: 'lead_created',
-        entity: 'lead',
-        entityId: lead.id,
-        userId: session.sub,
-        meta: {
-          partnerId: partnerResult.value.partnerId,
-          clientCompanyName: lead.clientCompanyName,
-          subject: lead.subject
-        }
-      }
+    await recordAudit(prisma, {
+      action: 'lead_created',
+      entity: 'lead',
+      entityId: lead.id,
+      userId: session.sub,
+      after: {
+        partnerId: partnerResult.value.partnerId,
+        clientCompanyName: lead.clientCompanyName,
+        subject: lead.subject,
+      },
     });
 
     return NextResponse.json({ id: lead.id, status: lead.status }, { status: 201 });
