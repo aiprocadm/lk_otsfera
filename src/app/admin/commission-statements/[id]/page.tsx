@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requireAdmin } from '@/lib/auth/requireRole';
 import {
   getAdminStatement,
   getStatementAuditLog,
@@ -61,9 +61,7 @@ export default async function AdminCommissionStatementDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getSession();
-  if (!session) redirect('/login');
-  if (session.role !== 'admin') redirect('/login');
+  const session = await requireAdmin();
 
   const { id } = await params;
   const [statement, audit] = await Promise.all([

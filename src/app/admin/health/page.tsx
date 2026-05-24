@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requireAdmin } from '@/lib/auth/requireRole';
 import { getSyncLag, type SyncLagRow } from '@/lib/services/admin/syncHealth';
 import { getQueueStats, getDlq } from '@/lib/services/admin/queueStats';
 import { QueueStatsGrid } from '@/components/admin/queue-stats-grid';
@@ -34,9 +33,7 @@ function lagBadgeClass(lagMs: number | null): string {
 }
 
 export default async function AdminHealthPage() {
-  const session = await getSession();
-  if (!session) redirect('/login');
-  if (session.role !== 'admin') redirect('/login');
+  const session = await requireAdmin();
 
   // Sync stats hit Postgres; queues hit Redis. Failure of one shouldn't
   // hide the other — wrap each branch in a per-section guard so the page
