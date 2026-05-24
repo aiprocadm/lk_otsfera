@@ -12,13 +12,14 @@ function ttlDaysFromEnv(): number {
 export async function createInviteToken(
   prisma: PrismaClient,
   userId: string,
-  ttlDays?: number
+  ttlDays?: number,
+  purpose: 'invite' | 'reset' = 'invite'
 ): Promise<{ token: string; expiresAt: Date }> {
   const token = randomBytes(32).toString('base64url');
   const effectiveTtl = ttlDays ?? ttlDaysFromEnv();
   const expiresAt = new Date(Date.now() + effectiveTtl * 24 * 60 * 60 * 1000);
   await prisma.passwordResetToken.create({
-    data: { token, userId, purpose: 'invite', expiresAt }
+    data: { token, userId, purpose, expiresAt }
   });
   return { token, expiresAt };
 }
