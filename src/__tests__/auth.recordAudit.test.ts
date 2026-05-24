@@ -111,6 +111,9 @@ describe('recordAudit', () => {
       'commission_statement',
       'lead',
       'document',
+      'lead_attachment',
+      'partner_user',
+      'student_bridge',
     ] as const;
 
     for (const entity of entities) {

@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 
 export type AuditEntity =
   | 'user'
@@ -7,7 +7,10 @@ export type AuditEntity =
   | 'order'
   | 'commission_statement'
   | 'lead'
-  | 'document';
+  | 'lead_attachment'
+  | 'document'
+  | 'partner_user'
+  | 'student_bridge';
 
 export type AuditRecord = {
   userId: string;
@@ -20,12 +23,14 @@ export type AuditRecord = {
   reason?: string;
 };
 
-export async function recordAudit(prisma: PrismaClient, rec: AuditRecord): Promise<void> {
-  const meta: Record<string, unknown> = {
+type PrismaLike = PrismaClient | Prisma.TransactionClient;
+
+export async function recordAudit(prisma: PrismaLike, rec: AuditRecord): Promise<void> {
+  const meta: Prisma.JsonObject = {
     status: rec.status ?? 'success',
   };
-  if (rec.before !== undefined) meta.before = rec.before;
-  if (rec.after !== undefined) meta.after = rec.after;
+  if (rec.before !== undefined) meta.before = rec.before as Prisma.JsonObject;
+  if (rec.after !== undefined) meta.after = rec.after as Prisma.JsonObject;
   if (rec.reason !== undefined) meta.reason = rec.reason;
 
   await prisma.auditLog.create({

@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { requireRole, requireSession } from '@/lib/auth/guard';
+import { recordAudit } from '@/lib/auth/audit';
 
 const WINDOW_MS = Number(process.env.STUDENT_BRIDGE_RATE_LIMIT_WINDOW_MS ?? 60_000);
 const LIMIT_PER_WINDOW = Number(process.env.STUDENT_BRIDGE_RATE_LIMIT_MAX ?? 10);
@@ -45,19 +46,18 @@ async function auditBridgeFailure(params: {
 }) {
   const resolvedEntityId = params.entityId ?? params.clientId ?? 'unknown';
 
-  await prisma.auditLog.create({
-    data: {
-      action: params.action,
-      entity: 'student_bridge_code',
+  await recordAudit(prisma, {
+    action: params.action,
+    entity: 'student_bridge',
+    entityId: resolvedEntityId,
+    userId: params.userId,
+    status: 'denied',
+    reason: params.reason,
+    after: {
+      clientId: params.clientId ?? null,
+      ip: params.ip ?? null,
       entityId: resolvedEntityId,
-      userId: params.userId,
-      meta: {
-        reason: params.reason,
-        clientId: params.clientId ?? null,
-        ip: params.ip ?? null,
-        entityId: resolvedEntityId
-      }
-    }
+    },
   });
 }
 
@@ -134,14 +134,12 @@ export async function POST(req: NextRequest) {
 
     if (!grant) return { kind: 'rejected' as const, grant: null };
 
-    await tx.auditLog.create({
-      data: {
-        action: 'STUDENT_BRIDGE_CODE_EXCHANGED',
-        entity: 'student_bridge_code',
-        entityId: grant.jti,
-        userId: sessionResult.value.sub,
-        meta: { clientId, ip: ip ?? null, exchangedAt: now.toISOString() }
-      }
+    await recordAudit(tx, {
+      action: 'STUDENT_BRIDGE_CODE_EXCHANGED',
+      entity: 'student_bridge',
+      entityId: grant.jti,
+      userId: sessionResult.value.sub,
+      after: { clientId, ip: ip ?? null, exchangedAt: now.toISOString() },
     });
 
     return { kind: 'ok' as const, jti: grant.jti, token: grant.token };

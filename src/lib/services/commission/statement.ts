@@ -1,6 +1,7 @@
 import type { PrismaClient, CommissionStatement, Prisma } from '@prisma/client';
 import { calculateCommission, type OrderForCalc } from './calculator';
 import { getQueue } from '@/lib/jobs/queues';
+import { recordAudit } from '@/lib/auth/audit';
 
 export type CommissionTrigger = 'paid_and_closed' | 'paid' | 'completed';
 
@@ -233,22 +234,20 @@ export async function calculateStatementForPartner(
 
   // Audit log — only when triggered by a user (cron runs anonymous; sync-log captures cron events)
   if (calculatedByUserId) {
-    await prisma.auditLog.create({
-      data: {
-        userId: calculatedByUserId,
-        action: 'commission_statement_calculated',
-        entity: 'CommissionStatement',
-        entityId: statement.id,
-        meta: {
-          partnerId,
-          periodFrom: periodFrom.toISOString(),
-          periodTo: periodTo.toISOString(),
-          itemCount: calc.items.length,
-          totalCommission: calc.totals.totalCommissionAmount,
-          isNew,
-          supersededOldId: !isNew ? null : existing?.id ?? null
-        }
-      }
+    await recordAudit(prisma, {
+      userId: calculatedByUserId,
+      action: 'commission_statement_calculated',
+      entity: 'commission_statement',
+      entityId: statement.id,
+      after: {
+        partnerId,
+        periodFrom: periodFrom.toISOString(),
+        periodTo: periodTo.toISOString(),
+        itemCount: calc.items.length,
+        totalCommission: calc.totals.totalCommissionAmount,
+        isNew,
+        supersededOldId: !isNew ? null : existing?.id ?? null,
+      },
     });
   }
 

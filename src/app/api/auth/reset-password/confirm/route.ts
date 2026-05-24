@@ -3,6 +3,7 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db/prisma';
 import { verifyAndConsumeToken } from '@/lib/auth/passwordReset';
+import { recordAudit } from '@/lib/auth/audit';
 
 const ConfirmSchema = z.object({
   token: z.string().min(1),
@@ -33,14 +34,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid_token' }, { status: 400 });
   }
 
-  await prisma.auditLog.create({
-    data: {
-      userId: result.userId,
-      action: 'password_reset',
-      entity: 'user',
-      entityId: result.userId,
-      meta: { status: 'success' },
-    },
+  await recordAudit(prisma, {
+    userId: result.userId,
+    action: 'password_reset',
+    entity: 'user',
+    entityId: result.userId,
+    status: 'success',
   });
 
   return NextResponse.json({ ok: true });

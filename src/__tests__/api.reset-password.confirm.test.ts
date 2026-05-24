@@ -4,9 +4,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Hoisted mocks — must be declared before imports
 // ---------------------------------------------------------------------------
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: {
-    auditLog: { create: vi.fn() },
-  },
+  prisma: {},
+}));
+
+vi.mock('@/lib/auth/audit', () => ({
+  recordAudit: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/passwordReset', () => ({
@@ -21,6 +23,7 @@ vi.mock('bcryptjs', () => ({
 // Imports after mocks
 // ---------------------------------------------------------------------------
 import { prisma } from '@/lib/db/prisma';
+import { recordAudit } from '@/lib/auth/audit';
 import { verifyAndConsumeToken } from '@/lib/auth/passwordReset';
 import bcrypt from 'bcryptjs';
 import { POST } from '@/app/api/auth/reset-password/confirm/route';
@@ -49,7 +52,7 @@ describe('POST /api/auth/reset-password/confirm', () => {
 
   it('200 { ok: true } and writes audit row on valid token + strong password', async () => {
     vi.mocked(verifyAndConsumeToken).mockResolvedValue({ ok: true, userId: 'user-1' });
-    vi.mocked(prisma.auditLog.create).mockResolvedValue({} as never);
+    vi.mocked(recordAudit).mockResolvedValue(undefined);
 
     const res = await POST(jsonReq({ token: 'valid-token', newPassword: 'strongpass' }));
 
@@ -59,14 +62,12 @@ describe('POST /api/auth/reset-password/confirm', () => {
     expect(bcrypt.hash).toHaveBeenCalledWith('strongpass', 10);
     expect(verifyAndConsumeToken).toHaveBeenCalledWith(prisma, 'valid-token', 'hashed-password');
 
-    expect(prisma.auditLog.create).toHaveBeenCalledWith({
-      data: {
-        userId: 'user-1',
-        action: 'password_reset',
-        entity: 'user',
-        entityId: 'user-1',
-        meta: { status: 'success' },
-      },
+    expect(recordAudit).toHaveBeenCalledWith(prisma, {
+      userId: 'user-1',
+      action: 'password_reset',
+      entity: 'user',
+      entityId: 'user-1',
+      status: 'success',
     });
   });
 
@@ -78,7 +79,7 @@ describe('POST /api/auth/reset-password/confirm', () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: 'weak_password' });
     expect(verifyAndConsumeToken).not.toHaveBeenCalled();
-    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+    expect(recordAudit).not.toHaveBeenCalled();
   });
 
   it('400 invalid_request when token is missing', async () => {
@@ -113,7 +114,7 @@ describe('POST /api/auth/reset-password/confirm', () => {
 
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: 'invalid_token' });
-    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+    expect(recordAudit).not.toHaveBeenCalled();
   });
 
   it('400 invalid_token when verifyAndConsumeToken returns expired', async () => {
@@ -123,7 +124,7 @@ describe('POST /api/auth/reset-password/confirm', () => {
 
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: 'invalid_token' });
-    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+    expect(recordAudit).not.toHaveBeenCalled();
   });
 
   it('400 invalid_token when verifyAndConsumeToken returns used', async () => {
@@ -133,7 +134,7 @@ describe('POST /api/auth/reset-password/confirm', () => {
 
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: 'invalid_token' });
-    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+    expect(recordAudit).not.toHaveBeenCalled();
   });
 
   // --- No audit on failure --------------------------------------------------
@@ -143,6 +144,6 @@ describe('POST /api/auth/reset-password/confirm', () => {
 
     await POST(jsonReq({ token: 'bad-token', newPassword: 'strongpass' }));
 
-    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+    expect(recordAudit).not.toHaveBeenCalled();
   });
 });
