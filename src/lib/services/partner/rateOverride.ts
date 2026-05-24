@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { recordAudit } from '@/lib/auth/audit';
 
 export type SetRateInput = {
   organizationId: string;
@@ -22,8 +23,8 @@ export async function setOrgCommissionRate(
   });
   if (!org) throw new Error('NOT_FOUND: organization not under given partner');
 
-  await prisma.$transaction([
-    prisma.organization.update({
+  await prisma.$transaction(async (tx) => {
+    await tx.organization.update({
       where: { id: input.organizationId },
       data: {
         partnerCommissionRate: input.newRate,
@@ -31,21 +32,17 @@ export async function setOrgCommissionRate(
         partnerCommissionRateChangedAt: new Date(),
         partnerCommissionRateChangedBy: input.changedByUserId
       }
-    }),
-    prisma.auditLog.create({
-      data: {
-        userId: input.changedByUserId,
-        action: 'partner_commission_rate_changed',
-        entity: 'Organization',
-        entityId: input.organizationId,
-        meta: {
-          oldRate: org.partnerCommissionRate?.toString() ?? null,
-          newRate: input.newRate.toString(),
-          reason: input.reason
-        }
-      }
-    })
-  ]);
+    });
+    await recordAudit(tx, {
+      userId: input.changedByUserId,
+      action: 'partner_commission_rate_changed',
+      entity: 'organization',
+      entityId: input.organizationId,
+      before: { rate: org.partnerCommissionRate?.toString() ?? 'inherited' },
+      after: { rate: input.newRate.toString() },
+      reason: input.reason,
+    });
+  });
 }
 
 export async function clearOrgCommissionRate(
@@ -58,8 +55,8 @@ export async function clearOrgCommissionRate(
   });
   if (!org) throw new Error('NOT_FOUND');
 
-  await prisma.$transaction([
-    prisma.organization.update({
+  await prisma.$transaction(async (tx) => {
+    await tx.organization.update({
       where: { id: input.organizationId },
       data: {
         partnerCommissionRate: null,
@@ -67,19 +64,15 @@ export async function clearOrgCommissionRate(
         partnerCommissionRateChangedAt: new Date(),
         partnerCommissionRateChangedBy: input.changedByUserId
       }
-    }),
-    prisma.auditLog.create({
-      data: {
-        userId: input.changedByUserId,
-        action: 'partner_commission_rate_changed',
-        entity: 'Organization',
-        entityId: input.organizationId,
-        meta: {
-          oldRate: org.partnerCommissionRate?.toString() ?? null,
-          newRate: null,
-          reason: input.reason
-        }
-      }
-    })
-  ]);
+    });
+    await recordAudit(tx, {
+      userId: input.changedByUserId,
+      action: 'partner_commission_rate_changed',
+      entity: 'organization',
+      entityId: input.organizationId,
+      before: { rate: org.partnerCommissionRate?.toString() ?? 'inherited' },
+      after: { rate: 'cleared' },
+      reason: input.reason,
+    });
+  });
 }

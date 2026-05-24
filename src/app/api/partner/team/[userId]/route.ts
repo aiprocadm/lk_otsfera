@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
 import { requirePartnerAdmin } from '@/lib/auth/guard';
 import { assignOrgs, deactivateMember } from '@/lib/services/partner/team';
+import { recordAudit } from '@/lib/auth/audit';
 
 const assignSchema = z.object({
   assignedOrgIds: z.array(z.string())
@@ -32,18 +33,16 @@ export async function PUT(
       assignedOrgIds: parsed.data.assignedOrgIds
     });
 
-    await prisma.auditLog.create({
-      data: {
-        action: 'partner_member_scope_changed',
-        entity: 'partner_user',
-        entityId: updated.id,
-        userId: session.sub,
-        meta: {
-          partnerId: admin.value.partnerId,
-          targetUserId: userId,
-          assignedOrgIds: parsed.data.assignedOrgIds
-        }
-      }
+    await recordAudit(prisma, {
+      action: 'partner_member_scope_changed',
+      entity: 'partner_user',
+      entityId: updated.id,
+      userId: session.sub,
+      after: {
+        partnerId: admin.value.partnerId,
+        targetUserId: userId,
+        assignedOrgIds: parsed.data.assignedOrgIds,
+      },
     });
 
     return NextResponse.json({ ok: true });
@@ -70,17 +69,15 @@ export async function DELETE(
   try {
     const deactivated = await deactivateMember(prisma, { partnerId: admin.value.partnerId, userId });
 
-    await prisma.auditLog.create({
-      data: {
-        action: 'partner_member_deactivated',
-        entity: 'partner_user',
-        entityId: deactivated.id,
-        userId: session.sub,
-        meta: {
-          partnerId: admin.value.partnerId,
-          targetUserId: userId
-        }
-      }
+    await recordAudit(prisma, {
+      action: 'partner_member_deactivated',
+      entity: 'partner_user',
+      entityId: deactivated.id,
+      userId: session.sub,
+      after: {
+        partnerId: admin.value.partnerId,
+        targetUserId: userId,
+      },
     });
 
     return new NextResponse(null, { status: 204 });

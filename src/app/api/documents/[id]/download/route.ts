@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/guard';
 import { canReadDocument, forbiddenResponse } from '@/lib/auth/policy';
 import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
+import { recordAudit } from '@/lib/auth/audit';
 
 const MIN_TTL = 60;
 const MAX_TTL = 300;
@@ -49,14 +50,12 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: 'Failed to create document download link', correlationId }, { status: 502 });
   }
 
-  await prisma.auditLog.create({
-    data: {
-      action: 'document_download_signed_url',
-      entity: 'document',
-      entityId: doc.id,
-      userId: s.sub,
-      meta: { ttl }
-    }
+  await recordAudit(prisma, {
+    action: 'document_download_signed_url',
+    entity: 'document',
+    entityId: doc.id,
+    userId: s.sub,
+    after: { ttl },
   });
 
   return NextResponse.json({ downloadUrl: data.signedUrl, expiresInSec: ttl, fileName: doc.name });

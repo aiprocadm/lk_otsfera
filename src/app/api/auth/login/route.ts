@@ -67,6 +67,14 @@ export async function POST(req: Request) {
   const { email, password } = parsed.data;
 
   const user = await prisma.user.findUnique({ where: { email } });
+
+  if (user && user.passwordHash === null) {
+    return NextResponse.json(
+      { code: 'ACCOUNT_NOT_ACTIVATED', message: 'Activate your account via the invite link.' },
+      { status: 403 }
+    );
+  }
+
   const hashToCompare = user?.passwordHash ?? DUMMY_BCRYPT_HASH;
   const ok = await bcrypt.compare(password, hashToCompare);
 

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
 import { requirePartnerAdmin } from '@/lib/auth/guard';
 import { listTeam, inviteMember } from '@/lib/services/partner/team';
+import { recordAudit } from '@/lib/auth/audit';
 
 const inviteSchema = z.object({
   email: z.string().email(),
@@ -41,20 +42,18 @@ export async function POST(req: Request) {
       ...parsed.data
     });
 
-    await prisma.auditLog.create({
-      data: {
-        action: 'partner_member_invited',
-        entity: 'partner_user',
-        entityId: result.partnerUser.id,
-        userId: session.sub,
-        meta: {
-          partnerId: admin.value.partnerId,
-          invitedUserId: result.user.id,
-          email: parsed.data.email,
-          roleInPartner: parsed.data.roleInPartner,
-          assignedOrgIds: parsed.data.assignedOrgIds
-        }
-      }
+    await recordAudit(prisma, {
+      action: 'partner_member_invited',
+      entity: 'partner_user',
+      entityId: result.partnerUser.id,
+      userId: session.sub,
+      after: {
+        partnerId: admin.value.partnerId,
+        invitedUserId: result.user.id,
+        email: parsed.data.email,
+        roleInPartner: parsed.data.roleInPartner,
+        assignedOrgIds: parsed.data.assignedOrgIds,
+      },
     });
 
     return NextResponse.json(

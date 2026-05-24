@@ -1,7 +1,6 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requireAdmin } from '@/lib/auth/requireRole';
 import {
   listAdminStatements,
   listPartnersForFilter,
@@ -55,9 +54,7 @@ export default async function AdminCommissionStatementsPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const session = await getSession();
-  if (!session) redirect('/login');
-  if (session.role !== 'admin') redirect('/login');
+  const session = await requireAdmin();
 
   const sp = await searchParams;
   const status = parseStatus(sp.status);

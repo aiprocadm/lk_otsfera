@@ -6,6 +6,7 @@ import { getPrimaryOrganizationId } from '@/lib/auth/organization';
 import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
+import { recordAudit } from '@/lib/auth/audit';
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
@@ -98,14 +99,12 @@ export async function POST(req: Request) {
     data: { orderId, name: file.name, path: internalPath, mimeType: file.type, uploadedById: s.sub }
   });
 
-  await prisma.auditLog.create({
-    data: {
-      action: 'document_upload',
-      entity: 'document',
-      entityId: doc.id,
-      userId: s.sub,
-      meta: { orderId, path: internalPath, mimeType: file.type, size: file.size }
-    }
+  await recordAudit(prisma, {
+    action: 'document_upload',
+    entity: 'document',
+    entityId: doc.id,
+    userId: s.sub,
+    after: { orderId, path: internalPath, mimeType: file.type, size: file.size },
   });
 
   // Best-effort enqueue of async ClamAV scan. Failure leaves scanStatus='pending'
