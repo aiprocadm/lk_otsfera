@@ -94,6 +94,7 @@ model User {
   email               String               @unique
   passwordHash        String?
   name                String
+  isActive            Boolean              @default(true)
   role                Role                 @default(organization)
   companyId           String?
   company             Company?             @relation(fields: [companyId], references: [id])
@@ -288,6 +289,7 @@ model Partner {
   legalName      String?
   slug           String?        @unique
   commissionRate Decimal        @default(0) @db.Decimal(6, 4)
+  isActive       Boolean        @default(true)
   organizations        Organization[]
   users                User[]
   orders               Order[]
