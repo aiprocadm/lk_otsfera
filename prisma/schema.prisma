@@ -116,6 +116,7 @@ model User {
   leadAttachmentsAuthored LeadAttachment[] @relation("LeadAttachmentAuthor")
   commissionStatementsAuthored CommissionStatement[] @relation("CommissionAuthor")
   savedViews          SavedView[]          @relation("SavedViewOwner")
+  passwordResetTokens PasswordResetToken[]
 }
 
 model PartnerUser {
@@ -499,6 +500,20 @@ model StudentBridgeGrant {
   token     String
   userId    String
   user      User      @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  token     String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  purpose   String    // "invite" | "reset"
   expiresAt DateTime
   usedAt    DateTime?
 
