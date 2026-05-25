@@ -1,4 +1,10 @@
-import type { PrismaClient, ExecutionStatus, FinancialStatus } from '@prisma/client';
+import type {
+  PrismaClient,
+  ExecutionStatus,
+  FinancialStatus,
+  DocumentType,
+  DocumentDirection
+} from '@prisma/client';
 import { humanStage, type Stage } from '@/lib/orders/humanStage';
 
 export type OrgOrderRow = {
@@ -112,7 +118,8 @@ export async function listOrgOrders(
 export type OrgOrderDocument = {
   id: string;
   name: string;
-  type: string;
+  type: DocumentType;
+  direction: DocumentDirection;
   signedAt: Date | null;
   createdAt: Date;
   size: number | null;
@@ -173,6 +180,7 @@ export async function getOrgOrder(
           id: true,
           name: true,
           type: true,
+          direction: true,
           signedAt: true,
           createdAt: true,
           size: true
@@ -225,6 +233,7 @@ export async function getOrgOrder(
       id: d.id,
       name: d.name,
       type: d.type,
+      direction: d.direction,
       signedAt: d.signedAt,
       createdAt: d.createdAt,
       size: d.size,
