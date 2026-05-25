@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
-import { requireOrderAccess, requireSession } from '@/lib/auth/guard';
+import { requireOrderAccess, requireSession, forbiddenResponse } from '@/lib/auth/guard';
+import { canSeeOrder } from '@/lib/auth/organizationPolicy';
 import { notifyMessageCreated, triggerNotificationEmail } from '@/lib/notifications';
 import { getPrimaryOrganizationId } from '@/lib/auth/organization';
+import { recordAudit } from '@/lib/auth/audit';
 
 const commentSchema = z.object({
   orderId: z.string().min(1).max(64),
@@ -28,6 +30,33 @@ export async function POST(req: Request) {
   }
 
   const { orderId, body } = parsed.data;
+
+  // Organization-cabinet users: scope check via organizationMemberships array.
+  // Legacy canReadOrder still relies on session.organizationId (singular) and
+  // does not understand multi-org Phase 7 sessions, so handle this role here.
+  if (s.role === 'organization') {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, organizationId: true }
+    });
+    if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (!canSeeOrder(s, order)) return forbiddenResponse('Access denied');
+
+    const comment = await prisma.comment.create({
+      data: { orderId, body, authorId: s.sub }
+    });
+
+    await recordAudit(prisma, {
+      action: 'comment_posted',
+      entity: 'order',
+      entityId: orderId,
+      userId: s.sub,
+      after: { commentId: comment.id, viewer: 'organization' }
+    });
+
+    return NextResponse.json(comment, { status: 201 });
+  }
+
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const orderAccess = await requireOrderAccess(s, order);
