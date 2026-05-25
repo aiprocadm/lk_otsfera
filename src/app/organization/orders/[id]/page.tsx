@@ -66,7 +66,13 @@ export default async function OrganizationOrderDetailPage({
                   <span className='text-gray-400 font-normal'>({order.documents.length})</span>
                 )}
               </h2>
-              <DocumentsList rows={order.documents} />
+              <DocumentsList
+                rows={order.documents}
+                downloadEndpointBase='/api/organization/documents'
+                downloadEndpointQuery={
+                  sp.org ? `?org=${encodeURIComponent(sp.org)}` : ''
+                }
+              />
             </div>
 
             <OrgPaymentsList payments={order.payments} />

@@ -27,10 +27,12 @@ function fmtDate(d: Date): string {
 
 export function DocumentsList({
   rows,
-  downloadEndpointBase = '/api/documents'
+  downloadEndpointBase = '/api/documents',
+  downloadEndpointQuery = ''
 }: {
   rows: OrgDocumentRow[];
   downloadEndpointBase?: string;
+  downloadEndpointQuery?: string;
 }) {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +41,10 @@ export function DocumentsList({
     setError(null);
     setDownloading(docId);
     try {
-      const res = await fetch(`${downloadEndpointBase}/${docId}/download`, { method: 'POST' });
+      const res = await fetch(
+        `${downloadEndpointBase}/${docId}/download${downloadEndpointQuery}`,
+        { method: 'POST' }
+      );
       if (!res.ok) {
         setError('Не удалось получить ссылку для скачивания');
         return;
