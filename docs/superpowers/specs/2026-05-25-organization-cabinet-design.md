@@ -110,7 +110,6 @@ src/lib/services/organization/
 
 src/server-actions/organization/
   team.ts               # inviteOrgMember/update/deactivate/reactivateAction
-  comments.ts           # postOrgCommentAction
 src/server-actions/admin/
   inviteOrgAdmin.ts     # обёртка вокруг services/organization/invite
 src/server-actions/partner/
@@ -639,22 +638,16 @@ export async function reactivateOrgMemberAction(orgUserId: string): Promise<Resu
 
 Каждый: `requireOrganizationAdmin(orgId)` сначала, Zod validate, ловит `OrgMemberError` → `{ok:false, error}`, `revalidatePath('/organization/team')`.
 
-**`src/server-actions/organization/comments.ts`:**
-
-```ts
-export async function postOrgCommentAction(orderId: string, formData: FormData): Promise<Result>
-```
-
-`requireOrganization` → `getOrder(activeOrgId, orderId)` → `canSeeOrder || throw` → `comment.create` → `recordAudit('comment_posted')` → `revalidatePath(/organization/orders/[id])`. **Не** шлём email (комменты на менеджера будут через manager-кабинет в Phase 8+).
+**Комменты от organization** обрабатываются через расширение существующего `POST /api/comments` (см. §6.8), не через отдельный server action. Логика та же: `requireOrganization` → load order → `canSeeOrder || 403` → `comment.create` → `recordAudit('comment_posted')`. **Не** шлём email (комменты на менеджера будут через manager-кабинет в Phase 8+).
 
 **`src/server-actions/admin/inviteOrgAdmin.ts`** и **`src/server-actions/partner/inviteOrgAdmin.ts`** — тонкие обёртки вокруг `services/organization/invite.createOrgAdminInvite`.
 
 ### 6.8 API Routes
 
-- `POST /api/comments` (существующий) — расширяем branch для `session.role === 'organization'` с `canSeeOrder` проверкой.
+- `POST /api/comments` (существующий) — расширяем branch для `session.role === 'organization'` с `canSeeOrder` проверкой. Reuse через существующий endpoint (а не Server Action) выбран потому, что shared `CommentsThread` теперь обслуживает оба viewer'а — partner и organization — и единая точка POST упрощает client-side код.
 - `GET /api/organization/documents/[id]/download` — signed-url + 410 на infected.
 
-`POST /api/organization/comments` отдельный endpoint не делаем — Server Action достаточно.
+Server Action `postOrgCommentAction` не делаем — функциональность покрыта расширенным API endpoint.
 
 ### 6.9 Email шаблоны
 
