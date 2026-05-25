@@ -5,6 +5,7 @@ import type { SyncJobPayload } from '@/lib/jobs/types';
 import { getOneCAdapter } from '@/lib/services/oneCSync';
 import { mapPaymentDto } from '@/lib/services/oneCSync/mappers';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
+import { notifyOrgUsers } from '@/lib/notifications';
 
 export type SyncPaymentsResult = {
   pulled: number;
@@ -39,7 +40,7 @@ export async function syncPaymentsProcessor(
       const input = mapPaymentDto(dto);
       const order = await db.order.findUnique({
         where: { externalId: input.orderExternalId },
-        select: { id: true }
+        select: { id: true, organizationId: true, orderNumber: true, title: true }
       });
 
       if (!order) {
@@ -72,6 +73,20 @@ export async function syncPaymentsProcessor(
           }
         });
         summary.created += 1;
+
+        if (order.organizationId && !input.isRefund) {
+          await notifyOrgUsers(db, {
+            organizationId: order.organizationId,
+            type: 'payment_received',
+            payload: {
+              orderId: order.id,
+              orderNumber: order.orderNumber,
+              orderTitle: order.title,
+              amount: input.amount.toString(),
+              paidAt: input.paidAt
+            }
+          });
+        }
       }
     }
 
