@@ -322,6 +322,7 @@ model Organization {
   organizationUsers              OrganizationUser[]
   notifications                  Notification[]
   leads                          Lead[]
+  orders                         Order[]            @relation("OrderOrganization")
 
   @@index([partnerId])
   @@index([externalId])
@@ -390,6 +391,8 @@ model Order {
   company          Company         @relation(fields: [companyId], references: [id])
   partnerId        String?
   partner          Partner?        @relation(fields: [partnerId], references: [id])
+  organizationId   String?
+  organization     Organization?   @relation("OrderOrganization", fields: [organizationId], references: [id])
   managerId        String?
   manager          User?           @relation("OrderManager", fields: [managerId], references: [id])
   documents        Document[]
@@ -401,6 +404,8 @@ model Order {
 
   @@index([partnerId, executionStatus])
   @@index([partnerId, financialStatus])
+  @@index([organizationId, executionStatus])
+  @@index([organizationId, financialStatus])
   @@index([externalId])
   @@index([closedAt])
 }

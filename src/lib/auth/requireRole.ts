@@ -21,3 +21,22 @@ export async function requirePartnerAdmin(): Promise<SessionPayload> {
   if (!isPartnerAdmin) redirect('/forbidden');
   return session;
 }
+
+export async function requireOrganization(): Promise<SessionPayload> {
+  const session = await requireSession();
+  const hasActiveMembership =
+    session.role === 'organization' &&
+    !!session.organizationMemberships?.some((m) => m.isActive);
+  if (!hasActiveMembership) redirect('/forbidden');
+  return session;
+}
+
+export async function requireOrganizationAdmin(orgId?: string): Promise<SessionPayload> {
+  const session = await requireOrganization();
+  const memberships = session.organizationMemberships ?? [];
+  const isAdmin = orgId
+    ? memberships.some((m) => m.isActive && m.roleInOrg === 'admin' && m.organizationId === orgId)
+    : memberships.some((m) => m.isActive && m.roleInOrg === 'admin');
+  if (!isAdmin) redirect('/forbidden');
+  return session;
+}

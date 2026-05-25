@@ -63,14 +63,18 @@ describe('setOrgCommissionRate', () => {
     });
 
     const audit = await prisma.auditLog.findFirst({
-      where: { userId, entity: 'Organization', entityId: orgId },
+      where: { userId, entity: 'organization', entityId: orgId },
       orderBy: { createdAt: 'desc' }
     });
     expect(audit).not.toBeNull();
     expect(audit!.action).toBe('partner_commission_rate_changed');
-    const meta = audit!.meta as { oldRate: string | null; newRate: string; reason: string };
-    expect(meta.oldRate).toBeNull();
-    expect(meta.newRate).toBe('0.08');
+    const meta = audit!.meta as {
+      before?: { rate: string };
+      after?: { rate: string };
+      reason?: string;
+    };
+    expect(meta.before?.rate).toBe('inherited');
+    expect(meta.after?.rate).toBe('0.08');
     expect(meta.reason).toBe('VIP');
   });
 
@@ -125,8 +129,11 @@ describe('clearOrgCommissionRate', () => {
       orderBy: { createdAt: 'desc' }
     });
     expect(audit).not.toBeNull();
-    const meta = audit!.meta as { oldRate: string; newRate: string | null };
-    expect(meta.oldRate).toBe('0.08');
-    expect(meta.newRate).toBeNull();
+    const meta = audit!.meta as {
+      before?: { rate: string };
+      after?: { rate: string };
+    };
+    expect(meta.before?.rate).toBe('0.08');
+    expect(meta.after?.rate).toBe('cleared');
   });
 });
