@@ -17,10 +17,26 @@ import {
   leadPromotedText,
   NotificationTemplate,
   notificationText,
+  OrgDocumentPublishedTemplate,
+  orgDocumentPublishedSubject,
+  orgDocumentPublishedText,
+  OrgInviteTemplate,
+  orgInviteSubject,
+  orgInviteText,
+  OrgOrderStatusChangedTemplate,
+  orgOrderStatusChangedSubject,
+  orgOrderStatusChangedText,
+  OrgPaymentReceivedTemplate,
+  orgPaymentReceivedSubject,
+  orgPaymentReceivedText,
   type CommissionReadyProps,
   type DocumentUploadedProps,
   type LeadPromotedProps,
   type NotificationProps,
+  type OrgDocumentPublishedProps,
+  type OrgInviteProps,
+  type OrgOrderStatusChangedProps,
+  type OrgPaymentReceivedProps,
 } from './templates';
 
 export type SendOptions = {
@@ -131,6 +147,70 @@ export async function sendDocumentUploadedEmail(
       subject: documentUploadedSubject(props.orderNumber),
       html: await renderHtml(<DocumentUploadedTemplate {...props} />),
       text: documentUploadedText(props),
+    },
+    options,
+  );
+}
+
+export async function sendOrgInviteEmail(
+  args: { to: string } & OrgInviteProps,
+  options: SendOptions = {},
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: orgInviteSubject(props.organizationName),
+      html: await renderHtml(<OrgInviteTemplate {...props} />),
+      text: orgInviteText(props),
+    },
+    options,
+  );
+}
+
+export async function sendOrgDocumentPublishedEmail(
+  args: { to: string } & OrgDocumentPublishedProps,
+  options: SendOptions = {},
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: orgDocumentPublishedSubject(props),
+      html: await renderHtml(<OrgDocumentPublishedTemplate {...props} />),
+      text: orgDocumentPublishedText(props),
+    },
+    options,
+  );
+}
+
+export async function sendOrgPaymentReceivedEmail(
+  args: { to: string } & OrgPaymentReceivedProps,
+  options: SendOptions = {},
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: orgPaymentReceivedSubject(props),
+      html: await renderHtml(<OrgPaymentReceivedTemplate {...props} />),
+      text: orgPaymentReceivedText(props),
+    },
+    options,
+  );
+}
+
+export async function sendOrgOrderStatusChangedEmail(
+  args: { to: string } & OrgOrderStatusChangedProps,
+  options: SendOptions = {},
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: orgOrderStatusChangedSubject(props),
+      html: await renderHtml(<OrgOrderStatusChangedTemplate {...props} />),
+      text: orgOrderStatusChangedText(props),
     },
     options,
   );
