@@ -50,7 +50,7 @@ export async function syncOrdersProcessor(
 
       const existing = await db.order.findUnique({
         where: { externalId: input.externalId },
-        select: { id: true }
+        select: { id: true, organizationId: true }
       });
 
       const ownedBy1C = {
@@ -72,7 +72,9 @@ export async function syncOrdersProcessor(
       if (existing) {
         await db.order.update({
           where: { id: existing.id },
-          data: ownedBy1C
+          data: existing.organizationId === null
+            ? { ...ownedBy1C, organizationId: org.id }
+            : ownedBy1C
         });
         summary.updated += 1;
       } else {
@@ -82,7 +84,8 @@ export async function syncOrdersProcessor(
             externalId: input.externalId,
             executionStatus: input.executionStatus,
             companyId: org.companyId,
-            partnerId: org.partnerId
+            partnerId: org.partnerId,
+            organizationId: org.id
           }
         });
         summary.created += 1;

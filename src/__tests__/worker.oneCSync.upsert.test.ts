@@ -228,6 +228,101 @@ describe('syncOrdersProcessor', () => {
     expect(reread?.executionStatus).toBe('on_hold');
   });
 
+  it('writes Order.organizationId on create', async () => {
+    await cleanupDocs();
+    await cleanupPayments();
+    await cleanupOrders();
+    await syncOrdersProcessor(job(), prisma);
+
+    const orders = await prisma.order.findMany({
+      where: { externalId: { in: FAKE_ORDER_EXTERNAL_IDS } },
+      select: { externalId: true, organizationId: true }
+    });
+    expect(orders).toHaveLength(FAKE_ORDERS.length);
+    for (const o of orders) {
+      expect(o.organizationId).toBeTruthy();
+    }
+
+    // each order's organizationId matches the org with corresponding externalId
+    const orgByExt = new Map(
+      (
+        await prisma.organization.findMany({
+          where: { externalId: { in: FAKE_ORG_EXTERNAL_IDS } },
+          select: { id: true, externalId: true }
+        })
+      ).map((o) => [o.externalId, o.id])
+    );
+    const orderByExt = new Map(orders.map((o) => [o.externalId, o.organizationId]));
+    for (const fakeOrder of FAKE_ORDERS) {
+      const expectedOrgId = orgByExt.get(fakeOrder.organizationExternalId);
+      expect(orderByExt.get(fakeOrder.externalId)).toBe(expectedOrgId);
+    }
+  });
+
+  it('backfills Order.organizationId when existing record has null', async () => {
+    // simulate legacy: null out organizationId on first order
+    const target = FAKE_ORDER_EXTERNAL_IDS[0];
+    await prisma.order.updateMany({
+      where: { externalId: target },
+      data: { organizationId: null }
+    });
+    const before = await prisma.order.findUnique({
+      where: { externalId: target },
+      select: { organizationId: true }
+    });
+    expect(before?.organizationId).toBeNull();
+
+    await syncOrdersProcessor(job(), prisma);
+
+    const after = await prisma.order.findUnique({
+      where: { externalId: target },
+      select: { organizationId: true }
+    });
+    expect(after?.organizationId).toBeTruthy();
+  });
+
+  it('does not overwrite existing non-null Order.organizationId', async () => {
+    const target = FAKE_ORDER_EXTERNAL_IDS[0];
+
+    // create alternate organization linked to same partner
+    const altCompany = await prisma.company.create({
+      data: { name: 'AltCompany-' + Date.now() }
+    });
+    const altOrg = await prisma.organization.create({
+      data: {
+        name: 'AltOrg-' + Date.now(),
+        partnerId,
+        companyId: altCompany.id
+      }
+    });
+
+    // assign order to alt org manually
+    await prisma.order.updateMany({
+      where: { externalId: target },
+      data: { organizationId: altOrg.id }
+    });
+
+    await syncOrdersProcessor(job(), prisma);
+
+    const after = await prisma.order.findUnique({
+      where: { externalId: target },
+      select: { organizationId: true }
+    });
+    expect(after?.organizationId).toBe(altOrg.id);
+
+    // restore: re-link to real org (matches fixture organizationExternalId)
+    const realOrg = await prisma.organization.findUnique({
+      where: { externalId: FAKE_ORDERS[0].organizationExternalId },
+      select: { id: true }
+    });
+    await prisma.order.updateMany({
+      where: { externalId: target },
+      data: { organizationId: realOrg!.id }
+    });
+    await prisma.organization.delete({ where: { id: altOrg.id } });
+    await prisma.company.delete({ where: { id: altCompany.id } });
+  });
+
   it('skips orders when organization is missing, status warn in SyncLog', async () => {
     await cleanupDocs();
     await cleanupPayments();
