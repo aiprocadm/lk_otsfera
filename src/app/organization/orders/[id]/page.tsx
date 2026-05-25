@@ -9,6 +9,8 @@ import { OrgOrderAmounts } from '@/components/organization/org-order-amounts';
 import { OrgOrderTimeline } from '@/components/organization/org-order-timeline';
 import { OrgPaymentsList } from '@/components/organization/org-payments-list';
 import { DocumentsList } from '@/components/partner/documents-list';
+import { DealComments } from '@/components/partner/deal-comments';
+import type { DealCommentRow } from '@/lib/services/partner/dealDetail';
 import { getOrgOrder } from '@/lib/services/organization/orders';
 
 type Params = { id: string };
@@ -33,6 +35,18 @@ export default async function OrganizationOrderDetailPage({
   if (!canSeeOrder(ctx.session, { organizationId: order.organizationId })) {
     notFound();
   }
+
+  const commentRows = await prisma.comment.findMany({
+    where: { orderId: order.id },
+    orderBy: { createdAt: 'asc' },
+    include: { author: { select: { name: true } } }
+  });
+  const comments: DealCommentRow[] = commentRows.map((c) => ({
+    id: c.id,
+    body: c.body,
+    createdAt: c.createdAt,
+    authorName: c.author.name
+  }));
 
   const backHref = sp.org
     ? `/organization/orders?org=${encodeURIComponent(sp.org)}`
@@ -77,14 +91,7 @@ export default async function OrganizationOrderDetailPage({
 
             <OrgPaymentsList payments={order.payments} />
 
-            <div className='bg-white border border-gray-200 rounded-xl p-5 space-y-2'>
-              <h2 className='text-sm font-semibold text-[#111111]'>Комментарии</h2>
-              <p className='text-sm text-gray-500'>
-                {order.commentsCount > 0
-                  ? `${order.commentsCount} ${pluralizeComments(order.commentsCount)} — будут видны здесь в Phase 7.4`
-                  : 'Комментарии скоро появятся в этой секции (Phase 7.4).'}
-              </p>
-            </div>
+            <DealComments comments={comments} orderId={order.id} />
           </div>
 
           <div className='space-y-4'>
@@ -96,10 +103,3 @@ export default async function OrganizationOrderDetailPage({
   );
 }
 
-function pluralizeComments(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return 'комментарий';
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'комментария';
-  return 'комментариев';
-}
