@@ -25,7 +25,13 @@ function fmtDate(d: Date): string {
   return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(d);
 }
 
-export function DocumentsList({ rows }: { rows: OrgDocumentRow[] }) {
+export function DocumentsList({
+  rows,
+  downloadEndpointBase = '/api/documents'
+}: {
+  rows: OrgDocumentRow[];
+  downloadEndpointBase?: string;
+}) {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +39,7 @@ export function DocumentsList({ rows }: { rows: OrgDocumentRow[] }) {
     setError(null);
     setDownloading(docId);
     try {
-      const res = await fetch(`/api/documents/${docId}/download`, { method: 'POST' });
+      const res = await fetch(`${downloadEndpointBase}/${docId}/download`, { method: 'POST' });
       if (!res.ok) {
         setError('Не удалось получить ссылку для скачивания');
         return;
