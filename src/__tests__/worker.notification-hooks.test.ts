@@ -6,7 +6,6 @@ import type {
   OneCOrderDto,
   OneCPaymentDto,
   OneCDocumentDto,
-  OneCLeadPushPayload,
   OneCLeadPushResult,
   OneCAdapter
 } from '@/lib/services/oneCSync';
@@ -29,7 +28,7 @@ class ScriptedAdapter implements OneCAdapter {
   async pullDocuments(): Promise<OneCDocumentDto[]> {
     return this.documents;
   }
-  async pushLead(_p: OneCLeadPushPayload): Promise<OneCLeadPushResult> {
+  async pushLead(): Promise<OneCLeadPushResult> {
     return { acceptedAt: new Date().toISOString() };
   }
 }
