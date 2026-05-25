@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import bcrypt from 'bcryptjs';
-import { signToken } from '@/lib/auth/jwt';
+import { signToken, type OrganizationMembership } from '@/lib/auth/jwt';
 
 const DUMMY_BCRYPT_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
 
@@ -99,6 +99,21 @@ export async function POST(req: Request) {
     }
   }
 
+  let organizationMemberships: OrganizationMembership[] | undefined;
+
+  if (user.role === 'organization') {
+    const memberships = await prisma.organizationUser.findMany({
+      where: { userId: user.id, isActive: true },
+      select: { organizationId: true, roleInOrg: true, isActive: true }
+    });
+
+    organizationMemberships = memberships.map((m) => ({
+      organizationId: m.organizationId,
+      roleInOrg: m.roleInOrg === 'admin' ? 'admin' : 'member',
+      isActive: m.isActive
+    }));
+  }
+
   const token = await signToken({
     sub: user.id,
     role: user.role,
@@ -109,7 +124,8 @@ export async function POST(req: Request) {
     name: user.name,
     externalStudentId: user.externalStudentId,
     ...(partnerRole !== undefined ? { partnerRole } : {}),
-    ...(assignedOrgIds !== undefined ? { assignedOrgIds } : {})
+    ...(assignedOrgIds !== undefined ? { assignedOrgIds } : {}),
+    ...(organizationMemberships !== undefined ? { organizationMemberships } : {})
   });
 
   const res = NextResponse.json({ ok: true });
