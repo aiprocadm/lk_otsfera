@@ -42,7 +42,13 @@ async function cleanupOrgs() {
   });
   const orgIds = orgs.map((o) => o.id);
   const companyIds = orgs.map((o) => o.companyId).filter((id): id is string => Boolean(id));
-  await prisma.organization.deleteMany({ where: { id: { in: orgIds } } });
+  if (orgIds.length) {
+    // OrganizationUser must die before its parent Organization — seed may have
+    // left memberships for org@demo.local in these orgs.
+    await prisma.organizationUser.deleteMany({ where: { organizationId: { in: orgIds } } });
+    await prisma.student.deleteMany({ where: { organizationId: { in: orgIds } } });
+    await prisma.organization.deleteMany({ where: { id: { in: orgIds } } });
+  }
   if (companyIds.length) {
     await prisma.company.deleteMany({ where: { id: { in: companyIds } } });
   }
@@ -71,15 +77,21 @@ async function deletePartnerCascade(pid: string) {
   if (orderIds.length) {
     await prisma.document.deleteMany({ where: { orderId: { in: orderIds } } });
     await prisma.payment.deleteMany({ where: { orderId: { in: orderIds } } });
+    // CommissionStatementItem has FKs to both Order and CommissionStatement —
+    // it must die before either.
+    await prisma.commissionStatementItem.deleteMany({ where: { orderId: { in: orderIds } } });
     await prisma.order.deleteMany({ where: { id: { in: orderIds } } });
   }
 
   await prisma.lead.deleteMany({ where: { partnerId: pid } });
+  await prisma.commissionStatementItem.deleteMany({ where: { statement: { partnerId: pid } } });
   await prisma.commissionStatement.deleteMany({ where: { partnerId: pid } });
   await prisma.notification.deleteMany({ where: { partnerId: pid } });
   await prisma.partnerUser.deleteMany({ where: { partnerId: pid } });
   await prisma.user.deleteMany({ where: { partnerId: pid } });
   if (orgIds.length) {
+    await prisma.organizationUser.deleteMany({ where: { organizationId: { in: orgIds } } });
+    await prisma.student.deleteMany({ where: { organizationId: { in: orgIds } } });
     await prisma.organization.deleteMany({ where: { id: { in: orgIds } } });
   }
   if (companyIds.length) {
