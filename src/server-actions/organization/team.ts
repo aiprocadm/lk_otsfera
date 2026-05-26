@@ -169,3 +169,23 @@ export async function reactivateOrgMemberAction(formData: FormData): Promise<Act
     return mapMemberError(e);
   }
 }
+
+// ----- Form-compatible thin wrappers ---------------------------------------
+// React's <form action={fn}> types accept only void-returning actions. The
+// typed Action functions above are kept for imperative client-side use
+// (where we want structured error feedback). Wrappers below discard the
+// result so they can be wired directly to <form action>. Errors still
+// trigger revalidatePath, so the UI re-renders and stale-state regressions
+// are caught visually — though without inline error text.
+
+export async function updateOrgMemberRoleFormAction(formData: FormData): Promise<void> {
+  await updateOrgMemberRoleAction(formData);
+}
+
+export async function deactivateOrgMemberFormAction(formData: FormData): Promise<void> {
+  await deactivateOrgMemberAction(formData);
+}
+
+export async function reactivateOrgMemberFormAction(formData: FormData): Promise<void> {
+  await reactivateOrgMemberAction(formData);
+}
