@@ -259,27 +259,9 @@ describe('syncOrdersProcessor', () => {
     }
   });
 
-  it('backfills Order.organizationId when existing record has null', async () => {
-    // simulate legacy: null out organizationId on first order
-    const target = FAKE_ORDER_EXTERNAL_IDS[0];
-    await prisma.order.updateMany({
-      where: { externalId: target },
-      data: { organizationId: null }
-    });
-    const before = await prisma.order.findUnique({
-      where: { externalId: target },
-      select: { organizationId: true }
-    });
-    expect(before?.organizationId).toBeNull();
-
-    await syncOrdersProcessor(job(), prisma);
-
-    const after = await prisma.order.findUnique({
-      where: { externalId: target },
-      select: { organizationId: true }
-    });
-    expect(after?.organizationId).toBeTruthy();
-  });
+  // Note: "backfills Order.organizationId when existing record has null" test
+  // removed — after migration 20260526132950_order_organization_id_required the
+  // column is NOT NULL at the DB level, so the legacy-null scenario is unreachable.
 
   it('does not overwrite existing non-null Order.organizationId', async () => {
     const target = FAKE_ORDER_EXTERNAL_IDS[0];

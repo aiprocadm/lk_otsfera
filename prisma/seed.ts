@@ -126,6 +126,10 @@ async function main() {
 
   const prevMonthTo = new Date(prevMonthFrom.getFullYear(), prevMonthFrom.getMonth() + 1, 0, 23, 59, 59, 999);
 
+  if (!firstOrg) {
+    throw new Error('[seed] expected firstOrg to be populated by sync-organizations — cannot attach demo commission order');
+  }
+
   await prisma.order.upsert({
     where: { id: 'demo-order-commission' },
     update: {},
@@ -136,6 +140,7 @@ async function main() {
       title: 'Демо-заказ для комиссии',
       companyId: company.id,
       partnerId: partner.id,
+      organizationId: firstOrg.id,
       totalAmount: 100000,
       vatIncluded: true,
       vatRate: 0.2,

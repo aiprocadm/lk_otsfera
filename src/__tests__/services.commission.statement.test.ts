@@ -62,6 +62,7 @@ async function createPaidOrder(
       title: 'Test order',
       companyId,
       partnerId,
+      organizationId: orgId,
       totalAmount: amount,
       paidAmount: amount,
       paidAt: closedAt,

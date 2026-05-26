@@ -13,13 +13,11 @@ let orgBId: string;
 let orderA1Id: string;
 let orderA2Id: string;
 let orderB1Id: string;
-let orphanOrderId: string;
 let docA1ContractId: string;
 let docA1ActId: string;
 let docA1InfectedId: string;
 let docA2InvoiceId: string;
 let docB1ContractId: string;
-let docOrphanId: string;
 
 beforeAll(async () => {
   prisma = new PrismaClient();
@@ -58,16 +56,12 @@ beforeAll(async () => {
       executionStatus: 'pending'
     }
   });
-  const orphan = await prisma.order.create({
-    data: {
-      title: 'Orphan order', companyId, partnerId,
-      executionStatus: 'pending'
-    }
-  });
+  // Note: with Order.organizationId NOT NULL since migration
+  // 20260526132950_order_organization_id_required, the legacy "orphan" scenario
+  // is unreachable. canSeeDocument retains the null-check as runtime safety net.
   orderA1Id = a1.id;
   orderA2Id = a2.id;
   orderB1Id = b1.id;
-  orphanOrderId = orphan.id;
 
   const tenDaysAgo = new Date(Date.now() - 10 * 24 * 3600 * 1000);
   const dContract = await prisma.document.create({
@@ -115,14 +109,6 @@ beforeAll(async () => {
   });
   docB1ContractId = dB.id;
 
-  const dOrph = await prisma.document.create({
-    data: {
-      name: 'orphan.pdf', path: 'fake://orphan',
-      mimeType: 'application/pdf', type: 'other',
-      orderId: orphanOrderId
-    }
-  });
-  docOrphanId = dOrph.id;
 });
 
 afterAll(async () => {
@@ -144,7 +130,6 @@ describe('services/organization/documents — listOrgDocuments', () => {
     expect(ids).toContain(docA1ActId);
     expect(ids).toContain(docA2InvoiceId);
     expect(ids).not.toContain(docB1ContractId);
-    expect(ids).not.toContain(docOrphanId);
   });
 
   it('hides infected documents from the list', async () => {
@@ -246,11 +231,6 @@ describe('services/organization/documents — getOrgDocumentForDownload', () => 
 
   it('returns not_found (silent) for foreign-org document', async () => {
     const r = await getOrgDocumentForDownload(prisma, orgAId, docB1ContractId);
-    expect(r).toEqual({ ok: false, error: 'not_found' });
-  });
-
-  it('returns not_found for orphan document (order without organizationId)', async () => {
-    const r = await getOrgDocumentForDownload(prisma, orgAId, docOrphanId);
     expect(r).toEqual({ ok: false, error: 'not_found' });
   });
 
