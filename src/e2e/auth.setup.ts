@@ -22,15 +22,20 @@ function ensureDir(file: string) {
  * reuse this state via the project's `storageState` so we don't pay the
  * login round-trip on every test.
  */
+// Selectors note: the login page's <label> elements are not associated to
+// their inputs via htmlFor/id, so `getByLabel` doesn't match. We anchor on
+// input[type="..."] which is the actual DOM contract.
+
 setup('authenticate as partner admin', async ({ page, context }) => {
   ensureDir(PARTNER_AUTH_FILE);
 
   await page.goto('/login');
-  await page.getByLabel(/email/i).fill(PARTNER_EMAIL);
-  await page.getByLabel(/пароль|password/i).fill(PARTNER_PASSWORD);
+  await page.locator('input[type="email"]').fill(PARTNER_EMAIL);
+  await page.locator('input[type="password"]').fill(PARTNER_PASSWORD);
   await page.getByRole('button', { name: /войти|sign in|log in/i }).click();
 
-  // Successful login redirects to /partner/dashboard.
+  // Successful login redirects to /partner/dashboard (or /dashboard which then
+  // redirects role-aware). Wait for the partner-side url.
   await page.waitForURL(/\/partner\/dashboard/);
   await expect(page).toHaveURL(/\/partner\/dashboard/);
 
@@ -41,11 +46,11 @@ setup('authenticate as organization admin', async ({ page, context }) => {
   ensureDir(ORG_AUTH_FILE);
 
   await page.goto('/login');
-  await page.getByLabel(/email/i).fill(ORG_EMAIL);
-  await page.getByLabel(/пароль|password/i).fill(ORG_PASSWORD);
+  await page.locator('input[type="email"]').fill(ORG_EMAIL);
+  await page.locator('input[type="password"]').fill(ORG_PASSWORD);
   await page.getByRole('button', { name: /войти|sign in|log in/i }).click();
 
-  // Successful login redirects to /organization/dashboard.
+  // Successful login redirects to /organization/dashboard for org users.
   await page.waitForURL(/\/organization\/dashboard/);
   await expect(page).toHaveURL(/\/organization\/dashboard/);
 
