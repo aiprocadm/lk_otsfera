@@ -24,9 +24,13 @@ afterEach(() => {
   process.env = { ...ORIGINAL_ENV };
 });
 
+// Opt-in flags invert the default and have separate coverage below.
+const OPT_IN_FLAGS = new Set(['organization_cabinet']);
+
 describe('isFeatureEnabled', () => {
-  it('returns true when the env var is unset (default-enabled)', () => {
+  it('returns true when the env var is unset (default-enabled opt-out flags)', () => {
     for (const flag of FEATURE_FLAGS) {
+      if (OPT_IN_FLAGS.has(flag)) continue;
       expect(isFeatureEnabled(flag)).toBe(true);
     }
   });
