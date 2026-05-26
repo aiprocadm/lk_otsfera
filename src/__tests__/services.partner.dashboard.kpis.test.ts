@@ -12,31 +12,31 @@ beforeAll(async () => {
   });
   partnerId = partner.id;
   const company = await prisma.company.create({ data: { name: 'KpiC-' + Date.now() } });
-  await prisma.organization.create({
+  const org = await prisma.organization.create({
     data: { name: 'A', partnerId, companyId: company.id }
   });
 
   await prisma.order.createMany({
     data: [
       {
-        title: 'Открытая 1', companyId: company.id, partnerId,
+        title: 'Открытая 1', companyId: company.id, partnerId, organizationId: org.id,
         totalAmount: 100000, paidAmount: 0,
         executionStatus: 'in_progress', financialStatus: 'billed'
       },
       {
-        title: 'Открытая 2', companyId: company.id, partnerId,
+        title: 'Открытая 2', companyId: company.id, partnerId, organizationId: org.id,
         totalAmount: 80000, paidAmount: 30000,
         executionStatus: 'in_progress', financialStatus: 'partially_paid'
       },
       {
-        title: 'Завершённая, оплачена в этом месяце', companyId: company.id, partnerId,
+        title: 'Завершённая, оплачена в этом месяце', companyId: company.id, partnerId, organizationId: org.id,
         totalAmount: 200000, paidAmount: 200000,
         executionStatus: 'completed', financialStatus: 'paid',
         closedAt: new Date(),
         paidAt: new Date()
       },
       {
-        title: 'Отменённая', companyId: company.id, partnerId,
+        title: 'Отменённая', companyId: company.id, partnerId, organizationId: org.id,
         totalAmount: 500000, paidAmount: 0,
         executionStatus: 'cancelled', financialStatus: 'not_billed'
       }

@@ -391,8 +391,8 @@ model Order {
   company          Company         @relation(fields: [companyId], references: [id])
   partnerId        String?
   partner          Partner?        @relation(fields: [partnerId], references: [id])
-  organizationId   String?
-  organization     Organization?   @relation("OrderOrganization", fields: [organizationId], references: [id])
+  organizationId   String
+  organization     Organization    @relation("OrderOrganization", fields: [organizationId], references: [id])
   managerId        String?
   manager          User?           @relation("OrderManager", fields: [managerId], references: [id])
   documents        Document[]

@@ -10,11 +10,11 @@ beforeAll(async () => {
   const p = await prisma.partner.create({ data: { name: 'EvP-' + Date.now() } });
   partnerId = p.id;
   const c = await prisma.company.create({ data: { name: 'EvC-' + Date.now() } });
-  await prisma.organization.create({ data: { name: 'O', partnerId, companyId: c.id } });
+  const org = await prisma.organization.create({ data: { name: 'O', partnerId, companyId: c.id } });
 
   const order = await prisma.order.create({
     data: {
-      title: 'Сделка', companyId: c.id, partnerId,
+      title: 'Сделка', companyId: c.id, partnerId, organizationId: org.id,
       totalAmount: 1000, paidAmount: 0,
       executionStatus: 'in_progress', financialStatus: 'billed'
     }

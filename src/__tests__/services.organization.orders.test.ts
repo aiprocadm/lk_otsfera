@@ -11,7 +11,6 @@ let managerId: string;
 let orderA1Id: string;
 let orderA2Id: string;
 let orderB1Id: string;
-let orphanOrderId: string;
 
 beforeAll(async () => {
   prisma = new PrismaClient();
@@ -89,18 +88,9 @@ beforeAll(async () => {
   });
   orderB1Id = b1.id;
 
-  const orphan = await prisma.order.create({
-    data: {
-      title: 'Orphan: legacy без organizationId',
-      orderNumber: `ORPH-${stamp}`,
-      companyId,
-      partnerId,
-      totalAmount: 10000,
-      paidAmount: 0,
-      executionStatus: 'pending'
-    }
-  });
-  orphanOrderId = orphan.id;
+  // Note: with Order.organizationId NOT NULL since migration
+  // 20260526132950_order_organization_id_required, legacy "orphan" rows can't be
+  // created. The defensive runtime check stays in canSeeOrder/policy as belt-and-suspenders.
 
   await prisma.document.create({
     data: {
@@ -156,13 +146,6 @@ describe('services/organization/orders — listOrgOrders', () => {
     const { rows, total } = await listOrgOrders(prisma, { organizationId: orgBId });
     expect(total).toBe(1);
     expect(rows[0]!.id).toBe(orderB1Id);
-  });
-
-  it('never returns orphan orders (organizationId IS NULL)', async () => {
-    const { rows: rowsA } = await listOrgOrders(prisma, { organizationId: orgAId });
-    const { rows: rowsB } = await listOrgOrders(prisma, { organizationId: orgBId });
-    const allIds = [...rowsA, ...rowsB].map((r) => r.id);
-    expect(allIds).not.toContain(orphanOrderId);
   });
 
   it('filters by executionStatus', async () => {
@@ -245,11 +228,6 @@ describe('services/organization/orders — getOrgOrder', () => {
 
   it('returns null for foreign-org order (silent 404)', async () => {
     const detail = await getOrgOrder(prisma, orgAId, orderB1Id);
-    expect(detail).toBeNull();
-  });
-
-  it('returns null for orphan order (organizationId IS NULL)', async () => {
-    const detail = await getOrgOrder(prisma, orgAId, orphanOrderId);
     expect(detail).toBeNull();
   });
 

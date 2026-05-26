@@ -42,7 +42,13 @@ async function cleanupOrgs() {
   });
   const orgIds = orgs.map((o) => o.id);
   const companyIds = orgs.map((o) => o.companyId).filter((id): id is string => Boolean(id));
-  await prisma.organization.deleteMany({ where: { id: { in: orgIds } } });
+  if (orgIds.length) {
+    // OrganizationUser must die before its parent Organization — seed may have
+    // left memberships for org@demo.local in these orgs.
+    await prisma.organizationUser.deleteMany({ where: { organizationId: { in: orgIds } } });
+    await prisma.student.deleteMany({ where: { organizationId: { in: orgIds } } });
+    await prisma.organization.deleteMany({ where: { id: { in: orgIds } } });
+  }
   if (companyIds.length) {
     await prisma.company.deleteMany({ where: { id: { in: companyIds } } });
   }
@@ -71,15 +77,21 @@ async function deletePartnerCascade(pid: string) {
   if (orderIds.length) {
     await prisma.document.deleteMany({ where: { orderId: { in: orderIds } } });
     await prisma.payment.deleteMany({ where: { orderId: { in: orderIds } } });
+    // CommissionStatementItem has FKs to both Order and CommissionStatement —
+    // it must die before either.
+    await prisma.commissionStatementItem.deleteMany({ where: { orderId: { in: orderIds } } });
     await prisma.order.deleteMany({ where: { id: { in: orderIds } } });
   }
 
   await prisma.lead.deleteMany({ where: { partnerId: pid } });
+  await prisma.commissionStatementItem.deleteMany({ where: { statement: { partnerId: pid } } });
   await prisma.commissionStatement.deleteMany({ where: { partnerId: pid } });
   await prisma.notification.deleteMany({ where: { partnerId: pid } });
   await prisma.partnerUser.deleteMany({ where: { partnerId: pid } });
   await prisma.user.deleteMany({ where: { partnerId: pid } });
   if (orgIds.length) {
+    await prisma.organizationUser.deleteMany({ where: { organizationId: { in: orgIds } } });
+    await prisma.student.deleteMany({ where: { organizationId: { in: orgIds } } });
     await prisma.organization.deleteMany({ where: { id: { in: orgIds } } });
   }
   if (companyIds.length) {
@@ -259,27 +271,9 @@ describe('syncOrdersProcessor', () => {
     }
   });
 
-  it('backfills Order.organizationId when existing record has null', async () => {
-    // simulate legacy: null out organizationId on first order
-    const target = FAKE_ORDER_EXTERNAL_IDS[0];
-    await prisma.order.updateMany({
-      where: { externalId: target },
-      data: { organizationId: null }
-    });
-    const before = await prisma.order.findUnique({
-      where: { externalId: target },
-      select: { organizationId: true }
-    });
-    expect(before?.organizationId).toBeNull();
-
-    await syncOrdersProcessor(job(), prisma);
-
-    const after = await prisma.order.findUnique({
-      where: { externalId: target },
-      select: { organizationId: true }
-    });
-    expect(after?.organizationId).toBeTruthy();
-  });
+  // Note: "backfills Order.organizationId when existing record has null" test
+  // removed — after migration 20260526132950_order_organization_id_required the
+  // column is NOT NULL at the DB level, so the legacy-null scenario is unreachable.
 
   it('does not overwrite existing non-null Order.organizationId', async () => {
     const target = FAKE_ORDER_EXTERNAL_IDS[0];

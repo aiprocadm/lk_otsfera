@@ -10,7 +10,7 @@ beforeAll(async () => {
   const p = await prisma.partner.create({ data: { name: 'AttP-' + Date.now() } });
   partnerId = p.id;
   const c = await prisma.company.create({ data: { name: 'AttC-' + Date.now() } });
-  await prisma.organization.create({ data: { name: 'O', partnerId, companyId: c.id } });
+  const org = await prisma.organization.create({ data: { name: 'O', partnerId, companyId: c.id } });
 
   const twentyDaysAgo = new Date(Date.now() - 20 * 24 * 3600 * 1000);
   const tenDaysAgo = new Date(Date.now() - 10 * 24 * 3600 * 1000);
@@ -20,19 +20,19 @@ beforeAll(async () => {
   await prisma.order.createMany({
     data: [
       {
-        title: 'Зависшая 20 дней', companyId: c.id, partnerId,
+        title: 'Зависшая 20 дней', companyId: c.id, partnerId, organizationId: org.id,
         totalAmount: 50000, paidAmount: 0,
         executionStatus: 'in_progress', financialStatus: 'billed',
         updatedAt: twentyDaysAgo, createdAt: twentyDaysAgo
       },
       {
-        title: 'Свежая', companyId: c.id, partnerId,
+        title: 'Свежая', companyId: c.id, partnerId, organizationId: org.id,
         totalAmount: 50000, paidAmount: 0,
         executionStatus: 'in_progress', financialStatus: 'billed',
         updatedAt: tenDaysAgo, createdAt: tenDaysAgo
       },
       {
-        title: 'Просроченный счёт', companyId: c.id, partnerId,
+        title: 'Просроченный счёт', companyId: c.id, partnerId, organizationId: org.id,
         totalAmount: 50000, paidAmount: 0,
         executionStatus: 'in_progress', financialStatus: 'billed',
         deadline: threeDaysAgo, updatedAt: tenDaysAgo
