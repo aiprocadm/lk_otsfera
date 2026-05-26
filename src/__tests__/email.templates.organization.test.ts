@@ -7,7 +7,6 @@ import {
   orgInviteText,
   OrgDocumentPublishedTemplate,
   orgDocumentPublishedSubject,
-  orgDocumentPublishedText,
   OrgPaymentReceivedTemplate,
   orgPaymentReceivedSubject,
   orgPaymentReceivedText,

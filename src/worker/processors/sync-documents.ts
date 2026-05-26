@@ -5,6 +5,7 @@ import type { SyncJobPayload } from '@/lib/jobs/types';
 import { getOneCAdapter } from '@/lib/services/oneCSync';
 import { mapDocumentDto } from '@/lib/services/oneCSync/mappers';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
+import { notifyOrgUsers } from '@/lib/notifications';
 
 export type SyncDocumentsResult = {
   pulled: number;
@@ -39,7 +40,7 @@ export async function syncDocumentsProcessor(
       const input = mapDocumentDto(dto);
       const order = await db.order.findUnique({
         where: { externalId: input.orderExternalId },
-        select: { id: true }
+        select: { id: true, organizationId: true, orderNumber: true, title: true }
       });
 
       if (!order) {
@@ -76,6 +77,20 @@ export async function syncDocumentsProcessor(
           }
         });
         summary.created += 1;
+
+        if (order.organizationId) {
+          await notifyOrgUsers(db, {
+            organizationId: order.organizationId,
+            type: 'document_published',
+            payload: {
+              orderId: order.id,
+              orderNumber: order.orderNumber,
+              orderTitle: order.title,
+              documentName: input.name,
+              documentType: input.type
+            }
+          });
+        }
       }
     }
 

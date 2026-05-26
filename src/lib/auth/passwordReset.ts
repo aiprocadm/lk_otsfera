@@ -1,5 +1,7 @@
 import { randomBytes } from 'crypto';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
+
+type PrismaLike = PrismaClient | Prisma.TransactionClient;
 
 const DEFAULT_TTL_DAYS = 7;
 
@@ -10,7 +12,7 @@ function ttlDaysFromEnv(): number {
 }
 
 export async function createInviteToken(
-  prisma: PrismaClient,
+  prisma: PrismaLike,
   userId: string,
   ttlDays?: number,
   purpose: 'invite' | 'reset' = 'invite'

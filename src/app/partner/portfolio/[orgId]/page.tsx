@@ -8,6 +8,7 @@ import { OrgTabs, type TabKey } from '@/components/partner/org-tabs';
 import { EmployeesTab } from '@/components/partner/org-employees-tab';
 import { CommentsTab } from '@/components/partner/org-comments-tab';
 import { HistoryTab } from '@/components/partner/org-history-tab';
+import { CustomerAccessSection } from '@/components/partner/customer-access-section';
 
 const VALID_TABS: TabKey[] = ['employees', 'comments', 'history'];
 
@@ -31,13 +32,17 @@ export default async function OrgCardPage({
   const sp = await searchParams;
   const tab: TabKey = VALID_TABS.includes(sp.tab as TabKey) ? (sp.tab as TabKey) : 'employees';
 
+  const isAdmin = isPartnerAdmin(session);
+
   return (
     <div className='space-y-4'>
       <OrgCardHeader card={card} />
-      <OrgTabs orgId={orgId} active={tab} isAdmin={isPartnerAdmin(session)} />
+      <OrgTabs orgId={orgId} active={tab} isAdmin={isAdmin} />
       {tab === 'employees' && <EmployeesTab orgId={orgId} />}
       {tab === 'comments' && <CommentsTab orgId={orgId} />}
       {tab === 'history' && <HistoryTab orgId={orgId} />}
+
+      <CustomerAccessSection organizationId={orgId} canInvite={isAdmin} />
     </div>
   );
 }

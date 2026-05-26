@@ -19,9 +19,17 @@ export const FEATURE_FLAGS = [
   'one_c_sync',
   'pwa_installer',
   'document_scan',
+  'organization_cabinet',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
+
+/**
+ * Opt-in flags default to **disabled** — they must be explicitly enabled with
+ * env=1 / true / on. The rest of FEATURE_FLAGS keep the opt-out (default-true)
+ * convention. Use sparingly: only for dark-launch / staged-rollout features.
+ */
+const OPT_IN_FLAGS = new Set<FeatureFlag>(['organization_cabinet']);
 
 export class FeatureDisabledError extends Error {
   constructor(public flag: FeatureFlag) {
@@ -35,16 +43,23 @@ function envKey(flag: FeatureFlag): string {
 }
 
 const FALSY_VALUES = new Set(['0', 'false', 'off', 'no', 'disabled']);
+const TRUTHY_VALUES = new Set(['1', 'true', 'on', 'yes', 'enabled']);
 
 /**
  * Returns true unless the corresponding env explicitly disables the flag.
  * Reads `process.env` on every call so tests can flip values without
  * restarting the module — see src/__tests__/featureFlags.test.ts.
+ *
+ * Opt-in flags (see OPT_IN_FLAGS) invert the logic: unset/empty env means
+ * disabled, and only an explicit truthy value enables them.
  */
 export function isFeatureEnabled(flag: FeatureFlag): boolean {
   const raw = process.env[envKey(flag)];
-  if (raw === undefined || raw === '') return true;
-  return !FALSY_VALUES.has(raw.trim().toLowerCase());
+  const isOptIn = OPT_IN_FLAGS.has(flag);
+  if (raw === undefined || raw === '') return !isOptIn;
+  const normalized = raw.trim().toLowerCase();
+  if (isOptIn) return TRUTHY_VALUES.has(normalized);
+  return !FALSY_VALUES.has(normalized);
 }
 
 /**

@@ -5,6 +5,7 @@ import type { SyncJobPayload } from '@/lib/jobs/types';
 import { getOneCAdapter } from '@/lib/services/oneCSync';
 import { mapOrderDto } from '@/lib/services/oneCSync/mappers';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
+import { notifyOrgUsers } from '@/lib/notifications';
 
 export type SyncOrdersResult = {
   pulled: number;
@@ -50,7 +51,14 @@ export async function syncOrdersProcessor(
 
       const existing = await db.order.findUnique({
         where: { externalId: input.externalId },
-        select: { id: true, organizationId: true }
+        select: {
+          id: true,
+          organizationId: true,
+          executionStatus: true,
+          financialStatus: true,
+          orderNumber: true,
+          title: true
+        }
       });
 
       const ownedBy1C = {
@@ -77,6 +85,25 @@ export async function syncOrdersProcessor(
             : ownedBy1C
         });
         summary.updated += 1;
+
+        const targetOrgId = existing.organizationId ?? org.id;
+        if (
+          targetOrgId &&
+          existing.financialStatus !== input.financialStatus
+        ) {
+          await notifyOrgUsers(db, {
+            organizationId: targetOrgId,
+            type: 'order_status_changed',
+            payload: {
+              orderId: existing.id,
+              orderNumber: existing.orderNumber,
+              orderTitle: existing.title,
+              dimension: 'financial',
+              oldStatus: existing.financialStatus,
+              newStatus: input.financialStatus
+            }
+          });
+        }
       } else {
         await db.order.create({
           data: {

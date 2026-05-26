@@ -4,6 +4,7 @@ export type AuditEntity =
   | 'user'
   | 'partner'
   | 'organization'
+  | 'organization_user'
   | 'order'
   | 'commission_statement'
   | 'lead'
