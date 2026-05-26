@@ -5,6 +5,23 @@ import {
   invitePartnerOrgAdminAction,
   type InvitePartnerActionResult
 } from '@/server-actions/partner/inviteOrgAdmin';
+import {
+  inviteAdminOrgAdminAction,
+  type InviteAdminActionResult
+} from '@/server-actions/admin/inviteOrgAdmin';
+
+type InviteSource = 'partner' | 'admin';
+
+type ActionResultUnion = InvitePartnerActionResult | InviteAdminActionResult;
+
+async function runInvite(
+  source: InviteSource,
+  formData: FormData
+): Promise<ActionResultUnion> {
+  return source === 'partner'
+    ? invitePartnerOrgAdminAction(formData)
+    : inviteAdminOrgAdminAction(formData);
+}
 
 const ERROR_LABELS: Record<string, string> = {
   validation: 'Проверьте формат email и заполненность полей.',
@@ -23,10 +40,12 @@ type SuccessState = {
 
 export function InviteCustomerAdminForm({
   organizationId,
-  label = 'Пригласить администратора'
+  label = 'Пригласить администратора',
+  source = 'partner'
 }: {
   organizationId: string;
   label?: string;
+  source?: InviteSource;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -52,7 +71,7 @@ export function InviteCustomerAdminForm({
     const email = String(formData.get('email') ?? '');
 
     startTransition(async () => {
-      const res: InvitePartnerActionResult = await invitePartnerOrgAdminAction(formData);
+      const res = await runInvite(source, formData);
       if (res.ok) {
         setSuccess({
           email,

@@ -6,6 +6,11 @@ type Props = {
   organizationId: string;
   /** When false the invite button is hidden — read-only view for partner-managers. */
   canInvite: boolean;
+  /**
+   * Which server action backs the invite button. 'partner' is enforced by the
+   * partner-portfolio scope check; 'admin' allows any organisation.
+   */
+  source?: 'partner' | 'admin';
 };
 
 function fmtDate(d: Date): string {
@@ -16,7 +21,11 @@ function fmtDate(d: Date): string {
   }).format(d);
 }
 
-export async function CustomerAccessSection({ organizationId, canInvite }: Props) {
+export async function CustomerAccessSection({
+  organizationId,
+  canInvite,
+  source = 'partner'
+}: Props) {
   const members = await listMembers(prisma, organizationId);
   const activeAdmins = members.filter(
     (m) => m.isActive && m.roleInOrg === 'admin'
@@ -35,6 +44,7 @@ export async function CustomerAccessSection({ organizationId, canInvite }: Props
         {canInvite && (
           <InviteCustomerAdminForm
             organizationId={organizationId}
+            source={source}
             label={hasActiveAdmin ? 'Пригласить ещё' : 'Пригласить администратора'}
           />
         )}
