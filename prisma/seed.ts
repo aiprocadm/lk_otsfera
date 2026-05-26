@@ -171,10 +171,35 @@ async function main() {
     console.log(`[seed] commission statement already exists: ${existingStatement.id}`);
   }
 
+  // ─── Demo: organization admin user (for e2e + manual smoke) ──────────
+  if (firstOrg) {
+    const orgAdmin = await prisma.user.upsert({
+      where: { email: 'org@demo.local' },
+      update: { role: 'organization', isActive: true, passwordHash, name: 'Organization Admin' },
+      create: {
+        email: 'org@demo.local',
+        name: 'Organization Admin',
+        passwordHash,
+        role: 'organization'
+      }
+    });
+    await prisma.organizationUser.upsert({
+      where: { organizationId_userId: { organizationId: firstOrg.id, userId: orgAdmin.id } },
+      update: { isActive: true, roleInOrg: 'admin' },
+      create: {
+        organizationId: firstOrg.id,
+        userId: orgAdmin.id,
+        roleInOrg: 'admin',
+        isActive: true
+      }
+    });
+  }
+
   console.log('[seed] demo accounts (password = ' + PASSWORD + '):');
   console.log('  - admin@demo.local (role=admin)');
   console.log('  - partner@demo.local (partner admin, sees all orgs)');
   console.log('  - partner-mgr@demo.local (partner manager, scope=' + managerScope.length + ' org)');
+  console.log('  - org@demo.local (organization admin, membership in firstOrg)');
   console.log('[seed] done');
 }
 

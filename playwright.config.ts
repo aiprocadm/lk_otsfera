@@ -36,6 +36,8 @@ export default defineConfig({
       name: 'setup',
       testMatch: /auth\.setup\.ts/,
     },
+    // Partner cabinet snapshots — anything in snapshots/ that isn't prefixed
+    // with `organization-`. Uses the partner storageState.
     {
       name: 'desktop',
       use: {
@@ -44,7 +46,7 @@ export default defineConfig({
         storageState: 'playwright-report/.auth/partner.json',
       },
       dependencies: ['setup'],
-      testMatch: /snapshots\/.*\.spec\.ts/,
+      testMatch: /snapshots\/(?!organization-).*\.spec\.ts/,
     },
     {
       name: 'mobile',
@@ -54,7 +56,29 @@ export default defineConfig({
         storageState: 'playwright-report/.auth/partner.json',
       },
       dependencies: ['setup'],
-      testMatch: /snapshots\/.*\.spec\.ts/,
+      testMatch: /snapshots\/(?!organization-).*\.spec\.ts/,
+    },
+    // Organization cabinet snapshots — only files prefixed with `organization-`.
+    // Uses the organization storageState.
+    {
+      name: 'org-desktop',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1280, height: 800 },
+        storageState: 'playwright-report/.auth/organization.json',
+      },
+      dependencies: ['setup'],
+      testMatch: /snapshots\/organization-.*\.spec\.ts/,
+    },
+    {
+      name: 'org-mobile',
+      use: {
+        ...devices['iPhone 13'],
+        viewport: { width: 375, height: 667 },
+        storageState: 'playwright-report/.auth/organization.json',
+      },
+      dependencies: ['setup'],
+      testMatch: /snapshots\/organization-.*\.spec\.ts/,
     },
   ],
   webServer: process.env.PLAYWRIGHT_BASE_URL
