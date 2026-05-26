@@ -71,10 +71,16 @@ export async function listMembers(
   }));
 }
 
+export type InviteMemberAuditMeta = {
+  /** Logged into audit.after.source so partner vs platform-admin invites are traceable. */
+  source?: 'partner' | 'platform_admin' | 'organization';
+};
+
 export async function inviteMember(
   prisma: PrismaClient,
   args: InviteMemberInput,
-  actorUserId: string
+  actorUserId: string,
+  audit: InviteMemberAuditMeta = {}
 ): Promise<InviteMemberResult> {
   return prisma.$transaction(async (tx) => {
     let user = await tx.user.findUnique({ where: { email: args.email } });
@@ -146,7 +152,8 @@ export async function inviteMember(
         roleInOrg: args.roleInOrg,
         isNewUser,
         reactivated,
-        alreadyHasPassword
+        alreadyHasPassword,
+        ...(audit.source ? { source: audit.source } : {})
       }
     });
 
