@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
-import { AppShell } from '@/components/dashboard/app-shell';
+import { requireManager } from '@/lib/auth/requireRole';
+import { ManagerAppShell } from '@/components/manager/manager-app-shell';
 
-export default function ManagerLayout({ children }: { children: ReactNode }) {
-  return <AppShell>{children}</AppShell>;
+export default async function ManagerLayout({ children }: { children: ReactNode }) {
+  const session = await requireManager();
+  return <ManagerAppShell session={session}>{children}</ManagerAppShell>;
 }
