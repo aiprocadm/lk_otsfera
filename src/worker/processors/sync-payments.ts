@@ -5,7 +5,7 @@ import type { SyncJobPayload } from '@/lib/jobs/types';
 import { getOneCAdapter } from '@/lib/services/oneCSync';
 import { mapPaymentDto } from '@/lib/services/oneCSync/mappers';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
-import { notifyOrgUsers } from '@/lib/notifications';
+import { notifyManagers, notifyOrgUsers } from '@/lib/notifications';
 
 export type SyncPaymentsResult = {
   pulled: number;
@@ -86,6 +86,30 @@ export async function syncPaymentsProcessor(
               paidAt: input.paidAt
             }
           });
+        }
+
+        // Manager-cabinet fan-out for the same event. Best-effort: a failure
+        // here must not roll back the payment row or stop subsequent DTOs
+        // from processing. `notifyManagers` returns an empty summary when
+        // the order has no manager assignment (per-order, per-org, or
+        // historical), so an unassigned order is not an error.
+        if (!input.isRefund) {
+          try {
+            await notifyManagers(db, {
+              orderId: order.id,
+              type: 'order_marked_paid_by_1c',
+              payload: {
+                amount: Number(input.amount),
+                paidAt: input.paidAt
+              }
+            });
+          } catch (err) {
+            console.warn('[worker] sync-payments notifyManagers failed', {
+              orderId: order.id,
+              externalId: input.externalId,
+              error: err instanceof Error ? err.message : String(err)
+            });
+          }
         }
       }
     }

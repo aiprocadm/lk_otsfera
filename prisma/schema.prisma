@@ -103,6 +103,7 @@ model User {
   organizationId      String?
   organization        Organization?        @relation("UserOrganization", fields: [organizationId], references: [id])
   organizationUsers   OrganizationUser[]
+  managedOrganizations OrganizationManager[] @relation("UserManagedOrgs")
   externalStudentId   String?
   managedOrders       Order[]              @relation("OrderManager")
   comments            Comment[]
@@ -320,6 +321,7 @@ model Organization {
   students                       Student[]
   users                          User[]             @relation("UserOrganization")
   organizationUsers              OrganizationUser[]
+  managers                       OrganizationManager[] @relation("OrganizationManagers")
   notifications                  Notification[]
   leads                          Lead[]
   orders                         Order[]            @relation("OrderOrganization")
@@ -343,6 +345,21 @@ model OrganizationUser {
   @@index([organizationId])
   @@index([userId])
   @@index([organizationId, isActive])
+}
+
+model OrganizationManager {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation("OrganizationManagers", fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation("UserManagedOrgs", fields: [userId], references: [id], onDelete: Cascade)
+  isActive       Boolean      @default(true)
+  assignedAt     DateTime     @default(now())
+  assignedBy     String?
+  deactivatedAt  DateTime?
+
+  @@unique([organizationId, userId])
+  @@index([userId, isActive])
 }
 
 model Student {
@@ -408,6 +425,7 @@ model Order {
   @@index([organizationId, financialStatus])
   @@index([externalId])
   @@index([closedAt])
+  @@index([managerId, executionStatus])
 }
 
 model Document {
@@ -449,6 +467,8 @@ model Comment {
   authorId       String
   author         User     @relation(fields: [authorId], references: [id])
   attachmentPath String?
+
+  @@index([authorId, orderId])
 }
 
 model Upload {

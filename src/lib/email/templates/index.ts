@@ -51,3 +51,38 @@ export {
   orgOrderStatusChangedText
 } from './organization/order-status-changed';
 export type { OrgOrderStatusChangedProps } from './organization/order-status-changed';
+
+export {
+  OrgManagerRepliedTemplate,
+  orgManagerRepliedSubject,
+  orgManagerRepliedText
+} from './organization/manager-replied';
+export type { OrgManagerRepliedProps } from './organization/manager-replied';
+
+export {
+  ManagerCommentFromOrg,
+  managerCommentFromOrgSubject,
+  managerCommentFromOrgText
+} from './manager/comment-from-org';
+export type { ManagerCommentFromOrgProps } from './manager/comment-from-org';
+
+export {
+  ManagerDocumentUploadedByOrg,
+  managerDocumentUploadedByOrgSubject,
+  managerDocumentUploadedByOrgText
+} from './manager/document-uploaded-by-org';
+export type { ManagerDocumentUploadedByOrgProps } from './manager/document-uploaded-by-org';
+
+export {
+  ManagerOrderMarkedPaidBy1C,
+  managerOrderMarkedPaidBy1CSubject,
+  managerOrderMarkedPaidBy1CText
+} from './manager/order-marked-paid-by-1c';
+export type { ManagerOrderMarkedPaidBy1CProps } from './manager/order-marked-paid-by-1c';
+
+export {
+  ManagerOrderStatusChanged,
+  managerOrderStatusChangedSubject,
+  managerOrderStatusChangedText
+} from './manager/order-status-changed';
+export type { ManagerOrderStatusChangedProps } from './manager/order-status-changed';

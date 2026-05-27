@@ -5,6 +5,7 @@ const {
   orderFindUnique,
   commentCreate,
   auditCreate,
+  notifyManagers,
   notifyMessageCreated,
   triggerNotificationEmail,
   getPrimaryOrganizationId
@@ -13,6 +14,7 @@ const {
   orderFindUnique: vi.fn(),
   commentCreate: vi.fn(),
   auditCreate: vi.fn(),
+  notifyManagers: vi.fn(),
   notifyMessageCreated: vi.fn(),
   triggerNotificationEmail: vi.fn(),
   getPrimaryOrganizationId: vi.fn()
@@ -27,6 +29,7 @@ vi.mock('@/lib/db/prisma', () => ({
   }
 }));
 vi.mock('@/lib/notifications', () => ({
+  notifyManagers,
   notifyMessageCreated,
   triggerNotificationEmail
 }));
@@ -66,6 +69,11 @@ describe('POST /api/comments — organization role', () => {
       body: 'hello from org',
       createdAt: new Date(),
       authorId: 'u-org-1'
+    });
+    notifyManagers.mockResolvedValue({
+      recipientsNotified: 0,
+      emailsSent: 0,
+      emailsSkipped: 0
     });
   });
 
