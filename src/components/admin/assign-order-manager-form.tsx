@@ -89,12 +89,18 @@ export function AssignOrderManagerForm({
       </label>
 
       {feedback?.kind === 'ok' && (
-        <div className='text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2'>
+        <div
+          role='status'
+          className='text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2'
+        >
           {feedback.changed ? 'Менеджер обновлён.' : 'Без изменений.'}
         </div>
       )}
       {feedback?.kind === 'err' && (
-        <div className='text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2'>
+        <div
+          role='alert'
+          className='text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2'
+        >
           {feedback.label}
         </div>
       )}
