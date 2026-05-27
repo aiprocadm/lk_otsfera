@@ -5,6 +5,7 @@ import {
   assignOrInviteManagerAction,
   type AssignOrInviteManagerActionResult
 } from '@/server-actions/admin/manager';
+import { useDialogFocus } from '@/hooks/useDialogFocus';
 
 type Mode = 'existing' | 'new';
 
@@ -30,6 +31,7 @@ export function AssignOrInviteManagerForm({ organizationId }: { organizationId: 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<SuccessState | null>(null);
   const [copied, setCopied] = useState(false);
+  const panelRef = useDialogFocus(open);
 
   function reset() {
     setError(null);
@@ -107,7 +109,9 @@ export function AssignOrInviteManagerForm({ organizationId }: { organizationId: 
           aria-labelledby='assign-manager-title'
         >
           <div
-            className='bg-white rounded-xl shadow-xl max-w-md w-full p-6'
+            ref={panelRef}
+            tabIndex={-1}
+            className='bg-white rounded-xl shadow-xl max-w-md w-full p-6 outline-none'
             onClick={(e) => e.stopPropagation()}
           >
             <div className='flex items-center justify-between mb-4'>
