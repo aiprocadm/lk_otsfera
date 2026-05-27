@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { inviteOrgMemberAction } from '@/server-actions/organization/team';
+import { useDialogFocus } from '@/hooks/useDialogFocus';
 
 const ERROR_LABELS: Record<string, string> = {
   validation: 'Проверьте формат email и заполненность полей.',
@@ -24,6 +25,7 @@ export function InviteOrgUserForm({ organizationId }: { organizationId: string }
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<SuccessState | null>(null);
   const [copied, setCopied] = useState(false);
+  const panelRef = useDialogFocus(open);
 
   function reset() {
     setError(null);
@@ -99,7 +101,9 @@ export function InviteOrgUserForm({ organizationId }: { organizationId: string }
           aria-labelledby='invite-org-user-title'
         >
           <div
-            className='bg-white rounded-xl shadow-xl max-w-md w-full p-6'
+            ref={panelRef}
+            tabIndex={-1}
+            className='bg-white rounded-xl shadow-xl max-w-md w-full p-6 outline-none'
             onClick={(e) => e.stopPropagation()}
           >
             <div className='flex items-center justify-between mb-4'>
