@@ -13,12 +13,21 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:unit": "vitest run --mode=unit",
+    "test:integration": "vitest run --mode=integration",
     "test:watch": "vitest",
+    "test:changed": "vitest run --mode=unit --changed --bail=1 --no-coverage",
     "e2e:visual": "playwright test",
     "e2e:visual:update": "playwright test --update-snapshots",
     "worker": "tsx src/worker/index.ts",
     "worker:dev": "tsx watch src/worker/index.ts",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx}": [
+      "eslint --max-warnings=0"
+    ]
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",
@@ -51,6 +60,8 @@
     "autoprefixer": "^10.4.21",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.6",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.5",
     "postcss": "^8.5.3",
     "prisma": "^5.14.0",
     "tailwindcss": "^3.4.17",

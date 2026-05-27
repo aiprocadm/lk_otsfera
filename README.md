@@ -83,14 +83,24 @@ npm run prisma:seed
 
 ## Тесты
 
-Запуск unit/integration тестов:
-```bash
-npm test
-```
+Тестовая дисциплина — трёхслойная (см. [CLAUDE.md §6](CLAUDE.md)). GH Actions отключены, гейтинг локальный через Husky.
 
-Режим наблюдения:
+| Команда | Слой | Когда |
+|---|---|---|
+| `npm test` | Всё (unit + integration) | Полный прогон |
+| `npm run test:unit` | Только unit (без БД) | Pre-push hook, быстрая обратная связь |
+| `npm run test:integration` | Только integration (нужен Postgres) | Перед PR / релизом, вручную |
+| `npm run test:changed` | Vitest на изменённых файлах в unit-режиме | Pre-commit hook (автоматически) |
+| `npm run test:watch` | Интерактивный режим | Во время разработки |
+
+**Husky hooks** ([.husky/pre-commit](.husky/pre-commit), [.husky/pre-push](.husky/pre-push)) ставятся автоматически после `npm install` через `prepare` скрипт. Бипас: `git commit --no-verify` (использовать редко).
+
+**Integration-слой** требует поднятого Postgres (см. [docker-compose.yml](docker-compose.yml)):
+
 ```bash
-npm run test:watch
+docker compose up -d db redis
+npm run prisma:migrate:deploy
+npm run test:integration
 ```
 
 ## Build
@@ -238,22 +248,29 @@ npm run typecheck
 npm run lint
 ```
 
-3. Тесты:
+3. Unit-тесты (без БД):
 ```bash
-npm test
+npm run test:unit
 ```
 
-4. Проверка production build:
+4. Integration-тесты (нужен поднятый Postgres):
+```bash
+docker compose up -d db redis
+npm run prisma:migrate:deploy
+npm run test:integration
+```
+
+5. Проверка production build:
 ```bash
 npm run build
 ```
 
-5. Применение production-миграций:
+6. Применение production-миграций:
 ```bash
 npm run prisma:migrate:deploy
 ```
 
-6. (Опционально) smoke-check авторизации и роутов по ролям:
+7. (Опционально) smoke-check авторизации и роутов по ролям:
 - `admin` → доступ только к `/admin/*`.
 - `manager` → доступ только к `/manager/*`.
 - `partner` → доступ к `/partner/*`, без `/admin/*` и `/manager/*`.
