@@ -1,6 +1,7 @@
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { listOrders } from '@/lib/services/manager/orders';
+import { listOrganizations } from '@/lib/services/manager/organizations';
 import { ManagerOrdersFilter } from '@/components/manager/manager-orders-filter';
 import { ManagerOrdersTable } from '@/components/manager/manager-orders-table';
 
@@ -21,12 +22,7 @@ export default async function ManagerOrdersPage({
   const sp = await searchParams;
   const [{ rows, nextCursor }, orgs] = await Promise.all([
     listOrders(prisma, { session, ...sp }),
-    // TODO(Task 21): replace with listOrganizations(prisma, session) once that service exists
-    prisma.organization.findMany({
-      where: { id: { in: session.managedOrgIds ?? [] } },
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' }
-    })
+    listOrganizations(prisma, session)
   ]);
   return (
     <>
