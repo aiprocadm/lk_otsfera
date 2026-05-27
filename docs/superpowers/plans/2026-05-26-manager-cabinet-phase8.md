@@ -1237,7 +1237,7 @@ export async function requireManagerForOrder(orderId: string): Promise<{ session
 - Test: `src/__tests__/services.manager.uploads.test.ts`
 - Test: `src/__tests__/api.manager.documents.upload.test.ts`
 
-- [ ] **Step 24.1**: `services/manager/uploads.ts`:
+- [x] **Step 24.1**: `services/manager/uploads.ts`:
   ```ts
   import { randomUUID } from 'node:crypto';
   import { canSeeOrder } from '@/lib/auth/managerPolicy';
@@ -1284,7 +1284,7 @@ export async function requireManagerForOrder(orderId: string): Promise<{ session
     return { ok: true, documentId: doc.id };
   }
   ```
-- [ ] **Step 24.2**: Upload route:
+- [x] **Step 24.2**: Upload route:
   ```ts
   import { NextRequest } from 'next/server';
   import { requireManager } from '@/lib/auth/requireRole';
@@ -1307,11 +1307,11 @@ export async function requireManagerForOrder(orderId: string): Promise<{ session
     return Response.json({ ok: true, documentId: result.documentId }, { status: 201 });
   }
   ```
-- [ ] **Step 24.3**: `manager-doc-upload-form.tsx` — client component с `<input type="file">`, select docType, submit handler через `fetch(POST /api/manager/documents/[orderId]/upload, FormData)`. Показать progress / error states.
-- [ ] **Step 24.4**: Тесты сервиса — happy path; oversized → too_large; bad mime → invalid_mime; forbidden order → forbidden; storage failure → storage.
-- [ ] **Step 24.5**: Тесты route — параллельные status codes для каждой ошибки.
-- [ ] **Step 24.6**: `npm test src/__tests__/services.manager.uploads.test.ts src/__tests__/api.manager.documents.upload.test.ts` — passes.
-- [ ] **Step 24.7 — Commit**: `feat(manager): document upload service, route, and form`
+- [x] **Step 24.3**: `manager-doc-upload-form.tsx` — client component с `<input type="file">`, select docType, submit handler через `fetch(POST /api/manager/documents/[orderId]/upload, FormData)`. Показать progress / error states.
+- [x] **Step 24.4**: Тесты сервиса — happy path; oversized → too_large; bad mime → invalid_mime; forbidden order → forbidden; storage failure → storage.
+- [x] **Step 24.5**: Тесты route — параллельные status codes для каждой ошибки.
+- [x] **Step 24.6**: `npm test src/__tests__/services.manager.uploads.test.ts src/__tests__/api.manager.documents.upload.test.ts` — passes.
+- [x] **Step 24.7 — Commit**: `feat(manager): document upload service, route, and form`
 
 ### Task 25: Extend `/api/comments` POST для `viewer='manager'` + organization manager-replied template
 
