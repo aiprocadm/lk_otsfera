@@ -6,6 +6,7 @@ import { getOrder } from '@/lib/services/manager/orders';
 import { ManagerOrderHeader } from '@/components/manager/manager-order-header';
 import { ManagerOrderAmounts } from '@/components/manager/manager-order-amounts';
 import { ManagerOrderTimeline } from '@/components/manager/manager-order-timeline';
+import { ManagerStatusChangeForm } from '@/components/manager/manager-status-change-form';
 import { ManagerPaymentsList } from '@/components/manager/manager-payments-list';
 import { DocumentsList } from '@/components/partner/documents-list';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
@@ -146,6 +147,17 @@ export default async function ManagerOrderDetailPage({
 
         <div className='space-y-4'>
           <ManagerOrderTimeline order={order} auditEntries={auditEntries} />
+          <ManagerStatusChangeForm
+            orderId={order.id}
+            currentStatus={
+              order.executionStatus as
+                | 'pending'
+                | 'in_progress'
+                | 'completed'
+                | 'cancelled'
+                | 'on_hold'
+            }
+          />
         </div>
       </div>
     </div>
