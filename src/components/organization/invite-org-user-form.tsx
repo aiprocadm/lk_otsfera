@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { inviteOrgMemberAction } from '@/server-actions/organization/team';
 
 const ERROR_LABELS: Record<string, string> = {
@@ -35,6 +35,15 @@ export function InviteOrgUserForm({ organizationId }: { organizationId: string }
     setOpen(false);
     reset();
   }
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -87,13 +96,17 @@ export function InviteOrgUserForm({ organizationId }: { organizationId: string }
           onClick={close}
           role='dialog'
           aria-modal='true'
+          aria-labelledby='invite-org-user-title'
         >
           <div
             className='bg-white rounded-xl shadow-xl max-w-md w-full p-6'
             onClick={(e) => e.stopPropagation()}
           >
             <div className='flex items-center justify-between mb-4'>
-              <h2 className='text-lg font-semibold text-[#111111]'>
+              <h2
+                id='invite-org-user-title'
+                className='text-lg font-semibold text-[#111111]'
+              >
                 Пригласить участника
               </h2>
               <button
@@ -189,7 +202,10 @@ export function InviteOrgUserForm({ organizationId }: { organizationId: string }
                 </label>
 
                 {error && (
-                  <div className='text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2'>
+                  <div
+                    role='alert'
+                    className='text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2'
+                  >
                     {error}
                   </div>
                 )}
