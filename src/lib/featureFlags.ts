@@ -20,6 +20,7 @@ export const FEATURE_FLAGS = [
   'pwa_installer',
   'document_scan',
   'organization_cabinet',
+  'manager_cabinet',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -29,7 +30,10 @@ export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
  * env=1 / true / on. The rest of FEATURE_FLAGS keep the opt-out (default-true)
  * convention. Use sparingly: only for dark-launch / staged-rollout features.
  */
-const OPT_IN_FLAGS = new Set<FeatureFlag>(['organization_cabinet']);
+const OPT_IN_FLAGS = new Set<FeatureFlag>([
+  'organization_cabinet',
+  'manager_cabinet'
+]);
 
 export class FeatureDisabledError extends Error {
   constructor(public flag: FeatureFlag) {

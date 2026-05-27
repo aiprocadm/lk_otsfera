@@ -14,10 +14,12 @@ export const navByRole: Record<Role, NavItem[]> = {
     { href: '/admin/health', label: 'Здоровье' }
   ],
   manager: [
-    { href: '/manager/dashboard', label: 'Dashboard' },
-    { href: '/manager/orders', label: 'Orders' },
-    { href: '/manager/documents', label: 'Documents' },
-    { href: '/manager/messages', label: 'Messages' }
+    { href: '/manager/dashboard', label: 'Главная', flag: 'manager_cabinet' },
+    { href: '/manager/orders', label: 'Заказы', flag: 'manager_cabinet' },
+    { href: '/manager/organizations', label: 'Организации', flag: 'manager_cabinet' },
+    { href: '/manager/documents', label: 'Документы', flag: 'manager_cabinet' },
+    { href: '/manager/students', label: 'Сотрудники', flag: 'manager_cabinet' },
+    { href: '/manager/messages', label: 'Сообщения', flag: 'manager_cabinet' }
   ],
   partner: [
     { href: '/partner/dashboard', label: 'Дашборд' },
