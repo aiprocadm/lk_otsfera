@@ -51,3 +51,10 @@ export {
   orgOrderStatusChangedText
 } from './organization/order-status-changed';
 export type { OrgOrderStatusChangedProps } from './organization/order-status-changed';
+
+export {
+  OrgManagerRepliedTemplate,
+  orgManagerRepliedSubject,
+  orgManagerRepliedText
+} from './organization/manager-replied';
+export type { OrgManagerRepliedProps } from './organization/manager-replied';

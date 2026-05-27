@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 import {
   sendNotificationEmail,
   sendOrgDocumentPublishedEmail,
+  sendOrgManagerRepliedEmail,
   sendOrgOrderStatusChangedEmail,
   sendOrgPaymentReceivedEmail,
   type SendResult,
@@ -106,6 +107,16 @@ type OrgNotifyInput =
         oldStatus: string;
         newStatus: string;
       };
+    }
+  | {
+      organizationId: string;
+      type: 'manager_replied';
+      payload: {
+        orderId: string;
+        orderNumber: string | null;
+        orderTitle: string;
+        commentExcerpt: string;
+      };
     };
 
 export type NotifyOrgUsersSummary = {
@@ -157,6 +168,20 @@ function buildOrgNotification(
       }
     };
   }
+  if (input.type === 'manager_replied') {
+    const { orderNumber, orderTitle, commentExcerpt } = input.payload;
+    return {
+      title: `Менеджер ответил по заказу ${orderLabel(orderNumber, orderTitle)}`,
+      body: commentExcerpt,
+      meta: {
+        orderId: input.payload.orderId,
+        orderNumber,
+        commentExcerpt,
+        organizationName,
+        url: orderUrl
+      }
+    };
+  }
   // order_status_changed
   const { orderNumber, orderTitle, dimension, oldStatus, newStatus } = input.payload;
   const dimLabel = dimension === 'execution' ? 'Статус' : 'Финансы';
@@ -200,6 +225,16 @@ async function dispatchOrgEmail(
       orderTitle: input.payload.orderTitle,
       amount: input.payload.amount,
       paidAt: input.payload.paidAt,
+      orderUrl
+    });
+  }
+  if (input.type === 'manager_replied') {
+    return sendOrgManagerRepliedEmail({
+      to,
+      organizationName,
+      orderNumber: input.payload.orderNumber,
+      orderTitle: input.payload.orderTitle,
+      commentExcerpt: input.payload.commentExcerpt,
       orderUrl
     });
   }

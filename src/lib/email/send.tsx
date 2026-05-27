@@ -29,6 +29,9 @@ import {
   OrgPaymentReceivedTemplate,
   orgPaymentReceivedSubject,
   orgPaymentReceivedText,
+  OrgManagerRepliedTemplate,
+  orgManagerRepliedSubject,
+  orgManagerRepliedText,
   type CommissionReadyProps,
   type DocumentUploadedProps,
   type LeadPromotedProps,
@@ -37,6 +40,7 @@ import {
   type OrgInviteProps,
   type OrgOrderStatusChangedProps,
   type OrgPaymentReceivedProps,
+  type OrgManagerRepliedProps,
 } from './templates';
 
 export type SendOptions = {
@@ -211,6 +215,22 @@ export async function sendOrgOrderStatusChangedEmail(
       subject: orgOrderStatusChangedSubject(props),
       html: await renderHtml(<OrgOrderStatusChangedTemplate {...props} />),
       text: orgOrderStatusChangedText(props),
+    },
+    options,
+  );
+}
+
+export async function sendOrgManagerRepliedEmail(
+  args: { to: string } & OrgManagerRepliedProps,
+  options: SendOptions = {},
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: orgManagerRepliedSubject(props),
+      html: await renderHtml(<OrgManagerRepliedTemplate {...props} />),
+      text: orgManagerRepliedText(props),
     },
     options,
   );
