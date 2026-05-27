@@ -2,7 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeOrder } from '@/lib/auth/managerPolicy';
 import { recordAudit } from '@/lib/auth/audit';
-import { notifyOrgUsers } from '@/lib/notifications';
+import { notifyManagers, notifyOrgUsers } from '@/lib/notifications';
 
 /**
  * Manager-facing execution status transition.
@@ -19,9 +19,9 @@ import { notifyOrgUsers } from '@/lib/notifications';
  *   - An `order_status_changed` audit row is recorded with before/after.
  *   - All active members of the order's organization receive an in-app
  *     notification (best-effort email) via notifyOrgUsers.
- *
- * Notifications to other managers attached to the same order/org are deferred
- * to plan Task 30 (it depends on notifyManagers, which Task 27 introduces).
+ *   - Other managers attached to this order/org (per-order, per-org, or
+ *     historical) receive an in-app notification + best-effort email via
+ *     notifyManagers (`order_status_changed_by_manager`), excluding the actor.
  */
 
 const MANAGER_SETTABLE_STATUSES = ['pending', 'in_progress', 'completed'] as const;
@@ -107,10 +107,37 @@ export async function transitionOrderStatus(
     });
   }
 
-  // TODO(8.4): wire notifyManagers here once notifications.ts:notifyManagers
-  // exists (Task 30 wires it after Task 27 introduces the helper). The intent
-  // is to broadcast 'order_status_changed_by_manager' to other managers
-  // attached to this order/org, excluding the actor (session.sub).
+  // Best-effort fan-out to other managers in scope of this order (per-order,
+  // per-org, or historical). Failure here must NOT roll back the status
+  // update — the audit row + in-app org notifications are the source of
+  // truth, the manager-side email is a side channel. `notifyManagers`
+  // returns an empty summary when no other manager is in scope (e.g. the
+  // actor is the sole assignee), so an empty recipient set is not an error.
+  try {
+    const actor = await prisma.user.findUnique({
+      where: { id: session.sub },
+      select: { name: true }
+    });
+    await notifyManagers(
+      prisma,
+      {
+        orderId,
+        type: 'order_status_changed_by_manager',
+        payload: {
+          actorName: actor?.name ?? 'Менеджер',
+          oldStatus: previousStatus,
+          newStatus
+        }
+      },
+      { excludeUserId: session.sub }
+    );
+  } catch (err) {
+    console.warn('[manager/status] notifyManagers (order_status_changed_by_manager) failed', {
+      orderId,
+      actorId: session.sub,
+      error: err instanceof Error ? err.message : String(err)
+    });
+  }
 
   return { changed: true };
 }
