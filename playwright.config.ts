@@ -37,7 +37,7 @@ export default defineConfig({
       testMatch: /auth\.setup\.ts/,
     },
     // Partner cabinet snapshots — anything in snapshots/ that isn't prefixed
-    // with `organization-`. Uses the partner storageState.
+    // with `organization-` or `manager-`. Uses the partner storageState.
     {
       name: 'desktop',
       use: {
@@ -46,7 +46,7 @@ export default defineConfig({
         storageState: 'playwright-report/.auth/partner.json',
       },
       dependencies: ['setup'],
-      testMatch: /snapshots\/(?!organization-).*\.spec\.ts/,
+      testMatch: /snapshots\/(?!organization-|manager-).*\.spec\.ts/,
     },
     {
       name: 'mobile',
@@ -56,7 +56,7 @@ export default defineConfig({
         storageState: 'playwright-report/.auth/partner.json',
       },
       dependencies: ['setup'],
-      testMatch: /snapshots\/(?!organization-).*\.spec\.ts/,
+      testMatch: /snapshots\/(?!organization-|manager-).*\.spec\.ts/,
     },
     // Organization cabinet snapshots — only files prefixed with `organization-`.
     // Uses the organization storageState.
@@ -79,6 +79,28 @@ export default defineConfig({
       },
       dependencies: ['setup'],
       testMatch: /snapshots\/organization-.*\.spec\.ts/,
+    },
+    // Manager cabinet snapshots — only files prefixed with `manager-`. Uses
+    // the manager storageState seeded by `manager@demo.local` in prisma/seed.ts.
+    {
+      name: 'mgr-desktop',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1280, height: 800 },
+        storageState: 'playwright-report/.auth/manager.json',
+      },
+      dependencies: ['setup'],
+      testMatch: /snapshots\/manager-.*\.spec\.ts/,
+    },
+    {
+      name: 'mgr-mobile',
+      use: {
+        ...devices['iPhone 13'],
+        viewport: { width: 375, height: 667 },
+        storageState: 'playwright-report/.auth/manager.json',
+      },
+      dependencies: ['setup'],
+      testMatch: /snapshots\/manager-.*\.spec\.ts/,
     },
   ],
   webServer: process.env.PLAYWRIGHT_BASE_URL

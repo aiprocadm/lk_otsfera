@@ -195,11 +195,37 @@ async function main() {
     });
   }
 
+  // ─── Demo: manager user assigned to firstOrg (for e2e + manual smoke) ──
+  if (firstOrg) {
+    const managerUser = await prisma.user.upsert({
+      where: { email: 'manager@demo.local' },
+      update: { role: 'manager', isActive: true, passwordHash, name: 'Demo Manager' },
+      create: {
+        email: 'manager@demo.local',
+        name: 'Demo Manager',
+        passwordHash,
+        role: 'manager'
+      }
+    });
+    await prisma.organizationManager.upsert({
+      where: {
+        organizationId_userId: { organizationId: firstOrg.id, userId: managerUser.id }
+      },
+      update: { isActive: true, deactivatedAt: null },
+      create: {
+        organizationId: firstOrg.id,
+        userId: managerUser.id,
+        isActive: true
+      }
+    });
+  }
+
   console.log('[seed] demo accounts (password = ' + PASSWORD + '):');
   console.log('  - admin@demo.local (role=admin)');
   console.log('  - partner@demo.local (partner admin, sees all orgs)');
   console.log('  - partner-mgr@demo.local (partner manager, scope=' + managerScope.length + ' org)');
   console.log('  - org@demo.local (organization admin, membership in firstOrg)');
+  console.log('  - manager@demo.local (cabinet manager, assigned to firstOrg)');
   console.log('[seed] done');
 }
 
