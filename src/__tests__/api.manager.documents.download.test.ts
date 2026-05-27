@@ -1,0 +1,199 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const {
+  getSession,
+  documentFindUnique,
+  commentCount,
+  auditCreate,
+  createSignedUrl,
+  redirectMock
+} = vi.hoisted(() => ({
+  getSession: vi.fn(),
+  documentFindUnique: vi.fn(),
+  commentCount: vi.fn().mockResolvedValue(0),
+  auditCreate: vi.fn(),
+  createSignedUrl: vi.fn(),
+  redirectMock: vi.fn(() => {
+    throw new Error('REDIRECT');
+  })
+}));
+
+vi.mock('@/lib/auth/session', () => ({ getSession }));
+vi.mock('next/navigation', () => ({
+  redirect: redirectMock,
+  notFound: () => {
+    throw new Error('NOTFOUND');
+  }
+}));
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: {
+    document: { findUnique: documentFindUnique },
+    comment: { count: commentCount },
+    auditLog: { create: auditCreate }
+  }
+}));
+vi.mock('@/lib/storage/supabase', () => ({
+  documentBucket: 'documents',
+  supabaseAdmin: {
+    storage: { from: () => ({ createSignedUrl }) }
+  }
+}));
+
+import { GET as downloadGet } from '@/app/api/manager/documents/[id]/download/route';
+
+function managerSession(opts: { sub?: string; managedOrgIds?: string[] }) {
+  return {
+    sub: opts.sub ?? 'u-mgr-1',
+    role: 'manager',
+    email: 'mgr@local',
+    managedOrgIds: opts.managedOrgIds ?? []
+  };
+}
+
+function getReq(): Request {
+  return new Request('https://app.local/api/manager/documents/d1/download', {
+    method: 'GET'
+  });
+}
+
+const paramsP = { params: Promise.resolve({ id: 'd1' }) };
+
+describe('GET /api/manager/documents/[id]/download', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    commentCount.mockResolvedValue(0);
+  });
+
+  it('redirects when user is not a manager', async () => {
+    getSession.mockResolvedValue({ sub: 'u', role: 'admin' });
+    await expect(downloadGet(getReq() as never, paramsP)).rejects.toThrow('REDIRECT');
+    expect(redirectMock).toHaveBeenCalledWith('/forbidden');
+  });
+
+  it('redirects when managedOrgIds is undefined (session loader did not run)', async () => {
+    getSession.mockResolvedValue({ sub: 'u', role: 'manager' });
+    await expect(downloadGet(getReq() as never, paramsP)).rejects.toThrow('REDIRECT');
+    expect(redirectMock).toHaveBeenCalledWith('/login');
+  });
+
+  it('returns 404 for non-existent document', async () => {
+    getSession.mockResolvedValue(managerSession({ managedOrgIds: ['org-a'] }));
+    documentFindUnique.mockResolvedValue(null);
+    const res = await downloadGet(getReq() as never, paramsP);
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 404 silently for out-of-scope document (no managerId/org/comments match)', async () => {
+    getSession.mockResolvedValue(managerSession({ sub: 'u-mgr-1', managedOrgIds: ['org-a'] }));
+    documentFindUnique.mockResolvedValue({
+      id: 'd1',
+      name: 'x.pdf',
+      path: 'p',
+      mimeType: 'application/pdf',
+      scanStatus: 'clean',
+      scanReason: null,
+      order: { managerId: 'someone-else', organizationId: 'org-b' }
+    });
+    commentCount.mockResolvedValue(0);
+    const res = await downloadGet(getReq() as never, paramsP);
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 410 for in-scope infected document (per-org path)', async () => {
+    getSession.mockResolvedValue(managerSession({ sub: 'u-mgr-1', managedOrgIds: ['org-a'] }));
+    documentFindUnique.mockResolvedValue({
+      id: 'd1',
+      name: 'x.pdf',
+      path: 'p',
+      mimeType: 'application/pdf',
+      scanStatus: 'infected',
+      scanReason: 'EICAR',
+      order: { managerId: null, organizationId: 'org-a' }
+    });
+    const res = await downloadGet(getReq() as never, paramsP);
+    expect(res.status).toBe(410);
+  });
+
+  it('returns 302 redirect with signed URL for clean in-scope document (per-org path)', async () => {
+    getSession.mockResolvedValue(managerSession({ sub: 'u-mgr-1', managedOrgIds: ['org-a'] }));
+    documentFindUnique.mockResolvedValue({
+      id: 'd1',
+      name: 'contract.pdf',
+      path: 'org-a/contract.pdf',
+      mimeType: 'application/pdf',
+      scanStatus: 'clean',
+      scanReason: null,
+      order: { managerId: null, organizationId: 'org-a' }
+    });
+    createSignedUrl.mockResolvedValue({
+      data: { signedUrl: 'https://signed.test/x' },
+      error: null
+    });
+
+    const res = await downloadGet(getReq() as never, paramsP);
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toBe('https://signed.test/x');
+    expect(createSignedUrl).toHaveBeenCalledWith('org-a/contract.pdf', expect.any(Number));
+    expect(auditCreate).toHaveBeenCalled();
+  });
+
+  it('returns 302 for per-order path (managerId matches session.sub)', async () => {
+    getSession.mockResolvedValue(managerSession({ sub: 'u-mgr-1', managedOrgIds: [] }));
+    documentFindUnique.mockResolvedValue({
+      id: 'd1',
+      name: 'own.pdf',
+      path: 'p/own.pdf',
+      mimeType: 'application/pdf',
+      scanStatus: 'clean',
+      scanReason: null,
+      order: { managerId: 'u-mgr-1', organizationId: 'org-x' }
+    });
+    createSignedUrl.mockResolvedValue({
+      data: { signedUrl: 'https://signed.test/own' },
+      error: null
+    });
+
+    const res = await downloadGet(getReq() as never, paramsP);
+    expect(res.status).toBe(302);
+    expect(commentCount).not.toHaveBeenCalled(); // hot-path skip
+  });
+
+  it('returns 302 for comments-history path (per-order/org miss, comments hit)', async () => {
+    getSession.mockResolvedValue(managerSession({ sub: 'u-mgr-1', managedOrgIds: [] }));
+    documentFindUnique.mockResolvedValue({
+      id: 'd1',
+      name: 'historical.pdf',
+      path: 'p/historical.pdf',
+      mimeType: 'application/pdf',
+      scanStatus: 'clean',
+      scanReason: null,
+      order: { managerId: 'someone-else', organizationId: 'org-z' }
+    });
+    commentCount.mockResolvedValue(2);
+    createSignedUrl.mockResolvedValue({
+      data: { signedUrl: 'https://signed.test/h' },
+      error: null
+    });
+
+    const res = await downloadGet(getReq() as never, paramsP);
+    expect(res.status).toBe(302);
+    expect(commentCount).toHaveBeenCalled();
+  });
+
+  it('returns 502 if Supabase signed URL creation fails', async () => {
+    getSession.mockResolvedValue(managerSession({ sub: 'u-mgr-1', managedOrgIds: ['org-a'] }));
+    documentFindUnique.mockResolvedValue({
+      id: 'd1',
+      name: 'x.pdf',
+      path: 'org-a/x.pdf',
+      mimeType: 'application/pdf',
+      scanStatus: 'clean',
+      scanReason: null,
+      order: { managerId: null, organizationId: 'org-a' }
+    });
+    createSignedUrl.mockResolvedValue({ data: null, error: { message: 'storage down' } });
+
+    const res = await downloadGet(getReq() as never, paramsP);
+    expect(res.status).toBe(502);
+  });
+});
