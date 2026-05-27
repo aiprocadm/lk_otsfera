@@ -132,6 +132,22 @@ export async function reactivateManagerAssignmentAction(
 }
 
 /**
+ * Form-action wrappers that discard the rich result so they're compatible
+ * with `<form action={...}>` (which expects `void | Promise<void>`). The
+ * underlying action still revalidates the admin org page; any failure is
+ * absorbed silently because the destructive operations are infrequent and
+ * the only failure mode (`not_found`) means the row was removed under us —
+ * which the page refresh will then reflect anyway.
+ */
+export async function deactivateManagerAssignmentFormAction(formData: FormData): Promise<void> {
+  await deactivateManagerAssignmentAction(formData);
+}
+
+export async function reactivateManagerAssignmentFormAction(formData: FormData): Promise<void> {
+  await reactivateManagerAssignmentAction(formData);
+}
+
+/**
  * Per-order manager assignment (toggles `Order.managerId`).
  *
  * Distinct from org-level assignment: this is a *first-class* visibility
