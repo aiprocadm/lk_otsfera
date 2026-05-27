@@ -114,6 +114,16 @@ export async function POST(req: Request) {
     }));
   }
 
+  let managedOrgIds: string[] | undefined;
+
+  if (user.role === 'manager') {
+    const assigned = await prisma.organizationManager.findMany({
+      where: { userId: user.id, isActive: true },
+      select: { organizationId: true }
+    });
+    managedOrgIds = assigned.map((a) => a.organizationId);
+  }
+
   const token = await signToken({
     sub: user.id,
     role: user.role,
@@ -125,7 +135,8 @@ export async function POST(req: Request) {
     externalStudentId: user.externalStudentId,
     ...(partnerRole !== undefined ? { partnerRole } : {}),
     ...(assignedOrgIds !== undefined ? { assignedOrgIds } : {}),
-    ...(organizationMemberships !== undefined ? { organizationMemberships } : {})
+    ...(organizationMemberships !== undefined ? { organizationMemberships } : {}),
+    ...(managedOrgIds !== undefined ? { managedOrgIds } : {})
   });
 
   const res = NextResponse.json({ ok: true });
