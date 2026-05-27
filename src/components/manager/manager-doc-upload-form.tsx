@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
  *
  * Mirrors the org-side upload UX from Phase 7: file picker + document-type
  * select, single submit button with pending state, inline error/success
- * messaging. POSTs to `/api/manager/documents/[orderId]/upload`. On success
+ * messaging. POSTs to `/api/manager/documents/[id]/upload`. On success
  * we `router.refresh()` so the documents block re-renders from the server.
  *
  * The type options mirror prisma/schema.prisma `enum DocumentType` 1:1; keep

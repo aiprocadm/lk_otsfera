@@ -24,7 +24,7 @@ vi.mock('@/lib/services/manager/uploads', () => ({
   createOrderDocument: createOrderDocumentMock
 }));
 
-import { POST as uploadPost } from '@/app/api/manager/documents/[orderId]/upload/route';
+import { POST as uploadPost } from '@/app/api/manager/documents/[id]/upload/route';
 
 function managerSession(opts: { sub?: string; managedOrgIds?: string[] } = {}) {
   return {
@@ -47,9 +47,9 @@ function buildReq(opts: { file?: File | null; docType?: string }) {
   });
 }
 
-const paramsP = { params: Promise.resolve({ orderId: 'ord-1' }) };
+const paramsP = { params: Promise.resolve({ id: 'ord-1' }) };
 
-describe('POST /api/manager/documents/[orderId]/upload', () => {
+describe('POST /api/manager/documents/[id]/upload', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getSession.mockResolvedValue(managerSession());
