@@ -72,7 +72,7 @@ Note on hidden controls: `querySelectorAll` returns elements regardless of CSS v
 
 ```
 src/hooks/useDialogFocus.ts                       (new — ~50 lines)
-src/hooks/__tests__/useDialogFocus.test.tsx       (new — ~120 lines, 4 cases)
+src/e2e/a11y/modal-focus-trap.spec.ts             (new — Playwright e2e, ~80 lines)
 ```
 
 ### Wiring into each modal
@@ -87,21 +87,30 @@ No other change. Existing `useEffect` for Escape is untouched.
 
 ## Tests
 
-Component test using `@testing-library/react` (already in project — pattern: `*.test.tsx` next to component or in `__tests__`):
+**Why Playwright, not Vitest:** the project's Vitest is configured with `environment: 'node'` and uses `renderToString` for component tests — no DOM, no events, no focus. Testing focus management in Vitest would require adding `jsdom` + `@testing-library/react` + `@testing-library/user-event` as devDeps, which is heavyweight for a 40-line hook. Playwright is already installed (`@playwright/test ^1.60.0`) with running e2e specs under `src/e2e/snapshots/` — it gives us a real browser with real keyboard handling, which is exactly the right test surface for focus behaviour.
+
+New file `src/e2e/a11y/modal-focus-trap.spec.ts` with one spec covering `invite-org-user-form` (simplest of the three — no mode-tabs):
 
 1. **Initial focus moves into modal**
-   Render `<InviteOrgUserForm organizationId='x' />`, click the trigger, assert the first form input has focus.
+   Navigate to `/organization/team`, click "Пригласить участника", assert focused element is the email input (`page.evaluate(() => document.activeElement?.getAttribute('name')) === 'email'`).
 
 2. **Tab from last focusable wraps to first**
-   Open modal, focus the last button (Cancel/Submit), simulate `Tab`, assert focus is on the first input.
+   Open modal, focus the submit button via `page.locator('button[type=submit]').focus()`, press `Tab`, assert focus is on email input.
 
 3. **Shift+Tab from first focusable wraps to last**
-   Open modal, focus the first input, simulate `Shift+Tab`, assert focus is on the last interactive element.
+   Open modal, focus email input, press `Shift+Tab`, assert focus is on the close button or last interactive element.
 
 4. **Focus restores to trigger after close**
-   Render, focus + click trigger, then close via Escape, assert focus is on the trigger button.
+   Click trigger to open, press `Escape`, assert focused element is the trigger button (by accessible name).
 
-Pick one of the three forms for the integration test (e.g. `invite-org-user-form` — the simplest one without mode-tabs). The hook itself is tested implicitly through this integration; a separate unit test of the hook is unnecessary because there is no useful test that doesn't render React.
+The hook is tested implicitly through this integration spec. The other two modals are verified manually (their structure matches; behaviour follows from the hook).
+
+### Manual verification (all three modals)
+
+After Playwright is green:
+- `/admin/organizations/[id]` → "Назначить менеджера" (tab between modes, Tab through fields, Escape returns focus)
+- `/organization/team` → "Пригласить участника" (same checks)
+- `/partner/customers/[id]` → "Пригласить администратора" (same checks)
 
 ## Risk
 
