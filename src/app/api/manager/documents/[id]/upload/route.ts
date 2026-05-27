@@ -4,7 +4,12 @@ import { prisma } from '@/lib/db/prisma';
 import { createOrderDocument } from '@/lib/services/manager/uploads';
 
 /**
- * POST /api/manager/documents/[orderId]/upload
+ * POST /api/manager/documents/[id]/upload
+ *
+ * `[id]` is the parent **orderId** (the document is created against an order).
+ * The segment is named `[id]` to share the dynamic level with
+ * `[id]/download/`, since Next.js App Router forbids sibling dynamic
+ * segments with different names.
  *
  * Multipart upload endpoint for a manager-issued document attached to a
  * specific order. Delegates to `createOrderDocument` for MIME/size validation,
@@ -23,10 +28,10 @@ import { createOrderDocument } from '@/lib/services/manager/uploads';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ orderId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await requireManager();
-  const { orderId } = await params;
+  const { id: orderId } = await params;
 
   const form = await req.formData();
   const file = form.get('file');

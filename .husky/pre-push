@@ -1,0 +1,7 @@
+# L2: pre-push — full unit suite. Target ~15-30 sec.
+#
+# Guarantees that what leaves this machine compiles and the mock-based
+# test layer is green. Integration tests (require live Postgres) are
+# intentionally excluded; run `npm run test:integration` manually.
+
+npm run test:unit
