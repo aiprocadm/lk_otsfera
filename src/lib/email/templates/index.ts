@@ -86,3 +86,10 @@ export {
   managerOrderStatusChangedText
 } from './manager/order-status-changed';
 export type { ManagerOrderStatusChangedProps } from './manager/order-status-changed';
+
+export {
+  ManagerInviteTemplate,
+  managerInviteSubject,
+  managerInviteText
+} from './manager/invite';
+export type { ManagerInviteProps } from './manager/invite';
