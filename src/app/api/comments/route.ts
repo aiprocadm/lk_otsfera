@@ -3,7 +3,12 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { requireOrderAccess, requireSession, forbiddenResponse } from '@/lib/auth/guard';
 import { canSeeOrder } from '@/lib/auth/organizationPolicy';
-import { notifyMessageCreated, notifyOrgUsers, triggerNotificationEmail } from '@/lib/notifications';
+import {
+  notifyManagers,
+  notifyMessageCreated,
+  notifyOrgUsers,
+  triggerNotificationEmail
+} from '@/lib/notifications';
 import { getPrimaryOrganizationId } from '@/lib/auth/organization';
 import { recordAudit } from '@/lib/auth/audit';
 
@@ -37,7 +42,11 @@ export async function POST(req: Request) {
   if (s.role === 'organization') {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { id: true, organizationId: true }
+      select: {
+        id: true,
+        organizationId: true,
+        organization: { select: { name: true } }
+      }
     });
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (!canSeeOrder(s, order)) return forbiddenResponse('Access denied');
@@ -53,6 +62,28 @@ export async function POST(req: Request) {
       userId: s.sub,
       after: { commentId: comment.id, viewer: 'organization' }
     });
+
+    // Best-effort fan-out to managers in scope of this order. Failure here must
+    // NOT roll back the comment — the in-app row is the source of truth, the
+    // email is a side channel. notifyManagers itself returns an empty summary
+    // when the order has no manager assignment (per-order, per-org, or
+    // historical), so a missing manager is not an error.
+    try {
+      await notifyManagers(prisma, {
+        orderId: order.id,
+        type: 'comment_from_org',
+        payload: {
+          orgName: order.organization?.name ?? '',
+          commentExcerpt: body.slice(0, 200)
+        }
+      });
+    } catch (err) {
+      console.warn('[api/comments] notifyManagers (comment_from_org) failed', {
+        commentId: comment.id,
+        orderId: order.id,
+        error: err instanceof Error ? err.message : String(err)
+      });
+    }
 
     return NextResponse.json(comment, { status: 201 });
   }
