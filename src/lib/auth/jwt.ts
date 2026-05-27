@@ -31,6 +31,7 @@ export type SessionPayload = {
   partnerId?: string | null;
   partnerRole?: PartnerRoleInPartner | null;
   assignedOrgIds?: string[];
+  managedOrgIds?: string[];
   organizationId?: string | null;
   organizationMemberships?: OrganizationMembership[];
   email?: string;
