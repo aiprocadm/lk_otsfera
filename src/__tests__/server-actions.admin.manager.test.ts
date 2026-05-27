@@ -1,0 +1,297 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const {
+  requireAdmin,
+  createAndAssignManager,
+  deactivateAssignment,
+  reactivateAssignment,
+  sendManagerInviteEmail,
+  revalidatePath,
+  organizationFindUnique,
+  orderFindUnique,
+  orderUpdate,
+  userFindUnique,
+  recordAudit
+} = vi.hoisted(() => ({
+  requireAdmin: vi.fn(),
+  createAndAssignManager: vi.fn(),
+  deactivateAssignment: vi.fn(),
+  reactivateAssignment: vi.fn(),
+  sendManagerInviteEmail: vi.fn(),
+  revalidatePath: vi.fn(),
+  organizationFindUnique: vi.fn(),
+  orderFindUnique: vi.fn(),
+  orderUpdate: vi.fn(),
+  userFindUnique: vi.fn(),
+  recordAudit: vi.fn()
+}));
+
+vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: {
+    organization: { findUnique: organizationFindUnique },
+    order: { findUnique: orderFindUnique, update: orderUpdate },
+    user: { findUnique: userFindUnique }
+  }
+}));
+vi.mock('next/cache', () => ({ revalidatePath }));
+vi.mock('@/lib/email/send', () => ({ sendManagerInviteEmail }));
+vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
+vi.mock('@/lib/services/manager/invite', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/services/manager/invite')>(
+    '@/lib/services/manager/invite'
+  );
+  return {
+    ...actual,
+    createAndAssignManager,
+    deactivateAssignment,
+    reactivateAssignment
+  };
+});
+
+import {
+  assignOrInviteManagerAction,
+  deactivateManagerAssignmentAction,
+  reactivateManagerAssignmentAction,
+  assignOrderManagerAction
+} from '@/server-actions/admin/manager';
+import { ManagerInviteError } from '@/lib/services/manager/invite';
+
+function fd(data: Record<string, string>): FormData {
+  const f = new FormData();
+  for (const [k, v] of Object.entries(data)) f.append(k, v);
+  return f;
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  requireAdmin.mockResolvedValue({ sub: 'admin-1', name: 'Plat Admin' });
+});
+
+describe('assignOrInviteManagerAction', () => {
+  it('returns validation on missing fields', async () => {
+    const res = await assignOrInviteManagerAction(fd({}));
+    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(createAndAssignManager).not.toHaveBeenCalled();
+  });
+
+  it('returns validation on bad email', async () => {
+    const res = await assignOrInviteManagerAction(
+      fd({ mode: 'existing', organizationId: 'org-1', email: 'not-an-email' })
+    );
+    expect(res).toMatchObject({ ok: false, error: 'validation' });
+  });
+
+  it('happy path mode=new — calls service, sends invite email, revalidates', async () => {
+    organizationFindUnique.mockResolvedValue({ name: 'ACME' });
+    createAndAssignManager.mockResolvedValue({
+      user: { id: 'u-2', email: 'new@t.local' },
+      inviteUrl: 'https://app/reset-password?token=xyz',
+      alreadyHasPassword: false,
+      reactivated: false
+    });
+    sendManagerInviteEmail.mockResolvedValue({ status: 'sent', id: 'em-1' });
+
+    const res = await assignOrInviteManagerAction(
+      fd({
+        mode: 'new',
+        organizationId: 'org-1',
+        email: 'new@t.local',
+        name: 'Fresh Mgr'
+      })
+    );
+
+    expect(res).toEqual({
+      ok: true,
+      user: { id: 'u-2', email: 'new@t.local' },
+      inviteUrl: 'https://app/reset-password?token=xyz',
+      alreadyHasPassword: false,
+      reactivated: false
+    });
+    expect(createAndAssignManager).toHaveBeenCalledWith(
+      expect.anything(),
+      { mode: 'new', organizationId: 'org-1', email: 'new@t.local', name: 'Fresh Mgr' },
+      'admin-1'
+    );
+    expect(sendManagerInviteEmail).toHaveBeenCalledWith({
+      to: 'new@t.local',
+      organizationName: 'ACME',
+      inviteUrl: 'https://app/reset-password?token=xyz',
+      invitedByName: 'Plat Admin'
+    });
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/organizations/org-1');
+  });
+
+  it('happy path mode=existing — when service returns null inviteUrl, no email sent', async () => {
+    createAndAssignManager.mockResolvedValue({
+      user: { id: 'u-3', email: 'has@t.local' },
+      inviteUrl: null,
+      alreadyHasPassword: true,
+      reactivated: false
+    });
+
+    const res = await assignOrInviteManagerAction(
+      fd({ mode: 'existing', organizationId: 'org-2', email: 'has@t.local' })
+    );
+
+    expect(res).toMatchObject({ ok: true, alreadyHasPassword: true });
+    expect(sendManagerInviteEmail).not.toHaveBeenCalled();
+    expect(organizationFindUnique).not.toHaveBeenCalled(); // skipped when no inviteUrl
+  });
+
+  it('maps ManagerInviteError(role_conflict) to {ok:false, error:"role_conflict"}', async () => {
+    createAndAssignManager.mockRejectedValue(new ManagerInviteError('role_conflict'));
+    const res = await assignOrInviteManagerAction(
+      fd({ mode: 'existing', organizationId: 'org-1', email: 'org@t.local' })
+    );
+    expect(res).toEqual({ ok: false, error: 'role_conflict' });
+  });
+
+  it('maps ManagerInviteError(already_assigned)', async () => {
+    createAndAssignManager.mockRejectedValue(new ManagerInviteError('already_assigned'));
+    const res = await assignOrInviteManagerAction(
+      fd({ mode: 'existing', organizationId: 'org-1', email: 'has@t.local' })
+    );
+    expect(res).toEqual({ ok: false, error: 'already_assigned' });
+  });
+
+  it('re-throws non-domain errors', async () => {
+    createAndAssignManager.mockRejectedValue(new Error('db-down'));
+    await expect(
+      assignOrInviteManagerAction(
+        fd({ mode: 'existing', organizationId: 'org-1', email: 'has@t.local' })
+      )
+    ).rejects.toThrow(/db-down/);
+  });
+});
+
+describe('deactivateManagerAssignmentAction / reactivateManagerAssignmentAction', () => {
+  it('deactivate happy path', async () => {
+    deactivateAssignment.mockResolvedValue({ ok: true, organizationId: 'org-9' });
+    const res = await deactivateManagerAssignmentAction(fd({ assignmentId: 'a-1' }));
+    expect(res).toEqual({ ok: true });
+    expect(deactivateAssignment).toHaveBeenCalledWith(expect.anything(), 'a-1', 'admin-1');
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/organizations/org-9');
+  });
+
+  it('deactivate not_found maps to {ok:false, error:"not_found"}', async () => {
+    deactivateAssignment.mockResolvedValue({ ok: false, reason: 'not_found' });
+    const res = await deactivateManagerAssignmentAction(fd({ assignmentId: 'bad' }));
+    expect(res).toEqual({ ok: false, error: 'not_found' });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('deactivate validation when assignmentId missing', async () => {
+    const res = await deactivateManagerAssignmentAction(fd({}));
+    expect(res).toEqual({ ok: false, error: 'validation' });
+    expect(deactivateAssignment).not.toHaveBeenCalled();
+  });
+
+  it('reactivate happy path', async () => {
+    reactivateAssignment.mockResolvedValue({ ok: true, organizationId: 'org-9' });
+    const res = await reactivateManagerAssignmentAction(fd({ assignmentId: 'a-2' }));
+    expect(res).toEqual({ ok: true });
+    expect(reactivateAssignment).toHaveBeenCalledWith(expect.anything(), 'a-2', 'admin-1');
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/organizations/org-9');
+  });
+
+  it('reactivate not_found', async () => {
+    reactivateAssignment.mockResolvedValue({ ok: false, reason: 'not_found' });
+    const res = await reactivateManagerAssignmentAction(fd({ assignmentId: 'bad' }));
+    expect(res).toEqual({ ok: false, error: 'not_found' });
+  });
+});
+
+describe('assignOrderManagerAction', () => {
+  it('returns validation when orderId missing', async () => {
+    const res = await assignOrderManagerAction(fd({ managerUserId: 'm-1' }));
+    expect(res).toMatchObject({ ok: false, error: 'validation' });
+  });
+
+  it('order_not_found when order does not exist', async () => {
+    userFindUnique.mockResolvedValue({ role: 'manager', isActive: true });
+    orderFindUnique.mockResolvedValue(null);
+    const res = await assignOrderManagerAction(
+      fd({ orderId: 'no-order', managerUserId: 'm-1' })
+    );
+    expect(res).toEqual({ ok: false, error: 'order_not_found' });
+    expect(orderUpdate).not.toHaveBeenCalled();
+  });
+
+  it('invalid_manager when user is not a manager', async () => {
+    userFindUnique.mockResolvedValue({ role: 'partner', isActive: true });
+    const res = await assignOrderManagerAction(
+      fd({ orderId: 'o-1', managerUserId: 'p-1' })
+    );
+    expect(res).toEqual({ ok: false, error: 'invalid_manager' });
+    expect(orderFindUnique).not.toHaveBeenCalled();
+  });
+
+  it('invalid_manager when manager is inactive', async () => {
+    userFindUnique.mockResolvedValue({ role: 'manager', isActive: false });
+    const res = await assignOrderManagerAction(
+      fd({ orderId: 'o-1', managerUserId: 'm-x' })
+    );
+    expect(res).toEqual({ ok: false, error: 'invalid_manager' });
+  });
+
+  it('invalid_manager when user does not exist', async () => {
+    userFindUnique.mockResolvedValue(null);
+    const res = await assignOrderManagerAction(
+      fd({ orderId: 'o-1', managerUserId: 'missing' })
+    );
+    expect(res).toEqual({ ok: false, error: 'invalid_manager' });
+  });
+
+  it('happy path — sets managerId, records audit, revalidates', async () => {
+    userFindUnique.mockResolvedValue({ role: 'manager', isActive: true });
+    orderFindUnique.mockResolvedValue({ managerId: null });
+
+    const res = await assignOrderManagerAction(
+      fd({ orderId: 'o-1', managerUserId: 'm-1' })
+    );
+    expect(res).toEqual({ ok: true, changed: true });
+    expect(orderUpdate).toHaveBeenCalledWith({
+      where: { id: 'o-1' },
+      data: { managerId: 'm-1' }
+    });
+    expect(recordAudit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        action: 'order_manager_changed',
+        entity: 'order',
+        entityId: 'o-1',
+        before: { managerId: null },
+        after: { managerId: 'm-1' }
+      })
+    );
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/orders/o-1');
+  });
+
+  it('happy path — clears managerId when managerUserId is empty', async () => {
+    orderFindUnique.mockResolvedValue({ managerId: 'm-old' });
+
+    const res = await assignOrderManagerAction(
+      fd({ orderId: 'o-1', managerUserId: '' })
+    );
+    expect(res).toEqual({ ok: true, changed: true });
+    expect(userFindUnique).not.toHaveBeenCalled(); // no validation needed when clearing
+    expect(orderUpdate).toHaveBeenCalledWith({
+      where: { id: 'o-1' },
+      data: { managerId: null }
+    });
+  });
+
+  it('no-op when managerId already matches target', async () => {
+    userFindUnique.mockResolvedValue({ role: 'manager', isActive: true });
+    orderFindUnique.mockResolvedValue({ managerId: 'm-1' });
+
+    const res = await assignOrderManagerAction(
+      fd({ orderId: 'o-1', managerUserId: 'm-1' })
+    );
+    expect(res).toEqual({ ok: true, changed: false });
+    expect(orderUpdate).not.toHaveBeenCalled();
+    expect(recordAudit).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});

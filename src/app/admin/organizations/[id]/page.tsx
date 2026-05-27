@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { CustomerAccessSection } from '@/components/partner/customer-access-section';
+import { ManagersBlock } from '@/components/admin/managers-block';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,6 +65,8 @@ export default async function AdminOrganizationDetailPage({
       </div>
 
       <CustomerAccessSection organizationId={org.id} canInvite={true} source='admin' />
+
+      <ManagersBlock orgId={org.id} />
     </div>
   );
 }

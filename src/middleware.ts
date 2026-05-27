@@ -8,6 +8,7 @@ import { isFeatureEnabled, type FeatureFlag } from '@/lib/featureFlags';
 const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   { prefix: '/partner/leads', flag: 'partner_leads' },
   { prefix: '/organization', flag: 'organization_cabinet' },
+  { prefix: '/manager', flag: 'manager_cabinet' },
 ];
 
 const MIN_JWT_SECRET_LENGTH = 32;
