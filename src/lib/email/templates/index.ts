@@ -93,3 +93,10 @@ export {
   managerInviteText
 } from './manager/invite';
 export type { ManagerInviteProps } from './manager/invite';
+
+export {
+  AdminUserInviteTemplate,
+  adminUserInviteSubject,
+  adminUserInviteText,
+} from './admin-user-invite';
+export type { AdminUserInviteProps } from './admin-user-invite';

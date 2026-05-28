@@ -47,6 +47,9 @@ import {
   ManagerInviteTemplate,
   managerInviteSubject,
   managerInviteText,
+  AdminUserInviteTemplate,
+  adminUserInviteSubject,
+  adminUserInviteText,
   type CommissionReadyProps,
   type DocumentUploadedProps,
   type LeadPromotedProps,
@@ -61,6 +64,7 @@ import {
   type ManagerOrderMarkedPaidBy1CProps,
   type ManagerOrderStatusChangedProps,
   type ManagerInviteProps,
+  type AdminUserInviteProps,
 } from './templates';
 
 export type SendOptions = {
@@ -331,6 +335,22 @@ export async function sendManagerInviteEmail(
       subject: managerInviteSubject(props.organizationName),
       html: await renderHtml(<ManagerInviteTemplate {...props} />),
       text: managerInviteText(props),
+    },
+    options,
+  );
+}
+
+export async function sendAdminUserInviteEmail(
+  args: { to: string } & AdminUserInviteProps,
+  options: SendOptions = {},
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: adminUserInviteSubject(),
+      html: await renderHtml(<AdminUserInviteTemplate {...props} />),
+      text: adminUserInviteText(props),
     },
     options,
   );
