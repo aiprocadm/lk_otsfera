@@ -67,19 +67,28 @@ export async function listUsers(
   const where: Prisma.UserWhereInput = {};
   if (filters.role) where.role = filters.role;
   if (filters.active !== undefined) where.isActive = filters.active;
-  if (filters.q) {
-    where.OR = [
-      { email: { contains: filters.q, mode: 'insensitive' } },
-      { name: { contains: filters.q, mode: 'insensitive' } }
-    ];
-  }
   if (filters.partnerId) where.partnerId = filters.partnerId;
-  if (filters.organizationId) {
-    where.OR = [
-      ...(where.OR ?? []),
-      { organizationUsers: { some: { organizationId: filters.organizationId } } },
-      { managedOrganizations: { some: { organizationId: filters.organizationId } } }
-    ];
+
+  const qOrClauses = filters.q
+    ? [
+        { email: { contains: filters.q, mode: 'insensitive' as const } },
+        { name: { contains: filters.q, mode: 'insensitive' as const } }
+      ]
+    : null;
+
+  const orgOrClauses = filters.organizationId
+    ? [
+        { organizationUsers: { some: { organizationId: filters.organizationId } } },
+        { managedOrganizations: { some: { organizationId: filters.organizationId } } }
+      ]
+    : null;
+
+  if (qOrClauses && orgOrClauses) {
+    where.AND = [{ OR: qOrClauses }, { OR: orgOrClauses }];
+  } else if (qOrClauses) {
+    where.OR = qOrClauses;
+  } else if (orgOrClauses) {
+    where.OR = orgOrClauses;
   }
 
   const [users, total] = await Promise.all([

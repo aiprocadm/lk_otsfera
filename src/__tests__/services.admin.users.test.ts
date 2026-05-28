@@ -161,4 +161,68 @@ describe('listUsers', () => {
     const { total } = await listUsers(prisma, {});
     expect(total).toBe(42);
   });
+
+  it('только q → where.OR содержит email и name клаузы, AND отсутствует', async () => {
+    const prisma = {
+      user: {
+        findMany: vi.fn().mockResolvedValue([]),
+        count: vi.fn().mockResolvedValue(0)
+      }
+    } as unknown as Parameters<typeof listUsers>[0];
+
+    await listUsers(prisma, { q: 'bar' });
+
+    const args = (prisma.user.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(args.where.OR).toEqual([
+      { email: { contains: 'bar', mode: 'insensitive' } },
+      { name: { contains: 'bar', mode: 'insensitive' } }
+    ]);
+    expect(args.where.AND).toBeUndefined();
+  });
+
+  it('q + organizationId → where.AND с двумя вложенными OR, where.OR отсутствует', async () => {
+    const prisma = {
+      user: {
+        findMany: vi.fn().mockResolvedValue([]),
+        count: vi.fn().mockResolvedValue(0)
+      }
+    } as unknown as Parameters<typeof listUsers>[0];
+
+    await listUsers(prisma, { q: 'baz', organizationId: 'org-1' });
+
+    const args = (prisma.user.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(args.where.OR).toBeUndefined();
+    expect(args.where.AND).toEqual([
+      {
+        OR: [
+          { email: { contains: 'baz', mode: 'insensitive' } },
+          { name: { contains: 'baz', mode: 'insensitive' } }
+        ]
+      },
+      {
+        OR: [
+          { organizationUsers: { some: { organizationId: 'org-1' } } },
+          { managedOrganizations: { some: { organizationId: 'org-1' } } }
+        ]
+      }
+    ]);
+  });
+
+  it('только organizationId → where.OR содержит orgUser и managedOrg клаузы, AND отсутствует', async () => {
+    const prisma = {
+      user: {
+        findMany: vi.fn().mockResolvedValue([]),
+        count: vi.fn().mockResolvedValue(0)
+      }
+    } as unknown as Parameters<typeof listUsers>[0];
+
+    await listUsers(prisma, { organizationId: 'org-2' });
+
+    const args = (prisma.user.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(args.where.OR).toEqual([
+      { organizationUsers: { some: { organizationId: 'org-2' } } },
+      { managedOrganizations: { some: { organizationId: 'org-2' } } }
+    ]);
+    expect(args.where.AND).toBeUndefined();
+  });
 });
