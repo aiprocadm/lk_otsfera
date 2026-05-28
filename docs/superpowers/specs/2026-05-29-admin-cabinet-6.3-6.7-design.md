@@ -60,7 +60,7 @@
 |---|---|---|
 | **6.3 Users** | PR-1 | `/admin/users` list/filter/[id]/new + email invite + service + actions + ~25 тестов |
 | **6.4 Partners** | PR-2 | `/admin/partners` list/[id]/new + транзакционное Partner+admin + ~20 тестов |
-| **6.5 Organizations delta** | PR-3 | `OrganizationEditForm` (legalName/inn/kpp/name) + `setOrgRateOverrideAction` (reuse RateOverrideForm) + extract list service + ~15 тестов |
+| **6.5 Organizations delta** | PR-3 | `OrganizationEditForm` + `AdminRateOverrideForm` (sibling, не reuse) + `setOrgRateOverrideAction` + extract list service + ~15 тестов |
 | **6.6 Audit viewer** | PR-4 | `/admin/audit` + filters + cursor pagination + diff dialog + secrets-masking + ~25 тестов |
 | **6.7 Polish** | PR-5 | Sidebar +3 пункта, dashboard drill-down links, 4 Playwright snapshot specs, auth.setup.ts admin block |
 
@@ -112,7 +112,7 @@ src/app/admin/
     [id]/page.tsx               ← NEW: edit form + read-only список partner-admin'ов
     new/page.tsx                ← NEW: combined Partner + admin user form
   organizations/
-    [id]/page.tsx               ← ИЗМЕНЁН: добавляются OrganizationEditForm + RateOverrideForm
+    [id]/page.tsx               ← ИЗМЕНЁН: добавляются OrganizationEditForm + AdminRateOverrideForm
     page.tsx                    ← ИЗМЕНЁН: добавляются ?partnerId, ?withRateOverride filters
   audit/
     page.tsx                    ← NEW: viewer + filters + cursor pagination + diff dialog
@@ -132,7 +132,7 @@ src/components/admin/
   audit-log-table.tsx           ← NEW (server)
   audit-log-filters.tsx         ← NEW (server, URL params, dropdowns заполнены listAuditFilters)
   audit-diff-dialog.tsx         ← NEW (client modal, useDialogFocus, secret-masking)
-  admin-sidebar.tsx             ← ИЗМЕНЁН: +3 пункта (Users, Partners, Audit)
+  admin-sidebar.tsx             ← НЕ ТРОГАЕМ (все 11 ссылок уже прописаны на момент 2026-05-29)
 
 src/lib/services/admin/
   users.ts                      ← NEW: listUsers / getUser / createUser / updateUser / deactivate / reactivate
@@ -168,8 +168,7 @@ prisma/seed.ts                  ← ИЗМЕНЁН: тестовые данны�
 | `recordAudit` | [src/lib/auth/audit.ts](../../src/lib/auth/audit.ts) (Phase 6.1) |
 | `requireAdmin` | [src/lib/auth/requireRole.ts](../../src/lib/auth/requireRole.ts) (Phase 6.1) |
 | `useDialogFocus` | [src/hooks/useDialogFocus.ts](../../src/hooks/useDialogFocus.ts) (modal a11y, CLAUDE.md §9) |
-| `RateOverrideForm` | [src/components/partner/rate-override-form.tsx](../../src/components/partner/rate-override-form.tsx) — рендерится с `mode='admin'` |
-| `setRateOverride` service | [src/lib/services/partner/rateOverride.ts](../../src/lib/services/partner/rateOverride.ts) — admin server-action делает thin wrapper |
+| `setOrgCommissionRate` / `clearOrgCommissionRate` service | [src/lib/services/partner/rateOverride.ts](../../src/lib/services/partner/rateOverride.ts) — admin server-action вызывает через `partnerId` lookup. NB: `RateOverrideForm` НЕ reuse'ится (hard-wired на partner API); admin использует sibling `AdminRateOverrideForm`. |
 | Resend transport + `sendEmail` | [src/lib/email/transport.ts](../../src/lib/email/transport.ts) (Phase 5) |
 | `assertNotLastActiveAdmin` паттерн | [src/lib/services/organization/team.ts](../../src/lib/services/organization/team.ts) (Phase 7) |
 
@@ -463,8 +462,8 @@ Race condition на slug: `P2002` constraint поймает; admin получа�
    - `partnerId` — readonly (1С controls).
    - Server action `updateOrganizationAction(formData)`.
 
-2. `<RateOverrideForm orgId={...} mode="admin">` — reuse [partner/rate-override-form.tsx](../../src/components/partner/rate-override-form.tsx).
-   - Server action `setOrgRateOverrideAction(formData)` — thin wrapper над `services/partner/rateOverride.setRateOverride(prisma, actor, ...)`.
+2. **`<AdminRateOverrideForm>` — новый sibling** в `src/components/admin/`. Partner-side `partner/rate-override-form.tsx` нельзя переиспользовать — он hard-wired на `/api/partner/portfolio/{orgId}/rate` через `fetch`. Sibling-pattern per CLAUDE.md §4.
+   - Server action `setOrgRateOverrideAction(formData)` — загружает `org.partnerId`, затем вызывает `setOrgCommissionRate({ organizationId, partnerId, newRate (дробь 0..1), reason, changedByUserId })` или `clearOrgCommissionRate` из `services/partner/rateOverride.ts`.
 
 ### 6.2 Сервис `src/lib/services/admin/organizations.ts`
 
@@ -480,7 +479,7 @@ updateOrganization(prisma, actor, id, args): Promise<{ok} | {ok:false, error}>;
 
 ```ts
 updateOrganizationAction(formData)
-setOrgRateOverrideAction(formData)  // wrapper, audit пишется существующим setRateOverride
+setOrgRateOverrideAction(formData)  // wrapper, audit пишется внутри setOrgCommissionRate/clearOrgCommissionRate
 ```
 
 ### 6.4 List page расширение
@@ -491,7 +490,7 @@ setOrgRateOverrideAction(formData)  // wrapper, audit пишется сущес�
 
 ### 6.5 Audit actions
 
-`organization_updated` (новое), `partner_commission_rate_changed` (уже эмиттится через `setRateOverride`).
+`organization_updated` (новое), `partner_commission_rate_changed` (уже эмиттится через `setOrgCommissionRate` / `clearOrgCommissionRate`).
 
 ### 6.6 Что НЕ добавляем
 
@@ -641,7 +640,9 @@ CREATE INDEX CONCURRENTLY idx_auditlog_meta_gin ON "AuditLog" USING gin (to_tsve
 
 ### 8.1 Sidebar `src/components/admin/admin-sidebar.tsx`
 
-Сейчас 8 ссылок в 3 группах. Финальная цель (после всех 5 PR):
+**Обнаружено:** sidebar [admin-sidebar.tsx:23,29,30](../../src/components/admin/admin-sidebar.tsx) **уже содержит** ссылки на `/admin/audit`, `/admin/users`, `/admin/partners` — все 11 пунктов уже прописаны. Sidebar-работы НЕ требуется; каждый PR только лишь не должен ломать существующие тесты sidebar'а.
+
+Текущая цель (уже отрендерено):
 ```
 Платформа
   ⌂ Дашборд              /admin/dashboard
@@ -650,15 +651,15 @@ CREATE INDEX CONCURRENTLY idx_auditlog_meta_gin ON "AuditLog" USING gin (to_tsve
 
 Операции
   💰 Комиссии             /admin/commission-statements
-  📋 Аудит                /admin/audit              ← добавляется в PR-4
+  📋 Аудит                /admin/audit              ← link уже есть, route в PR-4
 
 Справочники
-  👤 Пользователи         /admin/users              ← добавляется в PR-1
-  🏢 Партнёры             /admin/partners           ← добавляется в PR-2
+  👤 Пользователи         /admin/users              ← link уже есть, route в PR-1
+  🏢 Партнёры             /admin/partners           ← link уже есть, route в PR-2
   🏛 Организации          /admin/organizations
 ```
 
-Итого 11 ссылок. **Каждый PR добавляет свою ссылку в sidebar в той же мутации** (а не batch'ит в PR-5). Reasoning: admin'у нужна навигация к новой странице сразу при merge'е PR; ждать PR-5 ради ссылки — лишняя friction в течение ~2-х недель rollout'а. Merge conflict risk низкий — каждый PR трогает разные строки sidebar'а.
+Итого 11 ссылок (уже отрендерено). **Никакой sidebar-мутации не требуется** ни в одном PR. До merge каждого route'а соответствующая ссылка отдаёт 404; это не новый regression — она и сейчас 404. Каждый PR обязан только убедиться, что existing snapshot `components.admin-sidebar.test.tsx` всё ещё проходит.
 
 ### 8.2 Dashboard drill-down
 
@@ -675,7 +676,7 @@ CREATE INDEX CONCURRENTLY idx_auditlog_meta_gin ON "AuditLog" USING gin (to_tsve
 
 - `admin-users.spec.ts` — list view, фильтры применены, modal `/admin/users/new` открыт.
 - `admin-partners.spec.ts` — list view, edit-page для одного партнёра.
-- `admin-organizations-edit.spec.ts` — `/admin/organizations/[id]` с обновлёнными edit-форма и RateOverrideForm.
+- `admin-organizations-edit.spec.ts` — `/admin/organizations/[id]` с обновлёнными edit-форма и AdminRateOverrideForm.
 - `admin-audit.spec.ts` — list view с применённым фильтром, diff dialog открыт на одной записи.
 
 ### 8.4 Auth setup `src/e2e/auth.setup.ts`
@@ -788,10 +789,10 @@ Phase 8 завершилась на 956. После Phase 6.3-6.7 ожидаем
 
 | PR | Sub-phase | Объём | Расчёт |
 |---|---|---|---|
-| **PR-1** | 6.3 Users | service + actions + 3 страницы + invite email template + sidebar +1 (Пользователи) + ~25 тестов | ~3 дня |
-| **PR-2** | 6.4 Partners | service + actions + 3 страницы + sidebar +1 (Партнёры) + ~20 тестов | ~3 дня |
+| **PR-1** | 6.3 Users | service + actions + 3 страницы + invite email template + ~25 тестов | ~3 дня |
+| **PR-2** | 6.4 Partners | service + actions + 3 страницы + ~20 тестов | ~3 дня |
 | **PR-3** | 6.5 Organizations delta | OrganizationEditForm + setOrgRateOverrideAction + list service extract + ~15 тестов | ~1.5 дня |
-| **PR-4** | 6.6 Audit viewer | service + страница + 3 components + secret masking + sidebar +1 (Аудит) + ~25 тестов | ~3 дня |
+| **PR-4** | 6.6 Audit viewer | service + страница + 3 components + secret masking + ~25 тестов | ~3 дня |
 | **PR-5** | 6.7 Polish | dashboard drill-down, 4 Playwright specs, auth.setup admin block | ~1 день |
 
 **Итого:** ~11.5 рабочих дней. Каждый PR самостоятелен, ship'ится в `main` (без флага).
