@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 // Server component — pure HTML `<form method="get">` so submit becomes a
 // normal navigation to `/manager/orders?...`. No client JS, no useTransition.
 // The parent page is responsible for re-rendering with the new searchParams.
@@ -96,12 +98,12 @@ export function ManagerOrdersFilter({ orgs, initial }: Props) {
       </button>
 
       {hasFilter && (
-        <a
+        <Link
           href='/manager/orders'
           className='px-3 py-2 text-sm text-gray-600 hover:text-[#F97316]'
         >
           Сбросить
-        </a>
+        </Link>
       )}
     </form>
   );

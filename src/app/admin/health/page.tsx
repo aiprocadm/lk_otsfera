@@ -33,7 +33,7 @@ function lagBadgeClass(lagMs: number | null): string {
 }
 
 export default async function AdminHealthPage() {
-  const session = await requireAdmin();
+  await requireAdmin();
 
   // Sync stats hit Postgres; queues hit Redis. Failure of one shouldn't
   // hide the other — wrap each branch in a per-section guard so the page

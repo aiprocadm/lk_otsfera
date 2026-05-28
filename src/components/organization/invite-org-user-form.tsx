@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useState, useTransition } from 'react';
 import { inviteOrgMemberAction } from '@/server-actions/organization/team';
 import { useDialogFocus } from '@/hooks/useDialogFocus';
 
@@ -27,16 +27,16 @@ export function InviteOrgUserForm({ organizationId }: { organizationId: string }
   const [copied, setCopied] = useState(false);
   const panelRef = useDialogFocus(open);
 
-  function reset() {
+  const reset = useCallback(() => {
     setError(null);
     setSuccess(null);
     setCopied(false);
-  }
+  }, []);
 
-  function close() {
+  const close = useCallback(() => {
     setOpen(false);
     reset();
-  }
+  }, [reset]);
 
   useEffect(() => {
     if (!open) return;
@@ -45,7 +45,7 @@ export function InviteOrgUserForm({ organizationId }: { organizationId: string }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
+  }, [open, close]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

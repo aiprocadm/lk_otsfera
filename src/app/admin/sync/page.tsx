@@ -33,7 +33,7 @@ function formatDate(d: Date | null): string {
 }
 
 export default async function AdminSyncPage() {
-  const session = await requireAdmin();
+  await requireAdmin();
 
   const rows = await getSyncSummary(prisma);
 

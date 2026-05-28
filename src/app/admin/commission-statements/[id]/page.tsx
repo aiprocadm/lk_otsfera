@@ -61,7 +61,7 @@ export default async function AdminCommissionStatementDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await requireAdmin();
+  await requireAdmin();
 
   const { id } = await params;
   const [statement, audit] = await Promise.all([
