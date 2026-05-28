@@ -1,4 +1,6 @@
 import type { PrismaClient, Prisma, Role } from '@prisma/client';
+import { createInviteToken } from '@/lib/auth/passwordReset';
+import { recordAudit } from '@/lib/auth/audit';
 
 export type AdminUserErrorCode =
   | 'forbidden'
@@ -15,6 +17,137 @@ export class AdminUserError extends Error {
     this.code = code;
     this.name = 'AdminUserError';
   }
+}
+
+export type UserDetail = UserRow & {
+  partnerId: string | null;
+  organizationMemberships: Array<{
+    organizationUserId: string;
+    organizationId: string;
+    organizationName: string;
+    roleInOrg: string;
+    isActive: boolean;
+  }>;
+  organizationManagerships: Array<{
+    organizationManagerId: string;
+    organizationId: string;
+    organizationName: string;
+    isActive: boolean;
+  }>;
+};
+
+export async function getUser(
+  prisma: PrismaClient,
+  id: string
+): Promise<UserDetail | null> {
+  const u = await prisma.user.findUnique({
+    where: { id },
+    include: {
+      partner: { select: { name: true } },
+      organizationUsers: {
+        include: { organization: { select: { id: true, name: true } } }
+      },
+      managedOrganizations: {
+        include: { organization: { select: { id: true, name: true } } }
+      }
+    }
+  });
+  if (!u) return null;
+
+  return {
+    id: u.id,
+    email: u.email,
+    name: u.name,
+    role: u.role,
+    isActive: u.isActive,
+    createdAt: u.createdAt,
+    attachmentLabel: computeAttachmentLabel(u),
+    partnerId: u.partnerId,
+    organizationMemberships: u.organizationUsers.map((ou) => ({
+      organizationUserId: ou.id,
+      organizationId: ou.organizationId,
+      organizationName: ou.organization.name,
+      roleInOrg: ou.roleInOrg ?? '',
+      isActive: ou.isActive
+    })),
+    organizationManagerships: u.managedOrganizations.map((om) => ({
+      organizationManagerId: om.id,
+      organizationId: om.organizationId,
+      organizationName: om.organization.name,
+      isActive: om.isActive
+    }))
+  };
+}
+
+export type CreateUserArgs = {
+  email: string;
+  name: string;
+  role: Exclude<Role, 'admin'>;
+  partnerId?: string | null;
+};
+
+export type CreateUserResult = {
+  user: { id: string; email: string; name: string; role: Role };
+  inviteToken: string;
+};
+
+export async function createUser(
+  prisma: PrismaClient,
+  actorUserId: string,
+  args: CreateUserArgs
+): Promise<CreateUserResult> {
+  if (args.role === ('admin' as Role)) {
+    throw new AdminUserError('admin_role_via_ui');
+  }
+  if (args.role === 'partner' && !args.partnerId) {
+    throw new AdminUserError('not_found');
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.user.findUnique({ where: { email: args.email } });
+    if (existing) throw new AdminUserError('duplicate_email');
+
+    const user = await tx.user.create({
+      data: {
+        email: args.email,
+        name: args.name,
+        role: args.role,
+        partnerId: args.partnerId ?? null,
+        passwordHash: null,
+        isActive: true
+      }
+    });
+
+    if (args.role === 'partner' && args.partnerId) {
+      await tx.partnerUser.create({
+        data: {
+          userId: user.id,
+          partnerId: args.partnerId,
+          roleInPartner: 'member',
+          assignedOrgIds: []
+        }
+      });
+    }
+
+    const { token } = await createInviteToken(tx, user.id);
+
+    await recordAudit(tx, {
+      userId: actorUserId,
+      action: 'user_created',
+      entity: 'user',
+      entityId: user.id,
+      after: {
+        email: args.email,
+        role: args.role,
+        partnerId: args.partnerId ?? null
+      }
+    });
+
+    return {
+      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      inviteToken: token
+    };
+  });
 }
 
 export type UserFilters = {

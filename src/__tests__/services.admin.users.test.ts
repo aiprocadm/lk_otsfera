@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { listUsers } from '@/lib/services/admin/users';
+import { listUsers, getUser, createUser } from '@/lib/services/admin/users';
 
 describe('listUsers', () => {
   it('фильтрует по role и active', async () => {
@@ -224,5 +224,219 @@ describe('listUsers', () => {
       { managedOrganizations: { some: { organizationId: 'org-2' } } }
     ]);
     expect(args.where.AND).toBeUndefined();
+  });
+});
+
+describe('getUser', () => {
+  it('возвращает null если пользователь не найден', async () => {
+    const prisma = {
+      user: { findUnique: vi.fn().mockResolvedValue(null) }
+    } as unknown as Parameters<typeof getUser>[0];
+
+    const result = await getUser(prisma, 'nonexistent');
+    expect(result).toBeNull();
+  });
+
+  it('маппит organizationUsers в organizationMemberships', async () => {
+    const prisma = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'u1',
+          email: 'o@x',
+          name: 'O',
+          role: 'organization',
+          isActive: true,
+          createdAt: new Date(),
+          partnerId: null,
+          partner: null,
+          organizationUsers: [
+            {
+              id: 'ou1',
+              organizationId: 'org1',
+              organization: { id: 'org1', name: 'Org A' },
+              roleInOrg: 'member',
+              isActive: true
+            }
+          ],
+          managedOrganizations: []
+        })
+      }
+    } as unknown as Parameters<typeof getUser>[0];
+
+    const result = await getUser(prisma, 'u1');
+    expect(result).not.toBeNull();
+    expect(result!.organizationMemberships).toEqual([
+      {
+        organizationUserId: 'ou1',
+        organizationId: 'org1',
+        organizationName: 'Org A',
+        roleInOrg: 'member',
+        isActive: true
+      }
+    ]);
+    expect(result!.organizationManagerships).toEqual([]);
+  });
+
+  it('маппит managedOrganizations в organizationManagerships', async () => {
+    const prisma = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'u2',
+          email: 'm@x',
+          name: 'M',
+          role: 'manager',
+          isActive: true,
+          createdAt: new Date(),
+          partnerId: null,
+          partner: null,
+          organizationUsers: [],
+          managedOrganizations: [
+            {
+              id: 'om1',
+              organizationId: 'org2',
+              organization: { id: 'org2', name: 'Org B' },
+              isActive: true
+            }
+          ]
+        })
+      }
+    } as unknown as Parameters<typeof getUser>[0];
+
+    const result = await getUser(prisma, 'u2');
+    expect(result).not.toBeNull();
+    expect(result!.organizationManagerships).toEqual([
+      {
+        organizationManagerId: 'om1',
+        organizationId: 'org2',
+        organizationName: 'Org B',
+        isActive: true
+      }
+    ]);
+    expect(result!.organizationMemberships).toEqual([]);
+  });
+
+  it('roleInOrg null → пустая строка в маппинге', async () => {
+    const prisma = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'u3',
+          email: 'o2@x',
+          name: 'O2',
+          role: 'organization',
+          isActive: true,
+          createdAt: new Date(),
+          partnerId: null,
+          partner: null,
+          organizationUsers: [
+            {
+              id: 'ou2',
+              organizationId: 'org3',
+              organization: { id: 'org3', name: 'Org C' },
+              roleInOrg: null,
+              isActive: true
+            }
+          ],
+          managedOrganizations: []
+        })
+      }
+    } as unknown as Parameters<typeof getUser>[0];
+
+    const result = await getUser(prisma, 'u3');
+    expect(result!.organizationMemberships[0].roleInOrg).toBe('');
+  });
+});
+
+describe('createUser', () => {
+  it('бросает admin_role_via_ui при попытке role=admin', async () => {
+    const prisma = { $transaction: vi.fn() } as unknown as Parameters<typeof createUser>[0];
+    await expect(
+      createUser(prisma, 'actor', { email: 'a@x', name: 'A', role: 'admin' as never })
+    ).rejects.toMatchObject({ code: 'admin_role_via_ui' });
+  });
+
+  it('бросает not_found если role=partner без partnerId', async () => {
+    const prisma = { $transaction: vi.fn() } as unknown as Parameters<typeof createUser>[0];
+    await expect(
+      createUser(prisma, 'actor', { email: 'a@x', name: 'A', role: 'partner' })
+    ).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('бросает duplicate_email при существующем email', async () => {
+    const txMock = {
+      user: { findUnique: vi.fn().mockResolvedValue({ id: 'existing' }) }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof createUser>[0];
+
+    await expect(
+      createUser(prisma, 'actor', { email: 'a@x', name: 'A', role: 'organization' })
+    ).rejects.toMatchObject({ code: 'duplicate_email' });
+  });
+
+  it('создаёт user + invite token, пишет audit', async () => {
+    const created = { id: 'u1', email: 'a@x', name: 'A', role: 'organization' as const };
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue(created)
+      },
+      partnerUser: { create: vi.fn() },
+      passwordResetToken: { create: vi.fn().mockResolvedValue({}) },
+      auditLog: { create: vi.fn() }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof createUser>[0];
+
+    const result = await createUser(prisma, 'actor', { email: 'a@x', name: 'A', role: 'organization' });
+    expect(result.user).toMatchObject(created);
+    expect(result.inviteToken).toBeTruthy();
+    expect(txMock.auditLog.create).toHaveBeenCalled();
+  });
+
+  it('создаёт partnerUser для role=partner с partnerId', async () => {
+    const created = { id: 'u2', email: 'p@x', name: 'P', role: 'partner' as const };
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue(created)
+      },
+      partnerUser: { create: vi.fn() },
+      passwordResetToken: { create: vi.fn().mockResolvedValue({}) },
+      auditLog: { create: vi.fn() }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof createUser>[0];
+
+    await createUser(prisma, 'actor', { email: 'p@x', name: 'P', role: 'partner', partnerId: 'partner1' });
+    expect(txMock.partnerUser.create).toHaveBeenCalledWith({
+      data: {
+        userId: 'u2',
+        partnerId: 'partner1',
+        roleInPartner: 'member',
+        assignedOrgIds: []
+      }
+    });
+  });
+
+  it('не создаёт partnerUser для role=organization', async () => {
+    const created = { id: 'u3', email: 'o@x', name: 'O', role: 'organization' as const };
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue(created)
+      },
+      partnerUser: { create: vi.fn() },
+      passwordResetToken: { create: vi.fn().mockResolvedValue({}) },
+      auditLog: { create: vi.fn() }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof createUser>[0];
+
+    await createUser(prisma, 'actor', { email: 'o@x', name: 'O', role: 'organization' });
+    expect(txMock.partnerUser.create).not.toHaveBeenCalled();
   });
 });
