@@ -54,7 +54,7 @@ export default async function AdminCommissionStatementsPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const session = await requireAdmin();
+  await requireAdmin();
 
   const sp = await searchParams;
   const status = parseStatus(sp.status);

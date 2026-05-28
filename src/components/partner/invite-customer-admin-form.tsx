@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useState, useTransition } from 'react';
 import {
   invitePartnerOrgAdminAction,
   type InvitePartnerActionResult
@@ -55,15 +55,15 @@ export function InviteCustomerAdminForm({
   const [copied, setCopied] = useState(false);
   const panelRef = useDialogFocus(open);
 
-  function reset() {
+  const reset = useCallback(() => {
     setError(null);
     setSuccess(null);
     setCopied(false);
-  }
-  function close() {
+  }, []);
+  const close = useCallback(() => {
     setOpen(false);
     reset();
-  }
+  }, [reset]);
 
   useEffect(() => {
     if (!open) return;
@@ -72,7 +72,7 @@ export function InviteCustomerAdminForm({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
+  }, [open, close]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
