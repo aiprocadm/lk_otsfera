@@ -265,12 +265,19 @@ npm run test:integration
 npm run build
 ```
 
-6. Применение production-миграций:
+6. Dev-server boot check (ловит ошибки маршрутизации, которые `next build` не видит — например конфликт slug-имён в одном динамическом сегменте, см. инцидент с `[id]` vs `[orderId]` в `/api/manager/documents` после PR #58):
+```bash
+npm run dev
+# дождаться "✓ Ready in ..." в логе, убедиться что нет ERROR/Failed,
+# затем остановить Ctrl+C. ~30 секунд.
+```
+
+7. Применение production-миграций:
 ```bash
 npm run prisma:migrate:deploy
 ```
 
-7. (Опционально) smoke-check авторизации и роутов по ролям:
+8. (Опционально) smoke-check авторизации и роутов по ролям:
 - `admin` → доступ только к `/admin/*`.
 - `manager` → доступ только к `/manager/*`.
 - `partner` → доступ к `/partner/*`, без `/admin/*` и `/manager/*`.
