@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { listUsers, getUser, createUser } from '@/lib/services/admin/users';
+import { listUsers, getUser, createUser, updateUser } from '@/lib/services/admin/users';
 
 describe('listUsers', () => {
   it('фильтрует по role и active', async () => {
@@ -438,5 +438,100 @@ describe('createUser', () => {
 
     await createUser(prisma, 'actor', { email: 'o@x', name: 'O', role: 'organization' });
     expect(txMock.partnerUser.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('updateUser', () => {
+  it('бросает self_action_forbidden при изменении своей роли', async () => {
+    const prisma = { $transaction: vi.fn() } as unknown as Parameters<typeof updateUser>[0];
+    await expect(
+      updateUser(prisma, 'me', 'me', { role: 'organization' })
+    ).rejects.toMatchObject({ code: 'self_action_forbidden' });
+  });
+
+  it('бросает admin_role_via_ui при попытке role=admin', async () => {
+    const prisma = { $transaction: vi.fn() } as unknown as Parameters<typeof updateUser>[0];
+    await expect(
+      updateUser(prisma, 'a', 'b', { role: 'admin' as never })
+    ).rejects.toMatchObject({ code: 'admin_role_via_ui' });
+  });
+
+  it('бросает last_admin_protected при попытке deactivate последнего active admin', async () => {
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'u1', role: 'admin', isActive: true, partnerId: null, name: 'X'
+        }),
+        count: vi.fn().mockResolvedValue(0)
+      }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof updateUser>[0];
+
+    await expect(
+      updateUser(prisma, 'actor', 'u1', { isActive: false })
+    ).rejects.toMatchObject({ code: 'last_admin_protected' });
+  });
+
+  it('бросает role_transition_forbidden для запрещённого перехода (e.g. organization → partner)', async () => {
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'u1', role: 'organization', isActive: true, partnerId: null, name: 'X'
+        })
+      }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof updateUser>[0];
+
+    await expect(
+      updateUser(prisma, 'actor', 'u1', { role: 'partner', partnerId: 'p1' })
+    ).rejects.toMatchObject({ code: 'role_transition_forbidden' });
+  });
+
+  it('partner → student: удаляет partnerUser, обновляет user, пишет user_role_changed, возвращает UserDetail', async () => {
+    const before = { id: 'u1', role: 'partner' as const, isActive: true, partnerId: 'p1', name: 'X' };
+    const updated = { role: 'student' as const, isActive: true, partnerId: null, name: 'X' };
+    const userDetail = {
+      id: 'u1',
+      email: 'x@x',
+      name: 'X',
+      role: 'student' as const,
+      isActive: true,
+      createdAt: new Date(),
+      partnerId: null,
+      partner: null,
+      organizationUsers: [],
+      managedOrganizations: []
+    };
+    const txMock = {
+      user: {
+        findUnique: vi.fn()
+          .mockResolvedValueOnce(before)    // before snapshot
+          .mockResolvedValueOnce(userDetail), // getUser re-fetch
+        update: vi.fn().mockResolvedValue(updated),
+        count: vi.fn()
+      },
+      partnerUser: { deleteMany: vi.fn() },
+      auditLog: { create: vi.fn() }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof updateUser>[0];
+
+    const result = await updateUser(prisma, 'actor', 'u1', { role: 'student' });
+
+    expect(txMock.partnerUser.deleteMany).toHaveBeenCalledWith({ where: { userId: 'u1' } });
+    expect(txMock.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'u1' }, data: expect.objectContaining({ role: 'student' }) })
+    );
+    expect(txMock.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: 'user_role_changed' })
+      })
+    );
+    expect(result).toMatchObject({ id: 'u1', role: 'student' });
   });
 });

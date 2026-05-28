@@ -8,7 +8,8 @@ export type AdminUserErrorCode =
   | 'admin_role_via_ui'
   | 'self_action_forbidden'
   | 'last_admin_protected'
-  | 'duplicate_email';
+  | 'duplicate_email'
+  | 'role_transition_forbidden';
 
 export class AdminUserError extends Error {
   readonly code: AdminUserErrorCode;
@@ -147,6 +148,104 @@ export async function createUser(
       user: { id: user.id, email: user.email, name: user.name, role: user.role },
       inviteToken: token
     };
+  });
+}
+
+async function assertNotLastActiveAdmin(
+  tx: Prisma.TransactionClient,
+  candidateUserId: string
+): Promise<void> {
+  const remaining = await tx.user.count({
+    where: { role: 'admin', isActive: true, NOT: { id: candidateUserId } }
+  });
+  if (remaining === 0) {
+    throw new AdminUserError('last_admin_protected');
+  }
+}
+
+export type UpdateUserArgs = {
+  name?: string;
+  role?: Exclude<Role, 'admin'>;
+  partnerId?: string | null;
+  isActive?: boolean;
+};
+
+const ALLOWED_TRANSITIONS: ReadonlyArray<[Role, Role]> = [
+  ['partner', 'partner'],
+  ['partner', 'student'],
+  ['student', 'partner']
+];
+
+function isAllowedRoleTransition(from: Role, to: Role): boolean {
+  if (from === to) return true;
+  return ALLOWED_TRANSITIONS.some(([f, t]) => f === from && t === to);
+}
+
+export async function updateUser(
+  prisma: PrismaClient,
+  actorUserId: string,
+  id: string,
+  args: UpdateUserArgs
+): Promise<UserDetail> {
+  if (id === actorUserId && (args.role !== undefined || args.isActive === false)) {
+    throw new AdminUserError('self_action_forbidden');
+  }
+  if (args.role === ('admin' as Role)) {
+    throw new AdminUserError('admin_role_via_ui');
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const before = await tx.user.findUnique({
+      where: { id },
+      select: { id: true, role: true, isActive: true, partnerId: true, name: true }
+    });
+    if (!before) throw new AdminUserError('not_found');
+
+    // Role transition gates
+    if (args.role && args.role !== before.role) {
+      if (!isAllowedRoleTransition(before.role, args.role)) {
+        throw new AdminUserError('role_transition_forbidden');
+      }
+    }
+
+    // Last-admin protection
+    if (before.role === 'admin' && (args.role !== undefined || args.isActive === false)) {
+      await assertNotLastActiveAdmin(tx, id);
+    }
+
+    // Partner cleanup if changing away from partner
+    if (before.role === 'partner' && args.role && args.role !== 'partner') {
+      await tx.partnerUser.deleteMany({ where: { userId: id } });
+    }
+    // Partner attach if changing TO partner
+    if (args.role === 'partner' && args.partnerId && before.role !== 'partner') {
+      await tx.partnerUser.create({
+        data: { userId: id, partnerId: args.partnerId, roleInPartner: 'member', assignedOrgIds: [] }
+      });
+    }
+
+    const updated = await tx.user.update({
+      where: { id },
+      data: {
+        ...(args.name !== undefined ? { name: args.name } : {}),
+        ...(args.role !== undefined ? { role: args.role } : {}),
+        ...(args.partnerId !== undefined ? { partnerId: args.partnerId } : {}),
+        ...(args.isActive !== undefined ? { isActive: args.isActive } : {})
+      }
+    });
+
+    const isRoleChange = args.role !== undefined && args.role !== before.role;
+    await recordAudit(tx, {
+      userId: actorUserId,
+      action: isRoleChange ? 'user_role_changed' : 'user_updated',
+      entity: 'user',
+      entityId: id,
+      before: { role: before.role, isActive: before.isActive, partnerId: before.partnerId, name: before.name },
+      after: { role: updated.role, isActive: updated.isActive, partnerId: updated.partnerId, name: updated.name }
+    });
+
+    const detail = await getUser(tx as unknown as PrismaClient, id);
+    return detail!;
   });
 }
 
