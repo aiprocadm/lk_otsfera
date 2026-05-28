@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { listUsers, getUser, createUser, updateUser } from '@/lib/services/admin/users';
+import { listUsers, getUser, createUser, updateUser, deactivateUser, reactivateUser } from '@/lib/services/admin/users';
 
 describe('listUsers', () => {
   it('фильтрует по role и active', async () => {
@@ -491,6 +491,13 @@ describe('updateUser', () => {
     ).rejects.toMatchObject({ code: 'role_transition_forbidden' });
   });
 
+  it('бросает self_action_forbidden при попытке деактивировать себя через isActive=false', async () => {
+    const prisma = { $transaction: vi.fn() } as unknown as Parameters<typeof updateUser>[0];
+    await expect(
+      updateUser(prisma, 'me', 'me', { isActive: false })
+    ).rejects.toMatchObject({ code: 'self_action_forbidden' });
+  });
+
   it('partner → student: удаляет partnerUser, обновляет user, пишет user_role_changed, возвращает UserDetail', async () => {
     const before = { id: 'u1', role: 'partner' as const, isActive: true, partnerId: 'p1', name: 'X' };
     const updated = { role: 'student' as const, isActive: true, partnerId: null, name: 'X' };
@@ -533,5 +540,142 @@ describe('updateUser', () => {
       })
     );
     expect(result).toMatchObject({ id: 'u1', role: 'student' });
+  });
+});
+
+describe('deactivateUser', () => {
+  it('бросает self_action_forbidden когда actorUserId === id', async () => {
+    const prisma = { $transaction: vi.fn() } as unknown as Parameters<typeof deactivateUser>[0];
+    await expect(deactivateUser(prisma, 'me', 'me')).rejects.toMatchObject({ code: 'self_action_forbidden' });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('бросает not_found когда пользователь не существует', async () => {
+    const txMock = {
+      user: { findUnique: vi.fn().mockResolvedValue(null) }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof deactivateUser>[0];
+
+    await expect(deactivateUser(prisma, 'actor', 'u1')).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('no-op когда пользователь уже неактивен (нет update, нет audit)', async () => {
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({ role: 'partner', isActive: false }),
+        update: vi.fn(),
+        count: vi.fn()
+      },
+      auditLog: { create: vi.fn() }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof deactivateUser>[0];
+
+    await deactivateUser(prisma, 'actor', 'u1');
+    expect(txMock.user.update).not.toHaveBeenCalled();
+    expect(txMock.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it('бросает last_admin_protected при деактивации последнего активного admin', async () => {
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({ role: 'admin', isActive: true }),
+        count: vi.fn().mockResolvedValue(0)
+      }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof deactivateUser>[0];
+
+    await expect(deactivateUser(prisma, 'actor', 'u1')).rejects.toMatchObject({ code: 'last_admin_protected' });
+  });
+
+  it('деактивирует активного non-admin: update с isActive=false, audit user_deactivated', async () => {
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({ role: 'partner', isActive: true }),
+        update: vi.fn().mockResolvedValue({}),
+        count: vi.fn()
+      },
+      auditLog: { create: vi.fn() }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof deactivateUser>[0];
+
+    await deactivateUser(prisma, 'actor', 'u1');
+    expect(txMock.user.update).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { isActive: false } });
+    expect(txMock.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'user_deactivated' }) })
+    );
+  });
+});
+
+describe('reactivateUser', () => {
+  it('бросает not_found когда пользователь не существует', async () => {
+    const txMock = {
+      user: { findUnique: vi.fn().mockResolvedValue(null) }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof reactivateUser>[0];
+
+    await expect(reactivateUser(prisma, 'actor', 'u1')).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('no-op когда пользователь уже активен (нет update, нет audit)', async () => {
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({ isActive: true }),
+        update: vi.fn()
+      },
+      auditLog: { create: vi.fn() }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof reactivateUser>[0];
+
+    await reactivateUser(prisma, 'actor', 'u1');
+    expect(txMock.user.update).not.toHaveBeenCalled();
+    expect(txMock.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it('реактивирует неактивного пользователя: update с isActive=true, audit user_reactivated', async () => {
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({ isActive: false }),
+        update: vi.fn().mockResolvedValue({})
+      },
+      auditLog: { create: vi.fn() }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof reactivateUser>[0];
+
+    await reactivateUser(prisma, 'actor', 'u1');
+    expect(txMock.user.update).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { isActive: true } });
+    expect(txMock.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'user_reactivated' }) })
+    );
+  });
+
+  it('не вызывает assertNotLastActiveAdmin даже для admin-роли', async () => {
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({ isActive: false }),
+        update: vi.fn().mockResolvedValue({}),
+        count: vi.fn()
+      },
+      auditLog: { create: vi.fn() }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof reactivateUser>[0];
+
+    await reactivateUser(prisma, 'actor', 'u1');
+    expect(txMock.user.count).not.toHaveBeenCalled();
   });
 });

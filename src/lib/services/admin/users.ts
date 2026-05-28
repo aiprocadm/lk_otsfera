@@ -249,6 +249,64 @@ export async function updateUser(
   });
 }
 
+export async function deactivateUser(
+  prisma: PrismaClient,
+  actorUserId: string,
+  id: string
+): Promise<void> {
+  if (id === actorUserId) throw new AdminUserError('self_action_forbidden');
+
+  await prisma.$transaction(async (tx) => {
+    const before = await tx.user.findUnique({
+      where: { id },
+      select: { role: true, isActive: true }
+    });
+    if (!before) throw new AdminUserError('not_found');
+    if (!before.isActive) return;
+
+    if (before.role === 'admin') {
+      await assertNotLastActiveAdmin(tx, id);
+    }
+
+    await tx.user.update({ where: { id }, data: { isActive: false } });
+
+    await recordAudit(tx, {
+      userId: actorUserId,
+      action: 'user_deactivated',
+      entity: 'user',
+      entityId: id,
+      before: { isActive: true },
+      after: { isActive: false }
+    });
+  });
+}
+
+export async function reactivateUser(
+  prisma: PrismaClient,
+  actorUserId: string,
+  id: string
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const before = await tx.user.findUnique({
+      where: { id },
+      select: { isActive: true }
+    });
+    if (!before) throw new AdminUserError('not_found');
+    if (before.isActive) return;
+
+    await tx.user.update({ where: { id }, data: { isActive: true } });
+
+    await recordAudit(tx, {
+      userId: actorUserId,
+      action: 'user_reactivated',
+      entity: 'user',
+      entityId: id,
+      before: { isActive: false },
+      after: { isActive: true }
+    });
+  });
+}
+
 export type UserFilters = {
   role?: Role;
   active?: boolean;
