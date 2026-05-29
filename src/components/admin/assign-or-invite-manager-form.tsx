@@ -1,11 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useState, useTransition } from 'react';
+import { useCallback, useState, useTransition } from 'react';
 import {
   assignOrInviteManagerAction,
   type AssignOrInviteManagerActionResult
 } from '@/server-actions/admin/manager';
-import { useDialogFocus } from '@/hooks/useDialogFocus';
+import { Dialog } from '@/components/ui/dialog';
 
 type Mode = 'existing' | 'new';
 
@@ -31,7 +31,6 @@ export function AssignOrInviteManagerForm({ organizationId }: { organizationId: 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<SuccessState | null>(null);
   const [copied, setCopied] = useState(false);
-  const panelRef = useDialogFocus(open);
 
   const reset = useCallback(() => {
     setError(null);
@@ -43,15 +42,6 @@ export function AssignOrInviteManagerForm({ organizationId }: { organizationId: 
     setMode('existing');
     reset();
   }, [reset]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, close]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -100,182 +90,147 @@ export function AssignOrInviteManagerForm({ organizationId }: { organizationId: 
         Назначить менеджера
       </button>
 
-      {open && (
-        <div
-          className='fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4'
-          onClick={close}
-          role='dialog'
-          aria-modal='true'
-          aria-labelledby='assign-manager-title'
-        >
-          <div
-            ref={panelRef}
-            tabIndex={-1}
-            className='bg-white rounded-xl shadow-xl max-w-md w-full p-6 outline-none'
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className='flex items-center justify-between mb-4'>
-              <h2
-                id='assign-manager-title'
-                className='text-lg font-semibold text-[#111111]'
-              >
-                Назначить менеджера
-              </h2>
+      <Dialog
+        open={open}
+        onClose={close}
+        title='Назначить менеджера'
+        size='md'
+        busy={pending}
+        error={error}
+      >
+        {success ? (
+          <div className='space-y-3'>
+            {success.reactivated ? (
+              <p className='text-sm text-gray-700'>
+                Доступ для <strong>{success.email}</strong> восстановлен.
+              </p>
+            ) : success.alreadyHasPassword ? (
+              <p className='text-sm text-gray-700'>
+                <strong>{success.email}</strong> уже зарегистрирован на платформе.
+                Доступ к организации предоставлен.
+              </p>
+            ) : (
+              <>
+                <p className='text-sm text-gray-700'>
+                  Приглашение отправлено на <strong>{success.email}</strong>. При
+                  необходимости перешлите ссылку вручную:
+                </p>
+                <div className='flex gap-2 items-center'>
+                  <input
+                    readOnly
+                    aria-label='Ссылка приглашения'
+                    value={success.inviteUrl ?? ''}
+                    className='flex-1 text-xs font-mono border border-gray-200 rounded px-2 py-1.5 bg-gray-50'
+                  />
+                  <button
+                    type='button'
+                    onClick={copyInvite}
+                    className='px-3 py-1.5 text-xs border border-gray-200 rounded hover:bg-gray-50 whitespace-nowrap'
+                  >
+                    {copied ? 'Скопировано ✓' : 'Скопировать'}
+                  </button>
+                </div>
+              </>
+            )}
+            <div className='flex justify-end pt-2'>
               <button
                 type='button'
                 onClick={close}
-                className='text-gray-400 hover:text-gray-600 text-xl leading-none'
-                aria-label='Закрыть'
+                className='px-4 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C]'
               >
-                ×
+                Закрыть
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={onSubmit} className='space-y-3'>
+            <div
+              className='flex border border-gray-200 rounded-lg p-1 bg-gray-50'
+              role='tablist'
+              aria-label='Способ назначения'
+            >
+              <button
+                type='button'
+                role='tab'
+                aria-selected={mode === 'existing'}
+                onClick={() => {
+                  setMode('existing');
+                  reset();
+                }}
+                className={`flex-1 px-3 py-1.5 text-sm rounded-md transition ${
+                  mode === 'existing'
+                    ? 'bg-white text-[#111111] shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Существующий
+              </button>
+              <button
+                type='button'
+                role='tab'
+                aria-selected={mode === 'new'}
+                onClick={() => {
+                  setMode('new');
+                  reset();
+                }}
+                className={`flex-1 px-3 py-1.5 text-sm rounded-md transition ${
+                  mode === 'new'
+                    ? 'bg-white text-[#111111] shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Пригласить нового
               </button>
             </div>
 
-            {success ? (
-              <div className='space-y-3'>
-                {success.reactivated ? (
-                  <p className='text-sm text-gray-700'>
-                    Доступ для <strong>{success.email}</strong> восстановлен.
-                  </p>
-                ) : success.alreadyHasPassword ? (
-                  <p className='text-sm text-gray-700'>
-                    <strong>{success.email}</strong> уже зарегистрирован на платформе.
-                    Доступ к организации предоставлен.
-                  </p>
-                ) : (
-                  <>
-                    <p className='text-sm text-gray-700'>
-                      Приглашение отправлено на <strong>{success.email}</strong>. При
-                      необходимости перешлите ссылку вручную:
-                    </p>
-                    <div className='flex gap-2 items-center'>
-                      <input
-                        readOnly
-                        value={success.inviteUrl ?? ''}
-                        className='flex-1 text-xs font-mono border border-gray-200 rounded px-2 py-1.5 bg-gray-50'
-                      />
-                      <button
-                        type='button'
-                        onClick={copyInvite}
-                        className='px-3 py-1.5 text-xs border border-gray-200 rounded hover:bg-gray-50 whitespace-nowrap'
-                      >
-                        {copied ? 'Скопировано ✓' : 'Скопировать'}
-                      </button>
-                    </div>
-                  </>
-                )}
-                <div className='flex justify-end pt-2'>
-                  <button
-                    type='button'
-                    onClick={close}
-                    className='px-4 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C]'
-                  >
-                    Закрыть
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <form onSubmit={onSubmit} className='space-y-3'>
-                <div
-                  className='flex border border-gray-200 rounded-lg p-1 bg-gray-50'
-                  role='tablist'
-                  aria-label='Способ назначения'
-                >
-                  <button
-                    type='button'
-                    role='tab'
-                    aria-selected={mode === 'existing'}
-                    onClick={() => {
-                      setMode('existing');
-                      reset();
-                    }}
-                    className={`flex-1 px-3 py-1.5 text-sm rounded-md transition ${
-                      mode === 'existing'
-                        ? 'bg-white text-[#111111] shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    Существующий
-                  </button>
-                  <button
-                    type='button'
-                    role='tab'
-                    aria-selected={mode === 'new'}
-                    onClick={() => {
-                      setMode('new');
-                      reset();
-                    }}
-                    className={`flex-1 px-3 py-1.5 text-sm rounded-md transition ${
-                      mode === 'new'
-                        ? 'bg-white text-[#111111] shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    Пригласить нового
-                  </button>
-                </div>
+            <label className='block'>
+              <span className='block text-sm font-medium text-gray-700 mb-1'>Email</span>
+              <input
+                type='email'
+                name='email'
+                required
+                autoComplete='email'
+                className='w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'
+              />
+            </label>
 
-                <label className='block'>
-                  <span className='block text-sm font-medium text-gray-700 mb-1'>
-                    Email
-                  </span>
-                  <input
-                    type='email'
-                    name='email'
-                    required
-                    autoComplete='email'
-                    className='w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'
-                  />
-                </label>
-
-                {mode === 'new' && (
-                  <label className='block'>
-                    <span className='block text-sm font-medium text-gray-700 mb-1'>
-                      Имя (необязательно)
-                    </span>
-                    <input
-                      type='text'
-                      name='name'
-                      maxLength={200}
-                      className='w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'
-                    />
-                  </label>
-                )}
-
-                {error && (
-                  <div
-                    role='alert'
-                    className='text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2'
-                  >
-                    {error}
-                  </div>
-                )}
-
-                <div className='flex justify-end gap-2 pt-2'>
-                  <button
-                    type='button'
-                    onClick={close}
-                    className='px-4 py-2 border border-gray-200 text-sm rounded-lg hover:bg-gray-50'
-                  >
-                    Отмена
-                  </button>
-                  <button
-                    type='submit'
-                    disabled={pending}
-                    className='px-4 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C] disabled:opacity-50'
-                  >
-                    {pending
-                      ? 'Сохраняем…'
-                      : mode === 'existing'
-                        ? 'Назначить'
-                        : 'Пригласить'}
-                  </button>
-                </div>
-              </form>
+            {mode === 'new' && (
+              <label className='block'>
+                <span className='block text-sm font-medium text-gray-700 mb-1'>
+                  Имя (необязательно)
+                </span>
+                <input
+                  type='text'
+                  name='name'
+                  maxLength={200}
+                  className='w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'
+                />
+              </label>
             )}
-          </div>
-        </div>
-      )}
+
+            <div className='flex justify-end gap-2 pt-2'>
+              <button
+                type='button'
+                onClick={close}
+                className='px-4 py-2 border border-gray-200 text-sm rounded-lg hover:bg-gray-50'
+              >
+                Отмена
+              </button>
+              <button
+                type='submit'
+                disabled={pending}
+                className='px-4 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C] disabled:opacity-50'
+              >
+                {pending
+                  ? 'Сохраняем…'
+                  : mode === 'existing'
+                    ? 'Назначить'
+                    : 'Пригласить'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Dialog>
     </>
   );
 }
