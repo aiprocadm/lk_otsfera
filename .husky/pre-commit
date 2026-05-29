@@ -1,3 +1,4 @@
+#!/usr/bin/env sh
 # L1: pre-commit — fast guards. Target ~5-10 sec total.
 #
 # Runs:
