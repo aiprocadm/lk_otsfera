@@ -19,7 +19,7 @@ export type AuditRow = {
   action: string;
   entity: AuditEntity;
   entityId: string;
-  meta: Prisma.JsonValue;
+  meta: Prisma.JsonValue | null;
 };
 
 export async function listAudit(
@@ -53,8 +53,8 @@ export async function listAudit(
 
   let nextCursor: string | null = null;
   if (rows.length > take) {
-    const last = rows.pop()!;
-    nextCursor = rows[rows.length - 1]?.id ?? last.id;
+    rows.pop();
+    nextCursor = rows[rows.length - 1].id;
   }
 
   return {
