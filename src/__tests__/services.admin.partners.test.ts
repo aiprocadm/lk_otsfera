@@ -199,7 +199,7 @@ describe('listPartners()', () => {
     expect(result.rows[0].slug).toBe('');
   });
 
-  it('activeOrgCount comes from organization.count per partner', async () => {
+  it('activeOrgCount counts organizations by partnerId (current assignment)', async () => {
     const partner = makePartner();
     const partnerFindMany = vi.fn().mockResolvedValue([partner]);
     const partnerCount = vi.fn().mockResolvedValue(1);
@@ -212,7 +212,7 @@ describe('listPartners()', () => {
     const result = await listPartners(prisma, {});
 
     expect(orgCount).toHaveBeenCalledWith({
-      where: { orders: { some: { partnerId: 'p1' } } }
+      where: { partnerId: 'p1' }
     });
     expect(result.rows[0].activeOrgCount).toBe(3);
   });
@@ -380,6 +380,23 @@ describe('getPartner()', () => {
     const prisma = makePrismaForGet(partner);
     const result = await getPartner(prisma, 'p1');
     expect(result!.admins).toEqual([]);
+  });
+
+  it('activeOrgCount queries organizations by partnerId (current assignment, not order history)', async () => {
+    const orgCount = vi.fn().mockResolvedValue(1);
+    const prisma = {
+      partner: { findUnique: vi.fn().mockResolvedValue(makeFullPartner()) },
+      organization: { count: orgCount },
+      commissionStatement: {
+        aggregate: vi.fn().mockResolvedValue({ _sum: { totalCommissionAmount: null } })
+      }
+    } as unknown as PrismaClient;
+
+    await getPartner(prisma, 'p1');
+
+    expect(orgCount).toHaveBeenCalledWith({
+      where: { partnerId: 'p1' }
+    });
   });
 });
 

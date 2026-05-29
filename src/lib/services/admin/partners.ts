@@ -66,7 +66,7 @@ export async function listPartners(
     partners.map(async (p) => {
       const [activeOrgCount, paidAgg] = await Promise.all([
         prisma.organization.count({
-          where: { orders: { some: { partnerId: p.id } } }
+          where: { partnerId: p.id }
         }),
         prisma.commissionStatement.aggregate({
           where: { partnerId: p.id, status: 'paid', paidAt: { gte: yearStart } },
@@ -116,7 +116,7 @@ export async function getPartner(prisma: PrismaClient, id: string): Promise<Part
 
   const yearStart = new Date(new Date().getFullYear(), 0, 1);
   const [activeOrgCount, paidAgg] = await Promise.all([
-    prisma.organization.count({ where: { orders: { some: { partnerId: p.id } } } }),
+    prisma.organization.count({ where: { partnerId: p.id } }),
     prisma.commissionStatement.aggregate({
       where: { partnerId: p.id, status: 'paid', paidAt: { gte: yearStart } },
       _sum: { totalCommissionAmount: true }

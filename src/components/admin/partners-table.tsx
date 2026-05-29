@@ -13,7 +13,7 @@ function formatRate(rate: number | null): string {
   return new Intl.NumberFormat('ru-RU', {
     style: 'percent',
     maximumFractionDigits: 2
-  }).format(rate / 100);
+  }).format(rate);
 }
 
 export function PartnersTable({ rows }: { rows: PartnerRow[] }) {
