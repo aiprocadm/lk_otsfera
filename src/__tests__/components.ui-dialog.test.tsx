@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { pickInitialFocus } from '@/components/ui/dialog';
+import { renderToString } from 'react-dom/server';
+import React from 'react';
+import { pickInitialFocus, Dialog } from '@/components/ui/dialog';
 
 type El = { tagName: string; getAttribute: (n: string) => string | null };
 const make = (tagName: string, type?: string): El => ({
@@ -27,5 +29,33 @@ describe('pickInitialFocus', () => {
 
   it('falls back to the panel when there are no focusables', () => {
     expect(pickInitialFocus([], panel)).toBe(panel);
+  });
+});
+
+describe('Dialog (SSR structural contract)', () => {
+  it('wires an accessible name from the title', () => {
+    const html = renderToString(
+      <Dialog open onClose={() => {}} title='Заголовок'>тело</Dialog>
+    );
+    expect(html).toContain('aria-labelledby');
+    expect(html).toContain('Заголовок');
+    expect(html).toContain('тело');
+    expect(html).toContain('aria-label="Закрыть"');
+  });
+
+  it('renders the error into an assertive live region', () => {
+    const html = renderToString(
+      <Dialog open onClose={() => {}} title='T' error='Сломалось'>тело</Dialog>
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('Сломалось');
+  });
+
+  it('renders the notice into a polite live region', () => {
+    const html = renderToString(
+      <Dialog open onClose={() => {}} title='T' notice='Готово'>тело</Dialog>
+    );
+    expect(html).toContain('role="status"');
+    expect(html).toContain('Готово');
   });
 });
