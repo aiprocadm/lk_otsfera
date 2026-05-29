@@ -2,7 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 
-import { listPartners, AdminPartnerError } from '@/lib/services/admin/partners';
+import {
+  listPartners,
+  getPartner,
+  updatePartner,
+  deactivatePartner,
+  reactivatePartner,
+  AdminPartnerError
+} from '@/lib/services/admin/partners';
+
+const { recordAuditMock } = vi.hoisted(() => ({ recordAuditMock: vi.fn() }));
+vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
 
 // ---------------------------------------------------------------------------
 // Prisma mock factory
@@ -270,5 +280,317 @@ describe('listPartners()', () => {
     expect(err.code).toBe('not_found');
     expect(err.name).toBe('AdminPartnerError');
     expect(err).toBeInstanceOf(Error);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getPartner()
+// ---------------------------------------------------------------------------
+describe('getPartner()', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function makeFullPartner() {
+    return {
+      id: 'p1',
+      name: 'Тест Партнёр',
+      slug: 'test-partner',
+      commissionRate: new Prisma.Decimal('0.05'),
+      isActive: true,
+      partnerUsers: [
+        {
+          id: 'pu1',
+          userId: 'u1',
+          user: {
+            id: 'u1',
+            email: 'admin@test.com',
+            name: 'Admin User',
+            isActive: true,
+            createdAt: new Date('2025-01-01')
+          }
+        }
+      ]
+    };
+  }
+
+  function makePrismaForGet(partnerData: unknown) {
+    return {
+      partner: {
+        findUnique: vi.fn().mockResolvedValue(partnerData)
+      },
+      organization: {
+        count: vi.fn().mockResolvedValue(2)
+      },
+      commissionStatement: {
+        aggregate: vi.fn().mockResolvedValue({
+          _sum: { totalCommissionAmount: new Prisma.Decimal('5000.00') }
+        })
+      }
+    } as unknown as PrismaClient;
+  }
+
+  it('returns null when partner does not exist', async () => {
+    const prisma = makePrismaForGet(null);
+    const result = await getPartner(prisma, 'missing');
+    expect(result).toBeNull();
+  });
+
+  it('returns PartnerDetail with correct shape and admins array', async () => {
+    const prisma = makePrismaForGet(makeFullPartner());
+    const result = await getPartner(prisma, 'p1');
+
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe('p1');
+    expect(result!.name).toBe('Тест Партнёр');
+    expect(result!.slug).toBe('test-partner');
+    expect(result!.commissionRate).toBeCloseTo(0.05);
+    expect(result!.isActive).toBe(true);
+    expect(result!.activeOrgCount).toBe(2);
+    expect(result!.paidYTD).toBe('5000');
+    expect(result!.admins).toHaveLength(1);
+    expect(result!.admins[0]).toMatchObject({
+      partnerUserId: 'pu1',
+      userId: 'u1',
+      email: 'admin@test.com',
+      name: 'Admin User',
+      isActive: true
+    });
+  });
+
+  it('null slug is coerced to empty string', async () => {
+    const partner = { ...makeFullPartner(), slug: null };
+    const prisma = makePrismaForGet(partner);
+    const result = await getPartner(prisma, 'p1');
+    expect(result!.slug).toBe('');
+  });
+
+  it('commissionRate=0 is returned as null', async () => {
+    const partner = { ...makeFullPartner(), commissionRate: new Prisma.Decimal('0') };
+    const prisma = makePrismaForGet(partner);
+    const result = await getPartner(prisma, 'p1');
+    expect(result!.commissionRate).toBeNull();
+  });
+
+  it('empty partnerUsers produces empty admins array', async () => {
+    const partner = { ...makeFullPartner(), partnerUsers: [] };
+    const prisma = makePrismaForGet(partner);
+    const result = await getPartner(prisma, 'p1');
+    expect(result!.admins).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// updatePartner()
+// ---------------------------------------------------------------------------
+describe('updatePartner()', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function makeTx(partnerData: unknown) {
+    return {
+      partner: {
+        findUnique: vi.fn().mockResolvedValue(partnerData),
+        update: vi.fn().mockResolvedValue({})
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({}) }
+    };
+  }
+
+  function makePrismaWithTx(tx: ReturnType<typeof makeTx>) {
+    return {
+      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => unknown) => fn(tx))
+    } as unknown as PrismaClient;
+  }
+
+  it('throws not_found when partner does not exist', async () => {
+    const tx = makeTx(null);
+    const prisma = makePrismaWithTx(tx);
+    await expect(updatePartner(prisma, 'actor1', 'missing', { name: 'New' }))
+      .rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('happy path: updates name and records audit', async () => {
+    const tx = makeTx({
+      name: 'Old Name',
+      commissionRate: new Prisma.Decimal('0.05'),
+      isActive: true
+    });
+    const prisma = makePrismaWithTx(tx);
+
+    await updatePartner(prisma, 'actor1', 'p1', { name: 'New Name' });
+
+    expect(tx.partner.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'p1' }, data: { name: 'New Name' } })
+    );
+    expect(recordAuditMock).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({ action: 'partner_updated', entityId: 'p1', entity: 'partner' })
+    );
+  });
+
+  it('null commissionRate is stored as Decimal(0)', async () => {
+    const tx = makeTx({
+      name: 'Partner',
+      commissionRate: new Prisma.Decimal('0.05'),
+      isActive: true
+    });
+    const prisma = makePrismaWithTx(tx);
+
+    await updatePartner(prisma, 'actor1', 'p1', { commissionRate: null });
+
+    const updateCall = tx.partner.update.mock.calls[0][0];
+    expect(updateCall.data.commissionRate.equals(new Prisma.Decimal(0))).toBe(true);
+  });
+
+  it('numeric commissionRate is stored as Decimal', async () => {
+    const tx = makeTx({
+      name: 'Partner',
+      commissionRate: new Prisma.Decimal('0'),
+      isActive: true
+    });
+    const prisma = makePrismaWithTx(tx);
+
+    await updatePartner(prisma, 'actor1', 'p1', { commissionRate: 0.08 });
+
+    const updateCall = tx.partner.update.mock.calls[0][0];
+    expect(updateCall.data.commissionRate.equals(new Prisma.Decimal('0.08'))).toBe(true);
+  });
+
+  it('audit after snapshot contains only defined fields', async () => {
+    const tx = makeTx({
+      name: 'Partner',
+      commissionRate: new Prisma.Decimal('0.05'),
+      isActive: true
+    });
+    const prisma = makePrismaWithTx(tx);
+
+    await updatePartner(prisma, 'actor1', 'p1', { name: 'New' });
+
+    const auditCall = recordAuditMock.mock.calls[0][1];
+    expect(auditCall.after).toEqual({ name: 'New' });
+    expect('commissionRate' in auditCall.after).toBe(false);
+    expect('isActive' in auditCall.after).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// deactivatePartner()
+// ---------------------------------------------------------------------------
+describe('deactivatePartner()', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function makeTx(partnerData: unknown) {
+    return {
+      partner: {
+        findUnique: vi.fn().mockResolvedValue(partnerData),
+        update: vi.fn().mockResolvedValue({})
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({}) }
+    };
+  }
+
+  function makePrismaWithTx(tx: ReturnType<typeof makeTx>) {
+    return {
+      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => unknown) => fn(tx))
+    } as unknown as PrismaClient;
+  }
+
+  it('throws not_found when partner does not exist', async () => {
+    const tx = makeTx(null);
+    const prisma = makePrismaWithTx(tx);
+    await expect(deactivatePartner(prisma, 'actor1', 'missing'))
+      .rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('is idempotent: does not update or audit when already inactive', async () => {
+    const tx = makeTx({ isActive: false });
+    const prisma = makePrismaWithTx(tx);
+
+    await deactivatePartner(prisma, 'actor1', 'p1');
+
+    expect(tx.partner.update).not.toHaveBeenCalled();
+    expect(recordAuditMock).not.toHaveBeenCalled();
+  });
+
+  it('happy path: sets isActive=false and records audit', async () => {
+    const tx = makeTx({ isActive: true });
+    const prisma = makePrismaWithTx(tx);
+
+    await deactivatePartner(prisma, 'actor1', 'p1');
+
+    expect(tx.partner.update).toHaveBeenCalledWith({
+      where: { id: 'p1' },
+      data: { isActive: false }
+    });
+    expect(recordAuditMock).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        action: 'partner_deactivated',
+        entity: 'partner',
+        entityId: 'p1',
+        before: { isActive: true },
+        after: { isActive: false }
+      })
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// reactivatePartner()
+// ---------------------------------------------------------------------------
+describe('reactivatePartner()', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function makeTx(partnerData: unknown) {
+    return {
+      partner: {
+        findUnique: vi.fn().mockResolvedValue(partnerData),
+        update: vi.fn().mockResolvedValue({})
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({}) }
+    };
+  }
+
+  function makePrismaWithTx(tx: ReturnType<typeof makeTx>) {
+    return {
+      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => unknown) => fn(tx))
+    } as unknown as PrismaClient;
+  }
+
+  it('throws not_found when partner does not exist', async () => {
+    const tx = makeTx(null);
+    const prisma = makePrismaWithTx(tx);
+    await expect(reactivatePartner(prisma, 'actor1', 'missing'))
+      .rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('is idempotent: does not update or audit when already active', async () => {
+    const tx = makeTx({ isActive: true });
+    const prisma = makePrismaWithTx(tx);
+
+    await reactivatePartner(prisma, 'actor1', 'p1');
+
+    expect(tx.partner.update).not.toHaveBeenCalled();
+    expect(recordAuditMock).not.toHaveBeenCalled();
+  });
+
+  it('happy path: sets isActive=true and records audit', async () => {
+    const tx = makeTx({ isActive: false });
+    const prisma = makePrismaWithTx(tx);
+
+    await reactivatePartner(prisma, 'actor1', 'p1');
+
+    expect(tx.partner.update).toHaveBeenCalledWith({
+      where: { id: 'p1' },
+      data: { isActive: true }
+    });
+    expect(recordAuditMock).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        action: 'partner_reactivated',
+        entity: 'partner',
+        entityId: 'p1',
+        before: { isActive: false },
+        after: { isActive: true }
+      })
+    );
   });
 });
