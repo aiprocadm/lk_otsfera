@@ -181,6 +181,17 @@ describe('listOrganizations()', () => {
     expect(result.rows[0].partnerCommissionRate).toBeNull();
   });
 
+  it('row mapping: Decimal(0) explicit override is 0, not null', async () => {
+    const org = makeOrg({ partnerCommissionRate: new Prisma.Decimal('0') });
+    const findMany = vi.fn().mockResolvedValue([org]);
+    const count = vi.fn().mockResolvedValue(1);
+    const prisma = makePrisma({ organization: { findMany, count } });
+
+    const result = await listOrganizations(prisma, {});
+
+    expect(result.rows[0].partnerCommissionRate).toBe(0);
+  });
+
   it('q and partnerId can be combined', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const count = vi.fn().mockResolvedValue(0);
@@ -255,6 +266,15 @@ describe('getOrganization()', () => {
     const result = await getOrganization(prisma, 'org1');
 
     expect(result!.partnerCommissionRate).toBeNull();
+  });
+
+  it('Decimal(0) explicit override is 0, not null', async () => {
+    const org = makeFullOrg({ partnerCommissionRate: new Prisma.Decimal('0') });
+    const prisma = makePrisma({ organization: { findUnique: vi.fn().mockResolvedValue(org) } });
+
+    const result = await getOrganization(prisma, 'org1');
+
+    expect(result!.partnerCommissionRate).toBe(0);
   });
 
   it('includes partnerCommissionRateNote in result', async () => {

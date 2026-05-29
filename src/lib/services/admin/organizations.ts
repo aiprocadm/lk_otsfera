@@ -72,7 +72,7 @@ export async function listOrganizations(
     partner: { id: o.partner.id, name: o.partner.name },
     ordersCount: o._count.orders,
     organizationUsersCount: o._count.organizationUsers,
-    partnerCommissionRate: o.partnerCommissionRate ? Number(o.partnerCommissionRate) : null
+    partnerCommissionRate: o.partnerCommissionRate !== null ? Number(o.partnerCommissionRate) : null
   }));
 
   return { rows, total };
@@ -114,7 +114,7 @@ export async function getOrganization(prisma: PrismaClient, id: string): Promise
     externalId: o.externalId,
     partnerId: o.partnerId,
     partner: { id: o.partner.id, name: o.partner.name },
-    partnerCommissionRate: o.partnerCommissionRate ? Number(o.partnerCommissionRate) : null,
+    partnerCommissionRate: o.partnerCommissionRate !== null ? Number(o.partnerCommissionRate) : null,
     partnerCommissionRateNote: o.partnerCommissionRateNote
   };
 }
