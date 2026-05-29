@@ -80,7 +80,7 @@ export async function listAudit(
 export async function listAuditFilters(
   prisma: PrismaClient
 ): Promise<AuditFiltersOptions> {
-  const [entityRows, actionRows] = await Promise.all([
+  const [entityRows, actionRows, actorIds] = await Promise.all([
     prisma.auditLog.findMany({
       distinct: ['entity'],
       select: { entity: true },
@@ -90,14 +90,13 @@ export async function listAuditFilters(
       distinct: ['action'],
       select: { action: true },
       orderBy: { action: 'asc' }
+    }),
+    prisma.auditLog.findMany({
+      distinct: ['userId'],
+      select: { userId: true },
+      take: 200
     })
   ]);
-
-  const actorIds = await prisma.auditLog.findMany({
-    distinct: ['userId'],
-    select: { userId: true },
-    take: 200
-  });
   const actors = actorIds.length
     ? await prisma.user.findMany({
         where: { id: { in: actorIds.map((r) => r.userId) } },

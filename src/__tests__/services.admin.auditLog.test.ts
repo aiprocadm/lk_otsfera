@@ -379,6 +379,8 @@ describe('listAuditFilters() — return shape', () => {
 
     const userCall = userFindMany.mock.calls[0][0];
     expect(userCall.where).toEqual({ id: { in: ['u-1', 'u-2'] } });
+    expect(userCall.select).toEqual({ id: true, name: true, email: true });
+    expect(userCall.orderBy).toEqual({ name: 'asc' });
     expect(result.actors).toEqual([actor1, actor2]);
   });
 
