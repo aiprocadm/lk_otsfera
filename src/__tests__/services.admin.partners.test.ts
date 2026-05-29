@@ -384,11 +384,17 @@ describe('getPartner()', () => {
 describe('updatePartner()', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  function makeTx(partnerData: unknown) {
+  function makeTx(partnerData: unknown, updatedData?: unknown) {
+    const defaultUpdated = partnerData ?? {
+      id: 'p1',
+      name: 'Partner',
+      commissionRate: new Prisma.Decimal('0.05'),
+      isActive: true
+    };
     return {
       partner: {
         findUnique: vi.fn().mockResolvedValue(partnerData),
-        update: vi.fn().mockResolvedValue({})
+        update: vi.fn().mockResolvedValue(updatedData ?? defaultUpdated)
       },
       auditLog: { create: vi.fn().mockResolvedValue({}) }
     };
@@ -408,11 +414,9 @@ describe('updatePartner()', () => {
   });
 
   it('happy path: updates name and records audit', async () => {
-    const tx = makeTx({
-      name: 'Old Name',
-      commissionRate: new Prisma.Decimal('0.05'),
-      isActive: true
-    });
+    const before = { name: 'Old Name', commissionRate: new Prisma.Decimal('0.05'), isActive: true };
+    const updated = { id: 'p1', name: 'New Name', commissionRate: new Prisma.Decimal('0.05'), isActive: true };
+    const tx = makeTx(before, updated);
     const prisma = makePrismaWithTx(tx);
 
     await updatePartner(prisma, 'actor1', 'p1', { name: 'New Name' });
@@ -427,11 +431,9 @@ describe('updatePartner()', () => {
   });
 
   it('null commissionRate is stored as Decimal(0)', async () => {
-    const tx = makeTx({
-      name: 'Partner',
-      commissionRate: new Prisma.Decimal('0.05'),
-      isActive: true
-    });
+    const before = { name: 'Partner', commissionRate: new Prisma.Decimal('0.05'), isActive: true };
+    const updated = { id: 'p1', name: 'Partner', commissionRate: new Prisma.Decimal('0'), isActive: true };
+    const tx = makeTx(before, updated);
     const prisma = makePrismaWithTx(tx);
 
     await updatePartner(prisma, 'actor1', 'p1', { commissionRate: null });
@@ -441,11 +443,9 @@ describe('updatePartner()', () => {
   });
 
   it('numeric commissionRate is stored as Decimal', async () => {
-    const tx = makeTx({
-      name: 'Partner',
-      commissionRate: new Prisma.Decimal('0'),
-      isActive: true
-    });
+    const before = { name: 'Partner', commissionRate: new Prisma.Decimal('0'), isActive: true };
+    const updated = { id: 'p1', name: 'Partner', commissionRate: new Prisma.Decimal('0.08'), isActive: true };
+    const tx = makeTx(before, updated);
     const prisma = makePrismaWithTx(tx);
 
     await updatePartner(prisma, 'actor1', 'p1', { commissionRate: 0.08 });
@@ -454,20 +454,43 @@ describe('updatePartner()', () => {
     expect(updateCall.data.commissionRate.equals(new Prisma.Decimal('0.08'))).toBe(true);
   });
 
-  it('audit after snapshot contains only defined fields', async () => {
-    const tx = makeTx({
-      name: 'Partner',
-      commissionRate: new Prisma.Decimal('0.05'),
-      isActive: true
-    });
+  it('audit after snapshot is a full 3-field snapshot matching before shape', async () => {
+    const before = { name: 'Partner', commissionRate: new Prisma.Decimal('0.05'), isActive: true };
+    const updated = { id: 'p1', name: 'New', commissionRate: new Prisma.Decimal('0.05'), isActive: true };
+    const tx = makeTx(before, updated);
     const prisma = makePrismaWithTx(tx);
 
     await updatePartner(prisma, 'actor1', 'p1', { name: 'New' });
 
     const auditCall = recordAuditMock.mock.calls[0][1];
-    expect(auditCall.after).toEqual({ name: 'New' });
-    expect('commissionRate' in auditCall.after).toBe(false);
-    expect('isActive' in auditCall.after).toBe(false);
+    expect(auditCall.after).toEqual({ name: 'New', commissionRate: '0.05', isActive: true });
+    expect(auditCall.before).toEqual({ name: 'Partner', commissionRate: '0.05', isActive: true });
+  });
+
+  it('audit before and after commissionRate are both strings (type symmetry)', async () => {
+    const before = { name: 'Partner', commissionRate: new Prisma.Decimal('0.05'), isActive: true };
+    const updated = { id: 'p1', name: 'Partner', commissionRate: new Prisma.Decimal('0.08'), isActive: true };
+    const tx = makeTx(before, updated);
+    const prisma = makePrismaWithTx(tx);
+
+    await updatePartner(prisma, 'actor1', 'p1', { commissionRate: 0.08 });
+
+    const auditCall = recordAuditMock.mock.calls[0][1];
+    expect(typeof auditCall.before.commissionRate).toBe('string');
+    expect(typeof auditCall.after.commissionRate).toBe('string');
+  });
+
+  it('audit commissionRate is null in both before and after when rate is zero', async () => {
+    const before = { name: 'Partner', commissionRate: null, isActive: false };
+    const updated = { id: 'p1', name: 'Partner', commissionRate: null, isActive: true };
+    const tx = makeTx(before, updated);
+    const prisma = makePrismaWithTx(tx);
+
+    await updatePartner(prisma, 'actor1', 'p1', { isActive: true });
+
+    const auditCall = recordAuditMock.mock.calls[0][1];
+    expect(auditCall.before.commissionRate).toBeNull();
+    expect(auditCall.after.commissionRate).toBeNull();
   });
 });
 

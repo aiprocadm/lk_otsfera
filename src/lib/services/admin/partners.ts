@@ -166,7 +166,7 @@ export async function updatePartner(
         ? { commissionRate: args.commissionRate === null ? new Prisma.Decimal(0) : new Prisma.Decimal(args.commissionRate) }
         : {};
 
-    await tx.partner.update({
+    const updated = await tx.partner.update({
       where: { id },
       data: {
         ...(args.name !== undefined ? { name: args.name } : {}),
@@ -174,11 +174,6 @@ export async function updatePartner(
         ...(args.isActive !== undefined ? { isActive: args.isActive } : {})
       }
     });
-
-    const afterSnapshot: Record<string, unknown> = {};
-    if (args.name !== undefined) afterSnapshot.name = args.name;
-    if (args.commissionRate !== undefined) afterSnapshot.commissionRate = args.commissionRate;
-    if (args.isActive !== undefined) afterSnapshot.isActive = args.isActive;
 
     await recordAudit(tx, {
       userId: actorUserId,
@@ -190,7 +185,11 @@ export async function updatePartner(
         commissionRate: before.commissionRate?.toString() ?? null,
         isActive: before.isActive
       },
-      after: afterSnapshot
+      after: {
+        name: updated.name,
+        commissionRate: updated.commissionRate?.toString() ?? null,
+        isActive: updated.isActive
+      }
     });
   });
 }
