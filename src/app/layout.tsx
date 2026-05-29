@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from 'sonner';
 import { PwaInstaller } from '@/components/pwa-installer';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 
 export const metadata: Metadata = {
   title: 'Промтехносфера — личный кабинет',
@@ -34,7 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         <Toaster richColors position='top-right' />
-        <PwaInstaller />
+        {isFeatureEnabled('pwa_installer') && <PwaInstaller />}
       </body>
     </html>
   );

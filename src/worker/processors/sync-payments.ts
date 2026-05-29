@@ -75,17 +75,27 @@ export async function syncPaymentsProcessor(
         summary.created += 1;
 
         if (order.organizationId && !input.isRefund) {
-          await notifyOrgUsers(db, {
-            organizationId: order.organizationId,
-            type: 'payment_received',
-            payload: {
+          // Best-effort, mirroring the notifyManagers call below: a notification
+          // failure must not roll back the payment row or stop subsequent DTOs.
+          try {
+            await notifyOrgUsers(db, {
+              organizationId: order.organizationId,
+              type: 'payment_received',
+              payload: {
+                orderId: order.id,
+                orderNumber: order.orderNumber,
+                orderTitle: order.title,
+                amount: input.amount.toString(),
+                paidAt: input.paidAt
+              }
+            });
+          } catch (err) {
+            console.warn('[worker] sync-payments notifyOrgUsers failed', {
               orderId: order.id,
-              orderNumber: order.orderNumber,
-              orderTitle: order.title,
-              amount: input.amount.toString(),
-              paidAt: input.paidAt
-            }
-          });
+              externalId: input.externalId,
+              error: err instanceof Error ? err.message : String(err)
+            });
+          }
         }
 
         // Manager-cabinet fan-out for the same event. Best-effort: a failure

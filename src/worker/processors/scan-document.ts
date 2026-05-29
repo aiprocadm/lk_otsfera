@@ -161,19 +161,24 @@ export async function scanDocumentProcessor(
     response = await deps.scan(host, port, payload);
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
-    await persistResult(db, kind, id, 'clean', null);
+    // SECURITY: do NOT mark the document clean when the scanner is unreachable —
+    // that would permanently whitelist an unscanned file. Re-throw so BullMQ
+    // retries (attempts:5, exponential backoff); a persistent outage lands the
+    // job in the DLQ and leaves the document `pending` for the backfill sweep to
+    // rescan once ClamAV recovers. (The CLAMAV_HOST-unset branch above is the
+    // only intentional clean-by-default path, for envs without a scanner.)
     await writeSyncLog(
       {
         entity: 'scan',
         externalId: id,
         direction: 'inbound',
         operation: 'check',
-        status: 'warn',
-        errorMessage: `ClamAV unreachable, marking clean: ${reason}`,
+        status: 'error',
+        errorMessage: `ClamAV unreachable: ${reason}`,
       },
       db,
     );
-    return { kind, id, scanStatus: 'clean', scanReason: null };
+    throw err;
   }
 
   const parsed = parseClamAvResponse(response);

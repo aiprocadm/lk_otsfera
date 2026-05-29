@@ -316,9 +316,20 @@ export async function notifyOrgUsers(
     recipientsNotified += 1;
 
     if (member.user.email) {
-      const result = await dispatchOrgEmail(member.user.email, input, org.name, orderUrl);
-      if (result.status === 'sent') emailsSent += 1;
-      else emailsSkipped += 1;
+      // Best-effort: a transport-level throw for one recipient must not abort
+      // the fan-out (in-app rows are the source of truth) nor propagate to
+      // callers that treat email as a side effect.
+      try {
+        const result = await dispatchOrgEmail(member.user.email, input, org.name, orderUrl);
+        if (result.status === 'sent') emailsSent += 1;
+        else emailsSkipped += 1;
+      } catch (err) {
+        emailsSkipped += 1;
+        console.warn('[notifyOrgUsers] email dispatch failed', {
+          organizationId: org.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     } else {
       emailsSkipped += 1;
     }
@@ -599,9 +610,19 @@ export async function notifyManagers(
     recipientsNotified += 1;
 
     if (r.email) {
-      const result = await dispatch(r.email);
-      if (result.status === 'sent') emailsSent += 1;
-      else emailsSkipped += 1;
+      // Best-effort: a transport-level throw for one recipient must not abort
+      // the fan-out nor propagate to callers that treat email as a side effect.
+      try {
+        const result = await dispatch(r.email);
+        if (result.status === 'sent') emailsSent += 1;
+        else emailsSkipped += 1;
+      } catch (err) {
+        emailsSkipped += 1;
+        console.warn('[notifyManagers] email dispatch failed', {
+          orderId: input.orderId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     } else {
       emailsSkipped += 1;
     }

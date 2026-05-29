@@ -7,6 +7,7 @@ import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { recordAudit } from '@/lib/auth/audit';
+import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
@@ -77,6 +78,18 @@ export async function POST(req: Request) {
   const internalPath = `${tenantPath}/${Date.now()}-${sanitizeFilename(file.name)}`;
 
   const arrayBuffer = await file.arrayBuffer();
+
+  // Defense-in-depth: when the declared MIME is one we can fingerprint, the
+  // file's magic bytes must match — defeats content-type/extension spoofing.
+  // Types the validator can't fingerprint (e.g. application/zip) fall through
+  // to the allow-list + async ClamAV scan.
+  if ((SUPPORTED_MIME_TYPES as readonly string[]).includes(file.type)) {
+    const validation = validateMagicBytes(file.type, new Uint8Array(arrayBuffer));
+    if (!validation.ok) {
+      return errorResponse('INVALID_FILE_FORMAT', ALLOWED_FORMATS_ERROR, 400, correlationId);
+    }
+  }
+
   const { error: uploadError } = await supabaseAdmin.storage
     .from(documentBucket)
     .upload(internalPath, Buffer.from(arrayBuffer), { contentType: file.type, upsert: false });

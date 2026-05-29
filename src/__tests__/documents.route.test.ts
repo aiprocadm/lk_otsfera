@@ -99,7 +99,7 @@ describe('documents guards', () => {
   it('enqueues docs.scanDocument after a successful upload', async () => {
     const fd = new FormData();
     fd.set('orderId', 'ord1');
-    fd.set('file', new File(['hello'], 'good.pdf', { type: 'application/pdf' }));
+    fd.set('file', new File(['%PDF-1.4 minimal'], 'good.pdf', { type: 'application/pdf' }));
     const res = await uploadPost(
       new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd })
     );
@@ -114,7 +114,7 @@ describe('documents guards', () => {
     enqueueAdd.mockRejectedValueOnce(new Error('Redis down'));
     const fd = new FormData();
     fd.set('orderId', 'ord1');
-    fd.set('file', new File(['hello'], 'good.pdf', { type: 'application/pdf' }));
+    fd.set('file', new File(['%PDF-1.4 minimal'], 'good.pdf', { type: 'application/pdf' }));
     const res = await uploadPost(
       new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd })
     );

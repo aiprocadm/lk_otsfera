@@ -237,14 +237,14 @@ describe('inviteMember', () => {
 
 describe('updateMemberRole', () => {
   it('promotes a member to admin', async () => {
-    await updateMemberRole(prisma, memberOrgUserId, 'admin', actorAdminUserId);
+    await updateMemberRole(prisma, orgId, memberOrgUserId, 'admin', actorAdminUserId);
     const row = await prisma.organizationUser.findUnique({ where: { id: memberOrgUserId } });
     expect(row?.roleInOrg).toBe('admin');
   });
 
   it('throws self_action_forbidden when actor targets themselves', async () => {
     await expect(
-      updateMemberRole(prisma, actorAdminOrgUserId, 'member', actorAdminUserId)
+      updateMemberRole(prisma, orgId, actorAdminOrgUserId, 'member', actorAdminUserId)
     ).rejects.toMatchObject({ code: 'self_action_forbidden' });
   });
 
@@ -271,18 +271,18 @@ describe('updateMemberRole', () => {
     });
     // member (acting as some other user — use memberUserId) tries to demote secondAdmin
     await expect(
-      updateMemberRole(prisma, secondAdminOrgUserId, 'member', memberUserId)
+      updateMemberRole(prisma, orgId, secondAdminOrgUserId, 'member', memberUserId)
     ).rejects.toMatchObject({ code: 'last_admin_protected' });
   });
 
   it('throws not_found for unknown orgUserId', async () => {
     await expect(
-      updateMemberRole(prisma, 'nonexistent', 'admin', actorAdminUserId)
+      updateMemberRole(prisma, orgId, 'nonexistent', 'admin', actorAdminUserId)
     ).rejects.toMatchObject({ code: 'not_found' });
   });
 
   it('is a no-op when newRole === currentRole', async () => {
-    await updateMemberRole(prisma, secondAdminOrgUserId, 'admin', actorAdminUserId);
+    await updateMemberRole(prisma, orgId, secondAdminOrgUserId, 'admin', actorAdminUserId);
     const row = await prisma.organizationUser.findUnique({ where: { id: secondAdminOrgUserId } });
     expect(row?.roleInOrg).toBe('admin');
   });
@@ -290,14 +290,14 @@ describe('updateMemberRole', () => {
 
 describe('deactivateMember', () => {
   it('deactivates an active member', async () => {
-    await deactivateMember(prisma, memberOrgUserId, actorAdminUserId);
+    await deactivateMember(prisma, orgId, memberOrgUserId, actorAdminUserId);
     const row = await prisma.organizationUser.findUnique({ where: { id: memberOrgUserId } });
     expect(row?.isActive).toBe(false);
   });
 
   it('throws self_action_forbidden when actor targets themselves', async () => {
     await expect(
-      deactivateMember(prisma, actorAdminOrgUserId, actorAdminUserId)
+      deactivateMember(prisma, orgId, actorAdminOrgUserId, actorAdminUserId)
     ).rejects.toMatchObject({ code: 'self_action_forbidden' });
   });
 
@@ -308,7 +308,7 @@ describe('deactivateMember', () => {
     });
     // actorAdmin is now sole active admin; member (acting as someone else) tries to deactivate them
     await expect(
-      deactivateMember(prisma, actorAdminOrgUserId, memberUserId)
+      deactivateMember(prisma, orgId, actorAdminOrgUserId, memberUserId)
     ).rejects.toMatchObject({ code: 'last_admin_protected' });
   });
 });
@@ -319,20 +319,65 @@ describe('reactivateMember', () => {
       where: { id: memberOrgUserId },
       data: { isActive: false }
     });
-    await reactivateMember(prisma, memberOrgUserId, actorAdminUserId);
+    await reactivateMember(prisma, orgId, memberOrgUserId, actorAdminUserId);
     const row = await prisma.organizationUser.findUnique({ where: { id: memberOrgUserId } });
     expect(row?.isActive).toBe(true);
   });
 
   it('throws self_action_forbidden when actor targets themselves', async () => {
     await expect(
-      reactivateMember(prisma, actorAdminOrgUserId, actorAdminUserId)
+      reactivateMember(prisma, orgId, actorAdminOrgUserId, actorAdminUserId)
     ).rejects.toMatchObject({ code: 'self_action_forbidden' });
   });
 
   it('is a no-op when already active', async () => {
-    await reactivateMember(prisma, memberOrgUserId, actorAdminUserId);
+    await reactivateMember(prisma, orgId, memberOrgUserId, actorAdminUserId);
     const row = await prisma.organizationUser.findUnique({ where: { id: memberOrgUserId } });
     expect(row?.isActive).toBe(true);
+  });
+});
+
+describe('cross-organization isolation (IDOR guard)', () => {
+  it('refuses to mutate a member belonging to a different organization', async () => {
+    // Second org with its own member. actorAdmin only administers `orgId`, so
+    // every mutation that targets this foreign membership while claiming `orgId`
+    // must be rejected as not_found — see loadOrgUserOrThrow containment check.
+    const foreignCompany = await prisma.company.create({ data: { name: `OrgTeamForeignC-${STAMP}` } });
+    const foreignOrg = await prisma.organization.create({
+      data: { name: `OrgTeamForeign-${STAMP}`, partnerId, companyId: foreignCompany.id }
+    });
+    const foreignUser = await prisma.user.create({
+      data: {
+        email: `team-foreign-${Date.now()}@t.local`,
+        name: 'Foreign Member',
+        role: 'organization',
+        passwordHash: 'x'
+      }
+    });
+    const foreignOrgUser = await prisma.organizationUser.create({
+      data: { organizationId: foreignOrg.id, userId: foreignUser.id, roleInOrg: 'member', isActive: true }
+    });
+
+    try {
+      await expect(
+        updateMemberRole(prisma, orgId, foreignOrgUser.id, 'admin', actorAdminUserId)
+      ).rejects.toMatchObject({ code: 'not_found' });
+      await expect(
+        deactivateMember(prisma, orgId, foreignOrgUser.id, actorAdminUserId)
+      ).rejects.toMatchObject({ code: 'not_found' });
+      await expect(
+        reactivateMember(prisma, orgId, foreignOrgUser.id, actorAdminUserId)
+      ).rejects.toMatchObject({ code: 'not_found' });
+
+      // The foreign membership must be completely untouched.
+      const untouched = await prisma.organizationUser.findUnique({ where: { id: foreignOrgUser.id } });
+      expect(untouched?.roleInOrg).toBe('member');
+      expect(untouched?.isActive).toBe(true);
+    } finally {
+      await prisma.organizationUser.deleteMany({ where: { id: foreignOrgUser.id } });
+      await prisma.organization.deleteMany({ where: { id: foreignOrg.id } });
+      await prisma.company.deleteMany({ where: { id: foreignCompany.id } });
+      await prisma.user.deleteMany({ where: { id: foreignUser.id } });
+    }
   });
 });

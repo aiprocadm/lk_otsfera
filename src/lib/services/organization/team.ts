@@ -167,10 +167,15 @@ export async function inviteMember(
 
 async function loadOrgUserOrThrow(
   tx: Prisma.TransactionClient,
+  organizationId: string,
   orgUserId: string
 ) {
   const row = await tx.organizationUser.findUnique({ where: { id: orgUserId } });
-  if (!row) throw new OrgMemberError('not_found');
+  // Cross-tenant guard: the membership must belong to the organization the
+  // caller was authorised for. Without this, an admin of org A could mutate
+  // members of org B by passing a foreign orgUserId — the server action only
+  // verifies admin-ship of the *claimed* org, not that the target lives in it.
+  if (!row || row.organizationId !== organizationId) throw new OrgMemberError('not_found');
   return row;
 }
 
@@ -194,12 +199,13 @@ async function assertNotLastActiveAdmin(
 
 export async function updateMemberRole(
   prisma: PrismaClient,
+  organizationId: string,
   orgUserId: string,
   newRole: 'admin' | 'member',
   actorUserId: string
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
-    const target = await loadOrgUserOrThrow(tx, orgUserId);
+    const target = await loadOrgUserOrThrow(tx, organizationId, orgUserId);
     if (target.userId === actorUserId) {
       throw new OrgMemberError('self_action_forbidden');
     }
@@ -228,11 +234,12 @@ export async function updateMemberRole(
 
 export async function deactivateMember(
   prisma: PrismaClient,
+  organizationId: string,
   orgUserId: string,
   actorUserId: string
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
-    const target = await loadOrgUserOrThrow(tx, orgUserId);
+    const target = await loadOrgUserOrThrow(tx, organizationId, orgUserId);
     if (target.userId === actorUserId) {
       throw new OrgMemberError('self_action_forbidden');
     }
@@ -260,11 +267,12 @@ export async function deactivateMember(
 
 export async function reactivateMember(
   prisma: PrismaClient,
+  organizationId: string,
   orgUserId: string,
   actorUserId: string
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
-    const target = await loadOrgUserOrThrow(tx, orgUserId);
+    const target = await loadOrgUserOrThrow(tx, organizationId, orgUserId);
     if (target.userId === actorUserId) {
       throw new OrgMemberError('self_action_forbidden');
     }

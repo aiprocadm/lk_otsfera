@@ -44,9 +44,16 @@ export async function listAudit(
     if (filters.to) (where.createdAt as Prisma.DateTimeFilter).lte = filters.to;
   }
   if (filters.q) {
-    where.meta = { path: [], string_contains: filters.q } as Prisma.JsonFilter;
-    // NB: Prisma JsonFilter may not support ILIKE directly. If string_contains
-    // fails against the real DB, reimplement q via prisma.$queryRaw on meta::text.
+    // Prisma's JsonFilter cannot full-text search a JSON object — the previous
+    // `meta string_contains` matched nothing on a real DB, so the search box
+    // silently returned zero rows. Run a parameterised raw scan of meta::text
+    // and constrain the main query to the matching ids, keeping every other
+    // filter + cursor pagination intact.
+    const like = `%${filters.q}%`;
+    const matches = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM "AuditLog" WHERE meta::text ILIKE ${like}
+    `;
+    where.id = { in: matches.map((m) => m.id) };
   }
 
   const rows = await prisma.auditLog.findMany({

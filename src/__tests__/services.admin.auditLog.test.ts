@@ -6,11 +6,15 @@ import { listAudit, listAuditFilters } from '@/lib/services/admin/auditLog';
 // ---------------------------------------------------------------------------
 // Prisma mock factory
 // ---------------------------------------------------------------------------
-function makePrisma(findManyImpl?: ReturnType<typeof vi.fn>) {
+function makePrisma(
+  findManyImpl?: ReturnType<typeof vi.fn>,
+  queryRawImpl?: ReturnType<typeof vi.fn>,
+) {
   return {
     auditLog: {
       findMany: findManyImpl ?? vi.fn().mockResolvedValue([]),
     },
+    $queryRaw: queryRawImpl ?? vi.fn().mockResolvedValue([]),
   } as unknown as PrismaClient;
 }
 
@@ -146,14 +150,19 @@ describe('listAudit() — filter translation', () => {
     expect((where.createdAt as Record<string, unknown>).lte).toBeUndefined();
   });
 
-  it('passes q into where.meta as JsonFilter with string_contains', async () => {
+  it('resolves q via a raw meta::text scan and constrains where.id to the matches', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = makePrisma(findMany);
+    const queryRaw = vi.fn().mockResolvedValue([{ id: 'a1' }, { id: 'a2' }]);
+    const prisma = makePrisma(findMany, queryRaw);
 
     await listAudit(prisma, { q: 'sometext' });
 
+    // q is no longer a (broken) JsonFilter — it runs one parameterised raw query…
+    expect(queryRaw).toHaveBeenCalledTimes(1);
     const { where } = findMany.mock.calls[0][0];
-    expect(where.meta).toMatchObject({ string_contains: 'sometext' });
+    // …and the main query is scoped to the matching ids.
+    expect(where.id).toMatchObject({ in: ['a1', 'a2'] });
+    expect(where.meta).toBeUndefined();
   });
 
   it('does not include unset filters in where', async () => {

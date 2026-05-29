@@ -135,6 +135,7 @@ describe('updateOrgMemberRoleAction', () => {
     expect(res).toEqual({ ok: true });
     expect(updateMemberRole).toHaveBeenCalledWith(
       expect.anything(),
+      'org-1',
       'ou-1',
       'admin',
       'actor-1'

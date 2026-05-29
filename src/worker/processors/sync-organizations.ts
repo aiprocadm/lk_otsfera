@@ -76,16 +76,21 @@ export async function syncOrganizationsProcessor(
         });
         summary.updated += 1;
       } else {
-        const company = await db.company.create({ data: { name: input.name } });
-        await db.organization.create({
-          data: {
-            externalId: input.externalId,
-            name: input.name,
-            inn: input.inn,
-            kpp: input.kpp,
-            partnerId,
-            companyId: company.id
-          }
+        // Atomic: a failure creating the Organization must not leave an orphan
+        // Company behind. The job retries on failure, so a partial write would
+        // accumulate dangling Company rows on every attempt.
+        await db.$transaction(async (tx) => {
+          const company = await tx.company.create({ data: { name: input.name } });
+          await tx.organization.create({
+            data: {
+              externalId: input.externalId,
+              name: input.name,
+              inn: input.inn,
+              kpp: input.kpp,
+              partnerId,
+              companyId: company.id
+            }
+          });
         });
         summary.created += 1;
       }

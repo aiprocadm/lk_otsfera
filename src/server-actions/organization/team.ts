@@ -122,7 +122,7 @@ export async function updateOrgMemberRoleAction(formData: FormData): Promise<Act
   const session = await requireOrganizationAdmin(parsed.data.organizationId);
 
   try {
-    await updateMemberRole(prisma, parsed.data.orgUserId, parsed.data.newRole, session.sub);
+    await updateMemberRole(prisma, parsed.data.organizationId, parsed.data.orgUserId, parsed.data.newRole, session.sub);
     revalidatePath('/organization/team');
     return { ok: true };
   } catch (e) {
@@ -142,7 +142,7 @@ export async function deactivateOrgMemberAction(formData: FormData): Promise<Act
   const session = await requireOrganizationAdmin(parsed.data.organizationId);
 
   try {
-    await deactivateMember(prisma, parsed.data.orgUserId, session.sub);
+    await deactivateMember(prisma, parsed.data.organizationId, parsed.data.orgUserId, session.sub);
     revalidatePath('/organization/team');
     return { ok: true };
   } catch (e) {
@@ -162,7 +162,7 @@ export async function reactivateOrgMemberAction(formData: FormData): Promise<Act
   const session = await requireOrganizationAdmin(parsed.data.organizationId);
 
   try {
-    await reactivateMember(prisma, parsed.data.orgUserId, session.sub);
+    await reactivateMember(prisma, parsed.data.organizationId, parsed.data.orgUserId, session.sub);
     revalidatePath('/organization/team');
     return { ok: true };
   } catch (e) {

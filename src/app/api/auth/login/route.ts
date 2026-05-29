@@ -144,7 +144,11 @@ export async function POST(req: Request) {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
-    path: '/'
+    path: '/',
+    // Align the cookie lifetime with the 7d JWT expiry. Without maxAge this is a
+    // session cookie (cleared on browser close), so the effective session
+    // lifetime diverged from the token it carries.
+    maxAge: 60 * 60 * 24 * 7
   });
   return res;
 }

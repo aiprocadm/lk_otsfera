@@ -14,6 +14,13 @@ function n(val: unknown): number {
   return Number(val) || 0;
 }
 
+// Neutralise spreadsheet formula injection (OWASP CSV injection): a cell whose
+// text begins with = + - @ (or a leading tab/CR) is interpreted as a formula by
+// Excel/LibreOffice/Sheets. Prefix a single quote to force literal text.
+function safeText(value: string): string {
+  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+}
+
 function periodLabel(from: Date, to: Date): string {
   const f = new Date(from);
   const t = new Date(to);
@@ -60,8 +67,8 @@ export async function renderStatementXlsx(args: RenderStatementXlsxArgs): Promis
   items.forEach((item, idx) => {
     const row = ws.addRow({
       num: idx + 1,
-      orderNumber: item.orderNumber ?? '—',
-      organizationName: item.organizationName,
+      orderNumber: safeText(item.orderNumber ?? '—'),
+      organizationName: safeText(item.organizationName),
       baseAmount: n(item.baseAmount),
       rate: n(item.rate),
       commissionAmount: n(item.commissionAmount),
@@ -89,9 +96,9 @@ export async function renderStatementXlsx(args: RenderStatementXlsxArgs): Promis
   ];
 
   const summaryRows: [string, string | number][] = [
-    ['Партнёр',         partner.name],
+    ['Партнёр',         safeText(partner.name)],
     ['Период',          periodLabel(statement.periodFrom, statement.periodTo)],
-    ['Статус',          statement.status],
+    ['Статус',          safeText(statement.status)],
     ['Сформировано',    new Date(statement.calculatedAt).toLocaleDateString('ru-RU')],
     ['Итого база, ₽',   n(statement.totalBaseAmount)],
     ['Средняя ставка',  n(statement.averageRate)],
