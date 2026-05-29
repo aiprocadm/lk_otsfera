@@ -10,6 +10,15 @@ export function PartnerCreateForm() {
   const [error, setError] = useState<string | null>(null);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [slugError, setSlugError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  function copyInviteUrl() {
+    if (!inviteUrl) return;
+    navigator.clipboard.writeText(inviteUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   function validateSlug(value: string) {
     if (value && !/^[a-z0-9-]+$/.test(value)) {
@@ -101,13 +110,22 @@ export function PartnerCreateForm() {
       {inviteUrl && (
         <div role="status" className="text-sm bg-green-50 text-green-700 rounded px-3 py-2">
           Партнёр создан. Приглашение для администратора:
-          <input
-            type="text"
-            readOnly
-            value={inviteUrl}
-            className="w-full mt-2 border border-green-200 rounded px-2 py-1 font-mono text-xs"
-            onFocus={(e) => e.target.select()}
-          />
+          <div className="flex items-center gap-2 mt-2">
+            <input
+              type="text"
+              readOnly
+              value={inviteUrl}
+              className="flex-1 border border-green-200 rounded px-2 py-1 font-mono text-xs"
+              onFocus={(e) => e.target.select()}
+            />
+            <button
+              type="button"
+              onClick={copyInviteUrl}
+              className="px-3 py-1.5 bg-[#F97316] text-white text-sm rounded hover:bg-[#EA580C] whitespace-nowrap"
+            >
+              {copied ? 'Скопировано!' : 'Скопировать'}
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => router.push('/admin/partners')}

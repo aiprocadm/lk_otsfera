@@ -197,6 +197,39 @@ describe('createPartnerWithAdminAction', () => {
 
     expect(res).toEqual({ ok: false, error: 'duplicate_email' });
   });
+
+  it('converts form percentage to fraction before calling service (5 → 0.05)', async () => {
+    createPartnerWithAdmin.mockResolvedValue({
+      partner: { id: 'p-rate', name: 'P', slug: 'p-co' },
+      user: { id: 'u-rate', email: 'a@x.test' },
+      inviteToken: 'tok-rate'
+    });
+
+    await createPartnerWithAdminAction(
+      fd({ name: 'P', slug: 'p-co', commissionRate: '5', adminEmail: 'a@x.test', adminName: 'Admin' })
+    );
+
+    expect(createPartnerWithAdmin).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ commissionRate: 0.05 })
+    );
+  });
+
+  it('omits commissionRate when form field is empty (undefined → undefined)', async () => {
+    createPartnerWithAdmin.mockResolvedValue({
+      partner: { id: 'p-norat', name: 'P', slug: 'p-co' },
+      user: { id: 'u-norat', email: 'a@x.test' },
+      inviteToken: 'tok-norat'
+    });
+
+    await createPartnerWithAdminAction(
+      fd({ name: 'P', slug: 'p-co', adminEmail: 'a@x.test', adminName: 'Admin' })
+    );
+
+    const args = createPartnerWithAdmin.mock.calls[0][2];
+    expect(args.commissionRate).toBeUndefined();
+  });
 });
 
 describe('updatePartnerAction', () => {
@@ -228,6 +261,30 @@ describe('updatePartnerAction', () => {
     updatePartner.mockRejectedValue(new AdminPartnerError('not_found'));
     const res = await updatePartnerAction(fd({ id: 'gone-1', name: 'X' }));
     expect(res).toEqual({ ok: false, error: 'not_found' });
+  });
+
+  it('converts form percentage to fraction (5 → 0.05)', async () => {
+    updatePartner.mockResolvedValue(undefined);
+
+    await updatePartnerAction(fd({ id: 'p-1', commissionRate: '5' }));
+
+    expect(updatePartner).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      'p-1',
+      expect.objectContaining({ commissionRate: 0.05 })
+    );
+  });
+
+  it('passes empty commissionRate as undefined (clear rate → undefined)', async () => {
+    updatePartner.mockResolvedValue(undefined);
+
+    await updatePartnerAction(fd({ id: 'p-1', commissionRate: '' }));
+
+    const args = updatePartner.mock.calls[0][3];
+    // empty string → readField returns '' → || undefined → Zod optional → raw.commissionRate is undefined
+    // undefined != null is false so the ternary passes undefined through unchanged
+    expect(args.commissionRate).toBeUndefined();
   });
 });
 
