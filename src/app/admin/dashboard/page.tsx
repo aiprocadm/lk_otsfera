@@ -67,12 +67,15 @@ export default async function AdminDashboardPage() {
             <ul className="space-y-2 text-sm">
               {events.map((e) => (
                 <li key={e.id} className="flex items-center justify-between gap-3">
-                  <span className="text-gray-700 flex-1 min-w-0 truncate">
+                  <Link
+                    href={`/admin/audit?entity=${e.entity}&action=${e.verb}`}
+                    className="text-gray-700 flex-1 min-w-0 truncate hover:text-[#F97316] hover:underline"
+                  >
                     <span className="font-medium">{e.actor}</span>
                     {' — '}
                     {e.verb}
                     {e.entity ? ` (${e.entity}` + (e.entityRef ? ` #${e.entityRef}` : '') + ')' : ''}
-                  </span>
+                  </Link>
                   <span className="text-gray-400 text-xs whitespace-nowrap">
                     {e.timestamp.toLocaleString('ru-RU')}
                   </span>
