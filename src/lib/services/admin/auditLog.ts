@@ -1,6 +1,12 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { AuditEntity } from '@/lib/auth/audit';
 
+export type AuditFiltersOptions = {
+  entities: AuditEntity[];
+  actions: string[];
+  actors: Array<{ id: string; name: string; email: string }>;
+};
+
 export type AuditFilters = {
   entity?: AuditEntity;
   action?: string;
@@ -68,5 +74,41 @@ export async function listAudit(
       meta: r.meta
     })),
     nextCursor
+  };
+}
+
+export async function listAuditFilters(
+  prisma: PrismaClient
+): Promise<AuditFiltersOptions> {
+  const [entityRows, actionRows] = await Promise.all([
+    prisma.auditLog.findMany({
+      distinct: ['entity'],
+      select: { entity: true },
+      orderBy: { entity: 'asc' }
+    }),
+    prisma.auditLog.findMany({
+      distinct: ['action'],
+      select: { action: true },
+      orderBy: { action: 'asc' }
+    })
+  ]);
+
+  const actorIds = await prisma.auditLog.findMany({
+    distinct: ['userId'],
+    select: { userId: true },
+    take: 200
+  });
+  const actors = actorIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: actorIds.map((r) => r.userId) } },
+        select: { id: true, name: true, email: true },
+        orderBy: { name: 'asc' }
+      })
+    : [];
+
+  return {
+    entities: entityRows.map((r) => r.entity as AuditEntity),
+    actions: actionRows.map((r) => r.action),
+    actors
   };
 }

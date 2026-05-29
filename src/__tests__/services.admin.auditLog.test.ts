@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 
-import { listAudit } from '@/lib/services/admin/auditLog';
+import { listAudit, listAuditFilters } from '@/lib/services/admin/auditLog';
 
 // ---------------------------------------------------------------------------
 // Prisma mock factory
@@ -272,5 +272,128 @@ describe('listAudit() — take clamping', () => {
     await listAudit(prisma, { take: 0 });
 
     expect(findMany.mock.calls[0][0].take).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// listAuditFilters
+// ---------------------------------------------------------------------------
+function makeFiltersPrisma(
+  auditLogFindMany: ReturnType<typeof vi.fn>,
+  userFindMany: ReturnType<typeof vi.fn>
+) {
+  return {
+    auditLog: { findMany: auditLogFindMany },
+    user: { findMany: userFindMany },
+  } as unknown as PrismaClient;
+}
+
+describe('listAuditFilters() — query args', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('issues entity distinct query with correct distinct/select/orderBy', async () => {
+    const auditFindMany = vi
+      .fn()
+      .mockResolvedValueOnce([{ entity: 'lead' }])   // entity distinct
+      .mockResolvedValueOnce([{ action: 'lead_created' }]) // action distinct
+      .mockResolvedValueOnce([]); // userId distinct
+    const userFindMany = vi.fn().mockResolvedValue([]);
+    const prisma = makeFiltersPrisma(auditFindMany, userFindMany);
+
+    await listAuditFilters(prisma);
+
+    // First two calls are done via Promise.all so order is positional (entity=0, action=1)
+    const entityCall = auditFindMany.mock.calls[0][0];
+    expect(entityCall.distinct).toEqual(['entity']);
+    expect(entityCall.select).toEqual({ entity: true });
+    expect(entityCall.orderBy).toEqual({ entity: 'asc' });
+  });
+
+  it('issues action distinct query with correct distinct/select/orderBy', async () => {
+    const auditFindMany = vi
+      .fn()
+      .mockResolvedValueOnce([{ entity: 'order' }])
+      .mockResolvedValueOnce([{ action: 'order_updated' }])
+      .mockResolvedValueOnce([]);
+    const userFindMany = vi.fn().mockResolvedValue([]);
+    const prisma = makeFiltersPrisma(auditFindMany, userFindMany);
+
+    await listAuditFilters(prisma);
+
+    const actionCall = auditFindMany.mock.calls[1][0];
+    expect(actionCall.distinct).toEqual(['action']);
+    expect(actionCall.select).toEqual({ action: true });
+    expect(actionCall.orderBy).toEqual({ action: 'asc' });
+  });
+
+  it('issues userId distinct query with distinct/select/take:200', async () => {
+    const auditFindMany = vi
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    const userFindMany = vi.fn().mockResolvedValue([]);
+    const prisma = makeFiltersPrisma(auditFindMany, userFindMany);
+
+    await listAuditFilters(prisma);
+
+    const userIdCall = auditFindMany.mock.calls[2][0];
+    expect(userIdCall.distinct).toEqual(['userId']);
+    expect(userIdCall.select).toEqual({ userId: true });
+    expect(userIdCall.take).toBe(200);
+  });
+});
+
+describe('listAuditFilters() — return shape', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('maps entity rows to entities array and action rows to actions array', async () => {
+    const auditFindMany = vi
+      .fn()
+      .mockResolvedValueOnce([{ entity: 'lead' }, { entity: 'order' }])
+      .mockResolvedValueOnce([{ action: 'lead_created' }, { action: 'order_updated' }])
+      .mockResolvedValueOnce([{ userId: 'user-1' }]);
+    const userFindMany = vi
+      .fn()
+      .mockResolvedValue([{ id: 'user-1', name: 'Иван', email: 'ivan@example.com' }]);
+    const prisma = makeFiltersPrisma(auditFindMany, userFindMany);
+
+    const result = await listAuditFilters(prisma);
+
+    expect(result.entities).toEqual(['lead', 'order']);
+    expect(result.actions).toEqual(['lead_created', 'order_updated']);
+  });
+
+  it('passes correct where.id.in to user.findMany with the distinct userId list', async () => {
+    const auditFindMany = vi
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ userId: 'u-1' }, { userId: 'u-2' }]);
+    const actor1 = { id: 'u-1', name: 'Анна', email: 'anna@example.com' };
+    const actor2 = { id: 'u-2', name: 'Борис', email: 'boris@example.com' };
+    const userFindMany = vi.fn().mockResolvedValue([actor1, actor2]);
+    const prisma = makeFiltersPrisma(auditFindMany, userFindMany);
+
+    const result = await listAuditFilters(prisma);
+
+    const userCall = userFindMany.mock.calls[0][0];
+    expect(userCall.where).toEqual({ id: { in: ['u-1', 'u-2'] } });
+    expect(result.actors).toEqual([actor1, actor2]);
+  });
+
+  it('does NOT call user.findMany and returns actors:[] when userId distinct is empty', async () => {
+    const auditFindMany = vi
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]); // no userId rows
+    const userFindMany = vi.fn();
+    const prisma = makeFiltersPrisma(auditFindMany, userFindMany);
+
+    const result = await listAuditFilters(prisma);
+
+    expect(userFindMany).not.toHaveBeenCalled();
+    expect(result.actors).toEqual([]);
   });
 });
