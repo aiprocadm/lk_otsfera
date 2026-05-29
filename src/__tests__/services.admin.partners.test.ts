@@ -8,11 +8,16 @@ import {
   updatePartner,
   deactivatePartner,
   reactivatePartner,
+  createPartnerWithAdmin,
   AdminPartnerError
 } from '@/lib/services/admin/partners';
 
-const { recordAuditMock } = vi.hoisted(() => ({ recordAuditMock: vi.fn() }));
+const { recordAuditMock, createInviteTokenMock } = vi.hoisted(() => ({
+  recordAuditMock: vi.fn(),
+  createInviteTokenMock: vi.fn()
+}));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
+vi.mock('@/lib/auth/passwordReset', () => ({ createInviteToken: createInviteTokenMock }));
 
 // ---------------------------------------------------------------------------
 // Prisma mock factory
@@ -615,5 +620,130 @@ describe('reactivatePartner()', () => {
         after: { isActive: true }
       })
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// createPartnerWithAdmin()
+// ---------------------------------------------------------------------------
+describe('createPartnerWithAdmin()', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    createInviteTokenMock.mockResolvedValue({ token: 'invite-token-abc', expiresAt: new Date() });
+  });
+
+  function makeTxForCreate({
+    slugExists = null,
+    emailExists = null,
+    createdPartner = { id: 'p2', name: 'New Partner', slug: 'new-partner' },
+    createdUser = { id: 'u2', email: 'admin@new.com' }
+  }: {
+    slugExists?: unknown;
+    emailExists?: unknown;
+    createdPartner?: { id: string; name: string; slug: string | null };
+    createdUser?: { id: string; email: string };
+  } = {}) {
+    return {
+      partner: {
+        findUnique: vi.fn().mockResolvedValue(slugExists),
+        create: vi.fn().mockResolvedValue(createdPartner)
+      },
+      user: {
+        findUnique: vi.fn().mockResolvedValue(emailExists),
+        create: vi.fn().mockResolvedValue(createdUser)
+      },
+      partnerUser: {
+        create: vi.fn().mockResolvedValue({})
+      },
+      passwordResetToken: {
+        create: vi.fn().mockResolvedValue({})
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({}) }
+    };
+  }
+
+  function makePrismaWithTx(tx: ReturnType<typeof makeTxForCreate>) {
+    return {
+      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => unknown) => fn(tx))
+    } as unknown as PrismaClient;
+  }
+
+  const baseArgs = {
+    name: 'New Partner',
+    slug: 'new-partner',
+    commissionRate: 0.05,
+    adminEmail: 'admin@new.com',
+    adminName: 'Admin User'
+  };
+
+  it('throws duplicate_slug before partner.create when slug already exists', async () => {
+    const tx = makeTxForCreate({ slugExists: { id: 'existing', slug: 'new-partner' } });
+    const prisma = makePrismaWithTx(tx);
+
+    await expect(createPartnerWithAdmin(prisma, 'actor1', baseArgs))
+      .rejects.toMatchObject({ code: 'duplicate_slug' });
+
+    expect(tx.partner.create).toHaveBeenCalledTimes(0);
+  });
+
+  it('throws duplicate_email before partner.create when email already exists', async () => {
+    const tx = makeTxForCreate({ emailExists: { id: 'u-existing', email: 'admin@new.com' } });
+    const prisma = makePrismaWithTx(tx);
+
+    await expect(createPartnerWithAdmin(prisma, 'actor1', baseArgs))
+      .rejects.toMatchObject({ code: 'duplicate_email' });
+
+    expect(tx.partner.create).toHaveBeenCalledTimes(0);
+  });
+
+  it('happy path: calls all 4 operations, records audit, returns expected shape', async () => {
+    const tx = makeTxForCreate();
+    const prisma = makePrismaWithTx(tx);
+
+    const result = await createPartnerWithAdmin(prisma, 'actor1', baseArgs);
+
+    // All 4 core operations called
+    expect(tx.partner.create).toHaveBeenCalledTimes(1);
+    expect(tx.user.create).toHaveBeenCalledTimes(1);
+    expect(tx.partnerUser.create).toHaveBeenCalledTimes(1);
+    expect(createInviteTokenMock).toHaveBeenCalledTimes(1);
+
+    // commissionRate stored as Decimal(0.05)
+    const partnerCreateCall = tx.partner.create.mock.calls[0][0];
+    expect(partnerCreateCall.data.commissionRate.equals(new Prisma.Decimal('0.05'))).toBe(true);
+
+    // partnerUser created with roleInPartner: 'admin' and empty assignedOrgIds
+    expect(tx.partnerUser.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          roleInPartner: 'admin',
+          assignedOrgIds: []
+        })
+      })
+    );
+
+    // Audit recorded with correct action and after snapshot
+    expect(recordAuditMock).toHaveBeenCalledTimes(1);
+    expect(recordAuditMock).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        action: 'partner_created',
+        entity: 'partner',
+        entityId: 'p2',
+        after: expect.objectContaining({
+          name: 'New Partner',
+          slug: 'new-partner',
+          commissionRate: '0.05',
+          adminEmail: 'admin@new.com'
+        })
+      })
+    );
+
+    // Return shape
+    expect(result).toEqual({
+      partner: { id: 'p2', name: 'New Partner', slug: 'new-partner' },
+      user: { id: 'u2', email: 'admin@new.com' },
+      inviteToken: 'invite-token-abc'
+    });
   });
 });

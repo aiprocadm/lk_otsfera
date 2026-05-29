@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import type { AdminUserErrorCode } from '@/lib/services/admin/users';
 import { recordAudit } from '@/lib/auth/audit';
+import { createInviteToken } from '@/lib/auth/passwordReset';
 
 export type AdminPartnerErrorCode = 'forbidden' | 'not_found' | 'duplicate_slug' | AdminUserErrorCode;
 
@@ -235,5 +236,85 @@ export async function reactivatePartner(
       before: { isActive: false },
       after: { isActive: true }
     });
+  });
+}
+
+export type CreatePartnerWithAdminArgs = {
+  name: string;
+  slug: string;
+  commissionRate?: number | null;
+  adminEmail: string;
+  adminName: string;
+};
+
+export type CreatePartnerWithAdminResult = {
+  partner: { id: string; name: string; slug: string };
+  user: { id: string; email: string };
+  inviteToken: string;
+};
+
+export async function createPartnerWithAdmin(
+  prisma: PrismaClient,
+  actorUserId: string,
+  args: CreatePartnerWithAdminArgs
+): Promise<CreatePartnerWithAdminResult> {
+  return prisma.$transaction(async (tx) => {
+    const slugExists = await tx.partner.findUnique({ where: { slug: args.slug } });
+    if (slugExists) throw new AdminPartnerError('duplicate_slug');
+
+    const emailExists = await tx.user.findUnique({ where: { email: args.adminEmail } });
+    if (emailExists) throw new AdminPartnerError('duplicate_email');
+
+    // commissionRate is Decimal NOT NULL with default 0; null/undefined means "no rate" → Decimal(0)
+    const partner = await tx.partner.create({
+      data: {
+        name: args.name,
+        slug: args.slug,
+        commissionRate: args.commissionRate != null ? new Prisma.Decimal(args.commissionRate) : new Prisma.Decimal(0),
+        isActive: true
+      }
+    });
+
+    const user = await tx.user.create({
+      data: {
+        email: args.adminEmail,
+        name: args.adminName,
+        role: 'partner',
+        partnerId: partner.id,
+        passwordHash: null,
+        isActive: true
+      }
+    });
+
+    await tx.partnerUser.create({
+      data: {
+        userId: user.id,
+        partnerId: partner.id,
+        roleInPartner: 'admin',
+        assignedOrgIds: []
+      }
+    });
+
+    const { token } = await createInviteToken(tx, user.id);
+
+    await recordAudit(tx, {
+      userId: actorUserId,
+      action: 'partner_created',
+      entity: 'partner',
+      entityId: partner.id,
+      after: {
+        name: args.name,
+        slug: args.slug,
+        commissionRate: args.commissionRate != null ? String(args.commissionRate) : null,
+        adminUserId: user.id,
+        adminEmail: args.adminEmail
+      }
+    });
+
+    return {
+      partner: { id: partner.id, name: partner.name, slug: partner.slug ?? '' },
+      user: { id: user.id, email: user.email },
+      inviteToken: token
+    };
   });
 }
