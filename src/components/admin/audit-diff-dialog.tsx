@@ -18,10 +18,14 @@ function maskValue(key: string, value: unknown): unknown {
 
 function maskedJsonString(meta: unknown, keys: string[]): string {
   if (!meta || typeof meta !== 'object') return '';
-  const filtered = Object.fromEntries(
-    Object.entries(meta as Record<string, unknown>).filter(([k]) => keys.includes(k))
-  );
-  return JSON.stringify(maskValue('', filtered), null, 2);
+  const record = meta as Record<string, unknown>;
+  const parts = keys
+    .filter((k) => k in record)
+    .map((k) => [k, maskValue(k, record[k])] as const);
+  if (parts.length === 0) return '';
+  // Single key (before/after): unwrap — the panel header already names it.
+  if (parts.length === 1) return JSON.stringify(parts[0][1], null, 2);
+  return JSON.stringify(Object.fromEntries(parts), null, 2);
 }
 
 function maskedExtraJsonString(meta: unknown, excludeKeys: string[]): string {
@@ -34,6 +38,7 @@ function maskedExtraJsonString(meta: unknown, excludeKeys: string[]): string {
 }
 
 export function AuditDiffDialog({ row, onClose }: { row: AuditRow; onClose: () => void }) {
+  // Only mounted while open, so it is always "open" from the hook's view.
   const ref = useDialogFocus(true);
 
   useEffect(() => {

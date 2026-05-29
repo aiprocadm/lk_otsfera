@@ -40,6 +40,7 @@ describe('AuditDiffDialog', () => {
     );
     expect(html).not.toContain('tok-xyz');
     expect(html).not.toContain('sig=secret');
+    expect(html).toContain('*****');
   });
 
   it('отрисовывает «Прочие meta-поля» для нестандартных ключей', () => {
