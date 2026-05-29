@@ -295,7 +295,7 @@ describe('deactivatePartnerAction', () => {
     expect(deactivatePartner).not.toHaveBeenCalled();
   });
 
-  it('happy path calls deactivatePartner and revalidates', async () => {
+  it('happy path calls deactivatePartner and revalidates list + detail', async () => {
     deactivatePartner.mockResolvedValue(undefined);
 
     const res = await deactivatePartnerAction(fd({ id: 'p-20' }));
@@ -303,6 +303,7 @@ describe('deactivatePartnerAction', () => {
     expect(res).toEqual({ ok: true });
     expect(deactivatePartner).toHaveBeenCalledWith(expect.anything(), 'admin-1', 'p-20');
     expect(revalidatePath).toHaveBeenCalledWith('/admin/partners');
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/partners/p-20');
   });
 
   it('maps AdminPartnerError(not_found) to Failure', async () => {
@@ -319,7 +320,7 @@ describe('reactivatePartnerAction', () => {
     expect(reactivatePartner).not.toHaveBeenCalled();
   });
 
-  it('happy path calls reactivatePartner and revalidates', async () => {
+  it('happy path calls reactivatePartner and revalidates list + detail', async () => {
     reactivatePartner.mockResolvedValue(undefined);
 
     const res = await reactivatePartnerAction(fd({ id: 'p-30' }));
@@ -327,6 +328,7 @@ describe('reactivatePartnerAction', () => {
     expect(res).toEqual({ ok: true });
     expect(reactivatePartner).toHaveBeenCalledWith(expect.anything(), 'admin-1', 'p-30');
     expect(revalidatePath).toHaveBeenCalledWith('/admin/partners');
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/partners/p-30');
   });
 
   it('maps AdminPartnerError(not_found) to Failure', async () => {

@@ -122,6 +122,7 @@ export async function deactivatePartnerAction(fd: FormData): Promise<ActionResul
   try {
     await deactivatePartner(prisma, session.sub, parsed.data.id);
     revalidatePath('/admin/partners');
+    revalidatePath(`/admin/partners/${parsed.data.id}`);
     return { ok: true };
   } catch (e) {
     return mapErr(e);
@@ -136,6 +137,7 @@ export async function reactivatePartnerAction(fd: FormData): Promise<ActionResul
   try {
     await reactivatePartner(prisma, session.sub, parsed.data.id);
     revalidatePath('/admin/partners');
+    revalidatePath(`/admin/partners/${parsed.data.id}`);
     return { ok: true };
   } catch (e) {
     return mapErr(e);
