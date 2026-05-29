@@ -1,3 +1,4 @@
+#!/usr/bin/env sh
 # L2: pre-push — full unit suite. Target ~15-30 sec.
 #
 # Guarantees that what leaves this machine compiles and the mock-based
