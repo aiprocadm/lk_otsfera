@@ -5,6 +5,7 @@ import { dirname } from 'node:path';
 const PARTNER_AUTH_FILE = 'playwright-report/.auth/partner.json';
 const ORG_AUTH_FILE = 'playwright-report/.auth/organization.json';
 const MANAGER_AUTH_FILE = 'playwright-report/.auth/manager.json';
+const ADMIN_AUTH_FILE = 'playwright-report/.auth/admin.json';
 
 const PARTNER_EMAIL = process.env.E2E_PARTNER_EMAIL ?? 'partner@demo.local';
 const PARTNER_PASSWORD = process.env.E2E_PARTNER_PASSWORD ?? 'Password123!';
@@ -14,6 +15,9 @@ const ORG_PASSWORD = process.env.E2E_ORG_PASSWORD ?? 'Password123!';
 
 const MANAGER_EMAIL = process.env.E2E_MANAGER_EMAIL ?? 'manager@demo.local';
 const MANAGER_PASSWORD = process.env.E2E_MANAGER_PASSWORD ?? 'Password123!';
+
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? 'admin@demo.local';
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'Password123!';
 
 function ensureDir(file: string) {
   if (!existsSync(dirname(file))) {
@@ -76,4 +80,19 @@ setup('authenticate as manager', async ({ page, context }) => {
   await expect(page).toHaveURL(/\/manager\/dashboard/);
 
   await context.storageState({ path: MANAGER_AUTH_FILE });
+});
+
+setup('authenticate as admin', async ({ page, context }) => {
+  ensureDir(ADMIN_AUTH_FILE);
+
+  await page.goto('/login');
+  await page.locator('input[type="email"]').fill(ADMIN_EMAIL);
+  await page.locator('input[type="password"]').fill(ADMIN_PASSWORD);
+  await page.getByRole('button', { name: /войти|sign in|log in/i }).click();
+
+  // Successful login redirects role-aware via /dashboard → /admin/dashboard.
+  await page.waitForURL(/\/admin\/dashboard/);
+  await expect(page).toHaveURL(/\/admin\/dashboard/);
+
+  await context.storageState({ path: ADMIN_AUTH_FILE });
 });

@@ -46,7 +46,7 @@ export default defineConfig({
         storageState: 'playwright-report/.auth/partner.json',
       },
       dependencies: ['setup'],
-      testMatch: /snapshots\/(?!organization-|manager-).*\.spec\.ts/,
+      testMatch: /snapshots\/(?!organization-|manager-|admin-).*\.spec\.ts/,
     },
     {
       name: 'mobile',
@@ -56,7 +56,7 @@ export default defineConfig({
         storageState: 'playwright-report/.auth/partner.json',
       },
       dependencies: ['setup'],
-      testMatch: /snapshots\/(?!organization-|manager-).*\.spec\.ts/,
+      testMatch: /snapshots\/(?!organization-|manager-|admin-).*\.spec\.ts/,
     },
     // Organization cabinet snapshots — only files prefixed with `organization-`.
     // Uses the organization storageState.
@@ -101,6 +101,28 @@ export default defineConfig({
       },
       dependencies: ['setup'],
       testMatch: /snapshots\/manager-.*\.spec\.ts/,
+    },
+    // Admin cabinet snapshots — only files prefixed with `admin-`. Uses the
+    // admin storageState seeded by `admin@demo.local` in prisma/seed.ts.
+    {
+      name: 'admin-desktop',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1280, height: 800 },
+        storageState: 'playwright-report/.auth/admin.json',
+      },
+      dependencies: ['setup'],
+      testMatch: /snapshots\/admin-.*\.spec\.ts/,
+    },
+    {
+      name: 'admin-mobile',
+      use: {
+        ...devices['iPhone 13'],
+        viewport: { width: 375, height: 667 },
+        storageState: 'playwright-report/.auth/admin.json',
+      },
+      dependencies: ['setup'],
+      testMatch: /snapshots\/admin-.*\.spec\.ts/,
     },
   ],
   webServer: process.env.PLAYWRIGHT_BASE_URL
