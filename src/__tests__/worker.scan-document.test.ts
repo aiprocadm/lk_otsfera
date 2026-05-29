@@ -121,20 +121,23 @@ describe('scanDocumentProcessor', () => {
     expect(db.syncLog.create).not.toHaveBeenCalled();
   });
 
-  it('falls back to clean + warn when ClamAV is unreachable', async () => {
+  it('re-throws when ClamAV is unreachable (job retries) and never marks the file clean', async () => {
     process.env.CLAMAV_HOST = 'clamav.local';
     const db = makeDb();
     const deps = makeDeps({
       scan: vi.fn().mockRejectedValue(new Error('ECONNREFUSED')),
     });
 
-    const result = await scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps);
+    await expect(
+      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps),
+    ).rejects.toThrow(/ECONNREFUSED/);
 
-    expect(result.scanStatus).toBe('clean');
+    // Must NOT persist any status (especially not 'clean') on a scanner outage.
+    expect(db.document.update).not.toHaveBeenCalled();
     expect(db.syncLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         entity: 'scan',
-        status: 'warn',
+        status: 'error',
         errorMessage: expect.stringContaining('ECONNREFUSED'),
       }),
     });

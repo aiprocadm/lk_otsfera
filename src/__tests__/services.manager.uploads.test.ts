@@ -60,7 +60,7 @@ function pdfArgs(overrides: Partial<{ size: number; mimeType: string; name: stri
       name: overrides.name ?? 'invoice.pdf',
       size: overrides.size ?? 1024,
       mimeType: overrides.mimeType ?? 'application/pdf',
-      buffer: Buffer.from('hello')
+      buffer: Buffer.from('%PDF-1.4 minimal pdf bytes')
     }
   };
 }

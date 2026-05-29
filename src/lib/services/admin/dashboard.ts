@@ -211,7 +211,9 @@ export async function recentEvents(
 
   return rows.map((r) => ({
     id: r.id,
-    actor: r.user.name || r.user.email,
+    // AuditLog.user is nullable (the actor may have been deleted). Guard against
+    // a TypeError that would 500 the whole admin dashboard — mirrors listAudit.
+    actor: r.user?.name || r.user?.email || '—',
     verb: r.action,
     entity: r.entity,
     entityRef: r.entityId,

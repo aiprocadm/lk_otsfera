@@ -83,7 +83,10 @@ export async function getStatementAuditLog(
 ): Promise<StatementAuditEntry[]> {
   const entries = await prisma.auditLog.findMany({
     where: {
-      entity: 'CommissionStatement',
+      // Writers (lifecycle.ts, statement.ts, seed.ts) all use the snake_case
+      // entity string; querying 'CommissionStatement' matched nothing, leaving
+      // the admin statement audit trail permanently empty.
+      entity: 'commission_statement',
       entityId: statementId,
     },
     orderBy: { createdAt: 'asc' },

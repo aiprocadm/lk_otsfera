@@ -31,7 +31,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { href: '/partner/team', label: 'Команда' }
   ],
   organization: [
-    { href: '/organization/dashboard', label: 'Dashboard организации' },
+    { href: '/organization/dashboard', label: 'Dashboard организации', flag: 'organization_cabinet' },
     { href: '/student', label: 'Кабинет слушателя' }
   ],
   student: [{ href: '/student', label: 'Обучение' }]

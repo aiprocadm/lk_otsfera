@@ -76,11 +76,14 @@ export async function canReadOrder(session: SessionPayload, order: OrderLike) {
 export async function canReadDocument(session: SessionPayload, document: DocumentLike) {
   const doc = document.order?.companyId
     ? document
-    : await prisma.document.findUnique({ where: { id: document.id }, select: { id: true, order: { select: { companyId: true } } } });
+    : await prisma.document.findUnique({ where: { id: document.id }, select: { id: true, orderId: true, order: { select: { companyId: true } } } });
 
   if (!doc?.order?.companyId) return false;
 
-  return canReadOrder(session, { id: doc.id, companyId: doc.order.companyId });
+  // Pass the parent ORDER id, not the document id: canReadOrder() for the
+  // manager role looks the Order up by this id, so passing doc.id silently
+  // denied every manager. Both branches carry orderId now.
+  return canReadOrder(session, { id: doc.orderId, companyId: doc.order.companyId });
 }
 
 export function isPartnerAdmin(session: SessionPayload): boolean {

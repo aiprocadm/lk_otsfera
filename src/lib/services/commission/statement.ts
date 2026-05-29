@@ -70,7 +70,7 @@ type OrderWithCompany = {
 async function resolveRatesAndOrgNames(
   prisma: PrismaClient,
   orders: OrderWithCompany[],
-  partnerDefaultRate: number
+  partnerDefaultRate: Prisma.Decimal
 ): Promise<OrderForCalc[]> {
   const companyIds = Array.from(new Set(orders.map((o) => o.companyId)));
   const partnerId = orders[0]?.partnerId ?? null;
@@ -86,12 +86,14 @@ async function resolveRatesAndOrgNames(
       })
     : [];
 
-  const byCompany = new Map<string, { name: string; rate: number | null }>();
+  const byCompany = new Map<string, { name: string; rate: Prisma.Decimal | null }>();
   for (const org of orgs) {
     if (!org.companyId) continue;
     byCompany.set(org.companyId, {
       name: org.name,
-      rate: org.partnerCommissionRate ? Number(org.partnerCommissionRate) : null
+      // Keep the override as Decimal — coercing to number here was half of the
+      // precision-loss bug; the calculator consumes Decimal end-to-end now.
+      rate: org.partnerCommissionRate ?? null
     });
   }
 
@@ -103,9 +105,9 @@ async function resolveRatesAndOrgNames(
       id: o.id,
       orderNumber: o.orderNumber,
       organizationName,
-      totalAmount: Number(o.totalAmount),
+      totalAmount: o.totalAmount,
       vatIncluded: o.vatIncluded,
-      vatRate: o.vatRate ? Number(o.vatRate) : null,
+      vatRate: o.vatRate,
       rate
     };
   });
@@ -124,7 +126,7 @@ export async function calculateStatementForPartner(
   if (!partner) {
     throw new Error('PARTNER_NOT_FOUND');
   }
-  const partnerDefaultRate = Number(partner.commissionRate);
+  const partnerDefaultRate = partner.commissionRate;
 
   const orders = await prisma.order.findMany({
     where: buildOrdersWhere(partnerId, periodFrom, periodTo),
@@ -244,7 +246,7 @@ export async function calculateStatementForPartner(
         periodFrom: periodFrom.toISOString(),
         periodTo: periodTo.toISOString(),
         itemCount: calc.items.length,
-        totalCommission: calc.totals.totalCommissionAmount,
+        totalCommission: calc.totals.totalCommissionAmount.toString(),
         isNew,
         supersededOldId: !isNew ? null : existing?.id ?? null,
       },

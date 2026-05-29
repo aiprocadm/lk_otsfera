@@ -1,26 +1,37 @@
+import { Prisma } from '@prisma/client';
+
+/**
+ * Commission calculator — money math is done end-to-end on Prisma.Decimal
+ * (decimal.js), never JS `number`. Coercing Decimal→number loses precision and
+ * `Math.round(n*100)/100` mis-rounds exact `.xx5` boundaries (e.g. 20.70 × 5% =
+ * 1.035 silently became 1.03). All amounts are rounded HALF_UP to kopeck scale,
+ * and each statement total is the *exact sum of the already-rounded line
+ * amounts* so the document stays internally consistent (lines add up to total).
+ */
+
 export type OrderForCalc = {
   id: string;
   orderNumber: string | null;
   organizationName: string;
-  totalAmount: number;
+  totalAmount: Prisma.Decimal;
   vatIncluded: boolean;
-  vatRate: number | null;
-  rate: number;
+  vatRate: Prisma.Decimal | null;
+  rate: Prisma.Decimal;
 };
 
 export type CalculatorItem = {
   orderId: string;
   orderNumber: string | null;
   organizationName: string;
-  baseAmount: number;
-  rate: number;
-  commissionAmount: number;
+  baseAmount: Prisma.Decimal;
+  rate: Prisma.Decimal;
+  commissionAmount: Prisma.Decimal;
 };
 
 export type CalculatorTotals = {
-  totalBaseAmount: number;
-  totalCommissionAmount: number;
-  averageRate: number;
+  totalBaseAmount: Prisma.Decimal;
+  totalCommissionAmount: Prisma.Decimal;
+  averageRate: Prisma.Decimal;
 };
 
 export type CalculatorResult = {
@@ -32,21 +43,20 @@ export type CalculatorOptions = {
   vatMode?: 'full' | 'exclude_vat';
 };
 
-const DEFAULT_VAT_RATE = 0.2;
+const DEFAULT_VAT_RATE = new Prisma.Decimal('0.2');
+const MONEY_SCALE = 2; // kopecks
+const RATE_SCALE = 4; // commission rate precision (Decimal(6,4) in schema)
+const HALF_UP = Prisma.Decimal.ROUND_HALF_UP;
+const ZERO = new Prisma.Decimal(0);
 
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
+function toMoney(value: Prisma.Decimal): Prisma.Decimal {
+  return value.toDecimalPlaces(MONEY_SCALE, HALF_UP);
 }
 
-function round4(n: number): number {
-  return Math.round(n * 10000) / 10000;
-}
-
-function baseAmountFor(order: OrderForCalc, vatMode: 'full' | 'exclude_vat'): number {
-  if (vatMode === 'full') return order.totalAmount;
-  if (!order.vatIncluded) return order.totalAmount;
+function baseAmountFor(order: OrderForCalc, vatMode: 'full' | 'exclude_vat'): Prisma.Decimal {
+  if (vatMode === 'full' || !order.vatIncluded) return order.totalAmount;
   const vatRate = order.vatRate ?? DEFAULT_VAT_RATE;
-  return order.totalAmount / (1 + vatRate);
+  return order.totalAmount.div(new Prisma.Decimal(1).plus(vatRate));
 }
 
 export function calculateCommission(
@@ -56,8 +66,8 @@ export function calculateCommission(
   const vatMode = opts.vatMode ?? 'full';
 
   const items: CalculatorItem[] = orders.map((o) => {
-    const baseAmount = round2(baseAmountFor(o, vatMode));
-    const commissionAmount = round2(baseAmount * o.rate);
+    const baseAmount = toMoney(baseAmountFor(o, vatMode));
+    const commissionAmount = toMoney(baseAmount.mul(o.rate));
     return {
       orderId: o.id,
       orderNumber: o.orderNumber,
@@ -68,10 +78,15 @@ export function calculateCommission(
     };
   });
 
-  const totalBaseAmount = round2(items.reduce((s, i) => s + i.baseAmount, 0));
-  const totalCommissionAmount = round2(items.reduce((s, i) => s + i.commissionAmount, 0));
-  const weightedRateSum = items.reduce((s, i) => s + i.rate * i.baseAmount, 0);
-  const averageRate = totalBaseAmount > 0 ? round4(weightedRateSum / totalBaseAmount) : 0;
+  // Totals are the exact sum of the already-rounded line amounts (each line is a
+  // payable kopeck amount), so Σ lines === total by construction — no re-round,
+  // no float drift.
+  const totalBaseAmount = items.reduce((sum, i) => sum.plus(i.baseAmount), ZERO);
+  const totalCommissionAmount = items.reduce((sum, i) => sum.plus(i.commissionAmount), ZERO);
+  const weightedRateSum = items.reduce((sum, i) => sum.plus(i.rate.mul(i.baseAmount)), ZERO);
+  const averageRate = totalBaseAmount.gt(0)
+    ? weightedRateSum.div(totalBaseAmount).toDecimalPlaces(RATE_SCALE, HALF_UP)
+    : ZERO;
 
   return {
     items,

@@ -7,6 +7,7 @@ import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { notifyOrgUsers } from '@/lib/notifications';
+import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
 
 /**
  * Manager-facing upload service for order documents.
@@ -87,6 +88,15 @@ export async function createOrderDocument(
   }
   if (!ALLOWED_MIME_TYPES.has(args.file.mimeType)) {
     return { ok: false, error: 'invalid_mime' };
+  }
+  // Defense-in-depth: fingerprint the bytes for MIME types we can validate
+  // (defeats content-type spoofing). Legacy types the validator doesn't cover
+  // (e.g. application/vnd.ms-excel) fall through to the async ClamAV scan.
+  if ((SUPPORTED_MIME_TYPES as readonly string[]).includes(args.file.mimeType)) {
+    const validation = validateMagicBytes(args.file.mimeType, args.file.buffer);
+    if (!validation.ok) {
+      return { ok: false, error: 'invalid_mime' };
+    }
   }
 
   const order = await prisma.order.findUnique({
