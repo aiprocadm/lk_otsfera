@@ -1,11 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import React from 'react';
-
-// useDialogFocus uses useEffect + useRef — stubs out for SSR rendering in tests
-vi.mock('@/hooks/useDialogFocus', () => ({
-  useDialogFocus: () => ({ current: null })
-}));
 
 import { AuditDiffDialog } from '@/components/admin/audit-diff-dialog';
 
