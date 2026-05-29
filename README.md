@@ -138,7 +138,7 @@ npm run build
 | Partner | `/partner/*` | — | always on | Production (Phase 0–5 done) |
 | Organization | `/organization/*` | `FEATURE_ORGANIZATION_CABINET` | **opt-in** (off) | Staged rollout (Phase 7 done, operator-driven enablement) |
 | Manager | `/manager/*` | `FEATURE_MANAGER_CABINET` | **opt-in** (off) | Staged rollout (Phase 8 done, operator-driven enablement) |
-| Admin | `/admin/*` | — | always on | Partial (Phase 6.0–6.2 done; sub-phases 6.3–6.7 not started — см. [admin-cabinet-mvp-PARTIAL.md](docs/superpowers/plans/2026-05-24-admin-cabinet-mvp-PARTIAL.md)) |
+| Admin | `/admin/*` | — | always on | Production (Phase 6.0–6.7 done — см. [admin-cabinet-6.3-6.7-DONE.md](docs/superpowers/plans/2026-05-29-admin-cabinet-6.3-6.7-DONE.md)) |
 | Student | `/student/*` | — | always on | Production (bridge redirect) |
 
 Opt-in флаги означают: код в `main`, но эндпоинты возвращают 404 пока env-флаг не выставлен в `1/true/on`. Это поэтапная раскатка по операторам — см. [src/lib/featureFlags.ts](src/lib/featureFlags.ts) для семантики флагов.

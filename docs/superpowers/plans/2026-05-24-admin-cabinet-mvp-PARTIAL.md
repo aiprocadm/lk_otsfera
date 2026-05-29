@@ -1,5 +1,7 @@
 # Admin Cabinet MVP — PARTIAL
 
+> **✅ ЗАКРЫТО 2026-05-29.** Отложенные фазы 6.3–6.7 отгружены планом [2026-05-29-admin-cabinet-6.3-6.7.md](2026-05-29-admin-cabinet-6.3-6.7.md) (PR #70–#73, #75). Итог — в close-out [2026-05-29-admin-cabinet-6.3-6.7-DONE.md](2026-05-29-admin-cabinet-6.3-6.7-DONE.md). Admin-кабинет (6.0–6.7) полностью в production. Документ ниже сохранён как исторический срез на 2026-05-24.
+
 **Дата частичного завершения:** 2026-05-24
 **Base commit:** `6d92943` (chore(lint): drop unused imports/vars в commission tests, после Phase 4)
 **Head commit:** `7091855` (Merge pull request #51 from aiprocadm/claude/admin-cabinet-mvp)
@@ -12,13 +14,14 @@
 - [x] **6.0 — Foundation** (4 миграции БД, password reset / invite flow, переписанная `/reset-password`) — PR #51, #52
 - [x] **6.1 — Admin shell + sidebar + RBAC guards** (`requireAdmin`, `recordAudit` helpers, AdminAppShell + AdminSidebar, refactor 17 audit callsites + 4 existing admin страниц) — PR #51, #52
 - [x] **6.2 — Dashboard** (KPI / attention / events на `services/admin/dashboard.ts`) — PR #51, #52
-- [ ] **6.3 — Users management** (list/edit/new, email invite template) — NOT STARTED
-- [ ] **6.4 — Partners management** (CRUD + первый admin-user в одной транзакции) — NOT STARTED
-- [ ] **6.5 — Organizations management** (CRUD, reuse `RateOverrideForm`) — NOT STARTED
-- [ ] **6.6 — Audit log viewer** (URL-фильтры, поиск) — NOT STARTED
-- [ ] **6.7 — Polish + ADMIN_CABINET feature flag + Playwright visual regression** — NOT STARTED
+- [x] **6.3 — Users management** (list/edit/new, email invite template) — ✅ PR #70 (`fe7d3ce`)
+- [x] **6.4 — Partners management** (CRUD + первый admin-user в одной транзакции) — ✅ PR #71 (`3d509c5`)
+- [x] **6.5 — Organizations management** (CRUD, sibling `admin-rate-override-form`) — ✅ PR #72 (`db03a22`)
+- [x] **6.6 — Audit log viewer** (URL-фильтры, поиск, cursor pagination) — ✅ PR #73 (`af84a09`)
+- [x] **6.7 — Polish + Playwright visual regression** — ✅ PR #75 (`6395342`). ⚠️ ADMIN_CABINET feature flag **выброшен** — admin internal-only (≤10 пользователей), staged rollout не нужен.
 
-**Решение:** Phase 6.3–6.7 deferred — приоритет ушёл на partner / organization / manager кабинеты (PRs #46, #55–#58). Возобновление требует свежей brainstorming-сессии: требования могут расходиться (audit viewer ждёт новые event types из Phase 7/8 работы).
+**Решение (исходное, 2026-05-24):** Phase 6.3–6.7 deferred — приоритет ушёл на partner / organization / manager кабинеты (PRs #46, #55–#58).
+**Возобновление (2026-05-29):** реализовано планом [2026-05-29-admin-cabinet-6.3-6.7.md](2026-05-29-admin-cabinet-6.3-6.7.md). Опасение про «audit viewer ждёт новые event types» не подтвердилось — viewer читает existing `AuditLog` через cursor pagination. Итог — [DONE](2026-05-29-admin-cabinet-6.3-6.7-DONE.md).
 
 ## Что готово (Phase 6.0–6.2)
 
