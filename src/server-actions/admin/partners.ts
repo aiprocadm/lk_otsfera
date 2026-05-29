@@ -63,7 +63,11 @@ export async function createPartnerWithAdminAction(
 
   const session = await requireAdmin();
   try {
-    const result = await createPartnerWithAdmin(prisma, session.sub, parsed.data);
+    const serviceArgs = {
+      ...parsed.data,
+      commissionRate: parsed.data.commissionRate != null ? parsed.data.commissionRate / 100 : undefined
+    };
+    const result = await createPartnerWithAdmin(prisma, session.sub, serviceArgs);
     const inviteUrl = `${appBaseUrl()}/reset-password?token=${result.inviteToken}`;
 
     try {
@@ -96,7 +100,11 @@ export async function updatePartnerAction(fd: FormData): Promise<ActionResult> {
 
   const session = await requireAdmin();
   try {
-    const { id, ...args } = parsed.data;
+    const { id, ...raw } = parsed.data;
+    const args = {
+      ...raw,
+      commissionRate: raw.commissionRate != null ? raw.commissionRate / 100 : raw.commissionRate
+    };
     await updatePartner(prisma, session.sub, id, args);
     revalidatePath('/admin/partners');
     revalidatePath(`/admin/partners/${id}`);
