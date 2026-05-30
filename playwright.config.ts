@@ -132,5 +132,14 @@ export default defineConfig({
         url: 'http://localhost:3000',
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
+        // organization_cabinet / manager_cabinet are opt-in flags (off by
+        // default for staged rollout, see src/lib/featureFlags.ts). Their e2e
+        // specs need the cabinets live, so enable both for the test dev-server.
+        // Playwright merges this onto process.env, so .env (DATABASE_URL, …)
+        // is preserved.
+        env: {
+          FEATURE_ORGANIZATION_CABINET: '1',
+          FEATURE_MANAGER_CABINET: '1',
+        },
       },
 });
