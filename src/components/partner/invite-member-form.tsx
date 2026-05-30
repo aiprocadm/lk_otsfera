@@ -1,6 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
+import { Dialog } from '@/components/ui/dialog';
 
 export function InviteMemberForm({
   orgs
@@ -8,7 +9,7 @@ export function InviteMemberForm({
   orgs: { id: string; name: string }[];
 }) {
   const router = useRouter();
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [open, setOpen] = useState(false);
 
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -18,14 +19,14 @@ export function InviteMemberForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function open() {
+  function openDialog() {
     setEmail('');
     setName('');
     setRole('manager');
     setAllOrgs(true);
     setSelected(new Set());
     setError(null);
-    dialogRef.current?.showModal();
+    setOpen(true);
   }
 
   function toggleOrg(id: string) {
@@ -61,7 +62,7 @@ export function InviteMemberForm({
         }
         return;
       }
-      dialogRef.current?.close();
+      setOpen(false);
       router.refresh();
     } finally {
       setSubmitting(false);
@@ -74,32 +75,31 @@ export function InviteMemberForm({
     <>
       <button
         type='button'
-        onClick={open}
+        onClick={openDialog}
         className='inline-flex items-center gap-1.5 px-4 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C]'
       >
         <span className='text-lg leading-none'>+</span>
         Пригласить
       </button>
 
-      <dialog
-        ref={dialogRef}
-        className='rounded-xl p-0 max-w-lg w-[92vw] backdrop:bg-black/40'
-        onClose={() => setError(null)}
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title='Пригласить сотрудника'
+        size='lg'
+        busy={submitting}
+        error={error}
       >
         <form
-          method='dialog'
           onSubmit={(e) => {
             e.preventDefault();
             if (valid && !submitting) submit();
           }}
-          className='p-5 space-y-4'
+          className='space-y-4'
         >
-          <div>
-            <h3 className='text-base font-semibold text-[#111111]'>Пригласить сотрудника</h3>
-            <p className='text-xs text-gray-500 mt-1'>
-              Создадим аккаунт с временным паролем — отправим инструкцию по входу на email.
-            </p>
-          </div>
+          <p className='text-xs text-gray-500'>
+            Создадим аккаунт с временным паролем — отправим инструкцию по входу на email.
+          </p>
 
           <label className='block'>
             <span className='text-sm text-gray-700'>Имя</span>
@@ -180,16 +180,10 @@ export function InviteMemberForm({
             )}
           </fieldset>
 
-          {error && (
-            <div className='text-sm text-red-700 bg-red-50 border border-red-100 rounded px-3 py-2'>
-              {error}
-            </div>
-          )}
-
           <div className='flex justify-end gap-2 pt-2 border-t border-gray-100'>
             <button
               type='button'
-              onClick={() => dialogRef.current?.close()}
+              onClick={() => setOpen(false)}
               className='px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50'
               disabled={submitting}
             >
@@ -204,7 +198,7 @@ export function InviteMemberForm({
             </button>
           </div>
         </form>
-      </dialog>
+      </Dialog>
     </>
   );
 }

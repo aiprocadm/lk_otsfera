@@ -37,4 +37,19 @@ test.describe('invite-org-user-form: focus management', () => {
     await page.keyboard.press('Escape');
     await expect(page.locator(TRIGGER)).toBeFocused();
   });
+
+  test('background is inert while the modal is open', async ({ page }) => {
+    await page.locator(TRIGGER).click();
+    await expect(page.locator(EMAIL_INPUT)).toBeFocused();
+
+    // showModal() makes the rest of the document inert: a programmatic focus on
+    // a background link must NOT move focus out of the dialog (regression guard
+    // for the gap the 2026-05-27 custom-<div> modals left open).
+    const movedToBackground = await page.evaluate(() => {
+      const bg = document.querySelector('nav a[href], header a[href]') as HTMLElement | null;
+      bg?.focus();
+      return !!bg && document.activeElement === bg;
+    });
+    expect(movedToBackground).toBe(false);
+  });
 });
