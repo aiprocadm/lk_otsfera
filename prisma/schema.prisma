@@ -555,3 +555,17 @@ model StudentBridgeTokenJti {
 
   @@index([expiresAt])
 }
+
+model AlertState {
+  key            String    @id
+  status         String // "firing" | "resolved"
+  severity       String // "warning" | "critical"
+  message        String
+  value          Int?
+  firstSeenAt    DateTime  @default(now())
+  lastNotifiedAt DateTime  @default(now())
+  resolvedAt     DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status])
+}
