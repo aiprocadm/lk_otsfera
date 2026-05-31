@@ -54,6 +54,7 @@ async function cleanupOrgs() {
   }
 }
 async function cleanupAll() {
+  await prisma.syncState.deleteMany({});
   await cleanupDocs();
   await cleanupPayments();
   await cleanupOrders();

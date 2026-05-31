@@ -29,11 +29,7 @@ export async function syncOrganizationsProcessor(
 
   try {
     const adapter = getOneCAdapter();
-    // If there are no organizations in the DB yet (e.g. first run or after a
-    // full wipe), discard any stale cursor and do a full pull so we don't miss
-    // records that pre-date the watermark.
-    const existingCount = await db.organization.count();
-    const cursor = existingCount > 0 ? await getCursor(db, 'organization') : {};
+    const cursor = await getCursor(db, 'organization');
     const raw = (await adapter.pullOrganizations(cursor)) as unknown[];
 
     let maxUpdatedAt: Date | null = null;
