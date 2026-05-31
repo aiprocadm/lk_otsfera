@@ -1,7 +1,7 @@
 import { Worker, type Processor } from 'bullmq';
 import { getRedisConnection, closeRedisConnection } from '@/lib/jobs/connection';
 import { closeAllQueues, type QueueName } from '@/lib/jobs/queues';
-import { registerSyncSchedules, registerCommissionSchedules } from '@/lib/jobs/scheduling';
+import { registerSyncSchedules, registerCommissionSchedules, registerAlertSchedules } from '@/lib/jobs/scheduling';
 import { prisma } from '@/lib/db/prisma';
 import { syncOrdersProcessor } from './processors/sync-orders';
 import { syncPaymentsProcessor } from './processors/sync-payments';
@@ -13,6 +13,7 @@ import { generateCommissionPdfProcessor } from './processors/generate-commission
 import { generateCommissionXlsxProcessor } from './processors/generate-commission-xlsx';
 import { calculateMonthlyCommissionsProcessor } from './processors/calculate-monthly-commissions';
 import { scanDocumentProcessor } from './processors/scan-document';
+import { evaluateAlertsProcessor } from './processors/evaluate-alerts';
 import type { PushLeadJobPayload } from '@/lib/jobs/types';
 
 const workers: Worker[] = [];
@@ -61,11 +62,13 @@ async function main() {
   startWorker('docs.generateCommissionXlsx', generateCommissionXlsxProcessor as Processor);
   startWorker('docs.calculateMonthlyCommissions', calculateMonthlyCommissionsProcessor as Processor);
   startWorker('docs.scanDocument', scanDocumentProcessor as Processor);
+  startWorker('monitoring.evaluateAlerts', evaluateAlertsProcessor as Processor);
 
   if (process.env.ENABLE_SYNC_CRON === '1') {
     const syncSchedules = await registerSyncSchedules();
     const commissionSchedules = await registerCommissionSchedules();
-    for (const r of [...syncSchedules, ...commissionSchedules]) {
+    const alertSchedules = await registerAlertSchedules();
+    for (const r of [...syncSchedules, ...commissionSchedules, ...alertSchedules]) {
       console.log('[worker] schedule registered', {
         schedulerId: r.schedulerId,
         queue: r.queueName,

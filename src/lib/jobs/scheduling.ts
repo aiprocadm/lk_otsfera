@@ -125,3 +125,41 @@ export async function registerSyncSchedules(
   }
   return results;
 }
+
+export type AlertSchedule = {
+  queueName: Extract<QueueName, 'monitoring.evaluateAlerts'>;
+  schedulerId: string;
+  pattern: string;
+  tz: string;
+};
+
+export const ALERT_SCHEDULES: ReadonlyArray<AlertSchedule> = [
+  {
+    queueName: 'monitoring.evaluateAlerts',
+    schedulerId: 'monitoring.evaluateAlerts.cron',
+    pattern: '*/5 * * * *',
+    tz: DEFAULT_SYNC_TZ
+  }
+] as const;
+
+export async function registerAlertSchedules(
+  getQueueFn: GetQueueFn = getQueue
+): Promise<Array<{ schedulerId: string; queueName: string; pattern: string; tz: string }>> {
+  const results = [];
+  const triggeredAt = new Date().toISOString();
+  for (const schedule of ALERT_SCHEDULES) {
+    const queue = getQueueFn(schedule.queueName);
+    await queue.upsertJobScheduler(
+      schedule.schedulerId,
+      { pattern: schedule.pattern, tz: schedule.tz },
+      { data: { triggeredAt, reason: 'cron' } }
+    );
+    results.push({
+      schedulerId: schedule.schedulerId,
+      queueName: schedule.queueName,
+      pattern: schedule.pattern,
+      tz: schedule.tz
+    });
+  }
+  return results;
+}
