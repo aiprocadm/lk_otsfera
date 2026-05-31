@@ -1,8 +1,23 @@
 #!/usr/bin/env sh
-# L2: pre-push — full unit suite. Target ~15-30 sec.
+# L2: full unit suite. Target ~15-30 sec.
+# L2.5: conditional integration gate when the push touches the integration layer.
+#       See docs/superpowers/specs/2026-05-31-test-safety-net-design.md.
 #
-# Guarantees that what leaves this machine compiles and the mock-based
-# test layer is green. Integration tests (require live Postgres) are
-# intentionally excluded; run `npm run test:integration` manually.
+# Integration tests require live Postgres; the gate spins one up in Docker.
+# Bypass in an emergency (use sparingly): git push --no-verify
 
-npm run test:unit
+# Capture push refs from stdin BEFORE anything else can consume them.
+PUSH_INFO="$(cat)"
+
+npm run test:unit || exit 1
+
+echo "$PUSH_INFO" | npx tsx scripts/gate-precheck.ts
+RC=$?
+if [ "$RC" -eq 0 ]; then
+  echo "[pre-push] changes touch the integration layer — running the gate…"
+  npm run gate || exit 1
+elif [ "$RC" -eq 2 ]; then
+  : # not relevant — gate skipped (message already printed)
+else
+  exit "$RC" # Docker unavailable while relevant, or precheck error — block.
+fi
