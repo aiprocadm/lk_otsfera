@@ -11,8 +11,12 @@ PUSH_INFO="$(cat)"
 
 npm run test:unit || exit 1
 
-echo "$PUSH_INFO" | npx tsx scripts/gate-precheck.ts
-RC=$?
+# errexit-safe (husky runs this hook under `sh -e`): gate-precheck uses a
+# non-zero exit as a *signal* (2 = "not integration-relevant"), not a failure.
+# A bare pipeline would abort the hook here before RC is inspected, so capture
+# the exit code via `|| RC=$?` to keep errexit from firing on the skip path.
+RC=0
+echo "$PUSH_INFO" | npx tsx scripts/gate-precheck.ts || RC=$?
 if [ "$RC" -eq 0 ]; then
   echo "[pre-push] changes touch the integration layer — running the gate…"
   npm run gate || exit 1
