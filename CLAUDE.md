@@ -86,7 +86,7 @@ function doX(
 
 Не добавляй новый флаг без всех трёх точек.
 
-## 6. Тесты — трёхслойная дисциплина
+## 6. Тесты — четырёхслойная дисциплина
 
 **GitHub Actions отключены**. Замена — локальные хуки + ручная команда. Слои:
 
@@ -94,7 +94,10 @@ function doX(
 |---|---|---|---|---|
 | **L1** | `git commit` ([.husky/pre-commit](.husky/pre-commit)) | `npx lint-staged && npm run typecheck && npm run test:changed` | ESLint на staged-файлах + TS + vitest на затронутых unit-тестах | 5-15 сек (warm) |
 | **L2** | `git push` ([.husky/pre-push](.husky/pre-push)) | `npm run test:unit` | Весь unit-слой (~91 файл, ~700 тестов) | ~30 сек (warm) |
-| **L3** | Перед PR / релизом, вручную | `npm run test:integration` | Integration-слой (~33 файла) — требует **живой Postgres** | 5-10 мин |
+| **L2.5** | `git push`, затрагивающий `prisma/`/`worker/`/`services/` ([scripts/gate-precheck.ts](scripts/gate-precheck.ts)) | `npm run gate` | Integration-слой против эфемерного Docker-Postgres | единицы минут |
+| **L3** | Перед PR / релизом, вручную | `npm run test:integration` | Integration-слой (~36 файлов) — требует **живой Postgres** | 5-10 мин |
+
+**`npm run gate` (L2.5)** — кроссплатформенный `tsx`-оркестратор ([scripts/gate.ts](scripts/gate.ts)): поднимает Docker-Postgres из [docker-compose.yml](docker-compose.yml), `prisma migrate deploy` + seed против host-facing `DATABASE_URL` (localhost; override через `GATE_DATABASE_URL`), затем `npm run test:integration`. Условно вызывается из `pre-push`; запускается и вручную перед PR. `npm run gate:down` останавливает контейнеры. Требует Docker; обход — `git push --no-verify`. Полнота покрытия воркера держится unit-тестом [worker.processor-coverage.guardrail.test.ts](src/__tests__/worker.processor-coverage.guardrail.test.ts) — падает, если у процессора нет интеграционного теста.
 
 **Vitest** ([vitest.config.ts](vitest.config.ts)):
 

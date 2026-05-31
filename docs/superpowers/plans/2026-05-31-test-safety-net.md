@@ -13,6 +13,19 @@
 
 ---
 
+### Task 0: Stabilize the existing L3 suite (prerequisite — added during execution)
+
+**Discovered during Task 1:** `npm run gate` revealed the existing integration suite was NOT reliably green on a fresh seeded DB — pre-existing, order-dependent test-isolation fragility (the suite shares one mutable Postgres; `fileParallelism: false`). This contradicted the spec's "don't touch existing integration tests" out-of-scope note; the user approved expanding scope ("do it right") since a gate over a flaky suite is worthless.
+
+**Root causes & fixes (commit `f470141`):**
+- `worker.oneCSync.upsert.test.ts` — `deletePartnerCascade` had an incomplete FK-ordered cascade (missing `Comment`/`Upload` before `Order`; `AuditLog`/`SavedView`/etc. before `User`). The grown seed (admin-cabinet comments/audit) + rows other tests attach to the shared `1c-partner-001` partner made it throw. Rewrote to delete all transitive children in FK order.
+- `worker.sync-payments.notifies-managers.test.ts` — 3 assertions counted notifications `where: { type: 'order_marked_paid_by_1c' }` globally. Scoped to the test's own managers.
+- `notifications.notifyManagers.test.ts` — 3 "expect exactly these recipients" assertions queried globally by `type`. Added `allManagerIds()` helper; scoped each.
+
+**Verified:** `docker compose down -v && npm run gate` ×3 (fresh + 2 accumulation cycles) all green — deterministic, not order-luck.
+
+---
+
 ### Task 1: The runnable gate (`scripts/gate.ts` + npm scripts)
 
 **Files:**
