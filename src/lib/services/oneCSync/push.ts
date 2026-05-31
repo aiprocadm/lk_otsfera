@@ -70,6 +70,25 @@ export async function pushLeadToOneC(
     return { ok: false, error: 'Lead not found' };
   }
 
+  if (lead.pushedToOneCAt) {
+    await writeSyncLog(
+      {
+        entity: 'lead',
+        direction: 'outbound',
+        operation: 'skip',
+        status: 'success',
+        externalId: lead.externalIdInOneC ?? undefined,
+        payload: { cabinetLeadId: lead.id, reason: 'already_pushed' }
+      },
+      prisma
+    );
+    return {
+      ok: true,
+      result: { acceptedAt: lead.pushedToOneCAt.toISOString(), oneCRequestId: lead.externalIdInOneC ?? undefined },
+      externalIdInOneC: lead.externalIdInOneC
+    };
+  }
+
   const payload = mapLeadToPayload(lead);
   const startedAt = Date.now();
 
@@ -79,7 +98,7 @@ export async function pushLeadToOneC(
 
     await prisma.lead.update({
       where: { id: lead.id },
-      data: externalIdInOneC ? { externalIdInOneC } : {}
+      data: { pushedToOneCAt: new Date(), ...(externalIdInOneC ? { externalIdInOneC } : {}) }
     });
 
     await writeSyncLog(

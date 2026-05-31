@@ -163,6 +163,7 @@ model Lead {
   rejectedReason     String?
   notes              String?
   externalIdInOneC   String?
+  pushedToOneCAt     DateTime?
   attachments        LeadAttachment[]
 
   @@index([partnerId, status])
