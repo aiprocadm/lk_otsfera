@@ -283,6 +283,15 @@ model SyncLog {
   @@index([status, createdAt])
 }
 
+model SyncState {
+  entity        String    @id
+  cursor        String?
+  lastRunAt     DateTime?
+  lastSuccessAt DateTime?
+  lastError     String?
+  updatedAt     DateTime  @updatedAt
+}
+
 model Partner {
   id             String         @id @default(cuid())
   createdAt      DateTime       @default(now())
