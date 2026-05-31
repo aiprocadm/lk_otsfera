@@ -5,11 +5,7 @@ import path from 'node:path';
 // Worker processors that intentionally have NO dedicated test.
 // Add an entry ONLY with a written justification. The three below are tracked
 // debt closed by Tasks 3-5 of this plan; each task removes its entry.
-const ALLOWLIST = new Set<string>([
-  'push-lead', // TODO(Task 3): worker.push-lead.test.ts
-  'generate-commission-pdf', // TODO(Task 4): worker.generate-commission-pdf.test.ts
-  'generate-commission-xlsx' // TODO(Task 5): worker.generate-commission-xlsx.test.ts
-]);
+const ALLOWLIST = new Set<string>([]);
 
 // vitest runs from the repo root, so cwd is the project root.
 const ROOT = process.cwd();
