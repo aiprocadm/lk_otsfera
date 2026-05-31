@@ -39,6 +39,19 @@ function uniq(label: string): string {
   return `notifyMgr-${label}-${STAMP}`;
 }
 
+// All manager users this file creates. Scope "expect exactly these recipients"
+// assertions to them so a notification another test file leaves behind (same
+// type, different user) can't pollute an otherwise-global count.
+const allManagerIds = (): string[] => [
+  perOrderManagerId,
+  orgManager1Id,
+  orgManager2Id,
+  deactivatedAssignmentManagerId,
+  historicalCommenterId,
+  inactiveUserManagerId,
+  unrelatedManagerId
+];
+
 beforeAll(async () => {
   prisma = new PrismaClient();
 
@@ -303,7 +316,7 @@ describe('notifyManagers', () => {
     expect(summary.recipientsNotified).toBe(2);
 
     const rows = await prisma.notification.findMany({
-      where: { type: 'order_marked_paid_by_1c', userId: { not: undefined } }
+      where: { type: 'order_marked_paid_by_1c', userId: { in: allManagerIds() } }
     });
     const userIds = rows.map((r) => r.userId).sort();
     expect(userIds).toEqual([orgManager1Id, orgManager2Id].sort());
@@ -348,7 +361,7 @@ describe('notifyManagers', () => {
     expect(summary.recipientsNotified).toBe(2);
 
     const rows = await prisma.notification.findMany({
-      where: { type: 'order_status_changed_by_manager' }
+      where: { type: 'order_status_changed_by_manager', userId: { in: allManagerIds() } }
     });
     const counts = rows.reduce<Record<string, number>>((acc, r) => {
       acc[r.userId] = (acc[r.userId] ?? 0) + 1;
@@ -373,7 +386,7 @@ describe('notifyManagers', () => {
     expect(summary.recipientsNotified).toBe(1);
 
     const rows = await prisma.notification.findMany({
-      where: { type: 'order_status_changed_by_manager' }
+      where: { type: 'order_status_changed_by_manager', userId: { in: allManagerIds() } }
     });
     const userIds = rows.map((r) => r.userId);
     expect(userIds).toEqual([orgManager2Id]);

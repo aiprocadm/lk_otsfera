@@ -17,6 +17,8 @@
     "test:integration": "vitest run --mode=integration",
     "test:watch": "vitest",
     "test:changed": "vitest run --mode=unit --changed --bail=1 --no-coverage",
+    "gate": "tsx scripts/gate.ts",
+    "gate:down": "tsx scripts/gate.ts --down",
     "e2e:visual": "playwright test",
     "e2e:visual:update": "playwright test --update-snapshots",
     "worker": "tsx src/worker/index.ts",

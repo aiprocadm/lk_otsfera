@@ -60,6 +60,10 @@ async function cleanupAll() {
   await cleanupOrgs();
 }
 
+// Robust cascade: deletes EVERYTHING transitively under a partner in correct FK
+// order. Must tolerate rows other tests attached to this partner's shared seed
+// data (e.g. comments on its orders, audit logs for its users) — the suite
+// shares one Postgres, so this teardown can't assume it created all the children.
 async function deletePartnerCascade(pid: string) {
   const orgs = await prisma.organization.findMany({
     where: { partnerId: pid },
@@ -70,11 +74,36 @@ async function deletePartnerCascade(pid: string) {
 
   const orderIds = (
     await prisma.order.findMany({
-      where: { OR: [{ partnerId: pid }, { companyId: { in: companyIds } }] },
+      where: {
+        OR: [{ partnerId: pid }, { companyId: { in: companyIds } }, { organizationId: { in: orgIds } }]
+      },
       select: { id: true }
     })
   ).map((o) => o.id);
+
+  const userIds = (
+    await prisma.user.findMany({ where: { partnerId: pid }, select: { id: true } })
+  ).map((u) => u.id);
+
+  // Leads FK orders (promotedOrderId) and users (createdBy/assignedManager),
+  // so they (and their attachments) must die before both.
+  const leadIds = (
+    await prisma.lead.findMany({
+      where: { OR: [{ partnerId: pid }, { organizationId: { in: orgIds } }] },
+      select: { id: true }
+    })
+  ).map((l) => l.id);
+  if (leadIds.length) {
+    await prisma.leadAttachment.deleteMany({ where: { leadId: { in: leadIds } } });
+    await prisma.lead.deleteMany({ where: { id: { in: leadIds } } });
+  }
+
+  // Order children → orders. Comment and Upload also FK Order and were missing
+  // before — another test leaving a comment on this partner's seed order would
+  // make the bare order.deleteMany() throw.
   if (orderIds.length) {
+    await prisma.comment.deleteMany({ where: { orderId: { in: orderIds } } });
+    await prisma.upload.deleteMany({ where: { orderId: { in: orderIds } } });
     await prisma.document.deleteMany({ where: { orderId: { in: orderIds } } });
     await prisma.payment.deleteMany({ where: { orderId: { in: orderIds } } });
     // CommissionStatementItem has FKs to both Order and CommissionStatement —
@@ -83,14 +112,28 @@ async function deletePartnerCascade(pid: string) {
     await prisma.order.deleteMany({ where: { id: { in: orderIds } } });
   }
 
-  await prisma.lead.deleteMany({ where: { partnerId: pid } });
   await prisma.commissionStatementItem.deleteMany({ where: { statement: { partnerId: pid } } });
   await prisma.commissionStatement.deleteMany({ where: { partnerId: pid } });
+
+  // Everything FK-ing the partner's users must die before the users themselves.
+  if (userIds.length) {
+    await prisma.auditLog.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.savedView.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.studentBridgeGrant.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.passwordResetToken.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.comment.deleteMany({ where: { authorId: { in: userIds } } });
+    await prisma.notification.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.organizationManager.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.organizationUser.deleteMany({ where: { userId: { in: userIds } } });
+  }
   await prisma.notification.deleteMany({ where: { partnerId: pid } });
   await prisma.partnerUser.deleteMany({ where: { partnerId: pid } });
   await prisma.user.deleteMany({ where: { partnerId: pid } });
+
   if (orgIds.length) {
+    await prisma.notification.deleteMany({ where: { organizationId: { in: orgIds } } });
     await prisma.organizationUser.deleteMany({ where: { organizationId: { in: orgIds } } });
+    await prisma.organizationManager.deleteMany({ where: { organizationId: { in: orgIds } } });
     await prisma.student.deleteMany({ where: { organizationId: { in: orgIds } } });
     await prisma.organization.deleteMany({ where: { id: { in: orgIds } } });
   }

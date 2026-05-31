@@ -361,7 +361,10 @@ describe('syncPaymentsProcessor → notifyManagers fan-out', () => {
       expect.objectContaining({ orderId: orderNoManagerId, type: 'order_marked_paid_by_1c' })
     );
     const mgrRows = await prisma.notification.findMany({
-      where: { type: 'order_marked_paid_by_1c' }
+      where: {
+        type: 'order_marked_paid_by_1c',
+        userId: { in: [perOrderManagerId, orgManagerId] }
+      }
     });
     expect(mgrRows).toHaveLength(0);
   });
@@ -383,7 +386,10 @@ describe('syncPaymentsProcessor → notifyManagers fan-out', () => {
 
     expect(notifyManagersSpy).not.toHaveBeenCalled();
     const mgrRows = await prisma.notification.findMany({
-      where: { type: 'order_marked_paid_by_1c' }
+      where: {
+        type: 'order_marked_paid_by_1c',
+        userId: { in: [perOrderManagerId, orgManagerId] }
+      }
     });
     expect(mgrRows).toHaveLength(0);
   });
@@ -415,7 +421,10 @@ describe('syncPaymentsProcessor → notifyManagers fan-out', () => {
 
     expect(notifyManagersSpy).not.toHaveBeenCalled();
     const mgrRows = await prisma.notification.findMany({
-      where: { type: 'order_marked_paid_by_1c' }
+      where: {
+        type: 'order_marked_paid_by_1c',
+        userId: { in: [perOrderManagerId, orgManagerId] }
+      }
     });
     expect(mgrRows).toHaveLength(0);
   });
