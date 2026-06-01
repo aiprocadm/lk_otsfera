@@ -163,6 +163,7 @@ model Lead {
   rejectedReason     String?
   notes              String?
   externalIdInOneC   String?
+  pushedToOneCAt     DateTime?
   attachments        LeadAttachment[]
 
   @@index([partnerId, status])
@@ -281,6 +282,15 @@ model SyncLog {
 
   @@index([entity, createdAt])
   @@index([status, createdAt])
+}
+
+model SyncState {
+  entity        String    @id
+  cursor        String?
+  lastRunAt     DateTime?
+  lastSuccessAt DateTime?
+  lastError     String?
+  updatedAt     DateTime  @updatedAt
 }
 
 model Partner {

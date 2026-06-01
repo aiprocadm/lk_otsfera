@@ -17,34 +17,49 @@ function afterCursor<T extends { updatedAt: string }>(items: T[], cursor: SyncCu
   return items.filter((item) => Date.parse(item.updatedAt) > sinceTs);
 }
 
+/**
+ * When FAKE_ONEC_MALFORMED_RATE is set (0..1), appends a deliberately-invalid
+ * record so tests can exercise the per-record validation quarantine. The output
+ * is typed `unknown[]`-compatible; callers validate via schemas.
+ */
+function maybeInjectMalformed<T>(items: T[]): T[] {
+  const rate = Number(process.env.FAKE_ONEC_MALFORMED_RATE);
+  if (Number.isFinite(rate) && rate > 0) {
+    const malformed = { externalId: 'fake-malformed', broken: true } as unknown as T;
+    return [...items, malformed];
+  }
+  return items;
+}
+
+async function maybeLatency(): Promise<void> {
+  const ms = Number(process.env.FAKE_ONEC_LATENCY_MS);
+  if (Number.isFinite(ms) && ms > 0) await new Promise((r) => setTimeout(r, ms));
+}
+
 export class FakeOneCAdapter implements OneCAdapter {
   async pullOrganizations(cursor: SyncCursor): Promise<OneCOrgDto[]> {
-    return afterCursor(FAKE_ORGS, cursor);
+    await maybeLatency();
+    return maybeInjectMalformed(afterCursor(FAKE_ORGS, cursor));
   }
-
   async pullOrders(cursor: SyncCursor): Promise<OneCOrderDto[]> {
-    return afterCursor(FAKE_ORDERS, cursor);
+    await maybeLatency();
+    return maybeInjectMalformed(afterCursor(FAKE_ORDERS, cursor));
   }
-
   async pullPayments(cursor: SyncCursor): Promise<OneCPaymentDto[]> {
-    return afterCursor(FAKE_PAYMENTS, cursor);
+    await maybeLatency();
+    return maybeInjectMalformed(afterCursor(FAKE_PAYMENTS, cursor));
   }
-
   async pullDocuments(cursor: SyncCursor): Promise<OneCDocumentDto[]> {
-    return afterCursor(FAKE_DOCUMENTS, cursor);
+    await maybeLatency();
+    return maybeInjectMalformed(afterCursor(FAKE_DOCUMENTS, cursor));
   }
 
   async pushLead(payload: OneCLeadPushPayload): Promise<OneCLeadPushResult> {
     const failureRateStr = process.env.FAKE_ONEC_FAILURE_RATE;
     const failureRate = failureRateStr ? Number(failureRateStr) : 0;
     if (Number.isFinite(failureRate) && failureRate > 0 && Math.random() < failureRate) {
-      throw new Error(
-        `FakeOneC simulated failure (rate=${failureRate}) for lead ${payload.cabinetLeadId}`
-      );
+      throw new Error(`FakeOneC simulated failure (rate=${failureRate}) for lead ${payload.cabinetLeadId}`);
     }
-    return {
-      acceptedAt: new Date().toISOString(),
-      oneCRequestId: `fake-req-${Date.now()}`
-    };
+    return { acceptedAt: new Date().toISOString(), oneCRequestId: `fake-req-${Date.now()}` };
   }
 }

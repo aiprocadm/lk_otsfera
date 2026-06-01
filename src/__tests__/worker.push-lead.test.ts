@@ -85,6 +85,10 @@ describe('pushLeadProcessor', () => {
   });
 
   it('throws when the adapter fails (so BullMQ retries)', async () => {
+    // The previous test pushed this lead successfully, stamping pushedToOneCAt.
+    // Reset it to an un-pushed state so the idempotency guard does not
+    // short-circuit before the simulated adapter failure can fire.
+    await prisma.lead.update({ where: { id: leadId }, data: { pushedToOneCAt: null, externalIdInOneC: null } });
     process.env.FAKE_ONEC_FAILURE_RATE = '1';
     resetOneCAdapter();
     await expect(pushLeadProcessor(job(leadId), prisma)).rejects.toThrow();

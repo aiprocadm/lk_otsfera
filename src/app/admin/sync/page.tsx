@@ -32,6 +32,13 @@ function formatDate(d: Date | null): string {
   }).format(d);
 }
 
+function formatLag(lagMs: number | null): string {
+  if (lagMs === null) return '—';
+  const h = lagMs / (60 * 60 * 1000);
+  if (h < 1) return `${Math.round(lagMs / 60000)} мин`;
+  return `${h.toFixed(1)} ч`;
+}
+
 export default async function AdminSyncPage() {
   await requireAdmin();
 
@@ -54,6 +61,7 @@ export default async function AdminSyncPage() {
               <th className='text-right px-4 py-3 font-medium'>Успехов 24ч</th>
               <th className='text-right px-4 py-3 font-medium'>Предупреждений</th>
               <th className='text-right px-4 py-3 font-medium'>Ошибок</th>
+              <th className='text-left px-4 py-3 font-medium'>Курсор / лаг</th>
               <th className='text-left px-4 py-3 font-medium'>Последний успех</th>
               <th className='text-left px-4 py-3 font-medium'>Последняя ошибка</th>
             </tr>
@@ -68,6 +76,11 @@ export default async function AdminSyncPage() {
                 </td>
                 <td className={`px-4 py-3 text-right tabular-nums ${r.errorCount24h > 0 ? 'text-red-700' : 'text-gray-400'}`}>
                   {r.errorCount24h}
+                </td>
+                <td className='px-4 py-3'>
+                  <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${freshnessClass(r.cursor ? new Date(r.cursor) : null)}`}>
+                    {formatLag(r.lagMs)}
+                  </span>
                 </td>
                 <td className='px-4 py-3'>
                   <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${freshnessClass(r.lastSuccessAt)}`}>

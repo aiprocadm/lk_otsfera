@@ -16,6 +16,7 @@ function makePrismaMock(opts: {
     productType: string[];
     notes: string | null;
     partner: { slug: string | null };
+    pushedToOneCAt: Date | null;
   } | null;
 }): { prisma: PrismaClient; updateSpy: ReturnType<typeof vi.fn>; logSpy: ReturnType<typeof vi.fn> } {
   const updateSpy = vi.fn().mockResolvedValue({});
@@ -73,7 +74,8 @@ describe('pushLeadToOneC', () => {
         estimatedAmount: 1000,
         productType: ['training'],
         notes: null,
-        partner: { slug: 'demo' }
+        partner: { slug: 'demo' },
+        pushedToOneCAt: null
       }
     });
     const adapter = makeFakeAdapter({ oneCRequestId: 'fake-req-99' });
@@ -82,12 +84,32 @@ describe('pushLeadToOneC', () => {
     if (res.ok) expect(res.externalIdInOneC).toBe('fake-req-99');
     expect(updateSpy).toHaveBeenCalledWith({
       where: { id: 'lead-1' },
-      data: { externalIdInOneC: 'fake-req-99' }
+      data: expect.objectContaining({ externalIdInOneC: 'fake-req-99', pushedToOneCAt: expect.any(Date) })
     });
     expect(logSpy).toHaveBeenCalledTimes(1);
     expect(logSpy.mock.calls[0][0].data.status).toBe('success');
     expect(logSpy.mock.calls[0][0].data.direction).toBe('outbound');
     expect(logSpy.mock.calls[0][0].data.entity).toBe('lead');
+  });
+
+  it('skips the adapter when the lead was already pushed (idempotent)', async () => {
+    const already = new Date('2026-05-22T10:00:00Z');
+    const { prisma, updateSpy, logSpy } = makePrismaMock({
+      lead: {
+        id: 'lead-3', clientCompanyName: 'A', clientInn: null, clientContactName: 'B',
+        clientContactPhone: null, clientContactEmail: null, subject: 'S',
+        estimatedAmount: null, productType: [], notes: null, partner: { slug: 'demo' },
+        pushedToOneCAt: already
+      }
+    });
+    const pushLead = vi.fn();
+    const adapter = { pullOrganizations: vi.fn(), pullOrders: vi.fn(), pullPayments: vi.fn(), pullDocuments: vi.fn(), pushLead } as unknown as import('@/lib/services/oneCSync/adapter').OneCAdapter;
+    const res = await pushLeadToOneC(prisma, 'lead-3', { adapter });
+    expect(res.ok).toBe(true);
+    expect(pushLead).not.toHaveBeenCalled();
+    expect(updateSpy).not.toHaveBeenCalled();
+    expect(logSpy.mock.calls[0][0].data.operation).toBe('skip');
+    expect(logSpy.mock.calls[0][0].data.status).toBe('success');
   });
 
   it('failure path: writes error SyncLog, does not update lead', async () => {
@@ -103,7 +125,8 @@ describe('pushLeadToOneC', () => {
         estimatedAmount: null,
         productType: [],
         notes: null,
-        partner: { slug: null }
+        partner: { slug: null },
+        pushedToOneCAt: null
       }
     });
     const adapter = makeFakeAdapter({ shouldThrow: true });

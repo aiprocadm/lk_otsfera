@@ -17,8 +17,20 @@ describe('OneCAdapter factory', () => {
     expect(adapter).toBeInstanceOf(FakeOneCAdapter);
   });
 
-  it('throws when ONE_C_ADAPTER=rest until rest adapter exists', () => {
+  it('throws a config error when ONE_C_ADAPTER=rest without ONE_C_API_URL', () => {
     process.env.ONE_C_ADAPTER = 'rest';
-    expect(() => getOneCAdapter()).toThrow(/not implemented/i);
+    delete process.env.ONE_C_API_URL;
+    delete process.env.ONE_C_API_TOKEN;
+    expect(() => getOneCAdapter()).toThrow(/ONE_C_API_URL/);
+  });
+
+  it('returns RestOneCAdapter when ONE_C_ADAPTER=rest with URL + token', async () => {
+    process.env.ONE_C_ADAPTER = 'rest';
+    process.env.ONE_C_API_URL = 'https://1c.example.com';
+    process.env.ONE_C_API_TOKEN = 'tok';
+    const { RestOneCAdapter } = await import('@/lib/services/oneCSync/adapter-rest');
+    expect(getOneCAdapter()).toBeInstanceOf(RestOneCAdapter);
+    delete process.env.ONE_C_API_URL;
+    delete process.env.ONE_C_API_TOKEN;
   });
 });

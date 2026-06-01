@@ -39,7 +39,9 @@ describe('GET /api/admin/sync/summary', () => {
         errorCount24h: 1,
         lastSuccessAt: new Date('2026-05-22T08:00:00Z'),
         lastErrorAt: null,
-        lastErrorMessage: null
+        lastErrorMessage: null,
+        cursor: null,
+        lagMs: null
       }
     ]);
 

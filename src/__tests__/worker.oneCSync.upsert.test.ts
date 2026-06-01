@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeAll, afterAll } from 'vitest';
+import { describe, expect, it, beforeAll, afterAll, beforeEach } from 'vitest';
 import type { Job } from 'bullmq';
 import { PrismaClient } from '@prisma/client';
 import { syncOrganizationsProcessor } from '@/worker/processors/sync-organizations';
@@ -54,6 +54,7 @@ async function cleanupOrgs() {
   }
 }
 async function cleanupAll() {
+  await prisma.syncState.deleteMany({});
   await cleanupDocs();
   await cleanupPayments();
   await cleanupOrders();
@@ -167,9 +168,16 @@ afterAll(async () => {
   await prisma.syncLog.deleteMany({
     where: { entity: { in: ['organization', 'order', 'payment', 'document'] } }
   });
+  await prisma.syncState.deleteMany({});
   await deletePartnerCascade(partnerId);
   resetOneCAdapter();
   await prisma.$disconnect();
+});
+
+beforeEach(async () => {
+  // Every test starts from an empty cursor → full pull → existing assertions hold.
+  // The one incremental test below clears once then runs the processor twice itself.
+  await prisma.syncState.deleteMany({});
 });
 
 describe('syncOrganizationsProcessor', () => {
@@ -377,6 +385,28 @@ describe('syncOrdersProcessor', () => {
     expect(lastLog?.status).toBe('warn');
 
     await syncOrganizationsProcessor(job(), prisma);
+  });
+
+  it('advances the cursor so a re-run only re-pulls within the 5-min overlap window', async () => {
+    process.env.ONE_C_CURSOR_OVERLAP_MINUTES = '5';
+    await cleanupDocs();
+    await cleanupPayments();
+    await cleanupOrders();
+    await prisma.syncState.deleteMany({});
+
+    const first = await syncOrdersProcessor(job(), prisma);
+    expect(first.created).toBe(FAKE_ORDERS.length);
+
+    // Second run WITHOUT clearing the cursor: only orders with updatedAt within
+    // 5 min of the max watermark are re-pulled. FAKE_ORDERS have distinct, days-apart
+    // updatedAt, so exactly the newest one falls inside the overlap window.
+    const second = await syncOrdersProcessor(job(), prisma);
+    expect(second.pulled).toBe(1);
+    expect(second.created).toBe(0);
+    expect(second.updated).toBe(1);
+
+    delete process.env.ONE_C_CURSOR_OVERLAP_MINUTES;
+    await prisma.syncState.deleteMany({});
   });
 });
 

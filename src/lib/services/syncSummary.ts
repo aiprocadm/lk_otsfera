@@ -12,6 +12,8 @@ export type SyncSummaryRow = {
   lastSuccessAt: Date | null;
   lastErrorAt: Date | null;
   lastErrorMessage: string | null;
+  cursor: string | null;
+  lagMs: number | null;
 };
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -21,7 +23,7 @@ export async function getSyncSummary(prisma: PrismaClient): Promise<SyncSummaryR
   const rows: SyncSummaryRow[] = [];
 
   for (const entity of TRACKED_ENTITIES) {
-    const [successCount24h, warnCount24h, errorCount24h, lastSuccess, lastError] = await Promise.all([
+    const [successCount24h, warnCount24h, errorCount24h, lastSuccess, lastError, state] = await Promise.all([
       prisma.syncLog.count({
         where: { entity, direction: 'inbound', status: 'success', createdAt: { gte: since } }
       }),
@@ -40,8 +42,12 @@ export async function getSyncSummary(prisma: PrismaClient): Promise<SyncSummaryR
         where: { entity, direction: 'inbound', status: 'error' },
         orderBy: { createdAt: 'desc' },
         select: { createdAt: true, errorMessage: true }
-      })
+      }),
+      prisma.syncState.findUnique({ where: { entity }, select: { cursor: true } })
     ]);
+
+    const cursor = state?.cursor ?? null;
+    const lagMs = cursor ? Date.now() - Date.parse(cursor) : null;
 
     rows.push({
       entity,
@@ -50,7 +56,9 @@ export async function getSyncSummary(prisma: PrismaClient): Promise<SyncSummaryR
       errorCount24h,
       lastSuccessAt: lastSuccess?.createdAt ?? null,
       lastErrorAt: lastError?.createdAt ?? null,
-      lastErrorMessage: lastError?.errorMessage ?? null
+      lastErrorMessage: lastError?.errorMessage ?? null,
+      cursor,
+      lagMs
     });
   }
 
