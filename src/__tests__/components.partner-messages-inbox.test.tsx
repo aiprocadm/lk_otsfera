@@ -65,4 +65,17 @@ describe('PartnerMessagesInbox', () => {
     // THREAD_B has unread=true — the dot element should be present
     expect(html).toContain('data-unread="true"');
   });
+
+  it('does not render an unread indicator for a read thread (unread=false)', () => {
+    const html = renderToString(
+      React.createElement(PartnerMessagesInbox, {
+        threads: [THREAD_A, THREAD_B],
+        currentUserId: CURRENT_USER
+      })
+    );
+    // Only THREAD_B is unread — the dot must appear exactly once,
+    // proving THREAD_A (unread=false) does NOT get an indicator.
+    const occurrences = html.split('data-unread="true"').length - 1;
+    expect(occurrences).toBe(1);
+  });
 });

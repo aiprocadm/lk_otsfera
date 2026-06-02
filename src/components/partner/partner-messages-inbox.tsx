@@ -31,7 +31,7 @@ export function PartnerMessagesInbox({ threads, currentUserId }: Props) {
     setSelected(thread);
     setLoadingMessages(true);
     try {
-      const res = await fetch(`/api/messages?threadId=${thread.id}`);
+      const res = await fetch(`/api/messages?threadId=${encodeURIComponent(thread.id)}`);
       if (res.ok) {
         const data = (await res.json()) as { rows: Array<{ id: string; authorId: string; authorName: string; body: string; createdAt: string }> };
         const vms: ChatMessageVM[] = data.rows.map((r) => ({
@@ -59,8 +59,8 @@ export function PartnerMessagesInbox({ threads, currentUserId }: Props) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ threadId: thread.id })
-    }).then(() => {
-      setThreadUnread((prev) => ({ ...prev, [thread.id]: false }));
+    }).then((res) => {
+      if (res.ok) setThreadUnread((prev) => ({ ...prev, [thread.id]: false }));
     }).catch((err) => {
       console.warn('[partner-messages-inbox] markRead error', err);
     });
@@ -79,7 +79,7 @@ export function PartnerMessagesInbox({ threads, currentUserId }: Props) {
         return;
       }
       // Refetch messages for the selected thread
-      const fetchRes = await fetch(`/api/messages?threadId=${selected.id}`);
+      const fetchRes = await fetch(`/api/messages?threadId=${encodeURIComponent(selected.id)}`);
       if (fetchRes.ok) {
         const data = (await fetchRes.json()) as { rows: Array<{ id: string; authorId: string; authorName: string; body: string; createdAt: string }> };
         setMessages(

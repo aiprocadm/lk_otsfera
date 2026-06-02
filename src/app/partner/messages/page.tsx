@@ -10,7 +10,8 @@ export default async function PartnerMessagesPage() {
   if (!isFeatureEnabled('chat')) notFound();
 
   const session = await getSession();
-  if (!session?.partnerId) redirect('/login');
+  if (!session) redirect('/login');
+  if (session.role !== 'partner' || !session.partnerId) redirect('/forbidden');
 
   const result = await listThreads(prisma, session);
   const threads = result.ok ? result.rows : [];
