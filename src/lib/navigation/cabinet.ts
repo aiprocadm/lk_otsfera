@@ -28,11 +28,13 @@ export const navByRole: Record<Role, NavItem[]> = {
     { href: '/partner/leads', label: 'Заявки', flag: 'partner_leads' },
     { href: '/partner/documents', label: 'Документы' },
     { href: '/partner/finance', label: 'Финансы' },
-    { href: '/partner/team', label: 'Команда' }
+    { href: '/partner/team', label: 'Команда' },
+    { href: '/partner/messages', label: 'Сообщения', flag: 'chat' }
   ],
   organization: [
     { href: '/organization/dashboard', label: 'Dashboard организации', flag: 'organization_cabinet' },
-    { href: '/student', label: 'Кабинет слушателя' }
+    { href: '/student', label: 'Кабинет слушателя' },
+    { href: '/organization/messages', label: 'Сообщения', flag: 'chat' }
   ],
   student: [{ href: '/student', label: 'Обучение' }]
 };
