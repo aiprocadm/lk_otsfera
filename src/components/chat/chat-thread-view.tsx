@@ -6,7 +6,9 @@ export type ChatMessageVM = {
   authorId: string;
   authorName: string;
   body: string;
-  attachmentPath?: string | null;
+  /** Ready-to-render download URL (e.g. a signed URL or download route).
+   *  Consumers MUST pass a signed/route URL per CLAUDE.md §10 — never a raw storage path. */
+  attachmentUrl?: string | null;
   createdAt: string | Date;
 };
 
@@ -81,9 +83,9 @@ export function ChatThreadView({
               }}
             >
               <p style={{ margin: 0 }}>{msg.body}</p>
-              {msg.attachmentPath && (
+              {msg.attachmentUrl && (
                 <a
-                  href={msg.attachmentPath}
+                  href={msg.attachmentUrl}
                   style={{
                     display: 'inline-block',
                     marginTop: '6px',

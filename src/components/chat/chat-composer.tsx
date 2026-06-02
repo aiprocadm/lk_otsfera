@@ -1,5 +1,5 @@
 'use client';
-import React, { useRef, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 
 export function ChatComposer({
   onSend,
@@ -12,6 +12,7 @@ export function ChatComposer({
 }) {
   const [text, setText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputId = useId();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,6 +49,7 @@ export function ChatComposer({
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Напишите сообщение…"
+        aria-label="Сообщение"
         disabled={disabled}
         rows={3}
         style={{
@@ -68,7 +70,7 @@ export function ChatComposer({
         {onAttachFile && (
           <>
             <label
-              htmlFor="chat-file-input"
+              htmlFor={fileInputId}
               style={{
                 cursor: 'pointer',
                 padding: '6px 10px',
@@ -84,7 +86,7 @@ export function ChatComposer({
               📎
             </label>
             <input
-              id="chat-file-input"
+              id={fileInputId}
               ref={fileInputRef}
               type="file"
               onChange={handleFileChange}

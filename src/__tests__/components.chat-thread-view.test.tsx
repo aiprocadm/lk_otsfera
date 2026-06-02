@@ -50,14 +50,14 @@ describe('ChatThreadView', () => {
     expect(html).toContain('data-mine="false"');
   });
 
-  it('renders attachment affordance when attachmentPath is set', () => {
+  it('renders attachment affordance when attachmentUrl is set', () => {
     const messages: ChatMessageVM[] = [
       {
         id: 'm3',
         authorId: 'u2',
         authorName: 'Коллега',
         body: 'Смотри вложение',
-        attachmentPath: '/files/doc.pdf',
+        attachmentUrl: '/files/doc.pdf',
         createdAt: new Date('2024-01-15T10:02:00Z')
       }
     ];
@@ -66,7 +66,8 @@ describe('ChatThreadView', () => {
       React.createElement(ChatThreadView, { messages, currentUserId: 'u1' })
     );
 
-    expect(html).toContain('вложение');
+    // Assert the actual link href, not just body text (which also contains "вложение")
+    expect(html).toContain('href="/files/doc.pdf"');
   });
 });
 
