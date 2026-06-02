@@ -230,31 +230,25 @@ describe('migrateCommentsToMessages integration', () => {
   });
 
   it('idempotency: second run returns migrated:0, skipped:4, message counts unchanged', async () => {
-    // First run already done in the previous test — but since tests share state in afterAll cleanup,
-    // we need to seed and run once first here to ensure state exists.
-    // Re-check: the previous test seeded + ran. Since vitest fileParallelism:false and these
-    // run sequentially within the same describe, the DB still has the migrated messages from test 1.
+    // Self-contained: seed fresh so this test does not depend on the previous test's state.
+    await cleanupData();
+    await seedData();
 
-    const result2 = await migrateCommentsToMessages(prisma);
+    const first = await migrateCommentsToMessages(prisma);
+    expect(first.migrated).toBe(4);
 
-    expect(result2.migrated).toBe(0);
-    expect(result2.skipped).toBe(4);
-
-    // Message counts must be unchanged
-    const orgThread = await prisma.orderThread.findUnique({
-      where: { orderId_side: { orderId, side: 'org' } }
-    });
-    const partnerThread = await prisma.orderThread.findUnique({
-      where: { orderId_side: { orderId, side: 'partner' } }
+    const countAfterFirst = await prisma.message.count({
+      where: { thread: { order: { title: ORDER_TITLE } } }
     });
 
-    expect(orgThread).not.toBeNull();
-    expect(partnerThread).not.toBeNull();
+    const second = await migrateCommentsToMessages(prisma);
+    expect(second.migrated).toBe(0);
+    expect(second.skipped).toBe(4);
 
-    const orgCount = await prisma.message.count({ where: { threadId: orgThread!.id } });
-    const partnerCount = await prisma.message.count({ where: { threadId: partnerThread!.id } });
-
-    expect(orgCount).toBe(2);
-    expect(partnerCount).toBe(2);
+    // Scoped message count must be unchanged by the second (no-op) run.
+    const countAfterSecond = await prisma.message.count({
+      where: { thread: { order: { title: ORDER_TITLE } } }
+    });
+    expect(countAfterSecond).toBe(countAfterFirst);
   });
 });
