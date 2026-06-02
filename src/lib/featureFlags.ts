@@ -21,6 +21,7 @@ export const FEATURE_FLAGS = [
   'document_scan',
   'organization_cabinet',
   'manager_cabinet',
+  'chat',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -32,7 +33,8 @@ export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
  */
 const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'organization_cabinet',
-  'manager_cabinet'
+  'manager_cabinet',
+  'chat'
 ]);
 
 export class FeatureDisabledError extends Error {
