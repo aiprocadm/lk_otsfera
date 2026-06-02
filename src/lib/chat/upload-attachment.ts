@@ -16,8 +16,12 @@ export async function uploadAttachment(
   fd.append('file', file);
   fd.append('orderId', orderId);
   if (side) fd.append('side', side);
-  const res = await fetch('/api/messages/attachment', { method: 'POST', body: fd });
-  if (!res.ok) return null;
-  const data = await res.json().catch(() => null);
-  return data && data.ok ? (data.attachmentPath as string) : null;
+  try {
+    const res = await fetch('/api/messages/attachment', { method: 'POST', body: fd });
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => null);
+    return data && data.ok ? (data.attachmentPath as string) : null;
+  } catch {
+    return null;
+  }
 }

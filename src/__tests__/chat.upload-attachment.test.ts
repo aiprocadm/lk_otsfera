@@ -47,6 +47,12 @@ describe('uploadAttachment', () => {
     expect(result).toBeNull();
   });
 
+  it('returns null when fetch throws', async () => {
+    fetchMock.mockRejectedValueOnce(new Error('network'));
+    const result = await uploadAttachment(makeFile(), 'o1');
+    expect(result).toBeNull();
+  });
+
   it('includes file, orderId in FormData — no side when omitted', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
