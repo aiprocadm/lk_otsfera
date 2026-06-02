@@ -5,6 +5,7 @@ import { ManagerMessagesInbox } from '@/components/manager/manager-messages-inbo
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { listThreads } from '@/lib/services/chat/threads';
 import { TeamChatInbox } from '@/components/chat/team-chat-inbox';
+import { UnreadBadge } from '@/components/chat/unread-badge';
 
 type SearchParams = { cursor?: string };
 
@@ -26,7 +27,7 @@ export default async function ManagerMessagesPage({
 
   return (
     <>
-      <h1 className='mb-4 text-2xl font-semibold'>Сообщения</h1>
+      <h1 className='mb-4 text-2xl font-semibold'>Сообщения<UnreadBadge /></h1>
       <h2 className='mb-3 text-lg font-medium text-gray-700'>Комментарии к заказам</h2>
       <ManagerMessagesInbox rows={rows} nextCursor={nextCursor} />
       {chatEnabled && chat && (

@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth/session';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { listThreads } from '@/lib/services/chat/threads';
 import { PartnerMessagesInbox } from '@/components/partner/partner-messages-inbox';
+import { UnreadBadge } from '@/components/chat/unread-badge';
 
 export default async function PartnerMessagesPage() {
   // Defense-in-depth flag check — middleware already gates, but §4 requires page-level check too
@@ -18,7 +19,7 @@ export default async function PartnerMessagesPage() {
 
   return (
     <div className='space-y-4'>
-      <h1 className='text-2xl font-bold text-[#111111]'>Сообщения</h1>
+      <h1 className='text-2xl font-bold text-[#111111]'>Сообщения<UnreadBadge /></h1>
       <PartnerMessagesInbox threads={threads} currentUserId={session.sub} />
     </div>
   );

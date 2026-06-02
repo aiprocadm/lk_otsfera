@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { listThreads } from '@/lib/services/chat/threads';
 import { TeamChatInbox } from '@/components/chat/team-chat-inbox';
+import { UnreadBadge } from '@/components/chat/unread-badge';
 
 export default async function AdminMessagesPage() {
   const session = await requireAdmin();
@@ -12,7 +13,7 @@ export default async function AdminMessagesPage() {
 
   return (
     <>
-      <h1 className='mb-4 text-2xl font-semibold'>Сообщения</h1>
+      <h1 className='mb-4 text-2xl font-semibold'>Сообщения<UnreadBadge /></h1>
       {chatEnabled && chat ? (
         <section>
           <h2 className='mb-3 text-lg font-medium text-gray-700'>Чат</h2>

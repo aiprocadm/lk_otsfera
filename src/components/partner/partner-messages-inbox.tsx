@@ -4,6 +4,7 @@ import type { ThreadSide } from '@prisma/client';
 import { ChatThreadView, type ChatMessageVM } from '@/components/chat/chat-thread-view';
 import { ChatComposer } from '@/components/chat/chat-composer';
 import { uploadAttachment } from '@/lib/chat/upload-attachment';
+import { useThreadPolling } from '@/hooks/useThreadPolling';
 
 type Thread = {
   id: string;
@@ -44,6 +45,21 @@ export function PartnerMessagesInbox({ threads, currentUserId }: Props) {
   );
   const [pendingAttachment, setPendingAttachment] = useState<{ path: string; name: string } | null>(null);
   const [attachError, setAttachError] = useState<string | null>(null);
+
+  // Derive polling inputs from current state
+  const rawLatest = messages.length > 0 ? messages[messages.length - 1].createdAt : null;
+  const latestCreatedAt: string | null = rawLatest instanceof Date ? rawLatest.toISOString() : rawLatest;
+
+  // appendNew: called by useThreadPolling with rows newer than cursor; dedup by id
+  function appendNew(rows: Array<{ id: string; authorId: string; authorName: string; body: string; createdAt: string; attachmentPath: string | null }>) {
+    setMessages((prev) => {
+      const existingIds = new Set(prev.map((m) => m.id));
+      const fresh = rows.filter((r) => !existingIds.has(r.id)).map(toVM);
+      return fresh.length > 0 ? [...prev, ...fresh] : prev;
+    });
+  }
+
+  useThreadPolling(selected?.id ?? null, latestCreatedAt, appendNew);
 
   async function selectThread(thread: Thread) {
     setSelected(thread);
