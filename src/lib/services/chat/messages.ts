@@ -4,6 +4,38 @@ import { canSeeThread } from './policy';
 import { recordAudit } from '@/lib/auth/audit';
 import { notifyManagers, notifyOrgUsers } from '@/lib/notifications';
 
+export type ListMessagesResult =
+  | { ok: true; rows: Array<{ id: string; authorId: string; body: string; attachmentPath: string | null; createdAt: Date }> }
+  | { ok: false; error: 'forbidden' | 'thread_not_found' };
+
+export async function listMessages(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  args: { threadId: string; after?: string }
+): Promise<ListMessagesResult> {
+  const thread = await prisma.orderThread.findUnique({
+    where: { id: args.threadId },
+    select: {
+      id: true,
+      side: true,
+      order: { select: { id: true, organizationId: true, partnerId: true } }
+    }
+  });
+  if (!thread) return { ok: false, error: 'thread_not_found' };
+  if (!canSeeThread(session, thread.side, thread.order)) return { ok: false, error: 'forbidden' };
+
+  const rows = await prisma.message.findMany({
+    where: {
+      threadId: thread.id,
+      ...(args.after ? { createdAt: { gt: new Date(args.after) } } : {})
+    },
+    select: { id: true, authorId: true, body: true, attachmentPath: true, createdAt: true },
+    orderBy: { createdAt: 'asc' },
+    take: 200
+  });
+  return { ok: true, rows };
+}
+
 export type SendError = 'forbidden' | 'order_not_found' | 'empty_body' | 'too_large';
 export type SendResult = { ok: true; messageId: string } | { ok: false; error: SendError };
 
