@@ -5,7 +5,7 @@ import { recordAudit } from '@/lib/auth/audit';
 import { notifyManagers, notifyOrgUsers } from '@/lib/notifications';
 
 export type ListMessagesResult =
-  | { ok: true; rows: Array<{ id: string; authorId: string; body: string; attachmentPath: string | null; createdAt: Date }> }
+  | { ok: true; rows: Array<{ id: string; authorId: string; authorName: string; body: string; attachmentPath: string | null; createdAt: Date }> }
   | { ok: false; error: 'forbidden' | 'thread_not_found' };
 
 export async function listMessages(
@@ -29,11 +29,21 @@ export async function listMessages(
       threadId: thread.id,
       ...(args.after ? { createdAt: { gt: new Date(args.after) } } : {})
     },
-    select: { id: true, authorId: true, body: true, attachmentPath: true, createdAt: true },
+    select: { id: true, authorId: true, body: true, attachmentPath: true, createdAt: true, author: { select: { name: true } } },
     orderBy: { createdAt: 'asc' },
     take: 200
   });
-  return { ok: true, rows };
+  return {
+    ok: true,
+    rows: rows.map((m) => ({
+      id: m.id,
+      authorId: m.authorId,
+      authorName: m.author.name ?? '',
+      body: m.body,
+      attachmentPath: m.attachmentPath,
+      createdAt: m.createdAt
+    }))
+  };
 }
 
 export type SendError = 'forbidden' | 'order_not_found' | 'empty_body' | 'too_large';

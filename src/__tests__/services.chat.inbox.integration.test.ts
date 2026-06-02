@@ -257,6 +257,8 @@ describe('listMessages', () => {
     expect(result.rows.length).toBe(2);
     expect(result.rows[0].body).toBe('First');
     expect(result.rows[1].body).toBe('Second');
+    // authorName must be populated from the joined user record
+    expect(result.rows[0].authorName).toBe(`${PREFIX}-Manager`);
   });
 
   it('after filter excludes older messages', async () => {
