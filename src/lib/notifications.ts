@@ -278,7 +278,7 @@ async function dispatchOrgEmail(
   }
   if (input.type === 'chat_message') {
     const { orderNumber, orderTitle, excerpt } = input.payload;
-    const label = orderNumber ? `№ ${orderNumber}` : `«${orderTitle}»`;
+    const label = orderLabel(orderNumber, orderTitle);
     return sendNotificationEmail({
       to,
       title: `Новое сообщение по заказу ${label}`,
@@ -580,7 +580,7 @@ const MANAGER_TEMPLATES: Record<
   },
   chat_message: (input, ctx) => {
     if (input.type !== 'chat_message') throw new Error('type mismatch');
-    const orderRef = ctx.orderNumber ? `№ ${ctx.orderNumber}` : `«${ctx.orderTitle}»`;
+    const orderRef = orderLabel(ctx.orderNumber, ctx.orderTitle);
     const subject = `Новое сообщение по заказу ${orderRef}`;
     const shortBody = input.payload.excerpt;
     return {
