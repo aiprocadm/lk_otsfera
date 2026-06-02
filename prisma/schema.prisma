@@ -124,6 +124,7 @@ model User {
   savedViews          SavedView[]          @relation("SavedViewOwner")
   passwordResetTokens PasswordResetToken[]
   authoredMessages    Message[]            @relation("MessageAuthor")
+  threadReadStates    ThreadReadState[]
 }
 
 model PartnerUser {
@@ -619,6 +620,7 @@ model ThreadReadState {
   threadId   String
   thread     OrderThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
   userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   lastReadAt DateTime    @default(now())
 
   @@unique([threadId, userId])
