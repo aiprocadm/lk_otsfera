@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import type { ThreadSide } from '@prisma/client';
 import { ChatThreadView, type ChatMessageVM } from '@/components/chat/chat-thread-view';
 import { ChatComposer } from '@/components/chat/chat-composer';
+import { uploadAttachment } from '@/lib/chat/upload-attachment';
 
 type Thread = {
   id: string;
@@ -19,6 +20,21 @@ type Props = {
   currentUserId: string;
 };
 
+/** Maps raw API message row to a ChatMessageVM. */
+function toVM(r: { id: string; authorId: string; authorName: string; body: string; createdAt: string; attachmentPath?: string | null }): ChatMessageVM {
+  return {
+    id: r.id,
+    authorId: r.authorId,
+    authorName: r.authorName,
+    body: r.body,
+    // §10: never expose raw storage path — route through the download route
+    attachmentUrl: r.attachmentPath
+      ? `/api/messages/attachment?messageId=${encodeURIComponent(r.id)}`
+      : undefined,
+    createdAt: r.createdAt
+  };
+}
+
 export function OrganizationMessagesInbox({ threads, currentUserId }: Props) {
   const [selected, setSelected] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<ChatMessageVM[]>([]);
@@ -26,9 +42,13 @@ export function OrganizationMessagesInbox({ threads, currentUserId }: Props) {
   const [threadUnread, setThreadUnread] = useState<Record<string, boolean>>(
     () => Object.fromEntries(threads.map((t) => [t.id, t.unread]))
   );
+  const [pendingAttachment, setPendingAttachment] = useState<{ path: string; name: string } | null>(null);
+  const [attachError, setAttachError] = useState<string | null>(null);
 
   async function selectThread(thread: Thread) {
     setSelected(thread);
+    setPendingAttachment(null);
+    setAttachError(null);
     setLoadingMessages(true);
     try {
       const res = await fetch(`/api/messages?threadId=${encodeURIComponent(thread.id)}`);
@@ -40,17 +60,10 @@ export function OrganizationMessagesInbox({ threads, currentUserId }: Props) {
             authorName: string;
             body: string;
             createdAt: string;
+            attachmentPath?: string | null;
           }>;
         };
-        const vms: ChatMessageVM[] = data.rows.map((r) => ({
-          id: r.id,
-          authorId: r.authorId,
-          authorName: r.authorName,
-          body: r.body,
-          attachmentUrl: undefined,
-          createdAt: r.createdAt
-        }));
-        setMessages(vms);
+        setMessages(data.rows.map(toVM));
       } else {
         console.warn('[organization-messages-inbox] fetch messages failed', res.status);
         setMessages([]);
@@ -76,19 +89,39 @@ export function OrganizationMessagesInbox({ threads, currentUserId }: Props) {
       });
   }
 
+  async function handleAttach(file: File) {
+    if (!selected) return;
+    setAttachError(null);
+    // Org inbox — no `side` passed; server derives 'org' from session role
+    const path = await uploadAttachment(file, selected.orderId);
+    if (path) {
+      setPendingAttachment({ path, name: file.name });
+    } else {
+      console.warn('[organization-messages-inbox] attachment upload failed');
+      setAttachError('Не удалось загрузить файл');
+    }
+  }
+
   async function handleSend(text: string) {
     if (!selected) return;
+    // v1 limitation: an attachment must accompany text because sendMessage rejects
+    // an empty body. Attachment-only messages are a v1.1 follow-up.
     try {
       // NO `side` field — server's deriveSide forces 'org' for an organization session
       const res = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: selected.orderId, body: text })
+        body: JSON.stringify({
+          orderId: selected.orderId,
+          body: text,
+          ...(pendingAttachment ? { attachmentPath: pendingAttachment.path } : {})
+        })
       });
       if (!res.ok) {
         console.warn('[organization-messages-inbox] send message failed', res.status);
         return;
       }
+      setPendingAttachment(null);
       // Refetch messages for the selected thread
       const fetchRes = await fetch(
         `/api/messages?threadId=${encodeURIComponent(selected.id)}`
@@ -101,18 +134,10 @@ export function OrganizationMessagesInbox({ threads, currentUserId }: Props) {
             authorName: string;
             body: string;
             createdAt: string;
+            attachmentPath?: string | null;
           }>;
         };
-        setMessages(
-          data.rows.map((r) => ({
-            id: r.id,
-            authorId: r.authorId,
-            authorName: r.authorName,
-            body: r.body,
-            attachmentUrl: undefined,
-            createdAt: r.createdAt
-          }))
-        );
+        setMessages(data.rows.map(toVM));
       }
     } catch (err) {
       console.warn('[organization-messages-inbox] handleSend error', err);
@@ -258,7 +283,54 @@ export function OrganizationMessagesInbox({ threads, currentUserId }: Props) {
                 <ChatThreadView messages={messages} currentUserId={currentUserId} />
               )}
             </div>
-            <ChatComposer onSend={handleSend} />
+            {/* Pending attachment indicator */}
+            {pendingAttachment && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px 16px',
+                  backgroundColor: '#FFF7ED',
+                  borderTop: '1px solid #FED7AA',
+                  fontSize: '13px',
+                  color: '#C2410C'
+                }}
+              >
+                <span>📎 {pendingAttachment.name}</span>
+                <button
+                  onClick={() => setPendingAttachment(null)}
+                  aria-label="Убрать вложение"
+                  style={{
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    color: '#9CA3AF',
+                    fontSize: '16px',
+                    lineHeight: 1,
+                    padding: '0 2px'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+            {/* Upload error feedback */}
+            {attachError && (
+              <div
+                role="alert"
+                style={{
+                  padding: '6px 16px',
+                  backgroundColor: '#FEF2F2',
+                  borderTop: '1px solid #FECACA',
+                  fontSize: '13px',
+                  color: '#DC2626'
+                }}
+              >
+                {attachError}
+              </div>
+            )}
+            <ChatComposer onSend={handleSend} onAttachFile={handleAttach} />
           </>
         )}
       </div>
