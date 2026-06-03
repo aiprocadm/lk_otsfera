@@ -42,4 +42,38 @@ describe('sendMessage', () => {
     const pm = prismaMock(); pm.order.findUnique.mockResolvedValue(null);
     expect(await sendMessage(pm, teamSession, { orderId: 'x', side: 'org', body: 'hi' })).toEqual({ ok: false, error: 'order_not_found' });
   });
+
+  // FIX 1: IDOR — attacker-controlled attachmentPath guard
+  it('attachmentPath referencing another order → forbidden (IDOR guard)', async () => {
+    // orderId is 'o1'; attacker tries to reference another order's document
+    expect(
+      await sendMessage(prismaMock(), orgSession, {
+        orderId: 'o1',
+        side: 'org',
+        body: 'see attachment',
+        attachmentPath: 'orders/victim-order-id/secret.pdf'
+      })
+    ).toEqual({ ok: false, error: 'forbidden' });
+  });
+
+  it('attachmentPath with correct chat/<orderId>/ prefix → ok', async () => {
+    const result = await sendMessage(prismaMock(), orgSession, {
+      orderId: 'o1',
+      side: 'org',
+      body: 'see attachment',
+      attachmentPath: 'chat/o1/uuid-file.pdf'
+    });
+    expect(result).toEqual({ ok: true, messageId: 'm1' });
+  });
+
+  it('attachmentPath with chat/ prefix but wrong orderId → forbidden', async () => {
+    expect(
+      await sendMessage(prismaMock(), orgSession, {
+        orderId: 'o1',
+        side: 'org',
+        body: 'see attachment',
+        attachmentPath: 'chat/other-order/uuid-file.pdf'
+      })
+    ).toEqual({ ok: false, error: 'forbidden' });
+  });
 });

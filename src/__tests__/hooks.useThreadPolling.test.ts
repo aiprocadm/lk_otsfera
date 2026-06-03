@@ -46,7 +46,7 @@ function makePollFn(
 }
 
 function makeRow(id: string, createdAt: string): PolledRow {
-  return { id, authorId: 'a1', body: 'hello', attachmentPath: null, authorName: 'Alice', createdAt };
+  return { id, authorId: 'a1', body: 'hello', hasAttachment: false, authorName: 'Alice', createdAt };
 }
 
 // ---------------------------------------------------------------------------

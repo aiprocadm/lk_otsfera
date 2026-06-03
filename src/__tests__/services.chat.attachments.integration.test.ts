@@ -397,4 +397,26 @@ describe('getChatAttachmentSignedUrl integration', () => {
     expect(result).toEqual({ ok: false, error: 'forbidden' });
     expect(createSignedUrlMock).not.toHaveBeenCalled();
   });
+
+  // FIX 1: belt-and-suspenders — message with non-chat/ path is rejected before signed URL
+  it('message with non-chat/ attachmentPath (e.g. orders/...) → not_found, createSignedUrl NOT called', async () => {
+    const thread = await prisma.orderThread.upsert({
+      where: { orderId_side: { orderId, side: 'org' } },
+      update: {},
+      create: { orderId, side: 'org' },
+    });
+    // Simulate a legacy/edge row with a path outside chat/
+    const msg = await prisma.message.create({
+      data: {
+        threadId: thread.id,
+        authorId: managerId,
+        body: 'sneaky',
+        attachmentPath: 'orders/victim-order-id/secret.pdf',
+      },
+    });
+
+    const result = await getChatAttachmentSignedUrl(prisma, teamSession, msg.id);
+    expect(result).toEqual({ ok: false, error: 'not_found' });
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
+  });
 });

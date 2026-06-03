@@ -146,6 +146,12 @@ export async function getChatAttachmentSignedUrl(
     return { ok: false, error: 'not_found' };
   }
 
+  // FIX 1: belt-and-suspenders — reject any path not under the chat/ prefix
+  // (guards against legacy/edge data that may have slipped in)
+  if (!message.attachmentPath.startsWith('chat/')) {
+    return { ok: false, error: 'not_found' };
+  }
+
   if (!canSeeThread(session, message.thread.side, message.thread.order)) {
     return { ok: false, error: 'forbidden' };
   }

@@ -5,7 +5,7 @@ export type PolledRow = {
   id: string;
   authorId: string;
   body: string;
-  attachmentPath: string | null;
+  hasAttachment: boolean;
   authorName: string;
   createdAt: string;
 };

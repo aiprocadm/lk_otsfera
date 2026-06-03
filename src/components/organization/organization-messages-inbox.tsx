@@ -22,14 +22,14 @@ type Props = {
 };
 
 /** Maps raw API message row to a ChatMessageVM. */
-function toVM(r: { id: string; authorId: string; authorName: string; body: string; createdAt: string; attachmentPath?: string | null }): ChatMessageVM {
+function toVM(r: { id: string; authorId: string; authorName: string; body: string; createdAt: string; hasAttachment?: boolean }): ChatMessageVM {
   return {
     id: r.id,
     authorId: r.authorId,
     authorName: r.authorName,
     body: r.body,
     // §10: never expose raw storage path — route through the download route
-    attachmentUrl: r.attachmentPath
+    attachmentUrl: r.hasAttachment
       ? `/api/messages/attachment?messageId=${encodeURIComponent(r.id)}`
       : undefined,
     createdAt: r.createdAt
@@ -51,7 +51,7 @@ export function OrganizationMessagesInbox({ threads, currentUserId }: Props) {
   const latestCreatedAt: string | null = rawLatest instanceof Date ? rawLatest.toISOString() : rawLatest;
 
   // appendNew: called by useThreadPolling with rows newer than cursor; dedup by id
-  function appendNew(rows: Array<{ id: string; authorId: string; authorName: string; body: string; createdAt: string; attachmentPath: string | null }>) {
+  function appendNew(rows: Array<{ id: string; authorId: string; authorName: string; body: string; createdAt: string; hasAttachment: boolean }>) {
     setMessages((prev) => {
       const existingIds = new Set(prev.map((m) => m.id));
       const fresh = rows.filter((r) => !existingIds.has(r.id)).map(toVM);
@@ -76,7 +76,7 @@ export function OrganizationMessagesInbox({ threads, currentUserId }: Props) {
             authorName: string;
             body: string;
             createdAt: string;
-            attachmentPath?: string | null;
+            hasAttachment: boolean;
           }>;
         };
         setMessages(data.rows.map(toVM));
@@ -150,7 +150,7 @@ export function OrganizationMessagesInbox({ threads, currentUserId }: Props) {
             authorName: string;
             body: string;
             createdAt: string;
-            attachmentPath?: string | null;
+            hasAttachment: boolean;
           }>;
         };
         setMessages(data.rows.map(toVM));

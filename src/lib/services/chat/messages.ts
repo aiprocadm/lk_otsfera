@@ -5,7 +5,7 @@ import { recordAudit } from '@/lib/auth/audit';
 import { notifyManagers, notifyOrgUsers } from '@/lib/notifications';
 
 export type ListMessagesResult =
-  | { ok: true; rows: Array<{ id: string; authorId: string; authorName: string; body: string; attachmentPath: string | null; createdAt: Date }> }
+  | { ok: true; rows: Array<{ id: string; authorId: string; authorName: string; body: string; hasAttachment: boolean; createdAt: Date }> }
   | { ok: false; error: 'forbidden' | 'thread_not_found' };
 
 export async function listMessages(
@@ -24,10 +24,14 @@ export async function listMessages(
   if (!thread) return { ok: false, error: 'thread_not_found' };
   if (!canSeeThread(session, thread.side, thread.order)) return { ok: false, error: 'forbidden' };
 
+  // FIX 4: guard invalid `after` cursor — if it parses to NaN, ignore it
+  const afterDate = args.after ? new Date(args.after) : null;
+  const validAfter = afterDate && !isNaN(afterDate.getTime()) ? afterDate : null;
+
   const rows = await prisma.message.findMany({
     where: {
       threadId: thread.id,
-      ...(args.after ? { createdAt: { gt: new Date(args.after) } } : {})
+      ...(validAfter ? { createdAt: { gt: validAfter } } : {})
     },
     select: { id: true, authorId: true, body: true, attachmentPath: true, createdAt: true, author: { select: { name: true } } },
     orderBy: { createdAt: 'asc' },
@@ -40,7 +44,8 @@ export async function listMessages(
       authorId: m.authorId,
       authorName: m.author.name ?? '',
       body: m.body,
-      attachmentPath: m.attachmentPath,
+      // FIX 2: never expose raw storage path — only signal presence
+      hasAttachment: m.attachmentPath !== null,
       createdAt: m.createdAt
     }))
   };
@@ -66,6 +71,11 @@ export async function sendMessage(
   });
   if (!order) return { ok: false, error: 'order_not_found' };
   if (!canSeeThread(session, args.side, order)) return { ok: false, error: 'forbidden' };
+
+  // FIX 1: IDOR defense — attachment must live in THIS order's chat folder
+  if (args.attachmentPath !== undefined && !args.attachmentPath.startsWith(`chat/${args.orderId}/`)) {
+    return { ok: false, error: 'forbidden' };
+  }
 
   const thread = await prisma.orderThread.upsert({
     where: { orderId_side: { orderId: args.orderId, side: args.side } },

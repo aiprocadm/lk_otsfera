@@ -176,7 +176,7 @@ describe('GET /api/messages', () => {
   });
 
   it('valid threadId → 200 with rows', async () => {
-    const rows = [{ id: 'msg-1', authorId: 'u-1', body: 'hi', attachmentPath: null, createdAt: new Date('2026-06-01') }];
+    const rows = [{ id: 'msg-1', authorId: 'u-1', body: 'hi', hasAttachment: false, createdAt: new Date('2026-06-01') }];
     listMessagesMock.mockResolvedValue({ ok: true, rows });
     const res = await messagesGet(
       new Request('https://app.local/api/messages?threadId=thr-1')

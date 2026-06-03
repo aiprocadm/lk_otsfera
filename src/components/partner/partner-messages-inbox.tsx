@@ -22,14 +22,14 @@ type Props = {
 };
 
 /** Maps raw API message row to a ChatMessageVM. */
-function toVM(r: { id: string; authorId: string; authorName: string; body: string; createdAt: string; attachmentPath?: string | null }): ChatMessageVM {
+function toVM(r: { id: string; authorId: string; authorName: string; body: string; createdAt: string; hasAttachment?: boolean }): ChatMessageVM {
   return {
     id: r.id,
     authorId: r.authorId,
     authorName: r.authorName,
     body: r.body,
     // §10: never expose raw storage path — route through the download route
-    attachmentUrl: r.attachmentPath
+    attachmentUrl: r.hasAttachment
       ? `/api/messages/attachment?messageId=${encodeURIComponent(r.id)}`
       : undefined,
     createdAt: r.createdAt
@@ -51,7 +51,7 @@ export function PartnerMessagesInbox({ threads, currentUserId }: Props) {
   const latestCreatedAt: string | null = rawLatest instanceof Date ? rawLatest.toISOString() : rawLatest;
 
   // appendNew: called by useThreadPolling with rows newer than cursor; dedup by id
-  function appendNew(rows: Array<{ id: string; authorId: string; authorName: string; body: string; createdAt: string; attachmentPath: string | null }>) {
+  function appendNew(rows: Array<{ id: string; authorId: string; authorName: string; body: string; createdAt: string; hasAttachment: boolean }>) {
     setMessages((prev) => {
       const existingIds = new Set(prev.map((m) => m.id));
       const fresh = rows.filter((r) => !existingIds.has(r.id)).map(toVM);
@@ -69,7 +69,7 @@ export function PartnerMessagesInbox({ threads, currentUserId }: Props) {
     try {
       const res = await fetch(`/api/messages?threadId=${encodeURIComponent(thread.id)}`);
       if (res.ok) {
-        const data = (await res.json()) as { rows: Array<{ id: string; authorId: string; authorName: string; body: string; createdAt: string; attachmentPath?: string | null }> };
+        const data = (await res.json()) as { rows: Array<{ id: string; authorId: string; authorName: string; body: string; createdAt: string; hasAttachment: boolean }> };
         setMessages(data.rows.map(toVM));
       } else {
         console.warn('[partner-messages-inbox] fetch messages failed', res.status);
@@ -129,7 +129,7 @@ export function PartnerMessagesInbox({ threads, currentUserId }: Props) {
       // Refetch messages for the selected thread
       const fetchRes = await fetch(`/api/messages?threadId=${encodeURIComponent(selected.id)}`);
       if (fetchRes.ok) {
-        const data = (await fetchRes.json()) as { rows: Array<{ id: string; authorId: string; authorName: string; body: string; createdAt: string; attachmentPath?: string | null }> };
+        const data = (await fetchRes.json()) as { rows: Array<{ id: string; authorId: string; authorName: string; body: string; createdAt: string; hasAttachment: boolean }> };
         setMessages(data.rows.map(toVM));
       }
     } catch (err) {
