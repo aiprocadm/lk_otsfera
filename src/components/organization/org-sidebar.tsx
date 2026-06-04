@@ -17,13 +17,13 @@ const ITEMS: NavItem[] = [
 export type OrgSidebarMembership = {
   organizationId: string;
   organizationName: string;
-  roleInOrg: 'admin' | 'member';
+  roleInOrg: 'admin' | 'leader' | 'member';
 };
 
 export function OrgSidebar(props: {
   memberships: OrgSidebarMembership[];
   activeOrgId: string;
-  viewerRole: 'admin' | 'member';
+  viewerRole: 'admin' | 'leader' | 'member';
 }) {
   const pathname = usePathname();
   const router = useRouter();

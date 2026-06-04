@@ -6,7 +6,7 @@ export function OrgAppShell(props: {
   activeOrgName: string;
   memberships: OrgSidebarMembership[];
   activeOrgId: string;
-  viewerRole: 'admin' | 'member';
+  viewerRole: 'admin' | 'leader' | 'member';
   children: ReactNode;
 }) {
   return (
