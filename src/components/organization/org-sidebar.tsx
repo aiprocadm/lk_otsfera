@@ -10,6 +10,7 @@ const ITEMS: NavItem[] = [
   { href: '/organization/dashboard', label: 'Главная', icon: '⌂' },
   { href: '/organization/orders', label: 'Заказы', icon: '📋' },
   { href: '/organization/documents', label: 'Документы', icon: '📄' },
+  { href: '/organization/finance', label: 'Финансы', icon: '₽' },
   { href: '/organization/students', label: 'Сотрудники', icon: '👥' },
   { href: '/organization/team', label: 'Команда', icon: '⚙', adminOnly: true }
 ];
