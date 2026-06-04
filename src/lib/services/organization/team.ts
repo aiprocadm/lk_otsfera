@@ -1,4 +1,5 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
+import type { OrgRoleInOrg } from '@/lib/auth/jwt';
 import { createInviteToken } from '@/lib/auth/passwordReset';
 import { recordAudit } from '@/lib/auth/audit';
 
@@ -6,6 +7,7 @@ export type OrgMemberErrorCode =
   | 'already_member'
   | 'last_admin_protected'
   | 'self_action_forbidden'
+  | 'requires_admin'
   | 'not_found';
 
 export class OrgMemberError extends Error {
@@ -22,7 +24,7 @@ export type OrgMemberRow = {
   userId: string;
   email: string;
   name: string;
-  roleInOrg: 'admin' | 'member';
+  roleInOrg: 'admin' | 'leader' | 'member';
   isActive: boolean;
   invitedAt: Date;
   lastLoginAt: Date | null;
@@ -32,7 +34,7 @@ export type InviteMemberInput = {
   organizationId: string;
   email: string;
   name: string;
-  roleInOrg: 'admin' | 'member';
+  roleInOrg: 'admin' | 'leader' | 'member';
 };
 
 export type InviteMemberResult = {
@@ -41,8 +43,10 @@ export type InviteMemberResult = {
   alreadyHasPassword: boolean;
 };
 
-function normaliseRole(value: string | null | undefined): 'admin' | 'member' {
-  return value === 'admin' ? 'admin' : 'member';
+function normaliseRole(value: string | null | undefined): 'admin' | 'leader' | 'member' {
+  if (value === 'admin') return 'admin';
+  if (value === 'leader') return 'leader';
+  return 'member';
 }
 
 function getAppBaseUrl(): string {
@@ -80,8 +84,12 @@ export async function inviteMember(
   prisma: PrismaClient,
   args: InviteMemberInput,
   actorUserId: string,
-  audit: InviteMemberAuditMeta = {}
+  audit: InviteMemberAuditMeta = {},
+  actorRole: OrgRoleInOrg = 'admin'
 ): Promise<InviteMemberResult> {
+  if (actorRole === 'leader' && args.roleInOrg === 'admin') {
+    throw new OrgMemberError('requires_admin');
+  }
   return prisma.$transaction(async (tx) => {
     let user = await tx.user.findUnique({ where: { email: args.email } });
     let isNewUser = false;
@@ -201,8 +209,9 @@ export async function updateMemberRole(
   prisma: PrismaClient,
   organizationId: string,
   orgUserId: string,
-  newRole: 'admin' | 'member',
-  actorUserId: string
+  newRole: 'admin' | 'leader' | 'member',
+  actorUserId: string,
+  actorRole: OrgRoleInOrg = 'admin'
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const target = await loadOrgUserOrThrow(tx, organizationId, orgUserId);
@@ -210,6 +219,9 @@ export async function updateMemberRole(
       throw new OrgMemberError('self_action_forbidden');
     }
     const currentRole = normaliseRole(target.roleInOrg);
+    if (actorRole === 'leader' && (currentRole === 'admin' || newRole === 'admin')) {
+      throw new OrgMemberError('requires_admin');
+    }
     if (currentRole === newRole) return; // no-op
 
     if (currentRole === 'admin' && newRole === 'member' && target.isActive) {
@@ -236,12 +248,16 @@ export async function deactivateMember(
   prisma: PrismaClient,
   organizationId: string,
   orgUserId: string,
-  actorUserId: string
+  actorUserId: string,
+  actorRole: OrgRoleInOrg = 'admin'
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const target = await loadOrgUserOrThrow(tx, organizationId, orgUserId);
     if (target.userId === actorUserId) {
       throw new OrgMemberError('self_action_forbidden');
+    }
+    if (actorRole === 'leader' && normaliseRole(target.roleInOrg) === 'admin') {
+      throw new OrgMemberError('requires_admin');
     }
     if (!target.isActive) return; // no-op
 
@@ -269,12 +285,16 @@ export async function reactivateMember(
   prisma: PrismaClient,
   organizationId: string,
   orgUserId: string,
-  actorUserId: string
+  actorUserId: string,
+  actorRole: OrgRoleInOrg = 'admin'
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const target = await loadOrgUserOrThrow(tx, organizationId, orgUserId);
     if (target.userId === actorUserId) {
       throw new OrgMemberError('self_action_forbidden');
+    }
+    if (actorRole === 'leader' && normaliseRole(target.roleInOrg) === 'admin') {
+      throw new OrgMemberError('requires_admin');
     }
     if (target.isActive) return; // no-op
 

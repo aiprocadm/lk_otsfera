@@ -337,6 +337,52 @@ describe('reactivateMember', () => {
   });
 });
 
+describe('leader privilege-escalation guards', () => {
+  it('leader cannot promote a member to admin', async () => {
+    await expect(
+      updateMemberRole(prisma, orgId, memberOrgUserId, 'admin', actorAdminUserId, 'leader')
+    ).rejects.toMatchObject({ code: 'requires_admin' });
+    const row = await prisma.organizationUser.findUnique({ where: { id: memberOrgUserId } });
+    expect(row?.roleInOrg).toBe('member'); // untouched
+  });
+
+  it('leader cannot change the role of an existing admin', async () => {
+    await expect(
+      updateMemberRole(prisma, orgId, secondAdminOrgUserId, 'member', actorAdminUserId, 'leader')
+    ).rejects.toMatchObject({ code: 'requires_admin' });
+  });
+
+  it('leader cannot deactivate an admin', async () => {
+    await expect(
+      deactivateMember(prisma, orgId, secondAdminOrgUserId, actorAdminUserId, 'leader')
+    ).rejects.toMatchObject({ code: 'requires_admin' });
+  });
+
+  it('leader CAN promote a member to leader', async () => {
+    await updateMemberRole(prisma, orgId, memberOrgUserId, 'leader', actorAdminUserId, 'leader');
+    const row = await prisma.organizationUser.findUnique({ where: { id: memberOrgUserId } });
+    expect(row?.roleInOrg).toBe('leader');
+  });
+
+  it('leader cannot invite a new admin', async () => {
+    await expect(
+      inviteMember(
+        prisma,
+        { organizationId: orgId, email: `team-leadinvite-${Date.now()}@t.local`, name: 'X', roleInOrg: 'admin' },
+        actorAdminUserId,
+        {},
+        'leader'
+      )
+    ).rejects.toMatchObject({ code: 'requires_admin' });
+  });
+
+  it('admin (default actorRole) is unrestricted — promotes member to admin', async () => {
+    await updateMemberRole(prisma, orgId, memberOrgUserId, 'admin', actorAdminUserId);
+    const row = await prisma.organizationUser.findUnique({ where: { id: memberOrgUserId } });
+    expect(row?.roleInOrg).toBe('admin');
+  });
+});
+
 describe('cross-organization isolation (IDOR guard)', () => {
   it('refuses to mutate a member belonging to a different organization', async () => {
     // Second org with its own member. actorAdmin only administers `orgId`, so
