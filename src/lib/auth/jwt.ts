@@ -16,7 +16,7 @@ export type Role = 'admin' | 'manager' | 'partner' | 'organization' | 'student';
 
 export type PartnerRoleInPartner = 'admin' | 'manager';
 
-export type OrgRoleInOrg = 'admin' | 'member';
+export type OrgRoleInOrg = 'admin' | 'leader' | 'member';
 
 export type OrganizationMembership = {
   organizationId: string;

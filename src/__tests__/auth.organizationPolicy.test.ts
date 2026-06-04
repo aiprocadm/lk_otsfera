@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   isOrgMember,
   isOrgAdmin,
+  isOrgLeader,
+  canSeeIntermediaryCommission,
   activeOrgIds,
   organizationOrgScopeFilter,
   organizationOrderScopeFilter,
@@ -114,5 +116,30 @@ describe('canSeeDocument', () => {
 
   it('false for orphan document', () => {
     expect(canSeeDocument(session, { order: { organizationId: null } })).toBe(false);
+  });
+});
+
+describe('isOrgLeader', () => {
+  const session = s([
+    { organizationId: 'A', roleInOrg: 'leader', isActive: true },
+    { organizationId: 'B', roleInOrg: 'admin', isActive: true }
+  ]);
+  it('true only for active leader membership in the org', () => {
+    expect(isOrgLeader(session, 'A')).toBe(true);
+    expect(isOrgLeader(session, 'B')).toBe(false); // admin is not leader
+    expect(isOrgLeader(session, 'X')).toBe(false);
+  });
+});
+
+describe('canSeeIntermediaryCommission', () => {
+  const session = s([
+    { organizationId: 'A', roleInOrg: 'admin', isActive: true },
+    { organizationId: 'B', roleInOrg: 'leader', isActive: true },
+    { organizationId: 'C', roleInOrg: 'member', isActive: true }
+  ]);
+  it('true for admin and leader, false for member', () => {
+    expect(canSeeIntermediaryCommission(session, 'A')).toBe(true);
+    expect(canSeeIntermediaryCommission(session, 'B')).toBe(true);
+    expect(canSeeIntermediaryCommission(session, 'C')).toBe(false);
   });
 });
