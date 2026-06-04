@@ -109,7 +109,10 @@ export async function POST(req: Request) {
 
     organizationMemberships = memberships.map((m) => ({
       organizationId: m.organizationId,
-      roleInOrg: m.roleInOrg === 'admin' ? 'admin' : 'member',
+      // Must preserve every role in OrgRoleInOrg — narrowing 'leader' to 'member'
+      // here silently disables the leader feature for the whole token lifetime.
+      roleInOrg:
+        m.roleInOrg === 'admin' ? 'admin' : m.roleInOrg === 'leader' ? 'leader' : 'member',
       isActive: m.isActive
     }));
   }
