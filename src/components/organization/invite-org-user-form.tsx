@@ -10,7 +10,8 @@ const ERROR_LABELS: Record<string, string> = {
   last_admin_protected: 'Нельзя оставить организацию без активного администратора.',
   self_action_forbidden: 'Нельзя выполнить это действие над собой.',
   not_found: 'Запись не найдена.',
-  forbidden: 'Нет прав на это действие.'
+  forbidden: 'Нет прав на это действие.',
+  requires_admin: 'Только администратор может назначать или изменять администраторов.'
 };
 
 type SuccessState = {
@@ -163,6 +164,7 @@ export function InviteOrgUserForm({ organizationId }: { organizationId: string }
                 className='w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#F97316]'
               >
                 <option value='member'>Сотрудник</option>
+                <option value='leader'>Руководитель</option>
                 <option value='admin'>Администратор</option>
               </select>
             </label>

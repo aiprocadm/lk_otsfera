@@ -47,9 +47,11 @@ export function OrgSidebar(props: {
     router.push(`${pathname}?${sp.toString()}`);
   }
 
-  // TODO(T6): once team management lands for 'leader', surface adminOnly items
-  // (Команда) for leaders too — currently only 'admin' sees them.
-  const items = ITEMS.filter((it) => !it.adminOnly || props.viewerRole === 'admin');
+  // adminOnly items (Команда) are visible to admins AND leaders — both can
+  // manage the team (the server action enforces the per-row privilege rules).
+  const items = ITEMS.filter(
+    (it) => !it.adminOnly || props.viewerRole === 'admin' || props.viewerRole === 'leader'
+  );
 
   return (
     <nav className='w-60 min-h-screen bg-white border-r border-gray-200 p-4 flex-shrink-0'>
