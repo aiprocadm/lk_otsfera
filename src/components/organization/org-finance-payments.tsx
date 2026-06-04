@@ -22,7 +22,7 @@ export function OrgFinancePayments({ payments }: { payments: OrgPaymentRow[] }) 
   return (
     <div className='space-y-3'>
       <h2 className='text-sm font-medium text-gray-500 uppercase tracking-wider'>История платежей</h2>
-      <div className='bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm overflow-x-auto'>
+      <div className='bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto'>
         <table className='w-full text-sm'>
           <thead>
             <tr className='border-b border-gray-100 bg-gray-50 text-left'>

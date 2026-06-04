@@ -117,4 +117,31 @@ describe('getOrgIntermediaryCommission', () => {
     expect(c.totalCommission).toBe('22500.00');
     expect(c.perOrder).toHaveLength(2);
   });
+
+  it('falls back to the partner default rate when the org has no override', async () => {
+    const company2 = await prisma.company.create({ data: { name: `FinC2-${STAMP}` } });
+    const org2 = await prisma.organization.create({
+      data: { name: `FinOrg2-${STAMP}`, partnerId, companyId: company2.id } // no partnerCommissionRate
+    });
+    try {
+      await prisma.order.create({
+        data: {
+          title: 'O2-1',
+          organizationId: org2.id,
+          companyId: company2.id,
+          financialStatus: 'billed',
+          totalAmount: new Prisma.Decimal('10000'),
+          paidAmount: new Prisma.Decimal('0'),
+          vatIncluded: true
+        }
+      });
+      const c = await getOrgIntermediaryCommission(prisma, org2.id);
+      expect(c.effectiveRate).toBe('0.1'); // partner default (commissionRate 0.1)
+      expect(c.totalCommission).toBe('1000.00'); // 10000 * 0.1
+    } finally {
+      await prisma.order.deleteMany({ where: { organizationId: org2.id } });
+      await prisma.organization.deleteMany({ where: { id: org2.id } });
+      await prisma.company.deleteMany({ where: { id: company2.id } });
+    }
+  });
 });
