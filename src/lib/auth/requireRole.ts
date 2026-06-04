@@ -43,6 +43,19 @@ export async function requireOrganizationAdmin(orgId?: string): Promise<SessionP
   return session;
 }
 
+export async function requireOrganizationAdminOrLeader(orgId?: string): Promise<SessionPayload> {
+  const session = await requireOrganization();
+  const memberships = session.organizationMemberships ?? [];
+  const ok = memberships.some(
+    (m) =>
+      m.isActive &&
+      (m.roleInOrg === 'admin' || m.roleInOrg === 'leader') &&
+      (!orgId || m.organizationId === orgId)
+  );
+  if (!ok) redirect('/forbidden');
+  return session;
+}
+
 /**
  * Manager cabinet guards (Phase 8).
  *

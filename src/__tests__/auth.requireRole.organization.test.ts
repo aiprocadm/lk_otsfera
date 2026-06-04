@@ -8,7 +8,7 @@ const { getSession, redirect } = vi.hoisted(() => ({
 vi.mock('@/lib/auth/session', () => ({ getSession }));
 vi.mock('next/navigation', () => ({ redirect }));
 
-import { requireOrganization, requireOrganizationAdmin } from '@/lib/auth/requireRole';
+import { requireOrganization, requireOrganizationAdmin, requireOrganizationAdminOrLeader } from '@/lib/auth/requireRole';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const ORG_MEMBER: SessionPayload = {
@@ -94,6 +94,12 @@ describe('requireOrganization', () => {
   });
 });
 
+const ORG_LEADER: SessionPayload = {
+  sub: 'u-7',
+  role: 'organization',
+  organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'leader', isActive: true }]
+};
+
 describe('requireOrganizationAdmin', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -144,6 +150,33 @@ describe('requireOrganizationAdmin', () => {
       throw new Error('NEXT_REDIRECT');
     });
     await expect(requireOrganizationAdmin('org-B')).rejects.toThrow('NEXT_REDIRECT');
+    expect(redirect).toHaveBeenCalledWith('/forbidden');
+  });
+});
+
+describe('requireOrganizationAdminOrLeader', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('returns session for admin of requested org', async () => {
+    getSession.mockResolvedValue(ORG_ADMIN_A);
+    await expect(requireOrganizationAdminOrLeader('org-A')).resolves.toEqual(ORG_ADMIN_A);
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('returns session for leader of requested org', async () => {
+    getSession.mockResolvedValue(ORG_LEADER);
+    await expect(requireOrganizationAdminOrLeader('org-1')).resolves.toEqual(ORG_LEADER);
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('redirects to /forbidden for member', async () => {
+    getSession.mockResolvedValue(ORG_MEMBER);
+    redirect.mockImplementation(() => {
+      throw new Error('NEXT_REDIRECT');
+    });
+    await expect(requireOrganizationAdminOrLeader('org-1')).rejects.toThrow('NEXT_REDIRECT');
     expect(redirect).toHaveBeenCalledWith('/forbidden');
   });
 });
