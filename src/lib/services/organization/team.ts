@@ -85,7 +85,7 @@ export async function inviteMember(
   args: InviteMemberInput,
   actorUserId: string,
   audit: InviteMemberAuditMeta = {},
-  actorRole: OrgRoleInOrg = 'admin'
+  actorRole: OrgRoleInOrg = 'admin' // back-compat default; callers must pass real actor role
 ): Promise<InviteMemberResult> {
   if (actorRole === 'leader' && args.roleInOrg === 'admin') {
     throw new OrgMemberError('requires_admin');
@@ -120,6 +120,12 @@ export async function inviteMember(
     if (existing) {
       if (existing.isActive) {
         throw new OrgMemberError('already_member');
+      }
+      // A leader must not reactivate/alter an existing admin membership — the
+      // pre-transaction guard only blocks granting admin to a NEW invite; this
+      // closes the reactivation path (re-inviting a deactivated admin).
+      if (actorRole === 'leader' && normaliseRole(existing.roleInOrg) === 'admin') {
+        throw new OrgMemberError('requires_admin');
       }
       const updated = await tx.organizationUser.update({
         where: { id: existing.id },
@@ -211,7 +217,7 @@ export async function updateMemberRole(
   orgUserId: string,
   newRole: 'admin' | 'leader' | 'member',
   actorUserId: string,
-  actorRole: OrgRoleInOrg = 'admin'
+  actorRole: OrgRoleInOrg = 'admin' // back-compat default; callers must pass real actor role
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const target = await loadOrgUserOrThrow(tx, organizationId, orgUserId);
@@ -222,6 +228,8 @@ export async function updateMemberRole(
     if (actorRole === 'leader' && (currentRole === 'admin' || newRole === 'admin')) {
       throw new OrgMemberError('requires_admin');
     }
+    // Guard above must run before this no-op: a leader touching an admin row
+    // must fail even when newRole === currentRole.
     if (currentRole === newRole) return; // no-op
 
     if (currentRole === 'admin' && newRole === 'member' && target.isActive) {
@@ -249,7 +257,7 @@ export async function deactivateMember(
   organizationId: string,
   orgUserId: string,
   actorUserId: string,
-  actorRole: OrgRoleInOrg = 'admin'
+  actorRole: OrgRoleInOrg = 'admin' // back-compat default; callers must pass real actor role
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const target = await loadOrgUserOrThrow(tx, organizationId, orgUserId);
@@ -286,7 +294,7 @@ export async function reactivateMember(
   organizationId: string,
   orgUserId: string,
   actorUserId: string,
-  actorRole: OrgRoleInOrg = 'admin'
+  actorRole: OrgRoleInOrg = 'admin' // back-compat default; callers must pass real actor role
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const target = await loadOrgUserOrThrow(tx, organizationId, orgUserId);
