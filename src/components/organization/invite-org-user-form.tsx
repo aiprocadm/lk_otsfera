@@ -20,7 +20,13 @@ type SuccessState = {
   alreadyHasPassword: boolean;
 };
 
-export function InviteOrgUserForm({ organizationId }: { organizationId: string }) {
+export function InviteOrgUserForm({
+  organizationId,
+  viewerRole
+}: {
+  organizationId: string;
+  viewerRole: 'admin' | 'leader' | 'member';
+}) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -165,7 +171,7 @@ export function InviteOrgUserForm({ organizationId }: { organizationId: string }
               >
                 <option value='member'>Сотрудник</option>
                 <option value='leader'>Руководитель</option>
-                <option value='admin'>Администратор</option>
+                {viewerRole === 'admin' && <option value='admin'>Администратор</option>}
               </select>
             </label>
 

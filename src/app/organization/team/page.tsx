@@ -51,7 +51,7 @@ export default async function OrganizationTeamPage({
               )}
             </p>
           </div>
-          <InviteOrgUserForm organizationId={ctx.activeOrgId} />
+          <InviteOrgUserForm organizationId={ctx.activeOrgId} viewerRole={ctx.viewerRole} />
         </div>
 
         <TeamTable
@@ -62,9 +62,9 @@ export default async function OrganizationTeamPage({
         />
 
         <p className='text-xs text-gray-400 mt-2'>
-          Администраторы могут приглашать новых участников, менять роли и
-          деактивировать доступ. Последнего активного администратора деактивировать
-          нельзя.
+          Администраторы и руководители могут приглашать участников, менять роли
+          и деактивировать доступ; роль «Администратор» назначают только
+          администраторы. Последнего активного администратора деактивировать нельзя.
         </p>
       </div>
     </OrgAppShell>
