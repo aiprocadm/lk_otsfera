@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   requireOrganizationAdmin,
+  requireOrganizationAdminOrLeader,
+  isOrgAdmin,
   inviteMember,
   updateMemberRole,
   deactivateMember,
@@ -11,6 +13,8 @@ const {
   organizationFindUnique
 } = vi.hoisted(() => ({
   requireOrganizationAdmin: vi.fn(),
+  requireOrganizationAdminOrLeader: vi.fn(),
+  isOrgAdmin: vi.fn(),
   inviteMember: vi.fn(),
   updateMemberRole: vi.fn(),
   deactivateMember: vi.fn(),
@@ -20,7 +24,8 @@ const {
   organizationFindUnique: vi.fn()
 }));
 
-vi.mock('@/lib/auth/requireRole', () => ({ requireOrganizationAdmin }));
+vi.mock('@/lib/auth/requireRole', () => ({ requireOrganizationAdmin, requireOrganizationAdminOrLeader }));
+vi.mock('@/lib/auth/organizationPolicy', () => ({ isOrgAdmin }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: { organization: { findUnique: organizationFindUnique } }
 }));
@@ -60,7 +65,14 @@ function fd(data: Record<string, string>): FormData {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireOrganizationAdmin.mockResolvedValue({ sub: 'actor-1', name: 'Actor' });
+  const adminSession = {
+    sub: 'actor-1',
+    name: 'Actor',
+    organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'admin', isActive: true }]
+  };
+  requireOrganizationAdmin.mockResolvedValue(adminSession);
+  requireOrganizationAdminOrLeader.mockResolvedValue(adminSession);
+  isOrgAdmin.mockReturnValue(true);
 });
 
 describe('inviteOrgMemberAction', () => {
@@ -138,7 +150,8 @@ describe('updateOrgMemberRoleAction', () => {
       'org-1',
       'ou-1',
       'admin',
-      'actor-1'
+      'actor-1',
+      'admin'
     );
     expect(revalidatePath).toHaveBeenCalledWith('/organization/team');
   });
@@ -187,5 +200,62 @@ describe('reactivateOrgMemberAction', () => {
     );
     expect(res).toEqual({ ok: true });
     expect(revalidatePath).toHaveBeenCalledWith('/organization/team');
+  });
+});
+
+describe('leader actor threads actorRole', () => {
+  it('passes actorRole="leader" to updateMemberRole when actor is a leader', async () => {
+    requireOrganizationAdminOrLeader.mockResolvedValue({
+      sub: 'leader-1',
+      organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'leader', isActive: true }]
+    });
+    isOrgAdmin.mockReturnValue(false);
+    updateMemberRole.mockResolvedValue(undefined);
+
+    const res = await updateOrgMemberRoleAction(
+      fd({ organizationId: 'org-1', orgUserId: 'ou-9', newRole: 'leader' })
+    );
+    expect(res).toEqual({ ok: true });
+    expect(updateMemberRole).toHaveBeenCalledWith(
+      expect.anything(),
+      'org-1',
+      'ou-9',
+      'leader',
+      'leader-1',
+      'leader'
+    );
+  });
+
+  it('maps requires_admin error to {ok:false, error:requires_admin}', async () => {
+    requireOrganizationAdminOrLeader.mockResolvedValue({
+      sub: 'leader-1',
+      organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'leader', isActive: true }]
+    });
+    isOrgAdmin.mockReturnValue(false);
+    updateMemberRole.mockRejectedValue(new OrgMemberError('requires_admin'));
+
+    const res = await updateOrgMemberRoleAction(
+      fd({ organizationId: 'org-1', orgUserId: 'ou-9', newRole: 'admin' })
+    );
+    expect(res).toEqual({ ok: false, error: 'requires_admin' });
+  });
+
+  it('accepts roleInOrg=leader in the invite schema and passes actorRole', async () => {
+    inviteMember.mockResolvedValue({
+      user: { id: 'u', email: 'l@t.local' },
+      inviteUrl: null,
+      alreadyHasPassword: true
+    });
+    const res = await inviteOrgMemberAction(
+      fd({ organizationId: 'org-1', email: 'l@t.local', name: 'L', roleInOrg: 'leader' })
+    );
+    expect(res).toMatchObject({ ok: true });
+    expect(inviteMember).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ roleInOrg: 'leader' }),
+      'actor-1',
+      { source: 'organization' },
+      'admin'
+    );
   });
 });

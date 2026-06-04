@@ -3,7 +3,8 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
-import { requireOrganizationAdmin } from '@/lib/auth/requireRole';
+import { requireOrganizationAdminOrLeader } from '@/lib/auth/requireRole';
+import { isOrgAdmin } from '@/lib/auth/organizationPolicy';
 import {
   inviteMember,
   updateMemberRole,
@@ -27,13 +28,13 @@ const inviteSchema = z.object({
   organizationId: z.string().min(1),
   email: z.string().email(),
   name: z.string().min(1).max(200),
-  roleInOrg: z.enum(['admin', 'member'])
+  roleInOrg: z.enum(['admin', 'leader', 'member'])
 });
 
 const roleSchema = z.object({
   organizationId: z.string().min(1),
   orgUserId: z.string().min(1),
-  newRole: z.enum(['admin', 'member'])
+  newRole: z.enum(['admin', 'leader', 'member'])
 });
 
 const targetSchema = z.object({
@@ -72,14 +73,16 @@ export async function inviteOrgMemberAction(
     return { ok: false, error: 'validation', details: parsed.error.flatten() };
   }
 
-  const session = await requireOrganizationAdmin(parsed.data.organizationId);
+  const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);
+  const actorRole = isOrgAdmin(session, parsed.data.organizationId) ? 'admin' : 'leader';
 
   try {
     const result = await inviteMember(
       prisma,
       parsed.data,
       session.sub,
-      { source: 'organization' }
+      { source: 'organization' },
+      actorRole
     );
 
     // Send invite email best-effort. send() returns 'skipped' silently when
@@ -119,10 +122,11 @@ export async function updateOrgMemberRoleAction(formData: FormData): Promise<Act
     return { ok: false, error: 'validation', details: parsed.error.flatten() };
   }
 
-  const session = await requireOrganizationAdmin(parsed.data.organizationId);
+  const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);
+  const actorRole = isOrgAdmin(session, parsed.data.organizationId) ? 'admin' : 'leader';
 
   try {
-    await updateMemberRole(prisma, parsed.data.organizationId, parsed.data.orgUserId, parsed.data.newRole, session.sub);
+    await updateMemberRole(prisma, parsed.data.organizationId, parsed.data.orgUserId, parsed.data.newRole, session.sub, actorRole);
     revalidatePath('/organization/team');
     return { ok: true };
   } catch (e) {
@@ -139,10 +143,11 @@ export async function deactivateOrgMemberAction(formData: FormData): Promise<Act
     return { ok: false, error: 'validation', details: parsed.error.flatten() };
   }
 
-  const session = await requireOrganizationAdmin(parsed.data.organizationId);
+  const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);
+  const actorRole = isOrgAdmin(session, parsed.data.organizationId) ? 'admin' : 'leader';
 
   try {
-    await deactivateMember(prisma, parsed.data.organizationId, parsed.data.orgUserId, session.sub);
+    await deactivateMember(prisma, parsed.data.organizationId, parsed.data.orgUserId, session.sub, actorRole);
     revalidatePath('/organization/team');
     return { ok: true };
   } catch (e) {
@@ -159,10 +164,11 @@ export async function reactivateOrgMemberAction(formData: FormData): Promise<Act
     return { ok: false, error: 'validation', details: parsed.error.flatten() };
   }
 
-  const session = await requireOrganizationAdmin(parsed.data.organizationId);
+  const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);
+  const actorRole = isOrgAdmin(session, parsed.data.organizationId) ? 'admin' : 'leader';
 
   try {
-    await reactivateMember(prisma, parsed.data.organizationId, parsed.data.orgUserId, session.sub);
+    await reactivateMember(prisma, parsed.data.organizationId, parsed.data.orgUserId, session.sub, actorRole);
     revalidatePath('/organization/team');
     return { ok: true };
   } catch (e) {
