@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { requireOrganization } from '@/lib/auth/requireRole';
 import { resolveActiveOrgId } from '@/lib/auth/orgContext';
-import { activeOrgIds, isOrgAdmin } from '@/lib/auth/organizationPolicy';
+import { activeOrgIds, isOrgAdmin, isOrgLeader } from '@/lib/auth/organizationPolicy';
 import { prisma } from '@/lib/db/prisma';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import type { OrgSidebarMembership } from '@/components/organization/org-sidebar';
@@ -11,7 +11,7 @@ export type OrgPageContext = {
   activeOrgId: string;
   activeOrgName: string;
   memberships: OrgSidebarMembership[];
-  viewerRole: 'admin' | 'member';
+  viewerRole: 'admin' | 'leader' | 'member';
 };
 
 /**
@@ -50,6 +50,10 @@ export async function getOrgPageContext(
     activeOrgId,
     activeOrgName: nameById.get(activeOrgId) ?? '—',
     memberships,
-    viewerRole: isOrgAdmin(session, activeOrgId) ? 'admin' : 'member'
+    viewerRole: isOrgAdmin(session, activeOrgId)
+      ? 'admin'
+      : isOrgLeader(session, activeOrgId)
+        ? 'leader'
+        : 'member'
   };
 }

@@ -10,6 +10,7 @@ const ITEMS: NavItem[] = [
   { href: '/organization/dashboard', label: 'Главная', icon: '⌂' },
   { href: '/organization/orders', label: 'Заказы', icon: '📋' },
   { href: '/organization/documents', label: 'Документы', icon: '📄' },
+  { href: '/organization/finance', label: 'Финансы', icon: '₽' },
   { href: '/organization/students', label: 'Сотрудники', icon: '👥' },
   { href: '/organization/team', label: 'Команда', icon: '⚙', adminOnly: true }
 ];
@@ -17,13 +18,13 @@ const ITEMS: NavItem[] = [
 export type OrgSidebarMembership = {
   organizationId: string;
   organizationName: string;
-  roleInOrg: 'admin' | 'member';
+  roleInOrg: 'admin' | 'leader' | 'member';
 };
 
 export function OrgSidebar(props: {
   memberships: OrgSidebarMembership[];
   activeOrgId: string;
-  viewerRole: 'admin' | 'member';
+  viewerRole: 'admin' | 'leader' | 'member';
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -47,7 +48,11 @@ export function OrgSidebar(props: {
     router.push(`${pathname}?${sp.toString()}`);
   }
 
-  const items = ITEMS.filter((it) => !it.adminOnly || props.viewerRole === 'admin');
+  // adminOnly items (Команда) are visible to admins AND leaders — both can
+  // manage the team (the server action enforces the per-row privilege rules).
+  const items = ITEMS.filter(
+    (it) => !it.adminOnly || props.viewerRole === 'admin' || props.viewerRole === 'leader'
+  );
 
   return (
     <nav className='w-60 min-h-screen bg-white border-r border-gray-200 p-4 flex-shrink-0'>

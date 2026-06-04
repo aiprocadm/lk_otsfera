@@ -337,6 +337,76 @@ describe('reactivateMember', () => {
   });
 });
 
+// actorAdminUserId is reused as the actor's userId; actorRole='leader' is what
+// controls privilege here — userId only drives the self-action guard and audit log.
+describe('leader privilege-escalation guards', () => {
+  it('leader cannot promote a member to admin', async () => {
+    await expect(
+      updateMemberRole(prisma, orgId, memberOrgUserId, 'admin', actorAdminUserId, 'leader')
+    ).rejects.toMatchObject({ code: 'requires_admin' });
+    const row = await prisma.organizationUser.findUnique({ where: { id: memberOrgUserId } });
+    expect(row?.roleInOrg).toBe('member'); // untouched
+  });
+
+  it('leader cannot change the role of an existing admin', async () => {
+    await expect(
+      updateMemberRole(prisma, orgId, secondAdminOrgUserId, 'member', actorAdminUserId, 'leader')
+    ).rejects.toMatchObject({ code: 'requires_admin' });
+  });
+
+  it('leader cannot deactivate an admin', async () => {
+    await expect(
+      deactivateMember(prisma, orgId, secondAdminOrgUserId, actorAdminUserId, 'leader')
+    ).rejects.toMatchObject({ code: 'requires_admin' });
+  });
+
+  it('leader CAN promote a member to leader', async () => {
+    await updateMemberRole(prisma, orgId, memberOrgUserId, 'leader', actorAdminUserId, 'leader');
+    const row = await prisma.organizationUser.findUnique({ where: { id: memberOrgUserId } });
+    expect(row?.roleInOrg).toBe('leader');
+  });
+
+  it('leader cannot invite a new admin', async () => {
+    await expect(
+      inviteMember(
+        prisma,
+        { organizationId: orgId, email: `team-leadinvite-${Date.now()}@t.local`, name: 'X', roleInOrg: 'admin' },
+        actorAdminUserId,
+        {},
+        'leader'
+      )
+    ).rejects.toMatchObject({ code: 'requires_admin' });
+  });
+
+  it('admin (default actorRole) is unrestricted — promotes member to admin', async () => {
+    await updateMemberRole(prisma, orgId, memberOrgUserId, 'admin', actorAdminUserId);
+    const row = await prisma.organizationUser.findUnique({ where: { id: memberOrgUserId } });
+    expect(row?.roleInOrg).toBe('admin');
+  });
+
+  it('leader cannot reactivate an inactive admin via inviteMember', async () => {
+    // Deactivate the second admin, then a leader re-invites them as 'member'.
+    // Without the in-transaction guard this would reactivate + demote an admin.
+    await prisma.organizationUser.update({
+      where: { id: secondAdminOrgUserId },
+      data: { isActive: false }
+    });
+    const adminUser = await prisma.user.findUnique({ where: { id: secondAdminUserId } });
+    await expect(
+      inviteMember(
+        prisma,
+        { organizationId: orgId, email: adminUser!.email, name: 'Re', roleInOrg: 'member' },
+        actorAdminUserId,
+        {},
+        'leader'
+      )
+    ).rejects.toMatchObject({ code: 'requires_admin' });
+    const row = await prisma.organizationUser.findUnique({ where: { id: secondAdminOrgUserId } });
+    expect(row?.roleInOrg).toBe('admin'); // untouched
+    expect(row?.isActive).toBe(false);
+  });
+});
+
 describe('cross-organization isolation (IDOR guard)', () => {
   it('refuses to mutate a member belonging to a different organization', async () => {
     // Second org with its own member. actorAdmin only administers `orgId`, so

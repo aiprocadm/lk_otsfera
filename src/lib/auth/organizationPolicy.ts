@@ -12,6 +12,16 @@ export function isOrgAdmin(session: SessionPayload, orgId: string): boolean {
   );
 }
 
+export function isOrgLeader(session: SessionPayload, orgId: string): boolean {
+  return !!session.organizationMemberships?.some(
+    (m) => m.isActive && m.organizationId === orgId && m.roleInOrg === 'leader'
+  );
+}
+
+export function canSeeIntermediaryCommission(session: SessionPayload, orgId: string): boolean {
+  return isOrgAdmin(session, orgId) || isOrgLeader(session, orgId);
+}
+
 export function activeOrgIds(session: SessionPayload): string[] {
   return (session.organizationMemberships ?? [])
     .filter((m) => m.isActive)

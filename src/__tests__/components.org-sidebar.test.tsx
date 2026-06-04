@@ -40,13 +40,17 @@ const SINGLE_MEMBER: OrgSidebarMembership[] = [
   { organizationId: 'org-A', organizationName: 'ООО Заря', roleInOrg: 'member' }
 ];
 
+const SINGLE_LEADER: OrgSidebarMembership[] = [
+  { organizationId: 'org-A', organizationName: 'ООО Заря', roleInOrg: 'leader' }
+];
+
 const MULTI: OrgSidebarMembership[] = [
   { organizationId: 'org-A', organizationName: 'ООО Заря', roleInOrg: 'admin' },
   { organizationId: 'org-B', organizationName: 'ООО Восход', roleInOrg: 'member' }
 ];
 
 describe('OrgSidebar', () => {
-  it('renders 5 nav links for admin viewer', () => {
+  it('renders 6 nav links for admin viewer', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
@@ -56,11 +60,11 @@ describe('OrgSidebar', () => {
       })
     );
     const matches = html.match(/data-testid="org-nav-/g);
-    expect(matches).toHaveLength(5);
+    expect(matches).toHaveLength(6);
     expect(html).toContain('href="/organization/team"');
   });
 
-  it('renders 4 nav links for member viewer (hides Команда)', () => {
+  it('renders 5 nav links for member viewer (hides Команда)', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
@@ -70,8 +74,22 @@ describe('OrgSidebar', () => {
       })
     );
     const matches = html.match(/data-testid="org-nav-/g);
-    expect(matches).toHaveLength(4);
+    expect(matches).toHaveLength(5);
     expect(html).not.toContain('href="/organization/team"');
+  });
+
+  it('renders 6 nav links for leader viewer (shows Команда)', () => {
+    vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
+    const html = renderToString(
+      React.createElement(OrgSidebar, {
+        memberships: SINGLE_LEADER,
+        activeOrgId: 'org-A',
+        viewerRole: 'leader'
+      })
+    );
+    const matches = html.match(/data-testid="org-nav-/g);
+    expect(matches).toHaveLength(6);
+    expect(html).toContain('href="/organization/team"');
   });
 
   it('marks exactly one link active on /organization/dashboard', () => {

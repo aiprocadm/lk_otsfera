@@ -18,10 +18,9 @@ export default async function OrganizationTeamPage({
   const sp = await searchParams;
   const ctx = await getOrgPageContext(sp);
 
-  // Members area is admin-only — non-admins shouldn't reach this page via
-  // direct URL. requireOrganization in layout permits members, so we gate
-  // here at the page level. (Sidebar already hides the link from members.)
-  if (ctx.viewerRole !== 'admin') {
+  // Team management is admin/leader only — non-managers shouldn't reach this
+  // page via direct URL. Sidebar already hides the link from members.
+  if (ctx.viewerRole !== 'admin' && ctx.viewerRole !== 'leader') {
     redirect('/forbidden');
   }
 
@@ -52,19 +51,20 @@ export default async function OrganizationTeamPage({
               )}
             </p>
           </div>
-          <InviteOrgUserForm organizationId={ctx.activeOrgId} />
+          <InviteOrgUserForm organizationId={ctx.activeOrgId} viewerRole={ctx.viewerRole} />
         </div>
 
         <TeamTable
           members={members}
           organizationId={ctx.activeOrgId}
           currentUserId={ctx.session.sub}
+          viewerRole={ctx.viewerRole}
         />
 
         <p className='text-xs text-gray-400 mt-2'>
-          Администраторы могут приглашать новых участников, менять роли и
-          деактивировать доступ. Последнего активного администратора деактивировать
-          нельзя.
+          Администраторы и руководители могут приглашать участников, менять роли
+          и деактивировать доступ; роль «Администратор» назначают только
+          администраторы. Последнего активного администратора деактивировать нельзя.
         </p>
       </div>
     </OrgAppShell>
