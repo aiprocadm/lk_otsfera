@@ -171,6 +171,12 @@ describe('requireOrganizationAdminOrLeader', () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 
+  it('returns session for leader in any org when orgId not specified', async () => {
+    getSession.mockResolvedValue(ORG_LEADER);
+    await expect(requireOrganizationAdminOrLeader()).resolves.toEqual(ORG_LEADER);
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
   it('redirects to /forbidden for member', async () => {
     getSession.mockResolvedValue(ORG_MEMBER);
     redirect.mockImplementation(() => {

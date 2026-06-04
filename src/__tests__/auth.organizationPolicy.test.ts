@@ -129,6 +129,11 @@ describe('isOrgLeader', () => {
     expect(isOrgLeader(session, 'B')).toBe(false); // admin is not leader
     expect(isOrgLeader(session, 'X')).toBe(false);
   });
+  it('false for inactive leader membership (deactivated leader cannot see commission)', () => {
+    const inactive = s([{ organizationId: 'A', roleInOrg: 'leader', isActive: false }]);
+    expect(isOrgLeader(inactive, 'A')).toBe(false);
+    expect(canSeeIntermediaryCommission(inactive, 'A')).toBe(false);
+  });
 });
 
 describe('canSeeIntermediaryCommission', () => {
