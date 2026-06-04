@@ -6,6 +6,8 @@ const ORIGINAL_ENV = { ...process.env };
 beforeEach(() => {
   process.env = { ...ORIGINAL_ENV };
   delete process.env.FEATURE_PARTNER_LEADS;
+  delete process.env.FEATURE_CHAT;
+  delete process.env.FEATURE_ORGANIZATION_CABINET;
 });
 afterEach(() => {
   process.env = { ...ORIGINAL_ENV };
@@ -58,5 +60,65 @@ describe('navItemsFor (feature-flag filter)', () => {
     process.env.FEATURE_PARTNER_LEADS = '0';
     const items = navItemsFor('admin');
     expect(items.length).toBe(navByRole.admin.length);
+  });
+});
+
+describe('navItemsFor — chat flag (partner)', () => {
+  it('hides "Сообщения" (/partner/messages) when FEATURE_CHAT is unset (opt-in default off)', () => {
+    // FEATURE_CHAT unset — deleted in beforeEach
+    const labels = navItemsFor('partner').map((i) => i.label);
+    expect(labels).not.toContain('Сообщения');
+  });
+
+  it('hides "Сообщения" (/partner/messages) when FEATURE_CHAT=0', () => {
+    process.env.FEATURE_CHAT = '0';
+    const labels = navItemsFor('partner').map((i) => i.label);
+    expect(labels).not.toContain('Сообщения');
+  });
+
+  it('shows "Сообщения" (/partner/messages) when FEATURE_CHAT=1', () => {
+    process.env.FEATURE_CHAT = '1';
+    const labels = navItemsFor('partner').map((i) => i.label);
+    expect(labels).toContain('Сообщения');
+    // Other items still present
+    expect(labels).toEqual(
+      expect.arrayContaining(['Дашборд', 'Портфель', 'Сделки', 'Документы', 'Финансы', 'Команда']),
+    );
+  });
+
+  it('the Сообщения item points to /partner/messages', () => {
+    const item = navByRole.partner.find((i) => i.href === '/partner/messages');
+    expect(item).toBeDefined();
+    expect(item!.label).toBe('Сообщения');
+    expect(item!.flag).toBe('chat');
+  });
+});
+
+describe('navItemsFor — chat flag (organization)', () => {
+  it('hides "Сообщения" (/organization/messages) when FEATURE_CHAT is unset', () => {
+    // org_cabinet also unset, but the item check is for the chat flag specifically
+    const labels = navItemsFor('organization').map((i) => i.label);
+    expect(labels).not.toContain('Сообщения');
+  });
+
+  it('shows "Сообщения" (/organization/messages) when FEATURE_CHAT=1 (even if org_cabinet also on)', () => {
+    process.env.FEATURE_CHAT = '1';
+    process.env.FEATURE_ORGANIZATION_CABINET = '1';
+    const labels = navItemsFor('organization').map((i) => i.label);
+    expect(labels).toContain('Сообщения');
+  });
+
+  it('hides "Сообщения" when FEATURE_CHAT=0 even if org_cabinet=1', () => {
+    process.env.FEATURE_CHAT = '0';
+    process.env.FEATURE_ORGANIZATION_CABINET = '1';
+    const labels = navItemsFor('organization').map((i) => i.label);
+    expect(labels).not.toContain('Сообщения');
+  });
+
+  it('the Сообщения item points to /organization/messages', () => {
+    const item = navByRole.organization.find((i) => i.href === '/organization/messages');
+    expect(item).toBeDefined();
+    expect(item!.label).toBe('Сообщения');
+    expect(item!.flag).toBe('chat');
   });
 });

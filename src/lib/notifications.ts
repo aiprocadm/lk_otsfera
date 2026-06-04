@@ -131,6 +131,16 @@ type OrgNotifyInput =
         orderTitle: string;
         commentExcerpt: string;
       };
+    }
+  | {
+      organizationId: string;
+      type: 'chat_message';
+      payload: {
+        orderId: string;
+        orderNumber: string | null;
+        orderTitle: string;
+        excerpt: string;
+      };
     };
 
 export type NotifyOrgUsersSummary = {
@@ -196,6 +206,20 @@ function buildOrgNotification(
       }
     };
   }
+  if (input.type === 'chat_message') {
+    const { orderNumber, orderTitle, excerpt } = input.payload;
+    return {
+      title: `Новое сообщение по заказу ${orderLabel(orderNumber, orderTitle)}`,
+      body: excerpt,
+      meta: {
+        orderId: input.payload.orderId,
+        orderNumber,
+        excerpt,
+        organizationName,
+        url: orderUrl
+      }
+    };
+  }
   // order_status_changed
   const { orderNumber, orderTitle, dimension, oldStatus, newStatus } = input.payload;
   const dimLabel = dimension === 'execution' ? 'Статус' : 'Финансы';
@@ -250,6 +274,17 @@ async function dispatchOrgEmail(
       orderTitle: input.payload.orderTitle,
       commentExcerpt: input.payload.commentExcerpt,
       orderUrl
+    });
+  }
+  if (input.type === 'chat_message') {
+    const { orderNumber, orderTitle, excerpt } = input.payload;
+    const label = orderLabel(orderNumber, orderTitle);
+    return sendNotificationEmail({
+      to,
+      title: `Новое сообщение по заказу ${label}`,
+      body: excerpt,
+      recipientName: organizationName,
+      url: orderUrl
     });
   }
   return sendOrgOrderStatusChangedEmail({
@@ -344,7 +379,8 @@ export type NotifyManagersType =
   | 'comment_from_org'
   | 'document_uploaded_by_org'
   | 'order_marked_paid_by_1c'
-  | 'order_status_changed_by_manager';
+  | 'order_status_changed_by_manager'
+  | 'chat_message';
 
 export type NotifyManagersInput =
   | {
@@ -379,6 +415,14 @@ export type NotifyManagersInput =
         actorName: string;
         oldStatus: string;
         newStatus: string;
+      };
+    }
+  | {
+      orderId: string;
+      type: 'chat_message';
+      payload: {
+        excerpt: string;
+        side: string;
       };
     };
 
@@ -532,6 +576,23 @@ const MANAGER_TEMPLATES: Record<
       subject: managerOrderStatusChangedSubject(props),
       shortBody: managerOrderStatusChangedText(props),
       dispatch: (to) => sendManagerOrderStatusChangedEmail({ to, ...props })
+    };
+  },
+  chat_message: (input, ctx) => {
+    if (input.type !== 'chat_message') throw new Error('type mismatch');
+    const orderRef = orderLabel(ctx.orderNumber, ctx.orderTitle);
+    const subject = `Новое сообщение по заказу ${orderRef}`;
+    const shortBody = input.payload.excerpt;
+    return {
+      subject,
+      shortBody,
+      dispatch: (to) => sendNotificationEmail({
+        to,
+        title: subject,
+        body: shortBody,
+        recipientName: 'менеджер',
+        url: ctx.orderUrl
+      })
     };
   }
 };

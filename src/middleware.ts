@@ -7,6 +7,8 @@ import { isFeatureEnabled, type FeatureFlag } from '@/lib/featureFlags';
 
 const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   { prefix: '/partner/leads', flag: 'partner_leads' },
+  { prefix: '/partner/messages', flag: 'chat' },
+  { prefix: '/organization/messages', flag: 'chat' },
   { prefix: '/organization', flag: 'organization_cabinet' },
   { prefix: '/manager', flag: 'manager_cabinet' },
 ];

@@ -87,6 +87,11 @@ enum CommissionStatementStatus {
   superseded
 }
 
+enum ThreadSide {
+  org
+  partner
+}
+
 model User {
   id                  String               @id @default(cuid())
   createdAt           DateTime             @default(now())
@@ -118,6 +123,8 @@ model User {
   commissionStatementsAuthored CommissionStatement[] @relation("CommissionAuthor")
   savedViews          SavedView[]          @relation("SavedViewOwner")
   passwordResetTokens PasswordResetToken[]
+  authoredMessages    Message[]            @relation("MessageAuthor")
+  threadReadStates    ThreadReadState[]
 }
 
 model PartnerUser {
@@ -428,6 +435,7 @@ model Order {
   payments         Payment[]
   promotedFromLead Lead?           @relation("LeadPromoted")
   commissionItems  CommissionStatementItem[]
+  threads          OrderThread[]
 
   @@index([partnerId, executionStatus])
   @@index([partnerId, financialStatus])
@@ -578,4 +586,42 @@ model AlertState {
   updatedAt      DateTime  @updatedAt
 
   @@index([status])
+}
+
+model OrderThread {
+  id            String     @id @default(cuid())
+  orderId       String
+  order         Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  side          ThreadSide
+  createdAt     DateTime   @default(now())
+  lastMessageAt DateTime   @default(now())
+  messages      Message[]
+  readStates    ThreadReadState[]
+
+  @@unique([orderId, side])
+  @@index([side, lastMessageAt])
+}
+
+model Message {
+  id             String      @id @default(cuid())
+  threadId       String
+  thread         OrderThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorId       String
+  author         User        @relation("MessageAuthor", fields: [authorId], references: [id])
+  body           String
+  attachmentPath String?
+  createdAt      DateTime    @default(now())
+
+  @@index([threadId, createdAt])
+}
+
+model ThreadReadState {
+  id         String      @id @default(cuid())
+  threadId   String
+  thread     OrderThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt DateTime    @default(now())
+
+  @@unique([threadId, userId])
 }
