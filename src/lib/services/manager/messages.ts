@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { managerOrderScopeFilter } from '@/lib/auth/managerPolicy';
+import { managerOrderScope, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 
 /**
  * Manager-facing messages inbox service. Lists `Comment` rows whose `order`
@@ -49,6 +49,7 @@ export async function listIncomingComments(
 ): Promise<ListIncomingCommentsResult> {
   const opts = ListIncomingCommentsOptionsSchema.parse(optsRaw);
   const since = opts.since ?? new Date(Date.now() - DEFAULT_WINDOW_MS);
+  const teamMode = await getCompanyTeamVisibility(prisma, opts.session.companyId);
 
   const authorWhere: Prisma.UserWhereInput = opts.withOutgoing
     ? { role: { in: ['organization', 'manager'] } }
@@ -56,7 +57,7 @@ export async function listIncomingComments(
 
   const rows = await prisma.comment.findMany({
     where: {
-      order: managerOrderScopeFilter(opts.session),
+      order: managerOrderScope(opts.session, teamMode),
       author: authorWhere,
       createdAt: { gte: since }
     },
