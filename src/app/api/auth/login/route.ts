@@ -118,6 +118,7 @@ export async function POST(req: Request) {
   }
 
   let managedOrgIds: string[] | undefined;
+  let managerRole: 'leader' | null | undefined;
 
   if (user.role === 'manager') {
     const assigned = await prisma.organizationManager.findMany({
@@ -125,6 +126,10 @@ export async function POST(req: Request) {
       select: { organizationId: true }
     });
     managedOrgIds = assigned.map((a) => a.organizationId);
+    // Preserve 'leader' explicitly. Mirrors the org-membership narrowing warning
+    // above: collapsing this to null silently kills the leader feature for the
+    // whole 7d token lifetime.
+    managerRole = user.managerRole === 'leader' ? 'leader' : null;
   }
 
   const token = await signToken({
@@ -139,7 +144,8 @@ export async function POST(req: Request) {
     ...(partnerRole !== undefined ? { partnerRole } : {}),
     ...(assignedOrgIds !== undefined ? { assignedOrgIds } : {}),
     ...(organizationMemberships !== undefined ? { organizationMemberships } : {}),
-    ...(managedOrgIds !== undefined ? { managedOrgIds } : {})
+    ...(managedOrgIds !== undefined ? { managedOrgIds } : {}),
+    ...(managerRole !== undefined ? { managerRole } : {})
   });
 
   const res = NextResponse.json({ ok: true });
