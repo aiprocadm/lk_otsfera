@@ -25,10 +25,15 @@ export async function canAccessOrganization(session: SessionPayload, organizatio
   }
 
   if (session.role === 'manager') {
-    // Manager visibility is driven by `OrganizationManager` (cached on session as
-    // `managedOrgIds` at login by `auth/login.ts`). We delegate to `managerPolicy`
-    // via a dynamic import to keep this module free of a static cycle with it.
-    const { canSeeOrganization } = await import('@/lib/auth/managerPolicy');
+    const { canSeeOrganization, getCompanyTeamVisibility } = await import('@/lib/auth/managerPolicy');
+    const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+    if (teamMode) {
+      const org = await prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { companyId: true }
+      });
+      return !!session.companyId && org?.companyId === session.companyId;
+    }
     return canSeeOrganization(session, organizationId);
   }
 
@@ -54,20 +59,17 @@ export async function canReadOrder(session: SessionPayload, order: OrderLike) {
   }
 
   if (session.role === 'manager') {
-    // Top-level RBAC guard: per-order ownership (Order.managerId === session.sub)
-    // OR per-org scope (Order.organizationId ∈ session.managedOrgIds).
-    //
-    // Comments-history fallback path is intentionally NOT applied here — that's
-    // the responsibility of downstream services (e.g. /manager/orders) that need
-    // to surface historical visibility. This guard reflects the assignment graph
-    // only.
-    const { canSeeOrder } = await import('@/lib/auth/managerPolicy');
+    const { canSeeOrder, getCompanyTeamVisibility } = await import('@/lib/auth/managerPolicy');
+    const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+    // `order` already carries companyId, so company-wide is a pure comparison.
+    if (teamMode) return !!session.companyId && order.companyId === session.companyId;
+    // Scoped mode: assignment graph only (no comments-history at this guard).
     const fullOrder = await prisma.order.findUnique({
       where: { id: order.id },
-      select: { managerId: true, organizationId: true }
+      select: { managerId: true, organizationId: true, companyId: true }
     });
     if (!fullOrder) return false;
-    return canSeeOrder(session, fullOrder);
+    return canSeeOrder(session, fullOrder, false);
   }
 
   return false;

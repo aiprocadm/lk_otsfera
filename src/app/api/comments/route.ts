@@ -92,15 +92,17 @@ export async function POST(req: Request) {
   // per-org, or historical comments). Mirrors the upload service hot-path:
   // count comments only when the cheaper per-order/per-org checks miss.
   if (s.role === 'manager') {
-    const { canSeeOrder: canSeeOrderMgr, managedOrgIds } = await import(
+    const { canSeeOrder: canSeeOrderMgr, managedOrgIds, getCompanyTeamVisibility } = await import(
       '@/lib/auth/managerPolicy'
     );
+    const teamMode = await getCompanyTeamVisibility(prisma, s.companyId);
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       select: {
         id: true,
         managerId: true,
         organizationId: true,
+        companyId: true,
         orderNumber: true,
         title: true
       }
@@ -108,7 +110,7 @@ export async function POST(req: Request) {
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     let commentsCountByMe = 0;
-    if (order.managerId !== s.sub) {
+    if (!teamMode && order.managerId !== s.sub) {
       const inOrgScope =
         order.organizationId !== null &&
         managedOrgIds(s).includes(order.organizationId);
@@ -118,7 +120,7 @@ export async function POST(req: Request) {
         });
       }
     }
-    if (!canSeeOrderMgr(s, { ...order, commentsCountByMe })) {
+    if (!canSeeOrderMgr(s, { ...order, commentsCountByMe }, teamMode)) {
       return forbiddenResponse('Access denied');
     }
 

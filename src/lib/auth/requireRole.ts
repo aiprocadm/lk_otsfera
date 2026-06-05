@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getSession } from './session';
 import type { SessionPayload } from './jwt';
 import { prisma } from '@/lib/db/prisma';
-import { canSeeOrder, isOrgInScope } from '@/lib/auth/managerPolicy';
+import { canSeeOrder, isOrgInScope, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 
 export async function requireSession(): Promise<SessionPayload> {
   const session = await getSession();
@@ -75,6 +75,17 @@ export async function requireManager(): Promise<SessionPayload> {
 
 export async function requireManagerForOrg(orgId: string): Promise<SessionPayload> {
   const session = await requireManager();
+  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+  if (teamMode) {
+    const org = await prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { companyId: true }
+    });
+    if (!org || !session.companyId || org.companyId !== session.companyId) {
+      redirect('/manager/dashboard');
+    }
+    return session;
+  }
   if (!isOrgInScope(session, orgId)) redirect('/manager/dashboard');
   return session;
 }
@@ -83,21 +94,21 @@ export async function requireManagerForOrder(
   orderId: string
 ): Promise<{
   session: SessionPayload;
-  order: { id: string; managerId: string | null; organizationId: string | null };
+  order: { id: string; managerId: string | null; organizationId: string | null; companyId: string };
 }> {
   const session = await requireManager();
+  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { id: true, managerId: true, organizationId: true }
+    select: { id: true, managerId: true, organizationId: true, companyId: true }
   });
   if (!order) notFound();
 
-  // Three-way visibility check: managerId, org scope, or historical comments.
-  // We only count comments when the cheaper checks (managerId / org scope)
-  // miss, to avoid a needless query on the hot path.
+  // Three-way visibility check (scoped mode only): managerId, org scope, or
+  // historical comments. Company-wide mode skips straight to the companyId check.
   let commentsCountByMe = 0;
-  if (order.managerId !== session.sub) {
+  if (!teamMode && order.managerId !== session.sub) {
     const inOrgScope =
       order.organizationId !== null && isOrgInScope(session, order.organizationId);
     if (!inOrgScope) {
@@ -107,7 +118,7 @@ export async function requireManagerForOrder(
     }
   }
 
-  if (!canSeeOrder(session, { ...order, commentsCountByMe })) notFound();
+  if (!canSeeOrder(session, { ...order, commentsCountByMe }, teamMode)) notFound();
 
   return { session, order };
 }

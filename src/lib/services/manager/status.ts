@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { canSeeOrder } from '@/lib/auth/managerPolicy';
+import { canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { recordAudit } from '@/lib/auth/audit';
 import { notifyManagers, notifyOrgUsers } from '@/lib/notifications';
 
@@ -44,12 +44,14 @@ export async function transitionOrderStatus(
     throw new ManagerStatusError('invalid_status');
   }
 
+  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: {
       id: true,
       managerId: true,
       organizationId: true,
+      companyId: true,
       executionStatus: true,
       orderNumber: true,
       title: true
@@ -57,10 +59,9 @@ export async function transitionOrderStatus(
   });
   if (!order) throw new ManagerStatusError('not_found');
 
-  // The orders service already enforces the three-way scope on read; this
-  // duplicate check makes the write path defence-in-depth so direct calls
-  // can't bypass RBAC even if an upstream caller drops the guard.
-  if (!canSeeOrder(session, order)) {
+  // Defence-in-depth on the write path (mode-aware): company-wide ⇒ same-company,
+  // otherwise the three-way scope.
+  if (!canSeeOrder(session, order, teamMode)) {
     throw new ManagerStatusError('forbidden');
   }
 
