@@ -9,7 +9,6 @@ import {
   updateUser,
   deactivateUser,
   reactivateUser,
-  AdminUserError,
   type AdminUserErrorCode
 } from '@/lib/services/admin/users';
 import { sendAdminUserInviteEmail } from '@/lib/email/send';
@@ -47,11 +46,6 @@ function readField(fd: FormData, key: string): string {
   return typeof v === 'string' ? v : '';
 }
 
-function mapErr(e: unknown): Failure {
-  if (e instanceof AdminUserError) return { ok: false, error: e.code };
-  throw e;
-}
-
 function appBaseUrl(): string {
   return process.env.APP_URL?.trim() || 'https://lk.otsfera.ru';
 }
@@ -68,27 +62,24 @@ export async function createUserAction(
   if (!parsed.success) return { ok: false, error: 'validation', details: parsed.error.flatten() };
 
   const session = await requireAdmin();
+  const result = await createUser(prisma, session.sub, parsed.data);
+  if (!result.ok) return result;
+  const inviteUrl = `${appBaseUrl()}/reset-password?token=${result.inviteToken}`;
+
   try {
-    const result = await createUser(prisma, session.sub, parsed.data);
-    const inviteUrl = `${appBaseUrl()}/reset-password?token=${result.inviteToken}`;
-
-    try {
-      await sendAdminUserInviteEmail({
-        to: parsed.data.email,
-        name: parsed.data.name,
-        role: parsed.data.role,
-        inviteUrl,
-        invitedByName: session.name ?? undefined
-      });
-    } catch (e) {
-      console.warn('[admin/users] send invite email failed', e);
-    }
-
-    revalidatePath('/admin/users');
-    return { ok: true, user: { id: result.user.id, email: result.user.email }, inviteUrl };
+    await sendAdminUserInviteEmail({
+      to: parsed.data.email,
+      name: parsed.data.name,
+      role: parsed.data.role,
+      inviteUrl,
+      invitedByName: session.name ?? undefined
+    });
   } catch (e) {
-    return mapErr(e);
+    console.warn('[admin/users] send invite email failed', e);
   }
+
+  revalidatePath('/admin/users');
+  return { ok: true, user: { id: result.user.id, email: result.user.email }, inviteUrl };
 }
 
 export async function updateUserAction(fd: FormData): Promise<ActionResult> {
@@ -102,15 +93,12 @@ export async function updateUserAction(fd: FormData): Promise<ActionResult> {
   if (!parsed.success) return { ok: false, error: 'validation', details: parsed.error.flatten() };
 
   const session = await requireAdmin();
-  try {
-    const { id, ...args } = parsed.data;
-    await updateUser(prisma, session.sub, id, args);
-    revalidatePath('/admin/users');
-    revalidatePath(`/admin/users/${id}`);
-    return { ok: true };
-  } catch (e) {
-    return mapErr(e);
-  }
+  const { id, ...args } = parsed.data;
+  const result = await updateUser(prisma, session.sub, id, args);
+  if (!result.ok) return result;
+  revalidatePath('/admin/users');
+  revalidatePath(`/admin/users/${id}`);
+  return { ok: true };
 }
 
 export async function deactivateUserAction(fd: FormData): Promise<ActionResult> {
@@ -118,13 +106,10 @@ export async function deactivateUserAction(fd: FormData): Promise<ActionResult> 
   if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireAdmin();
-  try {
-    await deactivateUser(prisma, session.sub, parsed.data.id);
-    revalidatePath('/admin/users');
-    return { ok: true };
-  } catch (e) {
-    return mapErr(e);
-  }
+  const result = await deactivateUser(prisma, session.sub, parsed.data.id);
+  if (!result.ok) return result;
+  revalidatePath('/admin/users');
+  return { ok: true };
 }
 
 export async function reactivateUserAction(fd: FormData): Promise<ActionResult> {
@@ -132,13 +117,10 @@ export async function reactivateUserAction(fd: FormData): Promise<ActionResult> 
   if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireAdmin();
-  try {
-    await reactivateUser(prisma, session.sub, parsed.data.id);
-    revalidatePath('/admin/users');
-    return { ok: true };
-  } catch (e) {
-    return mapErr(e);
-  }
+  const result = await reactivateUser(prisma, session.sub, parsed.data.id);
+  if (!result.ok) return result;
+  revalidatePath('/admin/users');
+  return { ok: true };
 }
 
 export async function updateUserFormAction(fd: FormData): Promise<void> {
