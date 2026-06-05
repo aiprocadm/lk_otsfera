@@ -34,7 +34,7 @@ src/lib/services/       ← бизнес-логика; НЕ знает про Ne
 src/lib/auth/           ← jwt, requireRole, requireManager, policy-модули
 src/lib/jobs/           ← BullMQ конфиг очередей (queues.ts, scheduling.ts)
 src/lib/storage/        ← Supabase storage обёртки (server-only)
-src/lib/notifications.ts ← notifyManagers/notifyOrgUsers + email-dispatch
+src/lib/notifications/  ← notifyManagers/notifyOrgUsers + email-dispatch (barrel index.ts → core/org/manager)
 src/lib/featureFlags.ts ← feature flag система
 src/middleware.ts       ← auth + RBAC + feature-flag gate
 src/worker/             ← отдельный процесс: 1С sync, scan, commission gen
