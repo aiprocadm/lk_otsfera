@@ -1,6 +1,6 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { managerOrgScopeFilter, canSeeOrganization } from '@/lib/auth/managerPolicy';
+import { managerOrgScope, canSeeOrganization, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 
 /**
  * Manager-facing organizations service.
@@ -35,8 +35,9 @@ export async function listOrganizations(
   prisma: PrismaClient,
   session: SessionPayload
 ): Promise<ManagerOrgListRow[]> {
+  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
   return prisma.organization.findMany({
-    where: managerOrgScopeFilter(session),
+    where: managerOrgScope(session, teamMode),
     select: LIST_SELECT,
     orderBy: { name: 'asc' }
   });
@@ -60,9 +61,16 @@ export async function getOrganization(
   session: SessionPayload,
   orgId: string
 ): Promise<ManagerOrgDetail | null> {
-  if (!canSeeOrganization(session, orgId)) return null;
-  return prisma.organization.findUnique({
+  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+  // Fetch by id, then check scope in-process so a foreign org returns null
+  // (no existence-leak) — company-wide needs org.companyId.
+  const org = await prisma.organization.findUnique({
     where: { id: orgId },
     include: DETAIL_INCLUDE
   });
+  if (!org) return null;
+  if (teamMode) {
+    return !!session.companyId && org.companyId === session.companyId ? org : null;
+  }
+  return canSeeOrganization(session, orgId) ? org : null;
 }

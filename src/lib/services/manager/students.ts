@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { managedOrgIds } from '@/lib/auth/managerPolicy';
+import { managedOrgIds, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 
 /**
  * Manager-facing students service.
@@ -45,9 +45,13 @@ export async function listStudents(
   optsRaw: ListStudentsOptions
 ): Promise<ListStudentsResult> {
   const opts = ListStudentsOptionsSchema.parse(optsRaw);
-  const orgIds = managedOrgIds(opts.session);
+  const teamMode = await getCompanyTeamVisibility(prisma, opts.session.companyId);
 
-  const filters: Prisma.StudentWhereInput[] = [{ organizationId: { in: orgIds } }];
+  // Student has no companyId; in company-wide mode scope through its organization.
+  const orgFilter: Prisma.StudentWhereInput = teamMode
+    ? { organization: { companyId: opts.session.companyId ?? '__no_company__' } }
+    : { organizationId: { in: managedOrgIds(opts.session) } };
+  const filters: Prisma.StudentWhereInput[] = [orgFilter];
   if (opts.q) {
     filters.push({
       OR: [
