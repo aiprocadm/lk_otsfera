@@ -349,16 +349,16 @@ describe('getUser', () => {
 describe('createUser', () => {
   it('бросает admin_role_via_ui при попытке role=admin', async () => {
     const prisma = { $transaction: vi.fn() } as unknown as Parameters<typeof createUser>[0];
-    await expect(
-      createUser(prisma, 'actor', { email: 'a@x', name: 'A', role: 'admin' as never })
-    ).rejects.toMatchObject({ code: 'admin_role_via_ui' });
+    expect(
+      await createUser(prisma, 'actor', { email: 'a@x', name: 'A', role: 'admin' as never })
+    ).toEqual({ ok: false, error: 'admin_role_via_ui' });
   });
 
   it('бросает not_found если role=partner без partnerId', async () => {
     const prisma = { $transaction: vi.fn() } as unknown as Parameters<typeof createUser>[0];
-    await expect(
-      createUser(prisma, 'actor', { email: 'a@x', name: 'A', role: 'partner' })
-    ).rejects.toMatchObject({ code: 'not_found' });
+    expect(
+      await createUser(prisma, 'actor', { email: 'a@x', name: 'A', role: 'partner' })
+    ).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('бросает duplicate_email при существующем email', async () => {
@@ -369,9 +369,9 @@ describe('createUser', () => {
       $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
     } as unknown as Parameters<typeof createUser>[0];
 
-    await expect(
-      createUser(prisma, 'actor', { email: 'a@x', name: 'A', role: 'organization' })
-    ).rejects.toMatchObject({ code: 'duplicate_email' });
+    expect(
+      await createUser(prisma, 'actor', { email: 'a@x', name: 'A', role: 'organization' })
+    ).toEqual({ ok: false, error: 'duplicate_email' });
   });
 
   it('создаёт user + invite token, пишет audit', async () => {
@@ -390,6 +390,7 @@ describe('createUser', () => {
     } as unknown as Parameters<typeof createUser>[0];
 
     const result = await createUser(prisma, 'actor', { email: 'a@x', name: 'A', role: 'organization' });
+    if (!result.ok) throw new Error('expected ok');
     expect(result.user).toMatchObject(created);
     expect(result.inviteToken).toBeTruthy();
     expect(txMock.auditLog.create).toHaveBeenCalled();
@@ -444,16 +445,16 @@ describe('createUser', () => {
 describe('updateUser', () => {
   it('бросает self_action_forbidden при изменении своей роли', async () => {
     const prisma = { $transaction: vi.fn() } as unknown as Parameters<typeof updateUser>[0];
-    await expect(
-      updateUser(prisma, 'me', 'me', { role: 'organization' })
-    ).rejects.toMatchObject({ code: 'self_action_forbidden' });
+    expect(
+      await updateUser(prisma, 'me', 'me', { role: 'organization' })
+    ).toEqual({ ok: false, error: 'self_action_forbidden' });
   });
 
   it('бросает admin_role_via_ui при попытке role=admin', async () => {
     const prisma = { $transaction: vi.fn() } as unknown as Parameters<typeof updateUser>[0];
-    await expect(
-      updateUser(prisma, 'a', 'b', { role: 'admin' as never })
-    ).rejects.toMatchObject({ code: 'admin_role_via_ui' });
+    expect(
+      await updateUser(prisma, 'a', 'b', { role: 'admin' as never })
+    ).toEqual({ ok: false, error: 'admin_role_via_ui' });
   });
 
   it('бросает last_admin_protected при попытке deactivate последнего active admin', async () => {
@@ -469,9 +470,9 @@ describe('updateUser', () => {
       $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
     } as unknown as Parameters<typeof updateUser>[0];
 
-    await expect(
-      updateUser(prisma, 'actor', 'u1', { isActive: false })
-    ).rejects.toMatchObject({ code: 'last_admin_protected' });
+    expect(
+      await updateUser(prisma, 'actor', 'u1', { isActive: false })
+    ).toEqual({ ok: false, error: 'last_admin_protected' });
   });
 
   it('бросает role_transition_forbidden для запрещённого перехода (e.g. organization → partner)', async () => {
@@ -486,16 +487,16 @@ describe('updateUser', () => {
       $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
     } as unknown as Parameters<typeof updateUser>[0];
 
-    await expect(
-      updateUser(prisma, 'actor', 'u1', { role: 'partner', partnerId: 'p1' })
-    ).rejects.toMatchObject({ code: 'role_transition_forbidden' });
+    expect(
+      await updateUser(prisma, 'actor', 'u1', { role: 'partner', partnerId: 'p1' })
+    ).toEqual({ ok: false, error: 'role_transition_forbidden' });
   });
 
   it('бросает self_action_forbidden при попытке деактивировать себя через isActive=false', async () => {
     const prisma = { $transaction: vi.fn() } as unknown as Parameters<typeof updateUser>[0];
-    await expect(
-      updateUser(prisma, 'me', 'me', { isActive: false })
-    ).rejects.toMatchObject({ code: 'self_action_forbidden' });
+    expect(
+      await updateUser(prisma, 'me', 'me', { isActive: false })
+    ).toEqual({ ok: false, error: 'self_action_forbidden' });
   });
 
   it('partner → student: удаляет partnerUser, обновляет user, пишет user_role_changed, возвращает UserDetail', async () => {
@@ -529,6 +530,7 @@ describe('updateUser', () => {
     } as unknown as Parameters<typeof updateUser>[0];
 
     const result = await updateUser(prisma, 'actor', 'u1', { role: 'student' });
+    if (!result.ok) throw new Error('expected ok');
 
     expect(txMock.partnerUser.deleteMany).toHaveBeenCalledWith({ where: { userId: 'u1' } });
     expect(txMock.user.update).toHaveBeenCalledWith(
@@ -539,14 +541,14 @@ describe('updateUser', () => {
         data: expect.objectContaining({ action: 'user_role_changed' })
       })
     );
-    expect(result).toMatchObject({ id: 'u1', role: 'student' });
+    expect(result.user).toMatchObject({ id: 'u1', role: 'student' });
   });
 });
 
 describe('deactivateUser', () => {
   it('бросает self_action_forbidden когда actorUserId === id', async () => {
     const prisma = { $transaction: vi.fn() } as unknown as Parameters<typeof deactivateUser>[0];
-    await expect(deactivateUser(prisma, 'me', 'me')).rejects.toMatchObject({ code: 'self_action_forbidden' });
+    expect(await deactivateUser(prisma, 'me', 'me')).toEqual({ ok: false, error: 'self_action_forbidden' });
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
@@ -558,7 +560,7 @@ describe('deactivateUser', () => {
       $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
     } as unknown as Parameters<typeof deactivateUser>[0];
 
-    await expect(deactivateUser(prisma, 'actor', 'u1')).rejects.toMatchObject({ code: 'not_found' });
+    expect(await deactivateUser(prisma, 'actor', 'u1')).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('no-op когда пользователь уже неактивен (нет update, нет audit)', async () => {
@@ -590,7 +592,7 @@ describe('deactivateUser', () => {
       $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
     } as unknown as Parameters<typeof deactivateUser>[0];
 
-    await expect(deactivateUser(prisma, 'actor', 'u1')).rejects.toMatchObject({ code: 'last_admin_protected' });
+    expect(await deactivateUser(prisma, 'actor', 'u1')).toEqual({ ok: false, error: 'last_admin_protected' });
   });
 
   it('деактивирует активного non-admin: update с isActive=false, audit user_deactivated', async () => {
@@ -623,7 +625,7 @@ describe('reactivateUser', () => {
       $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
     } as unknown as Parameters<typeof reactivateUser>[0];
 
-    await expect(reactivateUser(prisma, 'actor', 'u1')).rejects.toMatchObject({ code: 'not_found' });
+    expect(await reactivateUser(prisma, 'actor', 'u1')).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('no-op когда пользователь уже активен (нет update, нет audit)', async () => {

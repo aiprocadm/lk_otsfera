@@ -23,8 +23,7 @@ import { getSession } from '@/lib/auth/session';
 import {
   uploadLeadAttachment,
   deleteLeadAttachment,
-  getLeadAttachmentDownloadUrl,
-  LeadAttachmentError
+  getLeadAttachmentDownloadUrl
 } from '@/lib/services/partner/leadAttachments';
 import { POST as uploadPOST } from '@/app/api/partner/leads/[id]/attachments/route';
 import { DELETE as deleteDELETE } from '@/app/api/partner/leads/[id]/attachments/[attachmentId]/route';
@@ -69,9 +68,11 @@ describe('POST /api/partner/leads/[id]/attachments', () => {
 
   it('415 when service rejects MIME', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession());
-    vi.mocked(uploadLeadAttachment).mockRejectedValue(
-      new LeadAttachmentError('UNSUPPORTED_MEDIA_TYPE', 'bad MIME')
-    );
+    vi.mocked(uploadLeadAttachment).mockResolvedValue({
+      ok: false,
+      error: 'UNSUPPORTED_MEDIA_TYPE',
+      message: 'bad MIME'
+    });
     const req = fakeReqFromForm(fakeFormData(new Blob(['x']), 'x.txt'));
     const res = await uploadPOST(req, { params: Promise.resolve({ id: 'lead-1' }) });
     expect(res.status).toBe(415);
@@ -79,9 +80,11 @@ describe('POST /api/partner/leads/[id]/attachments', () => {
 
   it('413 when service rejects size', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession());
-    vi.mocked(uploadLeadAttachment).mockRejectedValue(
-      new LeadAttachmentError('FILE_TOO_LARGE', 'too big')
-    );
+    vi.mocked(uploadLeadAttachment).mockResolvedValue({
+      ok: false,
+      error: 'FILE_TOO_LARGE',
+      message: 'too big'
+    });
     const req = fakeReqFromForm(fakeFormData(new Blob(['x']), 'x.pdf'));
     const res = await uploadPOST(req, { params: Promise.resolve({ id: 'lead-1' }) });
     expect(res.status).toBe(413);
@@ -89,9 +92,11 @@ describe('POST /api/partner/leads/[id]/attachments', () => {
 
   it('403 when lead not editable', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession());
-    vi.mocked(uploadLeadAttachment).mockRejectedValue(
-      new LeadAttachmentError('LEAD_NOT_EDITABLE', 'not editable')
-    );
+    vi.mocked(uploadLeadAttachment).mockResolvedValue({
+      ok: false,
+      error: 'LEAD_NOT_EDITABLE',
+      message: 'not editable'
+    });
     const req = fakeReqFromForm(fakeFormData(new Blob(['x']), 'x.pdf'));
     const res = await uploadPOST(req, { params: Promise.resolve({ id: 'lead-1' }) });
     expect(res.status).toBe(403);
@@ -101,14 +106,17 @@ describe('POST /api/partner/leads/[id]/attachments', () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession());
     const now = new Date('2026-05-22T10:00:00Z');
     vi.mocked(uploadLeadAttachment).mockResolvedValue({
-      id: 'att-1',
-      name: 'doc.pdf',
-      size: 1024,
-      mimeType: 'application/pdf',
-      createdAt: now,
-      path: 'partners/p1/leads/lead-1/abc.pdf',
-      leadId: 'lead-1',
-      createdByUserId: 'u1'
+      ok: true,
+      attachment: {
+        id: 'att-1',
+        name: 'doc.pdf',
+        size: 1024,
+        mimeType: 'application/pdf',
+        createdAt: now,
+        path: 'partners/p1/leads/lead-1/abc.pdf',
+        leadId: 'lead-1',
+        createdByUserId: 'u1'
+      }
     } as never);
     const req = fakeReqFromForm(fakeFormData(new Blob(['hello']), 'doc.pdf'));
     const res = await uploadPOST(req, { params: Promise.resolve({ id: 'lead-1' }) });
@@ -124,9 +132,11 @@ describe('DELETE /api/partner/leads/[id]/attachments/[attachmentId]', () => {
 
   it('403 when lead not editable', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession());
-    vi.mocked(deleteLeadAttachment).mockRejectedValue(
-      new LeadAttachmentError('LEAD_NOT_EDITABLE', 'not editable')
-    );
+    vi.mocked(deleteLeadAttachment).mockResolvedValue({
+      ok: false,
+      error: 'LEAD_NOT_EDITABLE',
+      message: 'not editable'
+    });
     const res = await deleteDELETE(new Request('http://t/'), {
       params: Promise.resolve({ id: 'lead-1', attachmentId: 'att-1' })
     });
@@ -135,9 +145,11 @@ describe('DELETE /api/partner/leads/[id]/attachments/[attachmentId]', () => {
 
   it('403 when forbidden (not own, not admin)', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession());
-    vi.mocked(deleteLeadAttachment).mockRejectedValue(
-      new LeadAttachmentError('FORBIDDEN', 'not allowed')
-    );
+    vi.mocked(deleteLeadAttachment).mockResolvedValue({
+      ok: false,
+      error: 'FORBIDDEN',
+      message: 'not allowed'
+    });
     const res = await deleteDELETE(new Request('http://t/'), {
       params: Promise.resolve({ id: 'lead-1', attachmentId: 'att-1' })
     });
@@ -146,7 +158,7 @@ describe('DELETE /api/partner/leads/[id]/attachments/[attachmentId]', () => {
 
   it('204 on happy path', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession());
-    vi.mocked(deleteLeadAttachment).mockResolvedValue(undefined as never);
+    vi.mocked(deleteLeadAttachment).mockResolvedValue({ ok: true });
     const res = await deleteDELETE(new Request('http://t/'), {
       params: Promise.resolve({ id: 'lead-1', attachmentId: 'att-1' })
     });
@@ -160,6 +172,7 @@ describe('GET /api/partner/leads/[id]/attachments/[attachmentId]/download', () =
   it('307 redirect on success', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession());
     vi.mocked(getLeadAttachmentDownloadUrl).mockResolvedValue({
+      ok: true,
       url: 'https://signed.example/file.pdf',
       name: 'file.pdf',
       mimeType: 'application/pdf'
@@ -173,9 +186,11 @@ describe('GET /api/partner/leads/[id]/attachments/[attachmentId]/download', () =
 
   it('404 when attachment not found', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession());
-    vi.mocked(getLeadAttachmentDownloadUrl).mockRejectedValue(
-      new LeadAttachmentError('NOT_FOUND', 'not found')
-    );
+    vi.mocked(getLeadAttachmentDownloadUrl).mockResolvedValue({
+      ok: false,
+      error: 'NOT_FOUND',
+      message: 'not found'
+    });
     const res = await downloadGET(new Request('http://t/'), {
       params: Promise.resolve({ id: 'lead-1', attachmentId: 'att-1' })
     });
@@ -184,9 +199,12 @@ describe('GET /api/partner/leads/[id]/attachments/[attachmentId]/download', () =
 
   it('410 Gone when attachment was flagged INFECTED, propagating virus name', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession());
-    vi.mocked(getLeadAttachmentDownloadUrl).mockRejectedValue(
-      new LeadAttachmentError('INFECTED', 'quarantined', { scanReason: 'Win.Test.EICAR_HDB-1' })
-    );
+    vi.mocked(getLeadAttachmentDownloadUrl).mockResolvedValue({
+      ok: false,
+      error: 'INFECTED',
+      message: 'quarantined',
+      meta: { scanReason: 'Win.Test.EICAR_HDB-1' }
+    });
     const res = await downloadGET(new Request('http://t/'), {
       params: Promise.resolve({ id: 'lead-1', attachmentId: 'att-1' })
     });

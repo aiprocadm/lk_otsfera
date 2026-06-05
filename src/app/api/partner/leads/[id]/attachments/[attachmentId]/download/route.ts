@@ -2,10 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
 import { requirePartner } from '@/lib/auth/guard';
-import {
-  getLeadAttachmentDownloadUrl,
-  LeadAttachmentError
-} from '@/lib/services/partner/leadAttachments';
+import { getLeadAttachmentDownloadUrl } from '@/lib/services/partner/leadAttachments';
 
 function scopeOf(session: { assignedOrgIds?: string[] }): string[] | undefined {
   const arr = session.assignedOrgIds ?? [];
@@ -23,29 +20,29 @@ export async function GET(
 
   const { attachmentId } = await params;
   try {
-    const { url } = await getLeadAttachmentDownloadUrl(prisma, {
+    const result = await getLeadAttachmentDownloadUrl(prisma, {
       attachmentId,
       partnerId: partnerResult.value.partnerId,
       scopeOrgIds: scopeOf(session)
     });
-    return NextResponse.redirect(url, 307);
-  } catch (err) {
-    if (err instanceof LeadAttachmentError) {
-      if (err.code === 'NOT_FOUND') {
-        return NextResponse.json({ error: err.message }, { status: 404 });
+    if (!result.ok) {
+      if (result.error === 'NOT_FOUND') {
+        return NextResponse.json({ error: result.message }, { status: 404 });
       }
-      if (err.code === 'INFECTED') {
+      if (result.error === 'INFECTED') {
         return NextResponse.json(
           {
             code: 'INFECTED',
-            error: err.message,
-            scanReason: err.meta?.scanReason ?? undefined
+            error: result.message,
+            scanReason: result.meta?.scanReason ?? undefined
           },
           { status: 410 }
         );
       }
-      return NextResponse.json({ error: err.message }, { status: 500 });
+      return NextResponse.json({ error: result.message }, { status: 500 });
     }
+    return NextResponse.redirect(result.url, 307);
+  } catch {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }

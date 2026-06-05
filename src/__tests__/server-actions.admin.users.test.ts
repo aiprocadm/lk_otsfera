@@ -43,7 +43,6 @@ import {
   deactivateUserAction,
   reactivateUserAction
 } from '@/server-actions/admin/users';
-import { AdminUserError } from '@/lib/services/admin/users';
 
 function fd(data: Record<string, string>): FormData {
   const f = new FormData();
@@ -77,6 +76,7 @@ describe('createUserAction', () => {
   it('happy path returns ok:true with user and inviteUrl, sends email', async () => {
     process.env.APP_URL = 'https://app.test';
     createUser.mockResolvedValue({
+      ok: true,
       user: { id: 'u-1', email: 'new@t.local', name: 'New User', role: 'organization' },
       inviteToken: 'tok-abc'
     });
@@ -104,6 +104,7 @@ describe('createUserAction', () => {
 
   it('still returns ok:true when email send fails (graceful degradation)', async () => {
     createUser.mockResolvedValue({
+      ok: true,
       user: { id: 'u-2', email: 'fail@t.local', name: 'Fail', role: 'partner' },
       inviteToken: 'tok-xyz'
     });
@@ -117,8 +118,8 @@ describe('createUserAction', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/admin/users');
   });
 
-  it('maps AdminUserError(duplicate_email) to Failure', async () => {
-    createUser.mockRejectedValue(new AdminUserError('duplicate_email'));
+  it('maps service failure(duplicate_email) to Failure', async () => {
+    createUser.mockResolvedValue({ ok: false, error: 'duplicate_email' });
 
     const res = await createUserAction(
       fd({ email: 'dup@t.local', name: 'Dup', role: 'organization' })
@@ -128,8 +129,8 @@ describe('createUserAction', () => {
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
-  it('maps AdminUserError(admin_role_via_ui) to Failure', async () => {
-    createUser.mockRejectedValue(new AdminUserError('admin_role_via_ui'));
+  it('maps service failure(admin_role_via_ui) to Failure', async () => {
+    createUser.mockResolvedValue({ ok: false, error: 'admin_role_via_ui' });
 
     const res = await createUserAction(
       fd({ email: 'x@t.local', name: 'X', role: 'manager' })
@@ -141,7 +142,7 @@ describe('createUserAction', () => {
 
 describe('updateUserAction', () => {
   it('happy path calls updateUser and revalidates both paths', async () => {
-    updateUser.mockResolvedValue({});
+    updateUser.mockResolvedValue({ ok: true });
 
     const res = await updateUserAction(
       fd({ id: 'u-10', name: 'Updated Name' })
@@ -164,14 +165,14 @@ describe('updateUserAction', () => {
     expect(updateUser).not.toHaveBeenCalled();
   });
 
-  it('maps AdminUserError(not_found) to Failure', async () => {
-    updateUser.mockRejectedValue(new AdminUserError('not_found'));
+  it('maps service failure(not_found) to Failure', async () => {
+    updateUser.mockResolvedValue({ ok: false, error: 'not_found' });
     const res = await updateUserAction(fd({ id: 'gone-1', name: 'X' }));
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
-  it('maps AdminUserError(self_action_forbidden) to Failure', async () => {
-    updateUser.mockRejectedValue(new AdminUserError('self_action_forbidden'));
+  it('maps service failure(self_action_forbidden) to Failure', async () => {
+    updateUser.mockResolvedValue({ ok: false, error: 'self_action_forbidden' });
     const res = await updateUserAction(fd({ id: 'admin-1', role: 'partner' }));
     expect(res).toEqual({ ok: false, error: 'self_action_forbidden' });
   });
@@ -179,7 +180,7 @@ describe('updateUserAction', () => {
 
 describe('deactivateUserAction', () => {
   it('happy path calls deactivateUser and revalidates', async () => {
-    deactivateUser.mockResolvedValue(undefined);
+    deactivateUser.mockResolvedValue({ ok: true });
 
     const res = await deactivateUserAction(fd({ id: 'u-20' }));
 
@@ -194,8 +195,8 @@ describe('deactivateUserAction', () => {
     expect(deactivateUser).not.toHaveBeenCalled();
   });
 
-  it('maps AdminUserError(last_admin_protected) to Failure', async () => {
-    deactivateUser.mockRejectedValue(new AdminUserError('last_admin_protected'));
+  it('maps service failure(last_admin_protected) to Failure', async () => {
+    deactivateUser.mockResolvedValue({ ok: false, error: 'last_admin_protected' });
     const res = await deactivateUserAction(fd({ id: 'last-admin' }));
     expect(res).toEqual({ ok: false, error: 'last_admin_protected' });
   });
@@ -203,7 +204,7 @@ describe('deactivateUserAction', () => {
 
 describe('reactivateUserAction', () => {
   it('happy path calls reactivateUser and revalidates', async () => {
-    reactivateUser.mockResolvedValue(undefined);
+    reactivateUser.mockResolvedValue({ ok: true });
 
     const res = await reactivateUserAction(fd({ id: 'u-30' }));
 
@@ -218,8 +219,8 @@ describe('reactivateUserAction', () => {
     expect(reactivateUser).not.toHaveBeenCalled();
   });
 
-  it('maps AdminUserError(not_found) to Failure', async () => {
-    reactivateUser.mockRejectedValue(new AdminUserError('not_found'));
+  it('maps service failure(not_found) to Failure', async () => {
+    reactivateUser.mockResolvedValue({ ok: false, error: 'not_found' });
     const res = await reactivateUserAction(fd({ id: 'gone-2' }));
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
