@@ -18,6 +18,8 @@ export type PartnerRoleInPartner = 'admin' | 'manager';
 
 export type OrgRoleInOrg = 'admin' | 'leader' | 'member';
 
+export type ManagerRole = 'leader';
+
 export type OrganizationMembership = {
   organizationId: string;
   roleInOrg: OrgRoleInOrg;
@@ -32,6 +34,7 @@ export type SessionPayload = {
   partnerRole?: PartnerRoleInPartner | null;
   assignedOrgIds?: string[];
   managedOrgIds?: string[];
+  managerRole?: ManagerRole | null;
   organizationId?: string | null;
   organizationMemberships?: OrganizationMembership[];
   email?: string;
