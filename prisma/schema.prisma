@@ -101,6 +101,7 @@ model User {
   name                String
   isActive            Boolean              @default(true)
   role                Role                 @default(organization)
+  managerRole         String?              // null = regular manager, 'leader' = руководитель
   companyId           String?
   company             Company?             @relation(fields: [companyId], references: [id])
   partnerId           String?
@@ -395,6 +396,7 @@ model Company {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   name          String
+  managerTeamVisibility Boolean @default(false)
   users         User[]
   orders        Order[]
   organizations Organization[]
