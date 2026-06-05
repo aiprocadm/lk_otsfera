@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { managerOrderScopeFilter, canSeeOrder } from '@/lib/auth/managerPolicy';
+import { managerOrderScope, canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 
 /**
  * Manager-facing orders service. All visibility is governed by the three-way
@@ -44,7 +44,8 @@ export async function listOrders(
   optsRaw: ListOrdersOptions
 ): Promise<ListOrdersResult> {
   const opts = ListOrdersOptionsSchema.parse(optsRaw);
-  const scope = managerOrderScopeFilter(opts.session);
+  const teamMode = await getCompanyTeamVisibility(prisma, opts.session.companyId);
+  const scope = managerOrderScope(opts.session, teamMode);
   const filters: Prisma.OrderWhereInput[] = [scope];
   if (opts.executionStatus) {
     filters.push({ executionStatus: opts.executionStatus as Prisma.OrderWhereInput['executionStatus'] });
@@ -95,6 +96,7 @@ export async function getOrder(
   session: SessionPayload,
   orderId: string
 ): Promise<ManagerOrderDetail | null> {
+  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
@@ -108,7 +110,8 @@ export async function getOrder(
   });
   if (!order) return null;
   const commentsCountByMe = order.comments.length;
-  if (!canSeeOrder(session, { ...order, commentsCountByMe })) return null;
+  // `order` is a findUnique-with-include, so the scalar `companyId` is present.
+  if (!canSeeOrder(session, { ...order, commentsCountByMe }, teamMode)) return null;
   // Strip the helper comments[] used only for the RBAC probe — the caller
   // gets the _count.comments aggregate plus the explicit commentsCountByMe.
   const { comments: _probe, ...rest } = order;
