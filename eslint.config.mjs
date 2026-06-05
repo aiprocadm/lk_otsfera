@@ -17,6 +17,27 @@ const NO_HANDROLLED_MODAL = [
   }
 ];
 
+// CLAUDE.md §2 — dependency direction: app → server-actions → services → lib.
+// A service must never import upward from the UI / route / mutation layers.
+// `no-restricted-imports` (core) also catches `import type`, which is exactly the
+// violation C3 fixed (dashboard services pulling return-types up from components).
+const NO_UPWARD_IMPORTS_IN_SERVICES = [
+  'error',
+  {
+    patterns: [
+      {
+        group: [
+          '@/app', '@/app/*', '@/app/**',
+          '@/components', '@/components/*', '@/components/**',
+          '@/server-actions', '@/server-actions/*', '@/server-actions/**'
+        ],
+        message:
+          'Service layer must not import upward from app/components/server-actions (CLAUDE.md §2: app → server-actions → services → lib). The service owns its types; the UI imports them down.'
+      }
+    ]
+  }
+];
+
 export default [
   ...coreWebVitals,
   ...typescript,
@@ -24,6 +45,12 @@ export default [
     files: ['src/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-syntax': NO_HANDROLLED_MODAL
+    }
+  },
+  {
+    files: ['src/lib/services/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': NO_UPWARD_IMPORTS_IN_SERVICES
     }
   },
   {
