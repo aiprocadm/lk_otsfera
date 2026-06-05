@@ -44,11 +44,12 @@ export default async function PartnerLeadDetailPage({
   const lead = await getLead(prisma, { leadId: id, partnerId: session.partnerId, scopeOrgIds: scope });
   if (!lead) notFound();
 
-  const attachments = await listLeadAttachments(prisma, {
+  const attachmentsResult = await listLeadAttachments(prisma, {
     leadId: id,
     partnerId: session.partnerId,
     scopeOrgIds: scope
   });
+  const attachments = attachmentsResult.ok ? attachmentsResult.rows : [];
 
   const canWithdraw = lead.status === 'new' || lead.status === 'in_review';
   const canEditAttachments = canWithdraw;

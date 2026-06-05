@@ -40,23 +40,40 @@ export type UploadLeadAttachmentInput = {
   };
 };
 
+export type LeadAttachmentErrorCode =
+  | 'NOT_FOUND'
+  | 'FORBIDDEN'
+  | 'UNSUPPORTED_MEDIA_TYPE'
+  | 'FILE_TOO_LARGE'
+  | 'INVALID_FILENAME'
+  | 'STORAGE_FAILURE'
+  | 'LEAD_NOT_EDITABLE'
+  | 'INFECTED';
+
+export type LeadAttachmentFailure = {
+  ok: false;
+  error: LeadAttachmentErrorCode;
+  message: string;
+  meta?: { scanReason?: string | null };
+};
+
 export class LeadAttachmentError extends Error {
   constructor(
-    public code:
-      | 'NOT_FOUND'
-      | 'FORBIDDEN'
-      | 'UNSUPPORTED_MEDIA_TYPE'
-      | 'FILE_TOO_LARGE'
-      | 'INVALID_FILENAME'
-      | 'STORAGE_FAILURE'
-      | 'LEAD_NOT_EDITABLE'
-      | 'INFECTED',
+    public code: LeadAttachmentErrorCode,
     message: string,
     public meta?: { scanReason?: string | null }
   ) {
     super(message);
     this.name = 'LeadAttachmentError';
   }
+}
+
+/** Boundary helper: domain error → Result failure; unexpected errors re-throw. */
+function toFailure(e: unknown): LeadAttachmentFailure {
+  if (e instanceof LeadAttachmentError) {
+    return { ok: false, error: e.code, message: e.message, ...(e.meta ? { meta: e.meta } : {}) };
+  }
+  throw e;
 }
 
 function maxFileSizeBytes(): number {
@@ -94,86 +111,90 @@ async function loadLeadInScope(
 export async function uploadLeadAttachment(
   prisma: PrismaClient,
   input: UploadLeadAttachmentInput
-): Promise<LeadAttachment> {
-  if (input.file.size > maxFileSizeBytes()) {
-    throw new LeadAttachmentError('FILE_TOO_LARGE', 'Файл превышает разрешённый размер');
-  }
-  const safeBase = sanitizeFilename(input.file.name);
-  if (!safeBase) throw new LeadAttachmentError('INVALID_FILENAME', 'Некорректное имя файла');
-
-  const validation = validateMagicBytes(input.file.declaredMimeType, input.file.buffer);
-  if (!validation.ok) {
-    throw new LeadAttachmentError('UNSUPPORTED_MEDIA_TYPE', `MIME validation failed: ${validation.reason}`);
-  }
-
-  const lead = await loadLeadInScope(prisma, {
-    leadId: input.leadId,
-    partnerId: input.partnerId,
-    scopeOrgIds: input.scopeOrgIds
-  });
-  if (!lead) throw new LeadAttachmentError('NOT_FOUND', 'Заявка не найдена');
-  if (!DELETABLE_STATUSES.includes(lead.status)) {
-    throw new LeadAttachmentError('LEAD_NOT_EDITABLE', 'Заявка более не редактируется');
-  }
-
-  const fileId = randomUUID();
-  const ext = extensionFor(validation.mime);
-  const path = `partners/${input.partnerId}/leads/${input.leadId}/${fileId}.${ext}`;
-
-  const storage = getServerClient().storage.from(documentBucket);
-  const uploadRes = await storage.upload(path, input.file.buffer, {
-    contentType: validation.mime,
-    upsert: false
-  });
-  if (uploadRes.error) {
-    throw new LeadAttachmentError('STORAGE_FAILURE', uploadRes.error.message);
-  }
-
+): Promise<{ ok: true; attachment: LeadAttachment } | LeadAttachmentFailure> {
   try {
-    const attachment = await prisma.$transaction(async (tx) => {
-      const created = await tx.leadAttachment.create({
-        data: {
-          leadId: input.leadId,
-          createdByUserId: input.uploadedByUserId,
-          name: input.file.name,
-          path,
-          mimeType: validation.mime,
-          size: input.file.size
-        }
-      });
-      await recordAudit(tx, {
-        userId: input.uploadedByUserId,
-        action: 'lead_attachment_uploaded',
-        entity: 'lead_attachment',
-        entityId: created.id,
-        after: {
-          leadId: input.leadId,
-          partnerId: input.partnerId,
-          name: input.file.name,
-          mimeType: validation.mime,
-          size: input.file.size,
-        },
-      });
-      return created;
-    });
+    if (input.file.size > maxFileSizeBytes()) {
+      throw new LeadAttachmentError('FILE_TOO_LARGE', 'Файл превышает разрешённый размер');
+    }
+    const safeBase = sanitizeFilename(input.file.name);
+    if (!safeBase) throw new LeadAttachmentError('INVALID_FILENAME', 'Некорректное имя файла');
 
-    // Best-effort enqueue of async ClamAV scan. Failure leaves scanStatus='pending'
-    // (graceful — attachment stays usable; backfill sweeps stuck rows).
-    try {
-      const payload: ScanDocumentPayload = { kind: 'leadAttachment', id: attachment.id };
-      await getQueue('docs.scanDocument').add('scan', payload);
-    } catch (err) {
-      console.warn('[leadAttachments] enqueue scan failed', {
-        attachmentId: attachment.id,
-        error: err instanceof Error ? err.message : String(err)
-      });
+    const validation = validateMagicBytes(input.file.declaredMimeType, input.file.buffer);
+    if (!validation.ok) {
+      throw new LeadAttachmentError('UNSUPPORTED_MEDIA_TYPE', `MIME validation failed: ${validation.reason}`);
     }
 
-    return attachment;
-  } catch (err) {
-    // Compensate: best-effort delete the orphan object so storage stays consistent.
-    await storage.remove([path]).catch(() => undefined);
-    throw err;
+    const lead = await loadLeadInScope(prisma, {
+      leadId: input.leadId,
+      partnerId: input.partnerId,
+      scopeOrgIds: input.scopeOrgIds
+    });
+    if (!lead) throw new LeadAttachmentError('NOT_FOUND', 'Заявка не найдена');
+    if (!DELETABLE_STATUSES.includes(lead.status)) {
+      throw new LeadAttachmentError('LEAD_NOT_EDITABLE', 'Заявка более не редактируется');
+    }
+
+    const fileId = randomUUID();
+    const ext = extensionFor(validation.mime);
+    const path = `partners/${input.partnerId}/leads/${input.leadId}/${fileId}.${ext}`;
+
+    const storage = getServerClient().storage.from(documentBucket);
+    const uploadRes = await storage.upload(path, input.file.buffer, {
+      contentType: validation.mime,
+      upsert: false
+    });
+    if (uploadRes.error) {
+      throw new LeadAttachmentError('STORAGE_FAILURE', uploadRes.error.message);
+    }
+
+    try {
+      const attachment = await prisma.$transaction(async (tx) => {
+        const created = await tx.leadAttachment.create({
+          data: {
+            leadId: input.leadId,
+            createdByUserId: input.uploadedByUserId,
+            name: input.file.name,
+            path,
+            mimeType: validation.mime,
+            size: input.file.size
+          }
+        });
+        await recordAudit(tx, {
+          userId: input.uploadedByUserId,
+          action: 'lead_attachment_uploaded',
+          entity: 'lead_attachment',
+          entityId: created.id,
+          after: {
+            leadId: input.leadId,
+            partnerId: input.partnerId,
+            name: input.file.name,
+            mimeType: validation.mime,
+            size: input.file.size,
+          },
+        });
+        return created;
+      });
+
+      // Best-effort enqueue of async ClamAV scan. Failure leaves scanStatus='pending'
+      // (graceful — attachment stays usable; backfill sweeps stuck rows).
+      try {
+        const payload: ScanDocumentPayload = { kind: 'leadAttachment', id: attachment.id };
+        await getQueue('docs.scanDocument').add('scan', payload);
+      } catch (err) {
+        console.warn('[leadAttachments] enqueue scan failed', {
+          attachmentId: attachment.id,
+          error: err instanceof Error ? err.message : String(err)
+        });
+      }
+
+      return { ok: true, attachment };
+    } catch (err) {
+      // Compensate: best-effort delete the orphan object so storage stays consistent.
+      await storage.remove([path]).catch(() => undefined);
+      throw err;
+    }
+  } catch (e) {
+    return toFailure(e);
   }
 }
 
@@ -187,49 +208,55 @@ export type DeleteLeadAttachmentInput = {
 export async function deleteLeadAttachment(
   prisma: PrismaClient,
   input: DeleteLeadAttachmentInput
-): Promise<void> {
-  const attachment = await prisma.leadAttachment.findFirst({
-    where: { id: input.attachmentId },
-    include: {
-      lead: { select: { id: true, partnerId: true, status: true, organizationId: true } }
-    }
-  });
-  if (!attachment || attachment.lead.partnerId !== input.partnerId) {
-    throw new LeadAttachmentError('NOT_FOUND', 'Вложение не найдено');
-  }
-
-  const lead = attachment.lead;
-  if (input.scopeOrgIds && input.scopeOrgIds.length > 0) {
-    const inScope = lead.organizationId === null || input.scopeOrgIds.includes(lead.organizationId);
-    if (!inScope) throw new LeadAttachmentError('NOT_FOUND', 'Вложение не найдено');
-  }
-
-  if (!DELETABLE_STATUSES.includes(lead.status)) {
-    throw new LeadAttachmentError('LEAD_NOT_EDITABLE', 'Заявка более не редактируется');
-  }
-
-  const userId = input.session.sub;
-  const allowed =
-    attachment.createdByUserId === userId || isPartnerAdmin(input.session);
-  if (!allowed) {
-    throw new LeadAttachmentError('FORBIDDEN', 'Только автор или partner-admin может удалить вложение');
-  }
-
-  await prisma.$transaction(async (tx) => {
-    await tx.leadAttachment.delete({ where: { id: attachment.id } });
-    await recordAudit(tx, {
-      userId,
-      action: 'lead_attachment_deleted',
-      entity: 'lead_attachment',
-      entityId: attachment.id,
-      after: { leadId: lead.id, partnerId: input.partnerId, name: attachment.name },
+): Promise<{ ok: true } | LeadAttachmentFailure> {
+  try {
+    const attachment = await prisma.leadAttachment.findFirst({
+      where: { id: input.attachmentId },
+      include: {
+        lead: { select: { id: true, partnerId: true, status: true, organizationId: true } }
+      }
     });
-  });
+    if (!attachment || attachment.lead.partnerId !== input.partnerId) {
+      throw new LeadAttachmentError('NOT_FOUND', 'Вложение не найдено');
+    }
 
-  await getServerClient()
-    .storage.from(documentBucket)
-    .remove([attachment.path])
-    .catch(() => undefined);
+    const lead = attachment.lead;
+    if (input.scopeOrgIds && input.scopeOrgIds.length > 0) {
+      const inScope = lead.organizationId === null || input.scopeOrgIds.includes(lead.organizationId);
+      if (!inScope) throw new LeadAttachmentError('NOT_FOUND', 'Вложение не найдено');
+    }
+
+    if (!DELETABLE_STATUSES.includes(lead.status)) {
+      throw new LeadAttachmentError('LEAD_NOT_EDITABLE', 'Заявка более не редактируется');
+    }
+
+    const userId = input.session.sub;
+    const allowed =
+      attachment.createdByUserId === userId || isPartnerAdmin(input.session);
+    if (!allowed) {
+      throw new LeadAttachmentError('FORBIDDEN', 'Только автор или partner-admin может удалить вложение');
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.leadAttachment.delete({ where: { id: attachment.id } });
+      await recordAudit(tx, {
+        userId,
+        action: 'lead_attachment_deleted',
+        entity: 'lead_attachment',
+        entityId: attachment.id,
+        after: { leadId: lead.id, partnerId: input.partnerId, name: attachment.name },
+      });
+    });
+
+    await getServerClient()
+      .storage.from(documentBucket)
+      .remove([attachment.path])
+      .catch(() => undefined);
+
+    return { ok: true };
+  } catch (e) {
+    return toFailure(e);
+  }
 }
 
 export type GetDownloadUrlInput = {
@@ -241,66 +268,77 @@ export type GetDownloadUrlInput = {
 export async function getLeadAttachmentDownloadUrl(
   prisma: PrismaClient,
   input: GetDownloadUrlInput
-): Promise<{ url: string; name: string; mimeType: string }> {
-  const attachment = await prisma.leadAttachment.findFirst({
-    where: { id: input.attachmentId },
-    include: {
-      lead: { select: { partnerId: true, organizationId: true } }
-    }
-  });
-  if (!attachment || attachment.lead.partnerId !== input.partnerId) {
-    throw new LeadAttachmentError('NOT_FOUND', 'Вложение не найдено');
-  }
-  if (input.scopeOrgIds && input.scopeOrgIds.length > 0) {
-    const inScope =
-      attachment.lead.organizationId === null ||
-      input.scopeOrgIds.includes(attachment.lead.organizationId);
-    if (!inScope) throw new LeadAttachmentError('NOT_FOUND', 'Вложение не найдено');
-  }
-  if (attachment.scanStatus === 'infected') {
-    throw new LeadAttachmentError(
-      'INFECTED',
-      'Файл помещён в карантин антивирусом',
-      { scanReason: attachment.scanReason }
-    );
-  }
-
-  const signed = await getServerClient()
-    .storage.from(documentBucket)
-    .createSignedUrl(attachment.path, DOWNLOAD_URL_TTL_SECONDS, {
-      download: attachment.name
+): Promise<{ ok: true; url: string; name: string; mimeType: string } | LeadAttachmentFailure> {
+  try {
+    const attachment = await prisma.leadAttachment.findFirst({
+      where: { id: input.attachmentId },
+      include: {
+        lead: { select: { partnerId: true, organizationId: true } }
+      }
     });
-  if (signed.error || !signed.data?.signedUrl) {
-    throw new LeadAttachmentError(
-      'STORAGE_FAILURE',
-      signed.error?.message ?? 'Не удалось создать ссылку'
-    );
-  }
+    if (!attachment || attachment.lead.partnerId !== input.partnerId) {
+      throw new LeadAttachmentError('NOT_FOUND', 'Вложение не найдено');
+    }
+    if (input.scopeOrgIds && input.scopeOrgIds.length > 0) {
+      const inScope =
+        attachment.lead.organizationId === null ||
+        input.scopeOrgIds.includes(attachment.lead.organizationId);
+      if (!inScope) throw new LeadAttachmentError('NOT_FOUND', 'Вложение не найдено');
+    }
+    if (attachment.scanStatus === 'infected') {
+      throw new LeadAttachmentError(
+        'INFECTED',
+        'Файл помещён в карантин антивирусом',
+        { scanReason: attachment.scanReason }
+      );
+    }
 
-  return { url: signed.data.signedUrl, name: attachment.name, mimeType: attachment.mimeType };
+    const signed = await getServerClient()
+      .storage.from(documentBucket)
+      .createSignedUrl(attachment.path, DOWNLOAD_URL_TTL_SECONDS, {
+        download: attachment.name
+      });
+    if (signed.error || !signed.data?.signedUrl) {
+      throw new LeadAttachmentError(
+        'STORAGE_FAILURE',
+        signed.error?.message ?? 'Не удалось создать ссылку'
+      );
+    }
+
+    return { ok: true, url: signed.data.signedUrl, name: attachment.name, mimeType: attachment.mimeType };
+  } catch (e) {
+    return toFailure(e);
+  }
 }
 
 export async function listLeadAttachments(
   prisma: PrismaClient,
   args: { leadId: string; partnerId: string; scopeOrgIds?: string[] }
-): Promise<LeadAttachmentRow[]> {
-  const lead = await loadLeadInScope(prisma, args);
-  if (!lead) throw new LeadAttachmentError('NOT_FOUND', 'Заявка не найдена');
+): Promise<{ ok: true; rows: LeadAttachmentRow[] } | LeadAttachmentFailure> {
+  try {
+    const lead = await loadLeadInScope(prisma, args);
+    if (!lead) throw new LeadAttachmentError('NOT_FOUND', 'Заявка не найдена');
 
-  const rows = await prisma.leadAttachment.findMany({
-    where: { leadId: lead.id, ...INFECTED_HIDDEN_WHERE },
-    orderBy: { createdAt: 'desc' },
-    include: { createdByUser: { select: { name: true } } }
-  });
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    size: r.size,
-    mimeType: r.mimeType,
-    createdAt: r.createdAt,
-    createdByUserId: r.createdByUserId,
-    createdByUserName: r.createdByUser?.name ?? null
-  }));
+    const rows = await prisma.leadAttachment.findMany({
+      where: { leadId: lead.id, ...INFECTED_HIDDEN_WHERE },
+      orderBy: { createdAt: 'desc' },
+      include: { createdByUser: { select: { name: true } } }
+    });
+    return {
+      ok: true,
+      rows: rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        size: r.size,
+        mimeType: r.mimeType,
+        createdAt: r.createdAt,
+        createdByUserId: r.createdByUserId,
+        createdByUserName: r.createdByUser?.name ?? null
+      }))
+    };
+  } catch (e) {
+    return toFailure(e);
+  }
 }
 
 export const __testing = {
