@@ -1,12 +1,5 @@
 import Link from 'next/link';
-
-export type AttentionItem = {
-  id: string;
-  kind: string;
-  severity: 'warn' | 'urgent';
-  message: string;
-  href: string;
-};
+import type { AttentionItem } from '@/lib/services/manager/dashboard';
 
 export function ManagerAttentionList({ items }: { items: AttentionItem[] }) {
   if (items.length === 0) {

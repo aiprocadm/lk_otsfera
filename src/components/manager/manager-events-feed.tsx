@@ -1,12 +1,5 @@
 import Link from 'next/link';
-
-export type EventItem = {
-  id: string;
-  kind: string;
-  when: Date;
-  text: string;
-  href?: string;
-};
+import type { EventItem } from '@/lib/services/manager/dashboard';
 
 export function ManagerEventsFeed({ events }: { events: EventItem[] }) {
   if (events.length === 0) {
