@@ -1,11 +1,5 @@
 import { StatCard } from '@/components/dashboard/stat-card';
-
-export type OrgDashboardKpis = {
-  activeOrders: number;
-  outstandingAmount: string;
-  studentsCount: number;
-  recentDocumentsCount: number;
-};
+import type { OrgDashboardKpis } from '@/lib/services/organization/dashboard';
 
 function fmtMoney(rubles: string): string {
   const n = Number(rubles);

@@ -1,9 +1,30 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { managerOrderScopeFilter } from '@/lib/auth/managerPolicy';
-import type { KpiData } from '@/components/manager/manager-kpi-grid';
-import type { AttentionItem } from '@/components/manager/manager-attention-list';
-import type { EventItem } from '@/components/manager/manager-events-feed';
+
+export type KpiData = {
+  activeOrders: number;
+  activeOrdersDelta: number;
+  attentionCount: number;
+  unreadComments: number;
+  urgentDeadlines: number;
+};
+
+export type AttentionItem = {
+  id: string;
+  kind: string;
+  severity: 'warn' | 'urgent';
+  message: string;
+  href: string;
+};
+
+export type EventItem = {
+  id: string;
+  kind: string;
+  when: Date;
+  text: string;
+  href?: string;
+};
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_MS = 30 * DAY_MS;

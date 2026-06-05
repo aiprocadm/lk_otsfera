@@ -1,12 +1,5 @@
 import { StatCard } from '@/components/dashboard/stat-card';
-
-export type KpiData = {
-  activeOrders: number;
-  activeOrdersDelta: number;
-  attentionCount: number;
-  unreadComments: number;
-  urgentDeadlines: number;
-};
+import type { KpiData } from '@/lib/services/manager/dashboard';
 
 function fmtDelta(delta: number): string {
   if (delta === 0) return '±0 / 30д';

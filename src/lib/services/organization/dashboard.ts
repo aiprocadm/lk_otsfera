@@ -1,7 +1,32 @@
 import type { PrismaClient } from '@prisma/client';
-import type { OrgDashboardKpis } from '@/components/organization/org-kpi-grid';
-import type { OrgAttention, OrgAttentionItem } from '@/components/organization/org-attention-list';
-import type { OrgEvent } from '@/components/organization/org-events-feed';
+
+export type OrgDashboardKpis = {
+  activeOrders: number;
+  outstandingAmount: string;
+  studentsCount: number;
+  recentDocumentsCount: number;
+};
+
+export type OrgAttentionItem = {
+  id: string;
+  kind: 'billed_unpaid' | 'unsigned_act' | 'completed_open';
+  orderId: string;
+  title: string;
+  meta?: string;
+  severity: 'warn' | 'urgent';
+};
+
+export type OrgAttention = {
+  items: OrgAttentionItem[];
+};
+
+export type OrgEvent = {
+  id: string;
+  kind: 'document_published' | 'payment_received' | 'order_status_changed' | 'comment_posted';
+  orderId: string;
+  title: string;
+  at: Date;
+};
 
 const THIRTY_DAYS_MS = 30 * 24 * 3600 * 1000;
 const SEVEN_DAYS_MS = 7 * 24 * 3600 * 1000;

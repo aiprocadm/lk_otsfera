@@ -1,12 +1,5 @@
 import Link from 'next/link';
-
-export type OrgEvent = {
-  id: string;
-  kind: 'document_published' | 'payment_received' | 'order_status_changed' | 'comment_posted';
-  orderId: string;
-  title: string;
-  at: Date;
-};
+import type { OrgEvent } from '@/lib/services/organization/dashboard';
 
 const kindIcon: Record<OrgEvent['kind'], string> = {
   document_published: '📄',
