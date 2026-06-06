@@ -40,7 +40,22 @@ export function buildUrl(baseUrl: string, path: string, cursor: SyncCursor): str
   return url.toString();
 }
 
-// DECISION Q8: lead push body shape. Default: send the payload as-is.
+// DECISION Q5: the JSON field name carrying the partner key on the OUTBOUND
+// lead-push body. The cabinet currently keys on Partner.slug in BOTH directions
+// (see docs/integrations/1c-contract.md → "Ключ партнёра"):
+//   • inbound orgs/orders arrive with `partnerExternalId`, matched against
+//     Partner.slug in src/worker/processors/sync-organizations.ts;
+//   • outbound lead push sends the slug under this field name.
+// When the 1C meeting answers Q5, flip this ONE constant:
+//   (A) slug stays the key  → leave as 'partnerSlug';
+//   (B) 1C GUID is the key  → set to 'partnerExternalId' AND add a Partner.externalId
+//       column (migration) + switch resolvePartnerId / push.ts mapLeadToPayload.
+export const PARTNER_KEY_FIELD = 'partnerSlug';
+
+// DECISION Q8: lead push body shape. Emit the partner key (Q5) under the agreed
+// field name; pass the rest of the payload through unchanged.
 export function buildLeadBody(payload: OneCLeadPushPayload): unknown {
-  return payload;
+  const { partnerSlug, partnerExternalId, ...rest } = payload;
+  const partnerKeyValue = partnerSlug ?? partnerExternalId;
+  return { [PARTNER_KEY_FIELD]: partnerKeyValue, ...rest };
 }
