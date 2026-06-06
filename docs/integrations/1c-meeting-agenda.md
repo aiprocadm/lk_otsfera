@@ -28,17 +28,30 @@
 
 | # | Вопрос | Что предлагаем по умолчанию | Какой формат ответа нам нужен | Priority |
 |---|---|---|---|---|
-| **5** | **Структура «партнёра» в 1С** | Поле `partnerExternalId` на контрагенте/реализации (GUID 1С-справочника партнёров). Кабинет хранит mapping `Partner.externalId = 1c-partner-GUID`. | Что является первичным ключом партнёра в 1С: GUID справочника / `ИНН` / `slug` / отдельное поле на договоре? Для какой сущности это поле живёт: контрагент-партнёр, контрагент-заказчик, реализация (сделка)? | 🔴 P0 |
-| **6** | **Cursor для инкрементальных синков** | `since` параметр в query string — ISO timestamp последнего изменения. 1С возвращает записи с `updatedAt > since`. Кабинет хранит cursor в `SyncLog`. Альтернативы: version-number (sequence), event-log (push-only). | Тип cursor'а: timestamp / version / event-log / full-only-no-incremental. Если timestamp — поле на каких объектах. | 🔴 P0 |
+| **5** | **Ключ партнёра 1С↔кабинет** (⚠️ см. callout «Реальность кода») | **Код матчит по `Partner.slug` в обе стороны** (inbound `partnerExternalId → Partner.slug`; outbound push шлёт `partnerSlug`). Колонки `Partner.externalId` **нет**. Дефолт: 1С хранит и эхо-ит slug кабинета. | Развилка: **(A)** 1С везде использует slug кабинета как ключ (A2 без миграции) — или **(B)** заводим `Partner.externalId = GUID 1С` (A2: миграция + правка resolver). Плюс: на какой сущности живёт ключ (контрагент-партнёр / реализация)? | 🔴 P0 |
+| **6** | **Cursor + полнота ответа** | `since` параметр в query string — ISO timestamp последнего изменения. 1С возвращает записи с `updatedAt > since`. Кабинет хранит watermark в `SyncState` (high-water mark − 5 мин overlap). Альтернативы: version-number (sequence), event-log (push-only). | Тип cursor'а: timestamp / version / event-log / full-only-no-incremental. Если timestamp — поле на каких объектах. **Плюс полнота: один `since`-ответ отдаёт ВСЕ изменённые записи или пагинация (page/limit)?** Если пагинация — A2 обязан её реализовать (сейчас адаптер берёт только первую страницу → немой обрыв, см. callout). | 🔴 P0 |
 | **7** | **Datetime-формат** | UTC ISO-8601 (`2026-05-29T10:00:00Z`). Большинство 1С v8 это умеет. | UTC vs МСК. Формат конкретный (с/без миллисекунд, с/без timezone suffix). | 🟡 P1 |
 
 ### Группа C — Outbound и события (можно отложить, но желательно)
 
 | # | Вопрос | Что предлагаем по умолчанию | Какой формат ответа нам нужен | Priority |
 |---|---|---|---|---|
-| **8** | **Push leads: endpoint в 1С** | `POST /api/leads` на стороне 1С. Body: `{partnerExternalId, customerName, customerInn, customerPhone, customerEmail, comment, attachments[]}`. Auth — тот же что в Q2. | URL endpoint'а + полный список обязательных полей + формат attachments (URL? base64? multipart?). Если 1С НЕ принимает push — alternative: 1С опрашивает наш `GET /api/integrations/1c/leads-outbound?since=…`. | 🟡 P1 |
+| **8** | **Push leads: endpoint в 1С** | `POST /api/leads` на стороне 1С. Body — фактические поля DTO (см. [1c-contract.md §5](1c-contract.md)): `partnerSlug`, `cabinetLeadId`, `clientCompanyName`, `clientInn`, `clientContactName`, `clientContact{Phone,Email}`, `subject`, `estimatedAmount`, `productType`, `notes`. **Attachments пока НЕ шлём** (в DTO их нет). Auth — тот же что Q2. | URL endpoint'а + список обязательных полей + подтверждение дедупа по `cabinetLeadId` (контрактная гарантия идемпотентности). Если 1С НЕ принимает push — alt: 1С опрашивает наш `GET …/leads-outbound?since=…`. Attachments — отдельная будущая фича. | 🟡 P1 |
 | **9** | **Webhook от 1С → кабинет** | Идеально: 1С шлёт `POST {cabinet_url}/api/integrations/1c/webhook` при изменении заказа/платежа/документа. HMAC-signature header `X-1C-Signature` (SHA-256 от body с shared secret). Это снимает poll-нагрузку и улучшает latency. | Умеет ли 1С слать webhook'и? Если да — HMAC-secret + список событий, которые шлёт. Если нет — ОК, опрос по cursor продолжится. | 🟢 P2 |
-| **10** | **Бизнес-стадии заказа: маппинг** | `executionStatus`: `new`/`in_progress`/`paused`/`completed`/`cancelled`. `financialStatus`: `unbilled`/`billed`/`partial`/`paid`/`refunded`. Нужна таблица соответствия с 1С-стадиями. | Полный список стадий 1С (`Состояние реализации` / `Статус оплаты`) + предложение маппинга от бухгалтерии. Если стадий больше чем у нас — мы их сворачиваем; если меньше — добавим (или расширим enum). | 🟡 P1 (но без неё нельзя go-live) |
+| **10** | **Бизнес-стадии заказа: маппинг** (⚠️ см. callout) | Коды кабинета (источник истины — `prisma/schema.prisma`): `executionStatus`: `pending`/`in_progress`/`completed`/`cancelled`/`on_hold`; `financialStatus`: `not_billed`/`billed`/`partially_paid`/`paid`/`refunded`. Нужна таблица соответствия с 1С-стадиями. | Полный список стадий 1С (`Состояние реализации` / `Статус оплаты`) + маппинг от бухгалтерии. **И ключевое: кто маппит** — 1С отдаёт уже наши коды, или присылает родные стадии, а сворачиваем мы (тогда A2 пишет translation-слой)? Если стадий больше — сворачиваем; меньше — расширяем enum (миграция). | 🟡 P1 (без неё нельзя go-live) |
+
+## ⚠️ Реальность кода (сверено с `origin/main` 2026-06-06) — прочитать ведущему до встречи
+
+Три пункта, где «дефолт» расходился с уже отгруженным кодом. Не закрыть на встрече → go-live ломается **молча**.
+
+**Q5 — ключ партнёра.** `Partner` не имеет колонки `externalId` (есть только `slug @unique`). Код связывает партнёра по `slug` в обе стороны:
+- inbound: `resolvePartnerId` делает `db.partner.findUnique({ where: { slug: partnerExternalId } })` ([sync-organizations.ts:18](../../src/worker/processors/sync-organizations.ts)) — значение поля `partnerExternalId` из 1С трактуется как **slug кабинета**;
+- outbound: lead-push шлёт `partnerSlug = lead.partner.slug` ([push.ts:33](../../src/lib/services/oneCSync/push.ts)); поле `partnerExternalId` в push **не отправляется**.
+- ⮑ Несогласованность имён полей: inbound `partnerExternalId` vs outbound `partnerSlug` — значение одно (slug), имена разные. Решить **(A)** slug кабинета как общий ключ (A2 без миграции, выровнять имена) или **(B)** `Partner.externalId = GUID 1С` (A2: миграция + правка `resolvePartnerId` + push). При несовпадении ключа орг не привяжется → skip `partner_not_found` (видно в `SyncLog`, не молча, но партнёрская витрина пустая).
+
+**Q10 — статусы и кто маппит.** Значения enum в повестке раньше расходились с кодом — теперь синхронизированы с `prisma/schema.prisma`. Критично: `mapOrderDto` кладёт `dto.executionStatus as ExecutionStatus` **как есть**, а zod — `z.enum([наши коды])`. Значит код сейчас ждёт, что **1С присылает ровно наши английские коды**. Если 1С будет слать родные стадии («Выполнен», «Оплачено») — каждая запись уйдёт в карантин (`invalid`), синк отдаст 0 строк. Ответ Q10 определяет A2: либо 1С маппит у себя, либо A2 добавляет translation-слой в `rest-wire.ts` и zod принимает сырые строки до маппинга.
+
+**Q6 — пагинация.** Контракт адаптера — `Promise<Dto[]>`, пагинации нет (осознанный non-goal спека Phase 3b при неизвестном объёме). `unwrapEnvelope` принимает массив или `{ items: [] }`. Если боевая 1С пагинирует — возьмём только первую страницу, остальное потеряется молча. Подтвердить; если пагинация есть — это переводит non-goal в required для A2.
 
 ## Структура встречи (60-90 мин)
 
@@ -69,7 +82,23 @@
 1. Обновить [1c-contract.md](1c-contract.md): закрыть «Открытые вопросы», поднять версию до 1.0.
 2. Создать новый план [docs/superpowers/plans/YYYY-MM-DD-partner-cabinet-phase3b-real-1c-rest.md](../superpowers/plans/) — поэтапная замена `adapter-fake.ts` на `adapter-rest.ts`, миграция fake → rest на staging, smoke на pilot-партнёре.
 3. Если ответ Q1 = «file-export» — отдельная разработка парсера (~1 неделя), отразить в плане.
-4. Обновить [.env.example](../../.env.example): раскомментировать `ONE_C_API_URL` и `ONE_C_API_TOKEN`, добавить описание.
+4. Обновить [.env.example](../../.env.example): `ONE_C_API_URL`/`ONE_C_API_TOKEN` уже есть (закомментированы) — раскомментировать; переключить `ONE_C_ADAPTER=fake → rest`.
+
+### Куда ложится каждый ответ (A2 landing-карта)
+
+Спека Phase 3b изолировала всю спекуляцию в `rest-wire.ts` (blast radius — 1 файл). Карта «ответ → код»:
+
+| Ответ | Файл/изменение | Тип |
+|---|---|---|
+| Q1 (пути/конверт) | `rest-wire.ts` → `ENDPOINTS`, `unwrapEnvelope` | константа |
+| Q2 (auth) | `rest-wire.ts` → `buildAuthHeader` (Bearer уже дефолт) | константа |
+| Q5 = **(A)** slug | `PARTNER_KEY_FIELD='partnerSlug'` уже добавлен в `rest-wire.ts` (no-op для A); при желании выровнять имя inbound-поля на slug | константа (готово) |
+| Q5 = **(B)** GUID | флип `PARTNER_KEY_FIELD='partnerExternalId'`; `prisma`: `Partner.externalId String? @unique` + аддитивная миграция; `resolvePartnerId` → match по `externalId`; `mapLeadToPayload` → `partnerExternalId` | **миграция + код** |
+| Q6 (пагинация = да) | `adapter-rest.ts` → постраничный pull; меняет non-goal спеки | **код (структурный)** |
+| Q7 (datetime без offset) | `rest-wire.ts` → `formatSince` + нормализация в `schemas.ts` (иначе `Date.parse` = локальное время сервера) | константа |
+| Q10 = 1С шлёт родные стадии | `rest-wire.ts` → status-map; `schemas.ts` → ослабить `z.enum` до `string`, маппить до Prisma-enum | **код** |
+| Q10 = 1С шлёт наши коды | ничего (zod уже валидирует наши коды) | — |
+| Q8 (push body) | `rest-wire.ts` → `buildLeadBody` | константа |
 
 ## Связанные документы
 
