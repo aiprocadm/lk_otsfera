@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { RestOneCAdapter } from '@/lib/services/oneCSync/adapter-rest';
+import { buildLeadBody, PARTNER_KEY_FIELD } from '@/lib/services/oneCSync/rest-wire';
 
 const config = { baseUrl: 'https://1c.example.com', token: 'tok' };
 const validOrder = {
@@ -43,5 +44,28 @@ describe('RestOneCAdapter', () => {
     const r = await new RestOneCAdapter(config).pushLead({ cabinetLeadId: 'l', clientCompanyName: 'c', clientContactName: 'n', subject: 's', productType: [] });
     expect(r.oneCRequestId).toBe('r1');
     expect(fetchMock.mock.calls[0][1].method).toBe('POST');
+  });
+});
+
+describe('buildLeadBody (Q5 partner key)', () => {
+  it('defaults to keying on Partner.slug under `partnerSlug`', () => {
+    expect(PARTNER_KEY_FIELD).toBe('partnerSlug');
+    const body = buildLeadBody({
+      partnerSlug: 'acme', cabinetLeadId: 'l1', clientCompanyName: 'c',
+      clientContactName: 'n', subject: 's', productType: ['training']
+    }) as Record<string, unknown>;
+    expect(body.partnerSlug).toBe('acme');
+    expect('partnerExternalId' in body).toBe(false); // never double-emit the key
+    expect(body.cabinetLeadId).toBe('l1');
+    expect(body.productType).toEqual(['training']);
+  });
+
+  it('omits the partner field on the wire when the slug is absent', () => {
+    const body = buildLeadBody({
+      cabinetLeadId: 'l2', clientCompanyName: 'c', clientContactName: 'n',
+      subject: 's', productType: []
+    }) as Record<string, unknown>;
+    expect(body.partnerSlug).toBeUndefined();
+    expect(JSON.parse(JSON.stringify(body))).not.toHaveProperty('partnerSlug');
   });
 });
