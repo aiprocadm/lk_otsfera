@@ -6,7 +6,7 @@
 
 ## Статус
 
-**Реализовано на ветке `claude/c6-decisions-security-tail` (9 коммитов). PR ещё не открыт** (ждёт явного «да» пользователя на push). Все три развилки C6 закрыты; security-хвост (#2, #3) зачинен с тестами.
+**Реализовано на ветке `claude/c6-decisions-security-tail`, PR [#94](https://github.com/aiprocadm/lk_otsfera/pull/94) (open).** Все три развилки C6 закрыты; security-хвост (#2, #3) зачинен с тестами.
 
 ## Что отгружено
 
