@@ -77,7 +77,7 @@
 | **C4** | Error-contract drift → Result-тип `{ok,error}` (§3) | `admin/users.ts` (416 стр.), `partner/leadAttachments.ts` (312) бросают вместо Result | S | прямой |
 | **C5** | Распил раздутых сервисов | `notifications.ts` 632, `admin/users.ts` 416, `manager/dashboard.ts` 376 | M | прямой, поведение неизменно |
 | **C6** | Решения + security-хвост | ✅ **DONE 2026-06-06** ([PR #94](https://github.com/aiprocadm/lk_otsfera/pull/94)): completed→pending оставлен+замок; lead-push first-writer-wins claim; rate-limit → Redis+degrade. См. [close-out](../plans/2026-06-06-c6-decisions-security-tail-DONE.md) | S-M | прямой |
-| **C7** | Staged rollout кабинетов org+manager | подтверждено: оба флага opt-in (по умолчанию OFF) | ops | runbook + флип флагов |
+| **C7** | Staged rollout кабинетов org+manager | 🟡 **Runbook готов 2026-06-06** ([runbook](../../runbook-staged-rollout-cabinets.md) + smoke-чеклисты [org](../../qa-staging-smoke-organization.md)/[manager](../../qa-staging-smoke-manager.md)); исполнение (флип env + наблюдение Stage-2→4) **operator-driven** | ops | runbook + флип флагов |
 | **C8** | Менеджерский кабинет → общая видимость (вся команда) + роль руководителя | **НОВОЕ (2026-06-02, по требованию)**: сейчас `managerPolicy` скоупит per-manager (заказы/документы/комментарии/дашборд) | M | прямой, перепрошивка defense-in-depth тестов |
 
 **Примеры промтов:**
