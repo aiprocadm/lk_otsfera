@@ -89,6 +89,34 @@ export async function pushLeadToOneC(
     };
   }
 
+  // Atomic first-writer-wins claim: flip pushedToOneCAt from NULL so only one
+  // concurrent caller proceeds to the adapter. Losers get count:0 and skip —
+  // this is what prevents a DUPLICATE lead in 1C when two jobs race. The guard
+  // above (findUnique) is not enough on its own: it's a read, and the pushLead
+  // queue has attempts:5, so two jobs can both read NULL before either writes.
+  const claim = await prisma.lead.updateMany({
+    where: { id: lead.id, pushedToOneCAt: null },
+    data: { pushedToOneCAt: new Date() }
+  });
+  if (claim.count === 0) {
+    await writeSyncLog(
+      {
+        entity: 'lead',
+        direction: 'outbound',
+        operation: 'skip',
+        status: 'success',
+        externalId: lead.externalIdInOneC ?? undefined,
+        payload: { cabinetLeadId: lead.id, reason: 'claim_lost_or_already_pushed' }
+      },
+      prisma
+    );
+    return {
+      ok: true,
+      result: { acceptedAt: new Date().toISOString(), oneCRequestId: lead.externalIdInOneC ?? undefined },
+      externalIdInOneC: lead.externalIdInOneC
+    };
+  }
+
   const payload = mapLeadToPayload(lead);
   const startedAt = Date.now();
 
@@ -96,10 +124,14 @@ export async function pushLeadToOneC(
     const result = await adapter.pushLead(payload);
     const externalIdInOneC = result.oneCRequestId ?? null;
 
-    await prisma.lead.update({
-      where: { id: lead.id },
-      data: { pushedToOneCAt: new Date(), ...(externalIdInOneC ? { externalIdInOneC } : {}) }
-    });
+    // pushedToOneCAt is already stamped by the claim above; on success we only
+    // record the external id returned by 1C.
+    if (externalIdInOneC) {
+      await prisma.lead.update({
+        where: { id: lead.id },
+        data: { externalIdInOneC }
+      });
+    }
 
     await writeSyncLog(
       {
@@ -116,6 +148,13 @@ export async function pushLeadToOneC(
 
     return { ok: true, result, externalIdInOneC };
   } catch (err) {
+    // Release the claim so a BullMQ retry can re-attempt — preserves the
+    // existing "error ⇒ retryable" semantics. Without this the lead would be
+    // stuck marked-but-not-pushed and silently never reach 1C.
+    await prisma.lead.updateMany({
+      where: { id: lead.id },
+      data: { pushedToOneCAt: null }
+    });
     const message = err instanceof Error ? err.message : String(err);
     await writeSyncLog(
       {
