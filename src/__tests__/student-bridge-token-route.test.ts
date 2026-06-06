@@ -53,6 +53,9 @@ describe('POST /api/student/bridge/token', () => {
     process.env.STUDENT_BRIDGE_SHARED_SECRET = 'shared-secret';
     process.env.STUDENT_BRIDGE_RATE_LIMIT_MAX = '50';
     process.env.STUDENT_BRIDGE_RATE_LIMIT_WINDOW_MS = '60000';
+    // Force the in-memory rate-limit backend so the route test never reaches a
+    // real Redis connection (the shared limiter degrades to memory when unset).
+    delete process.env.REDIS_URL;
   });
 
   it('denies untrusted bridge client', async () => {

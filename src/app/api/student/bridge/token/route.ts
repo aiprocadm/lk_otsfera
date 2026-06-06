@@ -3,31 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { requireRole, requireSession } from '@/lib/auth/guard';
 import { recordAudit } from '@/lib/auth/audit';
+import { isRateLimited } from '@/lib/rateLimit';
 
 const WINDOW_MS = Number(process.env.STUDENT_BRIDGE_RATE_LIMIT_WINDOW_MS ?? 60_000);
 const LIMIT_PER_WINDOW = Number(process.env.STUDENT_BRIDGE_RATE_LIMIT_MAX ?? 10);
-const MAX_RATE_LIMIT_ENTRIES = 10_000;
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
-
-function cleanupRateLimitStore(now: number) {
-  if (rateLimitStore.size < MAX_RATE_LIMIT_ENTRIES) return;
-  for (const [key, entry] of rateLimitStore) {
-    if (entry.resetAt <= now) rateLimitStore.delete(key);
-  }
-}
-
-function isRateLimited(key: string) {
-  const now = Date.now();
-  cleanupRateLimitStore(now);
-  const current = rateLimitStore.get(key);
-  if (!current || current.resetAt <= now) {
-    rateLimitStore.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return false;
-  }
-
-  current.count += 1;
-  return current.count > LIMIT_PER_WINDOW;
-}
 
 function safeEqual(a: string, b: string): boolean {
   const aBuf = Buffer.from(a, 'utf8');
@@ -85,7 +64,7 @@ export async function POST(req: NextRequest) {
   }
 
   const rateLimitKey = `${clientId}:${ip ?? 'unknown-ip'}`;
-  if (isRateLimited(rateLimitKey)) {
+  if (await isRateLimited(rateLimitKey, { windowMs: WINDOW_MS, max: LIMIT_PER_WINDOW })) {
     await auditBridgeFailure({
       action: 'STUDENT_BRIDGE_RATE_LIMITED',
       userId: sessionResult.value.sub,
