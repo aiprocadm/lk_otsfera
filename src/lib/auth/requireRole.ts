@@ -73,6 +73,12 @@ export async function requireManager(): Promise<SessionPayload> {
   return session;
 }
 
+export async function requireManagerLeader(): Promise<SessionPayload> {
+  const session = await requireManager();
+  if (session.managerRole !== 'leader') redirect('/manager/dashboard');
+  return session;
+}
+
 export async function requireManagerForOrg(orgId: string): Promise<SessionPayload> {
   const session = await requireManager();
   const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
