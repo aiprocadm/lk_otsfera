@@ -76,7 +76,7 @@
 | **C3** | Arch-debt: dashboard-сервисы владеют своими return-типами (§2) | spec есть ([`…arch-debt-dashboard-types-design.md`](2026-05-31-arch-debt-dashboard-types-design.md), PR #84), impl не сделан | S | прямой, гейт = `typecheck` |
 | **C4** | Error-contract drift → Result-тип `{ok,error}` (§3) | `admin/users.ts` (416 стр.), `partner/leadAttachments.ts` (312) бросают вместо Result | S | прямой |
 | **C5** | Распил раздутых сервисов | `notifications.ts` 632, `admin/users.ts` 416, `manager/dashboard.ts` 376 | M | прямой, поведение неизменно |
-| **C6** | Решения + security-хвост | manager `completed→pending` правило *(решение, не баг)*; student-bridge rate-limit *(serverless → Redis)*; lead-reassignment race | зависит от решений | смешанный |
+| **C6** | Решения + security-хвост | ✅ **DONE 2026-06-06** ([PR #94](https://github.com/aiprocadm/lk_otsfera/pull/94)): completed→pending оставлен+замок; lead-push first-writer-wins claim; rate-limit → Redis+degrade. См. [close-out](../plans/2026-06-06-c6-decisions-security-tail-DONE.md) | S-M | прямой |
 | **C7** | Staged rollout кабинетов org+manager | подтверждено: оба флага opt-in (по умолчанию OFF) | ops | runbook + флип флагов |
 | **C8** | Менеджерский кабинет → общая видимость (вся команда) + роль руководителя | **НОВОЕ (2026-06-02, по требованию)**: сейчас `managerPolicy` скоупит per-manager (заказы/документы/комментарии/дашборд) | M | прямой, перепрошивка defense-in-depth тестов |
 
@@ -100,7 +100,7 @@
 3. **Быстрые внутренние победы (между делом, низкий риск):** **C3 → C4 → C5** — чистят фундамент перед тем, как класть на него чат.
 4. **Паритет ролей:** **C1**, **C2**.
 5. **Когда ответы 1С пришли:** **A2 → A3**.
-6. **Финал:** **C6** (решения) + **C7** (staged rollout) — последний гейт перед «готово».
+6. **Финал:** ~~**C6** (решения)~~ ✅ **DONE 2026-06-06** + **C7** (staged rollout) — C7 остаётся последним гейтом перед «готово».
 
 ---
 
@@ -113,10 +113,10 @@
 
 ## Открытые вопросы / решения (нужны от вас)
 
-1. **manager `completed→pending`** — можно ли менеджеру откатывать завершённый заказ обратно в работу? Сейчас разрешено. Решение → правило в `manager/status.ts`.
-2. **lead-reassignment race** (1С push) — политика при гонке переназначения лида.
-3. **student-bridge rate-limit** — подтвердить переход на Redis-backed лимит для serverless (текущий in-memory не переживает несколько инстансов).
-4. **Чат-охват** — финализируется в брейнсторме B1.
+1. **manager `completed→pending`** — ✅ **РЕШЕНО 2026-06-06: оставляем разрешённым** (менеджер может откатывать завершённый заказ обратно в работу). Поведение не меняется — `manager/status.ts` уже это допускает (плоский allow-list без transition-матрицы; `completedAt` очищается при выходе из `completed`). C6-артефакт: regression-тест + комментарий «intentional», чтобы будущий аудит не «починил» это как баг.
+2. **lead push race** (1С push) — ✅ **РЕШЕНО 2026-06-06: first-writer-wins через атомарный claim.** Реальная гонка — неатомарный `pushedToOneCAt`-guard в `oneCSync/push.ts` (два параллельных джоба читают `null` → дубль лида в 1С). Отдельного пути переназначения менеджера у лида в коде нет. Фикс: атомарный `updateMany({ where:{ id, pushedToOneCAt:null }, data:{ pushedToOneCAt:now } })` ДО вызова адаптера; `count===0` ⇒ skip (идемпотентно); при ошибке адаптера — откат `pushedToOneCAt:null`, чтобы retry сохранился.
+3. **student-bridge rate-limit** — ✅ **РЕШЕНО 2026-06-06: переход на Redis-backed лимит** (`INCR`+`PEXPIRE`, общий счётчик) с **graceful-degradation в in-memory** при недоступности Redis (best-effort, лог; обязателен таймаут — ioredis с `maxRetriesPerRequest:null` иначе виснет). Эндпойнт защищён и без лимитера (timing-safe shared-secret + role-gate + атомарный single-use claim), поэтому Redis-сбой не должен блокировать вход студентов.
+4. **Чат-охват** — ✅ закрыто брейнстормом B1 (чат v1 отгружен, PR #88).
 
 ---
 

@@ -24,6 +24,11 @@ import { notifyManagers, notifyOrgUsers } from '@/lib/notifications';
  *     notifyManagers (`order_status_changed_by_manager`), excluding the actor.
  */
 
+// PRODUCT DECISION (2026-06-06): any transition between these statuses is
+// intentionally allowed, INCLUDING reopening a completed order
+// (completed → pending / in_progress). This is a flat allow-list by design,
+// NOT a transition matrix — do NOT add a guard blocking reopen without product
+// sign-off. Regression-locked in server-actions.manager.status.test.ts.
 const MANAGER_SETTABLE_STATUSES = ['pending', 'in_progress', 'completed'] as const;
 export type ManagerSettableStatus = (typeof MANAGER_SETTABLE_STATUSES)[number];
 
