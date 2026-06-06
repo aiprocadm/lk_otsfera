@@ -88,6 +88,7 @@ export async function listCompanyManagers(
       isActive: true,
       managerRole: true,
       managedOrganizations: {
+        where: { organization: { companyId } },
         select: {
           id: true,
           isActive: true,

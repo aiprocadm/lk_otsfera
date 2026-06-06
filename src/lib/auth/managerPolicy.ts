@@ -97,8 +97,8 @@ export function isManagerLeader(session: SessionPayload): boolean {
 /**
  * The single DB read of the live toggle. Returns false when companyId is absent
  * — so a null-company manager can never reach the company-wide branch and simply
- * keeps the scoped model (NOT denied-all). Callers memo per-request if they read
- * it more than once.
+ * keeps the scoped model (NOT denied-all). The lookup is an indexed single-column read; callers MAY memoize per request,
+ * but none currently do (the cost is negligible).
  */
 export async function getCompanyTeamVisibility(
   prisma: PrismaClient,
