@@ -66,14 +66,15 @@ describe('manager_cabinet (opt-in flag)', () => {
 });
 
 describe('navByRole.manager — feature-flag gated', () => {
-  it('lists all six manager cabinet items in the raw nav', () => {
+  it('lists all seven manager cabinet items in the raw nav (including leader-only Команда)', () => {
     expect(navByRole.manager.map((i) => i.href)).toEqual([
       '/manager/dashboard',
       '/manager/orders',
       '/manager/organizations',
       '/manager/documents',
       '/manager/students',
-      '/manager/messages'
+      '/manager/messages',
+      '/manager/team'
     ]);
   });
 
@@ -85,7 +86,7 @@ describe('navByRole.manager — feature-flag gated', () => {
     expect(navItemsFor('manager')).toEqual([]);
   });
 
-  it('navItemsFor("manager") returns all six items when the flag is on', () => {
+  it('navItemsFor("manager") returns six items (no leader-only) when the flag is on but not a leader', () => {
     process.env.FEATURE_MANAGER_CABINET = '1';
     const items = navItemsFor('manager');
     expect(items).toHaveLength(6);
@@ -96,6 +97,21 @@ describe('navByRole.manager — feature-flag gated', () => {
       'Документы',
       'Сотрудники',
       'Сообщения'
+    ]);
+  });
+
+  it('navItemsFor("manager") returns seven items (with Команда) when the flag is on and isManagerLeader=true', () => {
+    process.env.FEATURE_MANAGER_CABINET = '1';
+    const items = navItemsFor('manager', { isManagerLeader: true });
+    expect(items).toHaveLength(7);
+    expect(items.map((i) => i.label)).toEqual([
+      'Главная',
+      'Заказы',
+      'Организации',
+      'Документы',
+      'Сотрудники',
+      'Сообщения',
+      'Команда'
     ]);
   });
 });
