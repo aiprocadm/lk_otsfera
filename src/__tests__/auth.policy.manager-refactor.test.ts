@@ -16,6 +16,8 @@ let otherOrgId: string;
 let order1Id: string; // managerId = managerUserId, organizationId = otherOrgId (per-order ownership across orgs)
 let order2Id: string; // organizationId = org1Id, managerId = null (per-org scope)
 let order3Id: string; // organizationId = otherOrgId, managerId = null (out of scope)
+let otherCompanyId: string;
+let foreignOrderId: string; // in ANOTHER company — never visible
 
 // Helper: builds a SessionPayload that mirrors what login.ts produces after Task 4.
 function managerSession(managedOrgIds: string[]): SessionPayload {
@@ -23,6 +25,7 @@ function managerSession(managedOrgIds: string[]): SessionPayload {
     sub: managerUserId,
     role: 'manager',
     managedOrgIds,
+    companyId,
   };
 }
 
@@ -110,9 +113,30 @@ beforeAll(async () => {
     },
   });
   order3Id = order3.id;
+
+  const otherCompany = await prisma.company.create({ data: { name: `MgrPolicyOtherC-${stamp}` } });
+  otherCompanyId = otherCompany.id;
+  const foreignOrg = await prisma.organization.create({
+    data: { name: `MgrPolicyForeignOrg-${stamp}`, partnerId, companyId: otherCompanyId }
+  });
+  const foreignOrder = await prisma.order.create({
+    data: {
+      title: `MgrPolicy-Foreign-${stamp}`,
+      orderNumber: `MPF-${stamp}`,
+      companyId: otherCompanyId,
+      partnerId,
+      organizationId: foreignOrg.id,
+      executionStatus: 'in_progress',
+      financialStatus: 'not_billed'
+    }
+  });
+  foreignOrderId = foreignOrder.id;
 });
 
 afterAll(async () => {
+  await prisma.order.deleteMany({ where: { id: foreignOrderId } });
+  await prisma.organization.deleteMany({ where: { companyId: otherCompanyId } });
+  await prisma.company.deleteMany({ where: { id: otherCompanyId } });
   await prisma.order.deleteMany({ where: { id: { in: [order1Id, order2Id, order3Id] } } });
   await prisma.organizationManager.deleteMany({ where: { userId: managerUserId } });
   await prisma.user.deleteMany({ where: { id: managerUserId } });
@@ -182,5 +206,31 @@ describe('policy.canAccessOrganization — manager branch', () => {
     const session = managerSession([org1Id]);
     expect(await canAccessOrganization(session, null)).toBe(false);
     expect(await canAccessOrganization(session, undefined)).toBe(false);
+  });
+});
+
+describe('policy.canReadOrder — manager branch, company-wide mode', () => {
+  beforeAll(async () => {
+    await prisma.company.update({ where: { id: companyId }, data: { managerTeamVisibility: true } });
+  });
+  afterAll(async () => {
+    await prisma.company.update({ where: { id: companyId }, data: { managerTeamVisibility: false } });
+  });
+
+  it('sees ANY order in its own company (even with empty managedOrgIds)', async () => {
+    const session = managerSession([]); // no assignments at all
+    expect(await canReadOrder(session, { id: order3Id, companyId })).toBe(true); // foreign org, same company
+  });
+
+  it('still CANNOT see an order in another company (cross-company isolation)', async () => {
+    const session = managerSession([]);
+    expect(await canReadOrder(session, { id: foreignOrderId, companyId: otherCompanyId })).toBe(false);
+  });
+
+  it('canAccessOrganization: any org in own company, but not foreign company org', async () => {
+    const session = managerSession([]);
+    expect(await canAccessOrganization(session, otherOrgId)).toBe(true); // same company, previously out of scope
+    const foreignOrg = await prisma.organization.findFirst({ where: { companyId: otherCompanyId }, select: { id: true } });
+    expect(await canAccessOrganization(session, foreignOrg!.id)).toBe(false);
   });
 });
