@@ -141,7 +141,7 @@ npm run build
 | Admin | `/admin/*` | — | always on | Production (Phase 6.0–6.7 done — см. [admin-cabinet-6.3-6.7-DONE.md](docs/superpowers/plans/2026-05-29-admin-cabinet-6.3-6.7-DONE.md)) |
 | Student | `/student/*` | — | always on | Production (bridge redirect) |
 
-Opt-in флаги означают: код в `main`, но эндпоинты возвращают 404 пока env-флаг не выставлен в `1/true/on`. Это поэтапная раскатка по операторам — см. [src/lib/featureFlags.ts](src/lib/featureFlags.ts) для семантики флагов.
+Opt-in флаги означают: код в `main`, но эндпоинты возвращают 404 пока env-флаг не выставлен в `1/true/on`. Это поэтапная раскатка по операторам — см. [src/lib/featureFlags.ts](src/lib/featureFlags.ts) для семантики флагов. Пошаговая процедура включения (staging-smoke → флип флага на prod → наблюдение → откат) — в **[runbook staged-rollout](docs/runbook-staged-rollout-cabinets.md)** (smoke-чеклисты: [organization](docs/qa-staging-smoke-organization.md) · [manager](docs/qa-staging-smoke-manager.md)).
 
 ## Явная RBAC-матрица
 
