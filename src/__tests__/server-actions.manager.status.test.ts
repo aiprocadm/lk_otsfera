@@ -187,6 +187,19 @@ describe('transitionOrderStatusAction — completedAt management', () => {
     expect(data.completedAt).toBeNull();
   });
 
+  // PRODUCT DECISION (2026-06-06): a manager MAY reopen a completed order back
+  // to pending. This is intentional, not a bug. This test is the regression
+  // lock — it fails if anyone adds a guard blocking completed → pending.
+  it('ALLOWS reopening: completed → pending succeeds and clears completedAt', async () => {
+    orderFindUnique.mockResolvedValue(inScopeOrder({ executionStatus: 'completed' }));
+    const res = await transitionOrderStatusAction({ orderId: 'order-1', newStatus: 'pending' });
+
+    expect(res).toEqual({ ok: true, changed: true });
+    const data = orderUpdate.mock.calls[0]![0]!.data;
+    expect(data.executionStatus).toBe('pending');
+    expect(data.completedAt).toBeNull();
+  });
+
   it('does not touch completedAt on pending → in_progress', async () => {
     orderFindUnique.mockResolvedValue(inScopeOrder({ executionStatus: 'pending' }));
     await transitionOrderStatusAction({ orderId: 'order-1', newStatus: 'in_progress' });
