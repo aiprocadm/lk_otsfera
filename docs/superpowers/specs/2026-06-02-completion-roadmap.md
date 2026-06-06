@@ -113,10 +113,10 @@
 
 ## Открытые вопросы / решения (нужны от вас)
 
-1. **manager `completed→pending`** — можно ли менеджеру откатывать завершённый заказ обратно в работу? Сейчас разрешено. Решение → правило в `manager/status.ts`.
-2. **lead-reassignment race** (1С push) — политика при гонке переназначения лида.
-3. **student-bridge rate-limit** — подтвердить переход на Redis-backed лимит для serverless (текущий in-memory не переживает несколько инстансов).
-4. **Чат-охват** — финализируется в брейнсторме B1.
+1. **manager `completed→pending`** — ✅ **РЕШЕНО 2026-06-06: оставляем разрешённым** (менеджер может откатывать завершённый заказ обратно в работу). Поведение не меняется — `manager/status.ts` уже это допускает (плоский allow-list без transition-матрицы; `completedAt` очищается при выходе из `completed`). C6-артефакт: regression-тест + комментарий «intentional», чтобы будущий аудит не «починил» это как баг.
+2. **lead push race** (1С push) — ✅ **РЕШЕНО 2026-06-06: first-writer-wins через атомарный claim.** Реальная гонка — неатомарный `pushedToOneCAt`-guard в `oneCSync/push.ts` (два параллельных джоба читают `null` → дубль лида в 1С). Отдельного пути переназначения менеджера у лида в коде нет. Фикс: атомарный `updateMany({ where:{ id, pushedToOneCAt:null }, data:{ pushedToOneCAt:now } })` ДО вызова адаптера; `count===0` ⇒ skip (идемпотентно); при ошибке адаптера — откат `pushedToOneCAt:null`, чтобы retry сохранился.
+3. **student-bridge rate-limit** — ✅ **РЕШЕНО 2026-06-06: переход на Redis-backed лимит** (`INCR`+`PEXPIRE`, общий счётчик) с **graceful-degradation в in-memory** при недоступности Redis (best-effort, лог; обязателен таймаут — ioredis с `maxRetriesPerRequest:null` иначе виснет). Эндпойнт защищён и без лимитера (timing-safe shared-secret + role-gate + атомарный single-use claim), поэтому Redis-сбой не должен блокировать вход студентов.
+4. **Чат-охват** — ✅ закрыто брейнстормом B1 (чат v1 отгружен, PR #88).
 
 ---
 
