@@ -13,7 +13,8 @@ export type AuditEntity =
   | 'document'
   | 'partner_user'
   | 'student_bridge'
-  | 'order_thread';
+  | 'order_thread'
+  | 'company';
 
 export type AuditRecord = {
   userId: string;
