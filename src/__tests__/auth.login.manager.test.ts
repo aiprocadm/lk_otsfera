@@ -28,7 +28,7 @@ describe('auth login route — manager managedOrgIds', () => {
     signToken.mockResolvedValue('signed-token');
   });
 
-  function managerUser() {
+  function managerUser(overrides?: Partial<Record<string, unknown>>) {
     return {
       id: 'u-mgr-1',
       role: 'manager',
@@ -38,7 +38,9 @@ describe('auth login route — manager managedOrgIds', () => {
       email: 'mgr@example.com',
       name: 'Manager User',
       externalStudentId: null,
-      passwordHash: 'hash'
+      passwordHash: 'hash',
+      managerRole: null,
+      ...overrides
     };
   }
 
@@ -123,5 +125,38 @@ describe('auth login route — manager managedOrgIds', () => {
     const callArg = signToken.mock.calls[0]?.[0] as Record<string, unknown> | undefined;
     expect(callArg).toBeDefined();
     expect(callArg).not.toHaveProperty('managedOrgIds');
+  });
+
+  it('passes managerRole: "leader" to signToken when user.managerRole is "leader"', async () => {
+    findUniqueUser.mockResolvedValue(managerUser({ managerRole: 'leader' }));
+    findManyManagedOrgs.mockResolvedValue([{ organizationId: 'org-A' }]);
+
+    const res = await POST(loginRequest());
+
+    expect(res.status).toBe(200);
+    expect(signToken).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sub: 'u-mgr-1',
+        role: 'manager',
+        managedOrgIds: ['org-A'],
+        managerRole: 'leader'
+      })
+    );
+  });
+
+  it('still signs and includes managedOrgIds when user.managerRole is null (non-leader manager)', async () => {
+    findUniqueUser.mockResolvedValue(managerUser({ managerRole: null }));
+    findManyManagedOrgs.mockResolvedValue([{ organizationId: 'org-B' }]);
+
+    const res = await POST(loginRequest());
+
+    expect(res.status).toBe(200);
+    // signToken must not throw — response is 200
+    expect(signToken).toHaveBeenCalled();
+    const callArg = signToken.mock.calls[0]?.[0] as Record<string, unknown> | undefined;
+    expect(callArg).toBeDefined();
+    expect(callArg).toHaveProperty('managedOrgIds', ['org-B']);
+    // managerRole: null is passed through (spreading conditional keeps it)
+    expect(callArg).toHaveProperty('managerRole', null);
   });
 });

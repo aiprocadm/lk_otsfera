@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { PrismaClient, Prisma, DocumentType } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { canSeeOrder, managedOrgIds } from '@/lib/auth/managerPolicy';
+import { canSeeOrder, managedOrgIds, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { recordAudit } from '@/lib/auth/audit';
 import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
 import { getQueue } from '@/lib/jobs/queues';
@@ -99,12 +99,14 @@ export async function createOrderDocument(
     }
   }
 
+  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
   const order = await prisma.order.findUnique({
     where: { id: args.orderId },
     select: {
       id: true,
       managerId: true,
       organizationId: true,
+      companyId: true,
       orderNumber: true,
       title: true
     }
@@ -114,10 +116,10 @@ export async function createOrderDocument(
     return { ok: false, error: 'not_found' };
   }
 
-  // Three-way visibility: managerId, org scope, or historical comments. Cheap
-  // checks first; only count comments when the others miss.
+  // Company-wide ⇒ same-company decides; otherwise three-way (count comments
+  // only when managerId/org miss).
   let commentsCountByMe = 0;
-  if (order.managerId !== session.sub) {
+  if (!teamMode && order.managerId !== session.sub) {
     const inOrgScope =
       order.organizationId !== null &&
       managedOrgIds(session).includes(order.organizationId);
@@ -127,7 +129,7 @@ export async function createOrderDocument(
       });
     }
   }
-  if (!canSeeOrder(session, { ...order, commentsCountByMe })) {
+  if (!canSeeOrder(session, { ...order, commentsCountByMe }, teamMode)) {
     return { ok: false, error: 'forbidden' };
   }
 

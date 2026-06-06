@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { managerOrderScopeFilter } from '@/lib/auth/managerPolicy';
+import { managerOrderScope, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { DEFAULT_EVENTS } from './constants';
 
 export type EventItem = {
@@ -22,7 +22,8 @@ export async function recentEvents(
   session: SessionPayload,
   take = DEFAULT_EVENTS
 ): Promise<EventItem[]> {
-  const scope = managerOrderScopeFilter(session);
+  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+  const scope = managerOrderScope(session, teamMode);
   const fetchLimit = Math.max(20, take);
 
   const [documents, payments, statusAudits, comments] = await Promise.all([

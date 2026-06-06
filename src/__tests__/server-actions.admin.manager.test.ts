@@ -11,7 +11,8 @@ const {
   orderFindUnique,
   orderUpdate,
   userFindUnique,
-  recordAudit
+  recordAudit,
+  setManagerRole
 } = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
   createAndAssignManager: vi.fn(),
@@ -23,7 +24,8 @@ const {
   orderFindUnique: vi.fn(),
   orderUpdate: vi.fn(),
   userFindUnique: vi.fn(),
-  recordAudit: vi.fn()
+  recordAudit: vi.fn(),
+  setManagerRole: vi.fn()
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
@@ -37,6 +39,7 @@ vi.mock('@/lib/db/prisma', () => ({
 vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/email/send', () => ({ sendManagerInviteEmail }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
+vi.mock('@/lib/services/admin/managerRole', () => ({ setManagerRole }));
 vi.mock('@/lib/services/manager/invite', async () => {
   const actual = await vi.importActual<typeof import('@/lib/services/manager/invite')>(
     '@/lib/services/manager/invite'
@@ -53,7 +56,8 @@ import {
   assignOrInviteManagerAction,
   deactivateManagerAssignmentAction,
   reactivateManagerAssignmentAction,
-  assignOrderManagerAction
+  assignOrderManagerAction,
+  setManagerRoleAction
 } from '@/server-actions/admin/manager';
 import { ManagerInviteError } from '@/lib/services/manager/invite';
 
@@ -293,5 +297,67 @@ describe('assignOrderManagerAction', () => {
     expect(orderUpdate).not.toHaveBeenCalled();
     expect(recordAudit).not.toHaveBeenCalled();
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe('setManagerRoleAction — requireAdmin gate', () => {
+  it('returns validation on missing userId', async () => {
+    const res = await setManagerRoleAction(fd({ role: 'leader' }));
+    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    // requireAdmin not even called — validation happens first
+    expect(setManagerRole).not.toHaveBeenCalled();
+  });
+
+  it('returns validation on invalid role value', async () => {
+    const res = await setManagerRoleAction(fd({ userId: 'u-1', role: 'superadmin' }));
+    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(setManagerRole).not.toHaveBeenCalled();
+  });
+
+  it('happy path — promotes to leader, revalidates admin/users', async () => {
+    setManagerRole.mockResolvedValue({ ok: true, changed: true });
+
+    const res = await setManagerRoleAction(fd({ userId: 'u-5', role: 'leader' }));
+
+    expect(res).toEqual({ ok: true });
+    expect(setManagerRole).toHaveBeenCalledWith(
+      expect.anything(),
+      'admin-1',      // session.sub from beforeEach
+      'u-5',
+      'leader'
+    );
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/users');
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/users/u-5');
+  });
+
+  it('happy path — revokes leader role (role=member → null)', async () => {
+    setManagerRole.mockResolvedValue({ ok: true, changed: true });
+
+    const res = await setManagerRoleAction(fd({ userId: 'u-5', role: 'member' }));
+
+    expect(res).toEqual({ ok: true });
+    expect(setManagerRole).toHaveBeenCalledWith(
+      expect.anything(),
+      'admin-1',
+      'u-5',
+      null   // 'member' is normalised to null
+    );
+  });
+
+  it('bubbles service error user_not_found', async () => {
+    setManagerRole.mockResolvedValue({ ok: false, error: 'user_not_found' });
+
+    const res = await setManagerRoleAction(fd({ userId: 'ghost', role: 'leader' }));
+
+    expect(res).toEqual({ ok: false, error: 'user_not_found' });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('bubbles service error not_a_manager', async () => {
+    setManagerRole.mockResolvedValue({ ok: false, error: 'not_a_manager' });
+
+    const res = await setManagerRoleAction(fd({ userId: 'u-p', role: 'leader' }));
+
+    expect(res).toEqual({ ok: false, error: 'not_a_manager' });
   });
 });

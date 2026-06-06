@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { managerOrderScopeFilter } from '@/lib/auth/managerPolicy';
+import { managerOrderScope, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import {
   ONE_DAY_MS,
   THREE_DAYS_MS,
@@ -30,7 +30,8 @@ export async function attention(
   prisma: PrismaClient,
   session: SessionPayload
 ): Promise<AttentionItem[]> {
-  const scope = managerOrderScopeFilter(session);
+  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+  const scope = managerOrderScope(session, teamMode);
   const now = new Date();
   const twentyFourHoursAgo = new Date(now.getTime() - ONE_DAY_MS);
   const threeDaysAgo = new Date(now.getTime() - THREE_DAYS_MS);

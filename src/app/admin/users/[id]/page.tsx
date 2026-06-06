@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { getUser } from '@/lib/services/admin/users';
 import { UserEditForm } from '@/components/admin/user-edit-form';
+import { ManagerRoleControl } from '@/components/admin/manager-role-control';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +30,12 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
         <p className="text-sm text-gray-500">{user.email}</p>
       </div>
       <UserEditForm user={user} partners={partners} isSelf={session.sub === user.id} />
+      {user.role === 'manager' && (
+        <div className="rounded-lg border p-4 space-y-2">
+          <h2 className="text-sm font-semibold text-[#111111]">Менеджерский кабинет</h2>
+          <ManagerRoleControl userId={user.id} current={user.managerRole} />
+        </div>
+      )}
     </div>
   );
 }

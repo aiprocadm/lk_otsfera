@@ -7,7 +7,12 @@ import {
   canSeeOrder,
   canSeeDocument,
   canSeeOrganization,
-  isOrgInScope
+  isOrgInScope,
+  companyWideOrderFilter,
+  managerOrderScope,
+  managerDocumentScope,
+  managerOrgScope,
+  isManagerLeader
 } from '@/lib/auth/managerPolicy';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -172,5 +177,79 @@ describe('canSeeOrganization', () => {
 describe('isOrgInScope (alias)', () => {
   it('is the same function reference as canSeeOrganization', () => {
     expect(isOrgInScope).toBe(canSeeOrganization);
+  });
+});
+
+describe('companyWideOrderFilter', () => {
+  it('filters by session.companyId', () => {
+    const session = makeSession({ companyId: 'co-1' });
+    expect(companyWideOrderFilter(session)).toEqual({ companyId: 'co-1' });
+  });
+
+  it('falls back to a never-match sentinel when companyId is missing', () => {
+    expect(companyWideOrderFilter(makeSession())).toEqual({ companyId: '__no_company__' });
+  });
+});
+
+describe('managerOrderScope (resolver)', () => {
+  it('teamMode=false returns the legacy three-way OR', () => {
+    const session = makeSession({ managedOrgIds: ['org-A'], companyId: 'co-1' });
+    expect(managerOrderScope(session, false)).toEqual(managerOrderScopeFilter(session));
+  });
+
+  it('teamMode=true returns the company-wide filter', () => {
+    const session = makeSession({ managedOrgIds: ['org-A'], companyId: 'co-1' });
+    expect(managerOrderScope(session, true)).toEqual({ companyId: 'co-1' });
+  });
+});
+
+describe('managerOrgScope (resolver)', () => {
+  it('teamMode=false returns id IN managedOrgIds', () => {
+    const session = makeSession({ managedOrgIds: ['org-A'], companyId: 'co-1' });
+    expect(managerOrgScope(session, false)).toEqual({ id: { in: ['org-A'] } });
+  });
+  it('teamMode=true returns companyId filter', () => {
+    const session = makeSession({ managedOrgIds: ['org-A'], companyId: 'co-1' });
+    expect(managerOrgScope(session, true)).toEqual({ companyId: 'co-1' });
+  });
+});
+
+describe('canSeeOrder with teamMode', () => {
+  it('teamMode=true: visible iff order.companyId === session.companyId', () => {
+    const session = makeSession({ companyId: 'co-1' });
+    expect(canSeeOrder(session, { managerId: 'other', organizationId: 'org-X', companyId: 'co-1' }, true)).toBe(true);
+    expect(canSeeOrder(session, { managerId: 'other', organizationId: 'org-X', companyId: 'co-2' }, true)).toBe(false);
+  });
+  it('teamMode=true with no session.companyId denies', () => {
+    expect(canSeeOrder(makeSession(), { managerId: null, organizationId: null, companyId: 'co-1' }, true)).toBe(false);
+  });
+  it('teamMode=false keeps the legacy three-way semantics', () => {
+    const session = makeSession({ managedOrgIds: ['org-A'], companyId: 'co-1' });
+    expect(canSeeOrder(session, { managerId: 'user-1', organizationId: null, companyId: 'co-2' }, false)).toBe(true);
+  });
+});
+
+describe('managerDocumentScope (resolver)', () => {
+  it('teamMode=false wraps legacy order filter + excludes infected', () => {
+    const session = makeSession({ managedOrgIds: ['org-A'], companyId: 'co-1' });
+    expect(managerDocumentScope(session, false)).toEqual({
+      order: managerOrderScopeFilter(session),
+      scanStatus: { not: 'infected' }
+    });
+  });
+  it('teamMode=true uses company-wide order filter + excludes infected', () => {
+    const session = makeSession({ companyId: 'co-1' });
+    expect(managerDocumentScope(session, true)).toEqual({
+      order: { companyId: 'co-1' },
+      scanStatus: { not: 'infected' }
+    });
+  });
+});
+
+describe('isManagerLeader', () => {
+  it('true only for role=manager + managerRole=leader', () => {
+    expect(isManagerLeader(makeSession({ managerRole: 'leader' }))).toBe(true);
+    expect(isManagerLeader(makeSession())).toBe(false);
+    expect(isManagerLeader(makeSession({ role: 'admin', managerRole: 'leader' }))).toBe(false);
   });
 });

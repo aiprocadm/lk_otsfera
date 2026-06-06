@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { managerOrderScopeFilter } from '@/lib/auth/managerPolicy';
+import { managerOrderScope, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { THIRTY_DAYS_MS, THREE_DAYS_MS, ACTIVE_EXEC, TERMINAL_EXEC } from './constants';
 
 export type KpiData = {
@@ -19,7 +19,8 @@ export async function kpis(
   prisma: PrismaClient,
   session: SessionPayload
 ): Promise<KpiData> {
-  const scope = managerOrderScopeFilter(session);
+  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+  const scope = managerOrderScope(session, teamMode);
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - THIRTY_DAYS_MS);
   const threeDaysAhead = new Date(now.getTime() + THREE_DAYS_MS);

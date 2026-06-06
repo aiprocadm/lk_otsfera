@@ -61,3 +61,54 @@ export async function listManagersForOrg(
   });
   return { active, inactive };
 }
+
+export type CompanyManagerRow = {
+  id: string;
+  name: string;
+  email: string;
+  isActive: boolean;
+  managerRole: string | null;
+  assignments: { id: string; organizationId: string; organizationName: string; isActive: boolean }[];
+};
+
+/**
+ * All managers belonging to a company, with their org-assignment rows. Powers
+ * the leader hub roster panel. Company membership = User.companyId.
+ */
+export async function listCompanyManagers(
+  prisma: PrismaClient,
+  companyId: string
+): Promise<CompanyManagerRow[]> {
+  const users = await prisma.user.findMany({
+    where: { role: 'manager', companyId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      isActive: true,
+      managerRole: true,
+      managedOrganizations: {
+        where: { organization: { companyId } },
+        select: {
+          id: true,
+          isActive: true,
+          organization: { select: { id: true, name: true } }
+        }
+      }
+    },
+    orderBy: { name: 'asc' }
+  });
+  return users.map((u) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    isActive: u.isActive,
+    managerRole: u.managerRole,
+    assignments: u.managedOrganizations.map((a) => ({
+      id: a.id,
+      organizationId: a.organization.id,
+      organizationName: a.organization.name,
+      isActive: a.isActive
+    }))
+  }));
+}

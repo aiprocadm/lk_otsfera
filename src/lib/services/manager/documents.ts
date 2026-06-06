@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { PrismaClient, Prisma, DocumentType } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { managerDocumentScopeFilter, canSeeOrder } from '@/lib/auth/managerPolicy';
+import { managerDocumentScope, canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 
 /**
  * Manager-facing documents service.
@@ -52,7 +52,8 @@ export async function listDocuments(
   optsRaw: ListDocumentsOptions
 ): Promise<ListDocumentsResult> {
   const opts = ListDocumentsOptionsSchema.parse(optsRaw);
-  const scope = managerDocumentScopeFilter(opts.session);
+  const teamMode = await getCompanyTeamVisibility(prisma, opts.session.companyId);
+  const scope = managerDocumentScope(opts.session, teamMode);
   const filters: Prisma.DocumentWhereInput[] = [scope];
   if (opts.orderId) filters.push({ orderId: opts.orderId });
   if (opts.type) filters.push({ type: opts.type as DocumentType });
@@ -84,6 +85,7 @@ export async function getDocumentForDownload(
   session: SessionPayload,
   documentId: string
 ): Promise<DownloadResult> {
+  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
   const doc = await prisma.document.findUnique({
     where: { id: documentId },
     select: {
@@ -96,7 +98,8 @@ export async function getDocumentForDownload(
       order: {
         select: {
           managerId: true,
-          organizationId: true
+          organizationId: true,
+          companyId: true
         }
       }
     }
@@ -104,13 +107,12 @@ export async function getDocumentForDownload(
 
   if (!doc) return { ok: false, error: 'not_found' };
 
-  // Silent 404 for out-of-scope documents: do not leak existence. We cannot
-  // count historical comments cheaply here, so the canSeeDocument helper
-  // accepts a `commentsCountByMe`-shaped order — the route layer falls back
-  // to an extra comment.count() only when the order's managerId/organizationId
-  // both miss the session scope.
+  // Silent 404 for out-of-scope documents: do not leak existence. In company-wide
+  // mode the cheap companyId check decides, so we skip the historical-comment
+  // count entirely; in scoped mode we count comments only when managerId/org miss.
   let commentsCountByMe = 0;
   if (
+    !teamMode &&
     doc.order.managerId !== session.sub &&
     !(doc.order.organizationId && (session.managedOrgIds ?? []).includes(doc.order.organizationId))
   ) {
@@ -119,7 +121,7 @@ export async function getDocumentForDownload(
     });
   }
 
-  if (!canSeeOrder(session, { ...doc.order, commentsCountByMe })) {
+  if (!canSeeOrder(session, { ...doc.order, commentsCountByMe }, teamMode)) {
     return { ok: false, error: 'not_found' };
   }
 
