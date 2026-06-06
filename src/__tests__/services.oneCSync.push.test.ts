@@ -195,6 +195,24 @@ describe('pushLeadToOneC', () => {
     expect(rollback).toBeTruthy();
     expect(rollback![0].where).toEqual({ id: 'lead-y' });
   });
+
+  it('adapter fails AND rollback fails ⇒ still returns ok:false with the adapter error (no throw)', async () => {
+    const { prisma, updateManySpy } = makePrismaMock({
+      lead: {
+        id: 'lead-z', clientCompanyName: 'X', clientInn: null, clientContactName: 'Y',
+        clientContactPhone: null, clientContactEmail: null, subject: 'Z',
+        estimatedAmount: null, productType: [], notes: null, partner: { slug: null },
+        pushedToOneCAt: null
+      }
+    });
+    updateManySpy.mockResolvedValueOnce({ count: 1 }); // claim wins
+    updateManySpy.mockRejectedValueOnce(new Error('db gone')); // rollback fails
+    const adapter = makeFakeAdapter({ shouldThrow: true });
+    const res = await pushLeadToOneC(prisma, 'lead-z', { adapter });
+    // Result contract preserved: the ADAPTER error surfaces, not the rollback error.
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toContain('simulated failure');
+  });
 });
 
 describe('FakeOneCAdapter.pushLead simulator', () => {

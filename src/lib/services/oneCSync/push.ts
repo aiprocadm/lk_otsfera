@@ -149,12 +149,22 @@ export async function pushLeadToOneC(
     return { ok: true, result, externalIdInOneC };
   } catch (err) {
     // Release the claim so a BullMQ retry can re-attempt — preserves the
-    // existing "error ⇒ retryable" semantics. Without this the lead would be
-    // stuck marked-but-not-pushed and silently never reach 1C.
-    await prisma.lead.updateMany({
-      where: { id: lead.id },
-      data: { pushedToOneCAt: null }
-    });
+    // existing "error ⇒ retryable" semantics. Defensive inner try/catch: if the
+    // rollback ITSELF fails (DB down at the same instant as the adapter), we
+    // must STILL honour the Result contract and return the ADAPTER error — not
+    // throw the rollback error. The residual "lead left claimed" case is
+    // surfaced via console.error for the reconcile path to pick up.
+    try {
+      await prisma.lead.updateMany({
+        where: { id: lead.id },
+        data: { pushedToOneCAt: null }
+      });
+    } catch (rollbackErr) {
+      console.error('[pushLeadToOneC] claim rollback failed — lead may be stuck claimed', {
+        leadId: lead.id,
+        rollbackError: rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr)
+      });
+    }
     const message = err instanceof Error ? err.message : String(err);
     await writeSyncLog(
       {

@@ -63,8 +63,12 @@ async function redisIsLimited(
   max: number
 ): Promise<boolean> {
   const count = await client.incr(key);
-  // Set the TTL exactly once, when the window opens (counter just hit 1).
-  if (count === 1) await client.pexpire(key, windowMs);
+  // Refresh the TTL on EVERY hit, not just the first. INCR and PEXPIRE are two
+  // non-atomic round-trips: a process crash between them would leave a key with
+  // no expiry, permanently rate-limiting that key until manual cleanup. Always
+  // (re)setting the TTL removes that risk without a Lua script (the window
+  // becomes sliding-refresh, which is fine for an anti-abuse limiter).
+  await client.pexpire(key, windowMs);
   return count > max;
 }
 

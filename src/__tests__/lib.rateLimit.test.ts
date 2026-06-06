@@ -47,13 +47,16 @@ describe('isRateLimited — redis backend', () => {
     };
   }
 
-  it('uses INCR and sets PEXPIRE only on the first hit of a window', async () => {
+  it('uses INCR and refreshes PEXPIRE on every hit (avoids immortal keys)', async () => {
     const client = fakeRedis();
     const opts = { windowMs: 60_000, max: 3 };
     await isRateLimited('r-a', opts, { client });
     await isRateLimited('r-a', opts, { client });
     expect(client.count).toBe(2);
-    expect(client.pexpireCalls).toBe(1); // only when incr returned 1
+    // PEXPIRE on every call, not just the first: INCR+PEXPIRE are two non-atomic
+    // round-trips, so a crash between them would otherwise leave a key with no
+    // TTL (permanent rate-limit). Refreshing every hit removes that risk.
+    expect(client.pexpireCalls).toBe(2);
   });
 
   it('limits when the shared counter exceeds max', async () => {
