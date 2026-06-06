@@ -12,6 +12,7 @@ export type UserRow = {
 
 export type UserDetail = UserRow & {
   partnerId: string | null;
+  managerRole: string | null;
   organizationMemberships: Array<{
     organizationUserId: string;
     organizationId: string;
@@ -84,6 +85,7 @@ export async function getUser(
     createdAt: u.createdAt,
     attachmentLabel: computeAttachmentLabel(u),
     partnerId: u.partnerId,
+    managerRole: u.managerRole ?? null,
     organizationMemberships: u.organizationUsers.map((ou) => ({
       organizationUserId: ou.id,
       organizationId: ou.organizationId,
