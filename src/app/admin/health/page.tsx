@@ -4,6 +4,7 @@ import { getSyncLag, type SyncLagRow } from '@/lib/services/admin/syncHealth';
 import { getQueueStats, getDlq } from '@/lib/services/admin/queueStats';
 import { QueueStatsGrid } from '@/components/admin/queue-stats-grid';
 import { DlqTable } from '@/components/admin/dlq-table';
+import { RetryAllButton } from '@/components/admin/retry-all-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,7 +107,19 @@ export default async function AdminHealthPage() {
       </section>
 
       <section className='space-y-3'>
-        <h2 className='text-base font-semibold text-[#111111]'>Упавшие задачи (последние 50)</h2>
+        <div className='flex items-center justify-between'>
+          <h2 className='text-base font-semibold text-[#111111]'>Упавшие задачи (последние 50)</h2>
+        </div>
+        {[...new Set(dlqRows.map((r) => r.queue))].length > 0 && (
+          <div className='flex flex-wrap gap-2'>
+            {[...new Set(dlqRows.map((r) => r.queue))].map((q) => (
+              <div key={q} className='flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-1.5'>
+                <span className='font-mono text-xs text-gray-600'>{q}</span>
+                <RetryAllButton queue={q} />
+              </div>
+            ))}
+          </div>
+        )}
         <DlqTable rows={dlqRows} />
       </section>
     </div>

@@ -301,6 +301,12 @@ model SyncState {
   updatedAt     DateTime  @updatedAt
 }
 
+model SyncSchedulePause {
+  schedulerId String   @id
+  pausedAt    DateTime @default(now())
+  pausedBy    String
+}
+
 model Partner {
   id             String         @id @default(cuid())
   createdAt      DateTime       @default(now())

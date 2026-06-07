@@ -4,6 +4,7 @@ import {
   getQueueStats,
   getDlq,
   retryDlqJob,
+  retryAllDlq,
   type QueueProvider,
 } from '@/lib/services/admin/queueStats';
 
@@ -107,5 +108,40 @@ describe('retryDlqJob', () => {
     } as any);
     const result = await retryDlqJob('docs.scanDocument', 'job-1', provider);
     expect(result).toEqual({ ok: false, reason: 'Job is not failed' });
+  });
+});
+
+describe('retryAllDlq', () => {
+  it('retries every failed job and counts successes/failures', async () => {
+    const okJob = { retry: vi.fn().mockResolvedValue(undefined) };
+    const badJob = { retry: vi.fn().mockRejectedValue(new Error('not failed')) };
+    const provider: QueueProvider = () => ({
+      getJobCounts: vi.fn(),
+      getFailed: vi.fn().mockResolvedValue([okJob, okJob, badJob]),
+      getJob: vi.fn(),
+    } as any);
+    const res = await retryAllDlq('docs.scanDocument', provider);
+    expect(res).toEqual({ ok: true, retried: 2, failed: 1, truncated: false });
+  });
+
+  it('flags truncated when the failed page is full (>= cap)', async () => {
+    const job = { retry: vi.fn().mockResolvedValue(undefined) };
+    const full = Array.from({ length: 500 }, () => job);
+    const provider: QueueProvider = () => ({
+      getJobCounts: vi.fn(),
+      getFailed: vi.fn().mockResolvedValue(full),
+      getJob: vi.fn(),
+    } as any);
+    const res = await retryAllDlq('docs.scanDocument', provider);
+    expect(res).toEqual({ ok: true, retried: 500, failed: 0, truncated: true });
+  });
+
+  it('returns queue_unavailable when getFailed throws', async () => {
+    const provider: QueueProvider = () => ({
+      getJobCounts: vi.fn(),
+      getFailed: vi.fn().mockRejectedValue(new Error('redis down')),
+      getJob: vi.fn(),
+    } as any);
+    expect(await retryAllDlq('docs.scanDocument', provider)).toEqual({ ok: false, error: 'queue_unavailable' });
   });
 });
