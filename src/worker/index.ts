@@ -1,7 +1,7 @@
 import { Worker, type Processor } from 'bullmq';
 import { getRedisConnection, closeRedisConnection } from '@/lib/jobs/connection';
-import { closeAllQueues, type QueueName } from '@/lib/jobs/queues';
-import { registerSyncSchedules, registerCommissionSchedules, registerAlertSchedules } from '@/lib/jobs/scheduling';
+import { closeAllQueues, getQueue, type QueueName } from '@/lib/jobs/queues';
+import { registerSyncSchedules, registerCommissionSchedules, registerAlertSchedules, loadPausedSchedulerIds } from '@/lib/jobs/scheduling';
 import { prisma } from '@/lib/db/prisma';
 import { syncOrdersProcessor } from './processors/sync-orders';
 import { syncPaymentsProcessor } from './processors/sync-payments';
@@ -65,7 +65,8 @@ async function main() {
   startWorker('monitoring.evaluateAlerts', evaluateAlertsProcessor as Processor);
 
   if (process.env.ENABLE_SYNC_CRON === '1') {
-    const syncSchedules = await registerSyncSchedules();
+    const pausedIds = await loadPausedSchedulerIds(prisma);
+    const syncSchedules = await registerSyncSchedules(getQueue, pausedIds);
     const commissionSchedules = await registerCommissionSchedules();
     const alertSchedules = await registerAlertSchedules();
     for (const r of [...syncSchedules, ...commissionSchedules, ...alertSchedules]) {
