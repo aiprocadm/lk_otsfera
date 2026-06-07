@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { rewindCursor } from '@/lib/services/admin/syncControl';
+import { rewindCursor, triggerSync, type SyncControlQueueProvider } from '@/lib/services/admin/syncControl';
 
 function txPrisma(existingCursor: string | null) {
   const findUnique = vi.fn().mockResolvedValue(existingCursor === undefined ? null : { cursor: existingCursor });
@@ -63,5 +63,49 @@ describe('rewindCursor', () => {
   it('returns storage on transaction failure', async () => {
     const prisma = { $transaction: vi.fn().mockRejectedValue(new Error('db down')) } as never;
     expect(await rewindCursor(prisma, 'u1', 'order', null)).toEqual({ ok: false, error: 'storage' });
+  });
+});
+
+function auditPrisma() {
+  const create = vi.fn().mockResolvedValue({});
+  return { prisma: { auditLog: { create } } as never, create };
+}
+
+describe('triggerSync', () => {
+  it('rejects an unknown entity', async () => {
+    const { prisma } = auditPrisma();
+    const provider: SyncControlQueueProvider = () => ({ getJobCounts: vi.fn(), add: vi.fn(), upsertJobScheduler: vi.fn(), removeJobScheduler: vi.fn() }) as never;
+    expect(await triggerSync(prisma, 'u1', 'nope', provider)).toEqual({ ok: false, error: 'unknown_entity' });
+  });
+
+  it('refuses when a run is already active', async () => {
+    const { prisma } = auditPrisma();
+    const provider: SyncControlQueueProvider = () => ({
+      getJobCounts: vi.fn().mockResolvedValue({ active: 1 }),
+      add: vi.fn(), upsertJobScheduler: vi.fn(), removeJobScheduler: vi.fn(),
+    }) as never;
+    expect(await triggerSync(prisma, 'u1', 'order', provider)).toEqual({ ok: false, error: 'already_running' });
+  });
+
+  it('enqueues a manual job and audits on success', async () => {
+    const { prisma, create } = auditPrisma();
+    const add = vi.fn().mockResolvedValue({ id: 'j1' });
+    const provider: SyncControlQueueProvider = () => ({
+      getJobCounts: vi.fn().mockResolvedValue({ active: 0 }),
+      add, upsertJobScheduler: vi.fn(), removeJobScheduler: vi.fn(),
+    }) as never;
+    const res = await triggerSync(prisma, 'u1', 'order', provider);
+    expect(res.ok).toBe(true);
+    expect(add).toHaveBeenCalledWith('manual', expect.objectContaining({ reason: 'manual' }), expect.objectContaining({ jobId: expect.stringMatching(/^manual:order:\d+$/) }));
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ entity: 'sync_state', action: 'sync_triggered' }) }));
+  });
+
+  it('returns queue_unavailable when the queue throws', async () => {
+    const { prisma } = auditPrisma();
+    const provider: SyncControlQueueProvider = () => ({
+      getJobCounts: vi.fn().mockRejectedValue(new Error('redis down')),
+      add: vi.fn(), upsertJobScheduler: vi.fn(), removeJobScheduler: vi.fn(),
+    }) as never;
+    expect(await triggerSync(prisma, 'u1', 'order', provider)).toEqual({ ok: false, error: 'queue_unavailable' });
   });
 });

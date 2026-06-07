@@ -2,6 +2,7 @@ import type { Queue } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
 import { getQueue, type QueueName } from '@/lib/jobs/queues';
 import { recordAudit } from '@/lib/auth/audit';
+import type { SyncJobPayload } from '@/lib/jobs/types';
 
 export type SyncControlEntity = 'organization' | 'order' | 'payment' | 'document' | 'reconcile';
 
@@ -66,4 +67,38 @@ export async function rewindCursor(
   } catch {
     return { ok: false, error: 'storage' };
   }
+}
+
+export type TriggerResult =
+  | { ok: true; jobId: string }
+  | { ok: false; error: 'already_running' | 'queue_unavailable' | 'unknown_entity' };
+
+export async function triggerSync(
+  prisma: PrismaClient,
+  actorUserId: string,
+  entity: string,
+  provider: SyncControlQueueProvider = defaultSyncProvider,
+): Promise<TriggerResult> {
+  if (!isSyncControlEntity(entity)) return { ok: false, error: 'unknown_entity' };
+  const { queueName } = SYNC_ENTITIES[entity];
+  let jobId: string;
+  try {
+    const queue = provider(queueName);
+    const counts = (await queue.getJobCounts('active')) as { active?: number };
+    if ((counts.active ?? 0) > 0) return { ok: false, error: 'already_running' };
+    jobId = `manual:${entity}:${Date.now()}`;
+    const payload: SyncJobPayload = { triggeredAt: new Date().toISOString(), reason: 'manual' };
+    await queue.add('manual', payload, { jobId });
+  } catch {
+    return { ok: false, error: 'queue_unavailable' };
+  }
+  // Audit is a secondary effect — never fail the enqueue over it (§3 graceful degrade).
+  await recordAudit(prisma, {
+    userId: actorUserId,
+    action: 'sync_triggered',
+    entity: 'sync_state',
+    entityId: entity,
+    after: { jobId, queue: queueName },
+  }).catch((e) => console.warn('[syncControl] trigger audit failed', e));
+  return { ok: true, jobId };
 }
