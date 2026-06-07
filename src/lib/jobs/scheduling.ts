@@ -1,6 +1,7 @@
 import type { Queue } from 'bullmq';
 import { getQueue, type QueueName } from './queues';
 import type { SyncJobPayload } from './types';
+import type { PrismaClient } from '@prisma/client';
 
 export type SyncScheduleQueueName = Extract<
   QueueName,
@@ -101,11 +102,13 @@ export async function registerCommissionSchedules(
 }
 
 export async function registerSyncSchedules(
-  getQueueFn: GetQueueFn = getQueue
+  getQueueFn: GetQueueFn = getQueue,
+  pausedSchedulerIds: ReadonlySet<string> = new Set(),
 ): Promise<RegisteredSchedule[]> {
   const results: RegisteredSchedule[] = [];
   const registeredAt = new Date().toISOString();
   for (const schedule of SYNC_SCHEDULES) {
+    if (pausedSchedulerIds.has(schedule.schedulerId)) continue;
     const queue = getQueueFn(schedule.queueName);
     const payload: SyncJobPayload = {
       triggeredAt: registeredAt,
@@ -124,6 +127,12 @@ export async function registerSyncSchedules(
     });
   }
   return results;
+}
+
+/** Reads the paused-schedule set so the worker can skip them at registration. */
+export async function loadPausedSchedulerIds(prisma: PrismaClient): Promise<Set<string>> {
+  const rows = await prisma.syncSchedulePause.findMany({ select: { schedulerId: true } });
+  return new Set(rows.map((r) => r.schedulerId));
 }
 
 export type AlertSchedule = {

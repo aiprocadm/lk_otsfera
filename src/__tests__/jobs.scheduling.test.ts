@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { registerSyncSchedules, SYNC_SCHEDULES } from '@/lib/jobs/scheduling';
+import { registerSyncSchedules, SYNC_SCHEDULES, loadPausedSchedulerIds } from '@/lib/jobs/scheduling';
 import type { Queue } from 'bullmq';
 
 function makeFakeQueue() {
@@ -83,5 +83,24 @@ describe('registerSyncSchedules', () => {
       expect((d as { reason?: string }).reason).toBe('cron');
       expect((d as { triggeredAt?: string }).triggeredAt).toBeTruthy();
     }
+  });
+});
+
+describe('registerSyncSchedules — paused skipping', () => {
+  it('skips schedules whose schedulerId is paused', async () => {
+    const getQueue = () => ({ upsertJobScheduler: vi.fn(async (id: string) => ({ id })) } as unknown as Queue);
+    const result = await registerSyncSchedules(getQueue as never, new Set(['oneCSync.pullOrders.cron']));
+    expect(result).toHaveLength(4);
+    expect(result.map((r) => r.schedulerId)).not.toContain('oneCSync.pullOrders.cron');
+  });
+});
+
+describe('loadPausedSchedulerIds', () => {
+  it('returns a Set of paused schedulerIds from the DB', async () => {
+    const prisma = {
+      syncSchedulePause: { findMany: vi.fn().mockResolvedValue([{ schedulerId: 'a' }, { schedulerId: 'b' }]) },
+    } as never;
+    const set = await loadPausedSchedulerIds(prisma);
+    expect(set).toEqual(new Set(['a', 'b']));
   });
 });
