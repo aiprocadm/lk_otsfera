@@ -70,7 +70,7 @@ export async function uploadChatAttachment(
 
   // Defense-in-depth: fingerprint bytes for MIME types the validator covers.
   // (Legacy types like application/vnd.ms-excel fall through — no magic-byte
-  // check for them, consistent with createOrderDocument behavior.)
+  // check for them, consistent with persistUploadedDocument behavior.)
   if ((SUPPORTED_MIME_TYPES as readonly string[]).includes(args.file.mimeType)) {
     const validation = validateMagicBytes(args.file.mimeType, args.file.buffer);
     if (!validation.ok) {
