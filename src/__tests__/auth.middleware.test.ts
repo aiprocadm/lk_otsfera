@@ -70,4 +70,25 @@ describe('auth middleware', () => {
     expect(res.headers.get('location')).toBe('https://app.local/forbidden');
     expect(res.url).toBe('');
   });
+
+  it('redirects admin away from /partner (no dead door; admin works via /admin/*)', async () => {
+    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'admin' } } as any);
+    const res = await middleware(req('/partner/dashboard', 'tkn'));
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toBe('https://app.local/forbidden');
+  });
+
+  it('redirects admin away from /organization (no dead door)', async () => {
+    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'admin' } } as any);
+    const res = await middleware(req('/organization/dashboard', 'tkn'));
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toBe('https://app.local/forbidden');
+  });
+
+  it('still lets admin into its own /admin/* cabinet', async () => {
+    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'admin' } } as any);
+    const res = await middleware(req('/admin/orders', 'tkn'));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('location')).toBeNull();
+  });
 });
