@@ -41,14 +41,14 @@ describe('navByRole.partner', () => {
 });
 
 describe('navItemsFor (feature-flag filter)', () => {
-  it('returns the full partner menu when all flags default-enabled', () => {
+  it('includes flag-gated «Заявки» for partner when partner_leads default-enabled', () => {
     const labels = navItemsFor('partner').map((i) => i.label);
     expect(labels).toContain('Заявки');
   });
 
   it('hides "Заявки" when FEATURE_PARTNER_LEADS=0', () => {
     process.env.FEATURE_PARTNER_LEADS = '0';
-    const labels = navItemsFor('partner').map((i) => i.label);
+    const labels = navItemsFor('partner', { isPartnerAdmin: true }).map((i) => i.label);
     expect(labels).not.toContain('Заявки');
     // Other items still present.
     expect(labels).toEqual(
@@ -78,7 +78,7 @@ describe('navItemsFor — chat flag (partner)', () => {
 
   it('shows "Сообщения" (/partner/messages) when FEATURE_CHAT=1', () => {
     process.env.FEATURE_CHAT = '1';
-    const labels = navItemsFor('partner').map((i) => i.label);
+    const labels = navItemsFor('partner', { isPartnerAdmin: true }).map((i) => i.label);
     expect(labels).toContain('Сообщения');
     // Other items still present
     expect(labels).toEqual(
@@ -120,5 +120,28 @@ describe('navItemsFor — chat flag (organization)', () => {
     expect(item).toBeDefined();
     expect(item!.label).toBe('Сообщения');
     expect(item!.flag).toBe('chat');
+  });
+});
+
+describe('navItemsFor — partnerAdminOnly гейтинг (/partner/team)', () => {
+  it('скрывает «Команда» для partner без opts (не-admin по умолчанию)', () => {
+    const labels = navItemsFor('partner').map((i) => i.label);
+    expect(labels).not.toContain('Команда');
+  });
+
+  it('скрывает «Команда» для partner с isPartnerAdmin=false', () => {
+    const labels = navItemsFor('partner', { isPartnerAdmin: false }).map((i) => i.label);
+    expect(labels).not.toContain('Команда');
+  });
+
+  it('показывает «Команда» для partner с isPartnerAdmin=true', () => {
+    const labels = navItemsFor('partner', { isPartnerAdmin: true }).map((i) => i.label);
+    expect(labels).toContain('Команда');
+  });
+
+  it('пункт /partner/team помечен partnerAdminOnly в navByRole', () => {
+    const item = navByRole.partner.find((i) => i.href === '/partner/team');
+    expect(item).toBeDefined();
+    expect(item!.partnerAdminOnly).toBe(true);
   });
 });

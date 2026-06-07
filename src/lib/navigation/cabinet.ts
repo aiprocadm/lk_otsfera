@@ -1,7 +1,7 @@
 import type { Role } from '@/lib/auth/jwt';
 import { isFeatureEnabled, type FeatureFlag } from '@/lib/featureFlags';
 
-export type NavItem = { href: string; label: string; disabled?: boolean; flag?: FeatureFlag; leaderOnly?: boolean };
+export type NavItem = { href: string; label: string; disabled?: boolean; flag?: FeatureFlag; leaderOnly?: boolean; partnerAdminOnly?: boolean };
 
 export const navByRole: Record<Role, NavItem[]> = {
   admin: [
@@ -29,7 +29,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { href: '/partner/leads', label: 'Заявки', flag: 'partner_leads' },
     { href: '/partner/documents', label: 'Документы' },
     { href: '/partner/finance', label: 'Финансы' },
-    { href: '/partner/team', label: 'Команда' },
+    { href: '/partner/team', label: 'Команда', partnerAdminOnly: true },
     { href: '/partner/messages', label: 'Сообщения', flag: 'chat' }
   ],
   organization: [
@@ -41,18 +41,23 @@ export const navByRole: Record<Role, NavItem[]> = {
 };
 
 /**
- * Returns the static menu for a role minus items whose feature flag is off
- * and, for the manager role, items marked `leaderOnly` when the caller is not
- * a leader. The `isManagerLeader` option defaults to false so existing callers
- * that don't pass it simply hide leader-only items — that's the safe default.
+ * Returns the static menu for a role minus items whose feature flag is off,
+ * items marked `leaderOnly` when the caller is not a manager-leader, and items
+ * marked `partnerAdminOnly` when the caller is not a partner-admin. Both
+ * `isManagerLeader` and `isPartnerAdmin` default to false, so callers that
+ * don't pass them simply hide the elevated items — that's the safe default.
  *
  * `navByRole` stays exported for tests and any caller that wants the raw
  * shape; `navItemsFor` is what the app shell renders.
  */
-export function navItemsFor(role: Role, opts?: { isManagerLeader?: boolean }): NavItem[] {
+export function navItemsFor(
+  role: Role,
+  opts?: { isManagerLeader?: boolean; isPartnerAdmin?: boolean }
+): NavItem[] {
   return navByRole[role].filter((item) => {
     if (item.flag && !isFeatureEnabled(item.flag)) return false;
     if (item.leaderOnly && !opts?.isManagerLeader) return false;
+    if (item.partnerAdminOnly && !opts?.isPartnerAdmin) return false;
     return true;
   });
 }

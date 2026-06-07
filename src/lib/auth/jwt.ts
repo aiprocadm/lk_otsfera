@@ -14,6 +14,13 @@ function assertSecretStrength(secret: string, varName: string): string {
 
 export type Role = 'admin' | 'manager' | 'partner' | 'organization' | 'student';
 
+// Словарь под-ролей («руководитель» проекта реализован тремя под-ролями, by
+// design §4 — три домена, три гарда). Значения СТАБИЛЬНЫ (миграция дорогая):
+//  - partnerRole='manager'  = «партнёрский администратор» (исторически назван
+//    manager; НЕ путать с top-level Role 'manager'). Гард requirePartnerAdmin.
+//  - roleInOrg='leader'      = старший в организации. Гард requireOrganizationAdminOrLeader.
+//  - managerRole='leader'    = старший менеджер (company-wide, C8). Гард requireManagerLeader.
+// Контракт отказа по под-роли единый: redirect → /forbidden (см. requireRole.ts).
 export type PartnerRoleInPartner = 'admin' | 'manager';
 
 export type OrgRoleInOrg = 'admin' | 'leader' | 'member';

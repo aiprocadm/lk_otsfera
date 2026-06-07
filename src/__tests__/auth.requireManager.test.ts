@@ -20,7 +20,8 @@ vi.mock('@/lib/db/prisma', () => ({
 import {
   requireManager,
   requireManagerForOrg,
-  requireManagerForOrder
+  requireManagerForOrder,
+  requireManagerLeader
 } from '@/lib/auth/requireRole';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -216,5 +217,38 @@ describe('requireManagerForOrder', () => {
       'NEXT_REDIRECT:/forbidden'
     );
     expect(orderFindUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe('requireManagerLeader', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    redirect.mockImplementation((to: string) => {
+      throw new Error(`NEXT_REDIRECT:${to}`);
+    });
+  });
+
+  const MANAGER_LEADER: SessionPayload = {
+    sub: 'mgr-leader',
+    role: 'manager',
+    managedOrgIds: [],
+    managerRole: 'leader'
+  };
+
+  it('возвращает сессию для manager-leader', async () => {
+    getSession.mockResolvedValue(MANAGER_LEADER);
+    const result = await requireManagerLeader();
+    expect(result).toEqual(MANAGER_LEADER);
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('редиректит manager-не-leader на /forbidden (единый контракт под-ролей)', async () => {
+    getSession.mockResolvedValue(MANAGER_WITH_SCOPE);
+    await expect(requireManagerLeader()).rejects.toThrow('NEXT_REDIRECT:/forbidden');
+  });
+
+  it('редиректит не-manager на /forbidden (делегирует requireManager)', async () => {
+    getSession.mockResolvedValue(PARTNER_SESSION);
+    await expect(requireManagerLeader()).rejects.toThrow('NEXT_REDIRECT:/forbidden');
   });
 });

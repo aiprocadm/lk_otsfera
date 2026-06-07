@@ -62,14 +62,18 @@ describe('middleware partner sub-role', () => {
     expect(res.status).toBe(200);
   });
 
-  it('does not apply sub-role check to non-partner roles', async () => {
+  it('redirects non-partner roles (e.g. admin) away from /partner before the sub-role check (Model A — no dead door)', async () => {
     vi.mocked(jwtVerify).mockResolvedValue({
       payload: { role: 'admin' }
     } as any);
 
     const res = await middleware(req('/partner/team'));
 
-    expect(res.status).toBe(200);
+    // Model A (ось 4 аудита): admin не входит в чужой кабинет — protectedPrefixes
+    // отбивает его на /partner раньше, чем дойдёт до partner-sub-role проверки.
+    // Admin-омнипотентность живёт в /admin/* + policy.ts, не в кабинетных префиксах.
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toBe('https://app.local/forbidden');
   });
 
   it('treats partner without partnerRole (legacy) as non-admin (cannot access /partner/team)', async () => {

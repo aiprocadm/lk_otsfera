@@ -75,7 +75,9 @@ export async function requireManager(): Promise<SessionPayload> {
 
 export async function requireManagerLeader(): Promise<SessionPayload> {
   const session = await requireManager();
-  if (session.managerRole !== 'leader') redirect('/manager/dashboard');
+  // Единый redirect-контракт под-ролей (ось 1 аудита): нехватка elevation →
+  // /forbidden, как requirePartnerAdmin и requireOrganizationAdminOrLeader.
+  if (session.managerRole !== 'leader') redirect('/forbidden');
   return session;
 }
 

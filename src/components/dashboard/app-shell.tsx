@@ -44,7 +44,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         {/* Sidebar */}
         <aside className='w-56 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col'>
           <nav className='flex-1 p-3 space-y-0.5 overflow-y-auto'>
-            {navItemsFor(session.role, { isManagerLeader: isManagerLeader(session) }).map((item) =>
+            {navItemsFor(session.role, { isManagerLeader: isManagerLeader(session), isPartnerAdmin: session.partnerRole === 'admin' }).map((item) =>
               item.disabled ? (
                 <div
                   key={item.href}
