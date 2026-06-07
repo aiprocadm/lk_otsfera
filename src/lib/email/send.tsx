@@ -50,6 +50,10 @@ import {
   AdminUserInviteTemplate,
   adminUserInviteSubject,
   adminUserInviteText,
+  PartnerDocumentPublished,
+  partnerDocumentPublishedSubject,
+  partnerDocumentPublishedText,
+  type PartnerDocumentPublishedProps,
   type CommissionReadyProps,
   type DocumentUploadedProps,
   type LeadPromotedProps,
@@ -351,6 +355,22 @@ export async function sendAdminUserInviteEmail(
       subject: adminUserInviteSubject(),
       html: await renderHtml(<AdminUserInviteTemplate {...props} />),
       text: adminUserInviteText(props),
+    },
+    options,
+  );
+}
+
+export async function sendPartnerDocumentPublishedEmail(
+  args: { to: string } & PartnerDocumentPublishedProps,
+  options: SendOptions = {},
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: partnerDocumentPublishedSubject(props),
+      html: await renderHtml(<PartnerDocumentPublished {...props} />),
+      text: partnerDocumentPublishedText(props),
     },
     options,
   );
