@@ -36,4 +36,10 @@ describe('canReadDocument -- channel isolation', () => {
     const doc = { id: 'd', orderId: 'o', order: { companyId: 'c' }, counterpartyType: 'partner' as const, counterpartyId: 'p1' };
     expect(await canReadDocument(orgSession, doc)).toBe(false);
   });
+
+  it('does not restrict admin: admin may read a partner-channel doc', async () => {
+    const adminSession = { sub: 'a1', role: 'admin' } as never;
+    const doc = { id: 'd', orderId: 'o', order: { companyId: 'c' }, counterpartyType: 'partner' as const, counterpartyId: 'pX' };
+    expect(await canReadDocument(adminSession, doc)).toBe(true);
+  });
 });
