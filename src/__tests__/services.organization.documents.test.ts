@@ -18,6 +18,7 @@ let docA1ActId: string;
 let docA1InfectedId: string;
 let docA2InvoiceId: string;
 let docB1ContractId: string;
+let docA1CommissionId: string;
 
 beforeAll(async () => {
   prisma = new PrismaClient();
@@ -113,6 +114,17 @@ beforeAll(async () => {
     }
   });
   docB1ContractId = dB.id;
+
+  // Partner-channel doc on orderA1 — must NOT be visible to the org
+  const dCommission = await prisma.document.create({
+    data: {
+      name: 'commission-A1.pdf', path: 'fake://commission-a1',
+      mimeType: 'application/pdf', type: 'commission_statement',
+      orderId: orderA1Id,
+      counterpartyType: 'partner', counterpartyId: partnerId
+    }
+  });
+  docA1CommissionId = dCommission.id;
 
 });
 
@@ -216,6 +228,13 @@ describe('services/organization/documents — listOrgDocuments', () => {
     expect(countsByType.act).toBe(1);
     expect(countsByType.invoice).toBe(1);
   });
+
+  it('does NOT leak partner-channel documents to the organization', async () => {
+    const { rows, total } = await listOrgDocuments(prisma, { organizationId: orgAId });
+    const ids = rows.map((r) => r.id);
+    expect(ids).not.toContain(docA1CommissionId);
+    expect(total).toBe(3); // contract + act + invoice; commission is partner-channel
+  });
 });
 
 describe('services/organization/documents — getOrgDocumentForDownload', () => {
@@ -247,5 +266,10 @@ describe('services/organization/documents — getOrgDocumentForDownload', () => 
     } else {
       throw new Error('expected infected discriminator');
     }
+  });
+
+  it('download of a partner-channel doc returns not_found for the org', async () => {
+    const r = await getOrgDocumentForDownload(prisma, orgAId, docA1CommissionId);
+    expect(r).toEqual({ ok: false, error: 'not_found' });
   });
 });

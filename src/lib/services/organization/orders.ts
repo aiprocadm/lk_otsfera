@@ -174,7 +174,7 @@ export async function getOrgOrder(
     include: {
       manager: { select: { name: true } },
       documents: {
-        where: { scanStatus: { not: 'infected' } },
+        where: { counterpartyType: 'organization', scanStatus: { not: 'infected' } },
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,

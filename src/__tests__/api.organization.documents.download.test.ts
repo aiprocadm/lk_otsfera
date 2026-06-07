@@ -92,7 +92,8 @@ describe('POST /api/organization/documents/[id]/download', () => {
       mimeType: 'application/pdf',
       scanStatus: 'clean',
       scanReason: null,
-      order: { organizationId: 'org-b' }
+      counterpartyType: 'organization',
+      counterpartyId: 'org-b'
     });
     const res = await downloadPost(postReq(), paramsP);
     expect(res.status).toBe(404);
@@ -107,7 +108,8 @@ describe('POST /api/organization/documents/[id]/download', () => {
       mimeType: 'application/pdf',
       scanStatus: 'infected',
       scanReason: 'EICAR',
-      order: { organizationId: 'org-a' }
+      counterpartyType: 'organization',
+      counterpartyId: 'org-a'
     });
     const res = await downloadPost(postReq(), paramsP);
     expect(res.status).toBe(410);
@@ -125,7 +127,8 @@ describe('POST /api/organization/documents/[id]/download', () => {
       mimeType: 'application/pdf',
       scanStatus: 'clean',
       scanReason: null,
-      order: { organizationId: 'org-a' }
+      counterpartyType: 'organization',
+      counterpartyId: 'org-a'
     });
     createSignedUrl.mockResolvedValue({
       data: { signedUrl: 'https://signed.test/x' },
@@ -152,7 +155,8 @@ describe('POST /api/organization/documents/[id]/download', () => {
       mimeType: 'application/pdf',
       scanStatus: 'clean',
       scanReason: null,
-      order: { organizationId: 'org-b' }
+      counterpartyType: 'organization',
+      counterpartyId: 'org-b'
     });
     createSignedUrl.mockResolvedValue({
       data: { signedUrl: 'https://signed.test/b' },
@@ -172,10 +176,11 @@ describe('POST /api/organization/documents/[id]/download', () => {
       mimeType: 'application/pdf',
       scanStatus: 'clean',
       scanReason: null,
-      order: { organizationId: 'org-c' }
+      counterpartyType: 'organization',
+      counterpartyId: 'org-c'
     });
     // queryOrg 'org-c' is not in memberships → resolveActiveOrgId falls back to first
-    // active membership 'org-a', then document.org-c !== org-a → silent 404.
+    // active membership 'org-a', then doc.counterpartyId 'org-c' !== 'org-a' → silent 404.
     const res = await downloadPost(postReq('?org=org-c'), paramsP);
     expect(res.status).toBe(404);
   });
@@ -189,7 +194,8 @@ describe('POST /api/organization/documents/[id]/download', () => {
       mimeType: 'application/pdf',
       scanStatus: 'clean',
       scanReason: null,
-      order: { organizationId: 'org-a' }
+      counterpartyType: 'organization',
+      counterpartyId: 'org-a'
     });
     createSignedUrl.mockResolvedValue({ data: null, error: { message: 'storage down' } });
 
