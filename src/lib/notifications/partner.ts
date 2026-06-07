@@ -36,7 +36,10 @@ export async function notifyPartnerUsers(
     select: {
       id: true,
       name: true,
-      users: { where: { isActive: true }, select: { id: true, email: true } }
+      partnerUsers: {
+        where: { isActive: true, user: { isActive: true } },
+        select: { user: { select: { id: true, email: true } } }
+      }
     }
   });
   if (!partner) return { recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 };
@@ -51,7 +54,8 @@ export async function notifyPartnerUsers(
   let emailsSkipped = 0;
   let recipientsNotified = 0;
 
-  for (const u of partner.users) {
+  for (const pu of partner.partnerUsers) {
+    const u = pu.user;
     await db.notification.create({
       data: {
         userId: u.id,
@@ -69,7 +73,7 @@ export async function notifyPartnerUsers(
         const r = await sendPartnerDocumentPublishedEmail({
           to: u.email,
           partnerName: partner.name,
-          orderNumber: input.payload.orderNumber ?? input.payload.orderTitle,
+          orderNumber: input.payload.orderNumber,
           orderTitle: input.payload.orderTitle,
           documentName: input.payload.documentName,
           documentType: input.payload.documentType,

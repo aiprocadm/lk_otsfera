@@ -7,9 +7,10 @@ import { notifyPartnerUsers } from '@/lib/notifications/partner';
 
 function dbWith(users: Array<{ id: string; email: string | null }>) {
   const create = vi.fn().mockResolvedValue({});
+  const partnerUsers = users.map((u) => ({ user: u }));
   return {
     db: {
-      partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p-1', name: 'ООО Партнёр', users }) },
+      partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p-1', name: 'ООО Партнёр', partnerUsers }) },
       notification: { create }
     } as never,
     create
@@ -29,6 +30,8 @@ describe('notifyPartnerUsers', () => {
       payload: { orderId: 'o1', orderNumber: '42', orderTitle: 'T', documentName: 'k.pdf', documentType: 'commission_statement' }
     });
     expect(r.recipientsNotified).toBe(2);
+    expect(r.emailsSent).toBe(0);
+    expect(r.emailsSkipped).toBe(2);
     expect(create).toHaveBeenCalledTimes(2);
     expect(create.mock.calls[0][0].data.partnerId).toBe('p-1');
   });
