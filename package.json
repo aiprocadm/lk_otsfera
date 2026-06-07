@@ -23,6 +23,7 @@
     "e2e:visual:update": "playwright test --update-snapshots",
     "worker": "tsx src/worker/index.ts",
     "worker:dev": "tsx watch src/worker/index.ts",
+    "mock:1c": "tsx mock-1c/main.ts",
     "format": "prettier --write .",
     "prepare": "husky"
   },

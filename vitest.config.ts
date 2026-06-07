@@ -15,7 +15,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
  * Why not a hardcoded list: 33 entries that drift out of sync with reality
  * silently. A grep-style detector stays correct by construction.
  */
-const TEST_ROOT = path.resolve(__dirname, 'src/__tests__');
+const TEST_ROOTS = [path.resolve(__dirname, 'src/__tests__'), path.resolve(__dirname, 'mock-1c')];
 const INTEGRATION_MARKER = 'new PrismaClient(';
 
 /**
@@ -49,7 +49,9 @@ function isIntegrationFile(relPath: string): boolean {
   }
 }
 
-const allTestFiles = listTestFiles(TEST_ROOT);
+const allTestFiles = TEST_ROOTS.flatMap((root) => {
+  try { return listTestFiles(root); } catch { return []; } // mock-1c may not exist yet
+});
 const integrationFiles = allTestFiles.filter(isIntegrationFile);
 const unitFiles = allTestFiles.filter((f) => !integrationFiles.includes(f));
 
