@@ -107,3 +107,10 @@ export {
   partnerDocumentPublishedText
 } from './partner/document-published';
 export type { PartnerDocumentPublishedProps } from './partner/document-published';
+
+export {
+  ManagerDocumentUploadedByPartner,
+  managerDocumentUploadedByPartnerSubject,
+  managerDocumentUploadedByPartnerText
+} from './manager/document-uploaded-by-partner';
+export type { ManagerDocumentUploadedByPartnerProps } from './manager/document-uploaded-by-partner';

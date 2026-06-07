@@ -38,6 +38,9 @@ import {
   ManagerDocumentUploadedByOrg,
   managerDocumentUploadedByOrgSubject,
   managerDocumentUploadedByOrgText,
+  ManagerDocumentUploadedByPartner,
+  managerDocumentUploadedByPartnerSubject,
+  managerDocumentUploadedByPartnerText,
   ManagerOrderMarkedPaidBy1C,
   managerOrderMarkedPaidBy1CSubject,
   managerOrderMarkedPaidBy1CText,
@@ -65,6 +68,7 @@ import {
   type OrgManagerRepliedProps,
   type ManagerCommentFromOrgProps,
   type ManagerDocumentUploadedByOrgProps,
+  type ManagerDocumentUploadedByPartnerProps,
   type ManagerOrderMarkedPaidBy1CProps,
   type ManagerOrderStatusChangedProps,
   type ManagerInviteProps,
@@ -371,6 +375,22 @@ export async function sendPartnerDocumentPublishedEmail(
       subject: partnerDocumentPublishedSubject(props),
       html: await renderHtml(<PartnerDocumentPublished {...props} />),
       text: partnerDocumentPublishedText(props),
+    },
+    options,
+  );
+}
+
+export async function sendManagerDocumentUploadedByPartnerEmail(
+  args: { to: string } & ManagerDocumentUploadedByPartnerProps,
+  options: SendOptions = {},
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: managerDocumentUploadedByPartnerSubject(props),
+      html: await renderHtml(<ManagerDocumentUploadedByPartner {...props} />),
+      text: managerDocumentUploadedByPartnerText(props),
     },
     options,
   );

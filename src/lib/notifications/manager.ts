@@ -2,6 +2,7 @@ import { Prisma, type PrismaClient } from '@prisma/client';
 import {
   sendManagerCommentFromOrgEmail,
   sendManagerDocumentUploadedByOrgEmail,
+  sendManagerDocumentUploadedByPartnerEmail,
   sendManagerOrderMarkedPaidBy1CEmail,
   sendManagerOrderStatusChangedEmail,
   sendNotificationEmail,
@@ -12,6 +13,8 @@ import {
   managerCommentFromOrgText,
   managerDocumentUploadedByOrgSubject,
   managerDocumentUploadedByOrgText,
+  managerDocumentUploadedByPartnerSubject,
+  managerDocumentUploadedByPartnerText,
   managerOrderMarkedPaidBy1CSubject,
   managerOrderMarkedPaidBy1CText,
   managerOrderStatusChangedSubject,
@@ -22,6 +25,7 @@ import { getAppBaseUrl, orderLabel } from './shared';
 export type NotifyManagersType =
   | 'comment_from_org'
   | 'document_uploaded_by_org'
+  | 'document_uploaded_by_partner'
   | 'order_marked_paid_by_1c'
   | 'order_status_changed_by_manager'
   | 'chat_message';
@@ -40,6 +44,15 @@ export type NotifyManagersInput =
       type: 'document_uploaded_by_org';
       payload: {
         orgName: string;
+        documentName: string;
+        documentType: string;
+      };
+    }
+  | {
+      orderId: string;
+      type: 'document_uploaded_by_partner';
+      payload: {
+        partnerName: string;
         documentName: string;
         documentType: string;
       };
@@ -191,6 +204,21 @@ const MANAGER_TEMPLATES: Record<
       subject: managerDocumentUploadedByOrgSubject(props),
       shortBody: managerDocumentUploadedByOrgText(props),
       dispatch: (to) => sendManagerDocumentUploadedByOrgEmail({ to, ...props })
+    };
+  },
+  document_uploaded_by_partner: (input, ctx) => {
+    if (input.type !== 'document_uploaded_by_partner') throw new Error('type mismatch');
+    const props = {
+      partnerName: input.payload.partnerName,
+      orderNumber: ctx.orderNumber ?? ctx.orderTitle,
+      documentName: input.payload.documentName,
+      documentType: input.payload.documentType,
+      orderUrl: ctx.orderUrl
+    };
+    return {
+      subject: managerDocumentUploadedByPartnerSubject(props),
+      shortBody: managerDocumentUploadedByPartnerText(props),
+      dispatch: (to) => sendManagerDocumentUploadedByPartnerEmail({ to, ...props })
     };
   },
   order_marked_paid_by_1c: (input, ctx) => {
