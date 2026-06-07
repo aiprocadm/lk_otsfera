@@ -2,21 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeOrder, managedOrgIds, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { notifyOrgUsers, notifyPartnerUsers } from '@/lib/notifications';
-import { persistUploadedDocument } from '@/lib/services/documents/upload-core';
-import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
-
-// Early-exit guards (mirrors upload-core limits — checked before any DB query
-// to preserve the fast-path behavior from before the upload-core refactor).
-const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
-
-const ALLOWED_MIME_TYPES = new Set<string>([
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-]);
+import { persistUploadedDocument, validateUploadFile } from '@/lib/services/documents/upload-core';
 
 /**
  * Manager-facing upload service for order documents.
@@ -56,12 +42,8 @@ export async function createCounterpartyDocument(
   args: CreateCounterpartyDocumentArgs
 ): Promise<CreateCounterpartyDocumentResult> {
   // Fast-path: reject invalid input before any DB query.
-  if (args.file.size > MAX_FILE_SIZE_BYTES) return { ok: false, error: 'too_large' };
-  if (!ALLOWED_MIME_TYPES.has(args.file.mimeType)) return { ok: false, error: 'invalid_mime' };
-  if ((SUPPORTED_MIME_TYPES as readonly string[]).includes(args.file.mimeType)) {
-    const validation = validateMagicBytes(args.file.mimeType, args.file.buffer);
-    if (!validation.ok) return { ok: false, error: 'invalid_mime' };
-  }
+  const fileCheck = validateUploadFile(args.file);
+  if (!fileCheck.ok) return fileCheck;
 
   const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
   const order = await prisma.order.findUnique({

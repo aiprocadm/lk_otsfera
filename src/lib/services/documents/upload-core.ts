@@ -25,6 +25,24 @@ const ALLOWED_MIME_TYPES = new Set<string>([
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 ]);
 
+/**
+ * Validates file size, MIME type, and magic bytes before any DB or storage
+ * interaction. Exported so callers can apply a fast-path rejection without
+ * issuing any DB query (e.g. manager uploads.ts checks this before the order
+ * lookup).
+ */
+export function validateUploadFile(file: { size: number; mimeType: string; buffer: Buffer }):
+  | { ok: true }
+  | { ok: false; error: 'too_large' | 'invalid_mime' } {
+  if (file.size > MAX_FILE_SIZE_BYTES) return { ok: false, error: 'too_large' };
+  if (!ALLOWED_MIME_TYPES.has(file.mimeType)) return { ok: false, error: 'invalid_mime' };
+  if ((SUPPORTED_MIME_TYPES as readonly string[]).includes(file.mimeType)) {
+    const validation = validateMagicBytes(file.mimeType, file.buffer);
+    if (!validation.ok) return { ok: false, error: 'invalid_mime' };
+  }
+  return { ok: true };
+}
+
 const VALID_DOC_TYPES = new Set<DocumentType>([
   'contract', 'extra_agreement', 'invoice', 'act', 'waybill',
   'certificate', 'report', 'commission_statement', 'other'
@@ -58,12 +76,8 @@ export async function persistUploadedDocument(
   prisma: PrismaClient,
   args: PersistDocumentArgs
 ): Promise<PersistDocumentResult> {
-  if (args.file.size > MAX_FILE_SIZE_BYTES) return { ok: false, error: 'too_large' };
-  if (!ALLOWED_MIME_TYPES.has(args.file.mimeType)) return { ok: false, error: 'invalid_mime' };
-  if ((SUPPORTED_MIME_TYPES as readonly string[]).includes(args.file.mimeType)) {
-    const validation = validateMagicBytes(args.file.mimeType, args.file.buffer);
-    if (!validation.ok) return { ok: false, error: 'invalid_mime' };
-  }
+  const fileCheck = validateUploadFile(args.file);
+  if (!fileCheck.ok) return fileCheck;
 
   const safeName = sanitizeFilename(args.file.name);
   const storagePath = `orders/${args.orderId}/${randomUUID()}-${safeName}`;
