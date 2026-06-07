@@ -1,5 +1,6 @@
 import type { PrismaClient, ExecutionStatus, FinancialStatus } from '@prisma/client';
 import { humanStage, type Stage } from '@/lib/orders/humanStage';
+import { partnerChannelWhere } from '@/lib/auth/documentChannelPolicy';
 import type { OrgDocumentRow } from './orgDocuments';
 
 export type DealDocumentRow = OrgDocumentRow;
@@ -46,6 +47,7 @@ export async function getPartnerDealDetail(
     include: {
       manager: { select: { name: true } },
       documents: {
+        where: partnerChannelWhere(args.partnerId),
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
