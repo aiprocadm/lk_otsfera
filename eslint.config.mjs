@@ -38,19 +38,30 @@ const NO_UPWARD_IMPORTS_IN_SERVICES = [
   }
 ];
 
+// mock-1c/ is the dev/test-only 1С counterparty. Dependency direction is one-way:
+// mock-1c may import src, but src must NEVER import mock-1c (it would pull throwaway
+// test infra into the app runtime). Mirrors the C3 services↛app guardrail.
+const NO_MOCK1C_FROM_SRC = {
+  group: ['**/mock-1c', '**/mock-1c/**'],
+  message: 'src/ must not import mock-1c (it is dev/test-only, outside the app runtime). Direction is one-way: mock-1c → src.'
+};
+
 export default [
   ...coreWebVitals,
   ...typescript,
   {
     files: ['src/**/*.{ts,tsx}'],
     rules: {
-      'no-restricted-syntax': NO_HANDROLLED_MODAL
+      'no-restricted-syntax': NO_HANDROLLED_MODAL,
+      'no-restricted-imports': ['error', { patterns: [NO_MOCK1C_FROM_SRC] }]
     }
   },
   {
     files: ['src/lib/services/**/*.{ts,tsx}'],
     rules: {
-      'no-restricted-imports': NO_UPWARD_IMPORTS_IN_SERVICES
+      'no-restricted-imports': ['error', {
+        patterns: [...NO_UPWARD_IMPORTS_IN_SERVICES[1].patterns, NO_MOCK1C_FROM_SRC]
+      }]
     }
   },
   {
