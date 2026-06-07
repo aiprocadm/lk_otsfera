@@ -109,10 +109,10 @@ describe('organization dashboard service — kpis', () => {
       }
     });
     await prisma.document.create({
-      data: { name: 'd1', path: 'fake://1', mimeType: 'application/pdf', orderId: order.id }
+      data: { name: 'd1', path: 'fake://1', mimeType: 'application/pdf', orderId: order.id, counterpartyType: 'organization', counterpartyId: orgAId }
     });
     await prisma.document.create({
-      data: { name: 'd2', path: 'fake://2', mimeType: 'application/pdf', orderId: order.id, scanStatus: 'infected' }
+      data: { name: 'd2', path: 'fake://2', mimeType: 'application/pdf', orderId: order.id, scanStatus: 'infected', counterpartyType: 'organization', counterpartyId: orgAId }
     });
 
     const k = await kpis(prisma, orgAId);

@@ -347,7 +347,9 @@ describe('manager dashboard service — attention', () => {
         path: `fake://act-${now}`,
         mimeType: 'application/pdf',
         type: 'act',
-        orderId: order.id
+        orderId: order.id,
+        counterpartyType: 'organization',
+        counterpartyId: managedOrgId
       }
     });
     await prisma.document.update({
@@ -442,7 +444,9 @@ describe('manager dashboard service — recentEvents', () => {
         path: `fake://ev-${now}`,
         mimeType: 'application/pdf',
         type: 'other',
-        orderId: order.id
+        orderId: order.id,
+        counterpartyType: 'organization',
+        counterpartyId: managedOrgId
       }
     });
     const payment = await prisma.payment.create({

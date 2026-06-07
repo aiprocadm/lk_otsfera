@@ -258,7 +258,9 @@ describe('syncDocumentsProcessor notification hook', () => {
         mimeType: 'application/pdf',
         type: 'contract',
         direction: 'incoming',
-        generatedBy: 'system'
+        generatedBy: 'system',
+        counterpartyType: 'organization',
+        counterpartyId: orgId
       }
     });
     adapter.documents = [

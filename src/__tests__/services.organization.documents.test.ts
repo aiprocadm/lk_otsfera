@@ -68,7 +68,8 @@ beforeAll(async () => {
     data: {
       name: 'contract-A1.pdf', path: 'fake://contract-a1',
       mimeType: 'application/pdf', type: 'contract',
-      orderId: orderA1Id, createdAt: tenDaysAgo
+      orderId: orderA1Id, createdAt: tenDaysAgo,
+      counterpartyType: 'organization', counterpartyId: orgAId
     }
   });
   docA1ContractId = dContract.id;
@@ -77,7 +78,8 @@ beforeAll(async () => {
     data: {
       name: 'act-A1.pdf', path: 'fake://act-a1',
       mimeType: 'application/pdf', type: 'act',
-      orderId: orderA1Id
+      orderId: orderA1Id,
+      counterpartyType: 'organization', counterpartyId: orgAId
     }
   });
   docA1ActId = dAct.id;
@@ -86,7 +88,8 @@ beforeAll(async () => {
     data: {
       name: 'malware-A1.pdf', path: 'fake://infected-a1',
       mimeType: 'application/pdf', type: 'other',
-      orderId: orderA1Id, scanStatus: 'infected', scanReason: 'EICAR test'
+      orderId: orderA1Id, scanStatus: 'infected', scanReason: 'EICAR test',
+      counterpartyType: 'organization', counterpartyId: orgAId
     }
   });
   docA1InfectedId = dInfected.id;
@@ -95,7 +98,8 @@ beforeAll(async () => {
     data: {
       name: 'invoice-A2.pdf', path: 'fake://invoice-a2',
       mimeType: 'application/pdf', type: 'invoice',
-      orderId: orderA2Id
+      orderId: orderA2Id,
+      counterpartyType: 'organization', counterpartyId: orgAId
     }
   });
   docA2InvoiceId = dInvoice.id;
@@ -104,7 +108,8 @@ beforeAll(async () => {
     data: {
       name: 'contract-B1.pdf', path: 'fake://contract-b1',
       mimeType: 'application/pdf', type: 'contract',
-      orderId: orderB1Id
+      orderId: orderB1Id,
+      counterpartyType: 'organization', counterpartyId: orgBId
     }
   });
   docB1ContractId = dB.id;

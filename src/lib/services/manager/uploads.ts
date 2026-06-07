@@ -155,6 +155,8 @@ export async function createOrderDocument(
   const doc = await prisma.document.create({
     data: {
       orderId: args.orderId,
+      counterpartyType: 'organization',
+      counterpartyId: order.organizationId,
       name: args.file.name,
       mimeType: args.file.mimeType,
       size: args.file.size,
