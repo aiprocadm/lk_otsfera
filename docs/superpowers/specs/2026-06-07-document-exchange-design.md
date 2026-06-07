@@ -16,7 +16,7 @@
 **Цель.** Превратить односторонний «менеджер → организация push» в **двусторонний обмен документами по каналам**, где документ принадлежит каналу `counterparty ↔ менеджеры`, а третья сторона заказа его не видит.
 
 - **Двустороннее направление.** Менеджер → клиент (`outgoing`, уже есть для орг) **и** клиент → менеджеры (`incoming`, новое для ручной загрузки; сегодня `incoming` появляется только через 1С-синк).
-- **Counterparty-якорь.** У документа появляется явный владелец-канал: `(counterpartyType: organization|partner, counterpartyId)`. Заказ становится **опциональным** контекстом (`orderId` → nullable), что открывает order-less «общие документы» (Фаза B).
+- **Counterparty-якорь.** У документа появляется явный владелец-канал: `(counterpartyType: organization|partner, counterpartyId)`. Заказ становится **опциональным** контекстом (`orderId` → nullable **в Фазе B**), что открывает order-less «общие документы».
 - **Изоляция каналов.** Организация видит только org-channel, партнёр — только partner-channel. **Менеджер видит ОБА** канала в пределах своего order/company-scope (изоляция — правило для **клиентов**, не для менеджеров).
 - **Симметричные уведомления.** Менеджер→партнёр получает пуш (новый `notifyPartner` — закрывает исходный гэп); клиент→менеджеры уведомляет менеджеров.
 
@@ -30,7 +30,7 @@
 
 ## 2. Ключевые решения
 
-1. **Counterparty как первоклассное поле `Document`, заказ — опционален.** Добавляем `counterpartyType CounterpartyType` + `counterpartyId String`; `orderId String` → `String?`. Канал = `(counterpartyType, counterpartyId)`. Для заказных док-тов counterparty снимает неоднозначность «орг или партнёр» (заказ имеет и `organizationId`, и опц. `partnerId` — [schema:428-431](../../../prisma/schema.prisma)); для order-less counterparty и есть единственный якорь.
+1. **Counterparty как первоклассное поле `Document`.** Добавляем `counterpartyType CounterpartyType` + `counterpartyId String` (NOT NULL после бэкфилла). Канал = `(counterpartyType, counterpartyId)`. Для заказных док-тов counterparty снимает неоднозначность «орг или партнёр» (заказ имеет и `organizationId`, и опц. `partnerId` — [schema:428-431](../../../prisma/schema.prisma)); для order-less counterparty и есть единственный якорь. **`orderId` остаётся `String`** в Фазе A; становится `String?` только в Фазе B (вместе с null-каскадом `d.order?.…` по read-сервисам/типам/компоненту) — чтобы Фаза A не платила за order-less, который в ней не используется.
 
 2. **Единый channel-policy (структура A).** Новый модуль `src/lib/auth/documentChannelPolicy.ts` — сиблинг `managerPolicy.ts`, **единственный источник правды** правила канала. Все три кабинета + уведомления берут `where`/проверку отсюда. Обоснование — §4 CLAUDE.md и урок C8: дублированное scope-правило молча разъезжается (typecheck не ловит «забыл взять channel-where»).
 
@@ -58,19 +58,21 @@ enum CounterpartyType { organization  partner }
 
 model Document {
   // ... существующие поля ...
-  orderId          String?            // БЫЛО String (schema:466) — теперь nullable
-  order            Order?  @relation(fields: [orderId], references: [id])
-  counterpartyType CounterpartyType   // НОВОЕ
-  counterpartyId   String             // НОВОЕ
+  orderId          String             // остаётся NOT NULL в Фазе A (→ String? в Фазе B)
+  order            Order   @relation(fields: [orderId], references: [id])
+  counterpartyType CounterpartyType   // НОВОЕ (NOT NULL после бэкфилла)
+  counterpartyId   String             // НОВОЕ (NOT NULL после бэкфилла)
   @@index([counterpartyType, counterpartyId])   // НОВОЕ
   @@index([orderId, type])                       // оставляем
 }
 ```
-**Порядок миграции** (применённые миграции не править, §11):
-1. `prisma migrate` — добавить enum + поля `nullable`.
-2. Data-миграция (SQL в той же миграции или скрипт): бэкфилл по правилу №5.
-3. Вторая миграция: `counterpartyType`/`counterpartyId` → `NOT NULL`; `orderId` → `NULL` (drop NOT NULL).
-4. `npm run prisma:generate`.
+**Порядок миграции** — одна миграция через `--create-only`, затем заменить авто-SQL безопасной последовательностью (применённые миграции не править, §11):
+1. `CREATE TYPE "CounterpartyType"`.
+2. `ADD COLUMN` обе колонки **nullable**.
+3. Бэкфилл по правилу №5 (org по умолчанию; `commission_statement` → partner при `partnerId IS NOT NULL`).
+4. `ALTER COLUMN … SET NOT NULL` для обеих.
+5. `CREATE INDEX` по `(counterpartyType, counterpartyId)`; `npm run prisma:generate`. **`orderId` НЕ трогаем.**
+6. Следствие NOT NULL: **все** `prisma.document.create(...)` (прод + тестовые сиды) обязаны выставлять counterparty, иначе typecheck падает — это закладывается в задачи плана.
 
 ### 3.2 `documentChannelPolicy.ts` (единственная точка решения)
 ```ts
@@ -123,7 +125,7 @@ assertCanUpload(session, channel): boolean
 ### 3.6 UI
 - **Вкладка «Документы» у заказа** (3 кабинета): список (новая колонка **направление/сторона**), upload-контрол. У менеджера есть ([manager-doc-upload-form.tsx](../../../src/components/manager/manager-doc-upload-form.tsx)) — добавить селектор получателя (реш. №4). Орг/партнёр — добавить upload.
 - **«Общие документы» (order-less, Фаза B)** — вкладка у орг/партнёра; у менеджера/админа — в карточке counterparty.
-- **Модалка загрузки** строго §9: `useDialogFocus`, `role="dialog"`, `aria-modal`, Escape, live-region (`role="status"/"alert"`); селектор `DocumentType`, опц. селектор заказа, клиентские подсказки MIME/размер.
+- **Форма загрузки** — inline-сиблинг существующей [ManagerDocUploadForm](../../../src/components/manager/manager-doc-upload-form.tsx) (карточка, **не модалка** — соответствует живому менеджерскому паттерну): селектор `DocumentType`, у менеджера — селектор получателя, live-сообщения через `role="alert"/"status"`, клиентские подсказки MIME/размер. Если позже понадобится модалка — мигрировать на `useDialogFocus` (§9).
 - Компоненты: sibling `organization-document-upload-form`/`partner-document-upload-form` (§4). Рендерер списка [documents-list.tsx](../../../src/components/partner/documents-list.tsx) — презентационный + domain-agnostic → расширяем общий (исключение §4) колонкой направления.
 
 ### 3.7 Ошибки
@@ -143,7 +145,7 @@ assertCanUpload(session, channel): boolean
 ## 5. Фазовая поставка
 
 **Фаза A — обмен по заказу (основная ценность):**
-- Миграция enum+counterparty + бэкфилл выполняется **целиком в Фазе A** (включая `orderId`→nullable), хотя order-less UI едет в Фазе B: схему трогаем один раз, null-значения `orderId` до Фазы B никто не создаёт.
+- Миграция: enum + counterparty-колонки (NOT NULL после бэкфилла) + индекс. **`orderId` остаётся NOT NULL** — null-путь и связанный null-каскад (`d.order?.…`) по read-сервисам отложены в Фазу B (Фаза A не использует order-less, поэтому не платит за него).
 - `documentChannelPolicy.ts`; обобщение `createOrderDocument`→`createCounterpartyDocument` + селектор получателя.
 - Обратные server-actions (орг/партнёр) для **заказных** док-тов.
 - `notifyPartner` + тип `document_uploaded_by_partner`; перевод `commission_statement` в partner-channel.
@@ -152,7 +154,7 @@ assertCanUpload(session, channel): boolean
 → Едет: privacy-фикс (изоляция) + обратная загрузка + пуш партнёру.
 
 **Фаза B — общие документы вне заказа:**
-- `orderId`-nullable путь; «Общие документы» у орг/партнёра; вью counterparty + order-less upload у менеджера/админа.
+- Миграция `orderId` → `String?` + null-каскад (`d.order?.…`) по read-сервисам/row-типам/компоненту; «Общие документы» у орг/партнёра; вью counterparty + order-less upload у менеджера/админа.
 - `managerDocumentWhere` order-less ветка; **scope менеджер↔партнёр = company-wide**.
 - Тесты order-less + partner-company scope.
 
