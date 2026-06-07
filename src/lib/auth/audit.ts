@@ -14,7 +14,10 @@ export type AuditEntity =
   | 'partner_user'
   | 'student_bridge'
   | 'order_thread'
-  | 'company';
+  | 'company'
+  | 'sync_state'
+  | 'sync_schedule'
+  | 'job_queue';
 
 export type AuditRecord = {
   userId: string;
