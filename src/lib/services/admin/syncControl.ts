@@ -3,6 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import { getQueue, type QueueName } from '@/lib/jobs/queues';
 import { recordAudit } from '@/lib/auth/audit';
 import type { SyncJobPayload } from '@/lib/jobs/types';
+import { SYNC_SCHEDULES } from '@/lib/jobs/scheduling';
 
 export type SyncControlEntity = 'organization' | 'order' | 'payment' | 'document' | 'reconcile';
 
@@ -101,4 +102,55 @@ export async function triggerSync(
     after: { jobId, queue: queueName },
   }).catch((e) => console.warn('[syncControl] trigger audit failed', e));
   return { ok: true, jobId };
+}
+
+export type PauseResult =
+  | { ok: true; paused: boolean }
+  | { ok: false; error: 'queue_unavailable' | 'unknown_schedule' };
+
+export async function setSchedulePaused(
+  prisma: PrismaClient,
+  actorUserId: string,
+  schedulerId: string,
+  paused: boolean,
+  provider: SyncControlQueueProvider = defaultSyncProvider,
+): Promise<PauseResult> {
+  const schedule = SYNC_SCHEDULES.find((s) => s.schedulerId === schedulerId);
+  if (!schedule) return { ok: false, error: 'unknown_schedule' };
+
+  // DB is the source of truth (worker reconciles on next register) — write it first.
+  if (paused) {
+    await prisma.syncSchedulePause.upsert({
+      where: { schedulerId },
+      update: { pausedBy: actorUserId, pausedAt: new Date() },
+      create: { schedulerId, pausedBy: actorUserId },
+    });
+  } else {
+    await prisma.syncSchedulePause.deleteMany({ where: { schedulerId } });
+  }
+
+  // Apply to the live Redis scheduler immediately.
+  try {
+    const queue = provider(schedule.queueName);
+    if (paused) {
+      await queue.removeJobScheduler(schedulerId);
+    } else {
+      await queue.upsertJobScheduler(
+        schedulerId,
+        { pattern: schedule.pattern, tz: schedule.tz },
+        { data: { triggeredAt: new Date().toISOString(), reason: 'cron' } },
+      );
+    }
+  } catch {
+    // DB already reflects intent; surface so the operator can retry.
+    return { ok: false, error: 'queue_unavailable' };
+  }
+
+  await recordAudit(prisma, {
+    userId: actorUserId,
+    action: paused ? 'sync_schedule_paused' : 'sync_schedule_resumed',
+    entity: 'sync_schedule',
+    entityId: schedulerId,
+  }).catch((e) => console.warn('[syncControl] pause audit failed', e));
+  return { ok: true, paused };
 }

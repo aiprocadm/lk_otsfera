@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { rewindCursor, triggerSync, type SyncControlQueueProvider } from '@/lib/services/admin/syncControl';
+import { rewindCursor, triggerSync, setSchedulePaused, type SyncControlQueueProvider } from '@/lib/services/admin/syncControl';
 
 function txPrisma(existingCursor: string | null) {
   const findUnique = vi.fn().mockResolvedValue(existingCursor === undefined ? null : { cursor: existingCursor });
@@ -107,5 +107,47 @@ describe('triggerSync', () => {
       add: vi.fn(), upsertJobScheduler: vi.fn(), removeJobScheduler: vi.fn(),
     }) as never;
     expect(await triggerSync(prisma, 'u1', 'order', provider)).toEqual({ ok: false, error: 'queue_unavailable' });
+  });
+});
+
+function pausePrisma() {
+  const upsert = vi.fn().mockResolvedValue({});
+  const deleteMany = vi.fn().mockResolvedValue({ count: 1 });
+  const create = vi.fn().mockResolvedValue({});
+  const prisma = { syncSchedulePause: { upsert, deleteMany }, auditLog: { create } } as never;
+  return { prisma, upsert, deleteMany, create };
+}
+
+describe('setSchedulePaused', () => {
+  it('rejects an unknown schedulerId', async () => {
+    const { prisma } = pausePrisma();
+    const provider: SyncControlQueueProvider = () => ({ getJobCounts: vi.fn(), add: vi.fn(), upsertJobScheduler: vi.fn(), removeJobScheduler: vi.fn() }) as never;
+    expect(await setSchedulePaused(prisma, 'u1', 'bogus.cron', true, provider)).toEqual({ ok: false, error: 'unknown_schedule' });
+  });
+
+  it('pause: writes DB row then removes the live scheduler', async () => {
+    const { prisma, upsert } = pausePrisma();
+    const removeJobScheduler = vi.fn().mockResolvedValue(true);
+    const provider: SyncControlQueueProvider = () => ({ getJobCounts: vi.fn(), add: vi.fn(), upsertJobScheduler: vi.fn(), removeJobScheduler }) as never;
+    const res = await setSchedulePaused(prisma, 'u1', 'oneCSync.pullOrders.cron', true, provider);
+    expect(res).toEqual({ ok: true, paused: true });
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ where: { schedulerId: 'oneCSync.pullOrders.cron' } }));
+    expect(removeJobScheduler).toHaveBeenCalledWith('oneCSync.pullOrders.cron');
+  });
+
+  it('resume: deletes DB row then re-registers the scheduler', async () => {
+    const { prisma, deleteMany } = pausePrisma();
+    const upsertJobScheduler = vi.fn().mockResolvedValue({ id: 'x' });
+    const provider: SyncControlQueueProvider = () => ({ getJobCounts: vi.fn(), add: vi.fn(), upsertJobScheduler, removeJobScheduler: vi.fn() }) as never;
+    const res = await setSchedulePaused(prisma, 'u1', 'oneCSync.pullOrders.cron', false, provider);
+    expect(res).toEqual({ ok: true, paused: false });
+    expect(deleteMany).toHaveBeenCalledWith({ where: { schedulerId: 'oneCSync.pullOrders.cron' } });
+    expect(upsertJobScheduler).toHaveBeenCalledWith('oneCSync.pullOrders.cron', expect.objectContaining({ tz: 'Europe/Moscow' }), expect.anything());
+  });
+
+  it('returns queue_unavailable when the scheduler op throws (DB intent kept)', async () => {
+    const { prisma } = pausePrisma();
+    const provider: SyncControlQueueProvider = () => ({ getJobCounts: vi.fn(), add: vi.fn(), upsertJobScheduler: vi.fn(), removeJobScheduler: vi.fn().mockRejectedValue(new Error('redis down')) }) as never;
+    expect(await setSchedulePaused(prisma, 'u1', 'oneCSync.pullOrders.cron', true, provider)).toEqual({ ok: false, error: 'queue_unavailable' });
   });
 });
