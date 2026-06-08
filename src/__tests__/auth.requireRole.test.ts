@@ -9,14 +9,15 @@ vi.mock('@/lib/auth/session', () => ({ getSession }));
 
 vi.mock('next/navigation', () => ({ redirect }));
 
-import { requireSession, requireAdmin, requirePartnerAdmin } from '@/lib/auth/requireRole';
+import { requireSession, requireAdmin, requirePartnerAdmin, requirePartner } from '@/lib/auth/requireRole';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const ADMIN_SESSION: SessionPayload = { sub: 'user-admin', role: 'admin' };
-const PARTNER_ADMIN_SESSION: SessionPayload = { sub: 'user-partner', role: 'partner', partnerRole: 'admin' };
-const PARTNER_MANAGER_SESSION: SessionPayload = { sub: 'user-pm', role: 'partner', partnerRole: 'manager' };
+const PARTNER_ADMIN_SESSION: SessionPayload = { sub: 'user-partner', role: 'partner', partnerId: 'p-1', partnerRole: 'admin' };
+const PARTNER_MANAGER_SESSION: SessionPayload = { sub: 'user-pm', role: 'partner', partnerId: 'p-1', partnerRole: 'manager' };
 const MANAGER_SESSION: SessionPayload = { sub: 'user-mgr', role: 'manager' };
 const ORG_SESSION: SessionPayload = { sub: 'user-org', role: 'organization' };
+const PARTNER_NO_ID_SESSION: SessionPayload = { sub: 'user-p2', role: 'partner', partnerId: null };
 
 describe('requireSession', () => {
   beforeEach(() => {
@@ -131,6 +132,62 @@ describe('requirePartnerAdmin', () => {
     redirect.mockImplementation(() => { throw new Error('NEXT_REDIRECT'); });
 
     await expect(requirePartnerAdmin()).rejects.toThrow('NEXT_REDIRECT');
+    expect(redirect).toHaveBeenCalledWith('/login');
+  });
+});
+
+describe('requirePartner', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('returns session for role=partner + partnerRole=admin', async () => {
+    getSession.mockResolvedValue(PARTNER_ADMIN_SESSION);
+
+    const result = await requirePartner();
+
+    expect(result).toEqual(PARTNER_ADMIN_SESSION);
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('returns session for role=partner + partnerRole=manager (любой активный partner)', async () => {
+    getSession.mockResolvedValue(PARTNER_MANAGER_SESSION);
+
+    const result = await requirePartner();
+
+    expect(result).toEqual(PARTNER_MANAGER_SESSION);
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('redirects to /forbidden for partner without partnerId', async () => {
+    getSession.mockResolvedValue(PARTNER_NO_ID_SESSION);
+    redirect.mockImplementation(() => { throw new Error('NEXT_REDIRECT'); });
+
+    await expect(requirePartner()).rejects.toThrow('NEXT_REDIRECT');
+    expect(redirect).toHaveBeenCalledWith('/forbidden');
+  });
+
+  it('redirects to /forbidden for non-partner role (manager)', async () => {
+    getSession.mockResolvedValue(MANAGER_SESSION);
+    redirect.mockImplementation(() => { throw new Error('NEXT_REDIRECT'); });
+
+    await expect(requirePartner()).rejects.toThrow('NEXT_REDIRECT');
+    expect(redirect).toHaveBeenCalledWith('/forbidden');
+  });
+
+  it('redirects to /forbidden for non-partner role (organization)', async () => {
+    getSession.mockResolvedValue(ORG_SESSION);
+    redirect.mockImplementation(() => { throw new Error('NEXT_REDIRECT'); });
+
+    await expect(requirePartner()).rejects.toThrow('NEXT_REDIRECT');
+    expect(redirect).toHaveBeenCalledWith('/forbidden');
+  });
+
+  it('calls redirect(\'/login\') when session is null', async () => {
+    getSession.mockResolvedValue(null);
+    redirect.mockImplementation(() => { throw new Error('NEXT_REDIRECT'); });
+
+    await expect(requirePartner()).rejects.toThrow('NEXT_REDIRECT');
     expect(redirect).toHaveBeenCalledWith('/login');
   });
 });
