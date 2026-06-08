@@ -186,7 +186,9 @@
 
 **Порядок:** P1 (3 точечных низкориска, дают видимый эффект и убирают UX-баг) → P2 (выравнивание идиом/флагов) → P3 (навигация org — самое крупное, отдельным планом).
 
-**Статус:** P1 (строки 1–3) ✅ отгружен 2026-06-07 — Task 1 `5e67bb2`, Task 2 `db6f2ed`, Task 3 `c07996a` (план [role-consistency-p1](../plans/2026-06-07-role-consistency-p1.md), close-out [-DONE](../plans/2026-06-07-role-consistency-p1-DONE.md)). P2/P3 остаются открытыми.
+**Статус:** P1 (строки 1–3) ✅ отгружен 2026-06-07 — Task 1 `5e67bb2`, Task 2 `db6f2ed`, Task 3 `c07996a` (план [role-consistency-p1](../plans/2026-06-07-role-consistency-p1.md), close-out [-DONE](../plans/2026-06-07-role-consistency-p1-DONE.md)). P2 (строки 4–5) — план [role-consistency-p2](../plans/2026-06-08-role-consistency-p2.md).
+
+> **Поправка к оси 5 (2026-06-08):** при подготовке P2-плана выяснилось, что рекомендация «выровнять manager/partner/org messages под единый флаг `chat`» опирается на неполную модель. `/messages` несёт ДВА домена: order-comments (ungated, есть у manager/admin) и team-chat (флаг `chat`). У partner/org `/messages` — чат-only (корректно hard-gated по `chat` во всех 3 точках §5). Менеджерский нельзя гейтить через `chat` (скроет комментарии). Поэтому ось 5 в P2 сведена к **документации** (внести `chat` в CLAUDE.md §5 + матрица), без правок флагов. Админский graceful-режим — узаконенное internal-исключение.
 
 ---
 
