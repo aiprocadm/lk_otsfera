@@ -177,3 +177,99 @@ describe('organization dashboard service — recentEvents', () => {
     expect(evts.some((e) => e.orderId === otherOrder.id)).toBe(false);
   });
 });
+
+describe('organization dashboard service — channel-isolation leak regression', () => {
+  // The critical invariant: a partner-channel document on the org's OWN order
+  // must NOT appear in org dashboard kpis or recentEvents. An unscoped
+  // `order: { organizationId }` query would include it; the channel filter must not.
+  it('partner-channel doc on org order is excluded from kpis.recentDocumentsCount', async () => {
+    const order = await prisma.order.create({
+      data: {
+        title: 'leak-test-order', companyId, partnerId, organizationId: orgAId,
+        executionStatus: 'in_progress'
+      }
+    });
+    // Partner-channel document — on the org's own order, counterparty = partner
+    await prisma.document.create({
+      data: {
+        name: 'commission_statement.pdf',
+        path: 'fake://partner-channel-doc',
+        mimeType: 'application/pdf',
+        orderId: order.id,
+        counterpartyType: 'partner',
+        counterpartyId: partnerId
+      }
+    });
+    // Org-channel document — should be counted
+    await prisma.document.create({
+      data: {
+        name: 'org_channel_doc.pdf',
+        path: 'fake://org-channel-doc',
+        mimeType: 'application/pdf',
+        orderId: order.id,
+        counterpartyType: 'organization',
+        counterpartyId: orgAId
+      }
+    });
+
+    // Sanity: the partner doc IS on this order — an unscoped query would see it
+    const partnerChannelCount = await prisma.document.count({
+      where: { orderId: order.id, counterpartyType: 'partner', counterpartyId: partnerId, scanStatus: { not: 'infected' } }
+    });
+    expect(partnerChannelCount).toBeGreaterThanOrEqual(1);
+
+    // Capture kpis WITH the partner-channel doc present
+    const kWithPartner = await kpis(prisma, orgAId);
+    const countWithPartner = kWithPartner.recentDocumentsCount;
+
+    // Delete the partner-channel doc and re-count — result must be the same
+    // (proves the partner doc was never counted in the org dashboard)
+    await prisma.document.deleteMany({
+      where: { orderId: order.id, counterpartyType: 'partner', counterpartyId: partnerId }
+    });
+    const kWithoutPartner = await kpis(prisma, orgAId);
+    expect(kWithoutPartner.recentDocumentsCount).toBe(countWithPartner);
+
+    // The org-channel doc must still be counted (count > 0)
+    expect(countWithPartner).toBeGreaterThanOrEqual(1);
+  });
+
+  it('partner-channel doc on org order does NOT appear in recentEvents document feed', async () => {
+    const order = await prisma.order.create({
+      data: {
+        title: 'leak-events-order', companyId, partnerId, organizationId: orgAId,
+        executionStatus: 'in_progress'
+      }
+    });
+    // Partner-channel document — on the org's own order
+    const partnerDoc = await prisma.document.create({
+      data: {
+        name: 'partner_reverse_upload.pdf',
+        path: 'fake://partner-events-leak',
+        mimeType: 'application/pdf',
+        orderId: order.id,
+        counterpartyType: 'partner',
+        counterpartyId: partnerId
+      }
+    });
+    // Org-channel document — must appear
+    const orgDoc = await prisma.document.create({
+      data: {
+        name: 'org_visible_doc.pdf',
+        path: 'fake://org-events-visible',
+        mimeType: 'application/pdf',
+        orderId: order.id,
+        counterpartyType: 'organization',
+        counterpartyId: orgAId
+      }
+    });
+
+    const evts = await recentEvents(prisma, orgAId, 100);
+    const docEventIds = evts.filter((e) => e.kind === 'document_published').map((e) => e.id);
+
+    // The org-channel doc MUST appear in the feed
+    expect(docEventIds.some((id) => id === `doc-${orgDoc.id}`)).toBe(true);
+    // The partner-channel doc must NOT appear — even though it is on the same order
+    expect(docEventIds.some((id) => id === `doc-${partnerDoc.id}`)).toBe(false);
+  });
+});

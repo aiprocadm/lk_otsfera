@@ -10,7 +10,8 @@ const {
   canReadDocument,
   upload,
   createSignedUrl,
-  enqueueAdd
+  enqueueAdd,
+  docFindMany
 } = vi.hoisted(() => ({
   getSession: vi.fn(),
   findUnique: vi.fn(),
@@ -21,7 +22,8 @@ const {
   canReadDocument: vi.fn(),
   upload: vi.fn(),
   createSignedUrl: vi.fn(),
-  enqueueAdd: vi.fn()
+  enqueueAdd: vi.fn(),
+  docFindMany: vi.fn()
 }));
 
 vi.mock('@/lib/auth/session', () => ({ getSession }));
@@ -29,7 +31,7 @@ vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     order: { findUnique },
     organization: { findFirst: orgFindFirst },
-    document: { create, findUnique: vi.fn() },
+    document: { create, findUnique: vi.fn(), findMany: docFindMany },
     auditLog: { create: auditCreate }
   }
 }));
@@ -49,6 +51,7 @@ vi.mock('@/lib/jobs/queues', () => ({
   QUEUE_NAMES: ['docs.scanDocument']
 }));
 
+import { GET as listGet } from '@/app/api/documents/route';
 import { POST as uploadPost } from '@/app/api/documents/upload/route';
 import { POST as downloadPost } from '@/app/api/documents/[id]/download/route';
 
@@ -163,5 +166,42 @@ describe('documents guards', () => {
     );
     expect(res.status).toBe(200);
     expect(createSignedUrl).toHaveBeenCalled();
+  });
+});
+
+describe('GET /api/documents list — channel-isolation role restriction', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    docFindMany.mockResolvedValue([]);
+  });
+
+  it('returns 403 for organization role (must use channel-scoped service layer)', async () => {
+    getSession.mockResolvedValue({ role: 'organization', sub: 'u1', organizationId: 'org1' });
+    const res = await listGet();
+    expect(res.status).toBe(403);
+    expect(docFindMany).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 for partner role (must use channel-scoped service layer)', async () => {
+    getSession.mockResolvedValue({ role: 'partner', sub: 'u1', partnerId: 'p1' });
+    const res = await listGet();
+    expect(res.status).toBe(403);
+    expect(docFindMany).not.toHaveBeenCalled();
+  });
+
+  it('returns 200 for admin role and calls findMany', async () => {
+    getSession.mockResolvedValue({ role: 'admin', sub: 'admin1' });
+    docFindMany.mockResolvedValue([{ id: 'd1', name: 'f.pdf', mimeType: 'application/pdf', createdAt: new Date(), orderId: 'ord1' }]);
+    const res = await listGet();
+    expect(res.status).toBe(200);
+    expect(docFindMany).toHaveBeenCalled();
+  });
+
+  it('returns 200 for manager role and calls findMany', async () => {
+    getSession.mockResolvedValue({ role: 'manager', sub: 'mgr1' });
+    docFindMany.mockResolvedValue([]);
+    const res = await listGet();
+    expect(res.status).toBe(200);
+    expect(docFindMany).toHaveBeenCalled();
   });
 });
