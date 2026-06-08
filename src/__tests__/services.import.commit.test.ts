@@ -207,7 +207,7 @@ describe('commitImport — transactional commit + audit', () => {
     expect(result.skipped.payments.length).toBeGreaterThan(0);
 
     // Verify NOTHING was written for the out-of-scope org
-    const orgAfter = await prisma.organization.findUnique({ where: { inn: OTHER_ORG_INN } });
+    const orgAfter = await prisma.organization.findUnique({ where: { id: otherOrgId } });
     // Org should still exist (we created it in setup) but its name must NOT be 'Sneaky update'
     expect(orgAfter).not.toBeNull();
     expect(orgAfter!.name).not.toBe('Sneaky update');

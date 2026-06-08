@@ -1,4 +1,4 @@
-import type { ImportPlan, OrgFileRow, OrderFileRow, PaymentFileRow } from './types';
+import type { ImportPlan, OrgFileRow, OrderFileRow, PaymentFileRow, Quarantine } from './types';
 import type { ImportScope as Scope } from './scope';
 
 type Lookups = { orgIdByInn: Map<string, string>; partnerIdByInn: Map<string, string> };
@@ -10,7 +10,7 @@ const ORG_NOT_FOUND = 'организация не найдена (ИНН не �
 
 export function planImport(rows: Rows, lookups: Lookups, scope: Scope): ImportPlan {
   const counts = { orgsCreated: 0, orgsUpdated: 0, orgsStandalone: 0, ordersUpserted: 0, paymentsUpserted: 0 };
-  const skipped = { orgs: [] as any[], orders: [] as any[], payments: [] as any[] };
+  const skipped = { orgs: [] as Quarantine[], orders: [] as Quarantine[], payments: [] as Quarantine[] };
 
   // Orgs that this import will make writable (existing-in-scope ∪ newly-created)
   const writableInn = new Set<string>();

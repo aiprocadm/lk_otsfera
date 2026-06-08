@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { it, expect } from 'vitest';
 import { mapPaymentRow } from '@/lib/services/import/payment-mapper';
 
 it('maps a payment file row to an org-level upsert input', () => {
