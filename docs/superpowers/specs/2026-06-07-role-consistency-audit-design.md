@@ -181,12 +181,12 @@
 | 3 | **P1 ✅** | 4 | Model A: убрать мёртвые двери admin, узаконить правило (после подтверждения §5.1) | S · low |
 | 4 | **P2** | 5 | Выровнять флаг messages + внести `chat` в CLAUDE.md §5 (проверить 3 точки) | S · low |
 | 5 | **P2** | 3 | Канонизация `require*`-идиомы; partner `getSession`→`requirePartnerAdmin` | S–M · low |
-| 6 | **P3** | 2 | Унификация навигации org → единый источник `navByRole` | M · medium |
+| 6 | **P3 ✅** | 2 | Унификация навигации org → единый источник `navByRole` (8-пунктовый канон; OrgSidebar через `items`-проп от server-шелла) | M · medium |
 | — | Open | C-a | Продуктовое решение по manager finance-вью (не код) | — |
 
 **Порядок:** P1 (3 точечных низкориска, дают видимый эффект и убирают UX-баг) → P2 (выравнивание идиом/флагов) → P3 (навигация org — самое крупное, отдельным планом).
 
-**Статус:** P1 (строки 1–3) ✅ отгружен 2026-06-07 — Task 1 `5e67bb2`, Task 2 `db6f2ed`, Task 3 `c07996a` (план [role-consistency-p1](../plans/2026-06-07-role-consistency-p1.md), close-out [-DONE](../plans/2026-06-07-role-consistency-p1-DONE.md)). P2/P3 остаются открытыми.
+**Статус:** P1 (строки 1–3) ✅ отгружен 2026-06-07 — Task 1 `5e67bb2`, Task 2 `db6f2ed`, Task 3 `c07996a` (план [role-consistency-p1](../plans/2026-06-07-role-consistency-p1.md), close-out [-DONE](../plans/2026-06-07-role-consistency-p1-DONE.md)). P2 (строки 4–5) — в PR #102 (ветка `claude/role-consistency-p2`). **P3 (строка 6) ✅ отгружен 2026-06-08** — Task 1 `29c7a13`, Task 2 `ff0ba0d` (план [role-consistency-p3](../plans/2026-06-08-role-consistency-p3.md), close-out [-DONE](../plans/2026-06-08-role-consistency-p3-DONE.md)). **Аудит-бэклог по коду закрыт** — остаётся только Open C-a (manager finance-вью, продуктовое, не код).
 
 ---
 
