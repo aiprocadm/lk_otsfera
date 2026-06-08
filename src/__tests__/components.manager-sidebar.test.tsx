@@ -31,14 +31,15 @@ import { usePathname } from 'next/navigation';
 import { ManagerSidebar } from '@/components/manager/manager-sidebar';
 
 describe('ManagerSidebar', () => {
-  it('renders 6 nav links', () => {
+  it('renders 7 nav links including Загрузка из 1С', () => {
     vi.mocked(usePathname).mockReturnValue('/manager/dashboard');
     const html = renderToString(React.createElement(ManagerSidebar));
     const matches = html.match(/data-testid="manager-nav-/g);
-    expect(matches).toHaveLength(6);
+    expect(matches).toHaveLength(7);
     expect(html).toContain('href="/manager/dashboard"');
     expect(html).toContain('href="/manager/orders"');
     expect(html).toContain('href="/manager/organizations"');
+    expect(html).toContain('href="/manager/import"');
     expect(html).toContain('href="/manager/documents"');
     expect(html).toContain('href="/manager/students"');
     expect(html).toContain('href="/manager/messages"');

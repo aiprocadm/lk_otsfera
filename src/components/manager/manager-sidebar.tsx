@@ -10,6 +10,7 @@ const ITEMS: NavItem[] = [
   { href: '/manager/dashboard', label: 'Главная', icon: '⌂' },
   { href: '/manager/orders', label: 'Заказы', icon: '📋' },
   { href: '/manager/organizations', label: 'Организации', icon: '🏢' },
+  { href: '/manager/import', label: 'Загрузка из 1С', icon: '📥' },
   { href: '/manager/documents', label: 'Документы', icon: '📄' },
   { href: '/manager/students', label: 'Сотрудники', icon: '👥' },
   { href: '/manager/messages', label: 'Сообщения', icon: '💬' }

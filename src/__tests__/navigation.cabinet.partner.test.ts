@@ -146,6 +146,24 @@ describe('navItemsFor — partnerAdminOnly гейтинг (/partner/team)', () =
   });
 });
 
+describe('navByRole.manager — Загрузка из 1С item', () => {
+  it('содержит пункт /manager/import с флагом manager_cabinet', () => {
+    const item = navByRole.manager.find((i) => i.href === '/manager/import');
+    expect(item).toBeDefined();
+    expect(item!.label).toBe('Загрузка из 1С');
+    expect(item!.flag).toBe('manager_cabinet');
+  });
+
+  it('пункт /manager/import стоит после Организации и до Документы', () => {
+    const hrefs = navByRole.manager.map((i) => i.href);
+    const orgIdx = hrefs.indexOf('/manager/organizations');
+    const importIdx = hrefs.indexOf('/manager/import');
+    const docsIdx = hrefs.indexOf('/manager/documents');
+    expect(importIdx).toBeGreaterThan(orgIdx);
+    expect(importIdx).toBeLessThan(docsIdx);
+  });
+});
+
 describe('navByRole.organization — единый источник (канон 8 пунктов)', () => {
   it('содержит 6 базовых пунктов + Сообщения + Кабинет слушателя', () => {
     const hrefs = navByRole.organization.map((i) => i.href);
