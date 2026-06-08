@@ -9,6 +9,7 @@ import { DealAmounts } from '@/components/partner/deal-amounts';
 import { DealTimeline } from '@/components/partner/deal-timeline';
 import { DealComments } from '@/components/partner/deal-comments';
 import { DocumentsList } from '@/components/partner/documents-list';
+import { PartnerDocumentUploadForm } from '@/components/partner/partner-document-upload-form';
 
 export default async function PartnerDealDetailPage({
   params
@@ -52,6 +53,7 @@ export default async function PartnerDealDetailPage({
               )}
             </h2>
             <DocumentsList rows={deal.documents} />
+            <PartnerDocumentUploadForm orderId={id} />
           </div>
 
           <DealComments comments={deal.comments} orderId={deal.id} />

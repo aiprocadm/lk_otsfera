@@ -56,6 +56,11 @@ enum DocumentDirection {
   outgoing
 }
 
+enum CounterpartyType {
+  organization
+  partner
+}
+
 enum GenerationSource {
   user
   system
@@ -471,6 +476,8 @@ model Document {
   externalId         String?           @unique
   orderId            String
   order              Order             @relation(fields: [orderId], references: [id])
+  counterpartyType   CounterpartyType
+  counterpartyId     String
   uploadedById       String?
   uploadedBy         User?             @relation(fields: [uploadedById], references: [id])
   scanStatus         String            @default("pending")
@@ -478,6 +485,7 @@ model Document {
   scannedAt          DateTime?
 
   @@index([orderId, type])
+  @@index([counterpartyType, counterpartyId])
   @@index([type, createdAt])
   @@index([externalId])
   @@index([scanStatus])

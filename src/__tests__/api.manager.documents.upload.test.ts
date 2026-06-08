@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   getSession,
-  createOrderDocumentMock,
+  createCounterpartyDocumentMock,
   redirectMock
 } = vi.hoisted(() => ({
   getSession: vi.fn(),
-  createOrderDocumentMock: vi.fn(),
+  createCounterpartyDocumentMock: vi.fn(),
   redirectMock: vi.fn(() => {
     throw new Error('REDIRECT');
   })
@@ -21,7 +21,7 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/services/manager/uploads', () => ({
-  createOrderDocument: createOrderDocumentMock
+  createCounterpartyDocument: createCounterpartyDocumentMock
 }));
 
 import { POST as uploadPost } from '@/app/api/manager/documents/[id]/upload/route';
@@ -35,12 +35,13 @@ function managerSession(opts: { sub?: string; managedOrgIds?: string[] } = {}) {
   };
 }
 
-function buildReq(opts: { file?: File | null; docType?: string }) {
+function buildReq(opts: { file?: File | null; docType?: string; recipient?: string }) {
   const fd = new FormData();
   if (opts.file !== null && opts.file !== undefined) {
     fd.set('file', opts.file);
   }
   if (opts.docType !== undefined) fd.set('docType', opts.docType);
+  if (opts.recipient !== undefined) fd.set('recipient', opts.recipient);
   return new Request('https://app.local/api/manager/documents/ord-1/upload', {
     method: 'POST',
     body: fd
@@ -82,15 +83,16 @@ describe('POST /api/manager/documents/[id]/upload', () => {
     expect(res.status).toBe(400);
     const body = (await res.json()) as { ok: boolean; error: string };
     expect(body).toEqual({ ok: false, error: 'no_file' });
-    expect(createOrderDocumentMock).not.toHaveBeenCalled();
+    expect(createCounterpartyDocumentMock).not.toHaveBeenCalled();
   });
 
-  it('returns 201 with documentId on success', async () => {
-    createOrderDocumentMock.mockResolvedValue({ ok: true, documentId: 'doc-1' });
+  it('returns 201 with documentId on success and forwards recipient', async () => {
+    createCounterpartyDocumentMock.mockResolvedValue({ ok: true, documentId: 'doc-1' });
     const res = await uploadPost(
       buildReq({
         file: new File(['x'], 'a.pdf', { type: 'application/pdf' }),
-        docType: 'invoice'
+        docType: 'invoice',
+        recipient: 'organization'
       }) as never,
       paramsP
     );
@@ -98,28 +100,44 @@ describe('POST /api/manager/documents/[id]/upload', () => {
     const body = (await res.json()) as { ok: boolean; documentId: string };
     expect(body).toEqual({ ok: true, documentId: 'doc-1' });
 
-    // Inspect the service args: file metadata threaded through correctly.
-    expect(createOrderDocumentMock).toHaveBeenCalledTimes(1);
-    const [, , args] = createOrderDocumentMock.mock.calls[0]!;
+    // Inspect the service args: file metadata and recipient threaded through correctly.
+    expect(createCounterpartyDocumentMock).toHaveBeenCalledTimes(1);
+    const [, , args] = createCounterpartyDocumentMock.mock.calls[0]!;
     expect(args).toMatchObject({
       orderId: 'ord-1',
       docType: 'invoice',
+      recipient: 'organization',
       file: { name: 'a.pdf', mimeType: 'application/pdf' }
     });
   });
 
-  it('defaults docType to "other" when omitted', async () => {
-    createOrderDocumentMock.mockResolvedValue({ ok: true, documentId: 'doc-2' });
+  it('defaults docType to "other" and recipient to "organization" when omitted', async () => {
+    createCounterpartyDocumentMock.mockResolvedValue({ ok: true, documentId: 'doc-2' });
     await uploadPost(
       buildReq({ file: new File(['x'], 'a.pdf', { type: 'application/pdf' }) }) as never,
       paramsP
     );
-    const [, , args] = createOrderDocumentMock.mock.calls[0]!;
+    const [, , args] = createCounterpartyDocumentMock.mock.calls[0]!;
     expect(args.docType).toBe('other');
+    expect(args.recipient).toBe('organization');
+  });
+
+  it('forwards recipient=partner to the service', async () => {
+    createCounterpartyDocumentMock.mockResolvedValue({ ok: true, documentId: 'doc-3' });
+    await uploadPost(
+      buildReq({
+        file: new File(['x'], 'stmt.pdf', { type: 'application/pdf' }),
+        docType: 'commission_statement',
+        recipient: 'partner'
+      }) as never,
+      paramsP
+    );
+    const [, , args] = createCounterpartyDocumentMock.mock.calls[0]!;
+    expect(args.recipient).toBe('partner');
   });
 
   it('returns 403 for forbidden order', async () => {
-    createOrderDocumentMock.mockResolvedValue({ ok: false, error: 'forbidden' });
+    createCounterpartyDocumentMock.mockResolvedValue({ ok: false, error: 'forbidden' });
     const res = await uploadPost(
       buildReq({ file: new File(['x'], 'a.pdf', { type: 'application/pdf' }) }) as never,
       paramsP
@@ -130,7 +148,7 @@ describe('POST /api/manager/documents/[id]/upload', () => {
   });
 
   it('returns 404 for missing order', async () => {
-    createOrderDocumentMock.mockResolvedValue({ ok: false, error: 'not_found' });
+    createCounterpartyDocumentMock.mockResolvedValue({ ok: false, error: 'not_found' });
     const res = await uploadPost(
       buildReq({ file: new File(['x'], 'a.pdf', { type: 'application/pdf' }) }) as never,
       paramsP
@@ -141,7 +159,7 @@ describe('POST /api/manager/documents/[id]/upload', () => {
   });
 
   it('returns 413 for oversized file', async () => {
-    createOrderDocumentMock.mockResolvedValue({ ok: false, error: 'too_large' });
+    createCounterpartyDocumentMock.mockResolvedValue({ ok: false, error: 'too_large' });
     const res = await uploadPost(
       buildReq({ file: new File(['x'], 'big.pdf', { type: 'application/pdf' }) }) as never,
       paramsP
@@ -152,7 +170,7 @@ describe('POST /api/manager/documents/[id]/upload', () => {
   });
 
   it('returns 415 for unsupported MIME type', async () => {
-    createOrderDocumentMock.mockResolvedValue({ ok: false, error: 'invalid_mime' });
+    createCounterpartyDocumentMock.mockResolvedValue({ ok: false, error: 'invalid_mime' });
     const res = await uploadPost(
       buildReq({
         file: new File(['x'], 'virus.exe', { type: 'application/x-msdownload' })
@@ -165,7 +183,7 @@ describe('POST /api/manager/documents/[id]/upload', () => {
   });
 
   it('returns 500 when storage upload fails', async () => {
-    createOrderDocumentMock.mockResolvedValue({ ok: false, error: 'storage' });
+    createCounterpartyDocumentMock.mockResolvedValue({ ok: false, error: 'storage' });
     const res = await uploadPost(
       buildReq({ file: new File(['x'], 'a.pdf', { type: 'application/pdf' }) }) as never,
       paramsP
@@ -173,5 +191,19 @@ describe('POST /api/manager/documents/[id]/upload', () => {
     expect(res.status).toBe(500);
     const body = (await res.json()) as { ok: boolean; error: string };
     expect(body).toEqual({ ok: false, error: 'storage' });
+  });
+
+  it('returns 400 for invalid_recipient (order has no partner)', async () => {
+    createCounterpartyDocumentMock.mockResolvedValue({ ok: false, error: 'invalid_recipient' });
+    const res = await uploadPost(
+      buildReq({
+        file: new File(['x'], 'stmt.pdf', { type: 'application/pdf' }),
+        recipient: 'partner'
+      }) as never,
+      paramsP
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { ok: boolean; error: string };
+    expect(body).toEqual({ ok: false, error: 'invalid_recipient' });
   });
 });

@@ -3,24 +3,22 @@ import { prisma } from '@/lib/db/prisma';
 import { requireRole, requireSession } from '@/lib/auth/guard';
 import { hideInfectedForSession } from '@/lib/services/scan/visibility';
 
+// This endpoint is consumed exclusively by the admin panel (DocumentsPanel).
+// organization and partner roles are excluded: they must use channel-scoped service
+// layer reads (organizationChannelWhere / partnerChannelWhere) so that cross-channel
+// document metadata cannot leak via a direct authenticated GET.
 export async function GET() {
   const sessionResult = await requireSession();
   if (!sessionResult.ok) return sessionResult.response;
   const s = sessionResult.value;
 
-  const roleResult = requireRole(s, ['admin', 'organization', 'partner', 'manager']);
+  const roleResult = requireRole(s, ['admin', 'manager']);
   if (!roleResult.ok) return roleResult.response;
 
   const accessWhere =
     s.role === 'admin'
       ? {}
-      : s.role === 'organization' && s.organizationId
-        ? { order: { company: { organizations: { some: { id: s.organizationId } } } } }
-        : s.role === 'partner' && s.partnerId
-          ? { order: { company: { organizations: { some: { partnerId: s.partnerId } } } } }
-          : s.role === 'manager'
-            ? { order: { company: { organizations: { some: { organizationUsers: { some: { userId: s.sub, isActive: true } } } } } } }
-            : { order: { company: { organizations: { some: { organizationUsers: { some: { userId: s.sub, isActive: true } } } } } } };
+      : { order: { company: { organizations: { some: { organizationUsers: { some: { userId: s.sub, isActive: true } } } } } } };
 
   const docs = await prisma.document.findMany({
     where: { ...accessWhere, ...hideInfectedForSession(s) },

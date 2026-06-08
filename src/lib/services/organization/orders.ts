@@ -6,6 +6,7 @@ import type {
   DocumentDirection
 } from '@prisma/client';
 import { humanStage, type Stage } from '@/lib/orders/humanStage';
+import { organizationChannelWhere } from '@/lib/auth/documentChannelPolicy';
 
 export type OrgOrderRow = {
   id: string;
@@ -174,7 +175,7 @@ export async function getOrgOrder(
     include: {
       manager: { select: { name: true } },
       documents: {
-        where: { scanStatus: { not: 'infected' } },
+        where: organizationChannelWhere(organizationId),
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,

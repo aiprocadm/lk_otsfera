@@ -101,6 +101,10 @@ export function DocumentsList({
                 <span>{fmtDate(doc.createdAt)}</span>
                 <span aria-hidden>·</span>
                 <span>{fmtSize(doc.size)}</span>
+                <span aria-hidden>·</span>
+                <span className={doc.direction === 'incoming' ? 'text-blue-700' : 'text-gray-500'}>
+                  {doc.direction === 'incoming' ? 'Входящий' : 'Исходящий'}
+                </span>
                 {doc.signedAt && (
                   <>
                     <span aria-hidden>·</span>

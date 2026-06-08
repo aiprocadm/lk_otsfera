@@ -147,7 +147,9 @@ beforeAll(async () => {
       path: 'fake://contract-a',
       mimeType: 'application/pdf',
       type: 'contract',
-      orderId: orderOrgAId
+      orderId: orderOrgAId,
+      counterpartyType: 'organization',
+      counterpartyId: orgAId
     }
   });
   docOrgAContractId = dA.id;
@@ -160,7 +162,9 @@ beforeAll(async () => {
       type: 'other',
       orderId: orderOrgAId,
       scanStatus: 'infected',
-      scanReason: 'EICAR test'
+      scanReason: 'EICAR test',
+      counterpartyType: 'organization',
+      counterpartyId: orgAId
     }
   });
   docOrgAInfectedId = dAInf.id;
@@ -171,7 +175,9 @@ beforeAll(async () => {
       path: 'fake://invoice-b',
       mimeType: 'application/pdf',
       type: 'invoice',
-      orderId: orderOrgBId
+      orderId: orderOrgBId,
+      counterpartyType: 'organization',
+      counterpartyId: orgBId
     }
   });
   docOrgBId = dB.id;
@@ -182,7 +188,9 @@ beforeAll(async () => {
       path: 'fake://act-mc',
       mimeType: 'application/pdf',
       type: 'act',
-      orderId: orderManagerCId
+      orderId: orderManagerCId,
+      counterpartyType: 'organization',
+      counterpartyId: orgBId
     }
   });
   docManagerCId = dMC.id;
@@ -193,7 +201,9 @@ beforeAll(async () => {
       path: 'fake://foreign',
       mimeType: 'application/pdf',
       type: 'other',
-      orderId: orderForeignId
+      orderId: orderForeignId,
+      counterpartyType: 'organization',
+      counterpartyId: orgAId
     }
   });
   docForeignId = dF.id;

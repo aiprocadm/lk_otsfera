@@ -109,7 +109,15 @@ export async function POST(req: Request) {
   }
 
   const doc = await prisma.document.create({
-    data: { orderId, name: file.name, path: internalPath, mimeType: file.type, uploadedById: s.sub }
+    data: {
+      orderId,
+      counterpartyType: 'organization',
+      counterpartyId: order.organizationId,
+      name: file.name,
+      path: internalPath,
+      mimeType: file.type,
+      uploadedById: s.sub
+    }
   });
 
   await recordAudit(prisma, {

@@ -1,5 +1,5 @@
 import type { PrismaClient, DocumentType, DocumentDirection } from '@prisma/client';
-import { INFECTED_HIDDEN_WHERE } from '@/lib/services/scan/visibility';
+import { partnerChannelWhere } from '@/lib/auth/documentChannelPolicy';
 
 export type OrgDocumentRow = {
   id: string;
@@ -39,15 +39,15 @@ export async function getOrgDocuments(
     return { rows: [], countsByType: {}, total: 0 };
   }
 
-  const orderFilter = { companyId: org.companyId, partnerId: filter.partnerId };
+  const docWhere = {
+    ...partnerChannelWhere(filter.partnerId),
+    order: { organizationId: filter.orgId },
+    ...(filter.type ? { type: filter.type } : {})
+  };
 
   const [docs, countsRaw] = await Promise.all([
     prisma.document.findMany({
-      where: {
-        order: orderFilter,
-        ...INFECTED_HIDDEN_WHERE,
-        ...(filter.type ? { type: filter.type } : {})
-      },
+      where: docWhere,
       orderBy: [{ createdAt: 'desc' }],
       take: 200,
       select: {
@@ -64,7 +64,10 @@ export async function getOrgDocuments(
     }),
     prisma.document.groupBy({
       by: ['type'],
-      where: { order: orderFilter, ...INFECTED_HIDDEN_WHERE },
+      where: {
+        ...partnerChannelWhere(filter.partnerId),
+        order: { organizationId: filter.orgId }
+      },
       _count: { _all: true }
     })
   ]);

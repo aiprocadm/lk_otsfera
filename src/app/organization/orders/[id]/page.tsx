@@ -10,6 +10,7 @@ import { OrgOrderTimeline } from '@/components/organization/org-order-timeline';
 import { OrgPaymentsList } from '@/components/organization/org-payments-list';
 import { DocumentsList } from '@/components/partner/documents-list';
 import { DealComments } from '@/components/partner/deal-comments';
+import { OrganizationDocumentUploadForm } from '@/components/organization/organization-document-upload-form';
 import type { DealCommentRow } from '@/lib/services/partner/dealDetail';
 import { getOrgOrder } from '@/lib/services/organization/orders';
 
@@ -87,6 +88,7 @@ export default async function OrganizationOrderDetailPage({
                   sp.org ? `?org=${encodeURIComponent(sp.org)}` : ''
                 }
               />
+              <OrganizationDocumentUploadForm organizationId={ctx.activeOrgId} orderId={order.id} />
             </div>
 
             <OrgPaymentsList payments={order.payments} />

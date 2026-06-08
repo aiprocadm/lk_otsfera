@@ -61,7 +61,7 @@ export async function syncDocumentsProcessor(
         } else {
           if (mode === 'live') {
             await db.document.create({
-              data: { ...updatable, externalId: input.externalId, orderId: order.id, direction: 'incoming', generatedBy: 'system' }
+              data: { ...updatable, externalId: input.externalId, orderId: order.id, direction: 'incoming', generatedBy: 'system', counterpartyType: 'organization', counterpartyId: order.organizationId }
             });
           }
           sum.created += 1;

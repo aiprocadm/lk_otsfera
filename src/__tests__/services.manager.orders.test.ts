@@ -161,7 +161,9 @@ beforeAll(async () => {
       path: 'fake://contract',
       mimeType: 'application/pdf',
       type: 'contract',
-      orderId: orderOrgAId
+      orderId: orderOrgAId,
+      counterpartyType: 'organization',
+      counterpartyId: orgAId
     }
   });
   await prisma.document.create({
@@ -171,7 +173,9 @@ beforeAll(async () => {
       mimeType: 'application/pdf',
       type: 'other',
       orderId: orderOrgAId,
-      scanStatus: 'infected'
+      scanStatus: 'infected',
+      counterpartyType: 'organization',
+      counterpartyId: orgAId
     }
   });
   await prisma.payment.create({

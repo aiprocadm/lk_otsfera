@@ -7,9 +7,14 @@ import { useRouter } from 'next/navigation';
  * Client-side multipart upload form for the manager-side order detail page.
  *
  * Mirrors the org-side upload UX from Phase 7: file picker + document-type
- * select, single submit button with pending state, inline error/success
- * messaging. POSTs to `/api/manager/documents/[id]/upload`. On success
- * we `router.refresh()` so the documents block re-renders from the server.
+ * select + recipient select, single submit button with pending state, inline
+ * error/success messaging. POSTs to `/api/manager/documents/[id]/upload`.
+ * On success we `router.refresh()` so the documents block re-renders from
+ * the server.
+ *
+ * The `recipient` select defaults to 'organization' for most document types,
+ * and auto-switches to 'partner' when the user picks 'commission_statement'
+ * (the primary partner-facing doc type). The user can always override.
  *
  * The type options mirror prisma/schema.prisma `enum DocumentType` 1:1; keep
  * this list in sync with the enum (same pattern as
@@ -35,7 +40,8 @@ const ERROR_LABEL_RU: Record<string, string> = {
   forbidden: 'Нет прав на загрузку для этого заказа.',
   not_found: 'Заказ не найден.',
   storage: 'Не удалось загрузить файл в хранилище. Попробуйте ещё раз.',
-  network: 'Сетевая ошибка. Проверьте соединение и попробуйте снова.'
+  network: 'Сетевая ошибка. Проверьте соединение и попробуйте снова.',
+  invalid_recipient: 'У заказа нет партнёра — получатель «партнёр» недоступен.'
 };
 
 type Props = {
@@ -46,9 +52,16 @@ export function ManagerDocUploadForm({ orderId }: Props) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [docType, setDocType] = useState<string>('other');
+  const [recipient, setRecipient] = useState<'organization' | 'partner'>('organization');
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // default recipient by document type: commission statements go to the partner
+  function onDocTypeChange(value: string) {
+    setDocType(value);
+    setRecipient(value === 'commission_statement' ? 'partner' : 'organization');
+  }
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -64,6 +77,7 @@ export function ManagerDocUploadForm({ orderId }: Props) {
     const formData = new FormData();
     formData.set('file', file);
     formData.set('docType', docType);
+    formData.set('recipient', recipient);
 
     setIsPending(true);
     try {
@@ -118,7 +132,7 @@ export function ManagerDocUploadForm({ orderId }: Props) {
           <span className='block text-xs text-gray-500 mb-1'>Тип документа</span>
           <select
             value={docType}
-            onChange={(e) => setDocType(e.target.value)}
+            onChange={(e) => onDocTypeChange(e.target.value)}
             disabled={isPending}
             className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:border-transparent disabled:opacity-50'
           >
@@ -127,6 +141,19 @@ export function ManagerDocUploadForm({ orderId }: Props) {
                 {opt.label}
               </option>
             ))}
+          </select>
+        </label>
+
+        <label className='text-sm text-gray-700'>
+          <span className='block text-xs text-gray-500 mb-1'>Получатель</span>
+          <select
+            value={recipient}
+            onChange={(e) => setRecipient(e.target.value as 'organization' | 'partner')}
+            disabled={isPending}
+            className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:border-transparent disabled:opacity-50'
+          >
+            <option value='organization'>Организация</option>
+            <option value='partner'>Партнёр</option>
           </select>
         </label>
 

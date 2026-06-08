@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { organizationChannelWhere } from '@/lib/auth/documentChannelPolicy';
 
 export type OrgDashboardKpis = {
   activeOrders: number;
@@ -57,9 +58,8 @@ export async function kpis(
     prisma.student.count({ where: { organizationId } }),
     prisma.document.count({
       where: {
-        order: { organizationId },
-        createdAt: { gte: since30 },
-        scanStatus: { not: 'infected' }
+        ...organizationChannelWhere(organizationId),
+        createdAt: { gte: since30 }
       }
     })
   ]);
@@ -101,11 +101,10 @@ export async function attention(
     // Acts pending signature: created more than 3 days ago and not signed
     prisma.document.findMany({
       where: {
-        order: { organizationId },
+        ...organizationChannelWhere(organizationId),
         type: 'act',
         signedAt: null,
-        createdAt: { lt: threeDaysAgo },
-        scanStatus: { not: 'infected' }
+        createdAt: { lt: threeDaysAgo }
       },
       orderBy: { createdAt: 'asc' },
       take: ATTENTION_CAP,
@@ -162,7 +161,7 @@ export async function recentEvents(
 
   const [documents, payments, statusAudits, comments] = await Promise.all([
     prisma.document.findMany({
-      where: { order: { organizationId }, scanStatus: { not: 'infected' } },
+      where: { ...organizationChannelWhere(organizationId) },
       orderBy: { createdAt: 'desc' },
       take: fetchLimit,
       select: { id: true, name: true, createdAt: true, orderId: true }

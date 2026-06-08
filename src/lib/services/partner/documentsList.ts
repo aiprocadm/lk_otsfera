@@ -1,5 +1,5 @@
 import type { PrismaClient, DocumentType } from '@prisma/client';
-import { INFECTED_HIDDEN_WHERE } from '@/lib/services/scan/visibility';
+import { partnerChannelWhere } from '@/lib/auth/documentChannelPolicy';
 import type { OrgDocumentRow } from './orgDocuments';
 
 export type PartnerDocumentsFilter = {
@@ -21,36 +21,24 @@ export async function listPartnerDocuments(
   prisma: PrismaClient,
   filter: PartnerDocumentsFilter
 ): Promise<PartnerDocumentsResult> {
-  const orgs = await prisma.organization.findMany({
-    where: {
-      partnerId: filter.partnerId,
-      ...(filter.scopeOrgIds && filter.scopeOrgIds.length > 0
-        ? { id: { in: filter.scopeOrgIds } }
-        : {})
-    },
-    select: { companyId: true }
-  });
-
-  const companyIds = orgs
-    .map((o) => o.companyId)
-    .filter((id): id is string => Boolean(id));
-
-  if (companyIds.length === 0) {
-    return { rows: [], total: 0, countsByType: {} };
-  }
-
-  const orderFilter = {
-    partnerId: filter.partnerId,
-    companyId: { in: companyIds }
-  };
+  const orgScope =
+    filter.scopeOrgIds && filter.scopeOrgIds.length > 0
+      ? { order: { organizationId: { in: filter.scopeOrgIds } } }
+      : {};
 
   const docWhere = {
-    order: orderFilter,
-    ...INFECTED_HIDDEN_WHERE,
+    ...partnerChannelWhere(filter.partnerId),
+    ...orgScope,
     ...(filter.type ? { type: filter.type } : {}),
     ...(filter.search
       ? { name: { contains: filter.search, mode: 'insensitive' as const } }
       : {})
+  };
+
+  const groupByWhere = {
+    ...partnerChannelWhere(filter.partnerId),
+    ...orgScope,
+    ...(filter.search ? { name: { contains: filter.search, mode: 'insensitive' as const } } : {})
   };
 
   const [total, docs, countsRaw] = await Promise.all([
@@ -74,11 +62,7 @@ export async function listPartnerDocuments(
     }),
     prisma.document.groupBy({
       by: ['type'],
-      where: {
-        order: orderFilter,
-        ...INFECTED_HIDDEN_WHERE,
-        ...(filter.search ? { name: { contains: filter.search, mode: 'insensitive' as const } } : {})
-      },
+      where: groupByWhere,
       _count: { _all: true }
     })
   ]);
