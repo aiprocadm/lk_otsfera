@@ -1,8 +1,7 @@
-import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import type { DocumentType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requirePartner } from '@/lib/auth/requireRole';
 import { listPartnerDocuments } from '@/lib/services/partner/documentsList';
 import { DocumentsList } from '@/components/partner/documents-list';
 import { DocumentsSearch } from '@/components/partner/documents-search';
@@ -39,8 +38,7 @@ export default async function PartnerDocumentsPage({
 }: {
   searchParams: Promise<{ type?: string; search?: string; take?: string; skip?: string }>;
 }) {
-  const session = await getSession();
-  if (!session?.partnerId) redirect('/login');
+  const session = await requirePartner();
 
   const sp = await searchParams;
   const take = Math.min(

@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requirePartner } from '@/lib/auth/requireRole';
 import { listPortfolio } from '@/lib/services/partner/portfolio';
 import { PortfolioSearch } from '@/components/partner/portfolio-search';
 import { PortfolioTable } from '@/components/partner/portfolio-table';
@@ -16,8 +15,7 @@ export default async function PortfolioPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const session = await getSession();
-  if (!session?.partnerId) redirect('/login');
+  const session = await requirePartner();
 
   const sp = await searchParams;
   const take = Math.min(

@@ -1,7 +1,6 @@
-import { redirect } from 'next/navigation';
 import type { ExecutionStatus, FinancialStatus } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requirePartner } from '@/lib/auth/requireRole';
 import { listPartnerDeals } from '@/lib/services/partner/deals';
 import { DealsFilter } from '@/components/partner/deals-filter';
 import { DealsTable } from '@/components/partner/deals-table';
@@ -38,8 +37,7 @@ export default async function PartnerDealsPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const session = await getSession();
-  if (!session?.partnerId) redirect('/login');
+  const session = await requirePartner();
 
   const sp = await searchParams;
   const take = Math.min(

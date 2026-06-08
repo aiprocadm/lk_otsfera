@@ -16,12 +16,30 @@ export async function requireAdmin(): Promise<SessionPayload> {
   return session;
 }
 
-export async function requirePartnerAdmin(): Promise<SessionPayload> {
+/**
+ * Узкий тип сессии партнёра: `partnerId` гарантированно `string` (не null/undefined).
+ * Гарды `requirePartner`/`requirePartnerAdmin` отдают именно его, чтобы страницы
+ * использовали `session.partnerId` как `string` без `!` (defense-in-depth §4).
+ */
+export type PartnerSession = SessionPayload & { partnerId: string };
+
+/**
+ * Любой активный партнёр (role=partner + есть partnerId). Канон-замена ручному
+ * `getSession() + if(!session?.partnerId) redirect('/login')` на partner-страницах.
+ * Отказ по роли/под-роли → `/forbidden` (единый контракт под-ролей, ось 1 аудита).
+ */
+export async function requirePartner(): Promise<PartnerSession> {
+  const session = await requireSession();
+  if (session.role !== 'partner' || !session.partnerId) redirect('/forbidden');
+  return session as PartnerSession;
+}
+
+export async function requirePartnerAdmin(): Promise<PartnerSession> {
   const session = await requireSession();
   const isPartnerAdmin =
-    session.role === 'partner' && session.partnerRole === 'admin';
+    session.role === 'partner' && session.partnerRole === 'admin' && !!session.partnerId;
   if (!isPartnerAdmin) redirect('/forbidden');
-  return session;
+  return session as PartnerSession;
 }
 
 export async function requireOrganization(): Promise<SessionPayload> {
