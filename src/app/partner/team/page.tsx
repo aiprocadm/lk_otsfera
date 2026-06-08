@@ -1,16 +1,12 @@
-import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
-import { isPartnerAdmin } from '@/lib/auth/policy';
+import { requirePartnerAdmin } from '@/lib/auth/requireRole';
 import { listTeam } from '@/lib/services/partner/team';
 import { TeamTable } from '@/components/partner/team-table';
 import { TeamCardList } from '@/components/partner/team-card-list';
 import { InviteMemberForm } from '@/components/partner/invite-member-form';
 
 export default async function PartnerTeamPage() {
-  const session = await getSession();
-  if (!session?.partnerId) redirect('/login');
-  if (!isPartnerAdmin(session)) redirect('/forbidden');
+  const session = await requirePartnerAdmin();
 
   const [rows, orgs] = await Promise.all([
     listTeam(prisma, session.partnerId),
