@@ -21,7 +21,7 @@ beforeAll(async () => {
   });
 
   await prisma.payment.create({
-    data: { orderId: order.id, amount: 500, paidAt: new Date() }
+    data: { organizationId: org.id, orderId: order.id, amount: 500, paidAt: new Date() }
   });
 
   const u = await prisma.user.create({

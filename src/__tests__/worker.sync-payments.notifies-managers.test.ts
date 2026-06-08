@@ -399,6 +399,7 @@ describe('syncPaymentsProcessor → notifyManagers fan-out', () => {
     await prisma.payment.create({
       data: {
         externalId,
+        organizationId: orgNoManagerId,
         orderId: orderPerOrderManagerId,
         amount: 50000,
         paidAt: new Date('2026-05-25T10:00:00.000Z'),

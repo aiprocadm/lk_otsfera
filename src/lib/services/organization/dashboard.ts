@@ -24,7 +24,7 @@ export type OrgAttention = {
 export type OrgEvent = {
   id: string;
   kind: 'document_published' | 'payment_received' | 'order_status_changed' | 'comment_posted';
-  orderId: string;
+  orderId: string | null;
   title: string;
   at: Date;
 };
@@ -167,7 +167,7 @@ export async function recentEvents(
       select: { id: true, name: true, createdAt: true, orderId: true }
     }),
     prisma.payment.findMany({
-      where: { order: { organizationId } },
+      where: { organizationId },
       orderBy: { paidAt: 'desc' },
       take: fetchLimit,
       select: { id: true, amount: true, paidAt: true, orderId: true }

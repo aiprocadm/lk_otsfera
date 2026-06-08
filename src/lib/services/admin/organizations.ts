@@ -25,7 +25,7 @@ export type OrgRow = {
   name: string;
   inn: string | null;
   externalId: string | null;
-  partner: { id: string; name: string };
+  partner: { id: string; name: string } | null;
   ordersCount: number;
   organizationUsersCount: number;
   partnerCommissionRate: number | null;
@@ -69,7 +69,7 @@ export async function listOrganizations(
     name: o.name,
     inn: o.inn,
     externalId: o.externalId,
-    partner: { id: o.partner.id, name: o.partner.name },
+    partner: o.partner ? { id: o.partner.id, name: o.partner.name } : null,
     ordersCount: o._count.orders,
     organizationUsersCount: o._count.organizationUsers,
     partnerCommissionRate: o.partnerCommissionRate !== null ? Number(o.partnerCommissionRate) : null
@@ -84,8 +84,8 @@ export type OrgDetail = {
   inn: string | null;
   kpp: string | null;
   externalId: string | null;
-  partnerId: string;
-  partner: { id: string; name: string };
+  partnerId: string | null;
+  partner: { id: string; name: string } | null;
   partnerCommissionRate: number | null;
   partnerCommissionRateNote: string | null;
 };
@@ -113,7 +113,7 @@ export async function getOrganization(prisma: PrismaClient, id: string): Promise
     kpp: o.kpp,
     externalId: o.externalId,
     partnerId: o.partnerId,
-    partner: { id: o.partner.id, name: o.partner.name },
+    partner: o.partner ? { id: o.partner.id, name: o.partner.name } : null,
     partnerCommissionRate: o.partnerCommissionRate !== null ? Number(o.partnerCommissionRate) : null,
     partnerCommissionRateNote: o.partnerCommissionRateNote
   };

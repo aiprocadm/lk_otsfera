@@ -66,13 +66,14 @@ beforeAll(async () => {
     }
   });
   await prisma.payment.create({
-    data: { orderId: o1.id, amount: new Prisma.Decimal('40000'), paidAt: new Date('2026-05-01'), method: 'bank' }
+    data: { organizationId: orgId, orderId: o1.id, amount: new Prisma.Decimal('40000'), paidAt: new Date('2026-05-01'), method: 'bank' }
   });
   await prisma.payment.create({
-    data: { orderId: o2.id, amount: new Prisma.Decimal('50000'), paidAt: new Date('2026-05-10'), method: 'bank' }
+    data: { organizationId: orgId, orderId: o2.id, amount: new Prisma.Decimal('50000'), paidAt: new Date('2026-05-10'), method: 'bank' }
   });
   await prisma.payment.create({
     data: {
+      organizationId: orgId,
       orderId: o2.id,
       amount: new Prisma.Decimal('5000'),
       paidAt: new Date('2026-05-11'),
@@ -106,6 +107,30 @@ describe('listOrgPayments', () => {
     expect(rows).toHaveLength(3);
     expect(rows[0].isRefund).toBe(true); // 2026-05-11 is newest
     expect(rows.every((r) => typeof r.orderId === 'string')).toBe(true);
+  });
+
+  it('surfaces order-less (org-level, 1C-imported) payments with orderId=null', async () => {
+    // Such a payment is INVISIBLE to the old order-based filter; the org-based
+    // filter must return it.
+    const imported = await prisma.payment.create({
+      data: {
+        organizationId: orgId,
+        orderId: null,
+        amount: new Prisma.Decimal('12345'),
+        paidAt: new Date('2026-05-20'),
+        method: 'import'
+      }
+    });
+    try {
+      const rows = await listOrgPayments(prisma, { organizationId: orgId });
+      const row = rows.find((r) => r.id === imported.id);
+      expect(row).toBeDefined();
+      expect(row?.orderId).toBeNull();
+      expect(row?.orderNumber).toBeNull();
+      expect(row?.amount).toBe('12345.00');
+    } finally {
+      await prisma.payment.delete({ where: { id: imported.id } });
+    }
   });
 });
 

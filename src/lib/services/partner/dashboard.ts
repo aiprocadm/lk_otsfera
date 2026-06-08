@@ -24,6 +24,21 @@ function orderWhereForScope(scope: DashboardScope) {
   return base;
 }
 
+/**
+ * Org-level filter mirroring orderWhereForScope but for org-owned rows
+ * (e.g. order-less payments imported from 1C). Same partner boundary + the
+ * same optional scopeOrgIds narrowing, so visibility stays identical.
+ */
+function orgWhereForScope(scope: DashboardScope) {
+  const base: { partnerId: string; id?: { in: string[] } } = {
+    partnerId: scope.partnerId
+  };
+  if (scope.scopeOrgIds.length > 0) {
+    base.id = { in: scope.scopeOrgIds };
+  }
+  return base;
+}
+
 function startOfThisMonth(now = new Date()): Date {
   return new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
 }
@@ -179,7 +194,8 @@ export type DashboardEvent = {
   kind: EventKind;
   at: Date;
   title: string;
-  ref: { kind: 'order' | 'lead'; id: string };
+  // Order-less payments (org-level, imported from 1C) have no order/lead target.
+  ref?: { kind: 'order' | 'lead'; id: string };
 };
 
 export async function recentEvents(
@@ -203,12 +219,13 @@ export async function recentEvents(
       select: { id: true, clientCompanyName: true, subject: true, createdAt: true }
     }),
     prisma.payment.findMany({
-      where: { order: baseWhere },
+      where: { organization: orgWhereForScope(scope) },
       orderBy: { createdAt: 'desc' },
       take: limit,
       select: {
         id: true, amount: true, createdAt: true,
-        order: { select: { id: true, title: true } }
+        order: { select: { id: true, title: true } },
+        organization: { select: { id: true, name: true } }
       }
     })
   ]);
@@ -226,12 +243,20 @@ export async function recentEvents(
       title: `Новый лид: ${l.clientCompanyName} — ${l.subject}`,
       ref: { kind: 'lead', id: l.id }
     })),
-    ...payments.map((p): DashboardEvent => ({
-      kind: 'payment_received',
-      at: p.createdAt,
-      title: `Оплата ${Number(p.amount).toFixed(2)} ₽ по заказу «${p.order.title}»`,
-      ref: { kind: 'order', id: p.order.id }
-    }))
+    ...payments.map((p): DashboardEvent =>
+      p.order
+        ? {
+            kind: 'payment_received',
+            at: p.createdAt,
+            title: `Оплата ${Number(p.amount).toFixed(2)} ₽ по заказу «${p.order.title}»`,
+            ref: { kind: 'order', id: p.order.id }
+          }
+        : {
+            kind: 'payment_received',
+            at: p.createdAt,
+            title: `Оплата ${Number(p.amount).toFixed(2)} ₽ (организация «${p.organization.name}»)`
+          }
+    )
   ];
 
   events.sort((a, b) => b.at.getTime() - a.at.getTime());
