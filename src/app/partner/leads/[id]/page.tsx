@@ -1,7 +1,7 @@
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requirePartner } from '@/lib/auth/requireRole';
 import { getLead } from '@/lib/services/partner/leads';
 import { listLeadAttachments } from '@/lib/services/partner/leadAttachments';
 import { isPartnerAdmin } from '@/lib/auth/policy';
@@ -33,8 +33,7 @@ export default async function PartnerLeadDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getSession();
-  if (!session?.partnerId) redirect('/login');
+  const session = await requirePartner();
 
   const { id } = await params;
   const scope = session.assignedOrgIds && session.assignedOrgIds.length > 0

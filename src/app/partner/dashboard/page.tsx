@@ -1,14 +1,12 @@
-import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requirePartner } from '@/lib/auth/requireRole';
 import { kpis, attention, recentEvents } from '@/lib/services/partner/dashboard';
 import { KpiGrid } from '@/components/partner/kpi-grid';
 import { AttentionList } from '@/components/partner/attention-list';
 import { EventsFeed } from '@/components/partner/events-feed';
 
 export default async function PartnerDashboard() {
-  const session = await getSession();
-  if (!session?.partnerId) redirect('/login');
+  const session = await requirePartner();
 
   const scope = {
     partnerId: session.partnerId,

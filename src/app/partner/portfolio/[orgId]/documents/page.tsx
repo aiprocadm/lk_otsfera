@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import type { DocumentType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requirePartner } from '@/lib/auth/requireRole';
 import { canPartnerAccessOrg, isPartnerAdmin } from '@/lib/auth/policy';
 import { getOrgCard } from '@/lib/services/partner/orgCard';
 import { getOrgDocuments } from '@/lib/services/partner/orgDocuments';
@@ -41,8 +41,7 @@ export default async function OrgDocumentsPage({
   params: Promise<{ orgId: string }>;
   searchParams: Promise<{ type?: string }>;
 }) {
-  const session = await getSession();
-  if (!session?.partnerId) redirect('/login');
+  const session = await requirePartner();
 
   const { orgId } = await params;
 

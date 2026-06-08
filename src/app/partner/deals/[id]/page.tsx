@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requirePartner } from '@/lib/auth/requireRole';
 import { getPartnerDealDetail } from '@/lib/services/partner/dealDetail';
 import { canPartnerAccessOrg } from '@/lib/auth/policy';
 import { DealHeader } from '@/components/partner/deal-header';
@@ -16,8 +16,7 @@ export default async function PartnerDealDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getSession();
-  if (!session?.partnerId) redirect('/login');
+  const session = await requirePartner();
 
   const { id } = await params;
   const deal = await getPartnerDealDetail(prisma, {

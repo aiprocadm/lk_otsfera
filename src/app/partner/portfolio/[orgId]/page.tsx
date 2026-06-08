@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requirePartner } from '@/lib/auth/requireRole';
 import { canPartnerAccessOrg, isPartnerAdmin } from '@/lib/auth/policy';
 import { getOrgCard } from '@/lib/services/partner/orgCard';
 import { OrgCardHeader } from '@/components/partner/org-card-header';
@@ -18,8 +18,7 @@ export default async function OrgCardPage({
   params: Promise<{ orgId: string }>;
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const session = await getSession();
-  if (!session?.partnerId) redirect('/login');
+  const session = await requirePartner();
 
   const { orgId } = await params;
 

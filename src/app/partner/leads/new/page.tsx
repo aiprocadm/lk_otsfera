@@ -1,12 +1,10 @@
-import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requirePartner } from '@/lib/auth/requireRole';
 import { LeadCreateForm } from '@/components/partner/lead-create-form';
 
 export default async function PartnerLeadNewPage() {
-  const session = await getSession();
-  if (!session?.partnerId) redirect('/login');
+  const session = await requirePartner();
 
   const where = session.assignedOrgIds && session.assignedOrgIds.length > 0
     ? { partnerId: session.partnerId, id: { in: session.assignedOrgIds } }

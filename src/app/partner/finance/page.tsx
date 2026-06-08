@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requirePartner } from '@/lib/auth/requireRole';
 import { isPartnerAdmin } from '@/lib/auth/policy';
 import { getFinanceKpis, listStatements } from '@/lib/services/partner/finance';
 import { StatCard } from '@/components/dashboard/stat-card';
@@ -12,8 +11,7 @@ function fmtMoney(amount: number): string {
 }
 
 export default async function FinancePage() {
-  const session = await getSession();
-  if (!session?.partnerId) redirect('/login');
+  const session = await requirePartner();
 
   const { partnerId } = session;
   const [kpis, statements] = await Promise.all([
