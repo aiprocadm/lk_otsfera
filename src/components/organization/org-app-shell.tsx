@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { OrgSidebar, type OrgSidebarMembership } from './org-sidebar';
+import { navItemsFor } from '@/lib/navigation/cabinet';
 
 export function OrgAppShell(props: {
   userEmail?: string | null;
@@ -9,9 +10,12 @@ export function OrgAppShell(props: {
   viewerRole: 'admin' | 'leader' | 'member';
   children: ReactNode;
 }) {
+  const items = navItemsFor('organization');
+
   return (
     <div className='flex min-h-screen bg-gray-50'>
       <OrgSidebar
+        items={items}
         memberships={props.memberships}
         activeOrgId={props.activeOrgId}
         viewerRole={props.viewerRole}

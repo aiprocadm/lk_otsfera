@@ -31,6 +31,11 @@ vi.mock('next/link', () => ({
 
 import { usePathname } from 'next/navigation';
 import { OrgSidebar, type OrgSidebarMembership } from '@/components/organization/org-sidebar';
+import { navByRole, type NavItem } from '@/lib/navigation/cabinet';
+
+// Full 8-item org canon. Flag-filtering (chat) is navItemsFor's job server-side;
+// here we pass the full list to test OrgSidebar's viewerRole filtering deterministically.
+const ALL_ORG_ITEMS: NavItem[] = navByRole.organization;
 
 const SINGLE_ADMIN: OrgSidebarMembership[] = [
   { organizationId: 'org-A', organizationName: 'ООО Заря', roleInOrg: 'admin' }
@@ -50,45 +55,48 @@ const MULTI: OrgSidebarMembership[] = [
 ];
 
 describe('OrgSidebar', () => {
-  it('renders 6 nav links for admin viewer', () => {
+  it('renders all 8 nav links for admin viewer', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
+        items: ALL_ORG_ITEMS,
         memberships: SINGLE_ADMIN,
         activeOrgId: 'org-A',
         viewerRole: 'admin'
       })
     );
     const matches = html.match(/data-testid="org-nav-/g);
-    expect(matches).toHaveLength(6);
+    expect(matches).toHaveLength(8);
     expect(html).toContain('href="/organization/team"');
   });
 
-  it('renders 5 nav links for member viewer (hides Команда)', () => {
+  it('hides Команда for member viewer (7 links)', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
+        items: ALL_ORG_ITEMS,
         memberships: SINGLE_MEMBER,
         activeOrgId: 'org-A',
         viewerRole: 'member'
       })
     );
     const matches = html.match(/data-testid="org-nav-/g);
-    expect(matches).toHaveLength(5);
+    expect(matches).toHaveLength(7);
     expect(html).not.toContain('href="/organization/team"');
   });
 
-  it('renders 6 nav links for leader viewer (shows Команда)', () => {
+  it('shows Команда for leader viewer (8 links)', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
+        items: ALL_ORG_ITEMS,
         memberships: SINGLE_LEADER,
         activeOrgId: 'org-A',
         viewerRole: 'leader'
       })
     );
     const matches = html.match(/data-testid="org-nav-/g);
-    expect(matches).toHaveLength(6);
+    expect(matches).toHaveLength(8);
     expect(html).toContain('href="/organization/team"');
   });
 
@@ -96,6 +104,7 @@ describe('OrgSidebar', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
+        items: ALL_ORG_ITEMS,
         memberships: SINGLE_ADMIN,
         activeOrgId: 'org-A',
         viewerRole: 'admin'
@@ -110,6 +119,7 @@ describe('OrgSidebar', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/orders/123');
     const html = renderToString(
       React.createElement(OrgSidebar, {
+        items: ALL_ORG_ITEMS,
         memberships: SINGLE_ADMIN,
         activeOrgId: 'org-A',
         viewerRole: 'admin'
@@ -122,6 +132,7 @@ describe('OrgSidebar', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
+        items: ALL_ORG_ITEMS,
         memberships: SINGLE_ADMIN,
         activeOrgId: 'org-A',
         viewerRole: 'admin'
@@ -134,6 +145,7 @@ describe('OrgSidebar', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
+        items: ALL_ORG_ITEMS,
         memberships: MULTI,
         activeOrgId: 'org-A',
         viewerRole: 'admin'
