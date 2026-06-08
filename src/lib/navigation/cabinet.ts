@@ -1,7 +1,18 @@
 import type { Role } from '@/lib/auth/jwt';
 import { isFeatureEnabled, type FeatureFlag } from '@/lib/featureFlags';
 
-export type NavItem = { href: string; label: string; disabled?: boolean; flag?: FeatureFlag; leaderOnly?: boolean; partnerAdminOnly?: boolean };
+export type NavItem = {
+  href: string;
+  label: string;
+  disabled?: boolean;
+  flag?: FeatureFlag;
+  leaderOnly?: boolean;
+  partnerAdminOnly?: boolean;
+  /** Иконка для org-sidebar (emoji). Прочие шеллы её игнорируют. */
+  icon?: string;
+  /** Виден только org-admin и org-leader (фильтруется в OrgSidebar по viewerRole, НЕ в navItemsFor). */
+  orgAdminOrLeaderOnly?: boolean;
+};
 
 export const navByRole: Record<Role, NavItem[]> = {
   admin: [
@@ -33,9 +44,14 @@ export const navByRole: Record<Role, NavItem[]> = {
     { href: '/partner/messages', label: 'Сообщения', flag: 'chat' }
   ],
   organization: [
-    { href: '/organization/dashboard', label: 'Dashboard организации', flag: 'organization_cabinet' },
-    { href: '/student', label: 'Кабинет слушателя' },
-    { href: '/organization/messages', label: 'Сообщения', flag: 'chat' }
+    { href: '/organization/dashboard', label: 'Главная', icon: '⌂' },
+    { href: '/organization/orders', label: 'Заказы', icon: '📋' },
+    { href: '/organization/documents', label: 'Документы', icon: '📄' },
+    { href: '/organization/finance', label: 'Финансы', icon: '₽' },
+    { href: '/organization/students', label: 'Сотрудники', icon: '👥' },
+    { href: '/organization/team', label: 'Команда', icon: '⚙', orgAdminOrLeaderOnly: true },
+    { href: '/organization/messages', label: 'Сообщения', icon: '💬', flag: 'chat' },
+    { href: '/student', label: 'Кабинет слушателя', icon: '🎓' }
   ],
   student: [{ href: '/student', label: 'Обучение' }]
 };

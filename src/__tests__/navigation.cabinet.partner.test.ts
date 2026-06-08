@@ -145,3 +145,34 @@ describe('navItemsFor — partnerAdminOnly гейтинг (/partner/team)', () =
     expect(item!.partnerAdminOnly).toBe(true);
   });
 });
+
+describe('navByRole.organization — единый источник (канон 8 пунктов)', () => {
+  it('содержит 6 базовых пунктов + Сообщения + Кабинет слушателя', () => {
+    const hrefs = navByRole.organization.map((i) => i.href);
+    expect(hrefs).toEqual([
+      '/organization/dashboard',
+      '/organization/orders',
+      '/organization/documents',
+      '/organization/finance',
+      '/organization/students',
+      '/organization/team',
+      '/organization/messages',
+      '/student'
+    ]);
+  });
+
+  it('«Команда» помечена orgAdminOrLeaderOnly', () => {
+    const team = navByRole.organization.find((i) => i.href === '/organization/team');
+    expect(team?.orgAdminOrLeaderOnly).toBe(true);
+  });
+
+  it('каждый пункт имеет иконку', () => {
+    expect(navByRole.organization.every((i) => typeof i.icon === 'string' && i.icon.length > 0)).toBe(true);
+  });
+
+  it('«Кабинет слушателя» указывает на /student', () => {
+    const student = navByRole.organization.find((i) => i.href === '/student');
+    expect(student?.label).toBe('Кабинет слушателя');
+    expect(student?.flag).toBeUndefined();
+  });
+});
