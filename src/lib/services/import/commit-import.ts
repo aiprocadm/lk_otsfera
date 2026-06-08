@@ -131,20 +131,24 @@ export async function commitImport(
   });
 
   // Fire-and-forget audit log — failures must not block the main commit path
-  await recordAudit(prisma, {
-    userId: session.sub,
-    action: 'one_c_import.commit',
-    entity: 'one_c_import',
-    entityId: session.companyId ?? session.sub,
-    after: {
-      applied,
-      skipped: {
-        orgs: plan.skipped.orgs.length,
-        orders: plan.skipped.orders.length,
-        payments: plan.skipped.payments.length,
+  try {
+    await recordAudit(prisma, {
+      userId: session.sub,
+      action: 'one_c_import.commit',
+      entity: 'one_c_import',
+      entityId: session.companyId ?? session.sub,
+      after: {
+        applied,
+        skipped: {
+          orgs: plan.skipped.orgs.length,
+          orders: plan.skipped.orders.length,
+          payments: plan.skipped.payments.length,
+        },
       },
-    },
-  });
+    });
+  } catch (err) {
+    console.error('one_c_import audit log failed (non-blocking):', err);
+  }
 
   return { applied, skipped: plan.skipped };
 }
