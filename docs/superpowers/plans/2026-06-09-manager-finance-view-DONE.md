@@ -21,10 +21,9 @@
 
 - **Зелёные в этой среде:** `typecheck` ✅, `lint` ✅, `test:unit` ✅ (167 файлов / **1299 тестов**), `build` ✅ (оба маршрута `/manager/finance` + `/admin/finance` зарегистрированы как `ƒ` dynamic).
 - **Two-stage review** (spec + quality) пройден по каждой задаче + **холистическое финальное ревью** (opus): вердикт *Ready to PR*. Гейт комиссии подтверждён airtight end-to-end (маржа не вычисляется/не сериализуется для рядового менеджера); cross-company изоляция держится в обоих режимах `teamMode`.
-- **⏳ Отложено до live-PG (средовое ограничение — локальный Postgres :5432 не запущен, Docker недоступен):**
-  - `services.manager.finance.integration.test.ts` написан, закоммичен, **schema-валиден** (сверен с `prisma/schema.prisma`), но **не прогнан**. Коммит `8b95730` сделан с `--no-verify` (pre-commit `test:changed` упёрся бы в недоступную БД; `typecheck` прогнан вручную).
-  - Ручная dev-проверка (`/manager/finance` рядовым/руководителем, `/admin/finance` админом) — тоже требует PG.
-  - **Перед merge обязательно:** `npm run gate` (или `npm run test:integration -- services.manager.finance.integration`) против живого Postgres. Критичная ассерта — cross-company инвариант.
+- **✅ live-PG verified (2026-06-09, пост-merge):** `services.manager.finance.integration.test.ts` прогнан против живого Postgres — **2/2 зелёные** (`688ms`): (1) org-level оплата `orderId:null` видна менеджеру своей орг; (2) **cross-company инвариант** — `mgr B` с `teamMode=ON` не видит ничего из company A. Это закрыло долг, помеченный «перед merge обязательно».
+  - Прогон выполнен не через Docker (`npm run gate` на этой машине недоступен — Docker Desktop падает headless), а через WSL-internal путь: чистый `git clone` в ext4 WSL + `npm ci` (Linux-бинари Prisma) + loopback-Postgres, тест целиком внутри WSL (минует Hyper-V firewall, блокирующий host→WSL).
+  - Ручная dev-проверка UI (`/manager/finance` рядовым/руководителем, `/admin/finance` админом) по-прежнему manual-pending (требует dev:3000 + seed) — не блокер, гейт комиссии подтверждён unit+integration.
 
 ## Расхождения с планом/спекой (осознанные, не дефекты)
 
