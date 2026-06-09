@@ -179,7 +179,7 @@ beforeAll(async () => {
     }
   });
   await prisma.payment.create({
-    data: { orderId: orderOrgAId, amount: 25000, paidAt: new Date(), method: 'bank' }
+    data: { organizationId: orgAId, orderId: orderOrgAId, amount: 25000, paidAt: new Date(), method: 'bank' }
   });
 });
 

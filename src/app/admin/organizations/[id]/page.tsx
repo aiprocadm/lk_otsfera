@@ -41,7 +41,7 @@ export default async function AdminOrganizationDetailPage({
         </Link>
         <h1 className='text-2xl font-bold text-[#111111] mt-1'>{org.name}</h1>
         <p className='text-sm text-gray-500 mt-0.5'>
-          Партнёр: {org.partner.name}
+          Партнёр: {org.partner?.name ?? 'Без партнёра'}
           {meta.company && <span> · Компания: {meta.company.name}</span>}
         </p>
       </div>

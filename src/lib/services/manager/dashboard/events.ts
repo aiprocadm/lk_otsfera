@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { managerOrderScope, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import { managerOrderScope, managerOrgScope, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { DEFAULT_EVENTS } from './constants';
 
 export type EventItem = {
@@ -24,6 +24,7 @@ export async function recentEvents(
 ): Promise<EventItem[]> {
   const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
   const scope = managerOrderScope(session, teamMode);
+  const orgScope = managerOrgScope(session, teamMode);
   const fetchLimit = Math.max(20, take);
 
   const [documents, payments, statusAudits, comments] = await Promise.all([
@@ -40,7 +41,7 @@ export async function recentEvents(
       }
     }),
     prisma.payment.findMany({
-      where: { order: scope },
+      where: { organization: orgScope },
       orderBy: { paidAt: 'desc' },
       take: fetchLimit,
       select: {
@@ -48,7 +49,8 @@ export async function recentEvents(
         amount: true,
         paidAt: true,
         orderId: true,
-        order: { select: { orderNumber: true } }
+        order: { select: { orderNumber: true } },
+        organization: { select: { id: true, name: true } }
       }
     }),
     prisma.auditLog.findMany({
@@ -103,13 +105,23 @@ export async function recentEvents(
       text: `Загружен документ ${d.name} по заказу ${d.order.orderNumber ?? d.orderId}`,
       href: `/manager/orders/${d.orderId}`
     })),
-    ...payments.map((p): EventItem => ({
-      id: `pay-${p.id}`,
-      kind: 'payment_received',
-      when: p.paidAt,
-      text: `Поступила оплата ${Number(p.amount).toFixed(0)} ₽ по заказу ${p.order.orderNumber ?? p.orderId}`,
-      href: `/manager/orders/${p.orderId}`
-    })),
+    ...payments.map((p): EventItem =>
+      p.order
+        ? {
+            id: `pay-${p.id}`,
+            kind: 'payment_received',
+            when: p.paidAt,
+            text: `Поступила оплата ${Number(p.amount).toFixed(0)} ₽ по заказу ${p.order.orderNumber ?? p.orderId}`,
+            href: `/manager/orders/${p.orderId}`
+          }
+        : {
+            id: `pay-${p.id}`,
+            kind: 'payment_received',
+            when: p.paidAt,
+            text: `Поступила оплата ${Number(p.amount).toFixed(0)} ₽ (организация ${p.organization.name})`,
+            href: `/manager/dashboard`
+          }
+    ),
     ...statusAudits
       .filter((a) => scopedAuditOrderInfo.has(a.entityId))
       .map((a): EventItem => {

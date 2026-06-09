@@ -20,6 +20,7 @@ const GROUPS: NavGroup[] = [
     title: 'Операции',
     items: [
       { href: '/admin/commission-statements', label: 'Комиссии', icon: '💰' },
+      { href: '/admin/import', label: 'Загрузка из 1С', icon: '📥' },
       { href: '/admin/audit', label: 'Аудит', icon: '📋' },
     ],
   },

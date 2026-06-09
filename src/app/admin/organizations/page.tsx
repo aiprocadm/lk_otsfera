@@ -135,7 +135,7 @@ export default async function AdminOrganizationsPage({
                   <td className='px-4 py-2.5 text-gray-500 font-mono text-xs'>
                     {o.inn ?? '—'}
                   </td>
-                  <td className='px-4 py-2.5 text-gray-600'>{o.partner.name}</td>
+                  <td className='px-4 py-2.5 text-gray-600'>{o.partner?.name ?? 'Без партнёра'}</td>
                   <td className='px-4 py-2.5 text-right text-gray-600'>{o.ordersCount}</td>
                   <td className='px-4 py-2.5 text-right text-gray-600'>
                     {o.organizationUsersCount}

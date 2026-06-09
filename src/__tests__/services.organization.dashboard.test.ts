@@ -153,7 +153,7 @@ describe('organization dashboard service — recentEvents', () => {
       }
     });
     await prisma.payment.create({
-      data: { orderId: order.id, amount: 1000, paidAt: new Date() }
+      data: { organizationId: orgAId, orderId: order.id, amount: 1000, paidAt: new Date() }
     });
     await prisma.comment.create({
       data: { orderId: order.id, body: 'hello from org', authorId: userId }
@@ -166,7 +166,7 @@ describe('organization dashboard service — recentEvents', () => {
       }
     });
     await prisma.payment.create({
-      data: { orderId: otherOrder.id, amount: 9000, paidAt: new Date() }
+      data: { organizationId: orgBId, orderId: otherOrder.id, amount: 9000, paidAt: new Date() }
     });
 
     const evts = await recentEvents(prisma, orgAId, 50);

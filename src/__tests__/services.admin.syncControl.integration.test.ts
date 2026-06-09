@@ -13,11 +13,22 @@ const noopProvider = () =>
   ({ getJobCounts: async () => ({}), add: async () => ({}), upsertJobScheduler: async () => ({}), removeJobScheduler: async () => true }) as never;
 
 beforeAll(async () => {
+  // Self-seed the actor user: AuditLog.userId is an FK to User, and rewindCursor
+  // writes a SyncState + audit atomically in one transaction — a missing actor
+  // makes the audit insert fail (P2003) and rolls back the whole rewind. The test
+  // must own its fixture rather than rely on accumulated dev-DB state.
+  await prisma.user.upsert({
+    where: { id: ACTOR },
+    update: {},
+    create: { id: ACTOR, email: `${ACTOR}@synccontrol.test`, name: 'Sync Control Integration Admin', role: 'admin' },
+  });
   await prisma.syncSchedulePause.deleteMany({ where: { schedulerId: SCHED } });
 });
 
 afterAll(async () => {
   await prisma.syncSchedulePause.deleteMany({ where: { schedulerId: SCHED } });
+  await prisma.auditLog.deleteMany({ where: { userId: ACTOR } });
+  await prisma.user.deleteMany({ where: { id: ACTOR } });
   await prisma.$disconnect();
 });
 

@@ -90,7 +90,9 @@ export async function setOrgRateOverrideAction(fd: FormData): Promise<ActionResu
   });
   if (!org) return { ok: false as const, error: 'not_found' as const };
 
-  const partnerId = org.partnerId;
+  // Standalone orgs (no partner) have no intermediary-commission override to set/clear.
+  if (org.partnerId === null) return { ok: false as const, error: 'not_found' as const };
+  const partnerId: string = org.partnerId;
 
   try {
     if (clear) {

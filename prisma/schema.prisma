@@ -249,19 +249,22 @@ model CommissionStatementItem {
 }
 
 model Payment {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  orderId    String
-  order      Order    @relation(fields: [orderId], references: [id])
-  externalId String?  @unique
-  amount     Decimal  @db.Decimal(14, 2)
-  paidAt     DateTime
-  method     String?
-  isRefund   Boolean  @default(false)
-  note       String?
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  orderId        String?
+  order          Order?   @relation(fields: [orderId], references: [id])
+  externalId     String?  @unique
+  amount         Decimal  @db.Decimal(14, 2)
+  paidAt         DateTime
+  method         String?
+  isRefund       Boolean  @default(false)
+  note           String?
 
   @@index([orderId])
+  @@index([organizationId])
   @@index([paidAt])
   @@index([externalId])
 }
@@ -319,6 +322,7 @@ model Partner {
   name           String
   legalName      String?
   slug           String?        @unique
+  inn            String?        @unique
   commissionRate Decimal        @default(0) @db.Decimal(6, 4)
   isActive       Boolean        @default(true)
   organizations        Organization[]
@@ -336,10 +340,10 @@ model Organization {
   updatedAt                      DateTime           @updatedAt
   name                           String
   externalId                     String?            @unique
-  inn                            String?
+  inn                            String?            @unique
   kpp                            String?
-  partnerId                      String
-  partner                        Partner            @relation(fields: [partnerId], references: [id])
+  partnerId                      String?
+  partner                        Partner?           @relation(fields: [partnerId], references: [id])
   companyId                      String?
   company                        Company?           @relation(fields: [companyId], references: [id])
   assignedManagerUserId          String?
@@ -354,6 +358,7 @@ model Organization {
   notifications                  Notification[]
   leads                          Lead[]
   orders                         Order[]            @relation("OrderOrganization")
+  payments                       Payment[]
 
   @@index([partnerId])
   @@index([externalId])

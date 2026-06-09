@@ -450,7 +450,7 @@ describe('manager dashboard service — recentEvents', () => {
       }
     });
     const payment = await prisma.payment.create({
-      data: { orderId: order.id, amount: 1234, paidAt: new Date() }
+      data: { organizationId: managedOrgId, orderId: order.id, amount: 1234, paidAt: new Date() }
     });
     const comment = await prisma.comment.create({
       data: {
@@ -489,7 +489,7 @@ describe('manager dashboard service — recentEvents', () => {
       }
     });
     const foreignPayment = await prisma.payment.create({
-      data: { orderId: foreignOrder.id, amount: 999, paidAt: new Date() }
+      data: { organizationId: foreignOrgId, orderId: foreignOrder.id, amount: 999, paidAt: new Date() }
     });
 
     const session = managerSession(managerUserId, [managedOrgId]);

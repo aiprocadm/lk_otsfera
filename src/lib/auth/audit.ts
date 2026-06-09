@@ -17,7 +17,9 @@ export type AuditEntity =
   | 'company'
   | 'sync_state'
   | 'sync_schedule'
-  | 'job_queue';
+  | 'job_queue'
+  | 'payment'
+  | 'one_c_import';
 
 export type AuditRecord = {
   userId: string;

@@ -60,7 +60,7 @@ export async function syncPaymentsProcessor(
           bump(dto.updatedAt);
         } else {
           if (mode === 'live') {
-            await db.payment.create({ data: { ...updatable, externalId: input.externalId, orderId: order.id } });
+            await db.payment.create({ data: { ...updatable, externalId: input.externalId, orderId: order.id, organizationId: order.organizationId } });
           }
           sum.created += 1;
           bump(dto.updatedAt);

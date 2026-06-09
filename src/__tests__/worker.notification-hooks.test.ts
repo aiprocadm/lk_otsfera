@@ -177,7 +177,7 @@ describe('syncPaymentsProcessor notification hook', () => {
     // seed an existing payment with same externalId
     const externalId = `nh-pay-existing-${Date.now()}`;
     await prisma.payment.create({
-      data: { externalId, orderId, amount: 50000, paidAt: new Date(), isRefund: false }
+      data: { externalId, organizationId: orgId, orderId, amount: 50000, paidAt: new Date(), isRefund: false }
     });
     adapter.payments = [
       {

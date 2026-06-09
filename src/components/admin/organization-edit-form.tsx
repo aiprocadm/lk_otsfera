@@ -77,7 +77,7 @@ export function OrganizationEditForm({ org }: Props) {
       <div>
         <label className="block text-sm font-medium text-[#111111] mb-1">Партнёр</label>
         <input
-          type="text" value={org.partner.name} readOnly
+          type="text" value={org.partner?.name ?? 'Без партнёра'} readOnly
           className="w-full border border-gray-200 rounded px-3 py-2 text-sm bg-gray-50 text-gray-500"
         />
       </div>

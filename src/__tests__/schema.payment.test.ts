@@ -1,4 +1,5 @@
-import { describe, it, expectTypeOf } from 'vitest';
+import { describe, it, expect, expectTypeOf } from 'vitest';
+import { PrismaClient } from '@prisma/client';
 import type { Payment } from '@prisma/client';
 
 describe('Payment model', () => {
@@ -9,5 +10,15 @@ describe('Payment model', () => {
     expectTypeOf<Payment>().toHaveProperty('paidAt');
     expectTypeOf<Payment>().toHaveProperty('method');
     expectTypeOf<Payment>().toHaveProperty('isRefund');
+  });
+
+  it('Payment is org-level: organizationId required, orderId optional', async () => {
+    const prisma = new PrismaClient();
+    const payment = (prisma as any)._runtimeDataModel.models.Payment;
+    const fields = Object.fromEntries(payment.fields.map((f: any) => [f.name, f]));
+    expect(fields.organizationId).toBeDefined();
+    expect(fields.organizationId.isRequired).toBe(true);
+    expect(fields.orderId.isRequired).toBe(false);
+    await prisma.$disconnect();
   });
 });

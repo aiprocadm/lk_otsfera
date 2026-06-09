@@ -116,7 +116,7 @@ beforeAll(async () => {
     }
   });
   await prisma.payment.create({
-    data: { orderId: orderA1Id, amount: 25000, paidAt: new Date(), method: 'bank' }
+    data: { organizationId: orgAId, orderId: orderA1Id, amount: 25000, paidAt: new Date(), method: 'bank' }
   });
   await prisma.comment.create({
     data: { orderId: orderA1Id, body: 'first comment', authorId: managerId }

@@ -34,7 +34,7 @@ export type OrgPaymentRow = {
   method: string | null;
   isRefund: boolean;
   note: string | null;
-  orderId: string;
+  orderId: string | null;
   orderNumber: string | null;
 };
 
@@ -43,7 +43,7 @@ export async function listOrgPayments(
   opts: { organizationId: string; take?: number }
 ): Promise<OrgPaymentRow[]> {
   const rows = await prisma.payment.findMany({
-    where: { order: { organizationId: opts.organizationId } },
+    where: { organizationId: opts.organizationId },
     orderBy: { paidAt: 'desc' },
     take: opts.take ?? 50,
     select: {
@@ -63,8 +63,8 @@ export async function listOrgPayments(
     method: p.method,
     isRefund: p.isRefund,
     note: p.note,
-    orderId: p.order.id,
-    orderNumber: p.order.orderNumber
+    orderId: p.order?.id ?? null,
+    orderNumber: p.order?.orderNumber ?? null
   }));
 }
 
@@ -96,7 +96,12 @@ export async function getOrgIntermediaryCommission(
   });
   if (!org) return { effectiveRate: '0', totalCommission: '0.00', perOrder: [] };
 
-  const effectiveRate = org.partnerCommissionRate ?? org.partner.commissionRate;
+  // Standalone org (no partner) with no org override → no intermediary commission.
+  const effectiveRate =
+    org.partnerCommissionRate ?? org.partner?.commissionRate ?? null;
+  if (effectiveRate === null) {
+    return { effectiveRate: '0', totalCommission: '0.00', perOrder: [] };
+  }
   const orders = await prisma.order.findMany({
     where: { organizationId, financialStatus: { in: BILLED_STATUSES } },
     select: { id: true, orderNumber: true, totalAmount: true, vatIncluded: true, vatRate: true }
