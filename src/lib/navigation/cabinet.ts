@@ -21,6 +21,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { href: '/admin/documents', label: 'Documents' },
     { href: '/admin/messages', label: 'Messages' },
     { href: '/admin/commission-statements', label: 'Комиссии' },
+    { href: '/admin/finance', label: 'Финансы' },
     { href: '/admin/sync', label: 'Синхронизация' },
     { href: '/admin/health', label: 'Здоровье' }
   ],
@@ -28,6 +29,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { href: '/manager/dashboard', label: 'Главная', flag: 'manager_cabinet' },
     { href: '/manager/orders', label: 'Заказы', flag: 'manager_cabinet' },
     { href: '/manager/organizations', label: 'Организации', flag: 'manager_cabinet' },
+    { href: '/manager/finance', label: 'Финансы', flag: 'manager_cabinet' },
     { href: '/manager/import', label: 'Загрузка из 1С', flag: 'manager_cabinet' },
     { href: '/manager/documents', label: 'Документы', flag: 'manager_cabinet' },
     { href: '/manager/students', label: 'Сотрудники', flag: 'manager_cabinet' },
