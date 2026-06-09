@@ -164,6 +164,27 @@ describe('navByRole.manager — Загрузка из 1С item', () => {
   });
 });
 
+describe('navByRole — Финансы (manager + admin)', () => {
+  it('manager содержит /manager/finance с флагом manager_cabinet', () => {
+    const item = navByRole.manager.find((i) => i.href === '/manager/finance');
+    expect(item).toBeDefined();
+    expect(item!.label).toBe('Финансы');
+    expect(item!.flag).toBe('manager_cabinet');
+  });
+
+  it('admin содержит /admin/finance без флага', () => {
+    const item = navByRole.admin.find((i) => i.href === '/admin/finance');
+    expect(item).toBeDefined();
+    expect(item!.label).toBe('Финансы');
+    expect(item!.flag).toBeUndefined();
+  });
+
+  it('manager /manager/finance стоит после Организации', () => {
+    const hrefs = navByRole.manager.map((i) => i.href);
+    expect(hrefs.indexOf('/manager/finance')).toBeGreaterThan(hrefs.indexOf('/manager/organizations'));
+  });
+});
+
 describe('navByRole.organization — единый источник (канон 8 пунктов)', () => {
   it('содержит 6 базовых пунктов + Сообщения + Кабинет слушателя', () => {
     const hrefs = navByRole.organization.map((i) => i.href);
