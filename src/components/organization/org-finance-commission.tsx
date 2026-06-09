@@ -1,3 +1,4 @@
+import React from 'react';
 import type { OrgIntermediaryCommission } from '@/lib/services/organization/finance';
 
 function fmtMoney(val: string): string {
