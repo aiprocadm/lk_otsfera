@@ -16,11 +16,14 @@ export async function commitImport(
   const scope = importScope(session);
 
   const [orgs, partners] = await Promise.all([
-    prisma.organization.findMany({ select: { id: true, inn: true } }),
+    prisma.organization.findMany({ select: { id: true, inn: true, companyId: true } }),
     prisma.partner.findMany({ select: { id: true, inn: true } }),
   ]);
 
   const orgIdByInn = new Map(orgs.filter((o) => o.inn).map((o) => [o.inn as string, o.id]));
+  const orgCompanyIdByInn = new Map(
+    orgs.filter((o) => o.inn).map((o) => [o.inn as string, o.companyId]),
+  );
   const partnerIdByInn = new Map(
     partners.filter((p) => p.inn).map((p) => [p.inn as string, p.id]),
   );
@@ -57,11 +60,12 @@ export async function commitImport(
           companyId: session.companyId ?? null,
         },
         update: { name: o.name, partnerId },
-        select: { id: true },
+        select: { id: true, companyId: true },
       });
 
-      // Keep the in-memory map fresh so subsequent order/payment rows can resolve INN→id
+      // Keep the in-memory maps fresh so subsequent order/payment rows can resolve INN→id/companyId
       orgIdByInn.set(o.inn, up.id);
+      orgCompanyIdByInn.set(o.inn, up.companyId);
 
       if (existing) {
         applied.orgsUpdated++;
@@ -79,12 +83,13 @@ export async function commitImport(
       const orgId = orgIdByInn.get(ord.orgInn);
       if (!orgId) continue;
 
-      // companyId is required (NOT NULL) on Order. Use session.companyId when available.
-      // If null (edge case — session without companyId), fall back to orgId solely to
-      // satisfy the NOT NULL constraint.
-      // TODO tenancy: confirm against sample — session.companyId should always be set for
-      // manager/admin sessions; if it can be null in production, a proper tenancy resolver is needed.
-      const companyId = session.companyId ?? orgId;
+      // companyId is required (NOT NULL FK to Company) on Order.
+      // Resolve from the org itself — an org's companyId is the authoritative tenancy anchor.
+      // If the org has no companyId (e.g. standalone org created by an admin session with no
+      // company), the order CANNOT be created safely (no valid FK). Skip it rather than writing
+      // a bogus FK that would roll back the whole transaction with an opaque DB error.
+      const companyId = orgCompanyIdByInn.get(ord.orgInn) ?? null;
+      if (!companyId) continue; // org has no company → skip order, do not write bogus FK
 
       await tx.order.upsert({
         where: { externalId: ord.externalId },

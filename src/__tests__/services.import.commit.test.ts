@@ -14,12 +14,16 @@ let partnerId: string;
 let leaderUserId: string;
 let plainManagerUserId: string;
 let otherOrgId: string; // org outside plain manager's scope
+let adminUserId: string; // admin with no companyId — for null-company path test
 
 // Unique INNs for this test run
 const PARTNER_INN = `INN-P-${STAMP}`;
 const TARGET_ORG_INN = `INN-O-${STAMP}`;
 const OTHER_ORG_INN = `INN-OTHER-${STAMP}`;
+const ADMIN_STANDALONE_ORG_INN = `INN-ADM-${STAMP}`;
 const PAYMENT_EXT_ID = `PAY-${STAMP}`;
+const ADMIN_ORDER_EXT_ID = `ORD-ADM-${STAMP}`;
+const ADMIN_PAY_EXT_ID = `PAY-ADM-${STAMP}`;
 
 beforeAll(async () => {
   prisma = new PrismaClient();
@@ -66,30 +70,45 @@ beforeAll(async () => {
     },
   });
   otherOrgId = otherOrg.id;
+
+  // Admin user with no companyId — used to verify that orders for company-less orgs are skipped
+  const adminUser = await prisma.user.create({
+    data: {
+      email: `admin-${STAMP}@import.test`,
+      name: `Admin-${STAMP}`,
+      role: 'admin',
+      // companyId intentionally omitted (null) — admins are not company-bound
+    },
+  });
+  adminUserId = adminUser.id;
 });
 
 afterAll(async () => {
   // Clean up in dependency order: payments, orders, orgs, partner users, users, partner, company
   await prisma.payment.deleteMany({ where: { externalId: { startsWith: `PAY-${STAMP}` } } });
+  await prisma.payment.deleteMany({ where: { externalId: ADMIN_PAY_EXT_ID } });
   // Also clean up any payments on orgs we created
   await prisma.payment.deleteMany({
-    where: { organization: { inn: { in: [TARGET_ORG_INN, OTHER_ORG_INN] } } },
+    where: { organization: { inn: { in: [TARGET_ORG_INN, OTHER_ORG_INN, ADMIN_STANDALONE_ORG_INN] } } },
   });
+  await prisma.order.deleteMany({ where: { externalId: ADMIN_ORDER_EXT_ID } });
   await prisma.order.deleteMany({
-    where: { organization: { inn: { in: [TARGET_ORG_INN, OTHER_ORG_INN] } } },
+    where: { organization: { inn: { in: [TARGET_ORG_INN, OTHER_ORG_INN, ADMIN_STANDALONE_ORG_INN] } } },
   });
   // Remove org users / managers before deleting orgs
   await prisma.organizationManager.deleteMany({
-    where: { organization: { inn: { in: [TARGET_ORG_INN, OTHER_ORG_INN] } } },
+    where: { organization: { inn: { in: [TARGET_ORG_INN, OTHER_ORG_INN, ADMIN_STANDALONE_ORG_INN] } } },
   });
   await prisma.organizationUser.deleteMany({
-    where: { organization: { inn: { in: [TARGET_ORG_INN, OTHER_ORG_INN] } } },
+    where: { organization: { inn: { in: [TARGET_ORG_INN, OTHER_ORG_INN, ADMIN_STANDALONE_ORG_INN] } } },
   });
   await prisma.organization.deleteMany({
-    where: { inn: { in: [TARGET_ORG_INN, OTHER_ORG_INN] } },
+    where: { inn: { in: [TARGET_ORG_INN, OTHER_ORG_INN, ADMIN_STANDALONE_ORG_INN] } },
   });
-  await prisma.auditLog.deleteMany({ where: { userId: { in: [leaderUserId, plainManagerUserId] } } });
-  await prisma.user.deleteMany({ where: { id: { in: [leaderUserId, plainManagerUserId] } } });
+  await prisma.auditLog.deleteMany({
+    where: { userId: { in: [leaderUserId, plainManagerUserId, adminUserId] } },
+  });
+  await prisma.user.deleteMany({ where: { id: { in: [leaderUserId, plainManagerUserId, adminUserId] } } });
   await prisma.partner.deleteMany({ where: { id: partnerId } });
   await prisma.company.deleteMany({ where: { id: companyId } });
   await prisma.$disconnect();
@@ -112,6 +131,14 @@ function plainManagerSession(managedOrgIds: string[] = []): SessionPayload {
     role: 'manager',
     companyId,
     managedOrgIds,
+  };
+}
+
+function adminSession(): SessionPayload {
+  return {
+    sub: adminUserId,
+    role: 'admin',
+    // companyId intentionally absent — admins are not company-bound
   };
 }
 
@@ -220,5 +247,62 @@ describe('commitImport — transactional commit + audit', () => {
     expect(result.applied.paymentsUpserted).toBe(0);
     expect(result.applied.orgsCreated).toBe(0);
     expect(result.applied.orgsUpdated).toBe(0);
+  });
+
+  it('admin with null companyId: org is created, payment is created, order is SKIPPED (no bogus FK)', async () => {
+    // Admin sessions have no companyId. The org they create also has companyId=null.
+    // An Order.companyId is NOT NULL → writing orgId as a bogus FK would roll back the TX.
+    // The fix: resolve companyId from the org itself; if null → skip the order safely.
+    const session = adminSession();
+
+    const result = await commitImport(prisma, session, {
+      orgs: [{ name: `StandaloneAdminOrg-${STAMP}`, inn: ADMIN_STANDALONE_ORG_INN, partnerInn: null }],
+      orders: [
+        {
+          externalId: ADMIN_ORDER_EXT_ID,
+          orderNumber: `ORD-NUM-ADM-${STAMP}`,
+          orgInn: ADMIN_STANDALONE_ORG_INN,
+          totalAmount: 50000,
+          paidAmount: 0,
+        },
+      ],
+      payments: [
+        {
+          externalId: ADMIN_PAY_EXT_ID,
+          orgInn: ADMIN_STANDALONE_ORG_INN,
+          amount: 9876.54,
+          paidAt: '2026-06-09',
+          method: 'bank',
+          isRefund: false,
+          note: 'admin standalone payment',
+        },
+      ],
+    });
+
+    // Must not throw; function returns normally
+    expect(result).toBeDefined();
+
+    // Org should be created (admin can create new orgs)
+    expect(result.applied.orgsCreated).toBe(1);
+
+    // Payment should be created (Payment has no companyId FK)
+    expect(result.applied.paymentsUpserted).toBe(1);
+
+    // Order must be SKIPPED — org has no companyId, writing bogus FK is unsafe
+    expect(result.applied.ordersUpserted).toBe(0);
+
+    // Verify no Order row was written for this externalId
+    const orderCount = await prisma.order.count({ where: { externalId: ADMIN_ORDER_EXT_ID } });
+    expect(orderCount).toBe(0);
+
+    // Verify org was actually created
+    const org = await prisma.organization.findUnique({ where: { inn: ADMIN_STANDALONE_ORG_INN } });
+    expect(org).not.toBeNull();
+    expect(org!.companyId).toBeNull();
+
+    // Verify payment was actually created and linked to the org
+    const pay = await prisma.payment.findUnique({ where: { externalId: ADMIN_PAY_EXT_ID } });
+    expect(pay).not.toBeNull();
+    expect(pay!.organizationId).toBe(org!.id);
   });
 });
