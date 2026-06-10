@@ -1,5 +1,5 @@
 import type { PrismaClient, DocumentType } from '@prisma/client';
-import { partnerChannelWhere } from '@/lib/auth/documentChannelPolicy';
+import { partnerChannelWhere, orderBoundWhere, orderLessWhere } from '@/lib/auth/documentChannelPolicy';
 import type { OrgDocumentRow } from './orgDocuments';
 
 export type PartnerDocumentsFilter = {
@@ -7,6 +7,7 @@ export type PartnerDocumentsFilter = {
   scopeOrgIds?: string[];
   type?: DocumentType;
   search?: string;
+  orderLess?: boolean;
   take: number;
   skip: number;
 };
@@ -26,8 +27,11 @@ export async function listPartnerDocuments(
       ? { order: { organizationId: { in: filter.scopeOrgIds } } }
       : {};
 
+  const orderAxisWhere = filter.orderLess ? orderLessWhere() : orderBoundWhere();
+
   const docWhere = {
     ...partnerChannelWhere(filter.partnerId),
+    ...orderAxisWhere,
     ...orgScope,
     ...(filter.type ? { type: filter.type } : {}),
     ...(filter.search
@@ -37,6 +41,7 @@ export async function listPartnerDocuments(
 
   const groupByWhere = {
     ...partnerChannelWhere(filter.partnerId),
+    ...orderAxisWhere,
     ...orgScope,
     ...(filter.search ? { name: { contains: filter.search, mode: 'insensitive' as const } } : {})
   };

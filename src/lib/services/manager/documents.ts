@@ -1,7 +1,8 @@
 import { z } from 'zod';
-import type { PrismaClient, Prisma, DocumentType } from '@prisma/client';
+import type { PrismaClient, Prisma, DocumentType, DocumentDirection } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { managerDocumentScope, canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import { managerOrderLessWhere } from '@/lib/auth/documentChannelPolicy';
 
 /**
  * Manager-facing documents service.
@@ -138,5 +139,40 @@ export async function getDocumentForDownload(
     path: doc.path,
     mimeType: doc.mimeType,
     name: doc.name
+  };
+}
+
+export type ManagerOrderLessRow = {
+  id: string; name: string; type: DocumentType; direction: DocumentDirection;
+  signedAt: Date | null; createdAt: Date; size: number | null;
+  counterpartyType: 'organization' | 'partner'; counterpartyId: string;
+};
+
+export async function listManagerOrderLessDocuments(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  opts?: { type?: DocumentType; take?: number; cursor?: string }
+): Promise<{ rows: ManagerOrderLessRow[]; nextCursor: string | null }> {
+  if (!session.companyId) return { rows: [], nextCursor: null };
+  const take = Math.min(Math.max(opts?.take ?? 50, 1), 100);
+  const where: Prisma.DocumentWhereInput = {
+    ...managerOrderLessWhere(session.companyId),
+    ...(opts?.type ? { type: opts.type } : {})
+  };
+  const rows = await prisma.document.findMany({
+    where,
+    orderBy: { id: 'desc' },
+    take: take + 1,
+    ...(opts?.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
+    select: {
+      id: true, name: true, type: true, direction: true, signedAt: true,
+      createdAt: true, size: true, counterpartyType: true, counterpartyId: true
+    }
+  });
+  const hasMore = rows.length > take;
+  const sliced = hasMore ? rows.slice(0, take) : rows;
+  return {
+    rows: sliced as ManagerOrderLessRow[],
+    nextCursor: hasMore ? sliced[sliced.length - 1]!.id : null
   };
 }
