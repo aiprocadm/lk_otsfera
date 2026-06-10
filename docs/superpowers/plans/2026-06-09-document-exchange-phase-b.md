@@ -43,7 +43,9 @@
 
 ---
 
-## Task 1: Schema migration — nullable orderId + companyId anchor + XOR CHECK
+## Task 1: Schema migration + null-cascade (ATOMIC — folds Tasks 4 & 5)
+
+> **ATOMICITY (load-bearing):** The project pre-commit hook runs `npm run typecheck` on every commit. The moment `orderId` becomes nullable and the Prisma client is regenerated, every `Document.order` deref and every `orderId: string` row type becomes a typecheck error. Therefore Task 1 MUST also complete **all of Tasks 4 and 5** (nullable row types + null-safe `.order?.` derefs + `DocumentLike` widening) and only commit ONCE, after `npm run typecheck` is green. Tasks 4 and 5 below are NOT separate commits — they are the second half of this task. (Mirrors Phase A's atomic schema task.)
 
 **Files:**
 - Modify: `prisma/schema.prisma` (model `Document` ~467-497, model `Company` ~410-419)
