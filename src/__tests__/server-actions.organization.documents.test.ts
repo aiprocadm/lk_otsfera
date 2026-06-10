@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 
-const { core, notify, session } = vi.hoisted(() => ({
-  core: vi.fn(), notify: vi.fn(),
+const { core, notify, notifyOrderLess, session } = vi.hoisted(() => ({
+  core: vi.fn(), notify: vi.fn(), notifyOrderLess: vi.fn(),
   session: { sub: 'u1', role: 'organization', email: 'o@x.ru', name: 'O' }
 }));
 vi.mock('@/lib/services/documents/upload-core', () => ({ persistUploadedDocument: core }));
-vi.mock('@/lib/notifications', () => ({ notifyManagers: notify }));
+vi.mock('@/lib/notifications', () => ({ notifyManagers: notify, notifyManagersOrderLess: notifyOrderLess }));
 vi.mock('@/lib/auth/session', () => ({ getSession: vi.fn().mockResolvedValue(session) }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 const { db } = vi.hoisted(() => ({ db: {
@@ -50,5 +50,26 @@ describe('uploadOrganizationDocument', () => {
     expect(core.mock.calls[0][1].counterparty).toEqual({ type: 'organization', id: 'org1' });
     expect(core.mock.calls[0][1].direction).toBe('incoming');
     expect(notify.mock.calls[0][1].type).toBe('document_uploaded_by_org');
+  });
+
+  it('order-less path: persists with orderId null + companyId and calls notifyManagersOrderLess', async () => {
+    core.mockReset();
+    notifyOrderLess.mockReset();
+    db.organizationUser.findFirst.mockResolvedValue({ id: 'ou1' });
+    db.organization.findUnique.mockResolvedValue({ name: 'ООО Тест', companyId: 'co-1' });
+    core.mockResolvedValue({ ok: true, documentId: 'doc2' });
+    notifyOrderLess.mockResolvedValue({ recipientsNotified: 1, emailsSent: 0, emailsSkipped: 0 });
+    const r = await uploadOrganizationDocument(fd({ organizationId: 'org1', docType: 'contract', file: file() }));
+    expect(r).toEqual({ ok: true, documentId: 'doc2' });
+    expect(core.mock.calls[0][1]).toMatchObject({ orderId: null, companyId: 'co-1', direction: 'incoming' });
+    expect(notifyOrderLess).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        organizationId: 'org1',
+        orgName: 'ООО Тест',
+        documentName: 'a.pdf',
+        documentType: 'contract',
+      })
+    );
   });
 });

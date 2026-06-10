@@ -36,11 +36,12 @@ const MAX_TAKE = 200;
 export default async function PartnerDocumentsPage({
   searchParams
 }: {
-  searchParams: Promise<{ type?: string; search?: string; take?: string; skip?: string }>;
+  searchParams: Promise<{ type?: string; search?: string; take?: string; skip?: string; tab?: string }>;
 }) {
   const session = await requirePartner();
 
   const sp = await searchParams;
+  const tab = sp.tab === 'general' ? 'general' : 'orders';
   const take = Math.min(
     Number.isFinite(Number(sp.take)) ? Number(sp.take) : DEFAULT_TAKE,
     MAX_TAKE
@@ -60,6 +61,7 @@ export default async function PartnerDocumentsPage({
     scopeOrgIds: scope,
     type: typeFilter,
     search: sp.search,
+    orderLess: tab === 'general',
     take,
     skip
   });
@@ -82,11 +84,27 @@ export default async function PartnerDocumentsPage({
         <DocumentsSearch />
       </div>
 
+      <nav className='flex gap-2'>
+        <Link
+          href='/partner/documents'
+          className={`px-3 py-1.5 text-sm rounded-full border ${tab === 'orders' ? 'bg-[#F97316] text-white border-[#F97316]' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'}`}
+        >
+          По заказам
+        </Link>
+        <Link
+          href='/partner/documents?tab=general'
+          className={`px-3 py-1.5 text-sm rounded-full border ${tab === 'general' ? 'bg-[#F97316] text-white border-[#F97316]' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'}`}
+        >
+          Общие документы
+        </Link>
+      </nav>
+
       <TypeFilter
         active={typeFilter}
         countsByType={countsByType}
         grandTotal={grandTotal}
         search={sp.search}
+        tab={tab}
       />
 
       <DocumentsList rows={rows} />
@@ -100,6 +118,7 @@ export default async function PartnerDocumentsPage({
           total={total}
           type={typeFilter}
           search={sp.search}
+          tab={tab}
         />
       )}
     </div>
@@ -115,18 +134,20 @@ function pluralize(n: number, one: string, few: string, many: string): string {
 }
 
 function TypeFilter({
-  active, countsByType, grandTotal, search
+  active, countsByType, grandTotal, search, tab
 }: {
   active?: DocumentType;
   countsByType: Partial<Record<DocumentType, number>>;
   grandTotal: number;
   search?: string;
+  tab?: string;
 }) {
   if (grandTotal === 0) return null;
   const present = VALID_TYPES.filter((t) => (countsByType[t] ?? 0) > 0);
 
   function href(type?: DocumentType): string {
     const params = new URLSearchParams();
+    if (tab === 'general') params.set('tab', 'general');
     if (search) params.set('search', search);
     if (type) params.set('type', type);
     return `/partner/documents${params.toString() ? '?' + params.toString() : ''}`;
@@ -166,13 +187,14 @@ function Chip({
 }
 
 function Paginator({
-  take, skip, page, pages, total, type, search
+  take, skip, page, pages, total, type, search, tab
 }: {
   take: number; skip: number; page: number; pages: number; total: number;
-  type?: DocumentType; search?: string;
+  type?: DocumentType; search?: string; tab?: string;
 }) {
   function link(targetSkip: number): string {
     const params = new URLSearchParams();
+    if (tab === 'general') params.set('tab', 'general');
     if (search) params.set('search', search);
     if (type) params.set('type', type);
     params.set('take', String(take));

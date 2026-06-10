@@ -16,7 +16,7 @@ const DOC_TYPE_LABELS: Record<string, string> = {
 export type PartnerDocumentPublishedProps = {
   partnerName: string;
   orderNumber: string | null;
-  orderTitle: string;
+  orderTitle: string | null;
   documentName: string;
   documentType: string;
   orderUrl: string;
@@ -24,7 +24,7 @@ export type PartnerDocumentPublishedProps = {
 
 export function PartnerDocumentPublished(props: PartnerDocumentPublishedProps) {
   const typeLabel = DOC_TYPE_LABELS[props.documentType] ?? 'документ';
-  const orderRef = props.orderNumber ? `№ ${props.orderNumber}` : `«${props.orderTitle}»`;
+  const orderRef = props.orderNumber ? `№ ${props.orderNumber}` : props.orderTitle ? `«${props.orderTitle}»` : '(без заказа)';
   return (
     <EmailLayout title='Новый документ'>
       <p style={emailStyles.paragraph}>
@@ -42,13 +42,13 @@ export function PartnerDocumentPublished(props: PartnerDocumentPublishedProps) {
 }
 
 export function partnerDocumentPublishedSubject(props: PartnerDocumentPublishedProps): string {
-  const orderRef = props.orderNumber ? `№ ${props.orderNumber}` : `«${props.orderTitle}»`;
+  const orderRef = props.orderNumber ? `№ ${props.orderNumber}` : props.orderTitle ? `«${props.orderTitle}»` : '(без заказа)';
   return `Новый документ ${props.documentName} по заказу ${orderRef}`;
 }
 
 export function partnerDocumentPublishedText(props: PartnerDocumentPublishedProps): string {
   const typeLabel = DOC_TYPE_LABELS[props.documentType] ?? 'документ';
-  const orderRef = props.orderNumber ? `№ ${props.orderNumber}` : `«${props.orderTitle}»`;
+  const orderRef = props.orderNumber ? `№ ${props.orderNumber}` : props.orderTitle ? `«${props.orderTitle}»` : '(без заказа)';
   return [
     `По заказу ${orderRef} загружен ${typeLabel} «${props.documentName}».`,
     '',

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -113,7 +113,7 @@ export function DocumentsList({
                 )}
               </div>
               <div className='text-xs text-gray-400 mt-0.5 truncate'>
-                Сделка: {doc.orderNumber ?? doc.orderTitle}
+                {doc.orderId ? `Сделка: ${doc.orderNumber ?? doc.orderTitle}` : 'Общий документ'}
               </div>
             </div>
 

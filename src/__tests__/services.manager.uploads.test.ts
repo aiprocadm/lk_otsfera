@@ -8,7 +8,8 @@ const {
   storageUpload,
   queueAdd,
   notifyOrgUsersMock,
-  notifyPartnerUsersMock
+  notifyPartnerUsersMock,
+  listManagerCounterpartiesMock
 } = vi.hoisted(() => ({
   orderFindUnique: vi.fn(),
   commentCount: vi.fn().mockResolvedValue(0),
@@ -17,7 +18,8 @@ const {
   storageUpload: vi.fn(),
   queueAdd: vi.fn(),
   notifyOrgUsersMock: vi.fn(),
-  notifyPartnerUsersMock: vi.fn()
+  notifyPartnerUsersMock: vi.fn(),
+  listManagerCounterpartiesMock: vi.fn()
 }));
 
 vi.mock('@/lib/storage/supabase', () => ({
@@ -34,8 +36,11 @@ vi.mock('@/lib/notifications', () => ({
   notifyOrgUsers: notifyOrgUsersMock,
   notifyPartnerUsers: notifyPartnerUsersMock
 }));
+vi.mock('@/lib/services/manager/counterparties', () => ({
+  listManagerCounterparties: listManagerCounterpartiesMock
+}));
 
-import { createCounterpartyDocument } from '@/lib/services/manager/uploads';
+import { createCounterpartyDocument, createManagerOrderLessDocument } from '@/lib/services/manager/uploads';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 function prismaMock() {
@@ -95,6 +100,10 @@ describe('services/manager/uploads — createCounterpartyDocument', () => {
       emailsSkipped: 0
     });
     documentCreate.mockResolvedValue({ id: 'doc-1' });
+    listManagerCounterpartiesMock.mockResolvedValue({
+      organizations: [{ id: 'o1', name: 'O' }],
+      partners: []
+    });
   });
 
   it('happy path: per-org scope → uploads, persists, enqueues scan, audits, notifies org', async () => {
@@ -388,5 +397,124 @@ describe('services/manager/uploads — createCounterpartyDocument', () => {
     });
     expect(r).toEqual({ ok: false, error: 'invalid_recipient' });
     expect(storageUpload).not.toHaveBeenCalled();
+  });
+});
+
+describe('services/manager/uploads — createManagerOrderLessDocument', () => {
+  function orderLessPrismaMock() {
+    return {
+      organization: { findMany: vi.fn() },
+      partner: { findMany: vi.fn() },
+      company: { findUnique: vi.fn().mockResolvedValue({ managerTeamVisibility: false }) },
+      document: { create: documentCreate },
+      auditLog: { create: auditCreate }
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    storageUpload.mockResolvedValue({ data: { path: 'x' }, error: null });
+    queueAdd.mockResolvedValue(undefined);
+    notifyOrgUsersMock.mockResolvedValue({ recipientsNotified: 1, emailsSent: 0, emailsSkipped: 1 });
+    notifyPartnerUsersMock.mockResolvedValue({ recipientsNotified: 1, emailsSent: 0, emailsSkipped: 1 });
+    documentCreate.mockResolvedValue({ id: 'd1' });
+    listManagerCounterpartiesMock.mockResolvedValue({
+      organizations: [{ id: 'o1', name: 'O' }],
+      partners: []
+    });
+  });
+
+  it('order-less: persists with companyId=session.companyId, orderId=null, direction outgoing', async () => {
+    const sess = { sub: 'm1', role: 'manager', companyId: 'co-1', managedOrgIds: ['o1'] } as never;
+    const prisma = orderLessPrismaMock();
+
+    const res = await createManagerOrderLessDocument(prisma as never, sess, {
+      counterparty: { type: 'organization', id: 'o1' },
+      docType: 'other',
+      file: { name: 'g.pdf', size: 9, mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') }
+    });
+
+    expect(res).toEqual({ ok: true, documentId: 'd1' });
+    expect(documentCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        orderId: null,
+        companyId: 'co-1',
+        direction: 'outgoing',
+        counterpartyType: 'organization',
+        counterpartyId: 'o1'
+      })
+    });
+    expect(notifyOrgUsersMock).toHaveBeenCalledTimes(1);
+    expect(notifyPartnerUsersMock).not.toHaveBeenCalled();
+  });
+
+  it('order-less: rejects counterparty outside manager scope', async () => {
+    const sess = { sub: 'm1', role: 'manager', companyId: 'co-1', managedOrgIds: ['o1'] } as never;
+    const prisma = orderLessPrismaMock();
+
+    const res = await createManagerOrderLessDocument(prisma as never, sess, {
+      counterparty: { type: 'organization', id: 'oX' },
+      docType: 'other',
+      file: { name: 'g.pdf', size: 9, mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') }
+    });
+
+    expect(res).toEqual({ ok: false, error: 'forbidden' });
+    expect(storageUpload).not.toHaveBeenCalled();
+    expect(documentCreate).not.toHaveBeenCalled();
+  });
+
+  it('order-less: returns forbidden when session has no companyId', async () => {
+    const sess = { sub: 'm1', role: 'manager', companyId: null, managedOrgIds: ['o1'] } as never;
+    const prisma = orderLessPrismaMock();
+
+    const res = await createManagerOrderLessDocument(prisma as never, sess, {
+      counterparty: { type: 'organization', id: 'o1' },
+      docType: 'other',
+      file: { name: 'g.pdf', size: 9, mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') }
+    });
+
+    expect(res).toEqual({ ok: false, error: 'forbidden' });
+  });
+
+  it('order-less: swallows notify failure and still returns ok', async () => {
+    notifyOrgUsersMock.mockRejectedValueOnce(new Error('email down'));
+    const sess = { sub: 'm1', role: 'manager', companyId: 'co-1', managedOrgIds: ['o1'] } as never;
+    const prisma = orderLessPrismaMock();
+
+    const res = await createManagerOrderLessDocument(prisma as never, sess, {
+      counterparty: { type: 'organization', id: 'o1' },
+      docType: 'other',
+      file: { name: 'g.pdf', size: 9, mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') }
+    });
+
+    expect(res).toEqual({ ok: true, documentId: 'd1' });
+  });
+
+  it('order-less: routes to partner channel when counterparty.type=partner', async () => {
+    listManagerCounterpartiesMock.mockResolvedValue({
+      organizations: [],
+      partners: [{ id: 'p1', name: 'P' }]
+    });
+    const sess = { sub: 'm1', role: 'manager', companyId: 'co-1', managedOrgIds: [] } as never;
+    const prisma = orderLessPrismaMock();
+
+    const res = await createManagerOrderLessDocument(prisma as never, sess, {
+      counterparty: { type: 'partner', id: 'p1' },
+      docType: 'contract',
+      file: { name: 'c.pdf', size: 9, mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') }
+    });
+
+    expect(res).toEqual({ ok: true, documentId: 'd1' });
+    expect(documentCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        orderId: null,
+        companyId: 'co-1',
+        direction: 'outgoing',
+        counterpartyType: 'partner',
+        counterpartyId: 'p1'
+      })
+    });
+    expect(notifyPartnerUsersMock).toHaveBeenCalledTimes(1);
+    expect(notifyOrgUsersMock).not.toHaveBeenCalled();
   });
 });

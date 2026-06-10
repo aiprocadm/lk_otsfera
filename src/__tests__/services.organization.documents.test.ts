@@ -19,6 +19,7 @@ let docA1InfectedId: string;
 let docA2InvoiceId: string;
 let docB1ContractId: string;
 let docA1CommissionId: string;
+let docOrderLessId: string;
 
 beforeAll(async () => {
   prisma = new PrismaClient();
@@ -126,10 +127,23 @@ beforeAll(async () => {
   });
   docA1CommissionId = dCommission.id;
 
+  // Order-less org doc (no orderId) — should appear only when orderLess=true
+  const dOrderLess = await prisma.document.create({
+    data: {
+      name: 'gen.pdf', path: 'fake://gen',
+      mimeType: 'application/pdf', type: 'other',
+      counterpartyType: 'organization', counterpartyId: orgAId,
+      companyId
+    }
+  });
+  docOrderLessId = dOrderLess.id;
+
 });
 
 afterAll(async () => {
   await prisma.document.deleteMany({ where: { order: { partnerId } } });
+  // Delete order-less org doc (no orderId — not caught by the order-scoped filter above)
+  await prisma.document.deleteMany({ where: { orderId: null, counterpartyId: orgAId, counterpartyType: 'organization' } });
   await prisma.order.deleteMany({ where: { partnerId } });
   await prisma.organization.deleteMany({ where: { id: { in: [orgAId, orgBId] } } });
   await prisma.partner.delete({ where: { id: partnerId } });
@@ -235,6 +249,14 @@ describe('services/organization/documents — listOrgDocuments', () => {
     expect(ids).not.toContain(docA1CommissionId);
     expect(total).toBe(3); // contract + act + invoice; commission is partner-channel
   });
+
+  it('orderLess=true returns only order-less docs; default returns only order-bound', async () => {
+    const bound = await listOrgDocuments(prisma, { organizationId: orgAId });
+    const less = await listOrgDocuments(prisma, { organizationId: orgAId, orderLess: true });
+    expect(bound.rows.every((r) => r.orderId !== null)).toBe(true);
+    expect(less.rows.every((r) => r.orderId === null)).toBe(true);
+    expect(less.rows.map((r) => r.id)).toContain(docOrderLessId);
+  });
 });
 
 describe('services/organization/documents — getOrgDocumentForDownload', () => {
@@ -270,6 +292,22 @@ describe('services/organization/documents — getOrgDocumentForDownload', () => 
 
   it('download of a partner-channel doc returns not_found for the org', async () => {
     const r = await getOrgDocumentForDownload(prisma, orgAId, docA1CommissionId);
+    expect(r).toEqual({ ok: false, error: 'not_found' });
+  });
+
+  it('org downloads its own order-less doc successfully', async () => {
+    const r = await getOrgDocumentForDownload(prisma, orgAId, docOrderLessId);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.path).toBe('fake://gen');
+      expect(r.mimeType).toBe('application/pdf');
+      expect(r.name).toBe('gen.pdf');
+    }
+  });
+
+  it('org gets not_found for another orgs order-less doc', async () => {
+    // orgB does not own docOrderLessId (counterpartyId = orgAId)
+    const r = await getOrgDocumentForDownload(prisma, orgBId, docOrderLessId);
     expect(r).toEqual({ ok: false, error: 'not_found' });
   });
 });

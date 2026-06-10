@@ -9,9 +9,9 @@ export type OrgDocumentRow = {
   signedAt: Date | null;
   createdAt: Date;
   size: number | null;
-  orderId: string;
+  orderId: string | null;
   orderNumber: string | null;
-  orderTitle: string;
+  orderTitle: string | null;
 };
 
 export type OrgDocumentsFilter = {
@@ -88,8 +88,8 @@ export async function getOrgDocuments(
     createdAt: d.createdAt,
     size: d.size,
     orderId: d.orderId,
-    orderNumber: d.order.orderNumber,
-    orderTitle: d.order.title
+    orderNumber: d.order?.orderNumber ?? null,
+    orderTitle: d.order?.title ?? null
   }));
 
   return { rows, countsByType, total };

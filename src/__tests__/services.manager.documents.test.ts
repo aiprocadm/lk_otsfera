@@ -342,9 +342,9 @@ describe('services/manager/documents — listDocuments filters', () => {
     const { rows } = await listDocuments(prisma, { session, take: 100 });
     const mcDoc = rows.find((r) => r.id === docManagerCId);
     expect(mcDoc).toBeDefined();
-    expect(mcDoc!.order.id).toBe(orderManagerCId);
-    expect(mcDoc!.order.organizationId).toBe(orgBId);
-    expect(mcDoc!.order.managerId).toBe(userCId);
+    expect(mcDoc!.order?.id).toBe(orderManagerCId);
+    expect(mcDoc!.order?.organizationId).toBe(orgBId);
+    expect(mcDoc!.order?.managerId).toBe(userCId);
   });
 
   it('rejects take > 100 via zod validation', async () => {

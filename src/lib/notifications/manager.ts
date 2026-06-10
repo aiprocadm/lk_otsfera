@@ -269,6 +269,66 @@ const MANAGER_TEMPLATES: Record<
   }
 };
 
+/**
+ * Recipients for an order-less org→managers upload. No order exists, so the
+ * order-centric `resolveManagerRecipients` cannot apply — we target the active
+ * OrganizationManager set for the organization (the per-org branch (b), which
+ * needs no order). Scoped by organization: only managers assigned to this org
+ * via OrganizationManager are returned.
+ */
+export async function resolveOrgManagerRecipients(
+  db: PrismaClient,
+  organizationId: string,
+  opts?: NotifyManagersOptions
+): Promise<ManagerRecipient[]> {
+  const assigned = await db.organizationManager.findMany({
+    where: { organizationId, isActive: true },
+    select: { userId: true }
+  });
+  const ids = new Set(assigned.map((a) => a.userId));
+  if (opts?.excludeUserId) ids.delete(opts.excludeUserId);
+  if (ids.size === 0) return [];
+  return db.user.findMany({
+    where: { id: { in: Array.from(ids) }, role: 'manager', isActive: true },
+    select: { id: true, email: true, name: true }
+  });
+}
+
+export async function notifyManagersOrderLess(
+  db: PrismaClient,
+  input: { organizationId: string; orgName: string; documentName: string; documentType: string },
+  opts?: NotifyManagersOptions
+): Promise<NotifyManagersSummary> {
+  const recipients = await resolveOrgManagerRecipients(db, input.organizationId, opts);
+  if (recipients.length === 0) return { recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 };
+
+  const props = {
+    orgName: input.orgName,
+    orderNumber: 'Общий документ',
+    documentName: input.documentName,
+    documentType: input.documentType,
+    orderUrl: `${getAppBaseUrl()}/manager/documents?tab=general`
+  };
+  const subject = managerDocumentUploadedByOrgSubject(props);
+  const shortBody = managerDocumentUploadedByOrgText(props);
+  const meta = { ...input, orderId: null } as Prisma.InputJsonValue;
+
+  let emailsSent = 0, emailsSkipped = 0, recipientsNotified = 0;
+  for (const r of recipients) {
+    await db.notification.create({
+      data: { userId: r.id, type: 'document_uploaded_by_org', title: subject, body: shortBody, meta }
+    });
+    recipientsNotified += 1;
+    if (r.email) {
+      try {
+        const result = await sendManagerDocumentUploadedByOrgEmail({ to: r.email, ...props });
+        if (result.status === 'sent') emailsSent += 1; else emailsSkipped += 1;
+      } catch { emailsSkipped += 1; }
+    } else emailsSkipped += 1;
+  }
+  return { recipientsNotified, emailsSent, emailsSkipped };
+}
+
 function getManagerOrderUrl(orderId: string): string {
   return `${getAppBaseUrl()}/manager/orders/${orderId}`;
 }

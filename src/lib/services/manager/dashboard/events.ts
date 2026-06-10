@@ -29,7 +29,8 @@ export async function recentEvents(
 
   const [documents, payments, statusAudits, comments] = await Promise.all([
     prisma.document.findMany({
-      where: { order: scope, scanStatus: { not: 'infected' } },
+      // orderId: { not: null } — order-less docs must not enter this order-centric feed
+      where: { order: scope, scanStatus: { not: 'infected' }, orderId: { not: null } },
       orderBy: { createdAt: 'desc' },
       take: fetchLimit,
       select: {
@@ -102,8 +103,8 @@ export async function recentEvents(
       id: `doc-${d.id}`,
       kind: 'document_created',
       when: d.createdAt,
-      text: `Загружен документ ${d.name} по заказу ${d.order.orderNumber ?? d.orderId}`,
-      href: `/manager/orders/${d.orderId}`
+      text: `Загружен документ ${d.name}${d.order?.orderNumber ? ` по заказу ${d.order.orderNumber}` : ''}`,
+      href: d.orderId ? `/manager/orders/${d.orderId}` : '/manager/documents'
     })),
     ...payments.map((p): EventItem =>
       p.order

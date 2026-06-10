@@ -72,6 +72,8 @@ export async function attention(
           signedAt: null,
           createdAt: { lt: threeDaysAgo },
           scanStatus: { not: 'infected' },
+          // orderId: { not: null } — order-less docs must not enter this order-centric feed
+          orderId: { not: null },
           order: scope
         },
         orderBy: { createdAt: 'asc' },
@@ -155,8 +157,8 @@ export async function attention(
       id: `act-${d.id}`,
       kind: 'act_unsigned',
       severity: 'warn',
-      message: `Акт «${d.name}» >3 дней без подписи (заказ ${d.order.orderNumber ?? ''})`.trim(),
-      href: `/manager/orders/${d.orderId}`
+      message: `Акт «${d.name}» >3 дней без подписи${d.order?.orderNumber ? ` (заказ ${d.order.orderNumber})` : ''}`,
+      href: d.orderId ? `/manager/orders/${d.orderId}` : '/manager/documents'
     })),
     ...stalledOrders.map((o): AttentionItem => ({
       id: `stalled-${o.id}`,

@@ -3,6 +3,8 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeOrder, managedOrgIds, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { notifyOrgUsers, notifyPartnerUsers } from '@/lib/notifications';
 import { persistUploadedDocument, validateUploadFile } from '@/lib/services/documents/upload-core';
+import { canManagerUploadOrderLess } from '@/lib/auth/documentChannelPolicy';
+import { listManagerCounterparties } from '@/lib/services/manager/counterparties';
 
 /**
  * Manager-facing upload service for order documents.
@@ -127,6 +129,89 @@ export async function createCounterpartyDocument(
     console.warn('[manager/uploads] recipient notify failed', {
       documentId: persisted.documentId,
       recipient: args.recipient,
+      error: err instanceof Error ? err.message : String(err)
+    });
+  }
+
+  return { ok: true, documentId: persisted.documentId };
+}
+
+// ─── Order-less upload (Phase B) ──────────────────────────────────────────────
+
+export type CreateManagerOrderLessArgs = {
+  counterparty: { type: DocumentRecipient; id: string };
+  docType: string;
+  file: { name: string; size: number; mimeType: string; buffer: Buffer };
+};
+
+/**
+ * Manager uploads a document not tied to any order (Phase B "общие документы").
+ *
+ * RBAC: counterparty must be within the manager's resolved scope
+ * (listManagerCounterparties — org-scoped or company-wide per teamMode).
+ * The document is pinned to session.companyId (cross-company isolation).
+ * Notification fan-out is best-effort — never blocks the upload.
+ */
+export async function createManagerOrderLessDocument(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  args: CreateManagerOrderLessArgs
+): Promise<CreateCounterpartyDocumentResult> {
+  const fileCheck = validateUploadFile(args.file);
+  if (!fileCheck.ok) return fileCheck;
+
+  if (!session.companyId) return { ok: false, error: 'forbidden' };
+
+  const { organizations, partners } = await listManagerCounterparties(prisma, session);
+  const scope = {
+    managedOrgIds: organizations.map((o) => o.id),
+    partnerIds: partners.map((p) => p.id)
+  };
+  if (!canManagerUploadOrderLess(args.counterparty, scope)) {
+    return { ok: false, error: 'forbidden' };
+  }
+
+  const persisted = await persistUploadedDocument(prisma, {
+    counterparty: args.counterparty,
+    orderId: null,
+    companyId: session.companyId,
+    direction: 'outgoing',
+    docType: args.docType,
+    uploadedById: session.sub,
+    source: 'manager',
+    file: args.file
+  });
+  if (!persisted.ok) return persisted;
+
+  try {
+    if (args.counterparty.type === 'organization') {
+      await notifyOrgUsers(prisma, {
+        organizationId: args.counterparty.id,
+        type: 'document_published',
+        payload: {
+          orderId: null,
+          orderNumber: null,
+          orderTitle: null,
+          documentName: args.file.name,
+          documentType: args.docType
+        }
+      });
+    } else {
+      await notifyPartnerUsers(prisma, {
+        partnerId: args.counterparty.id,
+        type: 'document_published',
+        payload: {
+          orderId: null,
+          orderNumber: null,
+          orderTitle: null,
+          documentName: args.file.name,
+          documentType: args.docType
+        }
+      });
+    }
+  } catch (err) {
+    console.warn('[manager/uploads] order-less notify failed', {
+      documentId: persisted.documentId,
       error: err instanceof Error ? err.message : String(err)
     });
   }

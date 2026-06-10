@@ -6,12 +6,15 @@ import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
 import { recordAudit } from '@/lib/auth/audit';
 
 /**
- * GET /api/manager/documents/[id]/download
+ * POST /api/manager/documents/[id]/download
  *
  * Returns a 302 redirect to a short-lived Supabase Storage signed URL when
  * the manager has visibility on the document's parent order (three-way RBAC
  * via managerDocumentScopeFilter — per-order managerId, per-org assignment,
  * or historical comments) and the document is not infected.
+ *
+ * Uses POST to match the DocumentsList component caller (same pattern as org
+ * and generic download routes). There are no GET-style callers.
  *
  * Status semantics (matches Phase 7 org route):
  *   - 404: document missing OR out-of-scope (silent; no existence leak)
@@ -22,7 +25,7 @@ import { recordAudit } from '@/lib/auth/audit';
 
 const SIGNED_URL_TTL_SEC = 600;
 
-export async function GET(
+export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {

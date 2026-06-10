@@ -1,13 +1,15 @@
 import { prisma } from '@/lib/db/prisma';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { canReadOrderLessDocument } from '@/lib/auth/documentChannelPolicy';
 
 type AccessErrorCode = 'FORBIDDEN';
 
 type OrderLike = { id: string; companyId: string };
 type DocumentLike = {
   id: string;
-  orderId: string;
-  order?: { companyId: string };
+  orderId: string | null;
+  companyId?: string | null;
+  order?: { companyId: string } | null;
   counterpartyType?: 'organization' | 'partner';
   counterpartyId?: string;
 };
@@ -82,21 +84,36 @@ export async function canReadOrder(session: SessionPayload, order: OrderLike) {
 }
 
 export async function canReadDocument(session: SessionPayload, document: DocumentLike) {
-  const doc =
-    document.order?.companyId && document.counterpartyType && document.counterpartyId
-      ? document
-      : await prisma.document.findUnique({
-          where: { id: document.id },
-          select: {
-            id: true,
-            orderId: true,
-            counterpartyType: true,
-            counterpartyId: true,
-            order: { select: { companyId: true } }
-          }
-        });
+  // Re-fetch unless the caller already provided every field both branches need.
+  // An order-bound doc is complete when order.companyId is present;
+  // an order-less doc is complete only when companyId is present (orderId===null alone
+  // is not sufficient — a missing companyId would reach the downstream gate with null).
+  const haveAll =
+    !!document.counterpartyType && !!document.counterpartyId &&
+    (!!document.order?.companyId || !!document.companyId);
+  const doc = haveAll
+    ? document
+    : await prisma.document.findUnique({
+        where: { id: document.id },
+        select: {
+          id: true, orderId: true, companyId: true,
+          counterpartyType: true, counterpartyId: true,
+          order: { select: { companyId: true } }
+        }
+      });
+  if (!doc || !doc.counterpartyType || !doc.counterpartyId) return false;
 
-  if (!doc?.order?.companyId) return false;
+  // Order-less branch: order is null, company anchor lives on the doc.
+  if (doc.orderId === null) {
+    return canReadOrderLessDocument(session, {
+      counterpartyType: doc.counterpartyType,
+      counterpartyId: doc.counterpartyId,
+      companyId: doc.companyId ?? null
+    });
+  }
+
+  // Order-bound branch (unchanged from Phase A).
+  if (!doc.order?.companyId) return false;
 
   // Channel isolation for client roles (defense-in-depth at the download gate):
   // a partner reads only its partner-channel; an organization only org-channel.

@@ -1,5 +1,5 @@
 import type { PrismaClient, DocumentType } from '@prisma/client';
-import { partnerChannelWhere } from '@/lib/auth/documentChannelPolicy';
+import { partnerChannelWhere, orderBoundWhere, orderLessWhere } from '@/lib/auth/documentChannelPolicy';
 import type { OrgDocumentRow } from './orgDocuments';
 
 export type PartnerDocumentsFilter = {
@@ -7,6 +7,7 @@ export type PartnerDocumentsFilter = {
   scopeOrgIds?: string[];
   type?: DocumentType;
   search?: string;
+  orderLess?: boolean;
   take: number;
   skip: number;
 };
@@ -21,13 +22,19 @@ export async function listPartnerDocuments(
   prisma: PrismaClient,
   filter: PartnerDocumentsFilter
 ): Promise<PartnerDocumentsResult> {
+  // Order-less docs are partner-level, not org-specific — the org-scope filter
+  // targets the order.organizationId relation which is null for order-less docs,
+  // so it would match nothing. Skip it entirely for the general tab.
   const orgScope =
-    filter.scopeOrgIds && filter.scopeOrgIds.length > 0
+    !filter.orderLess && filter.scopeOrgIds && filter.scopeOrgIds.length > 0
       ? { order: { organizationId: { in: filter.scopeOrgIds } } }
       : {};
 
+  const orderAxisWhere = filter.orderLess ? orderLessWhere() : orderBoundWhere();
+
   const docWhere = {
     ...partnerChannelWhere(filter.partnerId),
+    ...orderAxisWhere,
     ...orgScope,
     ...(filter.type ? { type: filter.type } : {}),
     ...(filter.search
@@ -37,6 +44,7 @@ export async function listPartnerDocuments(
 
   const groupByWhere = {
     ...partnerChannelWhere(filter.partnerId),
+    ...orderAxisWhere,
     ...orgScope,
     ...(filter.search ? { name: { contains: filter.search, mode: 'insensitive' as const } } : {})
   };
@@ -81,8 +89,8 @@ export async function listPartnerDocuments(
     createdAt: d.createdAt,
     size: d.size,
     orderId: d.orderId,
-    orderNumber: d.order.orderNumber,
-    orderTitle: d.order.title
+    orderNumber: d.order?.orderNumber ?? null,
+    orderTitle: d.order?.title ?? null
   }));
 
   return { rows, total, countsByType };

@@ -1,6 +1,6 @@
 import type { PrismaClient, DocumentType, DocumentDirection } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
-import { organizationChannelWhere, documentInChannel } from '@/lib/auth/documentChannelPolicy';
+import { organizationChannelWhere, documentInChannel, orderBoundWhere, orderLessWhere } from '@/lib/auth/documentChannelPolicy';
 
 export type OrgDocRow = {
   id: string;
@@ -10,15 +10,16 @@ export type OrgDocRow = {
   signedAt: Date | null;
   createdAt: Date;
   size: number | null;
-  orderId: string;
+  orderId: string | null;
   orderNumber: string | null;
-  orderTitle: string;
+  orderTitle: string | null;
 };
 
 export type ListOrgDocumentsOptions = {
   organizationId: string;
   type?: DocumentType;
   orderId?: string;
+  orderLess?: boolean;
   from?: Date;
   to?: Date;
   search?: string;
@@ -66,6 +67,7 @@ export async function listOrgDocuments(
 
   const baseWhere: Prisma.DocumentWhereInput = {
     ...organizationChannelWhere(opts.organizationId),
+    ...(opts.orderLess ? orderLessWhere() : orderBoundWhere()),
     ...(opts.orderId ? { orderId: opts.orderId } : {}),
     ...dateFilter,
     ...(opts.search ? { name: { contains: opts.search, mode: 'insensitive' as const } } : {})
@@ -116,8 +118,8 @@ export async function listOrgDocuments(
     createdAt: d.createdAt,
     size: d.size,
     orderId: d.orderId,
-    orderNumber: d.order.orderNumber,
-    orderTitle: d.order.title
+    orderNumber: d.order?.orderNumber ?? null,
+    orderTitle: d.order?.title ?? null
   }));
 
   return { rows, total, countsByType };

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
-import { notifyManagers } from '@/lib/notifications';
+import { notifyManagers, notifyManagersOrderLess } from '@/lib/notifications';
 import { persistUploadedDocument } from '@/lib/services/documents/upload-core';
 
 export type UploadDocumentResult =
@@ -13,7 +13,7 @@ export type UploadDocumentResult =
 
 const schema = z.object({
   organizationId: z.string().min(1),
-  orderId: z.string().min(1),
+  orderId: z.string().min(1).optional(),
   docType: z.string().min(1)
 });
 
@@ -21,9 +21,10 @@ export async function uploadOrganizationDocument(formData: FormData): Promise<Up
   const session = await getSession();
   if (!session || session.role !== 'organization') return { ok: false, error: 'forbidden' };
 
+  const rawOrderId = formData.get('orderId');
   const parsed = schema.safeParse({
     organizationId: String(formData.get('organizationId') ?? ''),
-    orderId: String(formData.get('orderId') ?? ''),
+    orderId: rawOrderId ? String(rawOrderId) : undefined,
     docType: String(formData.get('docType') ?? 'other')
   });
   if (!parsed.success) return { ok: false, error: 'validation' };
@@ -37,6 +38,43 @@ export async function uploadOrganizationDocument(formData: FormData): Promise<Up
     select: { id: true }
   });
   if (!membership) return { ok: false, error: 'forbidden' };
+
+  if (!parsed.data.orderId) {
+    const org = await prisma.organization.findUnique({
+      where: { id: parsed.data.organizationId },
+      select: { name: true, companyId: true }
+    });
+    if (!org?.companyId) return { ok: false, error: 'not_found' };
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const persisted = await persistUploadedDocument(prisma, {
+      counterparty: { type: 'organization', id: parsed.data.organizationId },
+      orderId: null,
+      companyId: org.companyId,
+      direction: 'incoming',
+      docType: parsed.data.docType,
+      uploadedById: session.sub,
+      source: 'organization',
+      file: { name: file.name, size: file.size, mimeType: file.type, buffer }
+    });
+    if (!persisted.ok) return persisted;
+
+    try {
+      await notifyManagersOrderLess(prisma, {
+        organizationId: parsed.data.organizationId,
+        orgName: org.name,
+        documentName: file.name,
+        documentType: parsed.data.docType
+      });
+    } catch (err) {
+      console.warn('[uploadOrganizationDocument] order-less notify failed', {
+        documentId: persisted.documentId,
+        error: err instanceof Error ? err.message : String(err)
+      });
+    }
+    revalidatePath('/organization/documents');
+    return { ok: true, documentId: persisted.documentId };
+  }
 
   // Order must belong to that org (silent not_found otherwise — no existence leak).
   const order = await prisma.order.findUnique({

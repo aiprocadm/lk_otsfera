@@ -13,9 +13,9 @@ export type PartnerNotifyInput = {
   partnerId: string;
   type: 'document_published';
   payload: {
-    orderId: string;
+    orderId: string | null;
     orderNumber: string | null;
-    orderTitle: string;
+    orderTitle: string | null;
     documentName: string;
     documentType: string;
   };
@@ -44,9 +44,13 @@ export async function notifyPartnerUsers(
   });
   if (!partner) return { recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 };
 
-  const orderUrl = `${getAppBaseUrl()}/partner/portfolio`;
+  const orderUrl = input.payload.orderId === null
+    ? `${getAppBaseUrl()}/partner/documents?tab=general`
+    : `${getAppBaseUrl()}/partner/portfolio`;
   const label = orderLabel(input.payload.orderNumber, input.payload.orderTitle);
-  const title = `Новый документ по заказу ${label}`;
+  const title = input.payload.orderId === null
+    ? 'Новый общий документ'
+    : `Новый документ по заказу ${label}`;
   const body = `Загружен документ «${input.payload.documentName}» (${input.payload.documentType}).`;
   const meta = { ...input.payload, partnerName: partner.name, url: orderUrl };
 

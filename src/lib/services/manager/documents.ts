@@ -1,7 +1,8 @@
 import { z } from 'zod';
-import type { PrismaClient, Prisma, DocumentType } from '@prisma/client';
+import type { PrismaClient, Prisma, DocumentType, DocumentDirection } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { managerDocumentScope, canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import { managerOrderLessWhere, canReadOrderLessDocument } from '@/lib/auth/documentChannelPolicy';
 
 /**
  * Manager-facing documents service.
@@ -95,6 +96,10 @@ export async function getDocumentForDownload(
       mimeType: true,
       scanStatus: true,
       scanReason: true,
+      orderId: true,
+      companyId: true,
+      counterpartyType: true,
+      counterpartyId: true,
       order: {
         select: {
           managerId: true,
@@ -107,21 +112,35 @@ export async function getDocumentForDownload(
 
   if (!doc) return { ok: false, error: 'not_found' };
 
+  if (doc.orderId === null) {
+    if (!canReadOrderLessDocument(session, {
+      counterpartyType: doc.counterpartyType,
+      counterpartyId: doc.counterpartyId,
+      companyId: doc.companyId ?? null
+    })) {
+      return { ok: false, error: 'not_found' };
+    }
+    if (doc.scanStatus === 'infected') return { ok: false, error: 'infected', scanReason: doc.scanReason ?? null };
+    return { ok: true, path: doc.path, mimeType: doc.mimeType, name: doc.name };
+  }
+
+  const ord = doc.order!;
+
   // Silent 404 for out-of-scope documents: do not leak existence. In company-wide
   // mode the cheap companyId check decides, so we skip the historical-comment
   // count entirely; in scoped mode we count comments only when managerId/org miss.
   let commentsCountByMe = 0;
   if (
     !teamMode &&
-    doc.order.managerId !== session.sub &&
-    !(doc.order.organizationId && (session.managedOrgIds ?? []).includes(doc.order.organizationId))
+    ord.managerId !== session.sub &&
+    !(ord.organizationId && (session.managedOrgIds ?? []).includes(ord.organizationId))
   ) {
     commentsCountByMe = await prisma.comment.count({
       where: { order: { documents: { some: { id: documentId } } }, authorId: session.sub }
     });
   }
 
-  if (!canSeeOrder(session, { ...doc.order, commentsCountByMe }, teamMode)) {
+  if (!canSeeOrder(session, { ...ord, commentsCountByMe }, teamMode)) {
     return { ok: false, error: 'not_found' };
   }
 
@@ -134,5 +153,40 @@ export async function getDocumentForDownload(
     path: doc.path,
     mimeType: doc.mimeType,
     name: doc.name
+  };
+}
+
+export type ManagerOrderLessRow = {
+  id: string; name: string; type: DocumentType; direction: DocumentDirection;
+  signedAt: Date | null; createdAt: Date; size: number | null;
+  counterpartyType: 'organization' | 'partner'; counterpartyId: string;
+};
+
+export async function listManagerOrderLessDocuments(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  opts?: { type?: DocumentType; take?: number; cursor?: string }
+): Promise<{ rows: ManagerOrderLessRow[]; nextCursor: string | null }> {
+  if (!session.companyId) return { rows: [], nextCursor: null };
+  const take = Math.min(Math.max(opts?.take ?? 50, 1), 100);
+  const where: Prisma.DocumentWhereInput = {
+    ...managerOrderLessWhere(session.companyId),
+    ...(opts?.type ? { type: opts.type } : {})
+  };
+  const rows = await prisma.document.findMany({
+    where,
+    orderBy: { id: 'desc' },
+    take: take + 1,
+    ...(opts?.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
+    select: {
+      id: true, name: true, type: true, direction: true, signedAt: true,
+      createdAt: true, size: true, counterpartyType: true, counterpartyId: true
+    }
+  });
+  const hasMore = rows.length > take;
+  const sliced = hasMore ? rows.slice(0, take) : rows;
+  return {
+    rows: sliced as ManagerOrderLessRow[],
+    nextCursor: hasMore ? sliced[sliced.length - 1]!.id : null
   };
 }

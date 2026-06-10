@@ -11,7 +11,7 @@ export type OrgDashboardKpis = {
 export type OrgAttentionItem = {
   id: string;
   kind: 'billed_unpaid' | 'unsigned_act' | 'completed_open';
-  orderId: string;
+  orderId: string | null;
   title: string;
   meta?: string;
   severity: 'warn' | 'urgent';
@@ -99,12 +99,14 @@ export async function attention(
       select: { id: true, orderNumber: true, title: true, totalAmount: true, paidAmount: true }
     }),
     // Acts pending signature: created more than 3 days ago and not signed
+    // orderId: { not: null } — order-less docs must not enter this order-centric feed
     prisma.document.findMany({
       where: {
         ...organizationChannelWhere(organizationId),
         type: 'act',
         signedAt: null,
-        createdAt: { lt: threeDaysAgo }
+        createdAt: { lt: threeDaysAgo },
+        orderId: { not: null }
       },
       orderBy: { createdAt: 'asc' },
       take: ATTENTION_CAP,
@@ -137,7 +139,7 @@ export async function attention(
       kind: 'unsigned_act',
       orderId: d.orderId,
       title: `Акт «${d.name}» требует подписания`,
-      meta: d.order.orderNumber ?? undefined,
+      meta: d.order?.orderNumber ?? undefined,
       severity: 'warn'
     })),
     ...completedOpen.map((o): OrgAttentionItem => ({
@@ -161,7 +163,7 @@ export async function recentEvents(
 
   const [documents, payments, statusAudits, comments] = await Promise.all([
     prisma.document.findMany({
-      where: { ...organizationChannelWhere(organizationId) },
+      where: { ...organizationChannelWhere(organizationId), orderId: { not: null } },
       orderBy: { createdAt: 'desc' },
       take: fetchLimit,
       select: { id: true, name: true, createdAt: true, orderId: true }
