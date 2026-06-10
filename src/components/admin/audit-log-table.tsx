@@ -20,12 +20,12 @@ export function AuditLogTable({ rows }: { rows: AuditRow[] }) {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50 text-left">
-            <th className="px-4 py-2.5 font-medium text-gray-600">Когда</th>
-            <th className="px-4 py-2.5 font-medium text-gray-600">Actor</th>
-            <th className="px-4 py-2.5 font-medium text-gray-600">Action</th>
-            <th className="px-4 py-2.5 font-medium text-gray-600">Entity</th>
-            <th className="px-4 py-2.5 font-medium text-gray-600">ID</th>
-            <th className="px-4 py-2.5 font-medium text-gray-600 text-right">Detail</th>
+            <th scope='col' className="px-4 py-2.5 font-medium text-gray-600">Когда</th>
+            <th scope='col' className="px-4 py-2.5 font-medium text-gray-600">Actor</th>
+            <th scope='col' className="px-4 py-2.5 font-medium text-gray-600">Action</th>
+            <th scope='col' className="px-4 py-2.5 font-medium text-gray-600">Entity</th>
+            <th scope='col' className="px-4 py-2.5 font-medium text-gray-600">ID</th>
+            <th scope='col' className="px-4 py-2.5 font-medium text-gray-600 text-right">Detail</th>
           </tr>
         </thead>
         <tbody>

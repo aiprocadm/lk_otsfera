@@ -27,13 +27,13 @@ export function UsersTable({ rows, currentUserId }: { rows: UserRow[]; currentUs
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50 text-left">
-            <th className="px-4 py-2.5 font-medium text-gray-600">Email</th>
-            <th className="px-4 py-2.5 font-medium text-gray-600">Имя</th>
-            <th className="px-4 py-2.5 font-medium text-gray-600">Роль</th>
-            <th className="px-4 py-2.5 font-medium text-gray-600">Привязка</th>
-            <th className="px-4 py-2.5 font-medium text-gray-600">Активен</th>
-            <th className="px-4 py-2.5 font-medium text-gray-600">Создан</th>
-            <th className="px-4 py-2.5 font-medium text-gray-600 text-right">Действия</th>
+            <th scope='col' className="px-4 py-2.5 font-medium text-gray-600">Email</th>
+            <th scope='col' className="px-4 py-2.5 font-medium text-gray-600">Имя</th>
+            <th scope='col' className="px-4 py-2.5 font-medium text-gray-600">Роль</th>
+            <th scope='col' className="px-4 py-2.5 font-medium text-gray-600">Привязка</th>
+            <th scope='col' className="px-4 py-2.5 font-medium text-gray-600">Активен</th>
+            <th scope='col' className="px-4 py-2.5 font-medium text-gray-600">Создан</th>
+            <th scope='col' className="px-4 py-2.5 font-medium text-gray-600 text-right">Действия</th>
           </tr>
         </thead>
         <tbody>

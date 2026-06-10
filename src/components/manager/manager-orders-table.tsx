@@ -70,14 +70,14 @@ export function ManagerOrdersTable({ rows, nextCursor, searchParams }: Props) {
         <table className='w-full text-sm'>
           <thead>
             <tr className='border-b border-gray-100 bg-gray-50 text-left'>
-              <th className='px-4 py-2.5 font-medium text-gray-600'>№</th>
-              <th className='px-4 py-2.5 font-medium text-gray-600'>Название</th>
-              <th className='px-4 py-2.5 font-medium text-gray-600'>Организация</th>
-              <th className='px-4 py-2.5 font-medium text-gray-600 text-right'>Сумма</th>
-              <th className='px-4 py-2.5 font-medium text-gray-600 text-right'>Оплачено</th>
-              <th className='px-4 py-2.5 font-medium text-gray-600'>Исполнение</th>
-              <th className='px-4 py-2.5 font-medium text-gray-600'>Финансы</th>
-              <th className='px-4 py-2.5 font-medium text-gray-600'>Менеджер</th>
+              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>№</th>
+              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Название</th>
+              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Организация</th>
+              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 text-right'>Сумма</th>
+              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 text-right'>Оплачено</th>
+              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Исполнение</th>
+              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Финансы</th>
+              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Менеджер</th>
             </tr>
           </thead>
           <tbody>

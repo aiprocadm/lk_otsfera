@@ -36,11 +36,11 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-[#F3F4F6] text-left">
-                  <th className="px-4 py-2 font-medium text-[#111111]">Email</th>
-                  <th className="px-4 py-2 font-medium text-[#111111]">Имя</th>
-                  <th className="px-4 py-2 font-medium text-[#111111]">Активен</th>
-                  <th className="px-4 py-2 font-medium text-[#111111]">Создан</th>
-                  <th className="px-4 py-2 font-medium text-[#111111]">Действия</th>
+                  <th scope='col' className="px-4 py-2 font-medium text-[#111111]">Email</th>
+                  <th scope='col' className="px-4 py-2 font-medium text-[#111111]">Имя</th>
+                  <th scope='col' className="px-4 py-2 font-medium text-[#111111]">Активен</th>
+                  <th scope='col' className="px-4 py-2 font-medium text-[#111111]">Создан</th>
+                  <th scope='col' className="px-4 py-2 font-medium text-[#111111]">Действия</th>
                 </tr>
               </thead>
               <tbody>

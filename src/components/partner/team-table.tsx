@@ -26,11 +26,11 @@ export function TeamTable({
       <table className='w-full text-sm'>
         <thead>
           <tr className='border-b border-gray-100 bg-gray-50 text-left'>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Сотрудник</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Email</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Роль</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Доступ к организациям</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600 w-32'></th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Сотрудник</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Email</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Роль</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Доступ к организациям</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 w-32'></th>
           </tr>
         </thead>
         <tbody>

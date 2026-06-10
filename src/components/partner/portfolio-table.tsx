@@ -22,10 +22,10 @@ export function PortfolioTable({ items }: { items: PortfolioItem[] }) {
       <table className='w-full text-sm'>
         <thead>
           <tr className='border-b border-gray-100 bg-gray-50 text-left'>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Организация</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>ИНН</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600 text-right'>Сделок</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600 text-right'>Долг</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Организация</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>ИНН</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 text-right'>Сделок</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 text-right'>Долг</th>
           </tr>
         </thead>
         <tbody>

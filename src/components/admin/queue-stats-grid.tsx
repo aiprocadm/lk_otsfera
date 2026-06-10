@@ -12,12 +12,12 @@ export function QueueStatsGrid({ rows }: { rows: QueueStatsRow[] }) {
       <table className='w-full text-sm'>
         <thead className='bg-gray-50 text-gray-600'>
           <tr>
-            <th className='text-left px-4 py-3 font-medium'>Очередь</th>
-            <th className='text-right px-4 py-3 font-medium'>Ожидают</th>
-            <th className='text-right px-4 py-3 font-medium'>Активные</th>
-            <th className='text-right px-4 py-3 font-medium'>Отложены</th>
-            <th className='text-right px-4 py-3 font-medium'>Завершено</th>
-            <th className='text-right px-4 py-3 font-medium'>Сбоев</th>
+            <th scope='col' className='text-left px-4 py-3 font-medium'>Очередь</th>
+            <th scope='col' className='text-right px-4 py-3 font-medium'>Ожидают</th>
+            <th scope='col' className='text-right px-4 py-3 font-medium'>Активные</th>
+            <th scope='col' className='text-right px-4 py-3 font-medium'>Отложены</th>
+            <th scope='col' className='text-right px-4 py-3 font-medium'>Завершено</th>
+            <th scope='col' className='text-right px-4 py-3 font-medium'>Сбоев</th>
           </tr>
         </thead>
         <tbody>

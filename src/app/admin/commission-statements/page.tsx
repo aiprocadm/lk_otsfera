@@ -137,12 +137,12 @@ export default async function AdminCommissionStatementsPage({
         <table className='w-full text-sm'>
           <thead className='bg-gray-50 text-gray-600'>
             <tr>
-              <th className='text-left px-4 py-3 font-medium'>Партнёр</th>
-              <th className='text-left px-4 py-3 font-medium'>Период</th>
-              <th className='text-left px-4 py-3 font-medium'>Статус</th>
-              <th className='text-right px-4 py-3 font-medium'>Заказов</th>
-              <th className='text-right px-4 py-3 font-medium'>Сумма</th>
-              <th className='text-right px-4 py-3 font-medium'>Действие</th>
+              <th scope='col' className='text-left px-4 py-3 font-medium'>Партнёр</th>
+              <th scope='col' className='text-left px-4 py-3 font-medium'>Период</th>
+              <th scope='col' className='text-left px-4 py-3 font-medium'>Статус</th>
+              <th scope='col' className='text-right px-4 py-3 font-medium'>Заказов</th>
+              <th scope='col' className='text-right px-4 py-3 font-medium'>Сумма</th>
+              <th scope='col' className='text-right px-4 py-3 font-medium'>Действие</th>
             </tr>
           </thead>
           <tbody>

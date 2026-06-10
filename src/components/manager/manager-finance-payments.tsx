@@ -24,10 +24,10 @@ export function ManagerFinancePayments({ payments }: { payments: OrgPaymentRow[]
       <table className='w-full text-sm'>
         <thead>
           <tr className='border-b border-gray-100 bg-gray-50 text-left'>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Дата</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Заказ</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Способ</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600 text-right'>Сумма</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Дата</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Заказ</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Способ</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 text-right'>Сумма</th>
           </tr>
         </thead>
         <tbody>

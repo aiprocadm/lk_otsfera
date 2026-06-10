@@ -33,9 +33,9 @@ function QuarantineTable({ rows, title }: { rows: Quarantine[]; title: string })
         <table className="w-full text-xs border border-gray-200 rounded">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
-              <th className="text-left px-3 py-2 font-medium">Лист</th>
-              <th className="text-left px-3 py-2 font-medium">Строка</th>
-              <th className="text-left px-3 py-2 font-medium">Причина</th>
+              <th scope='col' className="text-left px-3 py-2 font-medium">Лист</th>
+              <th scope='col' className="text-left px-3 py-2 font-medium">Строка</th>
+              <th scope='col' className="text-left px-3 py-2 font-medium">Причина</th>
             </tr>
           </thead>
           <tbody>

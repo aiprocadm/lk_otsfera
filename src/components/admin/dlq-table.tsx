@@ -26,13 +26,13 @@ export function DlqTable({ rows }: { rows: DlqRow[] }) {
       <table className='w-full text-sm'>
         <thead className='bg-gray-50 text-gray-600'>
           <tr>
-            <th className='text-left px-4 py-3 font-medium'>Очередь</th>
-            <th className='text-left px-4 py-3 font-medium'>Job ID</th>
-            <th className='text-left px-4 py-3 font-medium'>Имя</th>
-            <th className='text-left px-4 py-3 font-medium'>Причина</th>
-            <th className='text-right px-4 py-3 font-medium'>Попыток</th>
-            <th className='text-right px-4 py-3 font-medium'>Когда</th>
-            <th className='text-right px-4 py-3 font-medium'>Действие</th>
+            <th scope='col' className='text-left px-4 py-3 font-medium'>Очередь</th>
+            <th scope='col' className='text-left px-4 py-3 font-medium'>Job ID</th>
+            <th scope='col' className='text-left px-4 py-3 font-medium'>Имя</th>
+            <th scope='col' className='text-left px-4 py-3 font-medium'>Причина</th>
+            <th scope='col' className='text-right px-4 py-3 font-medium'>Попыток</th>
+            <th scope='col' className='text-right px-4 py-3 font-medium'>Когда</th>
+            <th scope='col' className='text-right px-4 py-3 font-medium'>Действие</th>
           </tr>
         </thead>
         <tbody>
