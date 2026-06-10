@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { PrismaClient, Prisma, DocumentType, DocumentDirection } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { managerDocumentScope, canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
-import { managerOrderLessWhere } from '@/lib/auth/documentChannelPolicy';
+import { managerOrderLessWhere, canReadOrderLessDocument } from '@/lib/auth/documentChannelPolicy';
 
 /**
  * Manager-facing documents service.
@@ -96,6 +96,10 @@ export async function getDocumentForDownload(
       mimeType: true,
       scanStatus: true,
       scanReason: true,
+      orderId: true,
+      companyId: true,
+      counterpartyType: true,
+      counterpartyId: true,
       order: {
         select: {
           managerId: true,
@@ -108,9 +112,19 @@ export async function getDocumentForDownload(
 
   if (!doc) return { ok: false, error: 'not_found' };
 
-  // Order-less documents are not yet served through this path; a later task
-  // rewrites the download logic to handle companyId-anchored docs.
-  if (!doc.order) return { ok: false, error: 'not_found' };
+  if (doc.orderId === null) {
+    if (!canReadOrderLessDocument(session, {
+      counterpartyType: doc.counterpartyType,
+      counterpartyId: doc.counterpartyId,
+      companyId: doc.companyId ?? null
+    })) {
+      return { ok: false, error: 'not_found' };
+    }
+    if (doc.scanStatus === 'infected') return { ok: false, error: 'infected', scanReason: doc.scanReason ?? null };
+    return { ok: true, path: doc.path, mimeType: doc.mimeType, name: doc.name };
+  }
+
+  const ord = doc.order!;
 
   // Silent 404 for out-of-scope documents: do not leak existence. In company-wide
   // mode the cheap companyId check decides, so we skip the historical-comment
@@ -118,15 +132,15 @@ export async function getDocumentForDownload(
   let commentsCountByMe = 0;
   if (
     !teamMode &&
-    doc.order.managerId !== session.sub &&
-    !(doc.order.organizationId && (session.managedOrgIds ?? []).includes(doc.order.organizationId))
+    ord.managerId !== session.sub &&
+    !(ord.organizationId && (session.managedOrgIds ?? []).includes(ord.organizationId))
   ) {
     commentsCountByMe = await prisma.comment.count({
       where: { order: { documents: { some: { id: documentId } } }, authorId: session.sub }
     });
   }
 
-  if (!canSeeOrder(session, { ...doc.order, commentsCountByMe }, teamMode)) {
+  if (!canSeeOrder(session, { ...ord, commentsCountByMe }, teamMode)) {
     return { ok: false, error: 'not_found' };
   }
 

@@ -1,9 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const { findUnique } = vi.hoisted(() => ({ findUnique: vi.fn() }));
 
 const { db } = vi.hoisted(() => ({
   db: {
     organization: { findFirst: vi.fn(), findMany: vi.fn() },
-    document: { findUnique: vi.fn() },
+    document: { findUnique },
     order: { findUnique: vi.fn() }
   }
 }));
@@ -13,6 +15,10 @@ import { canReadDocument } from '@/lib/auth/policy';
 
 const partnerSession = { sub: 'pu', role: 'partner', partnerId: 'p1' } as never;
 const orgSession = { sub: 'ou', role: 'organization', organizationId: 'org1' } as never;
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('canReadDocument -- channel isolation', () => {
   it('denies a partner reading an organization-channel document (no order lookup)', async () => {
@@ -41,5 +47,34 @@ describe('canReadDocument -- channel isolation', () => {
     const adminSession = { sub: 'a1', role: 'admin' } as never;
     const doc = { id: 'd', orderId: 'o', order: { companyId: 'c' }, counterpartyType: 'partner' as const, counterpartyId: 'pX' };
     expect(await canReadDocument(adminSession, doc)).toBe(true);
+  });
+});
+
+describe('canReadDocument -- order-less documents', () => {
+  it('manager downloads order-less doc only in same company', async () => {
+    findUnique.mockResolvedValue({
+      id: 'd1', orderId: null, companyId: 'co-1',
+      counterpartyType: 'partner', counterpartyId: 'p1', order: null
+    });
+    expect(await canReadDocument({ role: 'manager', companyId: 'co-1' } as never, { id: 'd1' } as never)).toBe(true);
+    expect(await canReadDocument({ role: 'manager', companyId: 'co-2' } as never, { id: 'd1' } as never)).toBe(false);
+  });
+
+  it('partner downloads order-less doc only in its channel', async () => {
+    findUnique.mockResolvedValue({
+      id: 'd2', orderId: null, companyId: 'co-1',
+      counterpartyType: 'partner', counterpartyId: 'p1', order: null
+    });
+    expect(await canReadDocument({ role: 'partner', partnerId: 'p1' } as never, { id: 'd2' } as never)).toBe(true);
+    expect(await canReadDocument({ role: 'partner', partnerId: 'pX' } as never, { id: 'd2' } as never)).toBe(false);
+  });
+
+  it('organization downloads order-less doc only in its channel', async () => {
+    findUnique.mockResolvedValue({
+      id: 'd3', orderId: null, companyId: 'co-1',
+      counterpartyType: 'organization', counterpartyId: 'o1', order: null
+    });
+    expect(await canReadDocument({ role: 'organization', organizationId: 'o1' } as never, { id: 'd3' } as never)).toBe(true);
+    expect(await canReadDocument({ role: 'organization', organizationId: 'oX' } as never, { id: 'd3' } as never)).toBe(false);
   });
 });

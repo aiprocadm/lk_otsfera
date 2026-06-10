@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db/prisma';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { canReadOrderLessDocument } from '@/lib/auth/documentChannelPolicy';
 
 type AccessErrorCode = 'FORBIDDEN';
 
@@ -83,21 +84,33 @@ export async function canReadOrder(session: SessionPayload, order: OrderLike) {
 }
 
 export async function canReadDocument(session: SessionPayload, document: DocumentLike) {
-  const doc =
-    document.order?.companyId && document.counterpartyType && document.counterpartyId
-      ? document
-      : await prisma.document.findUnique({
-          where: { id: document.id },
-          select: {
-            id: true,
-            orderId: true,
-            counterpartyType: true,
-            counterpartyId: true,
-            order: { select: { companyId: true } }
-          }
-        });
+  // Re-fetch unless the caller already provided every field both branches need.
+  const haveAll =
+    document.counterpartyType && document.counterpartyId &&
+    (document.order?.companyId || document.companyId || document.orderId === null);
+  const doc = haveAll
+    ? document
+    : await prisma.document.findUnique({
+        where: { id: document.id },
+        select: {
+          id: true, orderId: true, companyId: true,
+          counterpartyType: true, counterpartyId: true,
+          order: { select: { companyId: true } }
+        }
+      });
+  if (!doc || !doc.counterpartyType || !doc.counterpartyId) return false;
 
-  if (!doc?.order?.companyId) return false;
+  // Order-less branch: order is null, company anchor lives on the doc.
+  if (doc.orderId === null) {
+    return canReadOrderLessDocument(session, {
+      counterpartyType: doc.counterpartyType,
+      counterpartyId: doc.counterpartyId,
+      companyId: doc.companyId ?? null
+    });
+  }
+
+  // Order-bound branch (unchanged from Phase A).
+  if (!doc.order?.companyId) return false;
 
   // Channel isolation for client roles (defense-in-depth at the download gate):
   // a partner reads only its partner-channel; an organization only org-channel.
@@ -110,10 +123,6 @@ export async function canReadDocument(session: SessionPayload, document: Documen
     // is company-level for partners and does not isolate to a specific partner.)
     if (doc.counterpartyType !== 'organization') return false;
   }
-
-  // Order-less documents (orderId null) are not yet supported in canReadDocument;
-  // a later task rewrites the body to handle companyId-anchored docs.
-  if (!doc.orderId) return false;
 
   // Pass the parent ORDER id, not the document id: canReadOrder() for the
   // manager role looks the Order up by this id, so passing doc.id silently

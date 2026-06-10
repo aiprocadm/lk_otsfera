@@ -294,4 +294,20 @@ describe('services/organization/documents — getOrgDocumentForDownload', () => 
     const r = await getOrgDocumentForDownload(prisma, orgAId, docA1CommissionId);
     expect(r).toEqual({ ok: false, error: 'not_found' });
   });
+
+  it('org downloads its own order-less doc successfully', async () => {
+    const r = await getOrgDocumentForDownload(prisma, orgAId, docOrderLessId);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.path).toBe('fake://gen');
+      expect(r.mimeType).toBe('application/pdf');
+      expect(r.name).toBe('gen.pdf');
+    }
+  });
+
+  it('org gets not_found for another orgs order-less doc', async () => {
+    // orgB does not own docOrderLessId (counterpartyId = orgAId)
+    const r = await getOrgDocumentForDownload(prisma, orgBId, docOrderLessId);
+    expect(r).toEqual({ ok: false, error: 'not_found' });
+  });
 });
