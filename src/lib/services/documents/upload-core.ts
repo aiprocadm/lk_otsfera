@@ -52,7 +52,8 @@ export type UploadSource = 'manager' | 'organization' | 'partner';
 
 export type PersistDocumentArgs = {
   counterparty: { type: 'organization' | 'partner'; id: string };
-  orderId: string;
+  orderId: string | null;
+  companyId?: string | null;
   direction: DocumentDirection;
   docType: string;
   uploadedById: string;
@@ -80,7 +81,9 @@ export async function persistUploadedDocument(
   if (!fileCheck.ok) return fileCheck;
 
   const safeName = sanitizeFilename(args.file.name);
-  const storagePath = `orders/${args.orderId}/${randomUUID()}-${safeName}`;
+  const storagePath = args.orderId
+    ? `orders/${args.orderId}/${randomUUID()}-${safeName}`
+    : `counterparty/${args.counterparty.type}/${args.counterparty.id}/${randomUUID()}-${safeName}`;
   const { error: uploadError } = await supabaseAdmin.storage
     .from(documentBucket)
     .upload(storagePath, args.file.buffer, { contentType: args.file.mimeType, upsert: false });
@@ -97,6 +100,7 @@ export async function persistUploadedDocument(
   const doc = await prisma.document.create({
     data: {
       orderId: args.orderId,
+      companyId: args.companyId ?? null,
       counterpartyType: args.counterparty.type,
       counterpartyId: args.counterparty.id,
       name: args.file.name,
@@ -129,6 +133,7 @@ export async function persistUploadedDocument(
     userId: args.uploadedById,
     after: {
       orderId: args.orderId,
+      companyId: args.companyId ?? null,
       counterpartyType: args.counterparty.type,
       counterpartyId: args.counterparty.id,
       direction: args.direction,

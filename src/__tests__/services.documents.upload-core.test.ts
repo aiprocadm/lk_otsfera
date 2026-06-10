@@ -57,4 +57,26 @@ describe('persistUploadedDocument', () => {
     expect(addMock).toHaveBeenCalledOnce();
     expect(auditMock).toHaveBeenCalledOnce();
   });
+
+  it('order-less upload sets companyId, null orderId, and counterparty storage path', async () => {
+    uploadMock.mockResolvedValue({ error: null });
+    const create = vi.fn().mockResolvedValue({ id: 'doc-orderless' });
+    const prisma = { document: { create } } as never;
+    const result = await persistUploadedDocument(prisma, {
+      counterparty: { type: 'partner', id: 'p1' },
+      orderId: null,
+      companyId: 'co-1',
+      direction: 'outgoing',
+      docType: 'other',
+      uploadedById: 'u1',
+      source: 'manager',
+      file: { name: 'x.pdf', size: 10, mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') }
+    });
+    expect(result.ok).toBe(true);
+    const data = create.mock.calls[0][0].data;
+    expect(data.orderId).toBeNull();
+    expect(data.companyId).toBe('co-1');
+    const uploadedPath = uploadMock.mock.calls.at(-1)![0] as string;
+    expect(uploadedPath).toMatch(/^counterparty\/partner\/p1\//);
+  });
 });
