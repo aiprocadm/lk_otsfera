@@ -13,9 +13,9 @@ export type PartnerNotifyInput = {
   partnerId: string;
   type: 'document_published';
   payload: {
-    orderId: string;
+    orderId: string | null;
     orderNumber: string | null;
-    orderTitle: string;
+    orderTitle: string | null;
     documentName: string;
     documentType: string;
   };
