@@ -6,9 +6,11 @@ import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { OrgDocumentsSearch } from '@/components/organization/org-documents-search';
 import { DocumentsList } from '@/components/partner/documents-list';
 import { listOrgDocuments } from '@/lib/services/organization/documents';
+import { OrganizationOrderLessUploadForm } from '@/components/organization/organization-order-less-upload-form';
 
 type SearchParams = {
   org?: string;
+  tab?: string;
   type?: string;
   search?: string;
   take?: string;
@@ -50,6 +52,8 @@ export default async function OrganizationDocumentsPage({
   const sp = await searchParams;
   const ctx = await getOrgPageContext(sp);
 
+  const tab = sp.tab === 'general' ? 'general' : 'orders';
+
   const take = Math.min(
     Number.isFinite(Number(sp.take)) ? Number(sp.take) : DEFAULT_TAKE,
     MAX_TAKE
@@ -65,7 +69,8 @@ export default async function OrganizationDocumentsPage({
     type: typeFilter,
     search: sp.search,
     take,
-    skip
+    skip,
+    orderLess: tab === 'general'
   });
 
   const page = Math.floor(skip / take) + 1;
@@ -99,13 +104,41 @@ export default async function OrganizationDocumentsPage({
           <OrgDocumentsSearch />
         </div>
 
+        <nav className='flex gap-2'>
+          <Link
+            href={`/organization/documents${sp.org ? `?org=${sp.org}` : ''}`}
+            className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+              tab === 'orders'
+                ? 'bg-[#F97316] text-white border-[#F97316]'
+                : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            По заказам
+          </Link>
+          <Link
+            href={`/organization/documents?tab=general${sp.org ? `&org=${sp.org}` : ''}`}
+            className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+              tab === 'general'
+                ? 'bg-[#F97316] text-white border-[#F97316]'
+                : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Общие документы
+          </Link>
+        </nav>
+
         <TypeFilter
           active={typeFilter}
           countsByType={countsByType}
           grandTotal={grandTotal}
           search={sp.search}
           org={sp.org}
+          tab={tab}
         />
+
+        {tab === 'general' && (
+          <OrganizationOrderLessUploadForm organizationId={ctx.activeOrgId} />
+        )}
 
         <DocumentsList
           rows={rows}
@@ -141,13 +174,15 @@ function TypeFilter({
   countsByType,
   grandTotal,
   search,
-  org
+  org,
+  tab
 }: {
   active?: DocumentType;
   countsByType: Partial<Record<DocumentType, number>>;
   grandTotal: number;
   search?: string;
   org?: string;
+  tab?: string;
 }) {
   if (grandTotal === 0) return null;
   const present = VALID_TYPES.filter((t) => (countsByType[t] ?? 0) > 0);
@@ -155,6 +190,7 @@ function TypeFilter({
   function href(type?: DocumentType): string {
     const params = new URLSearchParams();
     if (org) params.set('org', org);
+    if (tab === 'general') params.set('tab', 'general');
     if (search) params.set('search', search);
     if (type) params.set('type', type);
     return `/organization/documents${params.toString() ? '?' + params.toString() : ''}`;
@@ -219,6 +255,7 @@ function Paginator({
   function link(targetSkip: number): string {
     const params = new URLSearchParams();
     if (searchParams.org) params.set('org', searchParams.org);
+    if (searchParams.tab === 'general') params.set('tab', 'general');
     if (searchParams.search) params.set('search', searchParams.search);
     if (searchParams.type) params.set('type', searchParams.type);
     params.set('take', String(take));
