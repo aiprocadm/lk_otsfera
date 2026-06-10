@@ -22,13 +22,20 @@ export function OrgEventsFeed({ events }: { events: OrgEvent[] }) {
       <ul className='space-y-2 text-sm'>
         {events.map((e) => (
           <li key={e.id} className='flex items-center justify-between gap-3'>
-            <Link
-              href={`/organization/orders/${e.orderId}`}
-              className='text-gray-700 hover:text-[#F97316] flex-1 min-w-0 truncate'
-            >
-              <span className='mr-1'>{kindIcon[e.kind]}</span>
-              {e.title}
-            </Link>
+            {e.orderId ? (
+              <Link
+                href={`/organization/orders/${e.orderId}`}
+                className='text-gray-700 hover:text-[#F97316] flex-1 min-w-0 truncate'
+              >
+                <span className='mr-1'>{kindIcon[e.kind]}</span>
+                {e.title}
+              </Link>
+            ) : (
+              <span className='text-gray-700 flex-1 min-w-0 truncate'>
+                <span className='mr-1'>{kindIcon[e.kind]}</span>
+                {e.title}
+              </span>
+            )}
             <span className='text-gray-400 text-xs whitespace-nowrap'>{e.at.toLocaleString('ru-RU')}</span>
           </li>
         ))}

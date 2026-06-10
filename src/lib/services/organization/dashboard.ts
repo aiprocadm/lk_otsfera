@@ -163,7 +163,7 @@ export async function recentEvents(
 
   const [documents, payments, statusAudits, comments] = await Promise.all([
     prisma.document.findMany({
-      where: { ...organizationChannelWhere(organizationId) },
+      where: { ...organizationChannelWhere(organizationId), orderId: { not: null } },
       orderBy: { createdAt: 'desc' },
       take: fetchLimit,
       select: { id: true, name: true, createdAt: true, orderId: true }

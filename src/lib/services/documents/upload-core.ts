@@ -80,6 +80,13 @@ export async function persistUploadedDocument(
   const fileCheck = validateUploadFile(args.file);
   if (!fileCheck.ok) return fileCheck;
 
+  // XOR invariant: exactly one of orderId / companyId must be set.
+  // Violating this would produce a DB CHECK error (500) — fail fast with a
+  // clean Result instead.
+  if ((args.orderId == null) === (args.companyId == null)) {
+    return { ok: false, error: 'storage' };
+  }
+
   const safeName = sanitizeFilename(args.file.name);
   const storagePath = args.orderId
     ? `orders/${args.orderId}/${randomUUID()}-${safeName}`

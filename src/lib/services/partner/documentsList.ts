@@ -22,8 +22,11 @@ export async function listPartnerDocuments(
   prisma: PrismaClient,
   filter: PartnerDocumentsFilter
 ): Promise<PartnerDocumentsResult> {
+  // Order-less docs are partner-level, not org-specific — the org-scope filter
+  // targets the order.organizationId relation which is null for order-less docs,
+  // so it would match nothing. Skip it entirely for the general tab.
   const orgScope =
-    filter.scopeOrgIds && filter.scopeOrgIds.length > 0
+    !filter.orderLess && filter.scopeOrgIds && filter.scopeOrgIds.length > 0
       ? { order: { organizationId: { in: filter.scopeOrgIds } } }
       : {};
 
