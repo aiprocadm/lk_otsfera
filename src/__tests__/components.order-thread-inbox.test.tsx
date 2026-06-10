@@ -152,5 +152,8 @@ describe('OrderThreadInbox variant=team (manager/admin)', () => {
     );
     const count = html.split('data-unread="true"').length - 1;
     expect(count).toBe(2);
+    // Badges must survive alongside the multi-unread scenario (parity with old team-chat test)
+    expect(html).toContain('Заказчик');
+    expect(html).toContain('Партнёр');
   });
 });
