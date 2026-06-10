@@ -150,14 +150,17 @@ removeOnComplete: { count: 1000 }, removeOnFail: false
 
 ## 9. Accessibility (модалки)
 
-Все модалки используют [`useDialogFocus(open)`](src/hooks/useDialogFocus.ts) — он управляет initial focus, Tab/Shift+Tab wrap'ом и focus restore. Контракт:
+Все модалки используют общий примитив [`Dialog`](src/components/ui/dialog.tsx) поверх нативного `<dialog>`. Браузер сам даёт focus-trap, Escape, inert-фон, top-layer и focus-restore; компонент мостит декларативный `open` к императивному `showModal()/close()` и применяет project-specific initial-focus.
 
-- Возвращает `ref` для **внутренней панели**.
-- Панель должна иметь `tabIndex={-1}` (fallback focus, когда фокусируемых детей нет).
-- Initial-focus preference order: form control → submit → first focusable → panel.
-- Дополнительно нужно: `role="dialog"`, `aria-modal="true"`, `aria-labelledby`, обработчик Escape, live-region (`role="alert"`/`role="status"`) для feedback-сообщений.
+Контракт `Dialog`:
 
-Эталон: [src/components/organization/invite-org-user-form.tsx](src/components/organization/invite-org-user-form.tsx). Sibling-формы — admin и partner.
+- Props: `open`, `onClose`, `title`, `size?` (`sm|md|lg|xl`), `busy?`, `closeOnBackdrop?`, `error?`, `notice?`, `children`.
+- **Initial-focus** (экспортируемая чистая `pickInitialFocus`, WAI-ARIA APG для форм-диалогов): первый form control → первый submit → первый focusable → сам `<dialog>` (fallback).
+- `aria-labelledby` привязан к `title`; `role="dialog"`/`aria-modal` подразумеваются нативным `<dialog>` — **не** хардкодить их (eslint `no-restricted-syntax` это ловит).
+- Два всегда-смонтированных aria-live региона: `error` → `role="alert"` (assertive), `notice` → `role="status"` (polite). Внутри-модальный фидбек идёт сюда; toast — для success после закрытия.
+- Escape и backdrop-click уважают `busy` (не закрывают во время сабмита).
+
+Не создавай сырой `<dialog>`/`role="dialog"` — используй примитив (guardrail `NO_HANDROLLED_MODAL` в [eslint.config.mjs](eslint.config.mjs)). Прочие презентационные примитивы — `Button`/`Input`/`Select`/`Textarea`/`Badge`/`Spinner`/`Field` в [src/components/ui/](src/components/ui/) (barrel `index.ts`); строки ошибок — через `errorMessageRu` ([src/lib/errors/messages.ts](src/lib/errors/messages.ts)); транзиентный фидбек — через `toast` ([src/lib/ui/toast.ts](src/lib/ui/toast.ts)).
 
 ## 10. Документы и Supabase Storage
 
@@ -185,5 +188,5 @@ removeOnComplete: { count: 1000 }, removeOnFail: false
 - Импорты — alias `@/...` (см. tsconfig.json `paths`).
 - React: `'use client'` только когда реально нужно (форма, состояние, эффекты); серверные компоненты по умолчанию.
 - Prisma запросы возвращают **узкие** селекты, не `findMany()` всего.
-- UI цвета: оранжевая палитра проекта `#F97316` (primary), `#EA580C` (hover), `#111111` (heading), `#F3F4F6` (panel bg).
+- UI цвета: оранжевая палитра проекта `#F97316` (primary), `#EA580C` (hover), `#111111` (heading), `#F3F4F6` (panel bg). **Палитра запекается в примитивы `ui/` (Button/Badge/контролы) — не инлайнь brand-hex в новых компонентах; переиспользуй примитив.** (eslint-guardrail на инлайн-hex отложен — см. spec frontend-foundation §6.)
 - Локализация UI — русский язык; user-facing строки на русском, идентификаторы / коды ошибок — на английском.
