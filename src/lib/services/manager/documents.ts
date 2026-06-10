@@ -107,6 +107,10 @@ export async function getDocumentForDownload(
 
   if (!doc) return { ok: false, error: 'not_found' };
 
+  // Order-less documents are not yet served through this path; a later task
+  // rewrites the download logic to handle companyId-anchored docs.
+  if (!doc.order) return { ok: false, error: 'not_found' };
+
   // Silent 404 for out-of-scope documents: do not leak existence. In company-wide
   // mode the cheap companyId check decides, so we skip the historical-comment
   // count entirely; in scoped mode we count comments only when managerId/org miss.

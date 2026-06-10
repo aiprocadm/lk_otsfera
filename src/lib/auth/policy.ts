@@ -6,8 +6,9 @@ type AccessErrorCode = 'FORBIDDEN';
 type OrderLike = { id: string; companyId: string };
 type DocumentLike = {
   id: string;
-  orderId: string;
-  order?: { companyId: string };
+  orderId: string | null;
+  companyId?: string | null;
+  order?: { companyId: string } | null;
   counterpartyType?: 'organization' | 'partner';
   counterpartyId?: string;
 };
@@ -109,6 +110,10 @@ export async function canReadDocument(session: SessionPayload, document: Documen
     // is company-level for partners and does not isolate to a specific partner.)
     if (doc.counterpartyType !== 'organization') return false;
   }
+
+  // Order-less documents (orderId null) are not yet supported in canReadDocument;
+  // a later task rewrites the body to handle companyId-anchored docs.
+  if (!doc.orderId) return false;
 
   // Pass the parent ORDER id, not the document id: canReadOrder() for the
   // manager role looks the Order up by this id, so passing doc.id silently

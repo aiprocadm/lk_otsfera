@@ -416,6 +416,7 @@ model Company {
   users         User[]
   orders        Order[]
   organizations Organization[]
+  documents     Document[]
 }
 
 model Order {
@@ -479,8 +480,12 @@ model Document {
   signedAt           DateTime?
   generatedBy        GenerationSource  @default(user)
   externalId         String?           @unique
-  orderId            String
-  order              Order             @relation(fields: [orderId], references: [id])
+  orderId            String?
+  order              Order?            @relation(fields: [orderId], references: [id])
+  companyId          String?
+  // Restrict (not SetNull): an order-less doc with companyId nulled would
+  // violate the XOR CHECK below. Companies are not deleted in normal ops.
+  company            Company?          @relation(fields: [companyId], references: [id], onDelete: Restrict)
   counterpartyType   CounterpartyType
   counterpartyId     String
   uploadedById       String?
@@ -494,6 +499,7 @@ model Document {
   @@index([type, createdAt])
   @@index([externalId])
   @@index([scanStatus])
+  @@index([companyId])
 }
 
 model Comment {

@@ -135,9 +135,9 @@ export async function attention(
     ...unsignedActs.map((d): OrgAttentionItem => ({
       id: `act-${d.id}`,
       kind: 'unsigned_act',
-      orderId: d.orderId,
+      orderId: d.orderId ?? '',
       title: `Акт «${d.name}» требует подписания`,
-      meta: d.order.orderNumber ?? undefined,
+      meta: d.order?.orderNumber ?? undefined,
       severity: 'warn'
     })),
     ...completedOpen.map((o): OrgAttentionItem => ({

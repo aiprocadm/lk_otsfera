@@ -10,9 +10,9 @@ export type OrgDocRow = {
   signedAt: Date | null;
   createdAt: Date;
   size: number | null;
-  orderId: string;
+  orderId: string | null;
   orderNumber: string | null;
-  orderTitle: string;
+  orderTitle: string | null;
 };
 
 export type ListOrgDocumentsOptions = {
@@ -116,8 +116,8 @@ export async function listOrgDocuments(
     createdAt: d.createdAt,
     size: d.size,
     orderId: d.orderId,
-    orderNumber: d.order.orderNumber,
-    orderTitle: d.order.title
+    orderNumber: d.order?.orderNumber ?? null,
+    orderTitle: d.order?.title ?? null
   }));
 
   return { rows, total, countsByType };

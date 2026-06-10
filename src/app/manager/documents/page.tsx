@@ -50,8 +50,8 @@ export default async function ManagerDocumentsPage({
     createdAt: d.createdAt,
     size: d.size,
     orderId: d.orderId,
-    orderNumber: d.order.orderNumber,
-    orderTitle: d.order.title
+    orderNumber: d.order?.orderNumber ?? null,
+    orderTitle: d.order?.title ?? null
   }));
 
   // Preserve current filters on the "next page" link so cursor pagination does

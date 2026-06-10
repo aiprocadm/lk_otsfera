@@ -81,8 +81,8 @@ export async function listPartnerDocuments(
     createdAt: d.createdAt,
     size: d.size,
     orderId: d.orderId,
-    orderNumber: d.order.orderNumber,
-    orderTitle: d.order.title
+    orderNumber: d.order?.orderNumber ?? null,
+    orderTitle: d.order?.title ?? null
   }));
 
   return { rows, total, countsByType };

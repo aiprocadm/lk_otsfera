@@ -102,7 +102,7 @@ export async function recentEvents(
       id: `doc-${d.id}`,
       kind: 'document_created',
       when: d.createdAt,
-      text: `Загружен документ ${d.name} по заказу ${d.order.orderNumber ?? d.orderId}`,
+      text: `Загружен документ ${d.name} по заказу ${d.order?.orderNumber ?? d.orderId}`,
       href: `/manager/orders/${d.orderId}`
     })),
     ...payments.map((p): EventItem =>

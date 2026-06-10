@@ -155,7 +155,7 @@ export async function attention(
       id: `act-${d.id}`,
       kind: 'act_unsigned',
       severity: 'warn',
-      message: `Акт «${d.name}» >3 дней без подписи (заказ ${d.order.orderNumber ?? ''})`.trim(),
+      message: `Акт «${d.name}» >3 дней без подписи (заказ ${d.order?.orderNumber ?? ''})`.trim(),
       href: `/manager/orders/${d.orderId}`
     })),
     ...stalledOrders.map((o): AttentionItem => ({
