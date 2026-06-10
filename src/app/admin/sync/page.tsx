@@ -49,12 +49,12 @@ export default async function AdminSyncPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
-              <th className="text-left px-4 py-3 font-medium">Сущность</th>
-              <th className="text-left px-4 py-3 font-medium">Последний успех</th>
-              <th className="text-left px-4 py-3 font-medium">Сейчас</th>
-              <th className="text-left px-4 py-3 font-medium">Запуск</th>
-              <th className="text-left px-4 py-3 font-medium">Расписание</th>
-              <th className="text-left px-4 py-3 font-medium">Курсор</th>
+              <th scope='col' className="text-left px-4 py-3 font-medium">Сущность</th>
+              <th scope='col' className="text-left px-4 py-3 font-medium">Последний успех</th>
+              <th scope='col' className="text-left px-4 py-3 font-medium">Сейчас</th>
+              <th scope='col' className="text-left px-4 py-3 font-medium">Запуск</th>
+              <th scope='col' className="text-left px-4 py-3 font-medium">Расписание</th>
+              <th scope='col' className="text-left px-4 py-3 font-medium">Курсор</th>
             </tr>
           </thead>
           <tbody>

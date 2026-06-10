@@ -23,10 +23,10 @@ export function ManagerOrgsList({ orgs }: { orgs: ManagerOrgListRow[] }) {
       <table className='w-full text-sm'>
         <thead>
           <tr className='border-b border-gray-100 bg-gray-50 text-left'>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Название</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600 text-right'>Заказы</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600 text-right'>Сотрудники</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600 text-right'></th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Название</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 text-right'>Заказы</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 text-right'>Сотрудники</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 text-right'></th>
           </tr>
         </thead>
         <tbody>

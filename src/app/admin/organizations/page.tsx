@@ -99,11 +99,11 @@ export default async function AdminOrganizationsPage({
         <table className='w-full text-sm'>
           <thead>
             <tr className='border-b border-gray-100 bg-gray-50 text-left'>
-              <th className='px-4 py-2.5 font-medium text-gray-600'>Название</th>
-              <th className='px-4 py-2.5 font-medium text-gray-600'>ИНН</th>
-              <th className='px-4 py-2.5 font-medium text-gray-600'>Партнёр</th>
-              <th className='px-4 py-2.5 font-medium text-gray-600 text-right'>Заказы</th>
-              <th className='px-4 py-2.5 font-medium text-gray-600 text-right'>Доступ</th>
+              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Название</th>
+              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>ИНН</th>
+              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Партнёр</th>
+              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 text-right'>Заказы</th>
+              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 text-right'>Доступ</th>
             </tr>
           </thead>
           <tbody>

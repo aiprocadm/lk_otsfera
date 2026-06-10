@@ -158,11 +158,11 @@ function StatementRow({
           <table className='w-full text-sm'>
             <thead>
               <tr className='bg-gray-50 text-left'>
-                <th className='px-4 py-2 font-medium text-gray-500'>Заказ</th>
-                <th className='px-4 py-2 font-medium text-gray-500'>Организация</th>
-                <th className='px-4 py-2 font-medium text-gray-500 text-right'>База, ₽</th>
-                <th className='px-4 py-2 font-medium text-gray-500 text-right'>Ставка</th>
-                <th className='px-4 py-2 font-medium text-gray-500 text-right'>Комиссия, ₽</th>
+                <th scope='col' className='px-4 py-2 font-medium text-gray-500'>Заказ</th>
+                <th scope='col' className='px-4 py-2 font-medium text-gray-500'>Организация</th>
+                <th scope='col' className='px-4 py-2 font-medium text-gray-500 text-right'>База, ₽</th>
+                <th scope='col' className='px-4 py-2 font-medium text-gray-500 text-right'>Ставка</th>
+                <th scope='col' className='px-4 py-2 font-medium text-gray-500 text-right'>Комиссия, ₽</th>
               </tr>
             </thead>
             <tbody>

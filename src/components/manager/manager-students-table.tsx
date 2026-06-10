@@ -24,11 +24,11 @@ export function ManagerStudentsTable({ rows }: { rows: ManagerStudentRow[] }) {
       <table className='w-full text-sm'>
         <thead>
           <tr className='border-b border-gray-100 bg-gray-50 text-left'>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>ФИО</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Email</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Организация</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>ID сотрудника</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Добавлен</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>ФИО</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Email</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Организация</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>ID сотрудника</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Добавлен</th>
           </tr>
         </thead>
         <tbody>

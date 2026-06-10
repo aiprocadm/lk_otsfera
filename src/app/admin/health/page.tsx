@@ -60,10 +60,10 @@ export default async function AdminHealthPage() {
           <table className='w-full text-sm'>
             <thead className='bg-gray-50 text-gray-600'>
               <tr>
-                <th className='text-left px-4 py-3 font-medium'>Сущность</th>
-                <th className='text-right px-4 py-3 font-medium'>Лаг</th>
-                <th className='text-right px-4 py-3 font-medium'>Успехов 24ч</th>
-                <th className='text-right px-4 py-3 font-medium'>Ошибок 24ч</th>
+                <th scope='col' className='text-left px-4 py-3 font-medium'>Сущность</th>
+                <th scope='col' className='text-right px-4 py-3 font-medium'>Лаг</th>
+                <th scope='col' className='text-right px-4 py-3 font-medium'>Успехов 24ч</th>
+                <th scope='col' className='text-right px-4 py-3 font-medium'>Ошибок 24ч</th>
               </tr>
             </thead>
             <tbody>

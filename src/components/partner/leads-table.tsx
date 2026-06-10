@@ -34,12 +34,12 @@ export function LeadsTable({ rows }: { rows: LeadRow[] }) {
       <table className='w-full text-sm'>
         <thead>
           <tr className='border-b border-gray-100 bg-gray-50 text-left'>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Клиент</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Тема</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Контакт</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Статус</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600 text-right'>Оценка</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Создана</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Клиент</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Тема</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Контакт</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Статус</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 text-right'>Оценка</th>
+            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Создана</th>
           </tr>
         </thead>
         <tbody>
