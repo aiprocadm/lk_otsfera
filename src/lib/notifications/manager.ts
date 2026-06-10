@@ -273,9 +273,10 @@ const MANAGER_TEMPLATES: Record<
  * Recipients for an order-less org→managers upload. No order exists, so the
  * order-centric `resolveManagerRecipients` cannot apply — we target the active
  * OrganizationManager set for the organization (the per-org branch (b), which
- * needs no order). Company-level by construction (org belongs to one company).
+ * needs no order). Scoped by organization: only managers assigned to this org
+ * via OrganizationManager are returned.
  */
-export async function resolveCompanyManagerRecipients(
+export async function resolveOrgManagerRecipients(
   db: PrismaClient,
   organizationId: string,
   opts?: NotifyManagersOptions
@@ -298,7 +299,7 @@ export async function notifyManagersOrderLess(
   input: { organizationId: string; orgName: string; documentName: string; documentType: string },
   opts?: NotifyManagersOptions
 ): Promise<NotifyManagersSummary> {
-  const recipients = await resolveCompanyManagerRecipients(db, input.organizationId, opts);
+  const recipients = await resolveOrgManagerRecipients(db, input.organizationId, opts);
   if (recipients.length === 0) return { recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 };
 
   const props = {

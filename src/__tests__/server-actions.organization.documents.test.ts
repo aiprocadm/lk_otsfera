@@ -62,6 +62,14 @@ describe('uploadOrganizationDocument', () => {
     const r = await uploadOrganizationDocument(fd({ organizationId: 'org1', docType: 'contract', file: file() }));
     expect(r).toEqual({ ok: true, documentId: 'doc2' });
     expect(core.mock.calls[0][1]).toMatchObject({ orderId: null, companyId: 'co-1', direction: 'incoming' });
-    expect(notifyOrderLess).toHaveBeenCalled();
+    expect(notifyOrderLess).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        organizationId: 'org1',
+        orgName: 'ООО Тест',
+        documentName: 'a.pdf',
+        documentType: 'contract',
+      })
+    );
   });
 });
