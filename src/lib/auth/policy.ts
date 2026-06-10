@@ -85,9 +85,12 @@ export async function canReadOrder(session: SessionPayload, order: OrderLike) {
 
 export async function canReadDocument(session: SessionPayload, document: DocumentLike) {
   // Re-fetch unless the caller already provided every field both branches need.
+  // An order-bound doc is complete when order.companyId is present;
+  // an order-less doc is complete only when companyId is present (orderId===null alone
+  // is not sufficient — a missing companyId would reach the downstream gate with null).
   const haveAll =
-    document.counterpartyType && document.counterpartyId &&
-    (document.order?.companyId || document.companyId || document.orderId === null);
+    !!document.counterpartyType && !!document.counterpartyId &&
+    (!!document.order?.companyId || !!document.companyId);
   const doc = haveAll
     ? document
     : await prisma.document.findUnique({

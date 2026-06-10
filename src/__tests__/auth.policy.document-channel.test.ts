@@ -77,4 +77,14 @@ describe('canReadDocument -- order-less documents', () => {
     expect(await canReadDocument({ role: 'organization', organizationId: 'o1' } as never, { id: 'd3' } as never)).toBe(true);
     expect(await canReadDocument({ role: 'organization', organizationId: 'oX' } as never, { id: 'd3' } as never)).toBe(false);
   });
+
+  it('order-less doc passed without companyId triggers re-fetch and uses DB company', async () => {
+    findUnique.mockResolvedValue({
+      id: 'd9', orderId: null, companyId: 'co-1',
+      counterpartyType: 'partner', counterpartyId: 'p1', order: null
+    });
+    const caller = { id: 'd9', orderId: null, counterpartyType: 'partner', counterpartyId: 'p1' } as never;
+    expect(await canReadDocument({ role: 'manager', companyId: 'co-1' } as never, caller)).toBe(true);
+    expect(findUnique).toHaveBeenCalled();
+  });
 });
