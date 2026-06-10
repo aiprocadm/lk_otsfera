@@ -45,4 +45,35 @@ describe('notifyPartnerUsers', () => {
     });
     expect(r).toEqual({ recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 });
   });
+
+  it('order-less document_published: links to /partner/documents?tab=general and uses «Новый общий документ» title', async () => {
+    sendMock.mockResolvedValue({ status: 'skipped', reason: 'disabled' });
+    const { db, create } = dbWith([{ id: 'u3', email: 'b@p.ru' }]);
+    await notifyPartnerUsers(db, {
+      partnerId: 'p-1',
+      type: 'document_published',
+      payload: { orderId: null, orderNumber: null, orderTitle: null, documentName: 'общий.pdf', documentType: 'other' }
+    });
+    const data = create.mock.calls[0][0].data;
+    expect(data.title).toBe('Новый общий документ');
+    const meta = data.meta as Record<string, unknown>;
+    expect(meta.url).toContain('/partner/documents?tab=general');
+    expect(meta.url).not.toContain('/portfolio');
+    expect(meta.url).not.toContain('/null');
+  });
+
+  it('order-bound document_published: title still says «Новый документ по заказу»', async () => {
+    sendMock.mockResolvedValue({ status: 'skipped', reason: 'disabled' });
+    const { db, create } = dbWith([{ id: 'u4', email: 'c@p.ru' }]);
+    await notifyPartnerUsers(db, {
+      partnerId: 'p-1',
+      type: 'document_published',
+      payload: { orderId: 'o99', orderNumber: '99', orderTitle: 'Проект', documentName: 'акт.pdf', documentType: 'act' }
+    });
+    const data = create.mock.calls[0][0].data;
+    expect(data.title).toContain('Новый документ по заказу');
+    const meta = data.meta as Record<string, unknown>;
+    expect(meta.url).toContain('/partner/portfolio');
+    expect(meta.url).not.toContain('/documents?tab=general');
+  });
 });

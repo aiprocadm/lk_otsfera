@@ -77,12 +77,15 @@ function buildOrgNotification(
   orderUrl: string
 ): { title: string; body: string; meta: Record<string, unknown> } {
   if (input.type === 'document_published') {
-    const { orderNumber, orderTitle, documentName, documentType } = input.payload;
+    const { orderId: docOrderId, orderNumber, orderTitle, documentName, documentType } = input.payload;
+    const title = docOrderId === null
+      ? 'Новый общий документ'
+      : `Новый документ по заказу ${orderLabel(orderNumber, orderTitle)}`;
     return {
-      title: `Новый документ по заказу ${orderLabel(orderNumber, orderTitle)}`,
+      title,
       body: `Загружен документ «${documentName}» (${documentType}).`,
       meta: {
-        orderId: input.payload.orderId,
+        orderId: docOrderId,
         orderNumber,
         documentName,
         documentType,
@@ -244,7 +247,9 @@ export async function notifyOrgUsers(
     return { recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 };
   }
 
-  const orderUrl = `${getAppBaseUrl()}/organization/orders/${input.payload.orderId}`;
+  const orderUrl = input.payload.orderId === null
+    ? `${getAppBaseUrl()}/organization/documents?tab=general`
+    : `${getAppBaseUrl()}/organization/orders/${input.payload.orderId}`;
   const { title, body, meta } = buildOrgNotification(input, org.name, orderUrl);
 
   let emailsSent = 0;
