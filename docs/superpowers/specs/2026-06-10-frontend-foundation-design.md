@@ -17,7 +17,7 @@
 | Объём захода | **Только Tier 1** (фундамент). Tier 2 (дедуп) и Tier 3 (data-fetching) — отдельные follow-up spec'и по §8. |
 | Стратегия миграции | **Создать примитивы + словарь + toast, мигрировать 1-2 эталонные формы.** Остальные ~69 мест — инкрементально позже. |
 | Источник примитивов | **Руками, на Tailwind, без новых зависимостей** (как уже сделан `dialog.tsx`). Ноль Radix/shadcn. |
-| Guardrail | **eslint-правило на уровне `warn` сейчас.** Поднять до `error` — follow-up после завершения миграции. |
+| Guardrail | **Отложен.** Изначально планировался eslint-`warn`, но обнаружено: lint-staged гоняет `eslint --max-warnings=0` → любой warn блокирует commit на staged-файле, а инлайн-hex живёт в **123 файлах** (265 вхождений). «warn = soft» — ложная посылка в этом репо. eslint-guardrail добавляется отдельным spec'ом после миграции, когда счётчик около нуля. Tier 1 фиксирует конвенцию текстом в CLAUDE.md §13. |
 
 ---
 
@@ -85,9 +85,14 @@ export function errorMessageRu(code: string, fallback = 'Произошла ош
 - **Дешёвый глобальный свип:** `scope="col"` на все `<th>` (сейчас нет нигде, риск нулевой, механическая правка).
 - **Вне Tier 1:** глубокая a11y (keyboard-nav в таблицах, focus-management в редактируемых строках).
 
-### 6. Guardrail (warn)
+### 6. Guardrail — ОТЛОЖЕН (не в Tier 1)
 
-eslint-правило (`no-restricted-syntax` или custom), бан инлайн-литерала `#F97316`/`#EA580C` в `className` → нудж к `Button`/токенам. Начинаем **точечно с hex-литерала** (точно, мало шума), **не** с «бан сырого `<button>`» (слишком широко при незавершённой миграции). Уровень `warn` — не ломает сборку/хуки. **Probe-verified non-vacuous** (как C3 §2 / C5): тест, что правило реально срабатывает на инлайн-hex. Поднять до `error` — follow-up после миграции всех мест.
+Изначально планировался eslint-`warn` на инлайн-hex. **Снято после ревизии репо:**
+- `lint-staged` (package.json) гоняет `eslint --max-warnings=0` → ESLint выходит ненулевым при ≥1 warn → commit на staged-файле падает. Warn здесь **не** мягкий.
+- Инлайн-hex `#F97316`/`#EA580C` живёт в **123 файлах** (265 вхождений), включая focus-ring/file-input/ссылки/заголовки страниц — это не только кнопки. Allowlist на 123 файла = неподъёмный toil.
+- Снять `--max-warnings=0` нельзя без ослабления текущей дисциплины (next/react warn'ы тоже перестанут блокировать).
+
+Вместо правила Tier 1 **фиксирует конвенцию текстом в CLAUDE.md §13** («палитра — через примитивы, не инлайн-hex»). Сам eslint-guardrail — отдельный follow-up spec, добавляется после миграции, когда счётчик инлайн-hex около нуля (тогда `error` без allowlist-боли). Существующий `NO_HANDROLLED_MODAL` (`no-restricted-syntax`, error) — образец, как оформить, когда придёт время.
 
 ---
 
@@ -121,7 +126,6 @@ eslint-правило (`no-restricted-syntax` или custom), бан инлай�
 | Примитивы рендерятся | Unit (vitest), `import React` явно. `Button.loading` → `disabled` + спиннер виден. `Badge` tone → классы. `Field` ошибка → `role="alert"` + `aria-describedby`. |
 | Словарь | Unit: `errorMessageRu` маппит каждый известный код; неизвестный → fallback. |
 | Регресс-гард миграции | Существующие тесты эталонных форм (`api.manager.documents.upload`, partner upload) остаются **зелёными** — поведение не меняется. Это и доказывает безопасность миграции. |
-| Guardrail non-vacuous | Проба: eslint-правило срабатывает на инлайн-hex (как C3/C5). |
 | a11y | Существующий dialog focus-trap e2e не трогаем. Опц.: assert `scope="col"` присутствует. |
 
 Слои §6: L1 (pre-commit typecheck + test:changed), L2 (test:unit) — основной гард для этого чисто-фронтового захода. Integration/L2.5 не затрагиваются (нет правок prisma/worker/services).
@@ -134,4 +138,4 @@ eslint-правило (`no-restricted-syntax` или custom), бан инлай�
 - **Tier 3:** data-fetching архитектура (24 `router.refresh()` + 0 SWR/React-Query), оптимистичные апдейты, кэш-слой для поллинга.
 - **Полная миграция** всех ~69 инлайн-сайтов на примитивы.
 - **`'use client'`-границы** (сайдбары) — отдельная ревизия.
-- Поднятие guardrail `warn → error`.
+- **eslint-guardrail на инлайн-hex** — отдельный spec после миграции (см. §6: blocked текущим `--max-warnings=0` + 123-файловым долгом).
