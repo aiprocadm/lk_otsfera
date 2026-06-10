@@ -39,7 +39,7 @@ vi.mock('@/lib/storage/supabase', () => ({
   }
 }));
 
-import { GET as downloadGet } from '@/app/api/manager/documents/[id]/download/route';
+import { POST as downloadGet } from '@/app/api/manager/documents/[id]/download/route';
 
 function managerSession(opts: { sub?: string; managedOrgIds?: string[] }) {
   return {
@@ -52,13 +52,13 @@ function managerSession(opts: { sub?: string; managedOrgIds?: string[] }) {
 
 function getReq(): Request {
   return new Request('https://app.local/api/manager/documents/d1/download', {
-    method: 'GET'
+    method: 'POST'
   });
 }
 
 const paramsP = { params: Promise.resolve({ id: 'd1' }) };
 
-describe('GET /api/manager/documents/[id]/download', () => {
+describe('POST /api/manager/documents/[id]/download', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     commentCount.mockResolvedValue(0);

@@ -30,19 +30,34 @@ export function ManagerOrderLessUploadForm({ organizations, partners }: { organi
     <form onSubmit={onSubmit} className='bg-white border border-gray-200 rounded-xl p-4 space-y-3'>
       <div className='font-medium text-[#111111] text-sm'>Загрузить общий документ</div>
       <div className='flex gap-2'>
-        <select name='counterpartyType' value={type} onChange={(e) => setType(e.target.value as 'organization' | 'partner')}
-          className='border border-gray-200 rounded px-2 py-1 text-sm'>
-          <option value='organization'>Организация</option>
-          <option value='partner'>Партнёр</option>
-        </select>
-        <select name='counterpartyId' required className='border border-gray-200 rounded px-2 py-1 text-sm flex-1'>
-          {options.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+        <div className='flex flex-col gap-0.5'>
+          <label htmlFor='orderless-counterparty-type' className='text-xs text-gray-500'>Тип контрагента</label>
+          <select id='orderless-counterparty-type' name='counterpartyType' value={type}
+            onChange={(e) => setType(e.target.value as 'organization' | 'partner')}
+            className='border border-gray-200 rounded px-2 py-1 text-sm'>
+            <option value='organization'>Организация</option>
+            <option value='partner'>Партнёр</option>
+          </select>
+        </div>
+        <div className='flex flex-col gap-0.5 flex-1'>
+          <label htmlFor='orderless-counterparty-id' className='text-xs text-gray-500'>Контрагент</label>
+          <select id='orderless-counterparty-id' name='counterpartyId' required
+            className='border border-gray-200 rounded px-2 py-1 text-sm w-full'>
+            {options.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className='flex flex-col gap-0.5'>
+        <label htmlFor='orderless-doc-type' className='text-xs text-gray-500'>Тип документа</label>
+        <select id='orderless-doc-type' name='docType' defaultValue='other'
+          className='border border-gray-200 rounded px-2 py-1 text-sm w-full'>
+          {DOC_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
       </div>
-      <select name='docType' defaultValue='other' className='border border-gray-200 rounded px-2 py-1 text-sm w-full'>
-        {DOC_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-      </select>
-      <input type='file' name='file' required className='block w-full text-sm' />
+      <div className='flex flex-col gap-0.5'>
+        <label htmlFor='orderless-file' className='text-xs text-gray-500'>Файл</label>
+        <input id='orderless-file' type='file' name='file' required className='block w-full text-sm' />
+      </div>
       <p className='text-xs text-gray-400'>PDF, JPG, PNG, DOCX, XLSX · до 20 МБ</p>
       <button type='submit' disabled={busy} className='px-3 py-1.5 bg-[#F97316] text-white rounded text-sm hover:bg-[#EA580C] disabled:opacity-50'>
         {busy ? 'Загрузка…' : 'Загрузить'}
