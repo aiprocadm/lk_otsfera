@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { StatementListItem } from '@/lib/services/partner/finance';
 import type { CommissionStatementItem } from '@prisma/client';
+import { THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 
 type Props = {
   statements: StatementListItem[];
@@ -156,38 +157,36 @@ function StatementRow({
       {open && (
         <div className='border-t border-gray-100 overflow-x-auto'>
           <table className='w-full text-sm'>
-            <thead>
-              <tr className='bg-gray-50 text-left'>
-                <th scope='col' className='px-4 py-2 font-medium text-gray-500'>Заказ</th>
-                <th scope='col' className='px-4 py-2 font-medium text-gray-500'>Организация</th>
-                <th scope='col' className='px-4 py-2 font-medium text-gray-500 text-right'>База, ₽</th>
-                <th scope='col' className='px-4 py-2 font-medium text-gray-500 text-right'>Ставка</th>
-                <th scope='col' className='px-4 py-2 font-medium text-gray-500 text-right'>Комиссия, ₽</th>
-              </tr>
-            </thead>
+            <THead>
+              <Th className='py-2 text-gray-500'>Заказ</Th>
+              <Th className='py-2 text-gray-500'>Организация</Th>
+              <Th className='py-2 text-gray-500 text-right'>База, ₽</Th>
+              <Th className='py-2 text-gray-500 text-right'>Ставка</Th>
+              <Th className='py-2 text-gray-500 text-right'>Комиссия, ₽</Th>
+            </THead>
             <tbody>
               {loadingItems && (
-                <tr>
-                  <td colSpan={5} className='px-4 py-4 text-center text-gray-400 text-xs'>
+                <Tr hover={false}>
+                  <Td colSpan={5} className='py-4 text-center text-gray-400 text-xs'>
                     Загружаю…
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               )}
               {!loadingItems && items?.map((item) => (
-                <tr key={item.id} className='border-t border-gray-50'>
-                  <td className='px-4 py-2 text-gray-700'>{item.orderNumber ?? '—'}</td>
-                  <td className='px-4 py-2 text-gray-700'>{item.organizationName}</td>
-                  <td className='px-4 py-2 text-right text-gray-700'>{fmtMoney(item.baseAmount)}</td>
-                  <td className='px-4 py-2 text-right text-gray-500'>{(Number(item.rate) * 100).toFixed(2)}%</td>
-                  <td className='px-4 py-2 text-right font-medium text-gray-700'>{fmtMoney(item.commissionAmount)}</td>
-                </tr>
+                <Tr key={item.id} hover={false}>
+                  <Td className='py-2 text-gray-700'>{item.orderNumber ?? '—'}</Td>
+                  <Td className='py-2 text-gray-700'>{item.organizationName}</Td>
+                  <Td className='py-2 text-right text-gray-700'>{fmtMoney(item.baseAmount)}</Td>
+                  <Td className='py-2 text-right text-gray-500'>{(Number(item.rate) * 100).toFixed(2)}%</Td>
+                  <Td className='py-2 text-right font-medium text-gray-700'>{fmtMoney(item.commissionAmount)}</Td>
+                </Tr>
               ))}
               {!loadingItems && items !== null && items.length === 0 && (
-                <tr>
-                  <td colSpan={5} className='px-4 py-4 text-center text-gray-400 text-xs'>
+                <Tr hover={false}>
+                  <Td colSpan={5} className='py-4 text-center text-gray-400 text-xs'>
                     Нет данных
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               )}
             </tbody>
           </table>
@@ -200,15 +199,13 @@ function StatementRow({
 export function CommissionStatementsList({ statements, canManage }: Props) {
   if (statements.length === 0) {
     return (
-      <div className='bg-white border border-gray-200 rounded-xl p-12 text-center'>
-        <div className='text-4xl mb-3'>📊</div>
-        <p className='text-gray-500 text-sm'>Отчётов ещё нет.</p>
+      <EmptyState icon='📊' message='Отчётов ещё нет.'>
         {canManage && (
           <p className='text-gray-400 text-xs mt-1'>
             Нажмите «Сформировать за период», чтобы создать первый отчёт.
           </p>
         )}
-      </div>
+      </EmptyState>
     );
   }
 

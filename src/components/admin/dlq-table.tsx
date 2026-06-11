@@ -1,5 +1,7 @@
+import React from 'react';
 import type { DlqRow } from '@/lib/services/admin/queueStats';
 import { RetryButton } from './retry-button';
+import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 
 function ageLabel(d: Date | null): string {
   if (!d) return '—';
@@ -15,44 +17,36 @@ function ageLabel(d: Date | null): string {
 
 export function DlqTable({ rows }: { rows: DlqRow[] }) {
   if (rows.length === 0) {
-    return (
-      <div className='bg-white border border-gray-200 rounded-xl px-4 py-8 text-center text-sm text-gray-500'>
-        Все очереди чисты — ни одной упавшей задачи.
-      </div>
-    );
+    return <EmptyState message='Все очереди чисты — ни одной упавшей задачи.' className='p-8' />;
   }
   return (
-    <div className='overflow-x-auto bg-white border border-gray-200 rounded-xl'>
-      <table className='w-full text-sm'>
-        <thead className='bg-gray-50 text-gray-600'>
-          <tr>
-            <th scope='col' className='text-left px-4 py-3 font-medium'>Очередь</th>
-            <th scope='col' className='text-left px-4 py-3 font-medium'>Job ID</th>
-            <th scope='col' className='text-left px-4 py-3 font-medium'>Имя</th>
-            <th scope='col' className='text-left px-4 py-3 font-medium'>Причина</th>
-            <th scope='col' className='text-right px-4 py-3 font-medium'>Попыток</th>
-            <th scope='col' className='text-right px-4 py-3 font-medium'>Когда</th>
-            <th scope='col' className='text-right px-4 py-3 font-medium'>Действие</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={`${row.queue}:${row.jobId}`} className='border-t border-gray-100'>
-              <td className='px-4 py-3 font-mono text-xs text-gray-600'>{row.queue}</td>
-              <td className='px-4 py-3 font-mono text-xs text-gray-500'>{row.jobId}</td>
-              <td className='px-4 py-3 text-gray-700'>{row.name}</td>
-              <td className='px-4 py-3 text-red-700 text-xs max-w-md'>
-                <span className='line-clamp-2'>{row.failedReason ?? '—'}</span>
-              </td>
-              <td className='px-4 py-3 text-right tabular-nums text-gray-600'>{row.attemptsMade}</td>
-              <td className='px-4 py-3 text-right text-gray-500 text-xs'>{ageLabel(row.failedAt)}</td>
-              <td className='px-4 py-3 text-right'>
-                <RetryButton queue={row.queue} jobId={row.jobId} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <TableShell overflow='x-auto'>
+      <THead>
+        <Th>Очередь</Th>
+        <Th>Job ID</Th>
+        <Th>Имя</Th>
+        <Th>Причина</Th>
+        <Th className='text-right'>Попыток</Th>
+        <Th className='text-right'>Когда</Th>
+        <Th className='text-right'>Действие</Th>
+      </THead>
+      <tbody>
+        {rows.map((row) => (
+          <Tr key={`${row.queue}:${row.jobId}`}>
+            <Td className='font-mono text-xs text-gray-600'>{row.queue}</Td>
+            <Td className='font-mono text-xs text-gray-500'>{row.jobId}</Td>
+            <Td className='text-gray-700'>{row.name}</Td>
+            <Td className='text-red-700 text-xs max-w-md'>
+              <span className='line-clamp-2'>{row.failedReason ?? '—'}</span>
+            </Td>
+            <Td className='text-right tabular-nums text-gray-600'>{row.attemptsMade}</Td>
+            <Td className='text-right text-gray-500 text-xs'>{ageLabel(row.failedAt)}</Td>
+            <Td className='text-right'>
+              <RetryButton queue={row.queue} jobId={row.jobId} />
+            </Td>
+          </Tr>
+        ))}
+      </tbody>
+    </TableShell>
   );
 }
