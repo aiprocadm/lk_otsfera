@@ -1,42 +1,28 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import { updateOrganizationAction } from '@/server-actions/admin/organizations';
+import { useFormAction } from '@/lib/ui/useFormAction';
 import type { OrgDetail } from '@/lib/services/admin/organizations';
 
 type Props = { org: OrgDetail };
 
-function translateError(code: string): string {
-  switch (code) {
-    case 'not_found': return 'Организация не найдена.';
-    case 'validation': return 'Проверьте корректность полей.';
-    default: return `Ошибка: ${code}`;
-  }
-}
+const ERROR_MAP: Record<string, string> = {
+  not_found: 'Организация не найдена.',
+  validation: 'Проверьте корректность полей.'
+};
 
 export function OrganizationEditForm({ org }: Props) {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const { formAction, pending, errorText, success } = useFormAction<object>({
+    action: updateOrganizationAction,
+    errorMap: ERROR_MAP
+  });
   const [name, setName] = useState(org.name);
   const [inn, setInn] = useState(org.inn ?? '');
   const [kpp, setKpp] = useState(org.kpp ?? '');
 
-  function submit(formData: FormData) {
-    setError(null);
-    setSuccess(false);
-    startTransition(async () => {
-      const result = await updateOrganizationAction(formData);
-      if (result.ok) {
-        setSuccess(true);
-      } else {
-        setError(translateError(result.error));
-      }
-    });
-  }
-
   return (
-    <form action={submit} className="space-y-4 bg-white border border-gray-200 rounded-xl p-6 max-w-xl">
+    <form action={formAction} className="space-y-4 bg-white border border-gray-200 rounded-xl p-6 max-w-xl">
       <input type="hidden" name="id" value={org.id} />
 
       <div>
@@ -82,8 +68,8 @@ export function OrganizationEditForm({ org }: Props) {
         />
       </div>
 
-      {error && (
-        <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
+      {errorText && (
+        <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{errorText}</div>
       )}
       {success && (
         <div role="status" className="text-sm bg-green-50 text-green-700 rounded px-3 py-2">

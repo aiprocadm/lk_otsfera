@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import { transitionOrderStatusAction } from '@/server-actions/manager/transitionOrderStatus';
+import { useFormAction } from '@/lib/ui/useFormAction';
 
 /**
  * Inline status-change widget rendered under the timeline on the manager-side
@@ -27,11 +28,11 @@ const STATUS_LABEL_RU: Record<ManagerSettableStatus, string> = {
   completed: 'Завершён'
 };
 
+// Дельты поверх errorMessageRu (not_found там дословно «Заказ не найден.» — не дублируем).
 const ACTION_ERROR_LABEL: Record<string, string> = {
   validation: 'Некорректные данные.',
   invalid_status: 'Недопустимый статус.',
-  forbidden: 'Недостаточно прав.',
-  not_found: 'Заказ не найден.'
+  forbidden: 'Недостаточно прав.'
 };
 
 type Props = {
@@ -45,8 +46,17 @@ export function ManagerStatusChangeForm({ orderId, currentStatus }: Props) {
   const [newStatus, setNewStatus] = useState<ManagerSettableStatus>(
     isLocked ? 'in_progress' : (currentStatus as ManagerSettableStatus)
   );
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  // Server-action принимает объект, не FormData — адаптер читает статус из формы.
+  const { formAction, pending: isPending, errorText: error } = useFormAction<{
+    changed: boolean;
+  }>({
+    action: (formData) =>
+      transitionOrderStatusAction({
+        orderId,
+        newStatus: String(formData.get('newStatus') ?? '')
+      }),
+    errorMap: ACTION_ERROR_LABEL
+  });
 
   if (isLocked) {
     const label = currentStatus === 'cancelled' ? 'отменён' : 'на удержании';
@@ -60,26 +70,16 @@ export function ManagerStatusChangeForm({ orderId, currentStatus }: Props) {
     );
   }
 
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    startTransition(async () => {
-      const result = await transitionOrderStatusAction({ orderId, newStatus });
-      if (!result.ok) {
-        setError(ACTION_ERROR_LABEL[result.error] ?? 'Ошибка изменения статуса.');
-      }
-    });
-  };
-
   const noop = newStatus === currentStatus;
 
   return (
     <div className='bg-white border border-gray-200 rounded-xl p-5'>
       <h2 className='text-sm font-semibold text-[#111111] mb-3'>Изменить статус</h2>
-      <form onSubmit={onSubmit} className='flex flex-col sm:flex-row sm:items-end gap-3'>
+      <form action={formAction} className='flex flex-col sm:flex-row sm:items-end gap-3'>
         <label className='text-sm text-gray-700 flex-1'>
           <span className='block text-xs text-gray-500 mb-1'>Новый статус</span>
           <select
+            name='newStatus'
             value={newStatus}
             onChange={(e) => setNewStatus(e.target.value as ManagerSettableStatus)}
             disabled={isPending}

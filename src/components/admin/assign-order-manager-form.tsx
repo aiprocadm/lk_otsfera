@@ -1,10 +1,8 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import {
-  assignOrderManagerAction,
-  type AssignOrderManagerActionResult
-} from '@/server-actions/admin/manager';
+import { useState } from 'react';
+import { assignOrderManagerAction } from '@/server-actions/admin/manager';
+import { useFormAction } from '@/lib/ui/useFormAction';
 
 export type ManagerCandidate = {
   id: string;
@@ -12,6 +10,7 @@ export type ManagerCandidate = {
   name: string | null;
 };
 
+// Дельты поверх errorMessageRu (validation там — generic «Проверьте поля формы.»).
 const ERROR_LABELS: Record<string, string> = {
   validation: 'Проверьте выбор менеджера.',
   order_not_found: 'Заказ не найден.',
@@ -28,10 +27,10 @@ export function AssignOrderManagerForm({
   candidates: ManagerCandidate[];
 }) {
   const [selected, setSelected] = useState<string>(currentManagerId ?? '');
-  const [pending, startTransition] = useTransition();
-  const [feedback, setFeedback] = useState<
-    { kind: 'ok'; changed: boolean } | { kind: 'err'; label: string } | null
-  >(null);
+  const { formAction, pending, errorText, data, success } = useFormAction<{ changed: boolean }>({
+    action: assignOrderManagerAction,
+    errorMap: ERROR_LABELS
+  });
 
   // Sort candidates: currently-assigned first (when known), then alphabetically.
   const sorted = [...candidates].sort((a, b) => {
@@ -40,29 +39,14 @@ export function AssignOrderManagerForm({
     return (a.name ?? a.email).localeCompare(b.name ?? b.email);
   });
 
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setFeedback(null);
-    const fd = new FormData();
-    fd.set('orderId', orderId);
-    fd.set('managerUserId', selected);
-    startTransition(async () => {
-      const res: AssignOrderManagerActionResult = await assignOrderManagerAction(fd);
-      if (res.ok) {
-        setFeedback({ kind: 'ok', changed: res.changed });
-      } else {
-        setFeedback({ kind: 'err', label: ERROR_LABELS[res.error] ?? `Ошибка: ${res.error}` });
-      }
-    });
-  }
-
   const dirty = selected !== (currentManagerId ?? '');
 
   return (
     <form
-      onSubmit={onSubmit}
+      action={formAction}
       className='bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3'
     >
+      <input type='hidden' name='orderId' value={orderId} />
       <div>
         <h2 className='text-base font-semibold text-[#111111]'>Менеджер заказа</h2>
         <p className='text-xs text-gray-500 mt-0.5'>
@@ -75,6 +59,7 @@ export function AssignOrderManagerForm({
           Выберите менеджера
         </span>
         <select
+          name='managerUserId'
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
           className='w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'
@@ -88,20 +73,20 @@ export function AssignOrderManagerForm({
         </select>
       </label>
 
-      {feedback?.kind === 'ok' && (
+      {success && data && (
         <div
           role='status'
           className='text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2'
         >
-          {feedback.changed ? 'Менеджер обновлён.' : 'Без изменений.'}
+          {data.changed ? 'Менеджер обновлён.' : 'Без изменений.'}
         </div>
       )}
-      {feedback?.kind === 'err' && (
+      {errorText !== null && (
         <div
           role='alert'
           className='text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2'
         >
-          {feedback.label}
+          {errorText}
         </div>
       )}
 
