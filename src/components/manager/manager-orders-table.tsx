@@ -3,6 +3,7 @@ import type { ExecutionStatus, FinancialStatus } from '@prisma/client';
 import type { ManagerOrderRow } from '@/lib/services/manager/orders';
 import { DealStatusBadge } from '@/components/partner/deal-status-badge';
 import type { Stage } from '@/lib/orders/humanStage';
+import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 
 // Per-dimension labels + tones. Combined-dimension `humanStage` from
 // `@/lib/orders/humanStage` collapses both axes into a single badge — for the
@@ -54,66 +55,52 @@ function buildNextHref(searchParams: SearchParams, cursor: string): string {
 
 export function ManagerOrdersTable({ rows, nextCursor, searchParams }: Props) {
   if (rows.length === 0) {
-    return (
-      <div className='bg-white border border-gray-200 rounded-xl p-12 text-center'>
-        <div className='w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3'>
-          <span className='text-2xl'>📋</span>
-        </div>
-        <p className='text-gray-500 text-sm'>По выбранным фильтрам заказов нет</p>
-      </div>
-    );
+    return <EmptyState icon='📋' message='По выбранным фильтрам заказов нет' />;
   }
 
   return (
     <div className='space-y-3'>
-      <div className='hidden md:block bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm'>
-        <table className='w-full text-sm'>
-          <thead>
-            <tr className='border-b border-gray-100 bg-gray-50 text-left'>
-              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>№</th>
-              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Название</th>
-              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Организация</th>
-              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 text-right'>Сумма</th>
-              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 text-right'>Оплачено</th>
-              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Исполнение</th>
-              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Финансы</th>
-              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Менеджер</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((o, i) => (
-              <tr
-                key={o.id}
-                className={`border-b border-gray-50 hover:bg-[#FFF7ED] ${i === rows.length - 1 ? 'border-b-0' : ''}`}
-              >
-                <td className='px-4 py-2.5 text-gray-500'>{o.orderNumber ?? '—'}</td>
-                <td className='px-4 py-2.5'>
-                  <Link
-                    href={`/manager/orders/${o.id}`}
-                    className='font-medium text-[#111111] hover:text-[#F97316]'
-                  >
-                    {o.title}
-                  </Link>
-                </td>
-                <td className='px-4 py-2.5 text-gray-600'>{o.organization.name}</td>
-                <td className='px-4 py-2.5 text-right text-gray-700'>
-                  {fmtMoney(o.totalAmount.toString())}
-                </td>
-                <td className='px-4 py-2.5 text-right text-gray-700'>
-                  {fmtMoney(o.paidAmount.toString())}
-                </td>
-                <td className='px-4 py-2.5'>
-                  <DealStatusBadge stage={EXECUTION_STAGE[o.executionStatus]} />
-                </td>
-                <td className='px-4 py-2.5'>
-                  <DealStatusBadge stage={FINANCIAL_STAGE[o.financialStatus]} />
-                </td>
-                <td className='px-4 py-2.5 text-gray-600'>{o.manager?.name ?? '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <TableShell className='hidden md:block'>
+        <THead>
+          <Th>№</Th>
+          <Th>Название</Th>
+          <Th>Организация</Th>
+          <Th className='text-right'>Сумма</Th>
+          <Th className='text-right'>Оплачено</Th>
+          <Th>Исполнение</Th>
+          <Th>Финансы</Th>
+          <Th>Менеджер</Th>
+        </THead>
+        <tbody>
+          {rows.map((o) => (
+            <Tr key={o.id}>
+              <Td className='text-gray-500'>{o.orderNumber ?? '—'}</Td>
+              <Td>
+                <Link
+                  href={`/manager/orders/${o.id}`}
+                  className='font-medium text-[#111111] hover:text-[#F97316]'
+                >
+                  {o.title}
+                </Link>
+              </Td>
+              <Td className='text-gray-600'>{o.organization.name}</Td>
+              <Td className='text-right text-gray-700'>
+                {fmtMoney(o.totalAmount.toString())}
+              </Td>
+              <Td className='text-right text-gray-700'>
+                {fmtMoney(o.paidAmount.toString())}
+              </Td>
+              <Td>
+                <DealStatusBadge stage={EXECUTION_STAGE[o.executionStatus]} />
+              </Td>
+              <Td>
+                <DealStatusBadge stage={FINANCIAL_STAGE[o.financialStatus]} />
+              </Td>
+              <Td className='text-gray-600'>{o.manager?.name ?? '—'}</Td>
+            </Tr>
+          ))}
+        </tbody>
+      </TableShell>
 
       {nextCursor && (
         <div className='flex justify-center'>
