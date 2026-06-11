@@ -14,7 +14,7 @@ function fmtDate(d: Date): string {
 export function OrgFinancePayments({ payments }: { payments: OrgPaymentRow[] }) {
   if (payments.length === 0) {
     return (
-      <EmptyState message='Платежей пока нет.' />
+      <EmptyState icon='💸' message='Платежей пока нет.' />
     );
   }
   return (
