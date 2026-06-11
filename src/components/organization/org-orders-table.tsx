@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { OrgOrderRow } from '@/lib/services/organization/orders';
 import { DealStatusBadge } from '@/components/partner/deal-status-badge';
+import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 
 function fmtMoney(s: string): string {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Number(s)) + ' ₽';
@@ -28,62 +29,50 @@ export function OrgOrdersTable({
 }) {
   if (rows.length === 0) {
     return (
-      <div className='bg-white border border-gray-200 rounded-xl p-12 text-center'>
-        <div className='w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3'>
-          <span className='text-2xl'>📋</span>
-        </div>
-        <p className='text-gray-500 text-sm'>По выбранным фильтрам заказов нет</p>
-      </div>
+      <EmptyState icon='📋' message='По выбранным фильтрам заказов нет' />
     );
   }
 
   return (
-    <div className='hidden md:block bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm'>
-      <table className='w-full text-sm'>
-        <thead>
-          <tr className='border-b border-gray-100 bg-gray-50 text-left'>
-            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>№</th>
-            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Заказ</th>
-            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Менеджер</th>
-            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Статус</th>
-            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 text-right'>Сумма</th>
-            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 text-right'>К оплате</th>
-            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Срок</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((o, i) => (
-            <tr
-              key={o.id}
-              className={`border-b border-gray-50 hover:bg-[#FFF7ED] ${i === rows.length - 1 ? 'border-b-0' : ''}`}
-            >
-              <td className='px-4 py-2.5 text-gray-500'>{o.orderNumber ?? '—'}</td>
-              <td className='px-4 py-2.5'>
-                <Link
-                  href={orderDetailHref(o.id, orgParam)}
-                  className='font-medium text-[#111111] hover:text-[#F97316]'
-                >
-                  {o.title}
-                </Link>
-              </td>
-              <td className='px-4 py-2.5 text-gray-600'>{o.managerName ?? '—'}</td>
-              <td className='px-4 py-2.5'>
-                <DealStatusBadge stage={o.stage} />
-              </td>
-              <td className='px-4 py-2.5 text-right text-gray-700'>{fmtMoney(o.totalAmount)}</td>
-              <td
-                className={`px-4 py-2.5 text-right ${
-                  Number(o.debt) > 0 ? 'text-red-700 font-medium' : 'text-gray-500'
-                }`}
+    <TableShell className='hidden md:block'>
+      <THead>
+        <Th>№</Th>
+        <Th>Заказ</Th>
+        <Th>Менеджер</Th>
+        <Th>Статус</Th>
+        <Th className='text-right'>Сумма</Th>
+        <Th className='text-right'>К оплате</Th>
+        <Th>Срок</Th>
+      </THead>
+      <tbody>
+        {rows.map((o) => (
+          <Tr key={o.id}>
+            <Td className='text-gray-500'>{o.orderNumber ?? '—'}</Td>
+            <Td>
+              <Link
+                href={orderDetailHref(o.id, orgParam)}
+                className='font-medium text-[#111111] hover:text-[#F97316]'
               >
-                {fmtMoney(o.debt)}
-              </td>
-              <td className='px-4 py-2.5 text-gray-500'>{fmtDate(o.deadline)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+                {o.title}
+              </Link>
+            </Td>
+            <Td className='text-gray-600'>{o.managerName ?? '—'}</Td>
+            <Td>
+              <DealStatusBadge stage={o.stage} />
+            </Td>
+            <Td className='text-right text-gray-700'>{fmtMoney(o.totalAmount)}</Td>
+            <Td
+              className={`text-right ${
+                Number(o.debt) > 0 ? 'text-red-700 font-medium' : 'text-gray-500'
+              }`}
+            >
+              {fmtMoney(o.debt)}
+            </Td>
+            <Td className='text-gray-500'>{fmtDate(o.deadline)}</Td>
+          </Tr>
+        ))}
+      </tbody>
+    </TableShell>
   );
 }
 
