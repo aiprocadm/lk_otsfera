@@ -66,13 +66,15 @@ export function useFormAction<T = object>(opts: UseFormActionOptions<T>) {
   const current: FormActionState<T> =
     state.status !== 'idle' && state.generation !== generation ? { status: 'idle' } : state;
 
+  // Во время pending feedback скрыт: до-хуковые формы чистили error/success
+  // в начале сабмита (setError(null)) — сохраняем этот UX при ресабмите.
   return {
     /** В <form action={formAction}>. */
     formAction,
     pending,
-    errorText: current.status === 'error' ? current.errorText : null,
-    data: current.status === 'success' ? current.data : null,
-    success: current.status === 'success',
+    errorText: !pending && current.status === 'error' ? current.errorText : null,
+    data: !pending && current.status === 'success' ? current.data : null,
+    success: !pending && current.status === 'success',
     /** Сброс error/success (повторное открытие модалки, «создать ещё»). */
     reset,
   };
