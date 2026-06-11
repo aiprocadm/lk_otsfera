@@ -25,6 +25,9 @@ function makePrisma(partners: { id: string }[]) {
   return {
     partner: {
       findMany: vi.fn().mockResolvedValue(partners)
+    },
+    syncLog: {
+      create: vi.fn().mockResolvedValue({})
     }
   } as any;
 }
@@ -70,6 +73,30 @@ describe('calculateMonthlyCommissionsProcessor', () => {
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].partnerId).toBe('p1');
     expect(result.errors[0].error).toBe('DB timeout');
+    // Partial failure surfaces durably as a syncLog 'warn' row.
+    expect(db.syncLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        entity: 'commission',
+        status: 'warn',
+        errorMessage: expect.stringContaining('p1: DB timeout')
+      })
+    });
+  });
+
+  it('writes a syncLog error row when ALL partners fail', async () => {
+    const db = makePrisma([{ id: 'p1' }, { id: 'p2' }]);
+    mockCalc.mockRejectedValue(new Error('schema drift'));
+
+    const result = await calculateMonthlyCommissionsProcessor(makeJob(), db);
+
+    expect(result.errors).toHaveLength(2);
+    expect(db.syncLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        entity: 'commission',
+        status: 'error',
+        errorMessage: expect.stringContaining('ALL failed')
+      })
+    });
   });
 
   it('returns periodFrom / periodTo as ISO strings', async () => {
