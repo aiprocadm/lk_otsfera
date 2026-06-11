@@ -1,14 +1,24 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createPartnerWithAdminAction } from '@/server-actions/admin/partners';
+import { useFormAction } from '@/lib/ui/useFormAction';
+
+const ERROR_MAP: Record<string, string> = {
+  duplicate_slug: 'Slug занят. Выберите другой.',
+  duplicate_email: 'Email уже зарегистрирован.',
+  validation: 'Проверьте поля.'
+};
 
 export function PartnerCreateForm() {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const { formAction, pending, errorText, data } = useFormAction<{
+    partner: { id: string; name: string; slug: string };
+    user: { id: string; email: string };
+    inviteUrl: string;
+  }>({ action: createPartnerWithAdminAction, errorMap: ERROR_MAP });
+  const inviteUrl = data?.inviteUrl ?? null;
   const [slugError, setSlugError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -28,21 +38,8 @@ export function PartnerCreateForm() {
     }
   }
 
-  function submit(formData: FormData) {
-    setError(null);
-    setInviteUrl(null);
-    startTransition(async () => {
-      const result = await createPartnerWithAdminAction(formData);
-      if (result.ok) {
-        setInviteUrl(result.inviteUrl);
-      } else {
-        setError(translateError(result.error));
-      }
-    });
-  }
-
   return (
-    <form action={submit} className="space-y-4 bg-white border border-gray-200 rounded-xl p-6 max-w-xl">
+    <form action={formAction} className="space-y-4 bg-white border border-gray-200 rounded-xl p-6 max-w-xl">
       <div>
         <label className="block text-sm font-medium text-[#111111] mb-1">Название партнёра</label>
         <input
@@ -104,8 +101,8 @@ export function PartnerCreateForm() {
           />
         </div>
       </fieldset>
-      {error && (
-        <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
+      {errorText && (
+        <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{errorText}</div>
       )}
       {inviteUrl && (
         <div role="status" className="text-sm bg-green-50 text-green-700 rounded px-3 py-2">
@@ -146,13 +143,4 @@ export function PartnerCreateForm() {
       )}
     </form>
   );
-}
-
-function translateError(code: string): string {
-  switch (code) {
-    case 'duplicate_slug': return 'Slug занят. Выберите другой.';
-    case 'duplicate_email': return 'Email уже зарегистрирован.';
-    case 'validation': return 'Проверьте поля.';
-    default: return `Ошибка: ${code}`;
-  }
 }

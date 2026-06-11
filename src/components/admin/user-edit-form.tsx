@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState } from 'react';
 import { updateUserAction } from '@/server-actions/admin/users';
+import { useFormAction } from '@/lib/ui/useFormAction';
 import type { UserDetail } from '@/lib/services/admin/users';
 
 type Partner = { id: string; name: string };
@@ -22,23 +23,21 @@ function allowedRoles(currentRole: string): string[] {
   return [currentRole];
 }
 
-function translateError(code: string): string {
-  switch (code) {
-    case 'duplicate_email': return 'Пользователь с таким email уже существует.';
-    case 'admin_role_via_ui': return 'Создание admin через UI недоступно.';
-    case 'self_action_forbidden': return 'Нельзя менять собственную роль или деактивировать себя.';
-    case 'last_admin_protected': return "Нельзя деактивировать последнего активного admin'а.";
-    case 'role_transition_forbidden': return 'Этот переход роли не поддерживается. Деактивируйте пользователя и создайте нового.';
-    case 'validation': return 'Проверьте корректность полей.';
-    case 'not_found': return 'Пользователь не найден.';
-    default: return `Ошибка: ${code}`;
-  }
-}
+const ERROR_MAP: Record<string, string> = {
+  duplicate_email: 'Пользователь с таким email уже существует.',
+  admin_role_via_ui: 'Создание admin через UI недоступно.',
+  self_action_forbidden: 'Нельзя менять собственную роль или деактивировать себя.',
+  last_admin_protected: "Нельзя деактивировать последнего активного admin'а.",
+  role_transition_forbidden: 'Этот переход роли не поддерживается. Деактивируйте пользователя и создайте нового.',
+  validation: 'Проверьте корректность полей.',
+  not_found: 'Пользователь не найден.'
+};
 
 export function UserEditForm({ user, partners, isSelf }: { user: UserDetail; partners: Partner[]; isSelf: boolean }) {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const { formAction, pending, errorText, success } = useFormAction<object>({
+    action: updateUserAction,
+    errorMap: ERROR_MAP
+  });
   const [role, setRole] = useState<string>(user.role);
   const [partnerId, setPartnerId] = useState<string>(user.partnerId ?? '');
   const [name, setName] = useState(user.name);
@@ -46,21 +45,8 @@ export function UserEditForm({ user, partners, isSelf }: { user: UserDetail; par
 
   const roleOptions = allowedRoles(user.role);
 
-  function submit(formData: FormData) {
-    setError(null);
-    setSuccess(false);
-    startTransition(async () => {
-      const result = await updateUserAction(formData);
-      if (result.ok) {
-        setSuccess(true);
-      } else {
-        setError(translateError(result.error));
-      }
-    });
-  }
-
   return (
-    <form action={submit} className="space-y-4 bg-white border border-gray-200 rounded-xl p-6 max-w-xl">
+    <form action={formAction} className="space-y-4 bg-white border border-gray-200 rounded-xl p-6 max-w-xl">
       <input type="hidden" name="id" value={user.id} />
 
       <div>
@@ -118,8 +104,8 @@ export function UserEditForm({ user, partners, isSelf }: { user: UserDetail; par
         Привязки к организациям управляются на странице организации.
       </div>
 
-      {error && (
-        <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
+      {errorText && (
+        <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{errorText}</div>
       )}
       {success && (
         <div role="status" className="text-sm bg-green-50 text-green-700 rounded px-3 py-2">
