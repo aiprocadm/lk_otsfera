@@ -6,3 +6,5 @@ export { Badge } from './badge';
 export { Spinner } from './spinner';
 export { Field, type FieldProps } from './field';
 export { Dialog, type DialogProps, type DialogSize } from './dialog';
+export { EmptyState } from './empty-state';
+export { TableShell, THead, Th, Tr, Td } from './table';

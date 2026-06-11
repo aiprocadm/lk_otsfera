@@ -19,7 +19,45 @@ type Thread = {
 type Props = {
   threads: Thread[];
   currentUserId: string;
+  /**
+   * 'role' — partner/org-кабинеты: side НЕ передаётся (сервер выводит из сессии),
+   *          side-бейджи не рендерятся, левая панель 280px.
+   * 'team' — manager/admin: side передаётся явно (deriveSide для них возвращает null),
+   *          бейджи «Заказчик/Партнёр» в списке и шапке, левая панель 300px.
+   */
+  variant: 'role' | 'team';
 };
+
+function sideBadgeLabel(side: ThreadSide): string {
+  return side === 'org' ? 'Заказчик' : 'Партнёр';
+}
+
+function sideBadgeStyle(side: ThreadSide): React.CSSProperties {
+  if (side === 'org') {
+    return {
+      fontSize: '10px',
+      padding: '2px 6px',
+      borderRadius: '4px',
+      backgroundColor: '#EFF6FF',
+      color: '#1D4ED8',
+      border: '1px solid #BFDBFE',
+      fontWeight: 500,
+      flexShrink: 0,
+      whiteSpace: 'nowrap' as const
+    };
+  }
+  return {
+    fontSize: '10px',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    backgroundColor: '#FFF7ED',
+    color: '#C2410C',
+    border: '1px solid #FED7AA',
+    fontWeight: 500,
+    flexShrink: 0,
+    whiteSpace: 'nowrap' as const
+  };
+}
 
 /** Maps raw API message row to a ChatMessageVM. */
 function toVM(r: { id: string; authorId: string; authorName: string; body: string; createdAt: string; hasAttachment?: boolean }): ChatMessageVM {
@@ -36,7 +74,13 @@ function toVM(r: { id: string; authorId: string; authorName: string; body: strin
   };
 }
 
-export function OrganizationMessagesInbox({ threads, currentUserId }: Props) {
+/**
+ * Единый order-thread инбокс для всех кабинетов (Tier 2: слияние
+ * partner-/organization-messages-inbox и team-chat-inbox).
+ * Доменная граница живёт на сервере (/api/messages, deriveSide);
+ * различия ролей сводятся к variant-пропу — см. Props.
+ */
+export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
   const [selected, setSelected] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<ChatMessageVM[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -81,17 +125,17 @@ export function OrganizationMessagesInbox({ threads, currentUserId }: Props) {
         };
         setMessages(data.rows.map(toVM));
       } else {
-        console.warn('[organization-messages-inbox] fetch messages failed', res.status);
+        console.warn('[order-thread-inbox] fetch messages failed', res.status);
         setMessages([]);
       }
     } catch (err) {
-      console.warn('[organization-messages-inbox] fetch messages error', err);
+      console.warn('[order-thread-inbox] fetch messages error', err);
       setMessages([]);
     } finally {
       setLoadingMessages(false);
     }
 
-    // Mark thread as read — fire-and-forget; clear unread indicator only on success
+    // Mark thread as read — fire-and-forget; only clear unread on res.ok
     fetch('/api/messages/read', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -101,19 +145,24 @@ export function OrganizationMessagesInbox({ threads, currentUserId }: Props) {
         if (res.ok) setThreadUnread((prev) => ({ ...prev, [thread.id]: false }));
       })
       .catch((err) => {
-        console.warn('[organization-messages-inbox] markRead error', err);
+        console.warn('[order-thread-inbox] markRead error', err);
       });
   }
 
   async function handleAttach(file: File) {
     if (!selected) return;
     setAttachError(null);
-    // Org inbox — no `side` passed; server derives 'org' from session role
-    const path = await uploadAttachment(file, selected.orderId);
+    // variant='team' passes side explicitly — deriveSide returns null for managers/admins;
+    // variant='role' omits side — server derives it from the session role
+    const path = await uploadAttachment(
+      file,
+      selected.orderId,
+      variant === 'team' ? selected.side : undefined
+    );
     if (path) {
       setPendingAttachment({ path, name: file.name });
     } else {
-      console.warn('[organization-messages-inbox] attachment upload failed');
+      console.warn('[order-thread-inbox] attachment upload failed');
       setAttachError('Не удалось загрузить файл');
     }
   }
@@ -123,25 +172,24 @@ export function OrganizationMessagesInbox({ threads, currentUserId }: Props) {
     // v1 limitation: an attachment must accompany text because sendMessage rejects
     // an empty body. Attachment-only messages are a v1.1 follow-up.
     try {
-      // NO `side` field — server's deriveSide forces 'org' for an organization session
+      // variant='team' MUST pass side explicitly — deriveSide returns null for managers/admins
       const res = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderId: selected.orderId,
+          ...(variant === 'team' ? { side: selected.side } : {}),
           body: text,
           ...(pendingAttachment ? { attachmentPath: pendingAttachment.path } : {})
         })
       });
       if (!res.ok) {
-        console.warn('[organization-messages-inbox] send message failed', res.status);
+        console.warn('[order-thread-inbox] send message failed', res.status);
         return;
       }
       setPendingAttachment(null);
       // Refetch messages for the selected thread
-      const fetchRes = await fetch(
-        `/api/messages?threadId=${encodeURIComponent(selected.id)}`
-      );
+      const fetchRes = await fetch(`/api/messages?threadId=${encodeURIComponent(selected.id)}`);
       if (fetchRes.ok) {
         const data = (await fetchRes.json()) as {
           rows: Array<{
@@ -156,7 +204,7 @@ export function OrganizationMessagesInbox({ threads, currentUserId }: Props) {
         setMessages(data.rows.map(toVM));
       }
     } catch (err) {
-      console.warn('[organization-messages-inbox] handleSend error', err);
+      console.warn('[order-thread-inbox] handleSend error', err);
     }
   }
 
@@ -175,7 +223,7 @@ export function OrganizationMessagesInbox({ threads, currentUserId }: Props) {
       {/* Left panel — thread list */}
       <div
         style={{
-          width: '280px',
+          width: variant === 'team' ? '300px' : '280px',
           flexShrink: 0,
           borderRight: '1px solid #E5E7EB',
           overflowY: 'auto'
@@ -235,11 +283,17 @@ export function OrganizationMessagesInbox({ threads, currentUserId }: Props) {
                           color: '#111111',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
+                          whiteSpace: 'nowrap',
+                          ...(variant === 'team' ? { flex: 1, minWidth: 0 } : {})
                         }}
                       >
                         {thread.orderTitle}
                       </span>
+                      {variant === 'team' && (
+                        <span style={sideBadgeStyle(thread.side)}>
+                          {sideBadgeLabel(thread.side)}
+                        </span>
+                      )}
                     </div>
                     <span style={{ fontSize: '11px', color: '#9CA3AF' }}>
                       {thread.orderNumber ?? '—'}
@@ -273,7 +327,10 @@ export function OrganizationMessagesInbox({ threads, currentUserId }: Props) {
               style={{
                 padding: '10px 16px',
                 borderBottom: '1px solid #E5E7EB',
-                backgroundColor: '#F9FAFB'
+                backgroundColor: '#F9FAFB',
+                ...(variant === 'team'
+                  ? { display: 'flex', alignItems: 'center', gap: '8px' }
+                  : {})
               }}
             >
               <span style={{ fontSize: '13px', color: '#6B7280' }}>
@@ -282,6 +339,11 @@ export function OrganizationMessagesInbox({ threads, currentUserId }: Props) {
               <span style={{ fontSize: '13px', fontWeight: 600, color: '#111111' }}>
                 {selected.orderTitle}
               </span>
+              {variant === 'team' && (
+                <span style={sideBadgeStyle(selected.side)}>
+                  {sideBadgeLabel(selected.side)}
+                </span>
+              )}
             </div>
             <div style={{ flex: 1, overflowY: 'auto' }}>
               {loadingMessages ? (

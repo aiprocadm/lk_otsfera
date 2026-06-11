@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import type { OrgPaymentRow } from '@/lib/services/organization/finance';
+import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 
 function fmtMoney(val: string): string {
   const n = Number(val);
@@ -13,47 +14,39 @@ function fmtDate(d: Date): string {
 
 export function ManagerFinancePayments({ payments }: { payments: OrgPaymentRow[] }) {
   if (payments.length === 0) {
-    return (
-      <div className='bg-white border border-gray-200 rounded-xl p-8 text-center'>
-        <p className='text-gray-500 text-sm'>Платежей пока нет.</p>
-      </div>
-    );
+    return <EmptyState message='Платежей пока нет.' className='p-8' />;
   }
   return (
-    <div className='bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto'>
-      <table className='w-full text-sm'>
-        <thead>
-          <tr className='border-b border-gray-100 bg-gray-50 text-left'>
-            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Дата</th>
-            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Заказ</th>
-            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Способ</th>
-            <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 text-right'>Сумма</th>
-          </tr>
-        </thead>
-        <tbody>
-          {payments.map((p) => (
-            <tr key={p.id} className='border-b border-gray-50 last:border-b-0 hover:bg-[#FFF7ED]'>
-              <td className='px-4 py-2.5 text-gray-500'>{fmtDate(p.paidAt)}</td>
-              <td className='px-4 py-2.5'>
-                {p.orderId ? (
-                  <Link href={`/manager/orders/${p.orderId}`} className='text-[#F97316] hover:underline'>
-                    {p.orderNumber ?? '—'}
-                  </Link>
-                ) : (
-                  <span className='text-gray-400'>—</span>
-                )}
-              </td>
-              <td className='px-4 py-2.5 text-gray-600'>
-                {p.isRefund ? <span className='text-red-600'>Возврат</span> : (p.method ?? '—')}
-              </td>
-              <td className={`px-4 py-2.5 text-right font-medium ${p.isRefund ? 'text-red-600' : 'text-gray-800'}`}>
-                {p.isRefund ? '−' : ''}
-                {fmtMoney(p.amount)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <TableShell overflow='x-auto'>
+      <THead>
+        <Th>Дата</Th>
+        <Th>Заказ</Th>
+        <Th>Способ</Th>
+        <Th className='text-right'>Сумма</Th>
+      </THead>
+      <tbody>
+        {payments.map((p) => (
+          <Tr key={p.id}>
+            <Td className='text-gray-500'>{fmtDate(p.paidAt)}</Td>
+            <Td>
+              {p.orderId ? (
+                <Link href={`/manager/orders/${p.orderId}`} className='text-[#F97316] hover:underline'>
+                  {p.orderNumber ?? '—'}
+                </Link>
+              ) : (
+                <span className='text-gray-400'>—</span>
+              )}
+            </Td>
+            <Td className='text-gray-600'>
+              {p.isRefund ? <span className='text-red-600'>Возврат</span> : (p.method ?? '—')}
+            </Td>
+            <Td className={`text-right font-medium ${p.isRefund ? 'text-red-600' : 'text-gray-800'}`}>
+              {p.isRefund ? '−' : ''}
+              {fmtMoney(p.amount)}
+            </Td>
+          </Tr>
+        ))}
+      </tbody>
+    </TableShell>
   );
 }

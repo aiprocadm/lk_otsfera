@@ -4,7 +4,7 @@ import { listIncomingComments } from '@/lib/services/manager/messages';
 import { ManagerMessagesInbox } from '@/components/manager/manager-messages-inbox';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { listThreads } from '@/lib/services/chat/threads';
-import { TeamChatInbox } from '@/components/chat/team-chat-inbox';
+import { OrderThreadInbox } from '@/components/chat/order-thread-inbox';
 import { UnreadBadge } from '@/components/chat/unread-badge';
 
 type SearchParams = { cursor?: string };
@@ -33,9 +33,10 @@ export default async function ManagerMessagesPage({
       {chatEnabled && chat && (
         <section className='mt-8'>
           <h2 className='mb-3 text-lg font-medium text-gray-700'>Чат</h2>
-          <TeamChatInbox
+          <OrderThreadInbox
             threads={chat.ok ? chat.rows : []}
             currentUserId={session.sub}
+            variant='team'
           />
         </section>
       )}

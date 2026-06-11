@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 import { requirePartner } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { listThreads } from '@/lib/services/chat/threads';
-import { PartnerMessagesInbox } from '@/components/partner/partner-messages-inbox';
+import { OrderThreadInbox } from '@/components/chat/order-thread-inbox';
 import { UnreadBadge } from '@/components/chat/unread-badge';
 
 export default async function PartnerMessagesPage() {
@@ -18,7 +18,7 @@ export default async function PartnerMessagesPage() {
   return (
     <div className='space-y-4'>
       <h1 className='text-2xl font-bold text-[#111111]'>Сообщения<UnreadBadge /></h1>
-      <PartnerMessagesInbox threads={threads} currentUserId={session.sub} />
+      <OrderThreadInbox threads={threads} currentUserId={session.sub} variant='role' />
     </div>
   );
 }

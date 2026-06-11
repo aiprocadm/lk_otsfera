@@ -2,7 +2,7 @@ import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { listThreads } from '@/lib/services/chat/threads';
-import { TeamChatInbox } from '@/components/chat/team-chat-inbox';
+import { OrderThreadInbox } from '@/components/chat/order-thread-inbox';
 import { UnreadBadge } from '@/components/chat/unread-badge';
 
 export default async function AdminMessagesPage() {
@@ -17,9 +17,10 @@ export default async function AdminMessagesPage() {
       {chatEnabled && chat ? (
         <section>
           <h2 className='mb-3 text-lg font-medium text-gray-700'>Чат</h2>
-          <TeamChatInbox
+          <OrderThreadInbox
             threads={chat.ok ? chat.rows : []}
             currentUserId={session.sub}
+            variant='team'
           />
         </section>
       ) : (
