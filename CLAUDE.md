@@ -78,7 +78,7 @@ function doX(
 
 Источник — [src/lib/featureFlags.ts](src/lib/featureFlags.ts). Семантика:
 
-- **Opt-out по умолчанию** (включено, если env не выставлен в `0/false/off`): `partner_leads`, `commission_pdf`, `commission_xlsx`, `one_c_sync`, `pwa_installer`, `document_scan`.
+- **Opt-out по умолчанию** (включено, если env не выставлен в `0/false/off`): `partner_leads`, `commission_pdf`, `commission_xlsx`, `pwa_installer`. (Флаги `one_c_sync`/`document_scan` удалены 2026-06-11: не имели ни одной точки чтения; рычаги 1С — `ONE_C_ADAPTER` + admin sync control center, скан не отключаем намеренно.)
 - **Opt-in по умолчанию** (выключено, пока env не `1/true/on`): `organization_cabinet`, `manager_cabinet`, `chat`. Сделано для staged rollout.
 
 Три точки чтения флага:
