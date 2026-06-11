@@ -63,6 +63,8 @@ describe('POST /api/organization/documents/[id]/download', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     cookiesGet.mockReturnValue(undefined);
+    // Route is gated by the opt-in organization_cabinet flag (3-point contract, §5).
+    process.env.FEATURE_ORGANIZATION_CABINET = '1';
   });
 
   it('redirects when user is not organization-role', async () => {

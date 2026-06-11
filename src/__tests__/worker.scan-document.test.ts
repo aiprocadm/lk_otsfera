@@ -157,21 +157,29 @@ describe('scanDocumentProcessor', () => {
     });
   });
 
-  it('marks scan as error when storage download throws', async () => {
+  it('re-throws when storage download fails (job retries) and leaves the row pending', async () => {
     process.env.CLAMAV_HOST = 'clamav.local';
     const db = makeDb();
     const deps = makeDeps({
-      download: vi.fn().mockRejectedValue(new Error('STORAGE_DOWNLOAD: not found')),
+      download: vi.fn().mockRejectedValue(new Error('STORAGE_DOWNLOAD: timeout')),
       scan: vi.fn(),
     });
 
-    const result = await scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps);
+    await expect(
+      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps),
+    ).rejects.toThrow(/STORAGE_DOWNLOAD/);
 
-    expect(result.scanStatus).toBe('error');
-    expect(result.scanReason).toContain('STORAGE_DOWNLOAD');
+    // Must NOT persist a terminal 'error' status: the backfill sweep only
+    // re-enqueues 'pending' rows, so a transient storage failure marked as
+    // 'error' would strand the document unscanned forever.
+    expect(db.document.update).not.toHaveBeenCalled();
     expect(deps.scan).not.toHaveBeenCalled();
     expect(db.syncLog.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ entity: 'scan', status: 'error' }),
+      data: expect.objectContaining({
+        entity: 'scan',
+        status: 'error',
+        errorMessage: expect.stringContaining('STORAGE_DOWNLOAD'),
+      }),
     });
   });
 

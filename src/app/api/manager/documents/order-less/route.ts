@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { createManagerOrderLessDocument } from '@/lib/services/manager/uploads';
+import { notFoundIfDisabled } from '@/lib/featureFlags';
 
 const STATUS: Record<string, number> = {
   forbidden: 403,
@@ -13,8 +14,14 @@ const STATUS: Record<string, number> = {
 };
 
 export async function POST(req: Request) {
+  const disabled = notFoundIfDisabled('manager_cabinet');
+  if (disabled) return disabled;
+
   const session = await requireManager();
-  const fd = await req.formData();
+  const fd = await req.formData().catch(() => null);
+  if (!fd) {
+    return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
+  }
   const counterpartyType = String(fd.get('counterpartyType') ?? '');
   const counterpartyId = String(fd.get('counterpartyId') ?? '');
   const docType = String(fd.get('docType') ?? 'other');

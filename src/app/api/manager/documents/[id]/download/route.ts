@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getDocumentForDownload } from '@/lib/services/manager/documents';
 import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
 import { recordAudit } from '@/lib/auth/audit';
+import { notFoundIfDisabled } from '@/lib/featureFlags';
 
 /**
  * POST /api/manager/documents/[id]/download
@@ -29,6 +30,9 @@ export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const disabled = notFoundIfDisabled('manager_cabinet');
+  if (disabled) return disabled;
+
   const correlationId = crypto.randomUUID();
   const session = await requireManager();
   const { id } = await params;

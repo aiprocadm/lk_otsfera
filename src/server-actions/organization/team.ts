@@ -86,18 +86,24 @@ export async function inviteOrgMemberAction(
     );
 
     // Send invite email best-effort. send() returns 'skipped' silently when
-    // EMAIL_ENABLED!=true or RESEND_API_KEY is missing — no need to gate here.
+    // EMAIL_ENABLED!=true or RESEND_API_KEY is missing, but a live transport
+    // can still reject — that must not fail the action: the invite is already
+    // created and inviteUrl is returned for the "Copy link" fallback.
     if (result.inviteUrl !== null) {
-      const org = await prisma.organization.findUnique({
-        where: { id: parsed.data.organizationId },
-        select: { name: true }
-      });
-      await sendOrgInviteEmail({
-        to: parsed.data.email,
-        organizationName: org?.name ?? 'организация',
-        inviteUrl: result.inviteUrl,
-        invitedByName: session.name ?? undefined
-      });
+      try {
+        const org = await prisma.organization.findUnique({
+          where: { id: parsed.data.organizationId },
+          select: { name: true }
+        });
+        await sendOrgInviteEmail({
+          to: parsed.data.email,
+          organizationName: org?.name ?? 'организация',
+          inviteUrl: result.inviteUrl,
+          invitedByName: session.name ?? undefined
+        });
+      } catch (e) {
+        console.warn('[organization/team] send invite email failed', e);
+      }
     }
 
     revalidatePath('/organization/team');
@@ -185,13 +191,16 @@ export async function reactivateOrgMemberAction(formData: FormData): Promise<Act
 // are caught visually — though without inline error text.
 
 export async function updateOrgMemberRoleFormAction(formData: FormData): Promise<void> {
-  await updateOrgMemberRoleAction(formData);
+  const result = await updateOrgMemberRoleAction(formData);
+  if (!result.ok) console.warn('[organization/team] updateOrgMemberRoleFormAction failed', result);
 }
 
 export async function deactivateOrgMemberFormAction(formData: FormData): Promise<void> {
-  await deactivateOrgMemberAction(formData);
+  const result = await deactivateOrgMemberAction(formData);
+  if (!result.ok) console.warn('[organization/team] deactivateOrgMemberFormAction failed', result);
 }
 
 export async function reactivateOrgMemberFormAction(formData: FormData): Promise<void> {
-  await reactivateOrgMemberAction(formData);
+  const result = await reactivateOrgMemberAction(formData);
+  if (!result.ok) console.warn('[organization/team] reactivateOrgMemberFormAction failed', result);
 }

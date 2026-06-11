@@ -57,7 +57,8 @@ async function seedData() {
     }
   });
   orderId = order.id;
-  teamSession = { sub: managerId, role: 'manager' };
+  // Manager chat visibility is company-scoped (C8) — session carries companyId.
+  teamSession = { sub: managerId, role: 'manager', companyId };
 }
 
 async function cleanupData() {

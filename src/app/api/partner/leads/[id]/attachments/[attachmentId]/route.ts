@@ -6,6 +6,7 @@ import {
   deleteLeadAttachment,
   type LeadAttachmentFailure
 } from '@/lib/services/partner/leadAttachments';
+import { notFoundIfDisabled } from '@/lib/featureFlags';
 
 function scopeOf(session: { assignedOrgIds?: string[] }): string[] | undefined {
   const arr = session.assignedOrgIds ?? [];
@@ -28,6 +29,9 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string; attachmentId: string }> }
 ) {
+  const disabled = notFoundIfDisabled('partner_leads');
+  if (disabled) return disabled;
+
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const partnerResult = requirePartner(session);
@@ -43,7 +47,8 @@ export async function DELETE(
     });
     if (!result.ok) return mapFailureToResponse(result);
     return new NextResponse(null, { status: 204 });
-  } catch {
+  } catch (err) {
+    console.error('[partner/leads/attachments] delete failed unexpectedly', { attachmentId, err });
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }

@@ -81,7 +81,7 @@ export async function uploadChatAttachment(
   // 2. Load order for RBAC check.
   const order = await prisma.order.findUnique({
     where: { id: args.orderId },
-    select: { id: true, organizationId: true, partnerId: true },
+    select: { id: true, organizationId: true, partnerId: true, companyId: true },
   });
 
   if (!order) {
@@ -121,7 +121,7 @@ export async function uploadChatAttachment(
 
 export type GetChatAttachmentSignedUrlResult =
   | { ok: true; url: string }
-  | { ok: false; error: 'forbidden' | 'not_found' };
+  | { ok: false; error: 'forbidden' | 'not_found' | 'storage' };
 
 export async function getChatAttachmentSignedUrl(
   prisma: PrismaClient,
@@ -136,7 +136,7 @@ export async function getChatAttachmentSignedUrl(
       thread: {
         select: {
           side: true,
-          order: { select: { id: true, organizationId: true, partnerId: true } },
+          order: { select: { id: true, organizationId: true, partnerId: true, companyId: true } },
         },
       },
     },
@@ -166,7 +166,9 @@ export async function getChatAttachmentSignedUrl(
       attachmentPath: message.attachmentPath,
       providerError: error?.message ?? 'missing signed URL',
     });
-    return { ok: false, error: 'not_found' };
+    // 'storage' (→ 502), not 'not_found': the attachment row exists — masking a
+    // storage outage as a missing file sends support down the wrong trail.
+    return { ok: false, error: 'storage' };
   }
 
   return { ok: true, url: data.signedUrl };

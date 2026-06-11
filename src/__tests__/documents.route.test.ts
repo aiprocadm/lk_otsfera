@@ -113,6 +113,28 @@ describe('documents guards', () => {
     );
   });
 
+  it('denies upload for non-admin roles (channel-scoped paths must be used instead)', async () => {
+    getSession.mockResolvedValue({ role: 'partner', sub: 'u1', partnerId: 'p1' });
+    const fd = new FormData();
+    fd.set('orderId', 'ord1');
+    fd.set('file', new File(['%PDF-1.4 minimal'], 'good.pdf', { type: 'application/pdf' }));
+    const res = await uploadPost(new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd }));
+    expect(res.status).toBe(403);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('still returns success when notification fan-out fails (best-effort)', async () => {
+    const { notifyDocumentCreated } = await import('@/lib/notifications');
+    (notifyDocumentCreated as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('notify down'));
+    const fd = new FormData();
+    fd.set('orderId', 'ord1');
+    fd.set('file', new File(['%PDF-1.4 minimal'], 'good.pdf', { type: 'application/pdf' }));
+    const res = await uploadPost(
+      new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd })
+    );
+    expect(res.status).toBe(200);
+  });
+
   it('still returns success when scan enqueue fails (graceful)', async () => {
     enqueueAdd.mockRejectedValueOnce(new Error('Redis down'));
     const fd = new FormData();
@@ -197,11 +219,13 @@ describe('GET /api/documents list — channel-isolation role restriction', () =>
     expect(docFindMany).toHaveBeenCalled();
   });
 
-  it('returns 200 for manager role and calls findMany', async () => {
+  it('returns 403 for manager role (reads go through managerDocumentScope)', async () => {
+    // The old manager branch filtered via organizationUsers, which never
+    // matches a manager account — it always returned an empty list. The
+    // endpoint is admin-only (sole consumer: admin DocumentsPanel).
     getSession.mockResolvedValue({ role: 'manager', sub: 'mgr1' });
-    docFindMany.mockResolvedValue([]);
     const res = await listGet();
-    expect(res.status).toBe(200);
-    expect(docFindMany).toHaveBeenCalled();
+    expect(res.status).toBe(403);
+    expect(docFindMany).not.toHaveBeenCalled();
   });
 });

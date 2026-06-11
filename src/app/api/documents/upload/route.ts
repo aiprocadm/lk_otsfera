@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { requireOrderAccess, requireSession } from '@/lib/auth/guard';
+import { requireOrderAccess, requireRole, requireSession } from '@/lib/auth/guard';
 import { notifyDocumentCreated, triggerNotificationEmail } from '@/lib/notifications';
 import { getPrimaryOrganizationId } from '@/lib/auth/organization';
 import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
@@ -45,7 +45,15 @@ export async function POST(req: Request) {
   if (!sessionResult.ok) return sessionResult.response;
   const s = sessionResult.value;
 
-  const form = await req.formData();
+  // Admin-only: the sole consumer is the admin DocumentsPanel. Partner and
+  // organization uploads go through their channel-scoped paths (server-action /
+  // manager API), which pin counterparty — this legacy route writes to the
+  // org channel unconditionally and must not be reachable by other roles.
+  const roleResult = requireRole(s, ['admin']);
+  if (!roleResult.ok) return roleResult.response;
+
+  const form = await req.formData().catch(() => null);
+  if (!form) return errorResponse('BAD_REQUEST', 'Expected multipart form-data', 400, correlationId);
   const orderId = String(form.get('orderId') ?? '');
   const file = form.get('file');
 
@@ -141,18 +149,27 @@ export async function POST(req: Request) {
     });
   }
 
-  const organizationId = await getPrimaryOrganizationId(s);
-
-  await notifyDocumentCreated({
-    userId: s.sub,
-    organizationId,
-    partnerId: s.partnerId,
-    title: 'Новый документ',
-    body: `Загружен документ ${file.name}`,
-    meta: { orderId, documentId: doc.id }
-  });
-
-  await triggerNotificationEmail({ userId: s.sub, title: 'Новый документ', body: `Загружен документ ${file.name}`, type: 'document_created' });
+  // Best-effort fan-out: the document row is already committed; a notification
+  // or email transport failure must not surface as an upload error (the client
+  // would retry and create a duplicate).
+  try {
+    const organizationId = await getPrimaryOrganizationId(s);
+    await notifyDocumentCreated({
+      userId: s.sub,
+      organizationId,
+      partnerId: s.partnerId,
+      title: 'Новый документ',
+      body: `Загружен документ ${file.name}`,
+      meta: { orderId, documentId: doc.id }
+    });
+    await triggerNotificationEmail({ userId: s.sub, title: 'Новый документ', body: `Загружен документ ${file.name}`, type: 'document_created' });
+  } catch (err) {
+    console.warn('[documents/upload] notification fan-out failed', {
+      correlationId,
+      documentId: doc.id,
+      error: err instanceof Error ? err.message : String(err)
+    });
+  }
 
   return NextResponse.json({ id: doc.id, name: doc.name, mimeType: doc.mimeType, createdAt: doc.createdAt });
 }

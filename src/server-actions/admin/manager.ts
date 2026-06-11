@@ -68,18 +68,24 @@ export async function assignOrInviteManagerAction(
     const result = await createAndAssignManager(prisma, parsed.data, session.sub);
 
     if (result.inviteUrl !== null) {
-      const org = await prisma.organization.findUnique({
-        where: { id: parsed.data.organizationId },
-        select: { name: true }
-      });
       // Email is best-effort; the inviteUrl is also returned to the admin UI
-      // for a "Copy link" fallback when the SMTP pipeline is disabled.
-      await sendManagerInviteEmail({
-        to: parsed.data.email,
-        organizationName: org?.name ?? 'организация',
-        inviteUrl: result.inviteUrl,
-        invitedByName: session.name ?? undefined
-      });
+      // for a "Copy link" fallback when the SMTP pipeline is disabled. A
+      // transport failure must not bubble out of the action: the invite is
+      // already created and would look failed while the token is live.
+      try {
+        const org = await prisma.organization.findUnique({
+          where: { id: parsed.data.organizationId },
+          select: { name: true }
+        });
+        await sendManagerInviteEmail({
+          to: parsed.data.email,
+          organizationName: org?.name ?? 'организация',
+          inviteUrl: result.inviteUrl,
+          invitedByName: session.name ?? undefined
+        });
+      } catch (e) {
+        console.warn('[admin/manager] send invite email failed', e);
+      }
     }
 
     revalidatePath(`/admin/organizations/${parsed.data.organizationId}`);
@@ -141,11 +147,13 @@ export async function reactivateManagerAssignmentAction(
  * which the page refresh will then reflect anyway.
  */
 export async function deactivateManagerAssignmentFormAction(formData: FormData): Promise<void> {
-  await deactivateManagerAssignmentAction(formData);
+  const result = await deactivateManagerAssignmentAction(formData);
+  if (!result.ok) console.warn('[admin/manager] deactivateManagerAssignmentFormAction failed', result);
 }
 
 export async function reactivateManagerAssignmentFormAction(formData: FormData): Promise<void> {
-  await reactivateManagerAssignmentAction(formData);
+  const result = await reactivateManagerAssignmentAction(formData);
+  if (!result.ok) console.warn('[admin/manager] reactivateManagerAssignmentFormAction failed', result);
 }
 
 /**

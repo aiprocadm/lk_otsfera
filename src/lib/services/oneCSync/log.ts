@@ -8,7 +8,8 @@ export type SyncLogEntity =
   | 'organization'
   | 'lead'
   | 'reconcile'
-  | 'scan';
+  | 'scan'
+  | 'commission';
 
 export type SyncLogEntry = {
   entity: SyncLogEntity;

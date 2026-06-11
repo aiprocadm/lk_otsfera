@@ -47,12 +47,14 @@ export const navByRole: Record<Role, NavItem[]> = {
     { href: '/partner/messages', label: 'Сообщения', flag: 'chat' }
   ],
   organization: [
-    { href: '/organization/dashboard', label: 'Главная', icon: '⌂' },
-    { href: '/organization/orders', label: 'Заказы', icon: '📋' },
-    { href: '/organization/documents', label: 'Документы', icon: '📄' },
-    { href: '/organization/finance', label: 'Финансы', icon: '₽' },
-    { href: '/organization/students', label: 'Сотрудники', icon: '👥' },
-    { href: '/organization/team', label: 'Команда', icon: '⚙', orgAdminOrLeaderOnly: true },
+    { href: '/organization/dashboard', label: 'Главная', icon: '⌂', flag: 'organization_cabinet' },
+    { href: '/organization/orders', label: 'Заказы', icon: '📋', flag: 'organization_cabinet' },
+    { href: '/organization/documents', label: 'Документы', icon: '📄', flag: 'organization_cabinet' },
+    { href: '/organization/finance', label: 'Финансы', icon: '₽', flag: 'organization_cabinet' },
+    { href: '/organization/students', label: 'Сотрудники', icon: '👥', flag: 'organization_cabinet' },
+    { href: '/organization/team', label: 'Команда', icon: '⚙', orgAdminOrLeaderOnly: true, flag: 'organization_cabinet' },
+    // «Сообщения» намеренно под более узким флагом chat (см. CLAUDE.md §5);
+    // /student — отдельный shared-entry домен, не часть organization_cabinet.
     { href: '/organization/messages', label: 'Сообщения', icon: '💬', flag: 'chat' },
     { href: '/student', label: 'Кабинет слушателя', icon: '🎓' }
   ],

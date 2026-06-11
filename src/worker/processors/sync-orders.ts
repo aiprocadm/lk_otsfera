@@ -129,7 +129,9 @@ export async function syncOrdersProcessor(
     return summary;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await markCursorError(db, 'order', message).catch(() => {});
+    await markCursorError(db, 'order', message).catch((e) =>
+      console.warn('[sync-orders] markCursorError failed', e)
+    );
     await writeSyncLog(
       {
         entity: 'order',

@@ -6,6 +6,7 @@ import { resolveActiveOrgId } from '@/lib/auth/orgContext';
 import { getOrgDocumentForDownload } from '@/lib/services/organization/documents';
 import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
 import { recordAudit } from '@/lib/auth/audit';
+import { notFoundIfDisabled } from '@/lib/featureFlags';
 
 const MIN_TTL = 60;
 const MAX_TTL = 300;
@@ -19,6 +20,9 @@ function resolveTtl(queryTtl: string | null): number {
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const disabled = notFoundIfDisabled('organization_cabinet');
+  if (disabled) return disabled;
+
   const correlationId = crypto.randomUUID();
   const session = await requireOrganization();
 
