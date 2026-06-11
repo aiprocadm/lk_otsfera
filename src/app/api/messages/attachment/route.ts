@@ -99,7 +99,8 @@ export async function GET(req: Request) {
 
   if (!result.ok) {
     return new Response(null, {
-      status: result.error === 'forbidden' ? 403 : 404,
+      status:
+        result.error === 'forbidden' ? 403 : result.error === 'storage' ? 502 : 404,
     });
   }
 

@@ -18,7 +18,7 @@ export async function listMessages(
     select: {
       id: true,
       side: true,
-      order: { select: { id: true, organizationId: true, partnerId: true } }
+      order: { select: { id: true, organizationId: true, partnerId: true, companyId: true } }
     }
   });
   if (!thread) return { ok: false, error: 'thread_not_found' };
@@ -67,7 +67,7 @@ export async function sendMessage(
 
   const order = await prisma.order.findUnique({
     where: { id: args.orderId },
-    select: { id: true, organizationId: true, partnerId: true, orderNumber: true, title: true }
+    select: { id: true, organizationId: true, partnerId: true, companyId: true, orderNumber: true, title: true }
   });
   if (!order) return { ok: false, error: 'order_not_found' };
   if (!canSeeThread(session, args.side, order)) return { ok: false, error: 'forbidden' };

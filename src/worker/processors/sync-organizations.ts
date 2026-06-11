@@ -99,7 +99,9 @@ export async function syncOrganizationsProcessor(
     return summary;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await markCursorError(db, 'organization', message).catch(() => {});
+    await markCursorError(db, 'organization', message).catch((e) =>
+      console.warn('[sync-organizations] markCursorError failed', e)
+    );
     await writeSyncLog(
       { entity: 'organization', direction: 'inbound', operation: 'skip', status: 'error', errorMessage: message, durationMs: Date.now() - startedAt },
       db

@@ -32,9 +32,13 @@ export function OrgFinancePayments({ payments }: { payments: OrgPaymentRow[] }) 
             <Tr key={p.id}>
               <Td className='text-gray-500'>{fmtDate(p.paidAt)}</Td>
               <Td>
-                <Link href={`/organization/orders/${p.orderId}`} className='text-[#F97316] hover:underline'>
-                  {p.orderNumber ?? '—'}
-                </Link>
+                {p.orderId ? (
+                  <Link href={`/organization/orders/${p.orderId}`} className='text-[#F97316] hover:underline'>
+                    {p.orderNumber ?? '—'}
+                  </Link>
+                ) : (
+                  <span className='text-gray-400'>—</span>
+                )}
               </Td>
               <Td className='text-gray-600'>
                 {p.isRefund ? <span className='text-red-600'>Возврат</span> : (p.method ?? '—')}

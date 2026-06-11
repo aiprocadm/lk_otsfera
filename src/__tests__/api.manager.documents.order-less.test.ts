@@ -20,6 +20,8 @@ function form(fields: Record<string, string>, withFile = true) {
 beforeEach(() => {
   vi.clearAllMocks();
   requireManager.mockResolvedValue({ sub: 'm1', role: 'manager', companyId: 'co-1' });
+  // Route is gated by the opt-in manager_cabinet flag (3-point contract, §5).
+  process.env.FEATURE_MANAGER_CABINET = '1';
 });
 
 describe('POST /api/manager/documents/order-less', () => {

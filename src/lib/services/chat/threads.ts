@@ -30,8 +30,14 @@ export type UnreadCountResult = { ok: true; count: number };
  * Used by both listThreads and unreadCount to avoid duplicating the role→where mapping.
  */
 function scopeWhere(session: SessionPayload): Prisma.OrderThreadWhereInput | null {
-  if (session.role === 'manager' || session.role === 'admin') {
-    return {}; // team sees ALL threads
+  if (session.role === 'admin') {
+    return {}; // admin sees ALL threads (Model A)
+  }
+  if (session.role === 'manager') {
+    // Both sides, but only within the manager's company — cross-company
+    // isolation (C8 invariant) holds regardless of managerTeamVisibility.
+    // The sentinel keeps companyId=null sessions at zero threads, not all.
+    return { order: { companyId: session.companyId ?? '__no_company__' } };
   }
   if (session.role === 'organization') {
     return { side: 'org', order: { organizationId: { in: activeOrgIds(session) } } };
@@ -98,7 +104,7 @@ export async function markRead(
     select: {
       id: true,
       side: true,
-      order: { select: { id: true, organizationId: true, partnerId: true } }
+      order: { select: { id: true, organizationId: true, partnerId: true, companyId: true } }
     }
   });
   if (!thread) return { ok: false, error: 'thread_not_found' };
@@ -150,7 +156,7 @@ export async function findOrCreateThread(
 ): Promise<ThreadResult> {
   const order = await prisma.order.findUnique({
     where: { id: args.orderId },
-    select: { id: true, organizationId: true, partnerId: true }
+    select: { id: true, organizationId: true, partnerId: true, companyId: true }
   });
   if (!order) return { ok: false, error: 'order_not_found' };
   if (!canSeeThread(session, args.side, order)) return { ok: false, error: 'forbidden' };

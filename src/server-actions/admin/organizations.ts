@@ -120,10 +120,15 @@ export async function setOrgRateOverrideAction(fd: FormData): Promise<ActionResu
   }
 }
 
+// <form action> wrappers must return void, so the Result is discarded — but a
+// user-triggerable failure (validation, rate_out_of_range) must at least leave
+// a trace until these forms migrate to useActionState with inline feedback.
 export async function updateOrgFormAction(fd: FormData): Promise<void> {
-  await updateOrganizationAction(fd);
+  const result = await updateOrganizationAction(fd);
+  if (!result.ok) console.warn('[admin/organizations] updateOrgFormAction failed', result);
 }
 
 export async function setOrgRateOverrideFormAction(fd: FormData): Promise<void> {
-  await setOrgRateOverrideAction(fd);
+  const result = await setOrgRateOverrideAction(fd);
+  if (!result.ok) console.warn('[admin/organizations] setOrgRateOverrideFormAction failed', result);
 }

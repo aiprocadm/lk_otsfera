@@ -141,7 +141,12 @@ export async function scanDocumentProcessor(
     payload = await deps.download(target.path);
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
-    await persistResult(db, kind, id, 'error', reason);
+    // SECURITY: mirror the scanner-unreachable branch below — do NOT persist a
+    // terminal 'error' status on a download failure. The backfill sweep only
+    // re-enqueues 'pending' rows, so persisting 'error' here would strand the
+    // document unscanned (and still downloadable) forever after a transient
+    // storage outage. Re-throw so BullMQ retries; the row stays 'pending' for
+    // the backfill sweep if the outage outlives the retry budget.
     await writeSyncLog(
       {
         entity: 'scan',
@@ -149,11 +154,11 @@ export async function scanDocumentProcessor(
         direction: 'inbound',
         operation: 'check',
         status: 'error',
-        errorMessage: reason,
+        errorMessage: `Storage download failed: ${reason}`,
       },
       db,
     );
-    return { kind, id, scanStatus: 'error', scanReason: reason };
+    throw err;
   }
 
   let response: string;

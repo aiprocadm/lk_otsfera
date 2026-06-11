@@ -4,7 +4,7 @@ vi.mock('@/lib/notifications', () => ({ notifyManagers, notifyOrgUsers }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: vi.fn() }));
 import { sendMessage } from '@/lib/services/chat/messages';
 
-const order = { id: 'o1', organizationId: 'org1', partnerId: 'p1', orderNumber: 'N1', title: 'T' };
+const order = { id: 'o1', organizationId: 'org1', partnerId: 'p1', companyId: 'c1', orderNumber: 'N1', title: 'T' };
 function prismaMock() {
   return {
     order: { findUnique: vi.fn().mockResolvedValue(order) },
@@ -13,7 +13,7 @@ function prismaMock() {
   } as any;
 }
 const orgSession = { sub: 'u', role: 'organization', organizationMemberships: [{ organizationId: 'org1', isActive: true, roleInOrg: 'member' }] } as any;
-const teamSession = { sub: 'mgr1', role: 'manager' } as any;
+const teamSession = { sub: 'mgr1', role: 'manager', companyId: 'c1' } as any;
 
 beforeEach(() => { notifyManagers.mockReset(); notifyOrgUsers.mockReset(); });
 
@@ -33,6 +33,10 @@ describe('sendMessage', () => {
     const r = await sendMessage(prismaMock(), teamSession, { orderId: 'o1', side: 'org', body: 'reply' });
     expect(r.ok).toBe(true);
     expect(notifyOrgUsers).toHaveBeenCalled();
+  });
+  it('forbidden for manager of another company (C8 cross-company isolation)', async () => {
+    const foreignManager = { sub: 'mgr2', role: 'manager', companyId: 'cX' } as any;
+    expect(await sendMessage(prismaMock(), foreignManager, { orderId: 'o1', side: 'org', body: 'hi' })).toEqual({ ok: false, error: 'forbidden' });
   });
   it('forbidden when partner writes org side', async () => {
     const partner = { sub: 'pu', role: 'partner', partnerId: 'p1' } as any;

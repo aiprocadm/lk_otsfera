@@ -98,7 +98,9 @@ export async function syncDocumentsProcessor(
     return summary;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await markCursorError(db, 'document', message).catch(() => {});
+    await markCursorError(db, 'document', message).catch((e) =>
+      console.warn('[sync-documents] markCursorError failed', e)
+    );
     await writeSyncLog(
       { entity: 'document', direction: 'inbound', operation: 'skip', status: 'error', errorMessage: message, durationMs: Date.now() - startedAt },
       db

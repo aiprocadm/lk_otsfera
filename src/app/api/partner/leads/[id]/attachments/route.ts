@@ -7,6 +7,7 @@ import {
   uploadLeadAttachment,
   type LeadAttachmentFailure
 } from '@/lib/services/partner/leadAttachments';
+import { notFoundIfDisabled } from '@/lib/featureFlags';
 
 function scopeOf(session: { assignedOrgIds?: string[] }): string[] | undefined {
   const arr = session.assignedOrgIds ?? [];
@@ -45,6 +46,9 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const disabled = notFoundIfDisabled('partner_leads');
+  if (disabled) return disabled;
+
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const partnerResult = requirePartner(session);
@@ -59,7 +63,8 @@ export async function GET(
     });
     if (!result.ok) return mapFailureToResponse(result);
     return NextResponse.json({ rows: result.rows });
-  } catch {
+  } catch (err) {
+    console.error('[partner/leads/attachments] list failed unexpectedly', { leadId: id, err });
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }
@@ -68,6 +73,9 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const disabled = notFoundIfDisabled('partner_leads');
+  if (disabled) return disabled;
+
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const partnerResult = requirePartner(session);
@@ -108,7 +116,8 @@ export async function POST(
       },
       { status: 201 }
     );
-  } catch {
+  } catch (err) {
+    console.error('[partner/leads/attachments] upload failed unexpectedly', { leadId: id, err });
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }

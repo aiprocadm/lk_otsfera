@@ -65,17 +65,24 @@ export async function invitePartnerOrgAdminAction(
       }
     );
 
+    // Email is best-effort: the invite is already created and inviteUrl is
+    // returned to the UI as a "Copy link" fallback; a transport failure must
+    // not surface as an action error.
     if (result.inviteUrl !== null) {
-      const org = await prisma.organization.findUnique({
-        where: { id: parsed.data.organizationId },
-        select: { name: true }
-      });
-      await sendOrgInviteEmail({
-        to: parsed.data.email,
-        organizationName: org?.name ?? 'организация',
-        inviteUrl: result.inviteUrl,
-        invitedByName: session.name ?? undefined
-      });
+      try {
+        const org = await prisma.organization.findUnique({
+          where: { id: parsed.data.organizationId },
+          select: { name: true }
+        });
+        await sendOrgInviteEmail({
+          to: parsed.data.email,
+          organizationName: org?.name ?? 'организация',
+          inviteUrl: result.inviteUrl,
+          invitedByName: session.name ?? undefined
+        });
+      } catch (e) {
+        console.warn('[partner/inviteOrgAdmin] send invite email failed', e);
+      }
     }
 
     revalidatePath(`/partner/portfolio/${parsed.data.organizationId}`);

@@ -55,7 +55,8 @@ async function seedData() {
     }
   });
   managerId = manager.id;
-  managerSession = { sub: managerId, role: 'manager' };
+  // Manager chat visibility is company-scoped (C8) — session carries companyId.
+  managerSession = { sub: managerId, role: 'manager', companyId };
 
   const orgUser = await prisma.user.create({
     data: {

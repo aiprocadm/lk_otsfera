@@ -114,7 +114,9 @@ export async function syncPaymentsProcessor(
     return summary;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await markCursorError(db, 'payment', message).catch(() => {});
+    await markCursorError(db, 'payment', message).catch((e) =>
+      console.warn('[sync-payments] markCursorError failed', e)
+    );
     await writeSyncLog(
       { entity: 'payment', direction: 'inbound', operation: 'skip', status: 'error', errorMessage: message, durationMs: Date.now() - startedAt },
       db

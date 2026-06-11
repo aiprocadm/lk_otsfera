@@ -123,14 +123,19 @@ export async function reactivateUserAction(fd: FormData): Promise<ActionResult> 
   return { ok: true };
 }
 
+// <form action> wrappers must return void, so the Result is discarded — log
+// failures so they're traceable until these forms migrate to useActionState.
 export async function updateUserFormAction(fd: FormData): Promise<void> {
-  await updateUserAction(fd);
+  const result = await updateUserAction(fd);
+  if (!result.ok) console.warn('[admin/users] updateUserFormAction failed', result);
 }
 
 export async function deactivateUserFormAction(fd: FormData): Promise<void> {
-  await deactivateUserAction(fd);
+  const result = await deactivateUserAction(fd);
+  if (!result.ok) console.warn('[admin/users] deactivateUserFormAction failed', result);
 }
 
 export async function reactivateUserFormAction(fd: FormData): Promise<void> {
-  await reactivateUserAction(fd);
+  const result = await reactivateUserAction(fd);
+  if (!result.ok) console.warn('[admin/users] reactivateUserFormAction failed', result);
 }

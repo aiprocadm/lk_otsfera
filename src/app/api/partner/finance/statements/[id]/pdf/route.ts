@@ -34,6 +34,10 @@ export async function GET(_req: Request, { params }: Params) {
     .createSignedUrl(statement.pdfPath, SIGNED_URL_TTL, { download: true });
 
   if (error || !data?.signedUrl) {
+    console.error('[partner/finance/statements] failed to create PDF signed URL', {
+      statementId: id,
+      providerError: error?.message
+    });
     return NextResponse.json({ error: 'Storage failure' }, { status: 502 });
   }
 

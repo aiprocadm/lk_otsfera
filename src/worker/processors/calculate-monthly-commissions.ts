@@ -2,6 +2,7 @@ import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { calculateStatementForPartner } from '@/lib/services/commission/statement';
+import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import type { SyncJobPayload } from '@/lib/jobs/types';
 
 export type CalculateMonthlyCommissionsResult = {
@@ -61,6 +62,34 @@ export async function calculateMonthlyCommissionsProcessor(
     partnersSkipped,
     errors
   };
+
+  // Continue-on-error per partner is intentional (one broken partner must not
+  // block the monthly batch), but failures have to surface somewhere durable:
+  // completed-job payloads rotate away (removeOnComplete), so persist a syncLog
+  // row that /admin/sync and operators can see. 'error' when the whole batch
+  // failed, 'warn' for partial failures.
+  if (errors.length > 0) {
+    const allFailed = partnersProcessed === 0 && partnersSkipped === 0;
+    console.error('[worker] calculate-monthly-commissions partner failures', {
+      failed: errors.length,
+      processed: partnersProcessed,
+      skipped: partnersSkipped,
+      errors
+    });
+    await writeSyncLog(
+      {
+        entity: 'commission',
+        direction: 'inbound',
+        operation: 'skip',
+        status: allFailed ? 'error' : 'warn',
+        errorMessage: `monthly commissions: ${errors.length} partner(s) failed${allFailed ? ' (ALL failed)' : ''}: ${errors
+          .slice(0, 5)
+          .map((e) => `${e.partnerId}: ${e.error}`)
+          .join('; ')}`
+      },
+      db
+    ).catch((e) => console.warn('[worker] calculate-monthly-commissions writeSyncLog failed', e));
+  }
 
   console.log('[worker] calculate-monthly-commissions done', summary);
   return summary;

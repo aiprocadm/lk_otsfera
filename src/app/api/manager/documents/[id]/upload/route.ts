@@ -37,7 +37,10 @@ export async function POST(
   const session = await requireManager();
   const { id: orderId } = await params;
 
-  const form = await req.formData();
+  const form = await req.formData().catch(() => null);
+  if (!form) {
+    return Response.json({ ok: false, error: 'no_file' }, { status: 400 });
+  }
   const file = form.get('file');
   const docType = String(form.get('docType') ?? 'other');
   const recipientRaw = String(form.get('recipient') ?? 'organization');

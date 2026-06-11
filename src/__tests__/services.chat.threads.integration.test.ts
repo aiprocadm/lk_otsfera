@@ -76,15 +76,17 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-const teamSession: SessionPayload = { sub: 'mgr1', role: 'manager' };
+// Manager chat visibility is company-scoped (C8) — the session must carry the
+// seeded companyId, which only exists after beforeEach, hence a factory.
+const teamSession = (): SessionPayload => ({ sub: 'mgr1', role: 'manager', companyId });
 
 describe('findOrCreateThread', () => {
   it('idempotency: calling twice returns the same thread, only one row in DB', async () => {
-    const first = await findOrCreateThread(prisma, teamSession, { orderId, side: 'org' });
+    const first = await findOrCreateThread(prisma, teamSession(), { orderId, side: 'org' });
     expect(first.ok).toBe(true);
     if (!first.ok) throw new Error('expected ok');
 
-    const second = await findOrCreateThread(prisma, teamSession, { orderId, side: 'org' });
+    const second = await findOrCreateThread(prisma, teamSession(), { orderId, side: 'org' });
     expect(second.ok).toBe(true);
     if (!second.ok) throw new Error('expected ok');
 
@@ -119,7 +121,7 @@ describe('findOrCreateThread', () => {
   });
 
   it('order_not_found: bogus orderId returns error', async () => {
-    const result = await findOrCreateThread(prisma, teamSession, {
+    const result = await findOrCreateThread(prisma, teamSession(), {
       orderId: 'nonexistent-order-id-xyz',
       side: 'org'
     });

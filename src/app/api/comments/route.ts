@@ -162,22 +162,42 @@ export async function POST(req: Request) {
 
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const orderAccess = await requireOrderAccess(s, order);
-  if (!orderAccess.ok) return orderAccess.response;
+
+  // Partner: pin to own orders. The generic canReadOrder grants company-level
+  // access, which would let a partner comment on a sibling partner's order in
+  // the same company — the partner cabinet itself only ever surfaces orders
+  // with order.partnerId === session.partnerId.
+  if (s.role === 'partner') {
+    if (!s.partnerId || order.partnerId !== s.partnerId) {
+      return forbiddenResponse('Access denied');
+    }
+  } else {
+    const orderAccess = await requireOrderAccess(s, order);
+    if (!orderAccess.ok) return orderAccess.response;
+  }
 
   const comment = await prisma.comment.create({ data: { orderId, body, authorId: s.sub } });
-  const organizationId = await getPrimaryOrganizationId(s);
 
-  await notifyMessageCreated({
-    userId: s.sub,
-    organizationId,
-    partnerId: s.partnerId,
-    title: 'Новое сообщение',
-    body,
-    meta: { orderId, commentId: comment.id }
-  });
-
-  await triggerNotificationEmail({ userId: s.sub, title: 'Новое сообщение', body, type: 'message_created' });
+  // Best-effort fan-out: the comment row is committed; notification/email
+  // transport failures must not turn into a 500 for an already-posted comment.
+  try {
+    const organizationId = await getPrimaryOrganizationId(s);
+    await notifyMessageCreated({
+      userId: s.sub,
+      organizationId,
+      partnerId: s.partnerId,
+      title: 'Новое сообщение',
+      body,
+      meta: { orderId, commentId: comment.id }
+    });
+    await triggerNotificationEmail({ userId: s.sub, title: 'Новое сообщение', body, type: 'message_created' });
+  } catch (err) {
+    console.warn('[api/comments] notification fan-out failed', {
+      commentId: comment.id,
+      orderId,
+      error: err instanceof Error ? err.message : String(err)
+    });
+  }
 
   return NextResponse.json(comment);
 }
