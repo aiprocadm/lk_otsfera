@@ -47,5 +47,6 @@
 
 1. **`useActionState`/submit-хук** — отдельный spec (поведенческий рефакторинг 25 форм; в проекте 0 использований useActionState).
 2. **Группа-2 таблиц** (раскрывашки `<details>`: `commission-statements-list`, `org-finance-commission`; `dlq-table`; inline-таблица `admin/commission-statements/page.tsx`) и card-list/`<ul>`-компоненты.
+   Плюс выявленные финальным ревью **3 inline-таблицы в page-файлах** (вне компонентного инвентаря spec): `admin/organizations/page.tsx`, `admin/partners/[id]/page.tsx`, `organization/students/page.tsx` — та же оболочка, кандидаты на тот же механический своп следующим заходом.
 3. **Tier 3:** data-fetching (SWR/React-Query), оптимистичные апдейты, кэш поллинга.
 4. **eslint-guardrail на инлайн-hex** — после миграции остатка (Tier 2 уменьшил счётчик: hover-hex и shell-классы ушли в примитивы).
