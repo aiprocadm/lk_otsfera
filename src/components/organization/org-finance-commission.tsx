@@ -1,5 +1,6 @@
 import React from 'react';
 import type { OrgIntermediaryCommission } from '@/lib/services/organization/finance';
+import { THead, Th, Tr, Td } from '@/components/ui';
 
 function fmtMoney(val: string): string {
   const n = Number(val);
@@ -24,20 +25,18 @@ export function OrgFinanceCommission({ data }: { data: OrgIntermediaryCommission
         <details className='text-sm'>
           <summary className='cursor-pointer text-gray-500 hover:text-gray-700 text-xs'>По заказам</summary>
           <table className='w-full mt-2'>
-            <thead>
-              <tr className='bg-gray-50 text-left'>
-                <th scope='col' className='px-3 py-1.5 font-medium text-gray-500'>Заказ</th>
-                <th scope='col' className='px-3 py-1.5 font-medium text-gray-500 text-right'>База</th>
-                <th scope='col' className='px-3 py-1.5 font-medium text-gray-500 text-right'>Комиссия</th>
-              </tr>
-            </thead>
+            <THead>
+              <Th className='px-3 py-1.5 text-gray-500'>Заказ</Th>
+              <Th className='px-3 py-1.5 text-gray-500 text-right'>База</Th>
+              <Th className='px-3 py-1.5 text-gray-500 text-right'>Комиссия</Th>
+            </THead>
             <tbody>
               {data.perOrder.map((o) => (
-                <tr key={o.orderId} className='border-t border-gray-50'>
-                  <td className='px-3 py-1.5 text-gray-700'>{o.orderNumber ?? '—'}</td>
-                  <td className='px-3 py-1.5 text-right text-gray-500'>{fmtMoney(o.baseAmount)}</td>
-                  <td className='px-3 py-1.5 text-right font-medium text-gray-700'>{fmtMoney(o.commissionAmount)}</td>
-                </tr>
+                <Tr key={o.orderId} hover={false}>
+                  <Td className='px-3 py-1.5 text-gray-700'>{o.orderNumber ?? '—'}</Td>
+                  <Td className='px-3 py-1.5 text-right text-gray-500'>{fmtMoney(o.baseAmount)}</Td>
+                  <Td className='px-3 py-1.5 text-right font-medium text-gray-700'>{fmtMoney(o.commissionAmount)}</Td>
+                </Tr>
               ))}
             </tbody>
           </table>

@@ -6,6 +6,7 @@ import {
   listPartnersForFilter,
   type ListAdminStatementsOptions,
 } from '@/lib/services/admin/commissionStatements';
+import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Черновик',
@@ -133,54 +134,47 @@ export default async function AdminCommissionStatementsPage({
         </div>
       </form>
 
-      <div className='overflow-x-auto bg-white border border-gray-200 rounded-xl'>
-        <table className='w-full text-sm'>
-          <thead className='bg-gray-50 text-gray-600'>
-            <tr>
-              <th scope='col' className='text-left px-4 py-3 font-medium'>Партнёр</th>
-              <th scope='col' className='text-left px-4 py-3 font-medium'>Период</th>
-              <th scope='col' className='text-left px-4 py-3 font-medium'>Статус</th>
-              <th scope='col' className='text-right px-4 py-3 font-medium'>Заказов</th>
-              <th scope='col' className='text-right px-4 py-3 font-medium'>Сумма</th>
-              <th scope='col' className='text-right px-4 py-3 font-medium'>Действие</th>
-            </tr>
-          </thead>
+      {rows.length === 0 ? (
+        <EmptyState message='Отчёты по фильтру не найдены.' className='p-8' />
+      ) : (
+        <TableShell overflow='x-auto'>
+          <THead>
+            <Th>Партнёр</Th>
+            <Th>Период</Th>
+            <Th>Статус</Th>
+            <Th className='text-right'>Заказов</Th>
+            <Th className='text-right'>Сумма</Th>
+            <Th className='text-right'>Действие</Th>
+          </THead>
           <tbody>
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={6} className='px-4 py-8 text-center text-gray-400 text-sm'>
-                  Отчёты по фильтру не найдены.
-                </td>
-              </tr>
-            )}
             {rows.map((r) => (
-              <tr key={r.id} className='border-t border-gray-100'>
-                <td className='px-4 py-3 text-[#111111] font-medium'>{r.partner.name}</td>
-                <td className='px-4 py-3 text-gray-700'>{fmtPeriod(r.periodFrom, r.periodTo)}</td>
-                <td className='px-4 py-3'>
+              <Tr key={r.id}>
+                <Td className='text-[#111111] font-medium'>{r.partner.name}</Td>
+                <Td className='text-gray-700'>{fmtPeriod(r.periodFrom, r.periodTo)}</Td>
+                <Td>
                   <span
                     className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[r.status] ?? 'bg-gray-100 text-gray-500'}`}
                   >
                     {STATUS_LABELS[r.status] ?? r.status}
                   </span>
-                </td>
-                <td className='px-4 py-3 text-right tabular-nums text-gray-700'>{r.itemCount}</td>
-                <td className='px-4 py-3 text-right tabular-nums font-medium text-[#111111]'>
+                </Td>
+                <Td className='text-right tabular-nums text-gray-700'>{r.itemCount}</Td>
+                <Td className='text-right tabular-nums font-medium text-[#111111]'>
                   {fmtMoney(r.totalCommissionAmount)}
-                </td>
-                <td className='px-4 py-3 text-right'>
+                </Td>
+                <Td className='text-right'>
                   <Link
                     href={`/admin/commission-statements/${r.id}`}
                     className='text-[#F97316] hover:underline text-xs font-medium'
                   >
                     Открыть →
                   </Link>
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
           </tbody>
-        </table>
-      </div>
+        </TableShell>
+      )}
     </div>
   );
 }

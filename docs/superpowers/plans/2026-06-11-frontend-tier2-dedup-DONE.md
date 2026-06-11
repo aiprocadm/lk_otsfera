@@ -43,6 +43,20 @@
 - Инлайн-hex (`text-[#F97316]`, `text-[#111111]`) в ячейках мигрированных таблиц и inline-стили `order-thread-inbox` — существующий долг §13 (guardrail отложен до около-нулевого счётчика).
 - Кнопки в `partner/team-table` и `organization/team-table` — кандидаты на `Button`-примитив при инкрементальной миграции.
 
+## Догон: группа-2 + inline-таблицы (ветка `claude/frontend-tier2-remainder`, 2026-06-11)
+
+Закрыт пункт 2 из «Отложено» — 7 файлов, параллельный диспатч 3 агентов (по непересекающимся файлам):
+
+| Группа | Файлы | Решение по оболочке |
+|---|---|---|
+| Details-раскрывашки | `partner/commission-statements-list`, `organization/org-finance-commission` | **без `TableShell`** (таблица внутри уже существующей карточки/`<details>` — иначе карточка-в-карточке); только `THead/Th/Tr/Td` с `hover={false}` и компактными паддингами через override |
+| Admin-компоненты | `admin/dlq-table`, inline-таблица `admin/commission-statements/page.tsx` | полный `TableShell overflow='x-auto'` + `EmptyState` |
+| Inline page-таблицы | `admin/organizations/page.tsx`, `admin/partners/[id]/page.tsx`, `organization/students/page.tsx` | полный паттерн; в `partners/[id]` отклоняющийся стиль шапки сохранён override'ами (`bg-[#F3F4F6]`, `py-2`), голый `<p>`-empty НЕ заменён на карточный `EmptyState` (визуал) |
+
+Сознательные нормализации сверх PR #111 (admin-кабинет, снапшотов нет): `dlq-table` и `commission-statements` получили hover-подсветку строк (дефолт `Tr`) и `border-gray-50` вместо `border-gray-100` — теперь все admin-таблицы единообразны; empty-state `commission-statements` вынесен из `<tbody>` наружу (таблица не рендерится при пустом списке). Локальная функция-дубль `EmptyState` в `students/page.tsx` удалена в пользу примитива.
+
+Верификация: typecheck + lint (0 warn) + `test:unit` 180 файлов / 1364 — зелёные, `npm run build` — успех. Card-list/`<ul>`-компоненты по-прежнему отложены (пункт 2 частично: таблицы закрыты, card-list'ы — нет).
+
 ## Отложено (follow-up)
 
 1. **`useActionState`/submit-хук** — отдельный spec (поведенческий рефакторинг 25 форм; в проекте 0 использований useActionState).

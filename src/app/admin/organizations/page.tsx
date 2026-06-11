@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { requireAdmin } from '@/lib/auth/requireRole';
+import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { prisma } from '@/lib/db/prisma';
 import { listOrganizations } from '@/lib/services/admin/organizations';
 import type { OrgFilters } from '@/lib/services/admin/organizations';
@@ -95,57 +96,45 @@ export default async function AdminOrganizationsPage({
         </form>
       </div>
 
-      <div className='bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm'>
-        <table className='w-full text-sm'>
-          <thead>
-            <tr className='border-b border-gray-100 bg-gray-50 text-left'>
-              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Название</th>
-              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>ИНН</th>
-              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600'>Партнёр</th>
-              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 text-right'>Заказы</th>
-              <th scope='col' className='px-4 py-2.5 font-medium text-gray-600 text-right'>Доступ</th>
-            </tr>
-          </thead>
+      {orgs.length === 0 ? (
+        <EmptyState message='Ничего не нашли' className='p-8' />
+      ) : (
+        <TableShell>
+          <THead>
+            <Th>Название</Th>
+            <Th>ИНН</Th>
+            <Th>Партнёр</Th>
+            <Th className='text-right'>Заказы</Th>
+            <Th className='text-right'>Доступ</Th>
+          </THead>
           <tbody>
-            {orgs.length === 0 ? (
-              <tr>
-                <td colSpan={5} className='px-4 py-8 text-center text-gray-500'>
-                  Ничего не нашли
-                </td>
-              </tr>
-            ) : (
-              orgs.map((o) => (
-                <tr key={o.id} className='border-b border-gray-50 hover:bg-[#FFF7ED]'>
-                  <td className='px-4 py-2.5 font-medium text-[#111111]'>
-                    <Link
-                      href={`/admin/organizations/${o.id}`}
-                      className='hover:text-[#F97316]'
+            {orgs.map((o) => (
+              <Tr key={o.id}>
+                <Td className='font-medium text-[#111111]'>
+                  <Link
+                    href={`/admin/organizations/${o.id}`}
+                    className='hover:text-[#F97316]'
+                  >
+                    {o.name}
+                  </Link>
+                  {o.partnerCommissionRate !== null && (
+                    <span
+                      title='Ставка override задана'
+                      className='ml-1.5 text-[#F97316] text-xs'
                     >
-                      {o.name}
-                    </Link>
-                    {o.partnerCommissionRate !== null && (
-                      <span
-                        title='Ставка override задана'
-                        className='ml-1.5 text-[#F97316] text-xs'
-                      >
-                        ●
-                      </span>
-                    )}
-                  </td>
-                  <td className='px-4 py-2.5 text-gray-500 font-mono text-xs'>
-                    {o.inn ?? '—'}
-                  </td>
-                  <td className='px-4 py-2.5 text-gray-600'>{o.partner?.name ?? 'Без партнёра'}</td>
-                  <td className='px-4 py-2.5 text-right text-gray-600'>{o.ordersCount}</td>
-                  <td className='px-4 py-2.5 text-right text-gray-600'>
-                    {o.organizationUsersCount}
-                  </td>
-                </tr>
-              ))
-            )}
+                      ●
+                    </span>
+                  )}
+                </Td>
+                <Td className='text-gray-500 font-mono text-xs'>{o.inn ?? '—'}</Td>
+                <Td className='text-gray-600'>{o.partner?.name ?? 'Без партнёра'}</Td>
+                <Td className='text-right text-gray-600'>{o.ordersCount}</Td>
+                <Td className='text-right text-gray-600'>{o.organizationUsersCount}</Td>
+              </Tr>
+            ))}
           </tbody>
-        </table>
-      </div>
+        </TableShell>
+      )}
 
       {total > PAGE_SIZE && (
         <Paginator
