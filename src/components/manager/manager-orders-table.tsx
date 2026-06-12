@@ -5,7 +5,7 @@ import { DealStatusBadge } from '@/components/partner/deal-status-badge';
 import type { Stage } from '@/lib/orders/humanStage';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 
-// Per-dimension labels + tones. Combined-dimension `humanStage` from
+// Per-dimension labels + tones. Combined-dimension `orderStage` from
 // `@/lib/orders/humanStage` collapses both axes into a single badge — for the
 // manager table we want two columns so we render two narrower badges.
 

@@ -1,5 +1,5 @@
 import type { ManagerOrderDetail } from '@/lib/services/manager/orders';
-import { humanStage } from '@/lib/orders/humanStage';
+import { orderStage } from '@/lib/orders/humanStage';
 import { DealStatusBadge } from '@/components/partner/deal-status-badge';
 
 /**
@@ -9,12 +9,14 @@ import { DealStatusBadge } from '@/components/partner/deal-status-badge';
  *
  * The component accepts the raw `ManagerOrderDetail` payload from
  * `getOrder(prisma, session, orderId)` — `stage` is computed locally from the
- * two-dimensional execution/financial statuses via `humanStage`.
+ * two-dimensional execution/financial statuses via `orderStage`.
  */
 export function ManagerOrderHeader({ order }: { order: ManagerOrderDetail }) {
-  const stage = humanStage({
+  const stage = orderStage({
     executionStatus: order.executionStatus,
-    financialStatus: order.financialStatus
+    financialStatus: order.financialStatus,
+    amount: Number(order.totalAmount),
+    paidTotal: Number(order.paidAmount)
   });
   const managerName = order.manager?.name ?? null;
   const orgName = order.organization?.name ?? null;

@@ -1,5 +1,5 @@
 import type { PrismaClient, ExecutionStatus, FinancialStatus } from '@prisma/client';
-import { humanStage, type Stage } from '@/lib/orders/humanStage';
+import { orderStage, type Stage } from '@/lib/orders/humanStage';
 import { partnerChannelWhere } from '@/lib/auth/documentChannelPolicy';
 import type { OrgDocumentRow } from './orgDocuments';
 
@@ -79,9 +79,11 @@ export async function getPartnerDealDetail(
     id: order.id,
     orderNumber: order.orderNumber,
     title: order.title,
-    stage: humanStage({
+    stage: orderStage({
       executionStatus: order.executionStatus,
-      financialStatus: order.financialStatus
+      financialStatus: order.financialStatus,
+      amount: Number(order.totalAmount),
+      paidTotal: Number(order.paidAmount)
     }),
     executionStatus: order.executionStatus,
     financialStatus: order.financialStatus,
