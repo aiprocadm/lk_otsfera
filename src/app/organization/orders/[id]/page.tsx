@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { BackLink } from '@/components/ui';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
@@ -63,9 +63,7 @@ export default async function OrganizationOrderDetailPage({
     >
       <div className='space-y-4'>
         <div className='text-sm'>
-          <Link href={backHref} className='text-gray-500 hover:text-[#F97316]'>
-            ← Все заказы
-          </Link>
+          <BackLink href={backHref} label='Все заказы' />
         </div>
 
         <OrgOrderHeader order={order} />

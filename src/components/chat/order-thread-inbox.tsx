@@ -239,6 +239,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
             }}
           >
             Нет переписок
+            <p className='text-xs text-gray-400 mt-1'>Переписка появится, когда вы напишете сообщение по заказу или вам напишет команда.</p>
           </div>
         ) : (
           <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>

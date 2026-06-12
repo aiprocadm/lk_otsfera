@@ -42,7 +42,7 @@ export function ManagerRosterPanel({ roster }: { roster: CompanyManagerRow[] }) 
                   }
                   className='rounded-md border px-2 py-1 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50'
                 >
-                  Снять с «{a.organizationName}»
+                  Снять с {a.organizationName}
                 </button>
               ))}
             </div>

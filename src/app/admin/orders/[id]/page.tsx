@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import { BackLink } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import {
@@ -45,12 +46,7 @@ export default async function AdminOrderDetailPage({
   return (
     <div className='space-y-5'>
       <div>
-        <Link
-          href='/admin/dashboard'
-          className='text-xs text-gray-500 hover:text-[#F97316]'
-        >
-          ← Дашборд
-        </Link>
+        <BackLink href='/admin/dashboard' label='Дашборд' />
         <h1 className='text-2xl font-bold text-[#111111] mt-1'>
           Заказ № {order.orderNumber}
         </h1>

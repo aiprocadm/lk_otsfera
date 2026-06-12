@@ -51,7 +51,7 @@ export default async function OrganizationStudentsPage({
           <div>
             <h1 className='text-2xl font-bold text-[#111111]'>Сотрудники</h1>
             <p className='text-sm text-gray-500 mt-0.5'>
-              {total} {pluralizeStudents(total)} в «{ctx.activeOrgName}»
+              {total} {pluralizeStudents(total)} в {ctx.activeOrgName}
               {sp.search && (
                 <span className='text-gray-400'> · по запросу «{sp.search}»</span>
               )}

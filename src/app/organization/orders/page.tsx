@@ -81,7 +81,7 @@ export default async function OrganizationOrdersPage({
         <div>
           <h1 className='text-2xl font-semibold text-[#111111]'>Заказы</h1>
           <p className='text-sm text-gray-500 mt-0.5'>
-            {total} {pluralize(total, 'заказ', 'заказа', 'заказов')} · «{ctx.activeOrgName}»
+            {total} {pluralize(total, 'заказ', 'заказа', 'заказов')} · {ctx.activeOrgName}
           </p>
         </div>
 

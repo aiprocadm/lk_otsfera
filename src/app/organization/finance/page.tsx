@@ -32,7 +32,7 @@ export default async function OrganizationFinancePage({
       <div className='space-y-6'>
         <div>
           <h1 className='text-2xl font-semibold text-[#111111]'>Финансы</h1>
-          <p className='text-sm text-gray-500 mt-1'>Платежи и задолженность по «{ctx.activeOrgName}»</p>
+          <p className='text-sm text-gray-500 mt-1'>Платежи и задолженность по {ctx.activeOrgName}</p>
         </div>
         <OrgFinanceKpisGrid kpis={kpis} />
         <OrgFinancePayments payments={payments} />

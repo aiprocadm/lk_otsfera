@@ -13,7 +13,7 @@ export function ManagerFinanceView({ data }: { data: ManagerFinanceOverview }) {
   if (data.sections.length === 0) {
     return (
       <div className='bg-white border border-gray-200 rounded-xl p-12 text-center'>
-        <p className='text-gray-500 text-sm'>Нет организаций в вашей зоне видимости.</p>
+        <p className='text-gray-500 text-sm'>Нет организаций в вашей зоне видимости. Обратитесь к администратору, чтобы вам назначили организации.</p>
       </div>
     );
   }

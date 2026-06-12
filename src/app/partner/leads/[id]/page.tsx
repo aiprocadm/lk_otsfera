@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import { BackLink } from '@/components/ui';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartner } from '@/lib/auth/requireRole';
 import { getLead } from '@/lib/services/partner/leads';
@@ -57,9 +58,7 @@ export default async function PartnerLeadDetailPage({
   return (
     <div className='space-y-4 max-w-3xl'>
       <div className='text-sm'>
-        <Link href='/partner/leads' className='text-gray-500 hover:text-[#F97316]'>
-          ← Все заявки
-        </Link>
+        <BackLink href='/partner/leads' label='Все заявки' />
       </div>
 
       <div className='flex flex-wrap items-start justify-between gap-3'>

@@ -42,7 +42,7 @@ export default async function OrganizationTeamPage({
           <div>
             <h1 className='text-2xl font-bold text-[#111111]'>Команда</h1>
             <p className='text-sm text-gray-500 mt-0.5'>
-              {members.length} {pluralizeMembers(members.length)} в «{ctx.activeOrgName}»
+              {members.length} {pluralizeMembers(members.length)} в {ctx.activeOrgName}
               {activeAdminCount > 0 && (
                 <span className='text-gray-400'>
                   {' '}

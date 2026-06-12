@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { BackLink } from '@/components/ui';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartner } from '@/lib/auth/requireRole';
 import { LeadCreateForm } from '@/components/partner/lead-create-form';
@@ -19,9 +19,7 @@ export default async function PartnerLeadNewPage() {
   return (
     <div className='space-y-4 max-w-3xl'>
       <div className='text-sm'>
-        <Link href='/partner/leads' className='text-gray-500 hover:text-[#F97316]'>
-          ← Все заявки
-        </Link>
+        <BackLink href='/partner/leads' label='Все заявки' />
       </div>
 
       <div>

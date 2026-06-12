@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
-import Link from 'next/link';
+import { BackLink } from '@/components/ui';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartner } from '@/lib/auth/requireRole';
 import { getPartnerDealDetail } from '@/lib/services/partner/dealDetail';
@@ -34,9 +34,7 @@ export default async function PartnerDealDetailPage({
   return (
     <div className='space-y-4'>
       <div className='text-sm'>
-        <Link href='/partner/deals' className='text-gray-500 hover:text-[#F97316]'>
-          ← Все заказы
-        </Link>
+        <BackLink href='/partner/deals' label='Все заказы' />
       </div>
 
       <DealHeader deal={deal} />

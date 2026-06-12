@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { BackLink } from '@/components/ui';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
 import { requireAdmin } from '@/lib/auth/requireRole';
@@ -73,9 +73,7 @@ export default async function AdminCommissionStatementDetailPage({
   return (
     <div className='space-y-5'>
       <div className='flex items-center gap-3 text-sm text-gray-500'>
-        <Link href='/admin/commission-statements' className='hover:text-[#F97316]'>
-          ← Все отчёты
-        </Link>
+        <BackLink href='/admin/commission-statements' label='Все отчёты' />
       </div>
 
       <div className='bg-white border border-gray-200 rounded-xl p-6 space-y-4'>

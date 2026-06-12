@@ -1,10 +1,10 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import { BackLink, TableShell, THead, Th, Tr, Td } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { getPartner } from '@/lib/services/admin/partners';
 import { PartnerEditForm } from '@/components/admin/partner-edit-form';
-import { TableShell, THead, Th, Tr, Td } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,9 +17,7 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
   return (
     <div className="space-y-4 max-w-3xl">
       <div>
-        <Link href="/admin/partners" className="text-xs text-gray-500 hover:text-[#F97316]">
-          ← К списку
-        </Link>
+        <BackLink href='/admin/partners' label='Все партнёры' />
         <h1 className="text-2xl font-bold text-[#111111] mt-1">Партнёр: {partner.name}</h1>
         <p className="text-sm text-gray-500">slug: {partner.slug}</p>
       </div>
