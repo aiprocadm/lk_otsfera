@@ -19,5 +19,8 @@ export const protectedPrefixes: Record<string, Role[]> = {
   '/manager': ['manager'],
   '/partner': ['partner'],
   '/organization': ['organization'],
+  // /leader — кабинет руководителя: только role=manager; суб-роль managerRole='leader'
+  // бьётся серверным гардом requireManagerLeader на layout (middleware суб-роль не режет).
+  '/leader': ['manager'],
   '/student': ['student', 'organization', 'admin', 'manager']
 };
