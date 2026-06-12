@@ -28,13 +28,10 @@
 - Единые названия пунктов: **«Главная»** (у партнёра «Дашборд» → «Главная», в мобильном меню партнёра «Кабинет» → «Главная»).
 - Существующие unit-тесты сайдбаров обновляются и становятся guardrail: сайдбар рендерит ровно то, что отдал канон (защита от нового дрейфа).
 
-## §2. Три сломанных пути
+## §2. Сломанный выход + мёртвый код входных точек
 
-1. **Выход = голый JSON.** Кнопка выхода во всех шеллах ведёт на `/api/auth/logout`, пользователь приземляется на страницу `{"ok":true}`. Дизайн: общий клиентский `LogoutButton` (`src/components/ui/`): POST на logout → `router.push('/login')`. Единый текст **«Выйти»** (сейчас «Выход»/«Выйти» вперемешку). Все 5+ шеллов переводятся на него.
-2. **Корень `/` гонит всех в кабинет организации** ([src/app/page.tsx](../../../src/app/page.tsx)). Дизайн: читаем сессию → redirect на «домашнюю» страницу роли (admin→`/admin/dashboard`, manager→`/manager/dashboard`, partner→`/partner/dashboard`, organization→`/organization/dashboard`, student→`/student`); нет сессии → `/login`.
-3. **Ловушка 403→404.** [forbidden/page.tsx](../../../src/app/forbidden/page.tsx) ссылается на несуществующий `/dashboard`. Дизайн: страница становится серверной, читает сессию и рисует кнопку «В мой кабинет» (по той же карте ролей); без сессии — «Войти» → `/login`.
-
-Карта «роль → домашняя страница» — одна экспортируемая функция (`homeFor(session)` в `src/lib/navigation/`), используется всеми тремя точками + логином.
+1. **Выход = голый JSON (реальный баг, подтверждён вживую).** Все четыре шелла рендерят `<form action='/api/auth/logout' method='post'>` — браузер уходит на API-ответ и показывает `{"ok":true}`. Дизайн: общий клиентский `LogoutButton` (`src/components/ui/`): fetch-POST на logout → `router.push('/login')` + `router.refresh()`. Единый текст **«Выйти»** (сейчас «Выход»/«Выйти» вперемешку). Все 4 шелла переводятся на него.
+2. **Корень `/` и `/forbidden` — НЕ сломаны** (находка агентов оказалась ложной): middleware уже редиректит `/` и `/dashboard` на `roleHome[role]` ([access.ts](../../../src/lib/auth/access.ts), [middleware.ts:69](../../../src/middleware.ts)). Но опираться на это неочевидно, а в коде лежат ловушки на будущее: [src/app/page.tsx](../../../src/app/page.tsx) хардкодит `redirect('/organization/dashboard')` (мёртвый код, сработает только при изменении middleware-matcher), `/forbidden` и `LoginForm` ссылаются на виртуальный `/dashboard`. Дизайн-минимум: `page.tsx` меняет хардкод на `redirect('/login')` (страховка, согласованная с middleware), комментарий-указатель на middleware; `/forbidden` остаётся на `/dashboard` (работает), но получает комментарий, что `/dashboard` — middleware-алиас. Новую функцию не вводим — канон уже есть (`roleHome`).
 
 ## §3. Доверие к цифрам и словам
 
@@ -72,7 +69,7 @@
 
 ## Тестовая стратегия
 
-- **Unit**: `homeFor()` по всем ролям; словари enum (включая unknown-fallback); правило payment-бейджа (3 ветки + долг>0); guardrail-тесты сайдбаров (рендер = канон); `LogoutButton` (POST + redirect); `BackLink`/`StatCard href`.
+- **Unit**: словари enum (включая unknown-fallback); правило payment-бейджа (3 ветки + долг>0); guardrail-тесты сайдбаров (рендер = канон); `LogoutButton` (POST + redirect); `BackLink`/`StatCard href`.
 - **Обновить**: components.admin-sidebar.test (русские названия, группы из канона), manager-sidebar тесты, тесты humanStage (мужской род).
 - **Инвариант комиссии**: org-finance и manager-finance (не-лидер) без строк комиссии.
 - **E2E visual**: обновить baselines (`npm run e2e:visual:update`) — меню и шапки меняются во всех кабинетах.
