@@ -5,6 +5,7 @@ import { getDlq } from './queueStats';
 export type KpiTile = {
   label: string;
   value: string | number;
+  href: string;
   delta?: { value: number; positive: boolean };
 };
 
@@ -101,6 +102,7 @@ export async function kpis(prisma: PrismaClient): Promise<KpiTile[]> {
     {
       label: 'Партнёры активные',
       value: partnersActive,
+      href: '/admin/partners',
       delta: {
         value: partnerDelta,
         positive: partnersCreatedLast30 >= partnersCreatedPrev30,
@@ -109,6 +111,7 @@ export async function kpis(prisma: PrismaClient): Promise<KpiTile[]> {
     {
       label: 'Организации',
       value: organizations,
+      href: '/admin/organizations',
       delta: {
         value: orgDelta,
         positive: orgsCreatedLast30 >= orgsCreatedPrev30,
@@ -117,10 +120,12 @@ export async function kpis(prisma: PrismaClient): Promise<KpiTile[]> {
     {
       label: 'Закрытые заказы (месяц)',
       value: `${closedOrdersThisMonth} (${orderTotal.toLocaleString('ru-RU')} ₽)`,
+      href: '/admin/orders',
     },
     {
       label: 'К выплате партнёрам',
       value: `${payoutTotal.toLocaleString('ru-RU')} ₽`,
+      href: '/admin/commission-statements',
     },
   ];
 }

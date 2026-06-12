@@ -26,7 +26,7 @@ export default async function AdminDashboardPage() {
       {/* KPI Grid */}
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
         {k.map((tile) => (
-          <StatCard key={tile.label} title={tile.label} value={tile.value} />
+          <StatCard key={tile.label} title={tile.label} value={tile.value} href={tile.href} />
         ))}
       </div>
 
