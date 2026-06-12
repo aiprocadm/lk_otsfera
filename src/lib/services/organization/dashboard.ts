@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { organizationChannelWhere } from '@/lib/auth/documentChannelPolicy';
+import { fmtMoney } from '@/lib/format';
 
 export type OrgDashboardKpis = {
   activeOrders: number;
@@ -131,7 +132,7 @@ export async function attention(
       kind: 'billed_unpaid',
       orderId: o.id,
       title: `Счёт по заказу ${o.orderNumber ?? o.title} ждёт оплаты`,
-      meta: `${(Number(o.totalAmount) - Number(o.paidAmount)).toFixed(0)} ₽`,
+      meta: fmtMoney(Number(o.totalAmount) - Number(o.paidAmount)),
       severity: 'urgent'
     })),
     ...unsignedActs.map((d): OrgAttentionItem => ({
@@ -215,7 +216,7 @@ export async function recentEvents(
       id: `pay-${p.id}`,
       kind: 'payment_received',
       orderId: p.orderId,
-      title: `Получена оплата ${Number(p.amount).toFixed(0)} ₽`,
+      title: `Получена оплата ${fmtMoney(Number(p.amount))}`,
       at: p.paidAt
     })),
     ...statusAudits

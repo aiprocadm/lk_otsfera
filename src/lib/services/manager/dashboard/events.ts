@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { managerOrderScope, managerOrgScope, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import { fmtMoney } from '@/lib/format';
 import { DEFAULT_EVENTS } from './constants';
 
 export type EventItem = {
@@ -112,14 +113,14 @@ export async function recentEvents(
             id: `pay-${p.id}`,
             kind: 'payment_received',
             when: p.paidAt,
-            text: `Поступила оплата ${Number(p.amount).toFixed(0)} ₽ по заказу ${p.order.orderNumber ?? p.orderId}`,
+            text: `Поступила оплата ${fmtMoney(Number(p.amount))} по заказу ${p.order.orderNumber ?? p.orderId}`,
             href: `/manager/orders/${p.orderId}`
           }
         : {
             id: `pay-${p.id}`,
             kind: 'payment_received',
             when: p.paidAt,
-            text: `Поступила оплата ${Number(p.amount).toFixed(0)} ₽ (организация ${p.organization.name})`,
+            text: `Поступила оплата ${fmtMoney(Number(p.amount))} (организация ${p.organization.name})`,
             href: `/manager/dashboard`
           }
     ),

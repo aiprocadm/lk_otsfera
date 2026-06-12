@@ -133,7 +133,7 @@ function StatementDocument({ statement, items, partner, qrDataUrl }: StatementDo
       React.createElement(
         View,
         { style: styles.footer, fixed: true },
-        React.createElement(Text, { style: styles.footerText }, 'Сформировано в кабинете ОТСФЕРА'),
+        React.createElement(Text, { style: styles.footerText }, 'Сформировано в личном кабинете «Промтехносфера»'),
         React.createElement(Text, { style: styles.footerText }, calculatedAtStr)
       ),
       // QR code in bottom-right corner (only when verifyUrl provided)

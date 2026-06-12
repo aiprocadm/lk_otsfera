@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
+import { BackLink } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { getUser } from '@/lib/services/admin/users';
@@ -23,9 +23,7 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
   return (
     <div className="space-y-4 max-w-3xl">
       <div>
-        <Link href="/admin/users" className="text-xs text-gray-500 hover:text-[#F97316]">
-          ← К списку
-        </Link>
+        <BackLink href='/admin/users' label='Все пользователи' />
         <h1 className="text-2xl font-bold text-[#111111] mt-1">{user.name}</h1>
         <p className="text-sm text-gray-500">{user.email}</p>
       </div>

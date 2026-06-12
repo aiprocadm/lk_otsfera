@@ -113,7 +113,7 @@ export function DocumentsList({
                 )}
               </div>
               <div className='text-xs text-gray-400 mt-0.5 truncate'>
-                {doc.orderId ? `Сделка: ${doc.orderNumber ?? doc.orderTitle}` : 'Общий документ'}
+                {doc.orderId ? `Заказ: ${doc.orderNumber ?? doc.orderTitle}` : 'Общий документ'}
               </div>
             </div>
 

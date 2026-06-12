@@ -18,7 +18,7 @@ function TabChips({ activeTab }: { activeTab: 'orders' | 'general' }) {
             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
         }`}
       >
-        По сделкам
+        По заказам
       </Link>
       <Link
         href='/admin/documents?tab=general'

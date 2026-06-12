@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { ManagerSidebar } from './manager-sidebar';
+import { LogoutButton } from '@/components/ui';
+import { navItemsFor } from '@/lib/navigation/cabinet';
+import { isManagerLeader } from '@/lib/auth/managerPolicy';
 
 export function ManagerAppShell(props: {
   session: SessionPayload;
@@ -9,7 +12,7 @@ export function ManagerAppShell(props: {
   const userEmail = props.session.email ?? null;
   return (
     <div className='flex min-h-screen bg-gray-50'>
-      <ManagerSidebar />
+      <ManagerSidebar items={navItemsFor('manager', { isManagerLeader: isManagerLeader(props.session) })} />
       <div className='flex-1 flex flex-col'>
         <header className='bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between'>
           <div className='text-sm text-gray-700 truncate'>
@@ -18,14 +21,7 @@ export function ManagerAppShell(props: {
               <span className='ml-3 text-gray-500'>· {userEmail}</span>
             ) : null}
           </div>
-          <form action='/api/auth/logout' method='post'>
-            <button
-              type='submit'
-              className='text-sm text-gray-600 hover:text-[#F97316] transition-colors'
-            >
-              Выход
-            </button>
-          </form>
+          <LogoutButton />
         </header>
         <main className='flex-1 px-6 py-6'>
           <div className='max-w-[1280px] mx-auto'>{props.children}</div>

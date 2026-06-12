@@ -11,12 +11,12 @@ function fmtDate(d: Date | null): string {
 
 export function DealTimeline({ deal }: { deal: DealDetail }) {
   const events: { label: string; date: Date | null; tone?: 'success' | 'warning' }[] = [
-    { label: 'Создана', date: deal.createdAt },
+    { label: 'Создан', date: deal.createdAt },
     { label: 'Договор подписан', date: deal.contractSignedAt },
     { label: 'Дедлайн', date: deal.deadline, tone: 'warning' },
-    { label: 'Завершена', date: deal.completedAt, tone: 'success' },
-    { label: 'Оплачена', date: deal.paidAt, tone: 'success' },
-    { label: 'Закрыта', date: deal.closedAt }
+    { label: 'Завершён', date: deal.completedAt, tone: 'success' },
+    { label: 'Оплачен', date: deal.paidAt, tone: 'success' },
+    { label: 'Закрыт', date: deal.closedAt }
   ];
 
   return (

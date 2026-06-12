@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import { fmtDateTime } from '@/lib/format';
 
 export type ChatMessageVM = {
   id: string;
@@ -16,7 +17,7 @@ function formatTime(createdAt: string | Date): string {
   try {
     const d = createdAt instanceof Date ? createdAt : new Date(createdAt);
     if (isNaN(d.getTime())) return '';
-    return d.toLocaleString('ru-RU');
+    return fmtDateTime(d);
   } catch {
     return '';
   }

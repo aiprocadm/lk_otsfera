@@ -5,7 +5,7 @@ import type {
   DocumentType,
   DocumentDirection
 } from '@prisma/client';
-import { humanStage, type Stage } from '@/lib/orders/humanStage';
+import { orderStage, type Stage } from '@/lib/orders/humanStage';
 import { organizationChannelWhere } from '@/lib/auth/documentChannelPolicy';
 
 export type OrgOrderRow = {
@@ -104,9 +104,11 @@ export async function listOrgOrders(
     debt: (Number(o.totalAmount) - Number(o.paidAmount)).toFixed(2),
     executionStatus: o.executionStatus,
     financialStatus: o.financialStatus,
-    stage: humanStage({
+    stage: orderStage({
       executionStatus: o.executionStatus,
-      financialStatus: o.financialStatus
+      financialStatus: o.financialStatus,
+      amount: Number(o.totalAmount),
+      paidTotal: Number(o.paidAmount)
     }),
     createdAt: o.createdAt,
     deadline: o.deadline,
@@ -210,9 +212,11 @@ export async function getOrgOrder(
     organizationId: order.organizationId,
     orderNumber: order.orderNumber,
     title: order.title,
-    stage: humanStage({
+    stage: orderStage({
       executionStatus: order.executionStatus,
-      financialStatus: order.financialStatus
+      financialStatus: order.financialStatus,
+      amount: Number(order.totalAmount),
+      paidTotal: Number(order.paidAmount)
     }),
     executionStatus: order.executionStatus,
     financialStatus: order.financialStatus,

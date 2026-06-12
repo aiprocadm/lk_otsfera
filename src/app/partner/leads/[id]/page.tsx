@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import { BackLink } from '@/components/ui';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartner } from '@/lib/auth/requireRole';
 import { getLead } from '@/lib/services/partner/leads';
@@ -57,9 +58,7 @@ export default async function PartnerLeadDetailPage({
   return (
     <div className='space-y-4 max-w-3xl'>
       <div className='text-sm'>
-        <Link href='/partner/leads' className='text-gray-500 hover:text-[#F97316]'>
-          ← Все заявки
-        </Link>
+        <BackLink href='/partner/leads' label='Все заявки' />
       </div>
 
       <div className='flex flex-wrap items-start justify-between gap-3'>
@@ -79,13 +78,13 @@ export default async function PartnerLeadDetailPage({
         <div className='bg-[#FFF7ED] border border-[#FED7AA] rounded-xl p-4 flex items-start justify-between gap-3'>
           <div className='text-sm'>
             <div className='font-medium text-[#9A3412]'>Заявка стала заказом</div>
-            <div className='text-[#9A3412]/80 mt-0.5'>Можно отслеживать ход исполнения в разделе «Сделки».</div>
+            <div className='text-[#9A3412]/80 mt-0.5'>Можно отслеживать ход исполнения в разделе «Заказы».</div>
           </div>
           <Link
             href={`/partner/deals/${lead.promotedOrderId}`}
             className='shrink-0 px-3 py-1.5 text-sm bg-[#F97316] text-white rounded-lg hover:bg-[#EA580C]'
           >
-            Открыть сделку
+            Открыть заказ
           </Link>
         </div>
       )}

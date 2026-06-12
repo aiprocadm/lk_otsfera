@@ -65,6 +65,19 @@ describe('ManagerFinanceView', () => {
     expect(html).toContain('Комиссия посредника');
   });
 
+  it('рядовой менеджер (commission=null) не видит блок комиссии', () => {
+    const html = renderToString(
+      React.createElement(ManagerFinanceView, {
+        data: {
+          summary: { billed: '100', paid: '0', outstanding: '100' },
+          sections: [{ orgId: 'o1', orgName: 'Орг', kpis: { billed: '100', paid: '0', outstanding: '100' }, payments: [], commission: null }],
+          canSeeCommission: false
+        }
+      })
+    );
+    expect(html).not.toContain('Комиссия');
+  });
+
   it('renders empty state when no sections', () => {
     const empty: ManagerFinanceOverview = {
       summary: { billed: '0.00', paid: '0.00', outstanding: '0.00' },

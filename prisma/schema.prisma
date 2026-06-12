@@ -98,39 +98,39 @@ enum ThreadSide {
 }
 
 model User {
-  id                  String               @id @default(cuid())
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  email               String               @unique
-  passwordHash        String?
-  name                String
-  isActive            Boolean              @default(true)
-  role                Role                 @default(organization)
-  managerRole         String?              // null = regular manager, 'leader' = руководитель
-  companyId           String?
-  company             Company?             @relation(fields: [companyId], references: [id])
-  partnerId           String?
-  partner             Partner?             @relation(fields: [partnerId], references: [id])
-  organizationId      String?
-  organization        Organization?        @relation("UserOrganization", fields: [organizationId], references: [id])
-  organizationUsers   OrganizationUser[]
-  managedOrganizations OrganizationManager[] @relation("UserManagedOrgs")
-  externalStudentId   String?
-  managedOrders       Order[]              @relation("OrderManager")
-  comments            Comment[]
-  documents           Document[]
-  auditLogs           AuditLog[]
-  notifications       Notification[]
-  studentBridgeGrants StudentBridgeGrant[]
-  partnerMemberships  PartnerUser[]        @relation("PartnerMembership")
-  leadsAuthored       Lead[]               @relation("LeadAuthor")
-  leadsManaged        Lead[]               @relation("LeadManager")
-  leadAttachmentsAuthored LeadAttachment[] @relation("LeadAttachmentAuthor")
+  id                           String                @id @default(cuid())
+  createdAt                    DateTime              @default(now())
+  updatedAt                    DateTime              @updatedAt
+  email                        String                @unique
+  passwordHash                 String?
+  name                         String
+  isActive                     Boolean               @default(true)
+  role                         Role                  @default(organization)
+  managerRole                  String? // null = regular manager, 'leader' = руководитель
+  companyId                    String?
+  company                      Company?              @relation(fields: [companyId], references: [id])
+  partnerId                    String?
+  partner                      Partner?              @relation(fields: [partnerId], references: [id])
+  organizationId               String?
+  organization                 Organization?         @relation("UserOrganization", fields: [organizationId], references: [id])
+  organizationUsers            OrganizationUser[]
+  managedOrganizations         OrganizationManager[] @relation("UserManagedOrgs")
+  externalStudentId            String?
+  managedOrders                Order[]               @relation("OrderManager")
+  comments                     Comment[]
+  documents                    Document[]
+  auditLogs                    AuditLog[]
+  notifications                Notification[]
+  studentBridgeGrants          StudentBridgeGrant[]
+  partnerMemberships           PartnerUser[]         @relation("PartnerMembership")
+  leadsAuthored                Lead[]                @relation("LeadAuthor")
+  leadsManaged                 Lead[]                @relation("LeadManager")
+  leadAttachmentsAuthored      LeadAttachment[]      @relation("LeadAttachmentAuthor")
   commissionStatementsAuthored CommissionStatement[] @relation("CommissionAuthor")
-  savedViews          SavedView[]          @relation("SavedViewOwner")
-  passwordResetTokens PasswordResetToken[]
-  authoredMessages    Message[]            @relation("MessageAuthor")
-  threadReadStates    ThreadReadState[]
+  savedViews                   SavedView[]           @relation("SavedViewOwner")
+  passwordResetTokens          PasswordResetToken[]
+  authoredMessages             Message[]             @relation("MessageAuthor")
+  threadReadStates             ThreadReadState[]
 }
 
 model PartnerUser {
@@ -185,12 +185,12 @@ model Lead {
 }
 
 model LeadAttachment {
-  id              String   @id @default(cuid())
-  createdAt       DateTime @default(now())
+  id              String    @id @default(cuid())
+  createdAt       DateTime  @default(now())
   leadId          String
-  lead            Lead     @relation(fields: [leadId], references: [id])
+  lead            Lead      @relation(fields: [leadId], references: [id])
   createdByUserId String?
-  createdByUser   User?    @relation("LeadAttachmentAuthor", fields: [createdByUserId], references: [id])
+  createdByUser   User?     @relation("LeadAttachmentAuthor", fields: [createdByUserId], references: [id])
   name            String
   path            String
   mimeType        String
@@ -249,18 +249,18 @@ model CommissionStatementItem {
 }
 
 model Payment {
-  id             String   @id @default(cuid())
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id             String       @id @default(cuid())
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
   orderId        String?
-  order          Order?   @relation(fields: [orderId], references: [id])
-  externalId     String?  @unique
-  amount         Decimal  @db.Decimal(14, 2)
+  order          Order?       @relation(fields: [orderId], references: [id])
+  externalId     String?      @unique
+  amount         Decimal      @db.Decimal(14, 2)
   paidAt         DateTime
   method         String?
-  isRefund       Boolean  @default(false)
+  isRefund       Boolean      @default(false)
   note           String?
 
   @@index([orderId])
@@ -316,15 +316,15 @@ model SyncSchedulePause {
 }
 
 model Partner {
-  id             String         @id @default(cuid())
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  name           String
-  legalName      String?
-  slug           String?        @unique
-  inn            String?        @unique
-  commissionRate Decimal        @default(0) @db.Decimal(6, 4)
-  isActive       Boolean        @default(true)
+  id                   String                @id @default(cuid())
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  name                 String
+  legalName            String?
+  slug                 String?               @unique
+  inn                  String?               @unique
+  commissionRate       Decimal               @default(0) @db.Decimal(6, 4)
+  isActive             Boolean               @default(true)
   organizations        Organization[]
   users                User[]
   orders               Order[]
@@ -335,29 +335,29 @@ model Partner {
 }
 
 model Organization {
-  id                             String             @id @default(cuid())
-  createdAt                      DateTime           @default(now())
-  updatedAt                      DateTime           @updatedAt
+  id                             String                @id @default(cuid())
+  createdAt                      DateTime              @default(now())
+  updatedAt                      DateTime              @updatedAt
   name                           String
-  externalId                     String?            @unique
-  inn                            String?            @unique
+  externalId                     String?               @unique
+  inn                            String?               @unique
   kpp                            String?
   partnerId                      String?
-  partner                        Partner?           @relation(fields: [partnerId], references: [id])
+  partner                        Partner?              @relation(fields: [partnerId], references: [id])
   companyId                      String?
-  company                        Company?           @relation(fields: [companyId], references: [id])
+  company                        Company?              @relation(fields: [companyId], references: [id])
   assignedManagerUserId          String?
-  partnerCommissionRate          Decimal?           @db.Decimal(6, 4)
+  partnerCommissionRate          Decimal?              @db.Decimal(6, 4)
   partnerCommissionRateNote      String?
   partnerCommissionRateChangedAt DateTime?
   partnerCommissionRateChangedBy String?
   students                       Student[]
-  users                          User[]             @relation("UserOrganization")
+  users                          User[]                @relation("UserOrganization")
   organizationUsers              OrganizationUser[]
   managers                       OrganizationManager[] @relation("OrganizationManagers")
   notifications                  Notification[]
   leads                          Lead[]
-  orders                         Order[]            @relation("OrderOrganization")
+  orders                         Order[]               @relation("OrderOrganization")
   payments                       Payment[]
 
   @@index([partnerId])
@@ -408,51 +408,51 @@ model Student {
 }
 
 model Company {
-  id            String         @id @default(cuid())
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  name          String
-  managerTeamVisibility Boolean @default(false)
-  users         User[]
-  orders        Order[]
-  organizations Organization[]
-  documents     Document[]
+  id                    String         @id @default(cuid())
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  name                  String
+  managerTeamVisibility Boolean        @default(false)
+  users                 User[]
+  orders                Order[]
+  organizations         Organization[]
+  documents             Document[]
 }
 
 model Order {
-  id               String          @id @default(cuid())
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  externalId       String?         @unique
+  id               String                    @id @default(cuid())
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  externalId       String?                   @unique
   orderNumber      String?
   title            String
-  status           OrderStatus     @default(new)
-  executionStatus  ExecutionStatus @default(pending)
-  financialStatus  FinancialStatus @default(not_billed)
-  totalAmount      Decimal         @default(0) @db.Decimal(14, 2)
-  paidAmount       Decimal         @default(0) @db.Decimal(14, 2)
+  status           OrderStatus               @default(new)
+  executionStatus  ExecutionStatus           @default(pending)
+  financialStatus  FinancialStatus           @default(not_billed)
+  totalAmount      Decimal                   @default(0) @db.Decimal(14, 2)
+  paidAmount       Decimal                   @default(0) @db.Decimal(14, 2)
   paidAt           DateTime?
   contractSignedAt DateTime?
   completedAt      DateTime?
   closedAt         DateTime?
   lastSyncedAt     DateTime?
-  vatIncluded      Boolean         @default(true)
-  vatRate          Decimal?        @db.Decimal(5, 4)
+  vatIncluded      Boolean                   @default(true)
+  vatRate          Decimal?                  @db.Decimal(5, 4)
   productMix       String[]
   deadline         DateTime?
   companyId        String
-  company          Company         @relation(fields: [companyId], references: [id])
+  company          Company                   @relation(fields: [companyId], references: [id])
   partnerId        String?
-  partner          Partner?        @relation(fields: [partnerId], references: [id])
+  partner          Partner?                  @relation(fields: [partnerId], references: [id])
   organizationId   String
-  organization     Organization    @relation("OrderOrganization", fields: [organizationId], references: [id])
+  organization     Organization              @relation("OrderOrganization", fields: [organizationId], references: [id])
   managerId        String?
-  manager          User?           @relation("OrderManager", fields: [managerId], references: [id])
+  manager          User?                     @relation("OrderManager", fields: [managerId], references: [id])
   documents        Document[]
   comments         Comment[]
   uploads          Upload[]
   payments         Payment[]
-  promotedFromLead Lead?           @relation("LeadPromoted")
+  promotedFromLead Lead?                     @relation("LeadPromoted")
   commissionItems  CommissionStatementItem[]
   threads          OrderThread[]
 
@@ -583,7 +583,7 @@ model PasswordResetToken {
   token     String    @unique
   userId    String
   user      User      @relation(fields: [userId], references: [id])
-  purpose   String    // "invite" | "reset"
+  purpose   String // "invite" | "reset"
   expiresAt DateTime
   usedAt    DateTime?
 
@@ -616,12 +616,12 @@ model AlertState {
 }
 
 model OrderThread {
-  id            String     @id @default(cuid())
+  id            String            @id @default(cuid())
   orderId       String
-  order         Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order         Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
   side          ThreadSide
-  createdAt     DateTime   @default(now())
-  lastMessageAt DateTime   @default(now())
+  createdAt     DateTime          @default(now())
+  lastMessageAt DateTime          @default(now())
   messages      Message[]
   readStates    ThreadReadState[]
 

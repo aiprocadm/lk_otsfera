@@ -13,14 +13,16 @@ export function ManagerKpiGrid({ data }: { data: KpiData }) {
       <StatCard
         title='Активные заказы'
         value={`${data.activeOrders} (${fmtDelta(data.activeOrdersDelta)})`}
+        href='/manager/orders'
       />
       <StatCard
         title='Требует внимания'
         value={data.attentionCount}
         accent={data.attentionCount > 0}
+        href='/manager/orders'
       />
-      <StatCard title='Непрочитанные комментарии' value={data.unreadComments} />
-      <StatCard title='Срочные дедлайны' value={data.urgentDeadlines} />
+      <StatCard title='Непрочитанные комментарии' value={data.unreadComments} href='/manager/messages' />
+      <StatCard title='Срочные дедлайны' value={data.urgentDeadlines} href='/manager/orders' />
     </div>
   );
 }

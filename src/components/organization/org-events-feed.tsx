@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { OrgEvent } from '@/lib/services/organization/dashboard';
+import { fmtDateTime } from '@/lib/format';
 
 const kindIcon: Record<OrgEvent['kind'], string> = {
   document_published: '📄',
@@ -36,7 +37,7 @@ export function OrgEventsFeed({ events }: { events: OrgEvent[] }) {
                 {e.title}
               </span>
             )}
-            <span className='text-gray-400 text-xs whitespace-nowrap'>{e.at.toLocaleString('ru-RU')}</span>
+            <span className='text-gray-400 text-xs whitespace-nowrap'>{fmtDateTime(e.at)}</span>
           </li>
         ))}
       </ul>

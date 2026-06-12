@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { DealDetail } from '@/lib/services/partner/dealDetail';
 import { DealStatusBadge } from './deal-status-badge';
+import { orderTypeRu } from '@/lib/i18n/labels';
 
 export function DealHeader({ deal }: { deal: DealDetail }) {
   return (
@@ -42,7 +43,7 @@ export function DealHeader({ deal }: { deal: DealDetail }) {
               key={p}
               className='text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded'
             >
-              {p}
+              {orderTypeRu(p)}
             </span>
           ))}
         </div>

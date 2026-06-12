@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { ManagerStudentRow } from '@/lib/services/manager/students';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
+import { fmtDate } from '@/lib/format';
 
 /**
  * Presentational table of manager-scoped students. Mirrors the visual tone of
@@ -39,7 +40,7 @@ export function ManagerStudentsTable({ rows }: { rows: ManagerStudentRow[] }) {
               {s.externalStudentId ?? '—'}
             </Td>
             <Td className='text-gray-500'>
-              {s.createdAt.toLocaleDateString('ru-RU')}
+              {fmtDate(s.createdAt)}
             </Td>
           </Tr>
         ))}

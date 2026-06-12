@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth/session';
 import { navItemsFor } from '@/lib/navigation/cabinet';
 import { isManagerLeader } from '@/lib/auth/managerPolicy';
+import { LogoutButton } from '@/components/ui';
 
 const roleLabel: Record<string, string> = {
   admin: 'Администратор',
@@ -21,22 +22,15 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       {/* Header */}
       <header className='bg-[#111111] text-white px-6 py-0 flex items-center justify-between h-14 shadow-lg flex-shrink-0'>
         <div className='flex items-center gap-3'>
-          <span className='w-8 h-8 rounded-md bg-[#F97316] flex items-center justify-center font-black text-white text-sm'>О</span>
-          <span className='font-semibold tracking-wide text-sm uppercase'>ОТСФЕРА</span>
+          <span className='w-8 h-8 rounded-md bg-[#F97316] flex items-center justify-center font-black text-white text-sm'>П</span>
+          <span className='font-semibold tracking-wide text-sm'>Промтехносфера</span>
         </div>
         <div className='flex items-center gap-3'>
           <div className='text-right'>
             <div className='text-xs text-gray-400'>{roleLabel[session.role] ?? session.role}</div>
             <div className='text-sm font-medium'>{session.name}</div>
           </div>
-          <form action='/api/auth/logout' method='POST'>
-            <button
-              type='submit'
-              className='text-xs text-gray-400 hover:text-[#F97316] transition-colors px-2 py-1 border border-gray-700 rounded hover:border-[#F97316]'
-            >
-              Выйти
-            </button>
-          </form>
+          <LogoutButton className='text-xs text-gray-400 hover:text-[#F97316] transition-colors px-2 py-1 border border-gray-700 rounded hover:border-[#F97316] disabled:opacity-60' />
         </div>
       </header>
 
@@ -68,7 +62,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </nav>
           <div className='p-3 border-t border-gray-100'>
-            <div className='text-xs text-gray-400 text-center'>ОТСФЕРА &copy; 2024</div>
+            <div className='text-xs text-gray-400 text-center'>Промтехносфера &copy; 2026</div>
           </div>
         </aside>
 

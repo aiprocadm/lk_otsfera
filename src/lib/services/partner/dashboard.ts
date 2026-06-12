@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { fmtMoney } from '@/lib/format';
 
 export type DashboardScope = {
   partnerId: string;
@@ -248,13 +249,13 @@ export async function recentEvents(
         ? {
             kind: 'payment_received',
             at: p.createdAt,
-            title: `Оплата ${Number(p.amount).toFixed(2)} ₽ по заказу «${p.order.title}»`,
+            title: `Оплата ${fmtMoney(Number(p.amount))} по заказу «${p.order.title}»`,
             ref: { kind: 'order', id: p.order.id }
           }
         : {
             kind: 'payment_received',
             at: p.createdAt,
-            title: `Оплата ${Number(p.amount).toFixed(2)} ₽ (организация «${p.organization.name}»)`
+            title: `Оплата ${fmtMoney(Number(p.amount))} (организация ${p.organization.name})`
           }
     )
   ];

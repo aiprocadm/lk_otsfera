@@ -1,5 +1,5 @@
 import type { PrismaClient, ExecutionStatus, FinancialStatus } from '@prisma/client';
-import { humanStage, type Stage } from '@/lib/orders/humanStage';
+import { orderStage, type Stage } from '@/lib/orders/humanStage';
 
 export type DealRow = {
   id: string;
@@ -106,9 +106,11 @@ export async function listPartnerDeals(
       debt,
       executionStatus: o.executionStatus,
       financialStatus: o.financialStatus,
-      stage: humanStage({
+      stage: orderStage({
         executionStatus: o.executionStatus,
-        financialStatus: o.financialStatus
+        financialStatus: o.financialStatus,
+        amount: Number(o.totalAmount),
+        paidTotal: Number(o.paidAmount)
       }),
       organizationName: org?.name ?? '—',
       organizationId: org?.id ?? null,

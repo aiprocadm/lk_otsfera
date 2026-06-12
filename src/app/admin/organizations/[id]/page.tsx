@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
+import { BackLink } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { getOrganization } from '@/lib/services/admin/organizations';
@@ -33,12 +33,7 @@ export default async function AdminOrganizationDetailPage({
   return (
     <div className='space-y-5'>
       <div>
-        <Link
-          href='/admin/organizations'
-          className='text-xs text-gray-500 hover:text-[#F97316]'
-        >
-          ← Все организации
-        </Link>
+        <BackLink href='/admin/organizations' label='Все организации' />
         <h1 className='text-2xl font-bold text-[#111111] mt-1'>{org.name}</h1>
         <p className='text-sm text-gray-500 mt-0.5'>
           Партнёр: {org.partner?.name ?? 'Без партнёра'}

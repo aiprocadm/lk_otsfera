@@ -97,7 +97,7 @@ export default async function AdminOrganizationsPage({
       </div>
 
       {orgs.length === 0 ? (
-        <EmptyState message='Ничего не нашли' className='p-8' />
+        <EmptyState icon='🏛' message='По заданному фильтру организаций не нашлось.' />
       ) : (
         <TableShell>
           <THead>

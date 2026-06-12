@@ -1,6 +1,6 @@
 {
   "name": "Промтехносфера — личный кабинет",
-  "short_name": "ОТСФЕРА",
+  "short_name": "Промтехносфера",
   "description": "Личный кабинет партнёра Промтехносферы",
   "start_url": "/partner/dashboard",
   "scope": "/",

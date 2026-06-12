@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { BackLink } from '@/components/ui';
 import { notFound } from 'next/navigation';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
@@ -75,9 +75,7 @@ export default async function ManagerOrderDetailPage({
   return (
     <div className='space-y-4'>
       <div className='text-sm'>
-        <Link href='/manager/orders' className='text-gray-500 hover:text-[#F97316]'>
-          ← Все заказы
-        </Link>
+        <BackLink href='/manager/orders' label='Все заказы' />
       </div>
 
       <ManagerOrderHeader order={order} />

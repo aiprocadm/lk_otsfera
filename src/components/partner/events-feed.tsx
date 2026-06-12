@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { DashboardEvent } from '@/lib/services/partner/dashboard';
+import { fmtDateTime } from '@/lib/format';
 
 const kindIcon: Record<DashboardEvent['kind'], string> = {
   order_updated: '📋',
@@ -39,7 +40,7 @@ export function EventsFeed({ events }: { events: DashboardEvent[] }) {
                 {e.title}
               </span>
             )}
-            <span className='text-gray-400 text-xs whitespace-nowrap'>{e.at.toLocaleString('ru-RU')}</span>
+            <span className='text-gray-400 text-xs whitespace-nowrap'>{fmtDateTime(e.at)}</span>
           </li>
         ))}
       </ul>

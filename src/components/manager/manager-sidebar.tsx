@@ -3,20 +3,9 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import type { NavItem } from '@/lib/navigation/cabinet';
 
-type NavItem = { href: string; label: string; icon: string };
-
-const ITEMS: NavItem[] = [
-  { href: '/manager/dashboard', label: 'Главная', icon: '⌂' },
-  { href: '/manager/orders', label: 'Заказы', icon: '📋' },
-  { href: '/manager/organizations', label: 'Организации', icon: '🏢' },
-  { href: '/manager/import', label: 'Загрузка из 1С', icon: '📥' },
-  { href: '/manager/documents', label: 'Документы', icon: '📄' },
-  { href: '/manager/students', label: 'Сотрудники', icon: '👥' },
-  { href: '/manager/messages', label: 'Сообщения', icon: '💬' }
-];
-
-export function ManagerSidebar() {
+export function ManagerSidebar({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
 
   return (
@@ -25,7 +14,7 @@ export function ManagerSidebar() {
       <div className='text-xs text-gray-500 mb-4 px-2 truncate'>Промтехносфера</div>
 
       <ul className='space-y-0.5'>
-        {ITEMS.map((item) => {
+        {items.map((item) => {
           const isActive =
             pathname === item.href || pathname?.startsWith(item.href + '/');
           return (
