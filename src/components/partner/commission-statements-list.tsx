@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { StatementListItem } from '@/lib/services/partner/finance';
 import type { CommissionStatementItem } from '@prisma/client';
 import { THead, Th, Tr, Td, EmptyState } from '@/components/ui';
+import { fmtMoney, fmtDate } from '@/lib/format';
 
 type Props = {
   statements: StatementListItem[];
@@ -25,11 +26,6 @@ const STATUS_COLORS: Record<string, string> = {
   superseded: 'bg-gray-100 text-gray-400'
 };
 
-function fmtMoney(val: unknown): string {
-  const n = Number(val);
-  return isNaN(n) ? '—' : new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n) + ' ₽';
-}
-
 function fmtPeriod(from: Date, to: Date): string {
   const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
   const f = new Date(from);
@@ -37,7 +33,7 @@ function fmtPeriod(from: Date, to: Date): string {
   if (f.getMonth() === t.getMonth() && f.getFullYear() === t.getFullYear()) {
     return `${months[f.getMonth()]} ${f.getFullYear()}`;
   }
-  return `${f.toLocaleDateString('ru-RU')} — ${t.toLocaleDateString('ru-RU')}`;
+  return `${fmtDate(f)} — ${fmtDate(t)}`;
 }
 
 function DownloadButton({ href, label }: { href: string; label: string }) {
@@ -112,7 +108,7 @@ function StatementRow({
             </span>
           </div>
           <div className='text-sm text-gray-500 mt-0.5'>
-            {stmt.itemCount} {stmt.itemCount === 1 ? 'заказ' : 'заказов'} · Комиссия: {fmtMoney(stmt.totalCommissionAmount)}
+            {stmt.itemCount} {stmt.itemCount === 1 ? 'заказ' : 'заказов'} · Комиссия: {fmtMoney(String(stmt.totalCommissionAmount))}
           </div>
         </div>
 
@@ -176,9 +172,9 @@ function StatementRow({
                 <Tr key={item.id} hover={false}>
                   <Td className='py-2 text-gray-700'>{item.orderNumber ?? '—'}</Td>
                   <Td className='py-2 text-gray-700'>{item.organizationName}</Td>
-                  <Td className='py-2 text-right text-gray-700'>{fmtMoney(item.baseAmount)}</Td>
+                  <Td className='py-2 text-right text-gray-700'>{fmtMoney(String(item.baseAmount))}</Td>
                   <Td className='py-2 text-right text-gray-500'>{(Number(item.rate) * 100).toFixed(2)}%</Td>
-                  <Td className='py-2 text-right font-medium text-gray-700'>{fmtMoney(item.commissionAmount)}</Td>
+                  <Td className='py-2 text-right font-medium text-gray-700'>{fmtMoney(String(item.commissionAmount))}</Td>
                 </Tr>
               ))}
               {!loadingItems && items !== null && items.length === 0 && (

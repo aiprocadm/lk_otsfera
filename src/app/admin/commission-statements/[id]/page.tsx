@@ -7,6 +7,7 @@ import {
   getStatementAuditLog,
 } from '@/lib/services/admin/commissionStatements';
 import { MarkPaidForm } from '@/components/admin/mark-paid-form';
+import { fmtMoney, fmtDate, fmtDateTime } from '@/lib/format';
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Черновик',
@@ -28,13 +29,6 @@ const ACTION_LABELS: Record<string, string> = {
   commission_statement_paid: 'Выплачен',
 };
 
-function fmtMoney(val: unknown): string {
-  const n = Number(val);
-  return Number.isFinite(n)
-    ? new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n) + ' ₽'
-    : '—';
-}
-
 function fmtPeriod(from: Date, to: Date): string {
   const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
   const f = new Date(from);
@@ -42,18 +36,7 @@ function fmtPeriod(from: Date, to: Date): string {
   if (f.getMonth() === t.getMonth() && f.getFullYear() === t.getFullYear()) {
     return `${months[f.getMonth()]} ${f.getFullYear()}`;
   }
-  return `${f.toLocaleDateString('ru-RU')} — ${t.toLocaleDateString('ru-RU')}`;
-}
-
-function fmtDate(d: Date | null): string {
-  if (!d) return '—';
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(d);
+  return `${fmtDate(f)} — ${fmtDate(t)}`;
 }
 
 export default async function AdminCommissionStatementDetailPage({
@@ -101,18 +84,18 @@ export default async function AdminCommissionStatementDetailPage({
           <div>
             <div className='text-xs text-gray-500'>База, всего</div>
             <div className='font-semibold text-[#111111] tabular-nums'>
-              {fmtMoney(statement.totalBaseAmount)}
+              {fmtMoney(String(statement.totalBaseAmount))}
             </div>
           </div>
           <div>
             <div className='text-xs text-gray-500'>Комиссия, всего</div>
             <div className='font-semibold text-[#F97316] tabular-nums'>
-              {fmtMoney(statement.totalCommissionAmount)}
+              {fmtMoney(String(statement.totalCommissionAmount))}
             </div>
           </div>
           <div>
             <div className='text-xs text-gray-500'>Выплачено</div>
-            <div className='font-semibold text-[#111111] tabular-nums'>{fmtDate(statement.paidAt)}</div>
+            <div className='font-semibold text-[#111111] tabular-nums'>{statement.paidAt ? fmtDateTime(statement.paidAt) : '—'}</div>
           </div>
         </div>
 
@@ -170,13 +153,13 @@ export default async function AdminCommissionStatementDetailPage({
                 <td className='px-4 py-2 text-gray-700'>{item.orderNumber ?? '—'}</td>
                 <td className='px-4 py-2 text-gray-700'>{item.organizationName}</td>
                 <td className='px-4 py-2 text-right tabular-nums text-gray-700'>
-                  {fmtMoney(item.baseAmount)}
+                  {fmtMoney(String(item.baseAmount))}
                 </td>
                 <td className='px-4 py-2 text-right tabular-nums text-gray-500'>
                   {(Number(item.rate) * 100).toFixed(2)}%
                 </td>
                 <td className='px-4 py-2 text-right tabular-nums font-medium text-[#111111]'>
-                  {fmtMoney(item.commissionAmount)}
+                  {fmtMoney(String(item.commissionAmount))}
                 </td>
               </tr>
             ))}
@@ -203,7 +186,7 @@ export default async function AdminCommissionStatementDetailPage({
                     {entry.userName ?? entry.userId}
                   </div>
                 </div>
-                <div className='text-xs text-gray-500 tabular-nums'>{fmtDate(entry.createdAt)}</div>
+                <div className='text-xs text-gray-500 tabular-nums'>{fmtDateTime(entry.createdAt)}</div>
               </li>
             ))}
           </ol>

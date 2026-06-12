@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { kpis, attention, recentEvents } from '@/lib/services/admin/dashboard';
 import { auditActionRu } from '@/lib/i18n/auditActions';
 import { StatCard } from '@/components/dashboard/stat-card';
+import { fmtDateTime } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,7 +76,7 @@ export default async function AdminDashboardPage() {
                     <span className="font-medium">{e.actor}</span> {auditActionRu(e.verb)}
                   </Link>
                   <span className="text-gray-400 text-xs whitespace-nowrap">
-                    {e.timestamp.toLocaleString('ru-RU')}
+                    {fmtDateTime(e.timestamp)}
                   </span>
                 </li>
               ))}

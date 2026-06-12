@@ -7,6 +7,7 @@ import {
   type ListAdminStatementsOptions,
 } from '@/lib/services/admin/commissionStatements';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
+import { fmtDate } from '@/lib/format';
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Черновик',
@@ -34,7 +35,7 @@ function fmtPeriod(from: Date, to: Date): string {
   if (f.getMonth() === t.getMonth() && f.getFullYear() === t.getFullYear()) {
     return `${months[f.getMonth()]} ${f.getFullYear()}`;
   }
-  return `${f.toLocaleDateString('ru-RU')} — ${t.toLocaleDateString('ru-RU')}`;
+  return `${fmtDate(f)} — ${fmtDate(t)}`;
 }
 
 function parseStatus(raw: string | undefined): ListAdminStatementsOptions['status'] {

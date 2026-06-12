@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { ManagerInboxItem } from '@/lib/services/manager/messages';
+import { fmtDateTime } from '@/lib/format';
 
 const EXCERPT_LEN = 200;
 
@@ -132,7 +133,7 @@ export function ManagerMessagesInbox({ rows, nextCursor }: Props) {
                         {tone.label}
                       </span>
                       <span className='text-xs text-gray-400 ml-auto whitespace-nowrap'>
-                        {new Date(c.createdAt).toLocaleString('ru-RU')}
+                        {fmtDateTime(new Date(c.createdAt))}
                       </span>
                     </div>
                     <p className='text-sm text-gray-700 whitespace-pre-wrap break-words'>

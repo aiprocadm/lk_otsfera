@@ -5,6 +5,7 @@ import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { getPartner } from '@/lib/services/admin/partners';
 import { PartnerEditForm } from '@/components/admin/partner-edit-form';
+import { fmtDate } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,7 +53,7 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
                     )}
                   </Td>
                   <Td className="py-2 text-gray-500">
-                    {admin.createdAt.toLocaleDateString('ru-RU')}
+                    {fmtDate(admin.createdAt)}
                   </Td>
                   <Td className="py-2">
                     <Link

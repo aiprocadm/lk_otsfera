@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma';
+import { fmtDateTime } from '@/lib/format';
 
 export async function CommentsTab({ orgId }: { orgId: string }) {
   const org = await prisma.organization.findUnique({
@@ -29,7 +30,7 @@ export async function CommentsTab({ orgId }: { orgId: string }) {
         <li key={c.id} className='bg-white border border-gray-200 rounded-xl p-4'>
           <div className='flex justify-between text-xs text-gray-500 mb-1'>
             <span>{c.author.name} · «{c.order.title}»</span>
-            <span>{c.createdAt.toLocaleString('ru-RU')}</span>
+            <span>{fmtDateTime(c.createdAt)}</span>
           </div>
           <div className='text-sm text-[#111111] whitespace-pre-wrap'>{c.body}</div>
         </li>

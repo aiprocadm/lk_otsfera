@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import { fmtDateTime } from '@/lib/format';
 
 type DocumentItem = {
   id: string;
@@ -102,7 +103,7 @@ export function DocumentsPanel() {
                   <span className='text-gray-400 text-xl'>📄</span>
                   <div>
                     <div className='text-sm font-medium text-[#111111]'>{doc.name}</div>
-                    <div className='text-xs text-gray-400'>{doc.mimeType} · {new Date(doc.createdAt).toLocaleString('ru-RU')}</div>
+                    <div className='text-xs text-gray-400'>{doc.mimeType} · {fmtDateTime(new Date(doc.createdAt))}</div>
                   </div>
                 </div>
                 <button

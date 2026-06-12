@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { EventItem } from '@/lib/services/manager/dashboard';
+import { fmtDateTime } from '@/lib/format';
 
 export function ManagerEventsFeed({ events }: { events: EventItem[] }) {
   if (events.length === 0) {
@@ -19,7 +20,7 @@ export function ManagerEventsFeed({ events }: { events: EventItem[] }) {
             <>
               <span className='flex-1 min-w-0 truncate'>{e.text}</span>
               <span className='text-gray-400 text-xs whitespace-nowrap'>
-                {e.when.toLocaleString('ru-RU')}
+                {fmtDateTime(e.when)}
               </span>
             </>
           );

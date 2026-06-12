@@ -3,11 +3,7 @@ import { OrgFinanceKpisGrid } from '@/components/organization/org-finance-kpis';
 import { OrgFinanceCommission } from '@/components/organization/org-finance-commission';
 import { ManagerFinancePayments } from './manager-finance-payments';
 import type { ManagerFinanceOverview } from '@/lib/services/manager/finance';
-
-function fmtMoney(val: string): string {
-  const n = Number(val);
-  return (isNaN(n) ? '—' : new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n)) + ' ₽';
-}
+import { fmtMoney } from '@/lib/format';
 
 export function ManagerFinanceView({ data }: { data: ManagerFinanceOverview }) {
   if (data.sections.length === 0) {

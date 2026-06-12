@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { getSyncLag } from './syncHealth';
 import { getDlq } from './queueStats';
+import { fmtMoney } from '@/lib/format';
 
 export type KpiTile = {
   label: string;
@@ -119,11 +120,11 @@ export async function kpis(prisma: PrismaClient): Promise<KpiTile[]> {
     },
     {
       label: 'Закрытые заказы (месяц)',
-      value: `${closedOrdersThisMonth} (${orderTotal.toLocaleString('ru-RU')} ₽)`,
+      value: `${closedOrdersThisMonth} (${fmtMoney(orderTotal)})`,
     },
     {
       label: 'К выплате партнёрам',
-      value: `${payoutTotal.toLocaleString('ru-RU')} ₽`,
+      value: fmtMoney(payoutTotal),
       href: '/admin/commission-statements',
     },
   ];
