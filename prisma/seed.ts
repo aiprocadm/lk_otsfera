@@ -224,6 +224,18 @@ async function main() {
     });
   }
 
+  // ─── Demo: student user (для кнопки «Студент» на /login) ────────────
+  await prisma.user.upsert({
+    where: { email: 'student@demo.local' },
+    update: { role: 'student', isActive: true, passwordHash, name: 'Demo Student' },
+    create: {
+      email: 'student@demo.local',
+      name: 'Demo Student',
+      passwordHash,
+      role: 'student'
+    }
+  });
+
   // ─── Admin-facing fixtures (6.7): norate partner, org rate override, audit sample ──
   // A second partner with commissionRate = 0 powers the dashboard "Партнёры без
   // ставки" attention item and the /admin/partners?filter=norate filter. Fixed id
@@ -312,6 +324,7 @@ async function main() {
   console.log('  - partner-mgr@demo.local (partner manager, scope=' + managerScope.length + ' org)');
   console.log('  - org@demo.local (organization admin, membership in firstOrg)');
   console.log('  - manager@demo.local (cabinet manager, assigned to firstOrg)');
+  console.log('  - student@demo.local (role=student, лендинг /student)');
   console.log('[seed] done');
 }
 
