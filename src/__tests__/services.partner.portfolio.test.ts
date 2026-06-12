@@ -29,7 +29,7 @@ beforeAll(async () => {
 
   await prisma.order.create({
     data: {
-      title: 'Сделка с долгом', companyId: company.id, partnerId, organizationId: withDebt.id,
+      title: 'Заказ с долгом', companyId: company.id, partnerId, organizationId: withDebt.id,
       totalAmount: 100000, paidAmount: 40000,
       executionStatus: 'in_progress', financialStatus: 'partially_paid'
     }

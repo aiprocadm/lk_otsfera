@@ -10,15 +10,15 @@ export type DocumentUploadedProps = {
 
 export function DocumentUploadedTemplate({ partnerName, orderNumber, filename, url }: DocumentUploadedProps) {
   return (
-    <EmailLayout title="Новый документ по сделке">
+    <EmailLayout title="Новый документ по заказу">
       <p style={emailStyles.paragraph}>Здравствуйте, {partnerName}!</p>
       <p style={emailStyles.paragraph}>
-        На сделку <strong>{orderNumber}</strong> загружен документ{' '}
+        К заказу <strong>{orderNumber}</strong> загружен документ{' '}
         <strong>«{filename}»</strong>.
       </p>
       <p style={emailStyles.paragraph}>
         <a href={url} style={emailStyles.button}>
-          Открыть сделку
+          Открыть заказ
         </a>
       </p>
       <p style={emailStyles.muted}>
@@ -29,14 +29,14 @@ export function DocumentUploadedTemplate({ partnerName, orderNumber, filename, u
 }
 
 export function documentUploadedSubject(orderNumber: string): string {
-  return `Новый документ по сделке ${orderNumber}`;
+  return `Новый документ по заказу ${orderNumber}`;
 }
 
 export function documentUploadedText({ partnerName, orderNumber, filename, url }: DocumentUploadedProps): string {
   return [
     `Здравствуйте, ${partnerName}!`,
     '',
-    `На сделку ${orderNumber} загружен документ «${filename}».`,
+    `К заказу ${orderNumber} загружен документ «${filename}».`,
     '',
     `Открыть: ${url}`,
   ].join('\n');

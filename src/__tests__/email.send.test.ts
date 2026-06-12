@@ -141,7 +141,7 @@ describe('sendLeadPromotedEmail()', () => {
     );
 
     const call = transport.calls[0];
-    expect(call.subject).toBe('Заявка стала сделкой ORD-2026-0042');
+    expect(call.subject).toBe('Заявка стала заказом ORD-2026-0042');
     expect(call.html).toContain('Покупка станка');
     expect(call.html).toContain('ORD-2026-0042');
   });
@@ -163,7 +163,7 @@ describe('sendDocumentUploadedEmail()', () => {
     );
 
     const call = transport.calls[0];
-    expect(call.subject).toBe('Новый документ по сделке ORD-007');
+    expect(call.subject).toBe('Новый документ по заказу ORD-007');
     expect(call.html).toContain('ORD-007');
     expect(call.html).toContain('spec.pdf');
   });

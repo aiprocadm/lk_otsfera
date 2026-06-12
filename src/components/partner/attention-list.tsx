@@ -25,7 +25,7 @@ export function AttentionList({ data }: { data: Attention }) {
               href={`/partner/deals/${o.id}`}
               className='text-gray-700 hover:text-[#F97316] flex-1 min-w-0 truncate'
             >
-              🕒 Сделка «{o.title}» зависла
+              🕒 Заказ «{o.title}» завис
             </Link>
             <span className='text-gray-400 text-xs whitespace-nowrap'>обн. {o.updatedAt.toLocaleDateString('ru-RU')}</span>
           </li>

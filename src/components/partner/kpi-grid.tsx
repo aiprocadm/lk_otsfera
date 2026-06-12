@@ -16,7 +16,7 @@ function fmtMoney(rubles: string): string {
 export function KpiGrid({ kpis }: { kpis: DashboardKpis }) {
   return (
     <div className='grid gap-3 grid-cols-2 md:grid-cols-4'>
-      <StatCard title='Открытые сделки' value={kpis.openOrders} />
+      <StatCard title='Открытые заказы' value={kpis.openOrders} />
       <StatCard title='К оплате' value={fmtMoney(kpis.outstanding)} />
       <StatCard title='Заявки в работе' value={kpis.activeLeads} />
       <StatCard title='Комиссия за месяц' value={fmtMoney(kpis.commissionThisMonth)} accent />

@@ -35,7 +35,7 @@ export default async function PartnerDealDetailPage({
     <div className='space-y-4'>
       <div className='text-sm'>
         <Link href='/partner/deals' className='text-gray-500 hover:text-[#F97316]'>
-          ← Все сделки
+          ← Все заказы
         </Link>
       </div>
 

@@ -15,7 +15,7 @@ function fmtDate(d: Date | null): string {
 export function DealsTable({ rows }: { rows: DealRow[] }) {
   if (rows.length === 0) {
     return (
-      <EmptyState icon='📋' message='По выбранным фильтрам сделок нет' />
+      <EmptyState icon='📋' message='По выбранным фильтрам заказов нет' />
     );
   }
 
@@ -23,7 +23,7 @@ export function DealsTable({ rows }: { rows: DealRow[] }) {
     <TableShell className='hidden md:block'>
       <THead>
         <Th>№</Th>
-        <Th>Сделка</Th>
+        <Th>Заказ</Th>
         <Th>Организация</Th>
         <Th>Статус</Th>
         <Th className='text-right'>Сумма</Th>

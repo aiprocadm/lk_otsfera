@@ -10,15 +10,15 @@ export type LeadPromotedProps = {
 
 export function LeadPromotedTemplate({ partnerName, leadSubject, orderNumber, url }: LeadPromotedProps) {
   return (
-    <EmailLayout title="Заявка превратилась в сделку">
+    <EmailLayout title="Заявка стала заказом">
       <p style={emailStyles.paragraph}>Здравствуйте, {partnerName}!</p>
       <p style={emailStyles.paragraph}>
-        Ваша заявка <strong>«{leadSubject}»</strong> превратилась в сделку{' '}
+        Ваша заявка <strong>«{leadSubject}»</strong> стала заказом{' '}
         <strong>{orderNumber}</strong>. Можно отслеживать прогресс в кабинете.
       </p>
       <p style={emailStyles.paragraph}>
         <a href={url} style={emailStyles.button}>
-          Открыть сделку
+          Открыть заказ
         </a>
       </p>
       <p style={emailStyles.muted}>
@@ -29,14 +29,14 @@ export function LeadPromotedTemplate({ partnerName, leadSubject, orderNumber, ur
 }
 
 export function leadPromotedSubject(orderNumber: string): string {
-  return `Заявка стала сделкой ${orderNumber}`;
+  return `Заявка стала заказом ${orderNumber}`;
 }
 
 export function leadPromotedText({ partnerName, leadSubject, orderNumber, url }: LeadPromotedProps): string {
   return [
     `Здравствуйте, ${partnerName}!`,
     '',
-    `Ваша заявка «${leadSubject}» превратилась в сделку ${orderNumber}.`,
+    `Ваша заявка «${leadSubject}» стала заказом ${orderNumber}.`,
     '',
     `Открыть: ${url}`,
   ].join('\n');
