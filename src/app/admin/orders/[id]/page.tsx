@@ -46,7 +46,7 @@ export default async function AdminOrderDetailPage({
   return (
     <div className='space-y-5'>
       <div>
-        <BackLink href='/admin/dashboard' label='Дашборд' />
+        <BackLink href='/admin/dashboard' label='Главная' />
         <h1 className='text-2xl font-bold text-[#111111] mt-1'>
           Заказ № {order.orderNumber}
         </h1>

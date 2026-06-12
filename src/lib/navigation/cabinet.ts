@@ -17,11 +17,11 @@ export type NavItem = {
 };
 
 export const navByRole: Record<Role, NavItem[]> = {
+  // /admin/orders намеренно НЕ в меню: это deprecated-redirect на дашборд (реальна только деталь /admin/orders/[id]).
   admin: [
     { href: '/admin/dashboard', label: 'Главная', icon: '⌂', group: 'Платформа' },
     { href: '/admin/health', label: 'Здоровье', icon: '💚', group: 'Платформа' },
     { href: '/admin/sync', label: 'Синхронизация', icon: '🔄', group: 'Платформа' },
-    { href: '/admin/orders', label: 'Заказы', icon: '📋', group: 'Операции' },
     { href: '/admin/documents', label: 'Документы', icon: '📄', group: 'Операции' },
     { href: '/admin/messages', label: 'Сообщения', icon: '💬', group: 'Операции' },
     { href: '/admin/commission-statements', label: 'Комиссии', icon: '💰', group: 'Операции' },

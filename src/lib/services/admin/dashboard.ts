@@ -5,7 +5,7 @@ import { getDlq } from './queueStats';
 export type KpiTile = {
   label: string;
   value: string | number;
-  href: string;
+  href?: string;
   delta?: { value: number; positive: boolean };
 };
 
@@ -120,7 +120,6 @@ export async function kpis(prisma: PrismaClient): Promise<KpiTile[]> {
     {
       label: 'Закрытые заказы (месяц)',
       value: `${closedOrdersThisMonth} (${orderTotal.toLocaleString('ru-RU')} ₽)`,
-      href: '/admin/orders',
     },
     {
       label: 'К выплате партнёрам',
