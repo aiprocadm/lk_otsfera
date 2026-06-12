@@ -31,7 +31,7 @@ function periodLabel(from: Date, to: Date): string {
 export async function renderStatementXlsx(args: RenderStatementXlsxArgs): Promise<any> {
   const { statement, items, partner } = args;
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'ОТСФЕРА';
+  wb.creator = 'Промтехносфера';
   wb.created = new Date(statement.calculatedAt);
 
   // ─── Sheet 1: Items ───────────────────────────────────────────────

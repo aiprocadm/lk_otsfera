@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: 'ОТСФЕРА',
+    title: 'Промтехносфера',
     statusBarStyle: 'default',
   },
 };

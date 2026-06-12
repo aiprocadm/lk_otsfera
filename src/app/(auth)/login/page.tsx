@@ -26,8 +26,8 @@ export default function LoginPage() {
       {/* Left panel — brand */}
       <div className='hidden lg:flex flex-col justify-between w-1/2 bg-[#111111] p-12 text-white'>
         <div className='flex items-center gap-3'>
-          <span className='w-10 h-10 rounded-lg bg-[#F97316] flex items-center justify-center font-black text-white text-lg'>О</span>
-          <span className='font-bold text-lg tracking-widest uppercase'>ОТСФЕРА</span>
+          <span className='w-10 h-10 rounded-lg bg-[#F97316] flex items-center justify-center font-black text-white text-lg'>П</span>
+          <span className='font-bold text-lg tracking-widest'>Промтехносфера</span>
         </div>
         <div className='space-y-4'>
           <h1 className='text-4xl font-bold leading-tight'>
@@ -36,7 +36,7 @@ export default function LoginPage() {
           </h1>
           <p className='text-gray-400 text-lg'>Управление заказами, документами и командой в одном месте.</p>
         </div>
-        <div className='text-gray-600 text-sm'>© 2024 ОТСФЕРА. Все права защищены.</div>
+        <div className='text-gray-600 text-sm'>© 2026 Промтехносфера. Все права защищены.</div>
       </div>
 
       {/* Right panel — form */}
@@ -44,8 +44,8 @@ export default function LoginPage() {
         <div className='w-full max-w-md'>
           {/* Mobile logo */}
           <div className='flex items-center gap-2 mb-8 lg:hidden'>
-            <span className='w-8 h-8 rounded-md bg-[#F97316] flex items-center justify-center font-black text-white text-sm'>О</span>
-            <span className='font-bold tracking-widest uppercase text-[#111111]'>ОТСФЕРА</span>
+            <span className='w-8 h-8 rounded-md bg-[#F97316] flex items-center justify-center font-black text-white text-sm'>П</span>
+            <span className='font-bold tracking-widest text-[#111111]'>Промтехносфера</span>
           </div>
 
           <LoginForm demoLogins={demoLogins} />

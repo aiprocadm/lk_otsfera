@@ -22,8 +22,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       {/* Header */}
       <header className='bg-[#111111] text-white px-6 py-0 flex items-center justify-between h-14 shadow-lg flex-shrink-0'>
         <div className='flex items-center gap-3'>
-          <span className='w-8 h-8 rounded-md bg-[#F97316] flex items-center justify-center font-black text-white text-sm'>О</span>
-          <span className='font-semibold tracking-wide text-sm uppercase'>ОТСФЕРА</span>
+          <span className='w-8 h-8 rounded-md bg-[#F97316] flex items-center justify-center font-black text-white text-sm'>П</span>
+          <span className='font-semibold tracking-wide text-sm'>Промтехносфера</span>
         </div>
         <div className='flex items-center gap-3'>
           <div className='text-right'>
@@ -62,7 +62,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </nav>
           <div className='p-3 border-t border-gray-100'>
-            <div className='text-xs text-gray-400 text-center'>ОТСФЕРА &copy; 2024</div>
+            <div className='text-xs text-gray-400 text-center'>Промтехносфера &copy; 2026</div>
           </div>
         </aside>
 
