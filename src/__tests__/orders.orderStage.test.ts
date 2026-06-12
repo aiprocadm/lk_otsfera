@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { orderStage } from '@/lib/orders/humanStage';
+import { orderStage, paymentStage } from '@/lib/orders/humanStage';
 
 const base = { executionStatus: 'in_progress', financialStatus: 'billed', amount: '100000', paidTotal: '0' } as const;
 
@@ -37,5 +37,24 @@ describe('orderStage — оплата считается из чисел, не �
   it('переплата (paid > amount) считается оплаченным', () => {
     const s = orderStage({ executionStatus: 'in_progress', financialStatus: 'paid', amount: '100', paidTotal: '150' });
     expect(s).toEqual({ label: 'В работе, оплачен', tone: 'success' });
+  });
+});
+
+describe('paymentStage — самостоятельный бейдж оплаты', () => {
+  it('контр-кейс DEMO-COMM-001: financialStatus=paid, amount=100000, paidTotal=0 -> Счёт выставлен (neutral)', () => {
+    const s = paymentStage({ financialStatus: 'paid', amount: '100000', paidTotal: '0' });
+    expect(s).toEqual({ label: 'Счёт выставлен', tone: 'neutral' });
+  });
+  it('тот же кейс с completed:true -> warning', () => {
+    const s = paymentStage({ financialStatus: 'paid', amount: '100000', paidTotal: '0', completed: true });
+    expect(s).toEqual({ label: 'Счёт выставлен', tone: 'warning' });
+  });
+  it('полная оплата -> Оплачен (success)', () => {
+    const s = paymentStage({ financialStatus: 'paid', amount: '250000', paidTotal: '250000' });
+    expect(s).toEqual({ label: 'Оплачен', tone: 'success' });
+  });
+  it('частичная оплата -> Частично оплачен (warning)', () => {
+    const s = paymentStage({ financialStatus: 'partially_paid', amount: '480000', paidTotal: '240000' });
+    expect(s).toEqual({ label: 'Частично оплачен', tone: 'warning' });
   });
 });
