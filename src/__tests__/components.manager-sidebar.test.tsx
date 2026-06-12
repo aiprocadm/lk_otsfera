@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import React from 'react';
 
@@ -29,25 +29,38 @@ vi.mock('next/link', () => ({
 
 import { usePathname } from 'next/navigation';
 import { ManagerSidebar } from '@/components/manager/manager-sidebar';
+import { navByRole, navItemsFor } from '@/lib/navigation/cabinet';
+
+const ORIGINAL_ENV = { ...process.env };
+
+beforeEach(() => {
+  process.env = { ...ORIGINAL_ENV };
+  delete process.env.FEATURE_MANAGER_CABINET;
+});
+afterEach(() => {
+  process.env = { ...ORIGINAL_ENV };
+});
 
 describe('ManagerSidebar', () => {
-  it('renders 7 nav links including Загрузка из 1С', () => {
+  it('renders 9 nav links including Финансы, Загрузка из 1С and Команда (from raw canon)', () => {
     vi.mocked(usePathname).mockReturnValue('/manager/dashboard');
-    const html = renderToString(React.createElement(ManagerSidebar));
+    const html = renderToString(React.createElement(ManagerSidebar, { items: navByRole.manager }));
     const matches = html.match(/data-testid="manager-nav-/g);
-    expect(matches).toHaveLength(7);
+    expect(matches).toHaveLength(9);
     expect(html).toContain('href="/manager/dashboard"');
     expect(html).toContain('href="/manager/orders"');
     expect(html).toContain('href="/manager/organizations"');
+    expect(html).toContain('href="/manager/finance"');
     expect(html).toContain('href="/manager/import"');
     expect(html).toContain('href="/manager/documents"');
     expect(html).toContain('href="/manager/students"');
     expect(html).toContain('href="/manager/messages"');
+    expect(html).toContain('href="/manager/team"');
   });
 
   it('marks exactly one link active', () => {
     vi.mocked(usePathname).mockReturnValue('/manager/orders');
-    const html = renderToString(React.createElement(ManagerSidebar));
+    const html = renderToString(React.createElement(ManagerSidebar, { items: navByRole.manager }));
     const activeMatches = html.match(/data-active="true"/g);
     expect(activeMatches).toHaveLength(1);
     expect(html).toContain('data-testid="manager-nav--manager-orders" data-active="true"');
@@ -55,16 +68,25 @@ describe('ManagerSidebar', () => {
 
   it('marks orders link active on sub-path /manager/orders/abc', () => {
     vi.mocked(usePathname).mockReturnValue('/manager/orders/abc');
-    const html = renderToString(React.createElement(ManagerSidebar));
+    const html = renderToString(React.createElement(ManagerSidebar, { items: navByRole.manager }));
     expect(html).toContain('data-testid="manager-nav--manager-orders" data-active="true"');
   });
 
   it('applies orange accent #F97316 on active link', () => {
     vi.mocked(usePathname).mockReturnValue('/manager/orders');
-    const html = renderToString(React.createElement(ManagerSidebar));
+    const html = renderToString(React.createElement(ManagerSidebar, { items: navByRole.manager }));
     // The active link tag should contain both the brand color and data-active="true"
     const activeTag = html.match(/<a [^>]*data-active="true"[^>]*>/);
     expect(activeTag).not.toBeNull();
     expect(activeTag![0]).toContain('#F97316');
+  });
+
+  it('у рядового менеджера нет «Команда», у руководителя — есть', () => {
+    process.env.FEATURE_MANAGER_CABINET = '1';
+    const plain = navItemsFor('manager').map((i) => i.label);
+    const leader = navItemsFor('manager', { isManagerLeader: true }).map((i) => i.label);
+    expect(plain).not.toContain('Команда');
+    expect(leader).toContain('Команда');
+    expect(plain).toContain('Финансы');
   });
 });

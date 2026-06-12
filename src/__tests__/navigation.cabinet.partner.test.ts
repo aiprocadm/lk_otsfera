@@ -17,7 +17,7 @@ describe('navByRole.partner', () => {
   it('contains all active items including Финансы (Phase 4 shipped)', () => {
     const labels = navByRole.partner.filter((i) => !i.disabled).map((i) => i.label);
     expect(labels).toEqual(
-      expect.arrayContaining(['Дашборд', 'Портфель', 'Сделки', 'Заявки', 'Документы', 'Команда', 'Финансы'])
+      expect.arrayContaining(['Главная', 'Портфель', 'Заказы', 'Заявки', 'Документы', 'Команда', 'Финансы'])
     );
   });
 
@@ -52,7 +52,7 @@ describe('navItemsFor (feature-flag filter)', () => {
     expect(labels).not.toContain('Заявки');
     // Other items still present.
     expect(labels).toEqual(
-      expect.arrayContaining(['Дашборд', 'Портфель', 'Сделки', 'Документы', 'Финансы', 'Команда']),
+      expect.arrayContaining(['Главная', 'Портфель', 'Заказы', 'Документы', 'Финансы', 'Команда']),
     );
   });
 
@@ -82,7 +82,7 @@ describe('navItemsFor — chat flag (partner)', () => {
     expect(labels).toContain('Сообщения');
     // Other items still present
     expect(labels).toEqual(
-      expect.arrayContaining(['Дашборд', 'Портфель', 'Сделки', 'Документы', 'Финансы', 'Команда']),
+      expect.arrayContaining(['Главная', 'Портфель', 'Заказы', 'Документы', 'Финансы', 'Команда']),
     );
   });
 
@@ -182,6 +182,23 @@ describe('navByRole — Финансы (manager + admin)', () => {
   it('manager /manager/finance стоит после Организации', () => {
     const hrefs = navByRole.manager.map((i) => i.href);
     expect(hrefs.indexOf('/manager/finance')).toBeGreaterThan(hrefs.indexOf('/manager/organizations'));
+  });
+});
+
+describe('navByRole.admin — русский канон с группами (все 13 страниц)', () => {
+  it('содержит все админские страницы, включая ранее потерянные orders/documents/messages/finance', () => {
+    const hrefs = navByRole.admin.map((i) => i.href);
+    for (const lost of ['/admin/orders', '/admin/documents', '/admin/messages', '/admin/finance']) {
+      expect(hrefs).toContain(lost);
+    }
+    expect(navByRole.admin).toHaveLength(13);
+  });
+  it('каждый пункт по-русски, с иконкой и группой', () => {
+    for (const item of navByRole.admin) {
+      expect(item.label).toMatch(/[А-Яа-яЁё]/);
+      expect(item.icon).toBeTruthy();
+      expect(['Платформа', 'Операции', 'Справочники']).toContain(item.group);
+    }
   });
 });
 

@@ -8,38 +8,45 @@ export type NavItem = {
   flag?: FeatureFlag;
   leaderOnly?: boolean;
   partnerAdminOnly?: boolean;
-  /** Иконка для org-sidebar (emoji). Прочие шеллы её игнорируют. */
+  /** Иконка для org-sidebar и других сайдбаров (emoji). */
   icon?: string;
   /** Виден только org-admin и org-leader (фильтруется в OrgSidebar по viewerRole, НЕ в navItemsFor). */
   orgAdminOrLeaderOnly?: boolean;
+  /** Секция админского сайдбара («Платформа» / «Операции» / «Справочники»). Прочие шеллы игнорируют. */
+  group?: string;
 };
 
 export const navByRole: Record<Role, NavItem[]> = {
   admin: [
-    { href: '/admin/dashboard', label: 'Dashboard' },
-    { href: '/admin/orders', label: 'Orders' },
-    { href: '/admin/documents', label: 'Documents' },
-    { href: '/admin/messages', label: 'Messages' },
-    { href: '/admin/commission-statements', label: 'Комиссии' },
-    { href: '/admin/finance', label: 'Финансы' },
-    { href: '/admin/sync', label: 'Синхронизация' },
-    { href: '/admin/health', label: 'Здоровье' }
+    { href: '/admin/dashboard', label: 'Главная', icon: '⌂', group: 'Платформа' },
+    { href: '/admin/health', label: 'Здоровье', icon: '💚', group: 'Платформа' },
+    { href: '/admin/sync', label: 'Синхронизация', icon: '🔄', group: 'Платформа' },
+    { href: '/admin/orders', label: 'Заказы', icon: '📋', group: 'Операции' },
+    { href: '/admin/documents', label: 'Документы', icon: '📄', group: 'Операции' },
+    { href: '/admin/messages', label: 'Сообщения', icon: '💬', group: 'Операции' },
+    { href: '/admin/commission-statements', label: 'Комиссии', icon: '💰', group: 'Операции' },
+    { href: '/admin/finance', label: 'Финансы', icon: '₽', group: 'Операции' },
+    { href: '/admin/import', label: 'Загрузка из 1С', icon: '📥', group: 'Операции' },
+    { href: '/admin/audit', label: 'Аудит', icon: '🧾', group: 'Операции' },
+    { href: '/admin/users', label: 'Пользователи', icon: '👤', group: 'Справочники' },
+    { href: '/admin/partners', label: 'Партнёры', icon: '🏢', group: 'Справочники' },
+    { href: '/admin/organizations', label: 'Организации', icon: '🏛', group: 'Справочники' }
   ],
   manager: [
-    { href: '/manager/dashboard', label: 'Главная', flag: 'manager_cabinet' },
-    { href: '/manager/orders', label: 'Заказы', flag: 'manager_cabinet' },
-    { href: '/manager/organizations', label: 'Организации', flag: 'manager_cabinet' },
-    { href: '/manager/finance', label: 'Финансы', flag: 'manager_cabinet' },
-    { href: '/manager/import', label: 'Загрузка из 1С', flag: 'manager_cabinet' },
-    { href: '/manager/documents', label: 'Документы', flag: 'manager_cabinet' },
-    { href: '/manager/students', label: 'Сотрудники', flag: 'manager_cabinet' },
-    { href: '/manager/messages', label: 'Сообщения', flag: 'manager_cabinet' },
-    { href: '/manager/team', label: 'Команда', flag: 'manager_cabinet', leaderOnly: true }
+    { href: '/manager/dashboard', label: 'Главная', icon: '⌂', flag: 'manager_cabinet' },
+    { href: '/manager/orders', label: 'Заказы', icon: '📋', flag: 'manager_cabinet' },
+    { href: '/manager/organizations', label: 'Организации', icon: '🏢', flag: 'manager_cabinet' },
+    { href: '/manager/finance', label: 'Финансы', icon: '₽', flag: 'manager_cabinet' },
+    { href: '/manager/import', label: 'Загрузка из 1С', icon: '📥', flag: 'manager_cabinet' },
+    { href: '/manager/documents', label: 'Документы', icon: '📄', flag: 'manager_cabinet' },
+    { href: '/manager/students', label: 'Сотрудники', icon: '👥', flag: 'manager_cabinet' },
+    { href: '/manager/messages', label: 'Сообщения', icon: '💬', flag: 'manager_cabinet' },
+    { href: '/manager/team', label: 'Команда', icon: '⚙', flag: 'manager_cabinet', leaderOnly: true }
   ],
   partner: [
-    { href: '/partner/dashboard', label: 'Дашборд' },
+    { href: '/partner/dashboard', label: 'Главная' },
     { href: '/partner/portfolio', label: 'Портфель' },
-    { href: '/partner/deals', label: 'Сделки' },
+    { href: '/partner/deals', label: 'Заказы' },
     { href: '/partner/leads', label: 'Заявки', flag: 'partner_leads' },
     { href: '/partner/documents', label: 'Документы' },
     { href: '/partner/finance', label: 'Финансы' },

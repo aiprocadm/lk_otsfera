@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { ManagerSidebar } from './manager-sidebar';
 import { LogoutButton } from '@/components/ui';
+import { navItemsFor } from '@/lib/navigation/cabinet';
+import { isManagerLeader } from '@/lib/auth/managerPolicy';
 
 export function ManagerAppShell(props: {
   session: SessionPayload;
@@ -10,7 +12,7 @@ export function ManagerAppShell(props: {
   const userEmail = props.session.email ?? null;
   return (
     <div className='flex min-h-screen bg-gray-50'>
-      <ManagerSidebar />
+      <ManagerSidebar items={navItemsFor('manager', { isManagerLeader: isManagerLeader(props.session) })} />
       <div className='flex-1 flex flex-col'>
         <header className='bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between'>
           <div className='text-sm text-gray-700 truncate'>
