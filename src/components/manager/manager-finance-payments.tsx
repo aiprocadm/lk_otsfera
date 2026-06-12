@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import type { OrgPaymentRow } from '@/lib/services/organization/finance';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
+import { paymentMethodRu } from '@/lib/i18n/labels';
 
 function fmtMoney(val: string): string {
   const n = Number(val);
@@ -38,7 +39,7 @@ export function ManagerFinancePayments({ payments }: { payments: OrgPaymentRow[]
               )}
             </Td>
             <Td className='text-gray-600'>
-              {p.isRefund ? <span className='text-red-600'>Возврат</span> : (p.method ?? '—')}
+              {p.isRefund ? <span className='text-red-600'>Возврат</span> : paymentMethodRu(p.method)}
             </Td>
             <Td className={`text-right font-medium ${p.isRefund ? 'text-red-600' : 'text-gray-800'}`}>
               {p.isRefund ? '−' : ''}
