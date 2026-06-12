@@ -1,3 +1,9 @@
+/**
+ * Блок «Комиссия посредника». С 2026-06 НЕ показывается в кабинете организации
+ * (правило видимости: комиссию видят только партнёр/руководитель/админ — см.
+ * spec 2026-06-11-ui-repair §4). Компонент жив, потому что его рендерит
+ * менеджерско-админская витрина (manager-finance-view).
+ */
 import React from 'react';
 import type { OrgIntermediaryCommission } from '@/lib/services/organization/finance';
 import { THead, Th, Tr, Td } from '@/components/ui';
