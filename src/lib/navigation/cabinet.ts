@@ -14,9 +14,12 @@ export type NavItem = {
   orgAdminOrLeaderOnly?: boolean;
   /** Секция админского сайдбара («Платформа» / «Операции» / «Справочники»). Прочие шеллы игнорируют. */
   group?: string;
+  /** Скрыть пункт, когда флаг ВКЛЮЧЁН (обратный гейт: «Команда» менеджера уезжает в /leader). */
+  hiddenWhenFlag?: FeatureFlag;
 };
 
-export const navByRole: Record<Role, NavItem[]> = {
+// 'leader' — НЕ новая JWT-роль (это manager + managerRole='leader'); ключ существует только в каноне меню.
+export const navByRole: Record<Role | 'leader', NavItem[]> = {
   // /admin/orders намеренно НЕ в меню: это deprecated-redirect на дашборд (реальна только деталь /admin/orders/[id]).
   admin: [
     { href: '/admin/dashboard', label: 'Главная', icon: '⌂', group: 'Платформа' },
@@ -41,7 +44,21 @@ export const navByRole: Record<Role, NavItem[]> = {
     { href: '/manager/documents', label: 'Документы', icon: '📄', flag: 'manager_cabinet' },
     { href: '/manager/students', label: 'Сотрудники', icon: '👥', flag: 'manager_cabinet' },
     { href: '/manager/messages', label: 'Сообщения', icon: '💬', flag: 'manager_cabinet' },
-    { href: '/manager/team', label: 'Команда', icon: '⚙', flag: 'manager_cabinet', leaderOnly: true }
+    { href: '/manager/team', label: 'Команда', icon: '⚙', flag: 'manager_cabinet', leaderOnly: true, hiddenWhenFlag: 'leader_cabinet' },
+    { href: '/leader/dashboard', label: 'Кабинет руководителя', icon: '⚙', flag: 'leader_cabinet', leaderOnly: true }
+  ],
+  // Пункты leader-меню намеренно БЕЗ flag: внутрь пускает middleware+layout;
+  // флаг на каждом пункте дал бы пустой сайдбар при выключении.
+  leader: [
+    { href: '/leader/dashboard', label: 'Сводка', icon: '⌂' },
+    { href: '/leader/team', label: 'Команда', icon: '⚙' },
+    { href: '/leader/finance', label: 'Финансы', icon: '₽' },
+    { href: '/leader/orders', label: 'Заказы', icon: '📋' },
+    { href: '/leader/organizations', label: 'Организации', icon: '🏢' },
+    // Личный inbox (комментарии+чат) живёт в кабинете менеджера — см. план, «Отклонение от спеки».
+    { href: '/manager/messages', label: 'Сообщения', icon: '💬' },
+    // Переключатель «играющего тренера» в личный кабинет менеджера.
+    { href: '/manager/dashboard', label: 'Мои заказы', icon: '↩' }
   ],
   partner: [
     { href: '/partner/dashboard', label: 'Главная' },
@@ -79,13 +96,14 @@ export const navByRole: Record<Role, NavItem[]> = {
  * shape; `navItemsFor` is what the app shell renders.
  */
 export function navItemsFor(
-  role: Role,
+  role: Role | 'leader',
   opts?: { isManagerLeader?: boolean; isPartnerAdmin?: boolean }
 ): NavItem[] {
   return navByRole[role].filter((item) => {
     if (item.flag && !isFeatureEnabled(item.flag)) return false;
     if (item.leaderOnly && !opts?.isManagerLeader) return false;
     if (item.partnerAdminOnly && !opts?.isPartnerAdmin) return false;
+    if (item.hiddenWhenFlag && isFeatureEnabled(item.hiddenWhenFlag)) return false;
     return true;
   });
 }

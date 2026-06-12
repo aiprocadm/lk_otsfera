@@ -7,6 +7,7 @@ const ORIGINAL_ENV = { ...process.env };
 beforeEach(() => {
   process.env = { ...ORIGINAL_ENV };
   delete process.env.FEATURE_MANAGER_CABINET;
+  delete process.env.FEATURE_LEADER_CABINET;
 });
 
 afterEach(() => {
@@ -66,7 +67,7 @@ describe('manager_cabinet (opt-in flag)', () => {
 });
 
 describe('navByRole.manager — feature-flag gated', () => {
-  it('lists all nine manager cabinet items in the raw nav (including leader-only Команда)', () => {
+  it('lists all ten manager cabinet items in the raw nav (including leader-only Команда + вход в /leader)', () => {
     expect(navByRole.manager.map((i) => i.href)).toEqual([
       '/manager/dashboard',
       '/manager/orders',
@@ -76,12 +77,16 @@ describe('navByRole.manager — feature-flag gated', () => {
       '/manager/documents',
       '/manager/students',
       '/manager/messages',
-      '/manager/team'
+      '/manager/team',
+      '/leader/dashboard'
     ]);
   });
 
-  it('every manager item carries flag=manager_cabinet (so they hide together)', () => {
-    expect(navByRole.manager.every((i) => i.flag === 'manager_cabinet')).toBe(true);
+  it('every manager item carries flag=manager_cabinet (so they hide together), кроме входа в /leader (leader_cabinet)', () => {
+    const ownItems = navByRole.manager.filter((i) => i.href.startsWith('/manager/'));
+    expect(ownItems.every((i) => i.flag === 'manager_cabinet')).toBe(true);
+    const leaderEntry = navByRole.manager.find((i) => i.href === '/leader/dashboard');
+    expect(leaderEntry?.flag).toBe('leader_cabinet');
   });
 
   it('navItemsFor("manager") returns [] when the flag is off (default)', () => {
