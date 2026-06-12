@@ -16,6 +16,7 @@ describe('paymentMethodRu', () => {
   it('переводит известные коды', () => {
     expect(paymentMethodRu('wire')).toBe('Банковский перевод');
     expect(paymentMethodRu('card')).toBe('Карта');
+    expect(paymentMethodRu('cash')).toBe('Наличные');
   });
   it('null/undefined -> —', () => {
     expect(paymentMethodRu(null)).toBe('—');

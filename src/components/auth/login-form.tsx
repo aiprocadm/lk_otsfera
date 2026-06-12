@@ -27,8 +27,9 @@ export function LoginForm({ demoLogins }: { demoLogins?: DemoLogin[] }) {
       if (res.ok) {
         router.push('/dashboard');
       } else {
-        const data = await res.json().catch(() => ({} as { code?: string }));
-        setError(errorMessageRu((data.code ?? '').toLowerCase(), 'Неверный email или пароль.'));
+        const data: unknown = await res.json().catch(() => ({}));
+        const code = typeof (data as { code?: unknown })?.code === 'string' ? (data as { code: string }).code : '';
+        setError(errorMessageRu(code.toLowerCase(), 'Неверный email или пароль.'));
       }
     } catch {
       setError('Ошибка сети. Попробуйте ещё раз.');
