@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth/session';
 import { navItemsFor } from '@/lib/navigation/cabinet';
 import { isManagerLeader } from '@/lib/auth/managerPolicy';
+import { LogoutButton } from '@/components/ui';
 
 const roleLabel: Record<string, string> = {
   admin: 'Администратор',
@@ -29,14 +30,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             <div className='text-xs text-gray-400'>{roleLabel[session.role] ?? session.role}</div>
             <div className='text-sm font-medium'>{session.name}</div>
           </div>
-          <form action='/api/auth/logout' method='POST'>
-            <button
-              type='submit'
-              className='text-xs text-gray-400 hover:text-[#F97316] transition-colors px-2 py-1 border border-gray-700 rounded hover:border-[#F97316]'
-            >
-              Выйти
-            </button>
-          </form>
+          <LogoutButton className='text-xs text-gray-400 hover:text-[#F97316] transition-colors px-2 py-1 border border-gray-700 rounded hover:border-[#F97316] disabled:opacity-60' />
         </div>
       </header>
 
