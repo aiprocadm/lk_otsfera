@@ -49,6 +49,14 @@ describe('upsertOrderRecord', () => {
     expect(sum.skipped).toBe(1);
     expect(sum.skips[0]).toMatchObject({ reason: 'organization_not_found' });
   });
+  it('resolves org by INN when organizationExternalId is absent', async () => {
+    resolveOrganizationRef.mockResolvedValue({ id:'o', companyId:'c', partnerId:null, externalId:'X' });
+    const d = db(); const sum = emptySummary();
+    const innDto = { externalId:'O-INN', title:'t', organizationInn:'7700', totalAmount:100, paidAmount:100, vatIncluded:true, executionStatus:'pending', financialStatus:'paid', productMix:[], updatedAt:'2026-04-01T00:00:00Z' } as any;
+    await upsertOrderRecord(d, innDto, sum, { mode:'live', notify:false });
+    expect(resolveOrganizationRef).toHaveBeenCalledWith(d, expect.objectContaining({ inn:'7700' }));
+    expect(sum.created).toBe(1);
+  });
   it('notify=false suppresses status-change notification on update', async () => {
     resolveOrganizationRef.mockResolvedValue({ id: 'o', companyId: 'c', partnerId: null, externalId: 'E-ORG' });
     const d = db();

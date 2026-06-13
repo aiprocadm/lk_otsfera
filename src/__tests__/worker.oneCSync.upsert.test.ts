@@ -317,7 +317,7 @@ describe('syncOrdersProcessor', () => {
     );
     const orderByExt = new Map(orders.map((o) => [o.externalId, o.organizationId]));
     for (const fakeOrder of FAKE_ORDERS) {
-      const expectedOrgId = orgByExt.get(fakeOrder.organizationExternalId);
+      const expectedOrgId = orgByExt.get(fakeOrder.organizationExternalId!);
       expect(orderByExt.get(fakeOrder.externalId)).toBe(expectedOrgId);
     }
   });

@@ -17,7 +17,7 @@ export function orgInScope(scope: ImportScope | undefined, orgId: string): boole
 
 export async function upsertOrderRecord(db: PrismaClient, dto: OneCOrderDto, sum: BatchSummary, ctx: WriteCtx) {
   const input = mapOrderDto(dto);
-  const org = await resolveOrganizationRef(db, { externalId: input.organizationExternalId });
+  const org = await resolveOrganizationRef(db, { externalId: input.organizationExternalId, inn: input.organizationInn });
   if (!org || !org.companyId) {
     sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'organization_not_found' }); return;
   }
@@ -72,7 +72,7 @@ export async function upsertPaymentRecord(db: PrismaClient, dto: OneCPaymentDto,
     }
     orderId = order.id; organizationId = order.organizationId;
   } else {
-    const org = await resolveOrganizationRef(db, { externalId: input.organizationExternalId });
+    const org = await resolveOrganizationRef(db, { externalId: input.organizationExternalId, inn: input.organizationInn });
     if (!org) { sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'organization_not_found' }); return; }
     if (!orgInScope(ctx.scope, org.id)) { sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'out_of_scope' }); return; }
     organizationId = org.id;

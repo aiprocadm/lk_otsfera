@@ -45,4 +45,11 @@ describe('oneCSync zod schemas', () => {
   it('payment rejects when neither order nor org ref present', () => {
     expect(OneCPaymentSchema.safeParse({ externalId:'P3', amount:100, paidAt:'2026-04-01T00:00:00Z', isRefund:false, updatedAt:'2026-04-01T00:00:00Z' }).success).toBe(false);
   });
+
+  it('order accepts organizationInn instead of organizationExternalId', () => {
+    expect(OneCOrderSchema.safeParse({ externalId:'O9', title:'t', organizationInn:'7700', totalAmount:1, paidAmount:0, vatIncluded:true, executionStatus:'pending', financialStatus:'billed', productMix:[], updatedAt:'2026-04-01T00:00:00Z' }).success).toBe(true);
+  });
+  it('order rejects when neither org key present', () => {
+    expect(OneCOrderSchema.safeParse({ externalId:'O9', title:'t', totalAmount:1, paidAmount:0, vatIncluded:true, executionStatus:'pending', financialStatus:'billed', productMix:[], updatedAt:'2026-04-01T00:00:00Z' }).success).toBe(false);
+  });
 });
