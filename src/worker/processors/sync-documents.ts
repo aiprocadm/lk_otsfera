@@ -5,12 +5,11 @@ import type { SyncJobPayload } from '@/lib/jobs/types';
 import { getOneCAdapter } from '@/lib/services/oneCSync';
 import { OneCDocumentSchema } from '@/lib/services/oneCSync/schemas';
 import type { OneCDocumentDto } from '@/lib/services/oneCSync/dto';
-import { mapDocumentDto } from '@/lib/services/oneCSync/mappers';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { getCursor, advanceCursor, markCursorError } from '@/lib/services/oneCSync/cursor';
 import { runRecordBatch, batchStatus, type BatchSummary } from '@/lib/services/oneCSync/record-batch';
 import { oneCMode } from '@/lib/services/oneCSync/config';
-import { notifyOrgUsers } from '@/lib/notifications';
+import { upsertDocumentRecord } from '@/lib/services/oneCSync/writers';
 
 export type SyncDocumentsResult = BatchSummary;
 
@@ -37,48 +36,7 @@ export async function syncDocumentsProcessor(
       raw,
       OneCDocumentSchema,
       (dto) => dto.externalId,
-      async (dto, sum) => {
-        const input = mapDocumentDto(dto);
-        const order = await db.order.findUnique({
-          where: { externalId: input.orderExternalId },
-          select: { id: true, organizationId: true, orderNumber: true, title: true }
-        });
-        if (!order) {
-          sum.skipped += 1;
-          sum.skips.push({ externalId: input.externalId, reason: 'order_not_found' });
-          return;
-        }
-        const existing = await db.document.findUnique({ where: { externalId: input.externalId }, select: { id: true } });
-        const updatable = {
-          name: input.name, path: input.downloadUrl, mimeType: input.mimeType,
-          size: input.size, type: input.type, signedAt: input.signedAt
-        };
-
-        if (existing) {
-          if (mode === 'live') await db.document.update({ where: { id: existing.id }, data: updatable });
-          sum.updated += 1;
-          bump(dto.updatedAt);
-        } else {
-          if (mode === 'live') {
-            await db.document.create({
-              data: { ...updatable, externalId: input.externalId, orderId: order.id, direction: 'incoming', generatedBy: 'system', counterpartyType: 'organization', counterpartyId: order.organizationId }
-            });
-          }
-          sum.created += 1;
-          bump(dto.updatedAt);
-
-          if (mode === 'live' && order.organizationId) {
-            await notifyOrgUsers(db, {
-              organizationId: order.organizationId,
-              type: 'document_published',
-              payload: {
-                orderId: order.id, orderNumber: order.orderNumber, orderTitle: order.title,
-                documentName: input.name, documentType: input.type
-              }
-            });
-          }
-        }
-      }
+      (dto, sum) => upsertDocumentRecord(db, dto, sum, { mode, notify: true, bump })
     );
 
     if (mode === 'live') await advanceCursor(db, 'document', maxUpdatedAt);

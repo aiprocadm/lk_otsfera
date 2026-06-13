@@ -4,7 +4,7 @@ const { notifyOrgUsers, notifyManagers } = vi.hoisted(() => ({ notifyOrgUsers: v
 vi.mock('@/lib/services/oneCSync/resolve-org', () => ({ resolveOrganizationRef }));
 vi.mock('@/lib/notifications', () => ({ notifyOrgUsers, notifyManagers }));
 
-import { upsertOrderRecord, upsertPaymentRecord } from '@/lib/services/oneCSync/writers';
+import { upsertOrderRecord, upsertPaymentRecord, upsertOrgRecord, upsertDocumentRecord } from '@/lib/services/oneCSync/writers';
 import { emptySummary } from '@/lib/services/oneCSync/record-batch';
 
 const baseDto = {
@@ -66,6 +66,69 @@ describe('upsertOrderRecord', () => {
     expect(d.order.update).toHaveBeenCalled();
     expect(notifyOrgUsers).not.toHaveBeenCalled();
     expect(sum.updated).toBe(1);
+  });
+});
+
+describe('upsertOrgRecord', () => {
+  const orgDto = { externalId:'ORG-1', name:'Acme', inn:'77', kpp:'01', partnerExternalId:'acme-partner', updatedAt:'2026-04-01T00:00:00Z' } as any;
+  function odb(over = {}) {
+    return {
+      partner: { findUnique: vi.fn().mockResolvedValue({ id:'p1' }) },
+      organization: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
+      $transaction: vi.fn(async (cb:any) => cb({ company:{ create: vi.fn().mockResolvedValue({ id:'co1' }) }, organization:{ create: vi.fn() } })),
+      ...over,
+    } as any;
+  }
+  it('creates company+org for a new org with a resolvable partner (live)', async () => {
+    const d = odb(); const sum = emptySummary();
+    await upsertOrgRecord(d, orgDto, sum, { mode:'live', notify:false });
+    expect(d.$transaction).toHaveBeenCalled();
+    expect(sum.created).toBe(1);
+  });
+  it('skips when partner not found', async () => {
+    const d = odb({ partner:{ findUnique: vi.fn().mockResolvedValue(null) } }); const sum = emptySummary();
+    await upsertOrgRecord(d, orgDto, sum, { mode:'live', notify:false });
+    expect(sum.skipped).toBe(1);
+    expect(sum.skips[0]).toMatchObject({ reason:'partner_not_found' });
+    expect(d.$transaction).not.toHaveBeenCalled();
+  });
+  it('updates existing org (live), shadow writes nothing', async () => {
+    const d = odb({ organization:{ findUnique: vi.fn().mockResolvedValue({ id:'o1', companyId:'co1' }), update: vi.fn() } });
+    const sum = emptySummary();
+    await upsertOrgRecord(d, orgDto, sum, { mode:'live', notify:false });
+    expect(d.organization.update).toHaveBeenCalled(); expect(sum.updated).toBe(1);
+    const d2 = odb({ organization:{ findUnique: vi.fn().mockResolvedValue({ id:'o1', companyId:'co1' }), update: vi.fn() } });
+    const sum2 = emptySummary();
+    await upsertOrgRecord(d2, orgDto, sum2, { mode:'shadow', notify:false });
+    expect(d2.organization.update).not.toHaveBeenCalled(); expect(sum2.updated).toBe(1);
+  });
+});
+
+describe('upsertDocumentRecord', () => {
+  const docDto = { externalId:'D-1', orderExternalId:'O-1', type:'contract', name:'Договор', mimeType:'application/pdf', size:10, downloadUrl:'https://1c/d1', updatedAt:'2026-04-01T00:00:00Z' } as any;
+  function ddb(over = {}) {
+    return {
+      order: { findUnique: vi.fn().mockResolvedValue({ id:'ord1', organizationId:'o1', orderNumber:'O-1', title:'t' }) },
+      document: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(), update: vi.fn() },
+      ...over,
+    } as any;
+  }
+  it('creates a document for a found order and notifies when notify:true', async () => {
+    const d = ddb(); const sum = emptySummary();
+    await upsertDocumentRecord(d, docDto, sum, { mode:'live', notify:true });
+    expect(d.document.create).toHaveBeenCalledWith({ data: expect.objectContaining({ externalId:'D-1', orderId:'ord1', counterpartyType:'organization', counterpartyId:'o1', direction:'incoming', generatedBy:'system' }) });
+    expect(notifyOrgUsers).toHaveBeenCalled();
+    expect(sum.created).toBe(1);
+  });
+  it('skips when order not found', async () => {
+    const d = ddb({ order:{ findUnique: vi.fn().mockResolvedValue(null) } }); const sum = emptySummary();
+    await upsertDocumentRecord(d, docDto, sum, { mode:'live', notify:true });
+    expect(sum.skipped).toBe(1); expect(sum.skips[0]).toMatchObject({ reason:'order_not_found' });
+  });
+  it('notify:false suppresses document_published', async () => {
+    const d = ddb(); const sum = emptySummary();
+    await upsertDocumentRecord(d, docDto, sum, { mode:'live', notify:false });
+    expect(notifyOrgUsers).not.toHaveBeenCalled(); expect(sum.created).toBe(1);
   });
 });
 

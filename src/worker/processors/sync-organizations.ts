@@ -5,19 +5,13 @@ import type { SyncJobPayload } from '@/lib/jobs/types';
 import { getOneCAdapter } from '@/lib/services/oneCSync';
 import { OneCOrgSchema } from '@/lib/services/oneCSync/schemas';
 import type { OneCOrgDto } from '@/lib/services/oneCSync/dto';
-import { mapOrgDto } from '@/lib/services/oneCSync/mappers';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { getCursor, advanceCursor, markCursorError } from '@/lib/services/oneCSync/cursor';
 import { runRecordBatch, batchStatus, type BatchSummary } from '@/lib/services/oneCSync/record-batch';
 import { oneCMode } from '@/lib/services/oneCSync/config';
+import { upsertOrgRecord } from '@/lib/services/oneCSync/writers';
 
 export type SyncOrganizationsResult = BatchSummary;
-
-async function resolvePartnerId(db: PrismaClient, partnerExternalId: string | null): Promise<string | null> {
-  if (!partnerExternalId) return null;
-  const partner = await db.partner.findUnique({ where: { slug: partnerExternalId }, select: { id: true } });
-  return partner?.id ?? null;
-}
 
 export async function syncOrganizationsProcessor(
   job: Job<SyncJobPayload>,
@@ -42,44 +36,7 @@ export async function syncOrganizationsProcessor(
       raw,
       OneCOrgSchema,
       (dto) => dto.externalId,
-      async (dto, sum) => {
-        const input = mapOrgDto(dto);
-        const partnerId = await resolvePartnerId(db, input.partnerExternalId);
-        if (!partnerId) {
-          sum.skipped += 1;
-          sum.skips.push({
-            externalId: input.externalId,
-            reason: input.partnerExternalId ? 'partner_not_found' : 'no_partner_external_id'
-          });
-          return;
-        }
-        const existing = await db.organization.findUnique({
-          where: { externalId: input.externalId },
-          select: { id: true, companyId: true }
-        });
-
-        if (existing) {
-          if (mode === 'live') {
-            await db.organization.update({
-              where: { id: existing.id },
-              data: { name: input.name, inn: input.inn, kpp: input.kpp }
-            });
-          }
-          sum.updated += 1;
-          bump(dto.updatedAt);
-        } else {
-          if (mode === 'live') {
-            await db.$transaction(async (tx) => {
-              const company = await tx.company.create({ data: { name: input.name } });
-              await tx.organization.create({
-                data: { externalId: input.externalId, name: input.name, inn: input.inn, kpp: input.kpp, partnerId, companyId: company.id }
-              });
-            });
-          }
-          sum.created += 1;
-          bump(dto.updatedAt);
-        }
-      }
+      (dto, sum) => upsertOrgRecord(db, dto, sum, { mode, notify: true, bump })
     );
 
     if (mode === 'live') await advanceCursor(db, 'organization', maxUpdatedAt);

@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
-import type { OneCOrderDto, OneCPaymentDto } from './dto';
-import { mapOrderDto, mapPaymentDto } from './mappers';
+import type { OneCOrderDto, OneCPaymentDto, OneCOrgDto, OneCDocumentDto } from './dto';
+import { mapOrderDto, mapPaymentDto, mapOrgDto, mapDocumentDto } from './mappers';
 import { resolveOrganizationRef } from './resolve-org';
 import type { BatchSummary } from './record-batch';
 import type { OneCMode } from './config';
@@ -96,6 +96,53 @@ export async function upsertPaymentRecord(db: PrismaClient, dto: OneCPaymentDto,
     if (ctx.notify && isLive(ctx) && order && !input.isRefund) {
       try { await notifyManagers(db, { orderId: order.id, type: 'order_marked_paid_by_1c', payload: { amount: Number(input.amount), paidAt: input.paidAt } }); }
       catch (err) { console.warn('[1c] payment notifyManagers failed', err); }
+    }
+  }
+}
+
+export async function upsertOrgRecord(db: PrismaClient, dto: OneCOrgDto, sum: BatchSummary, ctx: WriteCtx) {
+  const input = mapOrgDto(dto);
+  const partner = input.partnerExternalId
+    ? await db.partner.findUnique({ where: { slug: input.partnerExternalId }, select: { id: true } })
+    : null;
+  const partnerId = partner?.id ?? null;
+  if (!partnerId) {
+    sum.skipped += 1;
+    sum.skips.push({ externalId: input.externalId, reason: input.partnerExternalId ? 'partner_not_found' : 'no_partner_external_id' });
+    return;
+  }
+  const existing = await db.organization.findUnique({ where: { externalId: input.externalId }, select: { id: true, companyId: true } });
+  if (existing) {
+    if (isLive(ctx)) await db.organization.update({ where: { id: existing.id }, data: { name: input.name, inn: input.inn, kpp: input.kpp } });
+    sum.updated += 1; ctx.bump?.(dto.updatedAt);
+  } else {
+    if (isLive(ctx)) {
+      await db.$transaction(async (tx) => {
+        const company = await tx.company.create({ data: { name: input.name } });
+        await tx.organization.create({ data: { externalId: input.externalId, name: input.name, inn: input.inn, kpp: input.kpp, partnerId, companyId: company.id } });
+      });
+    }
+    sum.created += 1; ctx.bump?.(dto.updatedAt);
+  }
+}
+
+export async function upsertDocumentRecord(db: PrismaClient, dto: OneCDocumentDto, sum: BatchSummary, ctx: WriteCtx) {
+  const input = mapDocumentDto(dto);
+  const order = await db.order.findUnique({ where: { externalId: input.orderExternalId }, select: { id: true, organizationId: true, orderNumber: true, title: true } });
+  if (!order) { sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'order_not_found' }); return; }
+  const existing = await db.document.findUnique({ where: { externalId: input.externalId }, select: { id: true } });
+  const updatable = { name: input.name, path: input.downloadUrl, mimeType: input.mimeType, size: input.size, type: input.type, signedAt: input.signedAt };
+  if (existing) {
+    if (isLive(ctx)) await db.document.update({ where: { id: existing.id }, data: updatable });
+    sum.updated += 1; ctx.bump?.(dto.updatedAt);
+  } else {
+    if (isLive(ctx)) {
+      await db.document.create({ data: { ...updatable, externalId: input.externalId, orderId: order.id, direction: 'incoming', generatedBy: 'system', counterpartyType: 'organization', counterpartyId: order.organizationId } });
+    }
+    sum.created += 1; ctx.bump?.(dto.updatedAt);
+    if (ctx.notify && isLive(ctx) && order.organizationId) {
+      await notifyOrgUsers(db, { organizationId: order.organizationId, type: 'document_published', payload: {
+        orderId: order.id, orderNumber: order.orderNumber, orderTitle: order.title, documentName: input.name, documentType: input.type } });
     }
   }
 }
