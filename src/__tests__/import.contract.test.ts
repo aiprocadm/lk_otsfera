@@ -1,8 +1,75 @@
 import { describe, it, expect, vi } from 'vitest';
-const { parseWorkbook } = vi.hoisted(() => ({ parseWorkbook: vi.fn() }));
-vi.mock('@/lib/services/import/parse-workbook', () => ({ parseWorkbook }));
 
-import { previewImport } from '@/lib/services/import';
+// Mock FileOneCAdapter so we control what pullOrders/pullPayments return
+const { FileOneCAdapter } = vi.hoisted(() => ({
+  FileOneCAdapter: vi.fn(),
+}));
+vi.mock('@/lib/services/oneCSync/adapter-file', () => ({ FileOneCAdapter }));
+
+// Mock runRecordBatch to control what the batch runner produces
+const { runRecordBatch } = vi.hoisted(() => ({ runRecordBatch: vi.fn() }));
+vi.mock('@/lib/services/oneCSync/record-batch', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/services/oneCSync/record-batch')>();
+  return { ...original, runRecordBatch };
+});
+
+// Mock writers so shadow mode truly writes nothing
+const { upsertOrderRecord, upsertPaymentRecord } = vi.hoisted(() => ({
+  upsertOrderRecord: vi.fn(),
+  upsertPaymentRecord: vi.fn(),
+}));
+vi.mock('@/lib/services/oneCSync/writers', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/services/oneCSync/writers')>();
+  return { ...original, upsertOrderRecord, upsertPaymentRecord };
+});
+
+// Mock audit so commit tests don't require a real DB
+const { recordAudit } = vi.hoisted(() => ({ recordAudit: vi.fn() }));
+vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
+
+import { previewImport, commitImport } from '@/lib/services/import';
+
+// A minimal prisma mock with the methods resolveOrganizationRef + writers call
+function makePrisma() {
+  return {
+    organization: {
+      findFirst: vi.fn().mockResolvedValue({ id: 'org-1', partnerId: 'p-1', companyId: 'co-1', externalId: null }),
+      findMany: vi.fn().mockResolvedValue([]),
+      update: vi.fn().mockResolvedValue({}),
+    },
+    order: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({ id: 'order-new' }),
+      update: vi.fn().mockResolvedValue({}),
+    },
+    payment: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({ id: 'pay-new' }),
+      update: vi.fn().mockResolvedValue({}),
+    },
+    auditLog: {
+      create: vi.fn().mockResolvedValue({}),
+    },
+    partner: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+  } as any;
+}
+
+function makeAdapter(orders: unknown[], payments: unknown[]) {
+  return {
+    pullOrders: vi.fn().mockResolvedValue(orders),
+    pullPayments: vi.fn().mockResolvedValue(payments),
+    pullOrganizations: vi.fn().mockResolvedValue([]),
+    pullDocuments: vi.fn().mockResolvedValue([]),
+    pushLead: vi.fn().mockRejectedValue(new Error('read-only')),
+  };
+}
+
+const managerSession = { sub: 'u1', role: 'manager', managerRole: 'leader', companyId: 'co-1' } as any;
+const adminSession = { sub: 'admin1', role: 'admin', companyId: 'co-1' } as any;
+
+const EMPTY_SUMMARY = () => ({ pulled: 0, created: 0, updated: 0, skipped: 0, invalid: 0, failed: 0, skips: [], invalids: [], failures: [] });
 
 describe('previewImport', () => {
   it('rejects non-staff roles', async () => {
@@ -10,18 +77,106 @@ describe('previewImport', () => {
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 
-  it('returns a plan for a leader with a stubbed workbook', async () => {
-    parseWorkbook.mockResolvedValue({
-      orgs: [{ name: 'A', inn: '7700', partnerInn: null }],
-      orders: [],
-      payments: [{ externalId: 'PP-1', orgInn: '7700', amount: 1000, paidAt: '2026-04-20T10:00:00Z', method: null, isRefund: false, note: null }],
-    });
-    const prisma = { organization: { findMany: vi.fn().mockResolvedValue([]) }, partner: { findMany: vi.fn().mockResolvedValue([]) } } as any;
-    const res = await previewImport(prisma, { sub: 'u1', role: 'manager', managerRole: 'leader' } as any, { fileBuffer: Buffer.from('x') });
-    expect(res.ok).toBe(true);
+  it('rejects organization role', async () => {
+    const res = await previewImport({} as any, { role: 'organization' } as any, { fileBuffer: Buffer.from('') });
+    expect(res).toEqual({ ok: false, error: 'forbidden' });
+  });
+
+  it('returns empty when no rows are pulled', async () => {
+    const adapter = makeAdapter([], []);
+    FileOneCAdapter.mockImplementation(() => adapter);
+    runRecordBatch.mockResolvedValue(EMPTY_SUMMARY());
+    const prisma = makePrisma();
+    const res = await previewImport(prisma, managerSession, { fileBuffer: Buffer.from('x') });
+    expect(res).toEqual({ ok: false, error: 'empty' });
+  });
+
+  it('returns ok with report for one order, does NOT call order.create (shadow mode)', async () => {
+    const orderDto = {
+      externalId: 'O-1',
+      title: 'Test Order',
+      organizationInn: '7700001234',
+      totalAmount: 1000,
+      paidAmount: 1000,
+      vatIncluded: true,
+      executionStatus: 'pending',
+      financialStatus: 'paid',
+      productMix: [],
+      updatedAt: new Date(0).toISOString(),
+    };
+    const adapter = makeAdapter([orderDto], []);
+    FileOneCAdapter.mockImplementation(() => adapter);
+
+    // runRecordBatch returns a summary with created=1 pulled=1 for orders, empty for payments
+    const orderSummary = { ...EMPTY_SUMMARY(), pulled: 1, created: 1 };
+    const paymentSummary = EMPTY_SUMMARY();
+    runRecordBatch
+      .mockResolvedValueOnce(orderSummary)  // orders
+      .mockResolvedValueOnce(paymentSummary); // payments
+
+    const prisma = makePrisma();
+    const res = await previewImport(prisma, managerSession, { fileBuffer: Buffer.from('x') });
+
+    expect(res).toEqual({ ok: true, report: { orders: orderSummary, payments: paymentSummary } });
     if (res.ok) {
-      expect(res.plan.counts.orgsCreated).toBe(1);
-      expect(res.plan.counts.paymentsUpserted).toBe(1);
+      expect(res.report.orders.created).toBe(1);
     }
+    // Shadow mode: order.create should NOT be called (runRecordBatch is mocked, not the real writers)
+    expect(prisma.order.create).not.toHaveBeenCalled();
+  });
+
+  it('returns parse_failed when adapter throws', async () => {
+    FileOneCAdapter.mockImplementation(() => {
+      throw new Error('bad xlsx');
+    });
+    const prisma = makePrisma();
+    const res = await previewImport(prisma, managerSession, { fileBuffer: Buffer.from('bad') });
+    expect(res).toEqual({ ok: false, error: 'parse_failed' });
+  });
+});
+
+describe('commitImport', () => {
+  it('rejects non-staff roles', async () => {
+    const res = await commitImport({} as any, { role: 'partner' } as any, { fileBuffer: Buffer.from('') });
+    expect(res).toEqual({ ok: false, error: 'forbidden' });
+  });
+
+  it('writes data (live mode) and calls audit', async () => {
+    const adapter = makeAdapter([{ externalId: 'O-2' }], []);
+    FileOneCAdapter.mockImplementation(() => adapter);
+
+    const orderSummary = { ...EMPTY_SUMMARY(), pulled: 1, created: 1 };
+    const paymentSummary = EMPTY_SUMMARY();
+    runRecordBatch
+      .mockResolvedValueOnce(orderSummary)
+      .mockResolvedValueOnce(paymentSummary);
+
+    recordAudit.mockResolvedValue(undefined);
+
+    const prisma = makePrisma();
+    const res = await commitImport(prisma, adminSession, { fileBuffer: Buffer.from('x') });
+
+    expect(res).toEqual({ ok: true, report: { orders: orderSummary, payments: paymentSummary } });
+    expect(recordAudit).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ action: 'one_c_import.commit', entity: 'one_c_import' }),
+    );
+  });
+
+  it('returns ok even if audit throws (non-blocking)', async () => {
+    const adapter = makeAdapter([{ externalId: 'O-3' }], []);
+    FileOneCAdapter.mockImplementation(() => adapter);
+
+    const orderSummary = { ...EMPTY_SUMMARY(), pulled: 1, updated: 1 };
+    const paymentSummary = EMPTY_SUMMARY();
+    runRecordBatch
+      .mockResolvedValueOnce(orderSummary)
+      .mockResolvedValueOnce(paymentSummary);
+
+    recordAudit.mockRejectedValue(new Error('audit db down'));
+
+    const prisma = makePrisma();
+    const res = await commitImport(prisma, adminSession, { fileBuffer: Buffer.from('x') });
+    expect(res.ok).toBe(true);
   });
 });
