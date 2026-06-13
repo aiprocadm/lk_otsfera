@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getSession } from './session';
 import type { SessionPayload } from './jwt';
 import { prisma } from '@/lib/db/prisma';
-import { canSeeOrder, isOrgInScope, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import { canSeeOrder, isOrgInScope, getCompanyTeamVisibility, isLeaderSameCompany } from '@/lib/auth/managerPolicy';
 
 export async function requireSession(): Promise<SessionPayload> {
   const session = await getSession();
@@ -130,6 +130,14 @@ export async function requireManagerForOrder(
     select: { id: true, managerId: true, organizationId: true, companyId: true }
   });
   if (!order) notFound();
+
+  // Руководитель открывает любой заказ своей компании (лидер-инвариант C8:
+  // граница — компания). Личные СПИСКИ менеджера это не расширяет — только деталь.
+  // Cross-company держится `order.companyId === session.companyId`; при
+  // companyId=null правило не срабатывает → нормальный three-way (deny).
+  if (isLeaderSameCompany(session, order.companyId)) {
+    return { session, order };
+  }
 
   // Three-way visibility check (scoped mode only): managerId, org scope, or
   // historical comments. Company-wide mode skips straight to the companyId check.

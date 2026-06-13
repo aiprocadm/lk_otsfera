@@ -95,6 +95,15 @@ export function isManagerLeader(session: SessionPayload): boolean {
 }
 
 /**
+ * Лидер открывает любой заказ СВОЕЙ компании (инвариант C8: граница — компания).
+ * companyId=null у лидера → false (деградирует в обычный scoped-путь, не deny-all).
+ * Расширяет только деталь заказа, НЕ списки.
+ */
+export function isLeaderSameCompany(session: SessionPayload, orderCompanyId: string | null | undefined): boolean {
+  return isManagerLeader(session) && !!session.companyId && orderCompanyId === session.companyId;
+}
+
+/**
  * The single DB read of the live toggle. Returns false when companyId is absent
  * — so a null-company manager can never reach the company-wide branch and simply
  * keeps the scoped model (NOT denied-all). The lookup is an indexed single-column read; callers MAY memoize per request,

@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { managerOrderScope, canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import {
+  managerOrderScope,
+  canSeeOrder,
+  getCompanyTeamVisibility,
+  isLeaderSameCompany
+} from '@/lib/auth/managerPolicy';
 
 /**
  * Manager-facing orders service. All visibility is governed by the three-way
@@ -22,7 +27,10 @@ const ListOrdersOptionsSchema = z.object({
   financialStatus: z.string().optional(),
   organizationId: z.string().optional(),
   take: z.number().int().min(1).max(100).default(50),
-  cursor: z.string().optional()
+  cursor: z.string().optional(),
+  // Кабинет руководителя форсит company-wide независимо от toggle ("играющий
+  // тренер": личный /manager-кабинет лидера остаётся scoped, см. CLAUDE.md §4).
+  teamModeOverride: z.boolean().optional()
 });
 
 export type ListOrdersOptions = z.input<typeof ListOrdersOptionsSchema>;
@@ -44,7 +52,8 @@ export async function listOrders(
   optsRaw: ListOrdersOptions
 ): Promise<ListOrdersResult> {
   const opts = ListOrdersOptionsSchema.parse(optsRaw);
-  const teamMode = await getCompanyTeamVisibility(prisma, opts.session.companyId);
+  const teamMode =
+    opts.teamModeOverride ?? (await getCompanyTeamVisibility(prisma, opts.session.companyId));
   const scope = managerOrderScope(opts.session, teamMode);
   const filters: Prisma.OrderWhereInput[] = [scope];
   if (opts.executionStatus) {
@@ -111,7 +120,13 @@ export async function getOrder(
   if (!order) return null;
   const commentsCountByMe = order.comments.length;
   // `order` is a findUnique-with-include, so the scalar `companyId` is present.
-  if (!canSeeOrder(session, { ...order, commentsCountByMe }, teamMode)) return null;
+  // Руководитель открывает любую деталь заказа своей компании (лидер-инвариант
+  // C8: граница — компания). Cross-company держится `order.companyId === session.companyId`;
+  // при companyId=null правило не срабатывает → нормальный canSeeOrder (deny).
+  const leaderSameCompany = isLeaderSameCompany(session, order.companyId);
+  if (!leaderSameCompany && !canSeeOrder(session, { ...order, commentsCountByMe }, teamMode)) {
+    return null;
+  }
   // Strip the helper comments[] used only for the RBAC probe — the caller
   // gets the _count.comments aggregate plus the explicit commentsCountByMe.
   const { comments: _probe, ...rest } = order;

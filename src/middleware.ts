@@ -11,6 +11,7 @@ const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   { prefix: '/organization/messages', flag: 'chat' },
   { prefix: '/organization', flag: 'organization_cabinet' },
   { prefix: '/manager', flag: 'manager_cabinet' },
+  { prefix: '/leader', flag: 'leader_cabinet' },
 ];
 
 const MIN_JWT_SECRET_LENGTH = 32;
@@ -45,8 +46,14 @@ export async function middleware(req: NextRequest) {
     const { payload } = await jwtVerify(token, secret);
     const role = payload.role as Role;
 
+    // Руководитель менеджеров при включённом кабинете попадает в /leader.
+    // managerRole — контрактный claim JWT (C8); флаг проверяем здесь же,
+    // чтобы при выключенном leader_cabinet редирект вёл в обычный кабинет.
+    const isLeader = role === 'manager' && (payload as { managerRole?: string }).managerRole === 'leader';
+    const home = isLeader && isFeatureEnabled('leader_cabinet') ? '/leader/dashboard' : roleHome[role];
+
     if (isAuthPage) {
-      return NextResponse.redirect(new URL(roleHome[role], req.url));
+      return NextResponse.redirect(new URL(home, req.url));
     }
 
     for (const [prefix, allowedRoles] of Object.entries(protectedPrefixes)) {
@@ -67,7 +74,7 @@ export async function middleware(req: NextRequest) {
     }
 
     if (pathname === '/' || pathname === '/dashboard') {
-      return NextResponse.redirect(new URL(roleHome[role], req.url));
+      return NextResponse.redirect(new URL(home, req.url));
     }
 
     // Feature-flag gate: 404 for prefixes whose flag is disabled. Runs after

@@ -85,7 +85,7 @@ async function main() {
 
   const firstOrg = await prisma.organization.findFirst({
     where: { partnerId: partner.id, externalId: '1c-org-001' },
-    select: { id: true }
+    select: { id: true, companyId: true }
   });
   const managerScope = firstOrg ? [firstOrg.id] : [];
 
@@ -130,6 +130,13 @@ async function main() {
   if (!firstOrg) {
     throw new Error('[seed] expected firstOrg to be populated by sync-organizations — cannot attach demo commission order');
   }
+  if (!firstOrg.companyId) {
+    throw new Error('[seed] firstOrg has no companyId — leader/manager company-wide scope would be empty');
+  }
+  // Единая компания для заказов, менеджера и руководителя: синканные заказы и orgs
+  // живут в компании firstOrg (sync-organizations создаёт по компании на org), а
+  // company-wide выборки лидера фильтруют по этому companyId.
+  const demoCompanyId = firstOrg.companyId;
 
   await prisma.order.upsert({
     where: { id: 'demo-order-commission' },
@@ -139,7 +146,7 @@ async function main() {
       externalId: 'DEMO-COMM-001',
       orderNumber: 'DEMO-COMM-001',
       title: 'Демо-заказ для комиссии',
-      companyId: company.id,
+      companyId: demoCompanyId,
       partnerId: partner.id,
       organizationId: firstOrg.id,
       totalAmount: 100000,
@@ -200,15 +207,18 @@ async function main() {
   }
 
   // ─── Demo: manager user assigned to firstOrg (for e2e + manual smoke) ──
+  // companyId привязан к компании firstOrg — иначе менеджер не попадёт в ростер
+  // руководителя (listCompanyManagers фильтрует по User.companyId).
   if (firstOrg) {
     const managerUser = await prisma.user.upsert({
       where: { email: 'manager@demo.local' },
-      update: { role: 'manager', isActive: true, passwordHash, name: 'Demo Manager' },
+      update: { role: 'manager', isActive: true, passwordHash, name: 'Demo Manager', companyId: demoCompanyId },
       create: {
         email: 'manager@demo.local',
         name: 'Demo Manager',
         passwordHash,
-        role: 'manager'
+        role: 'manager',
+        companyId: demoCompanyId
       }
     });
     await prisma.organizationManager.upsert({
@@ -220,6 +230,25 @@ async function main() {
         organizationId: firstOrg.id,
         userId: managerUser.id,
         isActive: true
+      }
+    });
+  }
+
+  // ─── Demo: manager-leader (кнопка «Руководитель» на /login) ─────────
+  // ВАЖНО: companyId обязателен — company-wide scope лидера выводится из него
+  // (companyId=null деградирует в deny/скоуп, см. managerPolicy). Привязываем к
+  // компании firstOrg — там живут синканные заказы и orgs, иначе кабинет пуст.
+  if (firstOrg) {
+    await prisma.user.upsert({
+      where: { email: 'leader@demo.local' },
+      update: { role: 'manager', managerRole: 'leader', isActive: true, passwordHash, name: 'Demo Leader', companyId: demoCompanyId },
+      create: {
+        email: 'leader@demo.local',
+        name: 'Demo Leader',
+        passwordHash,
+        role: 'manager',
+        managerRole: 'leader',
+        companyId: demoCompanyId
       }
     });
   }
@@ -324,6 +353,7 @@ async function main() {
   console.log('  - partner-mgr@demo.local (partner manager, scope=' + managerScope.length + ' org)');
   console.log('  - org@demo.local (organization admin, membership in firstOrg)');
   console.log('  - manager@demo.local (cabinet manager, assigned to firstOrg)');
+  console.log('  - leader@demo.local (manager-leader, company-wide)');
   console.log('  - student@demo.local (role=student, лендинг /student)');
   console.log('[seed] done');
 }

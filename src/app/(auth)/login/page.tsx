@@ -11,6 +11,7 @@ const DEMO_LOGINS: DemoLogin[] = [
   { label: 'Партнёр (менеджер)', email: 'partner-mgr@demo.local', password: 'Password123!' },
   { label: 'Организация', email: 'org@demo.local', password: 'Password123!' },
   { label: 'Менеджер', email: 'manager@demo.local', password: 'Password123!' },
+  { label: 'Руководитель', email: 'leader@demo.local', password: 'Password123!' },
   { label: 'Студент', email: 'student@demo.local', password: 'Password123!' }
 ];
 

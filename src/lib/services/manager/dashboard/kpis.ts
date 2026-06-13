@@ -17,9 +17,11 @@ export type KpiData = {
  */
 export async function kpis(
   prisma: PrismaClient,
-  session: SessionPayload
+  session: SessionPayload,
+  teamModeOverride?: boolean
 ): Promise<KpiData> {
-  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+  const teamMode =
+    teamModeOverride ?? (await getCompanyTeamVisibility(prisma, session.companyId));
   const scope = managerOrderScope(session, teamMode);
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - THIRTY_DAYS_MS);

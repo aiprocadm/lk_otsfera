@@ -28,9 +28,11 @@ export type AttentionItem = {
  */
 export async function attention(
   prisma: PrismaClient,
-  session: SessionPayload
+  session: SessionPayload,
+  teamModeOverride?: boolean
 ): Promise<AttentionItem[]> {
-  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+  const teamMode =
+    teamModeOverride ?? (await getCompanyTeamVisibility(prisma, session.companyId));
   const scope = managerOrderScope(session, teamMode);
   const now = new Date();
   const twentyFourHoursAgo = new Date(now.getTime() - ONE_DAY_MS);

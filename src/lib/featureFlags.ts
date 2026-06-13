@@ -19,6 +19,7 @@ export const FEATURE_FLAGS = [
   'pwa_installer',
   'organization_cabinet',
   'manager_cabinet',
+  'leader_cabinet',
   'chat',
 ] as const;
 
@@ -32,6 +33,7 @@ export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
 const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'organization_cabinet',
   'manager_cabinet',
+  'leader_cabinet',
   'chat'
 ]);
 

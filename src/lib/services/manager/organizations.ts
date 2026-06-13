@@ -33,9 +33,11 @@ export type ManagerOrgListRow = Prisma.OrganizationGetPayload<{ select: typeof L
 
 export async function listOrganizations(
   prisma: PrismaClient,
-  session: SessionPayload
+  session: SessionPayload,
+  teamModeOverride?: boolean
 ): Promise<ManagerOrgListRow[]> {
-  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+  const teamMode =
+    teamModeOverride ?? (await getCompanyTeamVisibility(prisma, session.companyId));
   return prisma.organization.findMany({
     where: managerOrgScope(session, teamMode),
     select: LIST_SELECT,
