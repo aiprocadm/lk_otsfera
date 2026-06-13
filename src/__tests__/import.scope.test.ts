@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { importScope } from '@/lib/services/import/scope';
+import { importScope } from '@/lib/services/oneCSync/scope';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const base = (over: Partial<SessionPayload>): SessionPayload => ({ sub: 'u1', role: 'manager', ...over } as any);
