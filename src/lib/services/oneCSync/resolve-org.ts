@@ -15,6 +15,7 @@ export async function resolveOrganizationRef(db: PrismaClient, ref: OrgRef) {
     if (byInn) {
       if (ref.externalId && !byInn.externalId) {
         await db.organization.update({ where: { id: byInn.id }, data: { externalId: ref.externalId } });
+        return { ...byInn, externalId: ref.externalId };
       }
       return byInn;
     }

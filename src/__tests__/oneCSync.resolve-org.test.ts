@@ -18,7 +18,7 @@ describe('resolveOrganizationRef', () => {
   it('falls back to inn and backfills externalId', async () => {
     const db = dbWith([{ id:'b', externalId:null, inn:'77' }]);
     const r = await resolveOrganizationRef(db, { externalId:'E2', inn:'77' });
-    expect(r).toMatchObject({ id:'b' });
+    expect(r).toMatchObject({ id:'b', externalId:'E2' });
     expect(db.organization.update).toHaveBeenCalledWith({ where:{ id:'b' }, data:{ externalId:'E2' } });
   });
   it('returns null when nothing matches', async () => {
