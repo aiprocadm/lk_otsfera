@@ -47,7 +47,10 @@ beforeEach(() => {
   ]);
   financeMock.mockResolvedValue({
     summary: { billed: '1000.00', paid: '400.00', outstanding: '600.00' },
-    sections: [{ commission: { totalCommission: '90.00' } }, { commission: null }],
+    sections: [
+      { commission: { totalCommission: '90.00' } },
+      { commission: { totalCommission: '45.50' } }
+    ],
     canSeeCommission: true
   });
 });
@@ -60,7 +63,8 @@ describe('leaderDashboard', () => {
     expect(res.kpis.managers).toBe(4);
     expect(res.kpis.activeOrders).toBe(17);
     expect(res.kpis.debt).toBe('600.00');
-    expect(res.kpis.commission).toBe('90.00');
+    // two non-null sections summed Decimal-safe: 90.00 + 45.50 = 135.50
+    expect(res.kpis.commission).toBe('135.50');
     // finance overview must be company-wide ALWAYS (teamMode:true), regardless of toggle
     expect(financeMock).toHaveBeenCalledWith(prisma, expect.anything(), { teamMode: true });
   });
@@ -81,8 +85,8 @@ describe('leaderDashboard', () => {
     expect(m1.name).toBe('Manager One');
     expect(m1.email).toBe('m1@x');
     expect(m1.activeOrders).toBe(3);
-    expect(m1.totalAmount).toBe('300');
-    expect(m1.paidAmount).toBe('120');
+    expect(m1.totalAmount).toBe('300.00');
+    expect(m1.paidAmount).toBe('120.00');
     expect(m1.overdue).toBe(1);
 
     const m2 = res.perManager.find((r) => r.managerId === 'm2')!;
@@ -92,8 +96,8 @@ describe('leaderDashboard', () => {
     // manager with no orders → all zeros
     const m3 = res.perManager.find((r) => r.managerId === 'm3')!;
     expect(m3.activeOrders).toBe(0);
-    expect(m3.totalAmount).toBe('0');
-    expect(m3.paidAmount).toBe('0');
+    expect(m3.totalAmount).toBe('0.00');
+    expect(m3.paidAmount).toBe('0.00');
     expect(m3.overdue).toBe(0);
   });
 

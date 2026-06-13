@@ -1,4 +1,5 @@
-import type { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { getManagerFinanceOverview } from '@/lib/services/manager/finance';
 import { listCompanyManagers } from '@/lib/services/manager/team';
@@ -88,6 +89,10 @@ export async function leaderDashboard(
   const aggBy = new Map(activeGroup.map((g) => [g.managerId, g]));
   const overdueBy = new Map(overdueGroup.map((g) => [g.managerId, g._count._all]));
 
+  // NB: per-manager rows are roster-driven (one row per company manager), so an
+  // active order with managerId=null (unassigned) lands in NO row — it's counted
+  // in the company-wide kpis.activeOrders but not in any perManager.activeOrders.
+  // Therefore sum(perManager.activeOrders) ≤ kpis.activeOrders by design.
   const perManager: LeaderManagerRow[] = managers.map((m) => {
     const agg = aggBy.get(m.id);
     return {
@@ -95,18 +100,19 @@ export async function leaderDashboard(
       name: m.name,
       email: m.email,
       activeOrders: agg?._count._all ?? 0,
-      totalAmount: String(agg?._sum.totalAmount ?? '0'),
-      paidAmount: String(agg?._sum.paidAmount ?? '0'),
+      totalAmount: new Prisma.Decimal(agg?._sum.totalAmount ?? 0).toFixed(2),
+      paidAmount: new Prisma.Decimal(agg?._sum.paidAmount ?? 0).toFixed(2),
       overdue: overdueBy.get(m.id) ?? 0
     };
   });
 
-  let commissionTotal = 0;
+  // Decimal-safe sum (no float drift, matching commission/calculator.ts).
+  let commissionTotal = new Prisma.Decimal(0);
   let hasCommission = false;
   for (const s of finance.sections) {
     if (s.commission) {
       hasCommission = true;
-      commissionTotal += Number(s.commission.totalCommission);
+      commissionTotal = commissionTotal.plus(s.commission.totalCommission);
     }
   }
 
