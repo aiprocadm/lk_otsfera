@@ -12,7 +12,8 @@ import {
   managerOrderScope,
   managerDocumentScope,
   managerOrgScope,
-  isManagerLeader
+  isManagerLeader,
+  isLeaderSameCompany
 } from '@/lib/auth/managerPolicy';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -251,5 +252,27 @@ describe('isManagerLeader', () => {
     expect(isManagerLeader(makeSession({ managerRole: 'leader' }))).toBe(true);
     expect(isManagerLeader(makeSession())).toBe(false);
     expect(isManagerLeader(makeSession({ role: 'admin', managerRole: 'leader' }))).toBe(false);
+  });
+});
+
+describe('isLeaderSameCompany', () => {
+  it('true for leader + matching companyId', () => {
+    const session = makeSession({ managerRole: 'leader', companyId: 'co-1' });
+    expect(isLeaderSameCompany(session, 'co-1')).toBe(true);
+  });
+
+  it('false for leader + different companyId', () => {
+    const session = makeSession({ managerRole: 'leader', companyId: 'co-1' });
+    expect(isLeaderSameCompany(session, 'co-2')).toBe(false);
+  });
+
+  it('false for leader with null session.companyId (degrades to scoped path)', () => {
+    const session = makeSession({ managerRole: 'leader' });
+    expect(isLeaderSameCompany(session, 'co-1')).toBe(false);
+  });
+
+  it('false for non-leader manager even with matching companyId', () => {
+    const session = makeSession({ companyId: 'co-1' });
+    expect(isLeaderSameCompany(session, 'co-1')).toBe(false);
   });
 });

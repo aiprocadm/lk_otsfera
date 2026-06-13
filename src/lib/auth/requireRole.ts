@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getSession } from './session';
 import type { SessionPayload } from './jwt';
 import { prisma } from '@/lib/db/prisma';
-import { canSeeOrder, isOrgInScope, getCompanyTeamVisibility, isManagerLeader } from '@/lib/auth/managerPolicy';
+import { canSeeOrder, isOrgInScope, getCompanyTeamVisibility, isLeaderSameCompany } from '@/lib/auth/managerPolicy';
 
 export async function requireSession(): Promise<SessionPayload> {
   const session = await getSession();
@@ -135,7 +135,7 @@ export async function requireManagerForOrder(
   // граница — компания). Личные СПИСКИ менеджера это не расширяет — только деталь.
   // Cross-company держится `order.companyId === session.companyId`; при
   // companyId=null правило не срабатывает → нормальный three-way (deny).
-  if (isManagerLeader(session) && session.companyId && order.companyId === session.companyId) {
+  if (isLeaderSameCompany(session, order.companyId)) {
     return { session, order };
   }
 

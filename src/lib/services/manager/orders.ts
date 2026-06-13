@@ -5,7 +5,7 @@ import {
   managerOrderScope,
   canSeeOrder,
   getCompanyTeamVisibility,
-  isManagerLeader
+  isLeaderSameCompany
 } from '@/lib/auth/managerPolicy';
 
 /**
@@ -123,8 +123,7 @@ export async function getOrder(
   // Руководитель открывает любую деталь заказа своей компании (лидер-инвариант
   // C8: граница — компания). Cross-company держится `order.companyId === session.companyId`;
   // при companyId=null правило не срабатывает → нормальный canSeeOrder (deny).
-  const leaderSameCompany =
-    isManagerLeader(session) && !!session.companyId && order.companyId === session.companyId;
+  const leaderSameCompany = isLeaderSameCompany(session, order.companyId);
   if (!leaderSameCompany && !canSeeOrder(session, { ...order, commentsCountByMe }, teamMode)) {
     return null;
   }
