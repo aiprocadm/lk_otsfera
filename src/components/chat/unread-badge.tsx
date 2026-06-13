@@ -1,42 +1,20 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { useClientResource } from '@/hooks/useClientResource';
 
 /**
- * UnreadBadge — polls GET /api/messages/unread every ~15 s to get the total
- * number of unread messages across all threads for the current user.
- * Renders a small orange count badge when count > 0, nothing otherwise.
+ * UnreadBadge — поллит GET /api/messages/unread (~15с) и показывает оранжевый
+ * бейдж с числом непрочитанных. Ничего не рендерит при count<=0.
+ * Поллинг visibility-gated (через useClientResource): на скрытой вкладке не
+ * стучит, догружает при возврате фокуса.
  */
 export function UnreadBadge() {
-  const [count, setCount] = useState<number>(0);
+  const { data: count } = useClientResource<number>('/api/messages/unread', {
+    intervalMs: 15_000,
+    select: (d) => (d as { count?: number }).count ?? 0,
+  });
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchUnread() {
-      try {
-        const res = await fetch('/api/messages/unread');
-        if (!cancelled && res.ok) {
-          const data = (await res.json()) as { count: number };
-          setCount(data.count ?? 0);
-        }
-      } catch {
-        // swallow — defensive
-      }
-    }
-
-    // Poll immediately on mount, then every 15 seconds
-    void fetchUnread();
-    const id = setInterval(() => {
-      void fetchUnread();
-    }, 15_000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, []);
-
-  if (count <= 0) return null;
+  if (!count || count <= 0) return null;
 
   return (
     <span

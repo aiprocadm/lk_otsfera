@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { fmtDateTime } from '@/lib/format';
+import { useClientResource } from '@/hooks/useClientResource';
 
 type DocumentItem = {
   id: string;
@@ -12,21 +13,11 @@ type DocumentItem = {
 };
 
 export function DocumentsPanel() {
-  const [docs, setDocs] = useState<DocumentItem[]>([]);
+  const { data: docsData, refetch } = useClientResource<DocumentItem[]>('/api/documents');
+  const docs = docsData ?? [];
   const [orderId, setOrderId] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-
-  async function loadDocs() {
-    const res = await fetch('/api/documents');
-    if (!res.ok) return;
-    setDocs(await res.json());
-  }
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- async load pattern, setState called in async callback
-    void loadDocs();
-  }, []);
 
   async function onUpload(e: FormEvent) {
     e.preventDefault();
@@ -41,7 +32,7 @@ export function DocumentsPanel() {
     if (res.ok) {
       setFile(null);
       setOrderId('');
-      await loadDocs();
+      refetch();
     }
   }
 
