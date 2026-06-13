@@ -1,15 +1,17 @@
 'use client';
 
-import { useCallback, useState, useTransition } from 'react';
+import { useCallback, useState } from 'react';
 import {
   assignOrInviteManagerAction,
   type AssignOrInviteManagerActionResult
 } from '@/server-actions/admin/manager';
+import { useFormAction } from '@/lib/ui/useFormAction';
 import { Dialog } from '@/components/ui/dialog';
 
 type Mode = 'existing' | 'new';
 
-const ERROR_LABELS: Record<string, string> = {
+// Дельты поверх errorMessageRu (validation/not_found там уже есть).
+const ERROR_MAP: Record<string, string> = {
   validation: 'Проверьте формат email и заполненность полей.',
   org_not_found: 'Организация не найдена.',
   user_not_found: 'Пользователь с таким email не найден. Используйте режим «Пригласить нового».',
@@ -17,8 +19,7 @@ const ERROR_LABELS: Record<string, string> = {
   already_assigned: 'Этот менеджер уже назначен на организацию.'
 };
 
-type SuccessState = {
-  email: string;
+type SuccessData = {
   inviteUrl: string | null;
   alreadyHasPassword: boolean;
   reactivated: boolean;
@@ -27,49 +28,41 @@ type SuccessState = {
 export function AssignOrInviteManagerForm({ organizationId }: { organizationId: string }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>('existing');
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<SuccessState | null>(null);
+  const [submittedEmail, setSubmittedEmail] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const reset = useCallback(() => {
-    setError(null);
-    setSuccess(null);
-    setCopied(false);
-  }, []);
+  // Email не входит в Result-payload экшена — снимаем его из FormData в обёртке
+  // и кладём в state, чтобы success-UI показал адрес.
+  const action = useCallback(
+    (formData: FormData): Promise<AssignOrInviteManagerActionResult> => {
+      setSubmittedEmail(String(formData.get('email') ?? ''));
+      return assignOrInviteManagerAction(formData);
+    },
+    []
+  );
+
+  const { formAction, pending, errorText, data, success, reset } = useFormAction<SuccessData>({
+    action,
+    errorMap: ERROR_MAP
+  });
+
   const close = useCallback(() => {
     setOpen(false);
     setMode('existing');
+    setCopied(false);
     reset();
   }, [reset]);
 
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  const openDialog = useCallback(() => {
+    setCopied(false);
     reset();
-    const formData = new FormData(e.currentTarget);
-    formData.set('organizationId', organizationId);
-    formData.set('mode', mode);
-    const email = String(formData.get('email') ?? '');
-
-    startTransition(async () => {
-      const res: AssignOrInviteManagerActionResult = await assignOrInviteManagerAction(formData);
-      if (res.ok) {
-        setSuccess({
-          email,
-          inviteUrl: res.inviteUrl,
-          alreadyHasPassword: res.alreadyHasPassword,
-          reactivated: res.reactivated
-        });
-      } else {
-        setError(ERROR_LABELS[res.error] ?? `Ошибка: ${res.error}`);
-      }
-    });
-  }
+    setOpen(true);
+  }, [reset]);
 
   async function copyInvite() {
-    if (!success?.inviteUrl) return;
+    if (!data?.inviteUrl) return;
     try {
-      await navigator.clipboard.writeText(success.inviteUrl);
+      await navigator.clipboard.writeText(data.inviteUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -81,10 +74,7 @@ export function AssignOrInviteManagerForm({ organizationId }: { organizationId: 
     <>
       <button
         type='button'
-        onClick={() => {
-          reset();
-          setOpen(true);
-        }}
+        onClick={openDialog}
         className='px-3 py-1.5 bg-[#F97316] text-white text-sm font-medium rounded-lg hover:bg-[#EA580C]'
       >
         Назначить менеджера
@@ -96,30 +86,30 @@ export function AssignOrInviteManagerForm({ organizationId }: { organizationId: 
         title='Назначить менеджера'
         size='md'
         busy={pending}
-        error={error}
+        error={errorText}
       >
-        {success ? (
+        {success && data ? (
           <div className='space-y-3'>
-            {success.reactivated ? (
+            {data.reactivated ? (
               <p className='text-sm text-gray-700'>
-                Доступ для <strong>{success.email}</strong> восстановлен.
+                Доступ для <strong>{submittedEmail}</strong> восстановлен.
               </p>
-            ) : success.alreadyHasPassword ? (
+            ) : data.alreadyHasPassword ? (
               <p className='text-sm text-gray-700'>
-                <strong>{success.email}</strong> уже зарегистрирован на платформе.
+                <strong>{submittedEmail}</strong> уже зарегистрирован на платформе.
                 Доступ к организации предоставлен.
               </p>
             ) : (
               <>
                 <p className='text-sm text-gray-700'>
-                  Приглашение отправлено на <strong>{success.email}</strong>. При
+                  Приглашение отправлено на <strong>{submittedEmail}</strong>. При
                   необходимости перешлите ссылку вручную:
                 </p>
                 <div className='flex gap-2 items-center'>
                   <input
                     readOnly
                     aria-label='Ссылка приглашения'
-                    value={success.inviteUrl ?? ''}
+                    value={data.inviteUrl ?? ''}
                     className='flex-1 text-xs font-mono border border-gray-200 rounded px-2 py-1.5 bg-gray-50'
                   />
                   <button
@@ -143,7 +133,9 @@ export function AssignOrInviteManagerForm({ organizationId }: { organizationId: 
             </div>
           </div>
         ) : (
-          <form onSubmit={onSubmit} className='space-y-3'>
+          <form action={formAction} className='space-y-3'>
+            <input type='hidden' name='organizationId' value={organizationId} />
+            <input type='hidden' name='mode' value={mode} />
             <div
               className='flex border border-gray-200 rounded-lg p-1 bg-gray-50'
               role='tablist'

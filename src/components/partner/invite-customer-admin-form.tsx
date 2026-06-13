@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useTransition } from 'react';
+import { useCallback, useState } from 'react';
 import {
   invitePartnerOrgAdminAction,
   type InvitePartnerActionResult
@@ -9,13 +9,14 @@ import {
   inviteAdminOrgAdminAction,
   type InviteAdminActionResult
 } from '@/server-actions/admin/inviteOrgAdmin';
+import { useFormAction, type ActionResult } from '@/lib/ui/useFormAction';
 import { Dialog } from '@/components/ui/dialog';
 
 type InviteSource = 'partner' | 'admin';
 
 type ActionResultUnion = InvitePartnerActionResult | InviteAdminActionResult;
 
-async function runInvite(
+function runInvite(
   source: InviteSource,
   formData: FormData
 ): Promise<ActionResultUnion> {
@@ -24,7 +25,9 @@ async function runInvite(
     : inviteAdminOrgAdminAction(formData);
 }
 
-const ERROR_LABELS: Record<string, string> = {
+// Дельты поверх errorMessageRu: validation/not_found/forbidden там заточены под
+// загрузку документа — здесь org-invite-формулировки.
+const ERROR_MAP: Record<string, string> = {
   validation: 'Проверьте формат email и заполненность полей.',
   not_found: 'Организация не найдена.',
   forbidden: 'Нет прав приглашать в эту организацию.',
@@ -33,8 +36,8 @@ const ERROR_LABELS: Record<string, string> = {
   self_action_forbidden: 'Нельзя выполнить это действие над собой.'
 };
 
-type SuccessState = {
-  email: string;
+type SuccessData = {
+  user: { id: string; email: string };
   inviteUrl: string | null;
   alreadyHasPassword: boolean;
 };
@@ -49,46 +52,40 @@ export function InviteCustomerAdminForm({
   source?: InviteSource;
 }) {
   const [open, setOpen] = useState(false);
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<SuccessState | null>(null);
+  const [submittedEmail, setSubmittedEmail] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const reset = useCallback(() => {
-    setError(null);
-    setSuccess(null);
-    setCopied(false);
-  }, []);
+  // Email не входит в Result-payload экшена — снимаем его из FormData в обёртке,
+  // которая заодно выбирает экшен по source.
+  const action = useCallback(
+    (formData: FormData): Promise<ActionResult<SuccessData>> => {
+      setSubmittedEmail(String(formData.get('email') ?? ''));
+      return runInvite(source, formData) as Promise<ActionResult<SuccessData>>;
+    },
+    [source]
+  );
+
+  const { formAction, pending, errorText, data, success, reset } = useFormAction<SuccessData>({
+    action,
+    errorMap: ERROR_MAP
+  });
+
   const close = useCallback(() => {
     setOpen(false);
+    setCopied(false);
     reset();
   }, [reset]);
 
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  const openDialog = useCallback(() => {
+    setCopied(false);
     reset();
-    const formData = new FormData(e.currentTarget);
-    formData.set('organizationId', organizationId);
-    const email = String(formData.get('email') ?? '');
-
-    startTransition(async () => {
-      const res = await runInvite(source, formData);
-      if (res.ok) {
-        setSuccess({
-          email,
-          inviteUrl: res.inviteUrl,
-          alreadyHasPassword: res.alreadyHasPassword
-        });
-      } else {
-        setError(ERROR_LABELS[res.error] ?? `Ошибка: ${res.error}`);
-      }
-    });
-  }
+    setOpen(true);
+  }, [reset]);
 
   async function copyInvite() {
-    if (!success?.inviteUrl) return;
+    if (!data?.inviteUrl) return;
     try {
-      await navigator.clipboard.writeText(success.inviteUrl);
+      await navigator.clipboard.writeText(data.inviteUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -100,10 +97,7 @@ export function InviteCustomerAdminForm({
     <>
       <button
         type='button'
-        onClick={() => {
-          reset();
-          setOpen(true);
-        }}
+        onClick={openDialog}
         className='px-3 py-1.5 bg-[#F97316] text-white text-sm font-medium rounded-lg hover:bg-[#EA580C]'
       >
         {label}
@@ -115,26 +109,26 @@ export function InviteCustomerAdminForm({
         title='Пригласить администратора заказчика'
         size='md'
         busy={pending}
-        error={error}
+        error={errorText}
       >
-        {success ? (
+        {success && data ? (
           <div className='space-y-3'>
-            {success.alreadyHasPassword ? (
+            {data.alreadyHasPassword ? (
               <p className='text-sm text-gray-700'>
-                <strong>{success.email}</strong> уже зарегистрирован на платформе.
+                <strong>{submittedEmail}</strong> уже зарегистрирован на платформе.
                 Доступ к организации предоставлен.
               </p>
             ) : (
               <>
                 <p className='text-sm text-gray-700'>
-                  Приглашение отправлено на <strong>{success.email}</strong>. При
+                  Приглашение отправлено на <strong>{submittedEmail}</strong>. При
                   необходимости перешлите ссылку вручную:
                 </p>
                 <div className='flex gap-2 items-center'>
                   <input
                     readOnly
                     aria-label='Ссылка приглашения'
-                    value={success.inviteUrl ?? ''}
+                    value={data.inviteUrl ?? ''}
                     className='flex-1 text-xs font-mono border border-gray-200 rounded px-2 py-1.5 bg-gray-50'
                   />
                   <button
@@ -158,7 +152,8 @@ export function InviteCustomerAdminForm({
             </div>
           </div>
         ) : (
-          <form onSubmit={onSubmit} className='space-y-3'>
+          <form action={formAction} className='space-y-3'>
+            <input type='hidden' name='organizationId' value={organizationId} />
             <label className='block'>
               <span className='block text-sm font-medium text-gray-700 mb-1'>Email</span>
               <input
