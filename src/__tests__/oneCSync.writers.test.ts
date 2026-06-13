@@ -4,7 +4,7 @@ const { notifyOrgUsers, notifyManagers } = vi.hoisted(() => ({ notifyOrgUsers: v
 vi.mock('@/lib/services/oneCSync/resolve-org', () => ({ resolveOrganizationRef }));
 vi.mock('@/lib/notifications', () => ({ notifyOrgUsers, notifyManagers }));
 
-import { upsertOrderRecord } from '@/lib/services/oneCSync/writers';
+import { upsertOrderRecord, upsertPaymentRecord } from '@/lib/services/oneCSync/writers';
 import { emptySummary } from '@/lib/services/oneCSync/record-batch';
 
 const baseDto = {
@@ -16,7 +16,7 @@ const baseDto = {
 function db() {
   return { order: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(), update: vi.fn() } } as any;
 }
-beforeEach(() => { resolveOrganizationRef.mockReset(); notifyOrgUsers.mockReset(); });
+beforeEach(() => { resolveOrganizationRef.mockReset(); notifyOrgUsers.mockReset(); notifyManagers.mockReset(); });
 
 describe('upsertOrderRecord', () => {
   it('creates a new order with financialStatus/partnerId/companyId in live mode', async () => {
@@ -58,5 +58,32 @@ describe('upsertOrderRecord', () => {
     expect(d.order.update).toHaveBeenCalled();
     expect(notifyOrgUsers).not.toHaveBeenCalled();
     expect(sum.updated).toBe(1);
+  });
+});
+
+describe('upsertPaymentRecord', () => {
+  const payOrderDto = { externalId:'P1', orderExternalId:'O1', amount:50, paidAt:'2026-04-01T00:00:00Z', isRefund:false, updatedAt:'2026-04-01T00:00:00Z' } as any;
+  const payOrgDto = { externalId:'P2', organizationExternalId:'E-ORG', amount:50, paidAt:'2026-04-01T00:00:00Z', isRefund:false, updatedAt:'2026-04-01T00:00:00Z' } as any;
+  function pdb() { return { order:{ findUnique: vi.fn() }, payment:{ findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(), update: vi.fn() } } as any; }
+
+  it('links payment to order when orderExternalId present', async () => {
+    const d = pdb(); d.order.findUnique.mockResolvedValue({ id:'ord', organizationId:'o', orderNumber:'O1', title:'t' });
+    const sum = emptySummary();
+    await upsertPaymentRecord(d, payOrderDto, sum, { mode:'live', notify:false });
+    expect(d.payment.create).toHaveBeenCalledWith({ data: expect.objectContaining({ externalId:'P1', orderId:'ord', organizationId:'o' }) });
+    expect(sum.created).toBe(1);
+  });
+  it('writes org-level payment when only organizationExternalId present', async () => {
+    const d = pdb(); resolveOrganizationRef.mockResolvedValue({ id:'o', companyId:'c', partnerId:null, externalId:'E-ORG' });
+    const sum = emptySummary();
+    await upsertPaymentRecord(d, payOrgDto, sum, { mode:'live', notify:false });
+    expect(d.payment.create).toHaveBeenCalledWith({ data: expect.objectContaining({ externalId:'P2', orderId:null, organizationId:'o' }) });
+    expect(sum.created).toBe(1);
+  });
+  it('skips when order not found', async () => {
+    const d = pdb(); d.order.findUnique.mockResolvedValue(null);
+    const sum = emptySummary();
+    await upsertPaymentRecord(d, payOrderDto, sum, { mode:'live', notify:false });
+    expect(sum.skipped).toBe(1); expect(sum.skips[0]).toMatchObject({ reason:'order_not_found' });
   });
 });

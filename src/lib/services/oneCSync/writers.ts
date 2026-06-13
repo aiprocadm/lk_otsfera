@@ -1,11 +1,11 @@
 import type { PrismaClient } from '@prisma/client';
-import type { OneCOrderDto } from './dto';
-import { mapOrderDto } from './mappers';
+import type { OneCOrderDto, OneCPaymentDto } from './dto';
+import { mapOrderDto, mapPaymentDto } from './mappers';
 import { resolveOrganizationRef } from './resolve-org';
 import type { BatchSummary } from './record-batch';
 import type { OneCMode } from './config';
 import type { ImportScope } from './scope';
-import { notifyOrgUsers } from '@/lib/notifications';
+import { notifyOrgUsers, notifyManagers } from '@/lib/notifications';
 
 export type WriteCtx = { mode: OneCMode; notify: boolean; scope?: ImportScope; bump?: (iso: string) => void };
 const isLive = (c: WriteCtx) => c.mode === 'live';
@@ -54,5 +54,48 @@ export async function upsertOrderRecord(db: PrismaClient, dto: OneCOrderDto, sum
         executionStatus: input.executionStatus, companyId: org.companyId, partnerId: org.partnerId, organizationId: org.id } });
     }
     sum.created += 1; ctx.bump?.(dto.updatedAt);
+  }
+}
+
+export async function upsertPaymentRecord(db: PrismaClient, dto: OneCPaymentDto, sum: BatchSummary, ctx: WriteCtx) {
+  const input = mapPaymentDto(dto);
+  let orderId: string | null = null;
+  let organizationId: string | null = null;
+  let order: { id: string; organizationId: string | null; orderNumber: string | null; title: string } | null = null;
+
+  if (input.orderExternalId) {
+    order = await db.order.findUnique({ where: { externalId: input.orderExternalId },
+      select: { id: true, organizationId: true, orderNumber: true, title: true } });
+    if (!order) { sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'order_not_found' }); return; }
+    if (order.organizationId && !orgInScope(ctx.scope, order.organizationId)) {
+      sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'out_of_scope' }); return;
+    }
+    orderId = order.id; organizationId = order.organizationId;
+  } else {
+    const org = await resolveOrganizationRef(db, { externalId: input.organizationExternalId });
+    if (!org) { sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'organization_not_found' }); return; }
+    if (!orgInScope(ctx.scope, org.id)) { sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'out_of_scope' }); return; }
+    organizationId = org.id;
+  }
+
+  if (!organizationId) { sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'organization_not_found' }); return; }
+
+  const existing = await db.payment.findUnique({ where: { externalId: input.externalId }, select: { id: true } });
+  const updatable = { amount: input.amount, paidAt: input.paidAt, method: input.method, isRefund: input.isRefund };
+  if (existing) {
+    if (isLive(ctx)) await db.payment.update({ where: { id: existing.id }, data: updatable });
+    sum.updated += 1; ctx.bump?.(dto.updatedAt);
+  } else {
+    if (isLive(ctx)) await db.payment.create({ data: { ...updatable, externalId: input.externalId, orderId, organizationId } });
+    sum.created += 1; ctx.bump?.(dto.updatedAt);
+    if (ctx.notify && isLive(ctx) && order && order.organizationId && !input.isRefund) {
+      try { await notifyOrgUsers(db, { organizationId: order.organizationId, type: 'payment_received', payload: {
+        orderId: order.id, orderNumber: order.orderNumber, orderTitle: order.title, amount: input.amount.toString(), paidAt: input.paidAt } }); }
+      catch (err) { console.warn('[1c] payment notifyOrgUsers failed', err); }
+    }
+    if (ctx.notify && isLive(ctx) && order && !input.isRefund) {
+      try { await notifyManagers(db, { orderId: order.id, type: 'order_marked_paid_by_1c', payload: { amount: Number(input.amount), paidAt: input.paidAt } }); }
+      catch (err) { console.warn('[1c] payment notifyManagers failed', err); }
+    }
   }
 }
