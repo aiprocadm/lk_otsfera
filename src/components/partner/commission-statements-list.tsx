@@ -6,6 +6,7 @@ import type { StatementListItem } from '@/lib/services/partner/finance';
 import type { CommissionStatementItem } from '@prisma/client';
 import { THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { fmtMoney, fmtDate } from '@/lib/format';
+import { useClientResource } from '@/hooks/useClientResource';
 
 type Props = {
   statements: StatementListItem[];
@@ -57,26 +58,19 @@ function StatementRow({
   canManage: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<CommissionStatementItem[] | null>(null);
-  const [loadingItems, setLoadingItems] = useState(false);
+  const { data: items, loading: loadingItems } = useClientResource<CommissionStatementItem[]>(
+    `/api/partner/finance/statements/${stmt.id}`,
+    {
+      enabled: open,
+      select: (d) =>
+        (d as { statement?: { items?: CommissionStatementItem[] } }).statement?.items ?? [],
+    }
+  );
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  async function toggleOpen() {
-    const next = !open;
-    setOpen(next);
-    if (next && items === null) {
-      setLoadingItems(true);
-      try {
-        const res = await fetch(`/api/partner/finance/statements/${stmt.id}`);
-        if (res.ok) {
-          const data = await res.json() as { statement?: { items?: CommissionStatementItem[] } };
-          setItems(data.statement?.items ?? []);
-        }
-      } finally {
-        setLoadingItems(false);
-      }
-    }
+  function toggleOpen() {
+    setOpen((v) => !v);
   }
 
   async function handleApprove() {
