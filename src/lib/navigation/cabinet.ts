@@ -49,6 +49,9 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
   ],
   // Пункты leader-меню намеренно БЕЗ flag: внутрь пускает middleware+layout;
   // флаг на каждом пункте дал бы пустой сайдбар при выключении.
+  // ЗАВИСИМОСТЬ ФЛАГОВ: пункты-мосты в /manager/* (Сообщения, Мои заказы) живут под
+  // флагом manager_cabinet — поэтому leader_cabinet включать ТОЛЬКО вместе с manager_cabinet,
+  // иначе эти два пункта 404-ят. На практике лидер всегда и менеджер; см. runbook.
   leader: [
     { href: '/leader/dashboard', label: 'Сводка', icon: '⌂' },
     { href: '/leader/team', label: 'Команда', icon: '⚙' },

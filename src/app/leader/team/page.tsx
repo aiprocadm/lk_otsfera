@@ -5,6 +5,8 @@ import { listCompanyManagers } from '@/lib/services/manager/team';
 import { TeamVisibilityToggle } from '@/components/manager/team-visibility-toggle';
 import { ManagerRosterPanel } from '@/components/manager/manager-roster-panel';
 
+export const dynamic = 'force-dynamic';
+
 export default async function LeaderTeamPage() {
   const session = await requireManagerLeader();
   const teamMode = session.companyId
