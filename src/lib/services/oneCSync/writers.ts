@@ -44,9 +44,10 @@ export async function upsertOrderRecord(db: PrismaClient, dto: OneCOrderDto, sum
     sum.updated += 1; ctx.bump?.(dto.updatedAt);
     const targetOrgId = existing.organizationId ?? org.id;
     if (ctx.notify && isLive(ctx) && targetOrgId && existing.financialStatus !== input.financialStatus) {
-      await notifyOrgUsers(db, { organizationId: targetOrgId, type: 'order_status_changed', payload: {
+      try { await notifyOrgUsers(db, { organizationId: targetOrgId, type: 'order_status_changed', payload: {
         orderId: existing.id, orderNumber: existing.orderNumber, orderTitle: existing.title,
-        dimension: 'financial', oldStatus: existing.financialStatus, newStatus: input.financialStatus } });
+        dimension: 'financial', oldStatus: existing.financialStatus, newStatus: input.financialStatus } }); }
+      catch (err) { console.warn('[1c] order status notifyOrgUsers failed', err); }
     }
   } else {
     if (isLive(ctx)) {
@@ -141,8 +142,9 @@ export async function upsertDocumentRecord(db: PrismaClient, dto: OneCDocumentDt
     }
     sum.created += 1; ctx.bump?.(dto.updatedAt);
     if (ctx.notify && isLive(ctx) && order.organizationId) {
-      await notifyOrgUsers(db, { organizationId: order.organizationId, type: 'document_published', payload: {
-        orderId: order.id, orderNumber: order.orderNumber, orderTitle: order.title, documentName: input.name, documentType: input.type } });
+      try { await notifyOrgUsers(db, { organizationId: order.organizationId, type: 'document_published', payload: {
+        orderId: order.id, orderNumber: order.orderNumber, orderTitle: order.title, documentName: input.name, documentType: input.type } }); }
+      catch (err) { console.warn('[1c] document notifyOrgUsers failed', err); }
     }
   }
 }
