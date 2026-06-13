@@ -18,6 +18,7 @@ export const ORDER_COLS = {
   orgInn: 'ИНН организации',
   totalAmount: 'Сумма',
   paidAmount: 'Оплачено',
+  financialStatusRaw: 'Статус оплаты',
 } as const;
 
 export const PAYMENT_COLS = {
@@ -27,4 +28,5 @@ export const PAYMENT_COLS = {
   paidAt: 'Дата',
   method: 'Вид операции',
   note: 'Назначение платежа',
+  orderRef: 'Заказ',
 } as const;
