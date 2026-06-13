@@ -39,6 +39,11 @@ export async function syncPaymentsProcessor(
       (dto) => dto.externalId,
       async (dto, sum) => {
         const input = mapPaymentDto(dto);
+        if (!input.orderExternalId) {
+          sum.skipped += 1;
+          sum.skips.push({ externalId: input.externalId, reason: 'order_not_found' });
+          return;
+        }
         const order = await db.order.findUnique({
           where: { externalId: input.orderExternalId },
           select: { id: true, organizationId: true, orderNumber: true, title: true }

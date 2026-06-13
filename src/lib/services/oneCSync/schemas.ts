@@ -35,12 +35,15 @@ export const OneCOrderSchema = z.object({
 
 export const OneCPaymentSchema = z.object({
   externalId: z.string().min(1),
-  orderExternalId: z.string().min(1),
+  orderExternalId: z.string().min(1).optional(),
+  organizationExternalId: z.string().min(1).optional(),
   amount: z.number(),
   paidAt: isoDate,
   method: z.string().optional(),
   isRefund: z.boolean(),
   updatedAt: isoDate
+}).refine((p) => !!p.orderExternalId || !!p.organizationExternalId, {
+  message: 'payment requires orderExternalId or organizationExternalId'
 });
 
 export const OneCDocumentSchema = z.object({

@@ -68,7 +68,8 @@ export function mapOrderDto(dto: OneCOrderDto): OrderUpsertInput {
 
 export type PaymentUpsertInput = {
   externalId: string;
-  orderExternalId: string;
+  orderExternalId: string | null;
+  organizationExternalId: string | null;
   amount: number;
   paidAt: Date;
   method: string | null;
@@ -79,7 +80,8 @@ export type PaymentUpsertInput = {
 export function mapPaymentDto(dto: OneCPaymentDto): PaymentUpsertInput {
   return {
     externalId: dto.externalId,
-    orderExternalId: dto.orderExternalId,
+    orderExternalId: dto.orderExternalId ?? null,
+    organizationExternalId: dto.organizationExternalId ?? null,
     amount: dto.amount,
     paidAt: new Date(dto.paidAt),
     method: dto.method ?? null,
