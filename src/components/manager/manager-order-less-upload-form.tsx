@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useFetchSubmit } from '@/lib/ui/useFetchSubmit';
 
 type Option = { id: string; name: string };
 const DOC_TYPES = [
@@ -10,24 +10,28 @@ const DOC_TYPES = [
 ];
 
 export function ManagerOrderLessUploadForm({ organizations, partners }: { organizations: Option[]; partners: Option[] }) {
-  const router = useRouter();
   const [type, setType] = useState<'organization' | 'partner'>('organization');
-  const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [ok, setOk] = useState(false);
   const options = type === 'organization' ? organizations : partners;
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault(); setBusy(true); setMsg(null);
-    const form = e.currentTarget;
-    const fd = new FormData(form);
-    const res = await fetch('/api/manager/documents/order-less', { method: 'POST', body: fd });
-    setBusy(false);
-    if (res.ok) { setMsg({ kind: 'ok', text: 'Документ загружен' }); form.reset(); router.refresh(); }
-    else setMsg({ kind: 'err', text: 'Не удалось загрузить' });
+  const { formAction, pending, errorText } = useFetchSubmit({
+    url: '/api/manager/documents/order-less',
+    body: (fd) => fd,
+    errorMap: { http_400: 'Не удалось загрузить', http_500: 'Не удалось загрузить' },
+    onSuccess: () => {
+      setOk(true);
+      setType('organization');
+    },
+    refresh: true
+  });
+
+  function submit(fd: FormData) {
+    setOk(false);
+    formAction(fd);
   }
 
   return (
-    <form onSubmit={onSubmit} className='bg-white border border-gray-200 rounded-xl p-4 space-y-3'>
+    <form action={submit} className='bg-white border border-gray-200 rounded-xl p-4 space-y-3'>
       <div className='font-medium text-[#111111] text-sm'>Загрузить общий документ</div>
       <div className='flex gap-2'>
         <div className='flex flex-col gap-0.5'>
@@ -59,10 +63,11 @@ export function ManagerOrderLessUploadForm({ organizations, partners }: { organi
         <input id='orderless-file' type='file' name='file' required className='block w-full text-sm' />
       </div>
       <p className='text-xs text-gray-400'>PDF, JPG, PNG, DOCX, XLSX · до 20 МБ</p>
-      <button type='submit' disabled={busy} className='px-3 py-1.5 bg-[#F97316] text-white rounded text-sm hover:bg-[#EA580C] disabled:opacity-50'>
-        {busy ? 'Загрузка…' : 'Загрузить'}
+      <button type='submit' disabled={pending} className='px-3 py-1.5 bg-[#F97316] text-white rounded text-sm hover:bg-[#EA580C] disabled:opacity-50'>
+        {pending ? 'Загрузка…' : 'Загрузить'}
       </button>
-      {msg && <div role={msg.kind === 'err' ? 'alert' : 'status'} className={`text-sm ${msg.kind === 'err' ? 'text-red-700' : 'text-green-700'}`}>{msg.text}</div>}
+      {errorText && <div role='alert' className='text-sm text-red-700'>{errorText}</div>}
+      {ok && !errorText && <div role='status' className='text-sm text-green-700'>Документ загружен</div>}
     </form>
   );
 }

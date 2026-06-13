@@ -1,14 +1,18 @@
 'use client';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
+import { useFetchSubmit } from '@/lib/ui/useFetchSubmit';
+
+const ERROR_MAP: Record<string, string> = {
+  EMAIL_TAKEN: 'Пользователь с таким email уже существует',
+  ORG_OUT_OF_SCOPE: 'Одна из организаций не входит в портфель партнёра'
+};
 
 export function InviteMemberForm({
   orgs
 }: {
   orgs: { id: string; name: string }[];
 }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
 
   const [email, setEmail] = useState('');
@@ -16,8 +20,19 @@ export function InviteMemberForm({
   const [roleInPartner, setRole] = useState<'admin' | 'manager'>('manager');
   const [allOrgs, setAllOrgs] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const { formAction, pending, errorText, reset } = useFetchSubmit({
+    url: '/api/partner/team',
+    body: () => ({
+      email,
+      name,
+      roleInPartner,
+      assignedOrgIds: allOrgs ? [] : [...selected]
+    }),
+    errorMap: ERROR_MAP,
+    onSuccess: () => setOpen(false),
+    refresh: true
+  });
 
   function openDialog() {
     setEmail('');
@@ -25,7 +40,7 @@ export function InviteMemberForm({
     setRole('manager');
     setAllOrgs(true);
     setSelected(new Set());
-    setError(null);
+    reset();
     setOpen(true);
   }
 
@@ -36,37 +51,6 @@ export function InviteMemberForm({
       else next.add(id);
       return next;
     });
-  }
-
-  async function submit() {
-    setError(null);
-    setSubmitting(true);
-    try {
-      const assignedOrgIds = allOrgs ? [] : [...selected];
-      const res = await fetch('/api/partner/team', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, name, roleInPartner, assignedOrgIds })
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        if (body.error === 'EMAIL_TAKEN') {
-          setError('Пользователь с таким email уже существует');
-        } else if (body.error === 'ORG_OUT_OF_SCOPE') {
-          setError('Одна из организаций не входит в портфель партнёра');
-        } else if (typeof body.error === 'string') {
-          setError(body.error);
-        } else {
-          setError('Ошибка приглашения');
-        }
-        return;
-      }
-      setOpen(false);
-      router.refresh();
-    } finally {
-      setSubmitting(false);
-    }
   }
 
   const valid = email.trim().length > 3 && email.includes('@') && name.trim().length > 0;
@@ -87,16 +71,10 @@ export function InviteMemberForm({
         onClose={() => setOpen(false)}
         title='Пригласить сотрудника'
         size='lg'
-        busy={submitting}
-        error={error}
+        busy={pending}
+        error={errorText}
       >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (valid && !submitting) submit();
-          }}
-          className='space-y-4'
-        >
+        <form action={formAction} className='space-y-4'>
           <p className='text-xs text-gray-500'>
             Создадим аккаунт с временным паролем — отправим инструкцию по входу на email.
           </p>
@@ -185,16 +163,16 @@ export function InviteMemberForm({
               type='button'
               onClick={() => setOpen(false)}
               className='px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50'
-              disabled={submitting}
+              disabled={pending}
             >
               Отмена
             </button>
             <button
               type='submit'
-              disabled={submitting || !valid || (!allOrgs && selected.size === 0)}
+              disabled={pending || !valid || (!allOrgs && selected.size === 0)}
               className='px-4 py-2 text-sm bg-[#F97316] text-white rounded-lg hover:bg-[#EA580C] disabled:opacity-50'
             >
-              {submitting ? 'Отправка…' : 'Пригласить'}
+              {pending ? 'Отправка…' : 'Пригласить'}
             </button>
           </div>
         </form>
