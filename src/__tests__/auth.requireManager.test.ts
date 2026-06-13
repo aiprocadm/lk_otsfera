@@ -1,19 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getSession, redirect, notFound, orderFindUnique, commentCount } = vi.hoisted(() => ({
-  getSession: vi.fn(),
-  redirect: vi.fn(),
-  notFound: vi.fn(),
-  orderFindUnique: vi.fn(),
-  commentCount: vi.fn()
-}));
+const { getSession, redirect, notFound, orderFindUnique, commentCount, companyFindUnique } =
+  vi.hoisted(() => ({
+    getSession: vi.fn(),
+    redirect: vi.fn(),
+    notFound: vi.fn(),
+    orderFindUnique: vi.fn(),
+    commentCount: vi.fn(),
+    companyFindUnique: vi.fn()
+  }));
 
 vi.mock('@/lib/auth/session', () => ({ getSession }));
 vi.mock('next/navigation', () => ({ redirect, notFound }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     order: { findUnique: orderFindUnique },
-    comment: { count: commentCount }
+    comment: { count: commentCount },
+    company: { findUnique: companyFindUnique }
   }
 }));
 
@@ -217,6 +220,75 @@ describe('requireManagerForOrder', () => {
       'NEXT_REDIRECT:/forbidden'
     );
     expect(orderFindUnique).not.toHaveBeenCalled();
+  });
+
+  // ----- Leader rule (Task 5): руководитель открывает любой заказ своей компании -----
+
+  const LEADER_C1: SessionPayload = {
+    sub: 'mgr-leader',
+    role: 'manager',
+    managedOrgIds: [],
+    managerRole: 'leader',
+    companyId: 'c1'
+  };
+
+  it('leader открывает заказ своей компании даже при toggle OFF (нет ни managerId, ни org-scope, ни истории)', async () => {
+    getSession.mockResolvedValue(LEADER_C1);
+    companyFindUnique.mockResolvedValue({ managerTeamVisibility: false }); // toggle OFF
+    orderFindUnique.mockResolvedValue({
+      id: 'order-own',
+      managerId: 'someone-else',
+      organizationId: 'org-X', // out of leader's empty scope
+      companyId: 'c1'
+    });
+    commentCount.mockResolvedValue(0);
+
+    const result = await requireManagerForOrder('order-own');
+    expect(result.order.id).toBe('order-own');
+    expect(notFound).not.toHaveBeenCalled();
+    // leader rule fires before the three-way check → no comment lookup needed
+    expect(commentCount).not.toHaveBeenCalled();
+  });
+
+  it('leader НЕ открывает заказ ДРУГОЙ компании (cross-company инвариант)', async () => {
+    getSession.mockResolvedValue(LEADER_C1);
+    companyFindUnique.mockResolvedValue({ managerTeamVisibility: false });
+    orderFindUnique.mockResolvedValue({
+      id: 'order-foreign-company',
+      managerId: 'someone-else',
+      organizationId: 'org-X',
+      companyId: 'c2' // другая компания
+    });
+    commentCount.mockResolvedValue(0);
+
+    await expect(requireManagerForOrder('order-foreign-company')).rejects.toThrow(
+      'NEXT_NOT_FOUND'
+    );
+    expect(notFound).toHaveBeenCalled();
+  });
+
+  it('leader с companyId=null → правило не срабатывает, нормальный three-way (deny)', async () => {
+    getSession.mockResolvedValue({
+      sub: 'mgr-leader-nocompany',
+      role: 'manager',
+      managedOrgIds: [],
+      managerRole: 'leader'
+      // companyId отсутствует
+    } as SessionPayload);
+    orderFindUnique.mockResolvedValue({
+      id: 'order-no-company-leader',
+      managerId: 'someone-else',
+      organizationId: 'org-X',
+      companyId: 'c1'
+    });
+    commentCount.mockResolvedValue(0);
+
+    await expect(requireManagerForOrder('order-no-company-leader')).rejects.toThrow(
+      'NEXT_NOT_FOUND'
+    );
+    expect(notFound).toHaveBeenCalled();
+    // getCompanyTeamVisibility short-circuits on missing companyId — no company read
+    expect(companyFindUnique).not.toHaveBeenCalled();
   });
 });
 

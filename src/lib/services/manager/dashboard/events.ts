@@ -21,9 +21,11 @@ export type EventItem = {
 export async function recentEvents(
   prisma: PrismaClient,
   session: SessionPayload,
-  take = DEFAULT_EVENTS
+  take = DEFAULT_EVENTS,
+  teamModeOverride?: boolean
 ): Promise<EventItem[]> {
-  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+  const teamMode =
+    teamModeOverride ?? (await getCompanyTeamVisibility(prisma, session.companyId));
   const scope = managerOrderScope(session, teamMode);
   const orgScope = managerOrgScope(session, teamMode);
   const fetchLimit = Math.max(20, take);
