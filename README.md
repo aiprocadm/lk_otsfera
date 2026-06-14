@@ -103,6 +103,16 @@ npm run prisma:migrate:deploy
 npm run test:integration
 ```
 
+> **Windows / локаль `C` — кириллический поиск.** Postgres сворачивает регистр (`lower()` и `ILIKE`, который Prisma генерит для `mode:'insensitive'`) по **коллации**, а не по глобальной настройке. Если локальная БД создана под локалью `C`/`POSIX` (типичный дефолт `template1` на Windows-кластере, который наследует БД, авто-созданная `prisma migrate deploy`), регистр сворачивается **только для ASCII** — и регистронезависимый поиск по кириллице молча возвращает 0 строк. Симптом: падают ровно integration-тесты поиска (org orders/students, partner portfolio) при зелёных unit. Это средовой дефект, не баг кода. Фикс — пересоздать локальную БД с ICU-провайдером (полное Unicode-сворачивание):
+>
+> ```bash
+> npm run db:recreate-local          # drop + create `cabinet` с LOCALE_PROVIDER icu, проверка сворачивания
+> npm run prisma:migrate:deploy
+> npm run prisma:seed                # seed не завершается сам локально (BullMQ handle) — Ctrl-C после "[seed] done"
+> ```
+>
+> Скрипт ([scripts/recreate-local-db.ts](scripts/recreate-local-db.ts)) защищён на работу только с `localhost`. Диагностика: `SELECT ('Иван' ILIKE 'иван')` → `false` подтверждает сломанную локаль.
+
 ## Build
 
 Проверка сборки production:
