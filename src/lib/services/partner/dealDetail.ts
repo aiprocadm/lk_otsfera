@@ -43,9 +43,13 @@ export async function getPartnerDealDetail(
   args: { dealId: string; partnerId: string }
 ): Promise<DealDetail | null> {
   const order = await prisma.order.findFirst({
-    where: { id: args.dealId, partnerId: args.partnerId },
+    // F2: visible only via the partner's own lead, not legacy Order.partnerId.
+    where: { id: args.dealId, promotedFromLead: { partnerId: args.partnerId } },
     include: {
       manager: { select: { name: true } },
+      // F8: read the order's own organization (exact), not a partner+company lookup
+      // that can resolve to the wrong org when two orgs share a company.
+      organization: { select: { id: true, name: true, inn: true } },
       documents: {
         where: partnerChannelWhere(args.partnerId),
         orderBy: { createdAt: 'desc' },
@@ -68,10 +72,7 @@ export async function getPartnerDealDetail(
 
   if (!order) return null;
 
-  const org = await prisma.organization.findFirst({
-    where: { partnerId: args.partnerId, companyId: order.companyId },
-    select: { id: true, name: true, inn: true }
-  });
+  const org = order.organization;
 
   const debt = (Number(order.totalAmount) - Number(order.paidAmount)).toFixed(2);
 

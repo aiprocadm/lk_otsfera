@@ -14,13 +14,15 @@ export type Kpis = {
 };
 
 function orderWhereForScope(scope: DashboardScope) {
+  // F2: a partner sees an order ONLY through its own lead
+  // (Order.promotedFromLead → Lead.partnerId), not the legacy direct Order.partnerId.
   const base: {
-    partnerId: string;
-    company?: { organizations: { some: { id: { in: string[] } } } };
-  } = { partnerId: scope.partnerId };
+    promotedFromLead: { partnerId: string };
+    organizationId?: { in: string[] };
+  } = { promotedFromLead: { partnerId: scope.partnerId } };
 
   if (scope.scopeOrgIds.length > 0) {
-    base.company = { organizations: { some: { id: { in: scope.scopeOrgIds } } } };
+    base.organizationId = { in: scope.scopeOrgIds };
   }
   return base;
 }
