@@ -58,6 +58,47 @@ describe('RestOneCAdapter', () => {
     expect((rows[0] as unknown as Record<string, unknown>).financialStatus).toBe('Марсианский статус');
   });
 
+  // Q6: the adapter must follow nextCursor to exhaustion, else only page 1 is
+  // ingested and the cursor advances past the unfetched rest (silent undercount).
+  it('follows nextCursor across pages and accumulates all records (Q6)', async () => {
+    const page1 = { items: [{ ...validOrder, externalId: 'o1' }], nextCursor: 'c2' };
+    const page2 = { items: [{ ...validOrder, externalId: 'o2' }] }; // no nextCursor → stop
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => page1 })
+      .mockResolvedValueOnce({ ok: true, json: async () => page2 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const rows = await new RestOneCAdapter(config).pullOrders({ since: '2026-04-01T00:00:00Z' });
+
+    expect(rows.map((r) => r.externalId)).toEqual(['o1', 'o2']);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // Page 2 request carries the page cursor AND still carries the since filter.
+    const page2Url = String(fetchMock.mock.calls[1][0]);
+    expect(page2Url).toContain('cursor=c2');
+    expect(page2Url).toContain('since=2026-04-01');
+  });
+
+  it('stops after one page when no nextCursor is returned', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items: [validOrder] }) });
+    vi.stubGlobal('fetch', fetchMock);
+    await new RestOneCAdapter(config).pullOrders({});
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('paginates every entity, not just orders (shared getArray)', async () => {
+    const page1 = { items: [{ externalId: 'org1' }], nextCursor: 'p2' };
+    const page2 = { items: [{ externalId: 'org2' }] };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => page1 })
+      .mockResolvedValueOnce({ ok: true, json: async () => page2 });
+    vi.stubGlobal('fetch', fetchMock);
+    const rows = await new RestOneCAdapter(config).pullOrganizations({});
+    expect(rows).toHaveLength(2);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('throws OneCHttpError on a non-OK response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500, headers: { get: () => null }, json: async () => ({}) }));
     await expect(new RestOneCAdapter(config).pullOrders({})).rejects.toThrow(/500/);

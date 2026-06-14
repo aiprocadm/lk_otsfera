@@ -35,6 +35,12 @@ describe('RestOneCAdapter against the live mock server', () => {
     expect(rows).toHaveLength(3);
   });
 
+  it('paginates to completion: collects every record across pages, not just page 1 (Q6)', async () => {
+    scenarioRef.current.pageSize = 1; // force multi-page (default dataset has 3 orgs)
+    const rows = await adapter().pullOrganizations({});
+    expect(rows).toHaveLength(3);
+  });
+
   it('rejects on a wrong token (401, not retried into success)', async () => {
     const wrong = new RestOneCAdapter({ baseUrl, token: 'nope' });
     await expect(wrong.pullOrders({})).rejects.toThrow(/401/);

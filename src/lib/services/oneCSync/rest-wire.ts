@@ -26,18 +26,28 @@ export function buildAuthHeader(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
 }
 
-// DECISION Q1: response envelope shape. Assume a bare array; tolerate { items: [] }.
-export function unwrapEnvelope(raw: unknown): unknown[] {
-  if (Array.isArray(raw)) return raw;
+// DECISION Q1/Q6: response envelope shape + pagination. A bare array means a
+// single, complete page. An { items: [...] } object MAY carry an opaque
+// `nextCursor` — when present, there are more pages and the caller must request
+// the next one with PAGE_PARAM=nextCursor. The cursor is opaque to us (1C owns
+// its meaning); we only echo it back.
+export function parseEnvelope(raw: unknown): { items: unknown[]; nextCursor?: string } {
+  if (Array.isArray(raw)) return { items: raw };
   if (raw && typeof raw === 'object' && Array.isArray((raw as { items?: unknown }).items)) {
-    return (raw as { items: unknown[] }).items;
+    const o = raw as { items: unknown[]; nextCursor?: unknown };
+    const nextCursor = typeof o.nextCursor === 'string' && o.nextCursor.length > 0 ? o.nextCursor : undefined;
+    return { items: o.items, nextCursor };
   }
   throw new Error('Unexpected 1C response envelope (expected JSON array or { items: [] })');
 }
 
-export function buildUrl(baseUrl: string, path: string, cursor: SyncCursor): string {
+// DECISION Q6: query param carrying the opaque page cursor on follow-up requests.
+export const PAGE_PARAM = 'cursor';
+
+export function buildUrl(baseUrl: string, path: string, cursor: SyncCursor, pageCursor?: string): string {
   const url = new URL(path, baseUrl);
   if (cursor.since) url.searchParams.set(SINCE_PARAM, formatSince(cursor.since));
+  if (pageCursor) url.searchParams.set(PAGE_PARAM, pageCursor);
   return url.toString();
 }
 
