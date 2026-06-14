@@ -13,4 +13,10 @@ describe('column-map', () => {
     expect(PAYMENT_COLS.externalId).toBeTruthy();
     expect(PAYMENT_COLS.amount).toBeTruthy();
   });
+  it('order map exposes optional financialStatusRaw column', () => {
+    expect(ORDER_COLS.financialStatusRaw).toBe('Статус оплаты');
+  });
+  it('payment map exposes optional orderRef column', () => {
+    expect(PAYMENT_COLS.orderRef).toBe('Заказ');
+  });
 });

@@ -57,7 +57,23 @@ describe('1C → Prisma mappers', () => {
     });
     expect(out.externalId).toBe('p1');
     expect(out.orderExternalId).toBe('o1');
+    expect(out.organizationExternalId).toBeNull();
     expect(out.amount).toBe(50);
+  });
+
+  it('mapPaymentDto maps org-level payment (no order)', () => {
+    const out = mapPaymentDto({
+      externalId: 'p2',
+      organizationExternalId: 'org1',
+      amount: 200,
+      paidAt: '2026-05-01T00:00:00Z',
+      isRefund: false,
+      updatedAt: '2026-05-01T00:00:00Z'
+    });
+    expect(out.externalId).toBe('p2');
+    expect(out.orderExternalId).toBeNull();
+    expect(out.organizationExternalId).toBe('org1');
+    expect(out.amount).toBe(200);
   });
 
   it('mapDocumentDto preserves type as enum-compatible string', () => {

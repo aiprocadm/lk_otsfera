@@ -12,7 +12,7 @@ function dbMock() {
   const orderUpdate = vi.fn().mockResolvedValue({});
   const db = {
     syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert: vi.fn().mockResolvedValue({}) },
-    organization: { findUnique: vi.fn().mockResolvedValue({ id: 'org1', partnerId: 'p1', companyId: 'c1' }) },
+    organization: { findFirst: vi.fn().mockResolvedValue({ id: 'org1', partnerId: 'p1', companyId: 'c1', externalId: '1c-org-001' }) },
     order: { findUnique: vi.fn().mockResolvedValue(null), create: orderCreate, update: orderUpdate },
     syncLog: { create: vi.fn().mockResolvedValue({}) }
   } as unknown as PrismaClient;

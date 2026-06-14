@@ -17,7 +17,7 @@ describe('FakeOneCAdapter', () => {
     const orgIds = new Set(orgs.map((o) => o.externalId));
     expect(orders.length).toBeGreaterThan(0);
     for (const order of orders) {
-      expect(orgIds.has(order.organizationExternalId)).toBe(true);
+      expect(orgIds.has(order.organizationExternalId!)).toBe(true);
     }
   });
 

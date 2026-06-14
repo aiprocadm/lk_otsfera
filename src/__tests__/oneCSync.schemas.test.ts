@@ -35,4 +35,21 @@ describe('oneCSync zod schemas', () => {
       mimeType: 'application/pdf', size: 1, downloadUrl: 'http://x/d1', updatedAt: '2026-05-01T00:00:00Z'
     }).success).toBe(true);
   });
+
+  it('payment accepts order-level ref', () => {
+    expect(OneCPaymentSchema.safeParse({ externalId:'P1', orderExternalId:'O1', amount:100, paidAt:'2026-04-01T00:00:00Z', isRefund:false, updatedAt:'2026-04-01T00:00:00Z' }).success).toBe(true);
+  });
+  it('payment accepts org-level ref (no order)', () => {
+    expect(OneCPaymentSchema.safeParse({ externalId:'P2', organizationExternalId:'ORG1', amount:100, paidAt:'2026-04-01T00:00:00Z', isRefund:false, updatedAt:'2026-04-01T00:00:00Z' }).success).toBe(true);
+  });
+  it('payment rejects when neither order nor org ref present', () => {
+    expect(OneCPaymentSchema.safeParse({ externalId:'P3', amount:100, paidAt:'2026-04-01T00:00:00Z', isRefund:false, updatedAt:'2026-04-01T00:00:00Z' }).success).toBe(false);
+  });
+
+  it('order accepts organizationInn instead of organizationExternalId', () => {
+    expect(OneCOrderSchema.safeParse({ externalId:'O9', title:'t', organizationInn:'7700', totalAmount:1, paidAmount:0, vatIncluded:true, executionStatus:'pending', financialStatus:'billed', productMix:[], updatedAt:'2026-04-01T00:00:00Z' }).success).toBe(true);
+  });
+  it('order rejects when neither org key present', () => {
+    expect(OneCOrderSchema.safeParse({ externalId:'O9', title:'t', totalAmount:1, paidAmount:0, vatIncluded:true, executionStatus:'pending', financialStatus:'billed', productMix:[], updatedAt:'2026-04-01T00:00:00Z' }).success).toBe(false);
+  });
 });

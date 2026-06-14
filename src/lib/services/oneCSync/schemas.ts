@@ -18,7 +18,8 @@ export const OneCOrderSchema = z.object({
   externalId: z.string().min(1),
   orderNumber: z.string().optional(),
   title: z.string().min(1),
-  organizationExternalId: z.string().min(1),
+  organizationExternalId: z.string().min(1).optional(),
+  organizationInn: z.string().min(1).optional(),
   totalAmount: z.number(),
   paidAmount: z.number(),
   paidAt: isoDate.optional(),
@@ -31,16 +32,20 @@ export const OneCOrderSchema = z.object({
   financialStatus: z.enum(['not_billed', 'billed', 'partially_paid', 'paid', 'refunded']),
   productMix: z.array(z.string()),
   updatedAt: isoDate
-});
+}).refine((o) => !!o.organizationExternalId || !!o.organizationInn, { message: 'order requires organizationExternalId or organizationInn' });
 
 export const OneCPaymentSchema = z.object({
   externalId: z.string().min(1),
-  orderExternalId: z.string().min(1),
+  orderExternalId: z.string().min(1).optional(),
+  organizationExternalId: z.string().min(1).optional(),
+  organizationInn: z.string().min(1).optional(),
   amount: z.number(),
   paidAt: isoDate,
   method: z.string().optional(),
   isRefund: z.boolean(),
   updatedAt: isoDate
+}).refine((p) => !!p.orderExternalId || !!p.organizationExternalId || !!p.organizationInn, {
+  message: 'payment requires orderExternalId or organizationExternalId or organizationInn'
 });
 
 export const OneCDocumentSchema = z.object({

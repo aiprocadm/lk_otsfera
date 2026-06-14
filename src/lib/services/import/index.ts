@@ -1,57 +1,45 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { parseWorkbook } from './parse-workbook';
-import { validateRows } from './validate';
-import { planImport } from './plan-import';
-import { importScope } from './scope';
-import { commitImport as commitTx } from './commit-import';
-import type { ImportPlan } from './types';
+import { FileOneCAdapter } from '@/lib/services/oneCSync/adapter-file';
+import { OneCOrderSchema, OneCPaymentSchema } from '@/lib/services/oneCSync/schemas';
+import { runRecordBatch, type BatchSummary } from '@/lib/services/oneCSync/record-batch';
+import { upsertOrderRecord, upsertPaymentRecord, type WriteCtx } from '@/lib/services/oneCSync/writers';
+import { importScope } from '@/lib/services/oneCSync/scope';
+import { recordAudit } from '@/lib/auth/audit';
+import type { OneCOrderDto, OneCPaymentDto } from '@/lib/services/oneCSync/dto';
 
 type Args = { fileBuffer: Buffer };
-type Err = 'invalid_file' | 'forbidden' | 'empty' | 'parse_failed';
+type Err = 'forbidden' | 'parse_failed' | 'empty';
+export type ImportReport = { orders: BatchSummary; payments: BatchSummary };
 
 function isStaff(s: SessionPayload) { return s.role === 'admin' || s.role === 'manager'; }
 
-async function buildLookups(prisma: PrismaClient) {
-  const [dbOrgs, dbPartners] = await Promise.all([
-    prisma.organization.findMany({ select: { id: true, inn: true } }),
-    prisma.partner.findMany({ select: { id: true, inn: true } }),
-  ]);
-  return {
-    orgIdByInn: new Map(dbOrgs.filter((o) => o.inn).map((o) => [o.inn as string, o.id])),
-    partnerIdByInn: new Map(dbPartners.filter((p) => p.inn).map((p) => [p.inn as string, p.id])),
-  };
+async function run(prisma: PrismaClient, session: SessionPayload, buffer: Buffer, mode: 'shadow' | 'live'): Promise<ImportReport> {
+  const adapter = new FileOneCAdapter(buffer);
+  const ctx: WriteCtx = { mode, notify: false, scope: importScope(session) };
+  // Orders first so a same-file payment referencing a freshly-created order resolves in live mode; then payments.
+  const ordersRaw = (await adapter.pullOrders({})) as unknown[];
+  const orders = await runRecordBatch<OneCOrderDto>(ordersRaw, OneCOrderSchema, (d) => d.externalId, (d, s) => upsertOrderRecord(prisma, d, s, ctx));
+  const paymentsRaw = (await adapter.pullPayments({})) as unknown[];
+  const payments = await runRecordBatch<OneCPaymentDto>(paymentsRaw, OneCPaymentSchema, (d) => d.externalId, (d, s) => upsertPaymentRecord(prisma, d, s, ctx));
+  return { orders, payments };
 }
 
-export async function previewImport(
-  prisma: PrismaClient, session: SessionPayload, args: Args,
-): Promise<{ ok: true; plan: ImportPlan } | { ok: false; error: Err }> {
+export async function previewImport(prisma: PrismaClient, session: SessionPayload, args: Args): Promise<{ ok: true; report: ImportReport } | { ok: false; error: Err }> {
   if (!isStaff(session)) return { ok: false, error: 'forbidden' };
-  let parsed;
-  try { parsed = await parseWorkbook(args.fileBuffer); }
+  let report: ImportReport;
+  try { report = await run(prisma, session, args.fileBuffer, 'shadow'); }
   catch { return { ok: false, error: 'parse_failed' }; }
-
-  const orgs = validateRows('orgs', parsed.orgs);
-  const orders = validateRows('orders', parsed.orders);
-  const payments = validateRows('payments', parsed.payments);
-  const quarantine = [...orgs.quarantine, ...orders.quarantine, ...payments.quarantine];
-  if (!orgs.valid.length && !orders.valid.length && !payments.valid.length) return { ok: false, error: 'empty' };
-
-  const lookups = await buildLookups(prisma);
-  const plan = planImport({ orgs: orgs.valid, orders: orders.valid, payments: payments.valid }, lookups, importScope(session));
-  return { ok: true, plan: { ...plan, quarantine } };
+  if (report.orders.pulled + report.payments.pulled === 0) return { ok: false, error: 'empty' };
+  return { ok: true, report };
 }
 
-export async function commitImport(
-  prisma: PrismaClient, session: SessionPayload, args: Args,
-): Promise<{ ok: true; applied: unknown; skipped: unknown } | { ok: false; error: Err }> {
+export async function commitImport(prisma: PrismaClient, session: SessionPayload, args: Args): Promise<{ ok: true; report: ImportReport } | { ok: false; error: Err }> {
   if (!isStaff(session)) return { ok: false, error: 'forbidden' };
-  let parsed;
-  try { parsed = await parseWorkbook(args.fileBuffer); }
+  let report: ImportReport;
+  try { report = await run(prisma, session, args.fileBuffer, 'live'); }
   catch { return { ok: false, error: 'parse_failed' }; }
-  const orgs = validateRows('orgs', parsed.orgs).valid;
-  const orders = validateRows('orders', parsed.orders).valid;
-  const payments = validateRows('payments', parsed.payments).valid;
-  const { applied, skipped } = await commitTx(prisma, session, { orgs, orders, payments });
-  return { ok: true, applied, skipped };
+  try { await recordAudit(prisma, { userId: session.sub, action: 'one_c_import.commit', entity: 'one_c_import', entityId: session.companyId ?? session.sub, after: { orders: report.orders, payments: report.payments } }); }
+  catch (e) { console.error('one_c_import audit failed (non-blocking):', e); }
+  return { ok: true, report };
 }
