@@ -227,6 +227,10 @@ model CommissionStatement {
   supersededBy          String?
   notes                 String?
   items                 CommissionStatementItem[]
+  // C-01: a PARTIAL unique index on (partnerId, periodFrom, periodTo) WHERE
+  // supersededBy IS NULL enforces "at most one live statement per period" while
+  // allowing superseded history. Prisma can't express partial indexes, so it
+  // lives in migration 20260614000000_commission_statement_partial_unique.
 
   @@index([partnerId, periodFrom, periodTo])
   @@index([status])

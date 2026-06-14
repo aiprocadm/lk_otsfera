@@ -21,6 +21,7 @@
     "gate": "tsx scripts/gate.ts",
     "gate:down": "tsx scripts/gate.ts --down",
     "preflight:inn": "tsx scripts/preflight-inn-unique.ts",
+    "dedupe:commission": "tsx scripts/dedupe-commission-statements.ts",
     "e2e:visual": "playwright test",
     "e2e:visual:update": "playwright test --update-snapshots",
     "worker": "tsx src/worker/index.ts",

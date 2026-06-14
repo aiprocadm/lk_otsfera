@@ -294,3 +294,42 @@ describe('calculateStatementForPartner — overlap guard (C-05)', () => {
     expect(res.isNew).toBe(true);
   });
 });
+
+// C-01: at most one live statement per (partner, period), enforced by the
+// partial-unique index — holds even under a race between two writers.
+describe('calculateStatementForPartner — duplicate-accrual guard (C-01)', () => {
+  it('partial-unique rejects a second live (non-superseded) statement for the same period', async () => {
+    await prisma.commissionStatement.create({
+      data: { partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO }
+    });
+    await expect(
+      prisma.commissionStatement.create({
+        data: { partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO }
+      })
+    ).rejects.toThrow();
+  });
+
+  it('allows a superseded row to coexist with a live one for the same period', async () => {
+    const live = await prisma.commissionStatement.create({
+      data: { partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO }
+    });
+    const superseded = await prisma.commissionStatement.create({
+      data: { partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, supersededBy: live.id }
+    });
+    expect(superseded.id).toBeTruthy();
+  });
+
+  it('concurrent calc for the same NEW period yields exactly one live statement (no dup, no throw)', async () => {
+    await createPaidOrder(100000, CLOSED_AT);
+    const results = await Promise.allSettled([
+      calculateStatementForPartner(prisma, { partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: userId }),
+      calculateStatementForPartner(prisma, { partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: userId })
+    ]);
+    // The race loser falls back to in-place update, so neither call rejects.
+    expect(results.every((r) => r.status === 'fulfilled')).toBe(true);
+    const live = await prisma.commissionStatement.findMany({
+      where: { partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, supersededBy: null }
+    });
+    expect(live).toHaveLength(1);
+  });
+});

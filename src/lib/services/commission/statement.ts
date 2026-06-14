@@ -121,6 +121,57 @@ async function resolveRatesAndOrgNames(
   });
 }
 
+/** Duck-typed Prisma unique-violation check (avoids a runtime Prisma import). */
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code?: unknown }).code === 'P2002'
+  );
+}
+
+/**
+ * Replace a draft statement's items and totals in place (single transaction).
+ * Shared by the normal draft path and the C-01 race fallback. Nulls pdf/xlsx so
+ * the worker regenerates them.
+ */
+async function updateDraftInPlace(
+  prisma: PrismaClient,
+  statementId: string,
+  calc: ReturnType<typeof calculateCommission>,
+  calculatedByUserId: string | null
+): Promise<CommissionStatement> {
+  return prisma.$transaction(async (tx) => {
+    await tx.commissionStatementItem.deleteMany({ where: { statementId } });
+    if (calc.items.length > 0) {
+      await tx.commissionStatementItem.createMany({
+        data: calc.items.map((item) => ({
+          statementId,
+          orderId: item.orderId,
+          orderNumber: item.orderNumber,
+          organizationName: item.organizationName,
+          baseAmount: item.baseAmount,
+          rate: item.rate,
+          commissionAmount: item.commissionAmount
+        }))
+      });
+    }
+    return tx.commissionStatement.update({
+      where: { id: statementId },
+      data: {
+        totalBaseAmount: calc.totals.totalBaseAmount,
+        totalCommissionAmount: calc.totals.totalCommissionAmount,
+        averageRate: calc.totals.averageRate,
+        calculatedAt: new Date(),
+        calculatedByUserId,
+        pdfPath: null,
+        xlsxPath: null
+      }
+    });
+  });
+}
+
 export async function calculateStatementForPartner(
   prisma: PrismaClient,
   input: CalculateStatementInput
@@ -188,77 +239,62 @@ export async function calculateStatementForPartner(
 
   if (existing && existing.status === 'draft') {
     // Update draft in place: delete items, insert new, update totals
-    statement = await prisma.$transaction(async (tx) => {
-      await tx.commissionStatementItem.deleteMany({
-        where: { statementId: existing.id }
-      });
-      if (calc.items.length > 0) {
-        await tx.commissionStatementItem.createMany({
-          data: calc.items.map((item) => ({
-            statementId: existing.id,
-            orderId: item.orderId,
-            orderNumber: item.orderNumber,
-            organizationName: item.organizationName,
-            baseAmount: item.baseAmount,
-            rate: item.rate,
-            commissionAmount: item.commissionAmount
-          }))
-        });
-      }
-      const updated = await tx.commissionStatement.update({
-        where: { id: existing.id },
-        data: {
-          totalBaseAmount: calc.totals.totalBaseAmount,
-          totalCommissionAmount: calc.totals.totalCommissionAmount,
-          averageRate: calc.totals.averageRate,
-          calculatedAt: new Date(),
-          calculatedByUserId,
-          // pdf/xlsx are stale → null them so worker regenerates
-          pdfPath: null,
-          xlsxPath: null
-        }
-      });
-      return updated;
-    });
+    statement = await updateDraftInPlace(prisma, existing.id, calc, calculatedByUserId);
     isNew = false;
   } else {
-    // Either: no existing, or existing is approved/paid → create new + supersede
-    statement = await prisma.$transaction(async (tx) => {
-      const created = await tx.commissionStatement.create({
-        data: {
-          partnerId,
-          periodFrom,
-          periodTo,
-          calculatedAt: new Date(),
-          calculatedByUserId,
-          totalBaseAmount: calc.totals.totalBaseAmount,
-          totalCommissionAmount: calc.totals.totalCommissionAmount,
-          averageRate: calc.totals.averageRate,
-          status: 'draft'
+    // Either: no existing, or existing is approved/paid → create new + supersede.
+    try {
+      statement = await prisma.$transaction(async (tx) => {
+        const created = await tx.commissionStatement.create({
+          data: {
+            partnerId,
+            periodFrom,
+            periodTo,
+            calculatedAt: new Date(),
+            calculatedByUserId,
+            totalBaseAmount: calc.totals.totalBaseAmount,
+            totalCommissionAmount: calc.totals.totalCommissionAmount,
+            averageRate: calc.totals.averageRate,
+            status: 'draft'
+          }
+        });
+        if (calc.items.length > 0) {
+          await tx.commissionStatementItem.createMany({
+            data: calc.items.map((item) => ({
+              statementId: created.id,
+              orderId: item.orderId,
+              orderNumber: item.orderNumber,
+              organizationName: item.organizationName,
+              baseAmount: item.baseAmount,
+              rate: item.rate,
+              commissionAmount: item.commissionAmount
+            }))
+          });
         }
+        if (existing) {
+          await tx.commissionStatement.update({
+            where: { id: existing.id },
+            data: { supersededBy: created.id }
+          });
+        }
+        return created;
       });
-      if (calc.items.length > 0) {
-        await tx.commissionStatementItem.createMany({
-          data: calc.items.map((item) => ({
-            statementId: created.id,
-            orderId: item.orderId,
-            orderNumber: item.orderNumber,
-            organizationName: item.organizationName,
-            baseAmount: item.baseAmount,
-            rate: item.rate,
-            commissionAmount: item.commissionAmount
-          }))
-        });
-      }
-      if (existing) {
-        await tx.commissionStatement.update({
-          where: { id: existing.id },
-          data: { supersededBy: created.id }
-        });
-      }
-      return created;
-    });
-    isNew = true;
+      isNew = true;
+    } catch (err) {
+      // C-01: we lost a race — another writer created the live statement for this
+      // (partner, period) between our findFirst and create, and the partial-unique
+      // index rejected our insert (P2002). Re-read the now-existing live row and
+      // fall back to an in-place update, matching the draft path above. Any other
+      // error propagates unchanged.
+      if (!isUniqueViolation(err)) throw err;
+      const winner = await prisma.commissionStatement.findFirst({
+        where: { partnerId, periodFrom, periodTo, supersededBy: null },
+        orderBy: { calculatedAt: 'desc' }
+      });
+      if (!winner) throw err;
+      statement = await updateDraftInPlace(prisma, winner.id, calc, calculatedByUserId);
+      isNew = false;
+    }
   }
 
   // Audit log — only when triggered by a user (cron runs anonymous; sync-log captures cron events)
