@@ -38,6 +38,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
   manager: [
     { href: '/manager/dashboard', label: 'Главная', icon: '⌂', flag: 'manager_cabinet' },
     { href: '/manager/orders', label: 'Заказы', icon: '📋', flag: 'manager_cabinet' },
+    { href: '/manager/leads', label: 'Заявки', icon: '📬', flag: 'manager_cabinet' },
     { href: '/manager/organizations', label: 'Организации', icon: '🏢', flag: 'manager_cabinet' },
     { href: '/manager/finance', label: 'Финансы', icon: '₽', flag: 'manager_cabinet' },
     { href: '/manager/import', label: 'Загрузка из 1С', icon: '📥', flag: 'manager_cabinet' },

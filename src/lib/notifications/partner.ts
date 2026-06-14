@@ -33,25 +33,47 @@ export type PartnerNotifyInput =
         period: string; // e.g. "май 2026"
         amount: string; // already formatted, e.g. "125 000 ₽"
       };
+    }
+  | {
+      partnerId: string;
+      type: 'lead_status_changed';
+      payload: {
+        leadId: string;
+        clientCompanyName: string;
+        subject: string;
+        status: string; // human-readable RU status label
+      };
     };
 
 /**
- * Per-type presentation: in-app title/body, deep link, persisted meta, and the
- * email dispatcher closure. Keeps the fan-out loop type-agnostic; adding a new
- * partner notification type means adding a branch here only.
+ * Per-type presentation: in-app title/body, deep link, persisted meta, and an
+ * optional email dispatcher. Keeps the fan-out loop type-agnostic; adding a new
+ * partner notification type means adding a branch here only. `sendEmail` is
+ * optional — some types are in-app only (no email template).
  */
 type PartnerNotificationView = {
   title: string;
   body: string;
   url: string;
   meta: Prisma.InputJsonValue;
-  sendEmail: (to: string, partnerName: string) => Promise<SendResult>;
+  sendEmail?: (to: string, partnerName: string) => Promise<SendResult>;
 };
 
 function partnerNotificationView(
   input: PartnerNotifyInput,
   partnerName: string
 ): PartnerNotificationView {
+  if (input.type === 'lead_status_changed') {
+    // S5: lead status transparency — in-app only (no email template).
+    const url = `${getAppBaseUrl()}/partner/leads/${input.payload.leadId}`;
+    return {
+      title: 'Статус заявки изменён',
+      body: `Заявка «${input.payload.clientCompanyName} — ${input.payload.subject}»: ${input.payload.status}.`,
+      url,
+      meta: { ...input.payload, partnerName, url }
+    };
+  }
+
   if (input.type === 'commission_statement_ready') {
     const url = `${getAppBaseUrl()}/partner/finance`;
     return {
@@ -143,7 +165,7 @@ export async function notifyPartnerUsers(
     });
     recipientsNotified += 1;
 
-    if (u.email) {
+    if (u.email && view.sendEmail) {
       try {
         const r = await view.sendEmail(u.email, partner.name);
         if (r.status === 'sent') emailsSent += 1;

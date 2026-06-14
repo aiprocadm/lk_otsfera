@@ -1,5 +1,31 @@
 import type { PrismaClient, Lead, LeadStatus, Order } from '@prisma/client';
 import { recordAudit } from '@/lib/auth/audit';
+import { notifyPartnerUsers } from '@/lib/notifications/partner';
+
+const LEAD_STATUS_RU: Record<LeadStatus, string> = {
+  new: 'Новая',
+  in_review: 'На рассмотрении',
+  qualified: 'Квалифицирована',
+  promoted_to_order: 'Преобразована в заказ',
+  rejected: 'Отклонена'
+};
+
+/** S5: tell the partner their lead changed status. Best-effort (§3). */
+async function notifyPartnerLeadStatus(
+  prisma: PrismaClient,
+  lead: { id: string; partnerId: string; clientCompanyName: string; subject: string },
+  status: LeadStatus
+): Promise<void> {
+  try {
+    await notifyPartnerUsers(prisma, {
+      partnerId: lead.partnerId,
+      type: 'lead_status_changed',
+      payload: { leadId: lead.id, clientCompanyName: lead.clientCompanyName, subject: lead.subject, status: LEAD_STATUS_RU[status] }
+    });
+  } catch (err) {
+    console.warn('[leadLifecycle] partner notify failed', { leadId: lead.id, error: err instanceof Error ? err.message : String(err) });
+  }
+}
 
 /**
  * Manager-side lead lifecycle (T3). Leads are a shared team queue (any manager may
@@ -22,7 +48,7 @@ const ALLOWED_STATUS: Record<string, LeadStatus[]> = {
 async function loadLead(prisma: PrismaClient, leadId: string) {
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
-    select: { id: true, status: true, partnerId: true, organizationId: true, subject: true, estimatedAmount: true, promotedOrderId: true }
+    select: { id: true, status: true, partnerId: true, organizationId: true, clientCompanyName: true, subject: true, estimatedAmount: true, promotedOrderId: true }
   });
   if (!lead) throw new Error('NOT_FOUND: lead');
   return lead;
@@ -46,6 +72,7 @@ export async function assignLead(
     userId: args.managerId, action: 'lead_assigned', entity: 'lead', entityId: lead.id,
     after: { assignedManagerId: assignee, status: updated.status }
   });
+  if (updated.status !== lead.status) await notifyPartnerLeadStatus(prisma, lead, updated.status);
   return updated;
 }
 
@@ -64,6 +91,7 @@ export async function setLeadStatus(
     userId: args.managerId, action: 'lead_status_changed', entity: 'lead', entityId: lead.id,
     after: { from: lead.status, to: args.status }
   });
+  await notifyPartnerLeadStatus(prisma, lead, args.status);
   return updated;
 }
 
@@ -119,6 +147,7 @@ export async function promoteLead(
     userId: args.managerId, action: 'lead_promoted_to_order', entity: 'lead', entityId: lead.id,
     after: { orderId: order.id, organizationId: lead.organizationId }
   });
+  await notifyPartnerLeadStatus(prisma, lead, 'promoted_to_order');
   return { order, lead: updatedLead };
 }
 
@@ -137,5 +166,6 @@ export async function rejectLead(
     userId: args.managerId, action: 'lead_rejected', entity: 'lead', entityId: lead.id,
     after: { reason: updated.rejectedReason }
   });
+  await notifyPartnerLeadStatus(prisma, lead, 'rejected');
   return updated;
 }

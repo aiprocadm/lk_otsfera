@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { recordAudit } = vi.hoisted(() => ({ recordAudit: vi.fn() }));
+const { notifyPartnerUsers } = vi.hoisted(() => ({ notifyPartnerUsers: vi.fn() }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
+vi.mock('@/lib/notifications/partner', () => ({ notifyPartnerUsers }));
 
 import { assignLead, setLeadStatus, promoteLead, rejectLead } from '@/lib/services/manager/leadLifecycle';
 
@@ -23,7 +25,7 @@ function db(lead: LeadRow | null, over: Record<string, unknown> = {}) {
   } as never;
 }
 
-beforeEach(() => recordAudit.mockReset());
+beforeEach(() => { recordAudit.mockReset(); notifyPartnerUsers.mockReset(); });
 
 describe('assignLead', () => {
   it('claims a new lead to the manager and advances new → in_review', async () => {
@@ -46,10 +48,11 @@ describe('assignLead', () => {
 });
 
 describe('setLeadStatus', () => {
-  it('allows in_review → qualified', async () => {
-    const d = db({ id: 'L1', status: 'in_review', partnerId: 'p1', organizationId: 'o1' });
+  it('allows in_review → qualified and notifies the partner (S5)', async () => {
+    const d = db({ id: 'L1', status: 'in_review', partnerId: 'p1', organizationId: 'o1', clientCompanyName: 'Acme', subject: 'S' });
     const r = await setLeadStatus(d, { leadId: 'L1', managerId: 'm1', status: 'qualified' });
     expect(r.status).toBe('qualified');
+    expect(notifyPartnerUsers).toHaveBeenCalledWith(d, expect.objectContaining({ partnerId: 'p1', type: 'lead_status_changed' }));
   });
   it('forbids new → qualified (must go through in_review)', async () => {
     const d = db({ id: 'L1', status: 'new', partnerId: 'p1', organizationId: 'o1' });
