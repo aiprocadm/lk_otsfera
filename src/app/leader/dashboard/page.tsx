@@ -33,7 +33,16 @@ export default async function LeaderDashboardPage() {
           accent
         />
       </div>
-      <LeaderManagersTable rows={data.perManager} />
+      <div className='space-y-2'>
+        <div>
+          <h2 className='text-lg font-semibold text-[#111111]'>Менеджеры команды</h2>
+          <p className='text-sm text-gray-500 mt-0.5'>
+            Суммы — по заказам в работе у каждого менеджера; не сводятся с «Долгом клиентов»
+            (он считается по выставленным к оплате заказам компании).
+          </p>
+        </div>
+        <LeaderManagersTable rows={data.perManager} />
+      </div>
       <ManagerEventsFeed events={events} />
     </div>
   );

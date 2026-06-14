@@ -19,7 +19,7 @@ export function LeaderManagersTable({ rows }: { rows: LeaderManagerRow[] }) {
       <THead>
         <Th>Менеджер</Th>
         <Th>Активных заказов</Th>
-        <Th>Сумма</Th>
+        <Th>Сумма в работе</Th>
         <Th>Оплачено</Th>
         <Th>Просрочено</Th>
       </THead>
