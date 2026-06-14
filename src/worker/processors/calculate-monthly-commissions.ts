@@ -2,8 +2,16 @@ import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { calculateStatementForPartner } from '@/lib/services/commission/statement';
+import { notifyPartnerUsers } from '@/lib/notifications/partner';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
+import { fmtMoney } from '@/lib/format';
 import type { SyncJobPayload } from '@/lib/jobs/types';
+
+/** Russian month-year label, e.g. "май 2026" (no «г.» suffix). */
+function formatPeriod(periodFrom: Date): string {
+  const month = new Intl.DateTimeFormat('ru-RU', { month: 'long', timeZone: 'Europe/Moscow' }).format(periodFrom);
+  return `${month} ${periodFrom.getFullYear()}`;
+}
 
 export type CalculateMonthlyCommissionsResult = {
   periodFrom: string;
@@ -49,6 +57,29 @@ export async function calculateMonthlyCommissionsProcessor(
         partnersSkipped++;
       } else {
         partnersProcessed++;
+        // C-02: tell the partner a fresh statement is waiting for review. Only on a
+        // newly-created statement — an in-place recalc of an existing draft is not a
+        // new event. Cron is the system actor, so this is the right place (not the
+        // self-triggered manual path). Best-effort: a notify failure (incl. payload
+        // build) must never fail the monthly batch (§3 graceful degrade).
+        if (result.isNew) {
+          try {
+            await notifyPartnerUsers(db, {
+              partnerId,
+              type: 'commission_statement_ready',
+              payload: {
+                statementId: result.statement.id,
+                period: formatPeriod(result.statement.periodFrom),
+                amount: fmtMoney(result.statement.totalCommissionAmount.toString())
+              }
+            });
+          } catch (e) {
+            console.warn('[worker] commission-ready notify failed', {
+              partnerId,
+              error: e instanceof Error ? e.message : String(e)
+            });
+          }
+        }
       }
     } catch (err) {
       errors.push({ partnerId, error: err instanceof Error ? err.message : String(err) });

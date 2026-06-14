@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 
-const { sendMock } = vi.hoisted(() => ({ sendMock: vi.fn() }));
-vi.mock('@/lib/email/send', () => ({ sendPartnerDocumentPublishedEmail: sendMock }));
+const { sendMock, sendCommissionMock } = vi.hoisted(() => ({ sendMock: vi.fn(), sendCommissionMock: vi.fn() }));
+vi.mock('@/lib/email/send', () => ({
+  sendPartnerDocumentPublishedEmail: sendMock,
+  sendCommissionReadyEmail: sendCommissionMock
+}));
 
 import { notifyPartnerUsers } from '@/lib/notifications/partner';
 
@@ -75,5 +78,41 @@ describe('notifyPartnerUsers', () => {
     const meta = data.meta as Record<string, unknown>;
     expect(meta.url).toContain('/partner/portfolio');
     expect(meta.url).not.toContain('/documents?tab=general');
+  });
+
+  // C-02: partner must be told when a commission statement is ready to review.
+  it('commission_statement_ready: in-app notification with period/amount and finance deep link', async () => {
+    sendCommissionMock.mockResolvedValue({ status: 'skipped', reason: 'disabled' });
+    const { db, create } = dbWith([{ id: 'u5', email: 'd@p.ru' }]);
+    const r = await notifyPartnerUsers(db, {
+      partnerId: 'p-1',
+      type: 'commission_statement_ready',
+      payload: { statementId: 's-7', period: 'май 2026', amount: '125 000 ₽' }
+    });
+    expect(r.recipientsNotified).toBe(1);
+    const data = create.mock.calls[0][0].data;
+    expect(data.type).toBe('commission_statement_ready');
+    expect(data.title).toBe('Отчёт по комиссии готов');
+    expect(data.body).toContain('май 2026');
+    expect(data.body).toContain('125 000 ₽');
+    const meta = data.meta as Record<string, unknown>;
+    expect(meta.url).toContain('/partner/finance');
+    expect(meta.statementId).toBe('s-7');
+  });
+
+  it('commission_statement_ready: dispatches the commission-ready email (not the document email)', async () => {
+    sendMock.mockClear(); // no beforeEach reset in this file; isolate the cross-type assertion
+    sendCommissionMock.mockResolvedValue({ status: 'sent' });
+    const { db } = dbWith([{ id: 'u6', email: 'e@p.ru' }]);
+    const r = await notifyPartnerUsers(db, {
+      partnerId: 'p-1',
+      type: 'commission_statement_ready',
+      payload: { statementId: 's-8', period: 'июнь 2026', amount: '90 000 ₽' }
+    });
+    expect(r.emailsSent).toBe(1);
+    expect(sendCommissionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'e@p.ru', partnerName: 'ООО Партнёр', period: 'июнь 2026', amount: '90 000 ₽' })
+    );
+    expect(sendMock).not.toHaveBeenCalled();
   });
 });
