@@ -5,7 +5,7 @@ import type {
 } from './dto';
 import { OneCLeadPushResultSchema } from './schemas';
 import { withTimeout, withRetry, OneCHttpError } from './resilience';
-import { ENDPOINTS, buildAuthHeader, buildUrl, buildLeadBody, unwrapEnvelope } from './rest-wire';
+import { ENDPOINTS, buildAuthHeader, buildUrl, buildLeadBody, unwrapEnvelope, normalizeOrderRecord } from './rest-wire';
 
 export type RestAdapterConfig = { baseUrl: string; token: string };
 
@@ -33,8 +33,10 @@ export class RestOneCAdapter implements OneCAdapter {
   pullOrganizations(cursor: SyncCursor): Promise<OneCOrgDto[]> {
     return this.getArray(ENDPOINTS.organizations, cursor) as Promise<OneCOrgDto[]>;
   }
-  pullOrders(cursor: SyncCursor): Promise<OneCOrderDto[]> {
-    return this.getArray(ENDPOINTS.orders, cursor) as Promise<OneCOrderDto[]>;
+  async pullOrders(cursor: SyncCursor): Promise<OneCOrderDto[]> {
+    // Q10: translate Russian status names before the per-record zod gate.
+    const rows = await this.getArray(ENDPOINTS.orders, cursor);
+    return rows.map(normalizeOrderRecord) as OneCOrderDto[];
   }
   pullPayments(cursor: SyncCursor): Promise<OneCPaymentDto[]> {
     return this.getArray(ENDPOINTS.payments, cursor) as Promise<OneCPaymentDto[]>;

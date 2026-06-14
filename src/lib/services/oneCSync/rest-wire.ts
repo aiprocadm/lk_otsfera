@@ -4,6 +4,7 @@
 // DECISION Q#. If 1C answers "not REST" (Q1), this file + adapter-rest.ts are
 // the only throwaway code — the rest of oneCSync is transport-agnostic.
 import type { SyncCursor, OneCLeadPushPayload } from './dto';
+import { translateFinancialStatus, translateExecutionStatus } from './translate';
 
 // DECISION Q1: REST endpoint paths (or OData / file-export).
 export const ENDPOINTS = {
@@ -38,6 +39,26 @@ export function buildUrl(baseUrl: string, path: string, cursor: SyncCursor): str
   const url = new URL(path, baseUrl);
   if (cursor.since) url.searchParams.set(SINCE_PARAM, formatSince(cursor.since));
   return url.toString();
+}
+
+// DECISION Q10: 1C natively emits Russian status names ("Оплачено", "Выполнен").
+// Translate them to our internal enum codes here, at parity with the file adapter
+// (which already calls translate.ts). Already-internal codes and unknown values
+// pass through unchanged — unknowns are then quarantined by the per-record zod
+// gate downstream (runRecordBatch), giving a visible report instead of silent loss.
+export function normalizeOrderRecord(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object') return raw;
+  const r = raw as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...r };
+  if (typeof r.financialStatus === 'string') {
+    const t = translateFinancialStatus(r.financialStatus);
+    if (t.ok) out.financialStatus = t.value;
+  }
+  if (typeof r.executionStatus === 'string') {
+    const t = translateExecutionStatus(r.executionStatus);
+    if (t.ok) out.executionStatus = t.value;
+  }
+  return out;
 }
 
 // DECISION Q5: the JSON field name carrying the partner key on the OUTBOUND

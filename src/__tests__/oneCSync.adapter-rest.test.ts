@@ -33,6 +33,31 @@ describe('RestOneCAdapter', () => {
     expect(rows).toHaveLength(1);
   });
 
+  // Q10: 1C natively emits Russian status names; the REST adapter must translate
+  // them to internal enum codes (parity with the file adapter) or every order
+  // would fail the downstream zod gate.
+  it('translates Russian order statuses to internal codes (Q10)', async () => {
+    const ruOrder = { ...validOrder, financialStatus: 'Оплачено', executionStatus: 'Выполнен' };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [ruOrder] }));
+    const rows = await new RestOneCAdapter(config).pullOrders({});
+    expect(rows[0].financialStatus).toBe('paid');
+    expect(rows[0].executionStatus).toBe('completed');
+  });
+
+  it('leaves already-internal order statuses unchanged (idempotent)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [validOrder] }));
+    const rows = await new RestOneCAdapter(config).pullOrders({});
+    expect(rows[0].financialStatus).toBe('partially_paid');
+    expect(rows[0].executionStatus).toBe('in_progress');
+  });
+
+  it('leaves an unknown status as-is (downstream zod quarantines it)', async () => {
+    const bad = { ...validOrder, financialStatus: 'Марсианский статус' };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [bad] }));
+    const rows = await new RestOneCAdapter(config).pullOrders({});
+    expect((rows[0] as unknown as Record<string, unknown>).financialStatus).toBe('Марсианский статус');
+  });
+
   it('throws OneCHttpError on a non-OK response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500, headers: { get: () => null }, json: async () => ({}) }));
     await expect(new RestOneCAdapter(config).pullOrders({})).rejects.toThrow(/500/);
