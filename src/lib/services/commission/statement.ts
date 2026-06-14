@@ -10,6 +10,14 @@ export type CalculateStatementInput = {
   periodFrom: Date;
   periodTo: Date;
   calculatedByUserId: string | null;
+  /**
+   * C-05: reject a period that overlaps an existing (non-superseded) statement
+   * with a DIFFERENT range — prevents double-counting from arbitrary manual
+   * ranges. The exact same period is allowed (it is an in-place recalc, not an
+   * overlap). Opt-in: the monthly cron omits this (canonical months never
+   * overlap each other, and the cron must not be blocked by a manual range).
+   */
+  rejectOverlap?: boolean;
 };
 
 export type CalculateStatementResult = {
@@ -117,7 +125,7 @@ export async function calculateStatementForPartner(
   prisma: PrismaClient,
   input: CalculateStatementInput
 ): Promise<CalculateStatementResult> {
-  const { partnerId, periodFrom, periodTo, calculatedByUserId } = input;
+  const { partnerId, periodFrom, periodTo, calculatedByUserId, rejectOverlap } = input;
 
   const partner = await prisma.partner.findUnique({
     where: { id: partnerId },
@@ -127,6 +135,25 @@ export async function calculateStatementForPartner(
     throw new Error('PARTNER_NOT_FOUND');
   }
   const partnerDefaultRate = partner.commissionRate;
+
+  // C-05: fail fast on an overlapping (but not identical) period before any calc.
+  // Ranges overlap when from <= other.to AND to >= other.from; the exact same
+  // period is excluded (that path is a legitimate in-place recalc below).
+  if (rejectOverlap) {
+    const overlap = await prisma.commissionStatement.findFirst({
+      where: {
+        partnerId,
+        supersededBy: null,
+        periodFrom: { lte: periodTo },
+        periodTo: { gte: periodFrom },
+        NOT: { periodFrom, periodTo }
+      },
+      select: { id: true }
+    });
+    if (overlap) {
+      throw new Error(`PERIOD_OVERLAP: overlaps statement ${overlap.id}`);
+    }
+  }
 
   const orders = await prisma.order.findMany({
     where: buildOrdersWhere(partnerId, periodFrom, periodTo),

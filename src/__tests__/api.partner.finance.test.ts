@@ -102,6 +102,24 @@ describe('POST /api/partner/finance/statements', () => {
     const res = await POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }));
     expect(res.status).toBe(200);
   });
+
+  // C-05: manual path must reject a period overlapping an existing statement.
+  it('409 when the period overlaps an existing statement (PERIOD_OVERLAP)', async () => {
+    vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
+    vi.mocked(calculateStatementForPartner).mockRejectedValue(new Error('PERIOD_OVERLAP: overlaps statement s9'));
+    const res = await POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-06-30' }));
+    expect(res.status).toBe(409);
+  });
+
+  it('asks the service to reject overlaps on the manual path (rejectOverlap=true)', async () => {
+    vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
+    vi.mocked(calculateStatementForPartner).mockResolvedValue({ statement: stubStatement as any, itemCount: 1, isNew: true });
+    await POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }));
+    expect(calculateStatementForPartner).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ rejectOverlap: true })
+    );
+  });
 });
 
 describe('GET /api/partner/finance/statements/[id]', () => {
