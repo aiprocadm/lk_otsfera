@@ -105,7 +105,7 @@ export async function PATCH(req: Request) {
       data: { isRead }
     });
     return NextResponse.json(notifications);
-  }
-
+  } /* v8 ignore next -- false branch of ids check unreachable after schema refine */
+  /* v8 ignore next -- defensive fallback; schema refine guarantees id or non-empty ids after safeParse success */
   return NextResponse.json({ error: 'id or ids required' }, { status: 400 });
 }
