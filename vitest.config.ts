@@ -85,7 +85,12 @@ export default defineConfig(({ mode }) => ({
         'src/**/*.d.ts',
         // Беслогичные фреймворк-шеллы Next (спека §3): чистая навигационная
         // обвязка без ветвлений — покрывается e2e, не unit.
-        'src/**/{layout,loading,error,not-found,global-error,template}.tsx'
+        'src/**/{layout,loading,error,not-found,global-error,template}.tsx',
+        // Worker process bootstrap: конструирование BullMQ Worker (нужен Redis),
+        // SIGINT/SIGTERM-хендлеры, process.exit, main()-склейка. Вся бизнес-логика
+        // вынесена в processors/* и lib/jobs/* (покрыты отдельно). Покрывается
+        // worker integration/e2e, не unit. (План Task 5, variant B.)
+        'src/worker/index.ts'
       ],
       reporter: ['text-summary', 'json-summary', 'html']
     }
