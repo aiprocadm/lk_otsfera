@@ -67,7 +67,7 @@ describe('manager_cabinet (opt-in flag)', () => {
 });
 
 describe('navByRole.manager — feature-flag gated', () => {
-  it('lists all eleven manager cabinet items in the raw nav (including leader-only Команда + вход в /leader)', () => {
+  it('lists all twelve manager cabinet items in the raw nav (including leader-only Команда + вход в /leader)', () => {
     expect(navByRole.manager.map((i) => i.href)).toEqual([
       '/manager/dashboard',
       '/manager/orders',
@@ -77,15 +77,20 @@ describe('navByRole.manager — feature-flag gated', () => {
       '/manager/import',
       '/manager/documents',
       '/manager/students',
+      '/manager/enrollments',
       '/manager/messages',
       '/manager/team',
       '/leader/dashboard'
     ]);
   });
 
-  it('every manager item carries flag=manager_cabinet (so they hide together), кроме входа в /leader (leader_cabinet)', () => {
-    const ownItems = navByRole.manager.filter((i) => i.href.startsWith('/manager/'));
+  it('every manager item carries flag=manager_cabinet (so they hide together), кроме enrollments (свой флаг) и входа в /leader (leader_cabinet)', () => {
+    const ownItems = navByRole.manager.filter(
+      (i) => i.href.startsWith('/manager/') && i.href !== '/manager/enrollments'
+    );
     expect(ownItems.every((i) => i.flag === 'manager_cabinet')).toBe(true);
+    const enrollment = navByRole.manager.find((i) => i.href === '/manager/enrollments');
+    expect(enrollment?.flag).toBe('enrollment_requests');
     const leaderEntry = navByRole.manager.find((i) => i.href === '/leader/dashboard');
     expect(leaderEntry?.flag).toBe('leader_cabinet');
   });

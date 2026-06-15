@@ -9,6 +9,13 @@ const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   { prefix: '/partner/leads', flag: 'partner_leads' },
   { prefix: '/partner/messages', flag: 'chat' },
   { prefix: '/organization/messages', flag: 'chat' },
+  // T5: every enrollment surface dark-launches together under one flag (the
+  // cabinet-level flags below still apply additively via their own prefixes).
+  { prefix: '/partner/enrollments', flag: 'enrollment_requests' },
+  { prefix: '/organization/enrollments', flag: 'enrollment_requests' },
+  { prefix: '/manager/enrollments', flag: 'enrollment_requests' },
+  { prefix: '/leader/enrollments', flag: 'enrollment_requests' },
+  { prefix: '/admin/enrollments', flag: 'enrollment_requests' },
   { prefix: '/organization', flag: 'organization_cabinet' },
   { prefix: '/manager', flag: 'manager_cabinet' },
   { prefix: '/leader', flag: 'leader_cabinet' },

@@ -33,7 +33,7 @@ import { usePathname } from 'next/navigation';
 import { OrgSidebar, type OrgSidebarMembership } from '@/components/organization/org-sidebar';
 import { navByRole, type NavItem } from '@/lib/navigation/cabinet';
 
-// Full 8-item org canon. Flag-filtering (chat) is navItemsFor's job server-side;
+// Full 9-item org canon. Flag-filtering (chat/enrollment) is navItemsFor's job server-side;
 // here we pass the full list to test OrgSidebar's viewerRole filtering deterministically.
 const ALL_ORG_ITEMS: NavItem[] = navByRole.organization;
 
@@ -55,7 +55,7 @@ const MULTI: OrgSidebarMembership[] = [
 ];
 
 describe('OrgSidebar', () => {
-  it('renders all 8 nav links for admin viewer', () => {
+  it('renders all 9 nav links for admin viewer', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
@@ -66,11 +66,11 @@ describe('OrgSidebar', () => {
       })
     );
     const matches = html.match(/data-testid="org-nav-/g);
-    expect(matches).toHaveLength(8);
+    expect(matches).toHaveLength(9);
     expect(html).toContain('href="/organization/team"');
   });
 
-  it('hides Команда for member viewer (7 links)', () => {
+  it('hides Команда for member viewer (8 links)', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
@@ -81,11 +81,11 @@ describe('OrgSidebar', () => {
       })
     );
     const matches = html.match(/data-testid="org-nav-/g);
-    expect(matches).toHaveLength(7);
+    expect(matches).toHaveLength(8);
     expect(html).not.toContain('href="/organization/team"');
   });
 
-  it('shows Команда for leader viewer (8 links)', () => {
+  it('shows Команда for leader viewer (9 links)', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
@@ -96,7 +96,7 @@ describe('OrgSidebar', () => {
       })
     );
     const matches = html.match(/data-testid="org-nav-/g);
-    expect(matches).toHaveLength(8);
+    expect(matches).toHaveLength(9);
     expect(html).toContain('href="/organization/team"');
   });
 

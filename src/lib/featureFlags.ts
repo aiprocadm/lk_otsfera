@@ -21,6 +21,7 @@ export const FEATURE_FLAGS = [
   'manager_cabinet',
   'leader_cabinet',
   'chat',
+  'enrollment_requests',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -34,7 +35,8 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'organization_cabinet',
   'manager_cabinet',
   'leader_cabinet',
-  'chat'
+  'chat',
+  'enrollment_requests'
 ]);
 
 export class FeatureDisabledError extends Error {

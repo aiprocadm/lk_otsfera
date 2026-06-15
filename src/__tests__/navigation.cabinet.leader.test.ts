@@ -13,21 +13,26 @@ afterEach(() => {
 });
 
 describe('канон leader', () => {
-  it('7 пунктов: сводка/команда/финансы/заказы/организации/сообщения/мои заказы', () => {
+  it('8 пунктов: сводка/команда/финансы/заказы/организации/обучение/сообщения/мои заказы', () => {
     expect(navByRole.leader.map((i) => i.href)).toEqual([
       '/leader/dashboard',
       '/leader/team',
       '/leader/finance',
       '/leader/orders',
       '/leader/organizations',
+      '/leader/enrollments',
       '/manager/messages',
       '/manager/dashboard'
     ]);
   });
 
-  it('пункты leader-меню без flag (внутрь пускает middleware+layout)', () => {
+  it('пункты leader-меню без flag, кроме «Заявок на обучение» (свой opt-in флаг)', () => {
     for (const item of navByRole.leader) {
-      expect(item.flag).toBeUndefined();
+      if (item.href === '/leader/enrollments') {
+        expect(item.flag).toBe('enrollment_requests');
+      } else {
+        expect(item.flag).toBeUndefined();
+      }
     }
   });
 
@@ -38,7 +43,15 @@ describe('канон leader', () => {
     }
   });
 
-  it('navItemsFor("leader") возвращает весь канон без флагов', () => {
+  it('navItemsFor("leader") без флага enrollment скрывает «Заявки на обучение» (opt-in off)', () => {
+    const hrefs = navItemsFor('leader').map((i) => i.href);
+    expect(hrefs).not.toContain('/leader/enrollments');
+    expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length - 1);
+  });
+
+  it('navItemsFor("leader") показывает «Заявки на обучение» при включённом флаге', () => {
+    process.env.FEATURE_ENROLLMENT_REQUESTS = '1';
+    expect(navItemsFor('leader').map((i) => i.href)).toContain('/leader/enrollments');
     expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length);
   });
 });
