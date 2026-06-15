@@ -34,6 +34,14 @@ beforeAll(async () => {
       status: 'new', productType: []
     }
   });
+  // F2: order events surface only for lead-linked orders → promote the seeded order.
+  await prisma.lead.create({
+    data: {
+      partnerId, createdByUserId: u.id, organizationId: org.id,
+      clientCompanyName: 'Лид-заказ', clientContactName: 'X', subject: 'S',
+      status: 'promoted_to_order', productType: [], promotedOrderId: order.id
+    }
+  });
 });
 
 afterAll(async () => {

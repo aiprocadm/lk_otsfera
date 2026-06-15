@@ -121,10 +121,11 @@ export async function canReadDocument(session: SessionPayload, document: Documen
   if (session.role === 'partner') {
     if (doc.counterpartyType !== 'partner' || doc.counterpartyId !== session.partnerId) return false;
   } else if (session.role === 'organization') {
-    // Org-channel id is not re-checked here: canReadOrder() below ties the order to the
-    // user's org/company. (Partner branch must pin counterpartyId because canReadOrder
-    // is company-level for partners and does not isolate to a specific partner.)
-    if (doc.counterpartyType !== 'organization') return false;
+    // Pin BOTH type and counterpartyId (DOC-01): canReadOrder() below is company-level
+    // for orgs and does NOT isolate to a specific organization, so without this an org
+    // user could read a sibling org's document within the same company. Symmetric to
+    // the partner branch above.
+    if (doc.counterpartyType !== 'organization' || doc.counterpartyId !== session.organizationId) return false;
   }
 
   // Pass the parent ORDER id, not the document id: canReadOrder() for the

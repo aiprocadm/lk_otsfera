@@ -93,6 +93,12 @@ export async function leaderDashboard(
   // active order with managerId=null (unassigned) lands in NO row — it's counted
   // in the company-wide kpis.activeOrders but not in any perManager.activeOrders.
   // Therefore sum(perManager.activeOrders) ≤ kpis.activeOrders by design.
+  //
+  // F6 (resolved, owner decision 2026-06-14): perManager money columns are the value
+  // of *active work* (executionStatus axis), while kpis.debt is outstanding on *billed*
+  // orders (financialStatus axis). The two are DIFFERENT metrics on purpose and do NOT
+  // reconcile — do not "unify the filter" to make them add up; that would gut the team-
+  // workload signal. The UI labels the divergence (leader/dashboard page caption).
   const perManager: LeaderManagerRow[] = managers.map((m) => {
     const agg = aggBy.get(m.id);
     return {

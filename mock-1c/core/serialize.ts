@@ -49,11 +49,11 @@ export function injectDuplicates(records: Rec[]): Rec[] {
 
 export type ResponseMeta = { total: number; pages: number; served: number };
 
-export function paginate(records: Rec[], pageSize: number): { page: Rec[]; meta: ResponseMeta } {
+export function paginate(records: Rec[], pageSize: number, offset = 0): { page: Rec[]; meta: ResponseMeta } {
   if (!(pageSize > 0) || records.length <= pageSize) {
     return { page: records, meta: { total: records.length, pages: records.length === 0 ? 0 : 1, served: records.length } };
   }
-  const page = records.slice(0, pageSize);
+  const page = records.slice(offset, offset + pageSize);
   return { page, meta: { total: records.length, pages: Math.ceil(records.length / pageSize), served: page.length } };
 }
 
@@ -63,9 +63,14 @@ export function wrapEnvelope(records: Rec[], envelope: EnvelopeShape): unknown {
   return records;
 }
 
-// Compose all shaping in order. Pagination overrides the envelope flag with an
-// { items, nextCursor } body so the (non-paginating) adapter visibly drops pages.
-export function shapeResponse(records: Rec[], scenario: ScenarioConfig): { body: unknown; meta: ResponseMeta } {
+// Compose all shaping in order. When paginating, return an { items, nextCursor }
+// body and honour the caller's offset (opaque page cursor). nextCursor is the
+// next offset, omitted on the last page so the client stops.
+export function shapeResponse(
+  records: Rec[],
+  scenario: ScenarioConfig,
+  offset = 0
+): { body: unknown; meta: ResponseMeta } {
   let shaped = records
     .map((r) => applyDialect(r, scenario.statusDialect))
     .map((r) => applyDatetime(r, scenario.datetime));
@@ -73,10 +78,11 @@ export function shapeResponse(records: Rec[], scenario: ScenarioConfig): { body:
   if (scenario.duplicates) shaped = injectDuplicates(shaped);
 
   if (scenario.pageSize > 0 && shaped.length > scenario.pageSize) {
-    const { page, meta } = paginate(shaped, scenario.pageSize);
-    const last = page[page.length - 1] as Rec;
-    return { body: { items: page, nextCursor: String(last.updatedAt ?? last.externalId ?? '') }, meta };
+    const { page, meta } = paginate(shaped, scenario.pageSize, offset);
+    const hasMore = offset + scenario.pageSize < shaped.length;
+    const body = hasMore ? { items: page, nextCursor: String(offset + scenario.pageSize) } : { items: page };
+    return { body, meta };
   }
-  const { page, meta } = paginate(shaped, scenario.pageSize);
+  const { page, meta } = paginate(shaped, scenario.pageSize, offset);
   return { body: wrapEnvelope(page, scenario.envelope), meta };
 }

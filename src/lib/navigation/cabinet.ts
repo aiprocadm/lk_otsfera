@@ -30,6 +30,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/admin/commission-statements', label: 'Комиссии', icon: '💰', group: 'Операции' },
     { href: '/admin/finance', label: 'Финансы', icon: '₽', group: 'Операции' },
     { href: '/admin/import', label: 'Загрузка из 1С', icon: '📥', group: 'Операции' },
+    { href: '/admin/enrollments', label: 'Заявки на обучение', icon: '🎓', group: 'Операции', flag: 'enrollment_requests' },
     { href: '/admin/audit', label: 'Аудит', icon: '🧾', group: 'Операции' },
     { href: '/admin/users', label: 'Пользователи', icon: '👤', group: 'Справочники' },
     { href: '/admin/partners', label: 'Партнёры', icon: '🏢', group: 'Справочники' },
@@ -38,11 +39,13 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
   manager: [
     { href: '/manager/dashboard', label: 'Главная', icon: '⌂', flag: 'manager_cabinet' },
     { href: '/manager/orders', label: 'Заказы', icon: '📋', flag: 'manager_cabinet' },
+    { href: '/manager/leads', label: 'Заявки', icon: '📬', flag: 'manager_cabinet' },
     { href: '/manager/organizations', label: 'Организации', icon: '🏢', flag: 'manager_cabinet' },
     { href: '/manager/finance', label: 'Финансы', icon: '₽', flag: 'manager_cabinet' },
     { href: '/manager/import', label: 'Загрузка из 1С', icon: '📥', flag: 'manager_cabinet' },
     { href: '/manager/documents', label: 'Документы', icon: '📄', flag: 'manager_cabinet' },
     { href: '/manager/students', label: 'Сотрудники', icon: '👥', flag: 'manager_cabinet' },
+    { href: '/manager/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests' },
     { href: '/manager/messages', label: 'Сообщения', icon: '💬', flag: 'manager_cabinet' },
     { href: '/manager/team', label: 'Команда', icon: '⚙', flag: 'manager_cabinet', leaderOnly: true, hiddenWhenFlag: 'leader_cabinet' },
     { href: '/leader/dashboard', label: 'Кабинет руководителя', icon: '⚙', flag: 'leader_cabinet', leaderOnly: true }
@@ -58,6 +61,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/leader/finance', label: 'Финансы', icon: '₽' },
     { href: '/leader/orders', label: 'Заказы', icon: '📋' },
     { href: '/leader/organizations', label: 'Организации', icon: '🏢' },
+    { href: '/leader/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests' },
     // Личный inbox (комментарии+чат) живёт в кабинете менеджера — см. план, «Отклонение от спеки».
     { href: '/manager/messages', label: 'Сообщения', icon: '💬' },
     // Переключатель «играющего тренера» в личный кабинет менеджера.
@@ -68,6 +72,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/partner/portfolio', label: 'Портфель' },
     { href: '/partner/deals', label: 'Заказы' },
     { href: '/partner/leads', label: 'Заявки', flag: 'partner_leads' },
+    { href: '/partner/enrollments', label: 'Заявки на обучение', flag: 'enrollment_requests' },
     { href: '/partner/documents', label: 'Документы' },
     { href: '/partner/finance', label: 'Финансы' },
     { href: '/partner/team', label: 'Команда', partnerAdminOnly: true },
@@ -79,6 +84,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/organization/documents', label: 'Документы', icon: '📄', flag: 'organization_cabinet' },
     { href: '/organization/finance', label: 'Финансы', icon: '₽', flag: 'organization_cabinet' },
     { href: '/organization/students', label: 'Сотрудники', icon: '👥', flag: 'organization_cabinet' },
+    { href: '/organization/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests' },
     { href: '/organization/team', label: 'Команда', icon: '⚙', orgAdminOrLeaderOnly: true, flag: 'organization_cabinet' },
     // «Сообщения» намеренно под более узким флагом chat (см. CLAUDE.md §5);
     // /student — отдельный shared-entry домен, не часть organization_cabinet.

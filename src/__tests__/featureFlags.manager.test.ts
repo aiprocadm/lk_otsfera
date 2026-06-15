@@ -67,24 +67,30 @@ describe('manager_cabinet (opt-in flag)', () => {
 });
 
 describe('navByRole.manager — feature-flag gated', () => {
-  it('lists all ten manager cabinet items in the raw nav (including leader-only Команда + вход в /leader)', () => {
+  it('lists all twelve manager cabinet items in the raw nav (including leader-only Команда + вход в /leader)', () => {
     expect(navByRole.manager.map((i) => i.href)).toEqual([
       '/manager/dashboard',
       '/manager/orders',
+      '/manager/leads',
       '/manager/organizations',
       '/manager/finance',
       '/manager/import',
       '/manager/documents',
       '/manager/students',
+      '/manager/enrollments',
       '/manager/messages',
       '/manager/team',
       '/leader/dashboard'
     ]);
   });
 
-  it('every manager item carries flag=manager_cabinet (so they hide together), кроме входа в /leader (leader_cabinet)', () => {
-    const ownItems = navByRole.manager.filter((i) => i.href.startsWith('/manager/'));
+  it('every manager item carries flag=manager_cabinet (so they hide together), кроме enrollments (свой флаг) и входа в /leader (leader_cabinet)', () => {
+    const ownItems = navByRole.manager.filter(
+      (i) => i.href.startsWith('/manager/') && i.href !== '/manager/enrollments'
+    );
     expect(ownItems.every((i) => i.flag === 'manager_cabinet')).toBe(true);
+    const enrollment = navByRole.manager.find((i) => i.href === '/manager/enrollments');
+    expect(enrollment?.flag).toBe('enrollment_requests');
     const leaderEntry = navByRole.manager.find((i) => i.href === '/leader/dashboard');
     expect(leaderEntry?.flag).toBe('leader_cabinet');
   });
@@ -93,13 +99,14 @@ describe('navByRole.manager — feature-flag gated', () => {
     expect(navItemsFor('manager')).toEqual([]);
   });
 
-  it('navItemsFor("manager") returns eight items (no leader-only) when the flag is on but not a leader', () => {
+  it('navItemsFor("manager") returns nine items (no leader-only) when the flag is on but not a leader', () => {
     process.env.FEATURE_MANAGER_CABINET = '1';
     const items = navItemsFor('manager');
-    expect(items).toHaveLength(8);
+    expect(items).toHaveLength(9);
     expect(items.map((i) => i.label)).toEqual([
       'Главная',
       'Заказы',
+      'Заявки',
       'Организации',
       'Финансы',
       'Загрузка из 1С',
@@ -109,13 +116,14 @@ describe('navByRole.manager — feature-flag gated', () => {
     ]);
   });
 
-  it('navItemsFor("manager") returns nine items (with Команда) when the flag is on and isManagerLeader=true', () => {
+  it('navItemsFor("manager") returns ten items (with Команда) when the flag is on and isManagerLeader=true', () => {
     process.env.FEATURE_MANAGER_CABINET = '1';
     const items = navItemsFor('manager', { isManagerLeader: true });
-    expect(items).toHaveLength(9);
+    expect(items).toHaveLength(10);
     expect(items.map((i) => i.label)).toEqual([
       'Главная',
       'Заказы',
+      'Заявки',
       'Организации',
       'Финансы',
       'Загрузка из 1С',

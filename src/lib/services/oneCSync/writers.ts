@@ -6,6 +6,9 @@ import type { BatchSummary } from './record-batch';
 import type { OneCMode } from './config';
 import type { ImportScope } from './scope';
 import { notifyOrgUsers, notifyManagers } from '@/lib/notifications';
+import { fetchAndStore1CDocument } from './document-fetch';
+import { getQueue } from '@/lib/jobs/queues';
+import type { ScanDocumentPayload } from '@/lib/jobs/types';
 
 export type WriteCtx = { mode: OneCMode; notify: boolean; scope?: ImportScope; bump?: (iso: string) => void };
 const isLive = (c: WriteCtx) => c.mode === 'live';
@@ -132,13 +135,30 @@ export async function upsertDocumentRecord(db: PrismaClient, dto: OneCDocumentDt
   const order = await db.order.findUnique({ where: { externalId: input.orderExternalId }, select: { id: true, organizationId: true, orderNumber: true, title: true } });
   if (!order) { sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'order_not_found' }); return; }
   const existing = await db.document.findUnique({ where: { externalId: input.externalId }, select: { id: true } });
-  const updatable = { name: input.name, path: input.downloadUrl, mimeType: input.mimeType, size: input.size, type: input.type, signedAt: input.signedAt };
+  // path is NOT a 1C-owned field: it is the Supabase storage key set at creation
+  // (DOC-03). Updates only refresh metadata and never touch path.
+  const metadata = { name: input.name, mimeType: input.mimeType, size: input.size, type: input.type, signedAt: input.signedAt };
   if (existing) {
-    if (isLive(ctx)) await db.document.update({ where: { id: existing.id }, data: updatable });
+    if (isLive(ctx)) await db.document.update({ where: { id: existing.id }, data: metadata });
     sum.updated += 1; ctx.bump?.(dto.updatedAt);
   } else {
     if (isLive(ctx)) {
-      await db.document.create({ data: { ...updatable, externalId: input.externalId, orderId: order.id, direction: 'incoming', generatedBy: 'system', counterpartyType: 'organization', counterpartyId: order.organizationId } });
+      // DOC-03: fetch the 1C file into Supabase so `path` is a bucket key (not the
+      // external URL) — download routes + ClamAV scan work unchanged. Fetch failure
+      // skips the doc with a visible reason instead of crashing the batch (§3).
+      const storagePath = await fetchAndStore1CDocument({ url: input.downloadUrl, orderId: order.id, name: input.name, mimeType: input.mimeType });
+      if (!storagePath) {
+        sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'document_fetch_failed' }); return;
+      }
+      const created = await db.document.create({ data: { ...metadata, path: storagePath, scanStatus: 'pending', externalId: input.externalId, orderId: order.id, direction: 'incoming', generatedBy: 'system', counterpartyType: 'organization', counterpartyId: order.organizationId } });
+      // Best-effort scan enqueue, gated on Redis like commission PDF/XLSX — skipped
+      // silently in environments without a queue (tests, partial dev).
+      if (created?.id && process.env.REDIS_URL) {
+        try {
+          const payload: ScanDocumentPayload = { kind: 'document', id: created.id };
+          await getQueue('docs.scanDocument').add('scan', payload);
+        } catch (err) { console.warn('[1c] document scan enqueue failed', err); }
+      }
     }
     sum.created += 1; ctx.bump?.(dto.updatedAt);
     if (ctx.notify && isLive(ctx) && order.organizationId) {

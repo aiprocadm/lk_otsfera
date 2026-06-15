@@ -4,6 +4,7 @@
 // DECISION Q#. If 1C answers "not REST" (Q1), this file + adapter-rest.ts are
 // the only throwaway code — the rest of oneCSync is transport-agnostic.
 import type { SyncCursor, OneCLeadPushPayload } from './dto';
+import { translateFinancialStatus, translateExecutionStatus } from './translate';
 
 // DECISION Q1: REST endpoint paths (or OData / file-export).
 export const ENDPOINTS = {
@@ -25,19 +26,49 @@ export function buildAuthHeader(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
 }
 
-// DECISION Q1: response envelope shape. Assume a bare array; tolerate { items: [] }.
-export function unwrapEnvelope(raw: unknown): unknown[] {
-  if (Array.isArray(raw)) return raw;
+// DECISION Q1/Q6: response envelope shape + pagination. A bare array means a
+// single, complete page. An { items: [...] } object MAY carry an opaque
+// `nextCursor` — when present, there are more pages and the caller must request
+// the next one with PAGE_PARAM=nextCursor. The cursor is opaque to us (1C owns
+// its meaning); we only echo it back.
+export function parseEnvelope(raw: unknown): { items: unknown[]; nextCursor?: string } {
+  if (Array.isArray(raw)) return { items: raw };
   if (raw && typeof raw === 'object' && Array.isArray((raw as { items?: unknown }).items)) {
-    return (raw as { items: unknown[] }).items;
+    const o = raw as { items: unknown[]; nextCursor?: unknown };
+    const nextCursor = typeof o.nextCursor === 'string' && o.nextCursor.length > 0 ? o.nextCursor : undefined;
+    return { items: o.items, nextCursor };
   }
   throw new Error('Unexpected 1C response envelope (expected JSON array or { items: [] })');
 }
 
-export function buildUrl(baseUrl: string, path: string, cursor: SyncCursor): string {
+// DECISION Q6: query param carrying the opaque page cursor on follow-up requests.
+export const PAGE_PARAM = 'cursor';
+
+export function buildUrl(baseUrl: string, path: string, cursor: SyncCursor, pageCursor?: string): string {
   const url = new URL(path, baseUrl);
   if (cursor.since) url.searchParams.set(SINCE_PARAM, formatSince(cursor.since));
+  if (pageCursor) url.searchParams.set(PAGE_PARAM, pageCursor);
   return url.toString();
+}
+
+// DECISION Q10: 1C natively emits Russian status names ("Оплачено", "Выполнен").
+// Translate them to our internal enum codes here, at parity with the file adapter
+// (which already calls translate.ts). Already-internal codes and unknown values
+// pass through unchanged — unknowns are then quarantined by the per-record zod
+// gate downstream (runRecordBatch), giving a visible report instead of silent loss.
+export function normalizeOrderRecord(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object') return raw;
+  const r = raw as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...r };
+  if (typeof r.financialStatus === 'string') {
+    const t = translateFinancialStatus(r.financialStatus);
+    if (t.ok) out.financialStatus = t.value;
+  }
+  if (typeof r.executionStatus === 'string') {
+    const t = translateExecutionStatus(r.executionStatus);
+    if (t.ok) out.executionStatus = t.value;
+  }
+  return out;
 }
 
 // DECISION Q5: the JSON field name carrying the partner key on the OUTBOUND

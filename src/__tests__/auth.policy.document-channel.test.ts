@@ -48,6 +48,24 @@ describe('canReadDocument -- channel isolation', () => {
     const doc = { id: 'd', orderId: 'o', order: { companyId: 'c' }, counterpartyType: 'partner' as const, counterpartyId: 'pX' };
     expect(await canReadDocument(adminSession, doc)).toBe(true);
   });
+
+  // DOC-01 (T4): an org user must NOT read a sibling org's order-bound document
+  // even when both orgs share the same company. The org-channel id must be pinned
+  // at the gate, symmetric to the partner branch — canReadOrder() is company-level
+  // for orgs and does NOT isolate to a specific organization.
+  it('denies an organization reading a sibling org-channel order-bound doc in the same company (DOC-01)', async () => {
+    db.organization.findMany.mockResolvedValue([{ id: 'org1' }, { id: 'orgB' }]);
+    const doc = { id: 'd', orderId: 'o', order: { companyId: 'c' }, counterpartyType: 'organization' as const, counterpartyId: 'orgB' };
+    expect(await canReadDocument(orgSession, doc)).toBe(false);
+    // Pin short-circuits before the company-level order lookup.
+    expect(db.organization.findMany).not.toHaveBeenCalled();
+  });
+
+  it('allows an organization reading its own org-channel order-bound doc', async () => {
+    db.organization.findMany.mockResolvedValue([{ id: 'org1' }]);
+    const doc = { id: 'd', orderId: 'o', order: { companyId: 'c' }, counterpartyType: 'organization' as const, counterpartyId: 'org1' };
+    expect(await canReadDocument(orgSession, doc)).toBe(true);
+  });
 });
 
 describe('canReadDocument -- order-less documents', () => {

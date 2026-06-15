@@ -59,6 +59,20 @@ beforeAll(async () => {
   orderA1Id = orderA1.id;
   orderB1Id = orderB1.id;
 
+  // F2: the partner sees a deal only via its own lead — promote orderA1 from a lead
+  // so getPartnerDealDetail(orderA1) resolves (the document-channel assertions below
+  // are about doc isolation, unaffected by this linkage).
+  const u = await prisma.user.create({
+    data: { email: `pdocs-${stamp}@t.local`, passwordHash: 'x', name: 'U', role: 'partner', partnerId }
+  });
+  await prisma.lead.create({
+    data: {
+      partnerId, createdByUserId: u.id, organizationId: orgAId,
+      clientCompanyName: 'c', clientContactName: 'n', subject: 's',
+      status: 'promoted_to_order', productType: [], promotedOrderId: orderA1Id
+    }
+  });
+
   // Partner-channel doc on orderA1
   const dAct = await prisma.document.create({
     data: {
@@ -107,8 +121,10 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await prisma.document.deleteMany({ where: { order: { partnerId } } });
+  await prisma.lead.deleteMany({ where: { partnerId } });
   await prisma.order.deleteMany({ where: { partnerId } });
   await prisma.organization.deleteMany({ where: { id: { in: [orgAId, orgBId] } } });
+  await prisma.user.deleteMany({ where: { partnerId } });
   await prisma.partner.delete({ where: { id: partnerId } });
   await prisma.company.delete({ where: { id: companyId } });
   await prisma.$disconnect();

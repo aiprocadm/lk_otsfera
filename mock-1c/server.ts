@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { ENDPOINTS, SINCE_PARAM } from '@/lib/services/oneCSync/rest-wire';
+import { ENDPOINTS, SINCE_PARAM, PAGE_PARAM } from '@/lib/services/oneCSync/rest-wire';
 import type { SyncCursor } from '@/lib/services/oneCSync/dto';
 import type { ScenarioConfig } from './core/scenario';
 import type { Dataset, Entity } from './core/dataset';
@@ -84,10 +84,12 @@ export function createMock1cServer(deps: Mock1cDeps): http.Server {
       const entity = PATH_TO_ENTITY[path];
       if (entity && method === 'GET') {
         const since = url.searchParams.get(SINCE_PARAM) ?? undefined;
+        const pageRaw = url.searchParams.get(PAGE_PARAM);
+        const offset = pageRaw && Number.isFinite(Number(pageRaw)) ? Number(pageRaw) : 0;
         const cursor: SyncCursor = since ? { since } : {};
         const records = deps.dataset.list(entity, cursor) as Array<Record<string, unknown>>;
-        const { body, meta } = shapeResponse(records, scenario);
-        if (meta.pages > 1) log(`[mock1c] ${entity}: served page 1 of ${meta.pages} (${meta.served}/${meta.total}); client never requested the rest`);
+        const { body, meta } = shapeResponse(records, scenario, offset);
+        if (meta.pages > 1) log(`[mock1c] ${entity}: page at offset ${offset} (${meta.served}/${meta.total}), pages=${meta.pages}`);
         return send(res, 200, body);
       }
 

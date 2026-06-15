@@ -58,6 +58,7 @@ describe('navItemsFor (feature-flag filter)', () => {
 
   it('does not filter items without a flag annotation', () => {
     process.env.FEATURE_PARTNER_LEADS = '0';
+    process.env.FEATURE_ENROLLMENT_REQUESTS = '1'; // admin has one opt-in item (enrollments)
     const items = navItemsFor('admin');
     expect(items.length).toBe(navByRole.admin.length);
   });
@@ -185,13 +186,13 @@ describe('navByRole — Финансы (manager + admin)', () => {
   });
 });
 
-describe('navByRole.admin — русский канон с группами (все 12 страниц)', () => {
-  it('содержит все админские страницы, включая ранее потерянные documents/messages/finance', () => {
+describe('navByRole.admin — русский канон с группами (все 13 страниц)', () => {
+  it('содержит все админские страницы, включая ранее потерянные documents/messages/finance + заявки на обучение', () => {
     const hrefs = navByRole.admin.map((i) => i.href);
-    for (const lost of ['/admin/documents', '/admin/messages', '/admin/finance']) {
+    for (const lost of ['/admin/documents', '/admin/messages', '/admin/finance', '/admin/enrollments']) {
       expect(hrefs).toContain(lost);
     }
-    expect(navByRole.admin).toHaveLength(12);
+    expect(navByRole.admin).toHaveLength(13);
   });
   it('каждый пункт по-русски, с иконкой и группой', () => {
     for (const item of navByRole.admin) {
@@ -202,8 +203,8 @@ describe('navByRole.admin — русский канон с группами (в�
   });
 });
 
-describe('navByRole.organization — единый источник (канон 8 пунктов)', () => {
-  it('содержит 6 базовых пунктов + Сообщения + Кабинет слушателя', () => {
+describe('navByRole.organization — единый источник (канон 9 пунктов)', () => {
+  it('содержит базовые пункты + Заявки на обучение + Сообщения + Кабинет слушателя', () => {
     const hrefs = navByRole.organization.map((i) => i.href);
     expect(hrefs).toEqual([
       '/organization/dashboard',
@@ -211,6 +212,7 @@ describe('navByRole.organization — единый источник (канон 8
       '/organization/documents',
       '/organization/finance',
       '/organization/students',
+      '/organization/enrollments',
       '/organization/team',
       '/organization/messages',
       '/student'

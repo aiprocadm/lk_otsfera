@@ -1,8 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { resolveOrganizationRef } = vi.hoisted(() => ({ resolveOrganizationRef: vi.fn() }));
 const { notifyOrgUsers, notifyManagers } = vi.hoisted(() => ({ notifyOrgUsers: vi.fn(), notifyManagers: vi.fn() }));
+const { fetchAndStore1CDocument } = vi.hoisted(() => ({ fetchAndStore1CDocument: vi.fn() }));
+const { getQueue } = vi.hoisted(() => ({ getQueue: vi.fn() }));
 vi.mock('@/lib/services/oneCSync/resolve-org', () => ({ resolveOrganizationRef }));
 vi.mock('@/lib/notifications', () => ({ notifyOrgUsers, notifyManagers }));
+vi.mock('@/lib/services/oneCSync/document-fetch', () => ({ fetchAndStore1CDocument }));
+vi.mock('@/lib/jobs/queues', () => ({ getQueue }));
 
 import { upsertOrderRecord, upsertPaymentRecord, upsertOrgRecord, upsertDocumentRecord } from '@/lib/services/oneCSync/writers';
 import { emptySummary } from '@/lib/services/oneCSync/record-batch';
@@ -16,7 +20,11 @@ const baseDto = {
 function db() {
   return { order: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(), update: vi.fn() } } as any;
 }
-beforeEach(() => { resolveOrganizationRef.mockReset(); notifyOrgUsers.mockReset(); notifyManagers.mockReset(); });
+beforeEach(() => {
+  resolveOrganizationRef.mockReset(); notifyOrgUsers.mockReset(); notifyManagers.mockReset();
+  fetchAndStore1CDocument.mockReset(); fetchAndStore1CDocument.mockResolvedValue('orders/ord1/1c/uuid-file.pdf');
+  getQueue.mockReset(); getQueue.mockReturnValue({ add: vi.fn() });
+});
 
 describe('upsertOrderRecord', () => {
   it('creates a new order with financialStatus/partnerId/companyId in live mode', async () => {
@@ -119,6 +127,56 @@ describe('upsertDocumentRecord', () => {
     expect(d.document.create).toHaveBeenCalledWith({ data: expect.objectContaining({ externalId:'D-1', orderId:'ord1', counterpartyType:'organization', counterpartyId:'o1', direction:'incoming', generatedBy:'system' }) });
     expect(notifyOrgUsers).toHaveBeenCalled();
     expect(sum.created).toBe(1);
+  });
+  // DOC-03: the 1C file is fetched and stored in Supabase; path is a storage key,
+  // never the external URL (download routes assume a bucket key).
+  it('fetches+stores the 1C file and writes a storage key as path (DOC-03)', async () => {
+    fetchAndStore1CDocument.mockResolvedValue('orders/ord1/1c/uuid-Договор.pdf');
+    const d = ddb(); const sum = emptySummary();
+    await upsertDocumentRecord(d, docDto, sum, { mode:'live', notify:false });
+    expect(fetchAndStore1CDocument).toHaveBeenCalledWith(expect.objectContaining({ url:'https://1c/d1', orderId:'ord1' }));
+    const data = d.document.create.mock.calls[0][0].data;
+    expect(data.path).toBe('orders/ord1/1c/uuid-Договор.pdf');
+    expect(data.path).not.toContain('https://');
+    expect(data.scanStatus).toBe('pending');
+  });
+  it('enqueues a ClamAV scan for the stored 1C document', async () => {
+    const prev = process.env.REDIS_URL;
+    process.env.REDIS_URL = 'redis://test'; // enqueue is gated on Redis presence
+    try {
+      const addMock = vi.fn();
+      getQueue.mockReturnValue({ add: addMock });
+      const d = ddb({ document:{ findUnique: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({ id:'doc9' }), update: vi.fn() } });
+      await upsertDocumentRecord(d, docDto, emptySummary(), { mode:'live', notify:false });
+      expect(getQueue).toHaveBeenCalledWith('docs.scanDocument');
+      expect(addMock).toHaveBeenCalledWith('scan', expect.objectContaining({ kind:'document', id:'doc9' }));
+    } finally {
+      if (prev === undefined) delete process.env.REDIS_URL; else process.env.REDIS_URL = prev;
+    }
+  });
+  it('skips with document_fetch_failed when the 1C file cannot be stored', async () => {
+    fetchAndStore1CDocument.mockResolvedValue(null);
+    const d = ddb(); const sum = emptySummary();
+    await upsertDocumentRecord(d, docDto, sum, { mode:'live', notify:true });
+    expect(d.document.create).not.toHaveBeenCalled();
+    expect(notifyOrgUsers).not.toHaveBeenCalled();
+    expect(sum.skipped).toBe(1); expect(sum.skips[0]).toMatchObject({ reason:'document_fetch_failed' });
+  });
+  it('shadow mode does not fetch or write but counts created', async () => {
+    const d = ddb(); const sum = emptySummary();
+    await upsertDocumentRecord(d, docDto, sum, { mode:'shadow', notify:false });
+    expect(fetchAndStore1CDocument).not.toHaveBeenCalled();
+    expect(d.document.create).not.toHaveBeenCalled();
+    expect(sum.created).toBe(1);
+  });
+  it('update path: metadata only, keeps existing stored path, no re-fetch', async () => {
+    const d = ddb({ document:{ findUnique: vi.fn().mockResolvedValue({ id:'ex' }), create: vi.fn(), update: vi.fn() } });
+    const sum = emptySummary();
+    await upsertDocumentRecord(d, docDto, sum, { mode:'live', notify:false });
+    expect(fetchAndStore1CDocument).not.toHaveBeenCalled();
+    const updateData = d.document.update.mock.calls[0][0].data;
+    expect('path' in updateData).toBe(false);
+    expect(sum.updated).toBe(1);
   });
   it('skips when order not found', async () => {
     const d = ddb({ order:{ findUnique: vi.fn().mockResolvedValue(null) } }); const sum = emptySummary();

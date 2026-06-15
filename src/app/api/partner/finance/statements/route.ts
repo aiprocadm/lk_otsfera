@@ -25,15 +25,23 @@ export async function POST(request: Request) {
   }
 
   const { partnerId, sub } = guard.value;
-  const result = await calculateStatementForPartner(prisma, {
-    partnerId,
-    periodFrom,
-    periodTo,
-    calculatedByUserId: sub
-  });
+  try {
+    const result = await calculateStatementForPartner(prisma, {
+      partnerId,
+      periodFrom,
+      periodTo,
+      calculatedByUserId: sub,
+      // C-05: manual entry accepts arbitrary ranges → guard against overlap.
+      rejectOverlap: true
+    });
 
-  return NextResponse.json(
-    { statement: result.statement, itemCount: result.itemCount, isNew: result.isNew },
-    { status: result.isNew ? 201 : 200 }
-  );
+    return NextResponse.json(
+      { statement: result.statement, itemCount: result.itemCount, isNew: result.isNew },
+      { status: result.isNew ? 201 : 200 }
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    if (msg.startsWith('PERIOD_OVERLAP')) return NextResponse.json({ error: msg }, { status: 409 });
+    throw err;
+  }
 }

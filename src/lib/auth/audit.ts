@@ -19,7 +19,8 @@ export type AuditEntity =
   | 'sync_schedule'
   | 'job_queue'
   | 'payment'
-  | 'one_c_import';
+  | 'one_c_import'
+  | 'enrollment_request';
 
 export type AuditRecord = {
   userId: string;

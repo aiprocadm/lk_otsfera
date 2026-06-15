@@ -12,10 +12,21 @@ vi.mock('@/lib/db/prisma', () => ({
   prisma: {}
 }));
 
+// Mock partner notifier (C-02 fan-out)
+vi.mock('@/lib/notifications/partner', () => ({
+  notifyPartnerUsers: vi.fn()
+}));
+
 import { calculateMonthlyCommissionsProcessor } from '@/worker/processors/calculate-monthly-commissions';
 import { calculateStatementForPartner } from '@/lib/services/commission/statement';
+import { notifyPartnerUsers } from '@/lib/notifications/partner';
 
 const mockCalc = calculateStatementForPartner as ReturnType<typeof vi.fn>;
+const mockNotify = notifyPartnerUsers as ReturnType<typeof vi.fn>;
+
+function statementFixture(over: Record<string, unknown> = {}) {
+  return { id: 's1', periodFrom: new Date(2026, 4, 1), totalCommissionAmount: { toString: () => '125000' }, ...over };
+}
 
 function makeJob(id = 'job-1'): Job<SyncJobPayload> {
   return { id, data: { triggeredAt: new Date().toISOString(), reason: 'cron' } } as Job<SyncJobPayload>;
@@ -34,6 +45,8 @@ function makePrisma(partners: { id: string }[]) {
 
 beforeEach(() => {
   mockCalc.mockReset();
+  mockNotify.mockReset();
+  mockNotify.mockResolvedValue({ recipientsNotified: 1, emailsSent: 1, emailsSkipped: 0 });
 });
 
 describe('calculateMonthlyCommissionsProcessor', () => {
@@ -112,7 +125,7 @@ describe('calculateMonthlyCommissionsProcessor', () => {
 
   it('passes calculatedByUserId=null to calculateStatementForPartner', async () => {
     const db = makePrisma([{ id: 'p1' }]);
-    mockCalc.mockResolvedValue({ statement: {}, itemCount: 1, isNew: true });
+    mockCalc.mockResolvedValue({ statement: statementFixture(), itemCount: 1, isNew: true });
 
     await calculateMonthlyCommissionsProcessor(makeJob(), db);
 
@@ -120,5 +133,57 @@ describe('calculateMonthlyCommissionsProcessor', () => {
       db,
       expect.objectContaining({ partnerId: 'p1', calculatedByUserId: null })
     );
+  });
+
+  // C-02: cron is the system actor → it is the right place to tell the partner
+  // a fresh statement is ready to review.
+  it('notifies the partner when a NEW statement with items is created', async () => {
+    const db = makePrisma([{ id: 'p1' }]);
+    mockCalc.mockResolvedValue({ statement: statementFixture({ id: 's7' }), itemCount: 3, isNew: true });
+
+    await calculateMonthlyCommissionsProcessor(makeJob(), db);
+
+    expect(mockNotify).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({
+        partnerId: 'p1',
+        type: 'commission_statement_ready',
+        payload: expect.objectContaining({
+          statementId: 's7',
+          period: 'май 2026',
+          // ru-RU groups thousands with a non-breaking space → match loosely.
+          amount: expect.stringContaining('125')
+        })
+      })
+    );
+  });
+
+  it('does NOT notify when the statement was an in-place update (isNew=false)', async () => {
+    const db = makePrisma([{ id: 'p1' }]);
+    mockCalc.mockResolvedValue({ statement: statementFixture(), itemCount: 3, isNew: false });
+
+    await calculateMonthlyCommissionsProcessor(makeJob(), db);
+
+    expect(mockNotify).not.toHaveBeenCalled();
+  });
+
+  it('does NOT notify when there are no qualifying orders (itemCount=0)', async () => {
+    const db = makePrisma([{ id: 'p1' }]);
+    mockCalc.mockResolvedValue({ statement: statementFixture(), itemCount: 0, isNew: true });
+
+    await calculateMonthlyCommissionsProcessor(makeJob(), db);
+
+    expect(mockNotify).not.toHaveBeenCalled();
+  });
+
+  it('a notify failure does not break the batch (best-effort fan-out)', async () => {
+    const db = makePrisma([{ id: 'p1' }]);
+    mockCalc.mockResolvedValue({ statement: statementFixture(), itemCount: 2, isNew: true });
+    mockNotify.mockRejectedValue(new Error('redis down'));
+
+    const result = await calculateMonthlyCommissionsProcessor(makeJob(), db);
+
+    expect(result.partnersProcessed).toBe(1);
+    expect(result.errors).toHaveLength(0);
   });
 });

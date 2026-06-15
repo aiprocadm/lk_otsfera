@@ -131,6 +131,8 @@ model User {
   passwordResetTokens          PasswordResetToken[]
   authoredMessages             Message[]             @relation("MessageAuthor")
   threadReadStates             ThreadReadState[]
+  enrollmentsSubmitted         EnrollmentRequest[]   @relation("EnrollmentSubmitter")
+  enrollmentsReviewed          EnrollmentRequest[]   @relation("EnrollmentReviewer")
 }
 
 model PartnerUser {
@@ -227,6 +229,10 @@ model CommissionStatement {
   supersededBy          String?
   notes                 String?
   items                 CommissionStatementItem[]
+  // C-01: a PARTIAL unique index on (partnerId, periodFrom, periodTo) WHERE
+  // supersededBy IS NULL enforces "at most one live statement per period" while
+  // allowing superseded history. Prisma can't express partial indexes, so it
+  // lives in migration 20260614000000_commission_statement_partial_unique.
 
   @@index([partnerId, periodFrom, periodTo])
   @@index([status])
@@ -332,6 +338,7 @@ model Partner {
   leads                Lead[]
   commissionStatements CommissionStatement[]
   notifications        Notification[]
+  enrollmentRequests   EnrollmentRequest[]
 }
 
 model Organization {
@@ -359,6 +366,7 @@ model Organization {
   leads                          Lead[]
   orders                         Order[]               @relation("OrderOrganization")
   payments                       Payment[]
+  enrollmentRequests             EnrollmentRequest[]
 
   @@index([partnerId])
   @@index([externalId])
@@ -651,4 +659,42 @@ model ThreadReadState {
   lastReadAt DateTime    @default(now())
 
   @@unique([threadId, userId])
+}
+
+enum EnrollmentStatus {
+  pending
+  approved
+  rejected
+  provisioned
+}
+
+// T5: «заявка на обучение» — submitted by any of 5 roles, reviewed (approved/
+// rejected/provisioned) on our side. Provisioning is MANUAL into the external LMS
+// (no Student/User is created here); externalStudentId is recorded on markProvisioned.
+model EnrollmentRequest {
+  id                String           @id @default(cuid())
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  submittedByUserId String
+  submittedByUser   User             @relation("EnrollmentSubmitter", fields: [submittedByUserId], references: [id])
+  submitterRole     String
+  partnerId         String?
+  partner           Partner?         @relation(fields: [partnerId], references: [id])
+  organizationId    String?
+  organization      Organization?    @relation(fields: [organizationId], references: [id])
+  studentName       String
+  studentEmail      String
+  courseTitle       String
+  note              String?
+  status            EnrollmentStatus @default(pending)
+  reviewedByUserId  String?
+  reviewedByUser    User?            @relation("EnrollmentReviewer", fields: [reviewedByUserId], references: [id])
+  reviewedAt        DateTime?
+  rejectedReason    String?
+  externalStudentId String?
+  provisionedAt     DateTime?
+
+  @@index([status])
+  @@index([partnerId])
+  @@index([submittedByUserId])
 }
