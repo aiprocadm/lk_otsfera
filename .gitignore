@@ -13,6 +13,7 @@ tsconfig.tsbuildinfo
 # Vitest coverage output (regenerated locally, never committed).
 coverage/
 coverage-full-run.log
+coverage-*.log
 
 # Playwright runtime output (kept locally for diffs, never committed).
 # Baseline snapshots under src/e2e/snapshots/*-snapshots/ are committed.
