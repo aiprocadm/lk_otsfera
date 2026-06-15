@@ -245,6 +245,16 @@ export async function calculateStatementForPartner(
     // Either: no existing, or existing is approved/paid → create new + supersede.
     try {
       statement = await prisma.$transaction(async (tx) => {
+        // C-01: vacate the old live row's unique slot BEFORE inserting the new one,
+        // so the partial-unique (one live statement per period, WHERE supersededBy
+        // IS NULL) never sees two NULL rows at once. Temp self-reference is fixed up
+        // to the new id below; supersededBy is not an FK, so self-ref is safe.
+        if (existing) {
+          await tx.commissionStatement.update({
+            where: { id: existing.id },
+            data: { supersededBy: existing.id }
+          });
+        }
         const created = await tx.commissionStatement.create({
           data: {
             partnerId,
