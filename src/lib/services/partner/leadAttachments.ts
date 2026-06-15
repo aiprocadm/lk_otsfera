@@ -89,6 +89,7 @@ function sanitizeFilename(name: string): string {
   const lastDot = trimmed.lastIndexOf('.');
   const base = lastDot > 0 ? trimmed.slice(0, lastDot) : trimmed;
   const cleaned = base.replace(/[\\/:*?"<>|]/g, '_').slice(0, 200);
+  /* v8 ignore next -- 'attachment' fallback unreachable: replace() never produces '' for non-empty base */
   return cleaned || 'attachment';
 }
 
