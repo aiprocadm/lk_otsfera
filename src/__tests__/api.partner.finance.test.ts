@@ -120,6 +120,34 @@ describe('POST /api/partner/finance/statements', () => {
       expect.objectContaining({ rejectOverlap: true })
     );
   });
+
+  it('400 when dates are not parseable (Invalid Date)', async () => {
+    vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
+    const res = await POST(jsonReq({ periodFrom: 'not-a-date', periodTo: '2026-04-30' }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/date/i);
+  });
+
+  it('400 when periodFrom >= periodTo', async () => {
+    vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
+    const res = await POST(jsonReq({ periodFrom: '2026-04-30', periodTo: '2026-04-01' }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/before/i);
+  });
+
+  it('re-throws unknown errors (not PERIOD_OVERLAP)', async () => {
+    vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
+    vi.mocked(calculateStatementForPartner).mockRejectedValue(new Error('DB_CONSTRAINT_VIOLATION'));
+    await expect(POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }))).rejects.toThrow('DB_CONSTRAINT_VIOLATION');
+  });
+
+  it('re-throws non-Error (string) from service (branch[0]: not instanceof Error)', async () => {
+    vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
+    vi.mocked(calculateStatementForPartner).mockRejectedValue('plain string rejection');
+    await expect(POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }))).rejects.toBe('plain string rejection');
+  });
 });
 
 describe('GET /api/partner/finance/statements/[id]', () => {
@@ -128,6 +156,11 @@ describe('GET /api/partner/finance/statements/[id]', () => {
   it('401 unauthenticated', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
     expect((await GET_STMT(getReq(), ctx('s1'))).status).toBe(401);
+  });
+
+  it('403 for non-partner', async () => {
+    vi.mocked(getSession).mockResolvedValue(orgSession);
+    expect((await GET_STMT(getReq(), ctx('s1'))).status).toBe(403);
   });
 
   it('404 statement not found', async () => {
@@ -147,6 +180,12 @@ describe('GET /api/partner/finance/statements/[id]', () => {
 describe('PATCH /api/partner/finance/statements/[id] — approve', () => {
   beforeEach(() => vi.resetAllMocks());
 
+  it('401 unauthenticated', async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    const res = await PATCH(jsonReq({ action: 'approve' }, 'PATCH'), ctx('s1'));
+    expect(res.status).toBe(401);
+  });
+
   it('403 partner-manager cannot approve', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerManagerSession);
     const res = await PATCH(jsonReq({ action: 'approve' }, 'PATCH'), ctx('s1'));
@@ -160,11 +199,30 @@ describe('PATCH /api/partner/finance/statements/[id] — approve', () => {
     expect(res.status).toBe(200);
   });
 
+  it('404 when statement not found (approve)', async () => {
+    vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
+    vi.mocked(approveStatement).mockRejectedValue(new Error('NOT_FOUND: statement s1'));
+    const res = await PATCH(jsonReq({ action: 'approve' }, 'PATCH'), ctx('s1'));
+    expect(res.status).toBe(404);
+  });
+
   it('409 duplicate approve (LIFECYCLE_VIOLATION)', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
     vi.mocked(approveStatement).mockRejectedValue(new Error('LIFECYCLE_VIOLATION: already approved'));
     const res = await PATCH(jsonReq({ action: 'approve' }, 'PATCH'), ctx('s1'));
     expect(res.status).toBe(409);
+  });
+
+  it('re-throws unknown errors from approve (not NOT_FOUND/LIFECYCLE_VIOLATION)', async () => {
+    vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
+    vi.mocked(approveStatement).mockRejectedValue(new Error('DB_LOCK_TIMEOUT'));
+    await expect(PATCH(jsonReq({ action: 'approve' }, 'PATCH'), ctx('s1'))).rejects.toThrow('DB_LOCK_TIMEOUT');
+  });
+
+  it('re-throws non-Error from approve (branch[0]: not instanceof Error)', async () => {
+    vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
+    vi.mocked(approveStatement).mockRejectedValue('plain string rejection');
+    await expect(PATCH(jsonReq({ action: 'approve' }, 'PATCH'), ctx('s1'))).rejects.toBe('plain string rejection');
   });
 });
 
@@ -184,9 +242,42 @@ describe('PATCH /api/partner/finance/statements/[id] — markPaid', () => {
     expect(res.status).toBe(200);
   });
 
+  it('404 when statement not found (markPaid)', async () => {
+    vi.mocked(getSession).mockResolvedValue(platformAdminSession);
+    vi.mocked(markStatementPaid).mockRejectedValue(new Error('NOT_FOUND: statement'));
+    const res = await PATCH(jsonReq({ action: 'markPaid' }, 'PATCH'), ctx('s1'));
+    expect(res.status).toBe(404);
+  });
+
+  it('403 when markPaid is forbidden by service', async () => {
+    vi.mocked(getSession).mockResolvedValue(platformAdminSession);
+    vi.mocked(markStatementPaid).mockRejectedValue(new Error('FORBIDDEN: cannot mark paid'));
+    const res = await PATCH(jsonReq({ action: 'markPaid' }, 'PATCH'), ctx('s1'));
+    expect(res.status).toBe(403);
+  });
+
+  it('409 lifecycle violation on markPaid', async () => {
+    vi.mocked(getSession).mockResolvedValue(platformAdminSession);
+    vi.mocked(markStatementPaid).mockRejectedValue(new Error('LIFECYCLE_VIOLATION: already paid'));
+    const res = await PATCH(jsonReq({ action: 'markPaid' }, 'PATCH'), ctx('s1'));
+    expect(res.status).toBe(409);
+  });
+
   it('400 unknown action', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
     const res = await PATCH(jsonReq({ action: 'badAction' }, 'PATCH'), ctx('s1'));
     expect(res.status).toBe(400);
+  });
+
+  it('re-throws unknown errors from markPaid (not NOT_FOUND/FORBIDDEN/LIFECYCLE_VIOLATION)', async () => {
+    vi.mocked(getSession).mockResolvedValue(platformAdminSession);
+    vi.mocked(markStatementPaid).mockRejectedValue(new Error('DB_LOCK_TIMEOUT'));
+    await expect(PATCH(jsonReq({ action: 'markPaid' }, 'PATCH'), ctx('s1'))).rejects.toThrow('DB_LOCK_TIMEOUT');
+  });
+
+  it('re-throws non-Error from markPaid (branch[0]: not instanceof Error)', async () => {
+    vi.mocked(getSession).mockResolvedValue(platformAdminSession);
+    vi.mocked(markStatementPaid).mockRejectedValue('plain string rejection');
+    await expect(PATCH(jsonReq({ action: 'markPaid' }, 'PATCH'), ctx('s1'))).rejects.toBe('plain string rejection');
   });
 });

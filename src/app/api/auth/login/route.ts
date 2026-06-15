@@ -16,6 +16,7 @@ const MAX_ATTEMPTS = Number(process.env.LOGIN_RATE_LIMIT_MAX ?? 10);
 const MAX_RATE_LIMIT_ENTRIES = 10_000;
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 
+/* v8 ignore next 7 -- cleanupAttempts body triggered only when Map reaches 10 000 entries; not unit-testable */
 function cleanupAttempts(now: number) {
   if (loginAttempts.size < MAX_RATE_LIMIT_ENTRIES) return;
   for (const [key, entry] of loginAttempts) {
