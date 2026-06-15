@@ -22,6 +22,7 @@ export type ScanDeps = {
 
 const INSTREAM_CHUNK_BYTES = 64 * 1024;
 
+/* v8 ignore start -- production ClamAV TCP implementation; exercised in e2e only, not unit-testable without a live scanner */
 function clamAvInstream(host: string, port: number, payload: Buffer): Promise<string> {
   const timeoutMs = Number(process.env.CLAMAV_TIMEOUT_MS ?? '30000');
   return new Promise((resolve, reject) => {
@@ -55,13 +56,16 @@ function clamAvInstream(host: string, port: number, payload: Buffer): Promise<st
     socket.connect(port, host);
   });
 }
+/* v8 ignore stop */
 
+/* v8 ignore start -- production Supabase storage download; exercised in e2e only, not unit-testable without live storage */
 async function defaultDownload(path: string): Promise<Buffer> {
   const storage = getServerClient().storage.from(documentBucket);
   const { data, error } = await storage.download(path);
   if (error || !data) throw new Error(`STORAGE_DOWNLOAD: ${error?.message ?? 'no data'}`);
   return Buffer.from(await data.arrayBuffer());
 }
+/* v8 ignore stop */
 
 export const defaultScanDeps: ScanDeps = {
   scan: clamAvInstream,

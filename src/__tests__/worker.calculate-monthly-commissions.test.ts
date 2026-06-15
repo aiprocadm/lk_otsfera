@@ -186,4 +186,78 @@ describe('calculateMonthlyCommissionsProcessor', () => {
     expect(result.partnersProcessed).toBe(1);
     expect(result.errors).toHaveLength(0);
   });
+
+  // Branch: allFailed = (partnersProcessed === 0 && partnersSkipped === 0) where
+  // partnersSkipped !== 0. The `&&` short-circuits when partnersProcessed !== 0, but
+  // when partnersProcessed === 0 we need partnersSkipped !== 0 for allFailed=false.
+  it('writes syncLog warn (not error) when some partners fail and others are skipped (allFailed=false via skipped)', async () => {
+    const db = makePrisma([{ id: 'p1' }, { id: 'p2' }]);
+    mockCalc
+      .mockRejectedValueOnce(new Error('timeout'))      // p1 fails
+      .mockResolvedValueOnce({ statement: {}, itemCount: 0, isNew: true }); // p2 skipped
+
+    const result = await calculateMonthlyCommissionsProcessor(makeJob(), db);
+
+    // partnersProcessed=0, partnersSkipped=1, errors=[p1]
+    expect(result.partnersProcessed).toBe(0);
+    expect(result.partnersSkipped).toBe(1);
+    expect(result.errors).toHaveLength(1);
+    // status is 'warn', not 'error', because allFailed is false (skipped > 0)
+    expect(db.syncLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ entity: 'commission', status: 'warn' })
+    });
+  });
+
+  // Branch: the .catch(e => console.warn) callback on writeSyncLog — fires when
+  // syncLog.create rejects after a per-partner failure (durable-log is best-effort).
+  it('swallows syncLog write failure gracefully (writeSyncLog.catch branch)', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const db = makePrisma([{ id: 'p1' }]);
+    (db.syncLog.create as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('pg_down'));
+    mockCalc.mockRejectedValue(new Error('partner_err'));
+
+    const result = await calculateMonthlyCommissionsProcessor(makeJob(), db);
+
+    // The processor must NOT throw even when both the partner calc AND the syncLog write fail.
+    expect(result.errors).toHaveLength(1);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('calculate-monthly-commissions writeSyncLog'),
+      expect.anything()
+    );
+    warnSpy.mockRestore();
+  });
+
+  // Branch: `err instanceof Error ? err.message : String(err)` FALSE path —
+  // partner calc rejects with a non-Error value (plain string).
+  it('stringifies non-Error partner calc rejection (String(err) branch in catch)', async () => {
+    const db = makePrisma([{ id: 'p1' }]);
+    // Reject with a string literal (not an Error) → instanceof Error = false → String(err)
+    mockCalc.mockRejectedValue('plain-string-rejection');
+
+    const result = await calculateMonthlyCommissionsProcessor(makeJob(), db);
+
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].error).toBe('plain-string-rejection');
+  });
+
+  // Branch: `e instanceof Error ? e.message : String(e)` FALSE path —
+  // notify fan-out rejects with a non-Error value (plain string).
+  it('stringifies non-Error notify rejection (String(e) branch in notify catch)', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const db = makePrisma([{ id: 'p1' }]);
+    mockCalc.mockResolvedValue({ statement: statementFixture(), itemCount: 2, isNew: true });
+    // Reject with a string literal → instanceof Error = false → String(e)
+    mockNotify.mockRejectedValue('notify-plain-string');
+
+    const result = await calculateMonthlyCommissionsProcessor(makeJob(), db);
+
+    // The batch must still complete successfully despite the notify failure.
+    expect(result.partnersProcessed).toBe(1);
+    expect(result.errors).toHaveLength(0);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('commission-ready notify failed'),
+      expect.objectContaining({ error: 'notify-plain-string' })
+    );
+    warnSpy.mockRestore();
+  });
 });

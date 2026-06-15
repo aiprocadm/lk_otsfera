@@ -111,4 +111,38 @@ describe('notifyPushLeadFinalFailure', () => {
     const count = await prisma.notification.count({ where: { partnerId } });
     expect(count).toBe(0);
   });
+
+  it('is a no-op when the partner has no active admins (admins.length === 0 branch)', async () => {
+    // Create a partner with no admin PartnerUser rows, plus a lead for it.
+    const stamp = Date.now() + 1;
+    const noAdminPartner = await prisma.partner.create({
+      data: { name: `NoAdminPartner-${stamp}`, commissionRate: 0 }
+    });
+    const noAdminUser = await prisma.user.create({
+      data: { email: `noadmin-${stamp}@test.local`, name: 'No Admin', role: 'partner', partnerId: noAdminPartner.id }
+    });
+    const noAdminLead = await prisma.lead.create({
+      data: {
+        partnerId: noAdminPartner.id,
+        createdByUserId: noAdminUser.id,
+        clientCompanyName: 'ООО Без Админа',
+        clientContactName: 'Иван',
+        subject: 'Тест',
+        productType: ['course'],
+        estimatedAmount: 1000
+      }
+    });
+
+    try {
+      await notifyPushLeadFinalFailure(prisma, { leadId: noAdminLead.id, errorMessage: 'no-admin-test' });
+
+      // No notifications should have been created — partner has no admin users
+      const count = await prisma.notification.count({ where: { partnerId: noAdminPartner.id } });
+      expect(count).toBe(0);
+    } finally {
+      await prisma.lead.delete({ where: { id: noAdminLead.id } });
+      await prisma.user.delete({ where: { id: noAdminUser.id } });
+      await prisma.partner.delete({ where: { id: noAdminPartner.id } });
+    }
+  });
 });

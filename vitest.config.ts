@@ -90,7 +90,14 @@ export default defineConfig(({ mode }) => ({
         // SIGINT/SIGTERM-хендлеры, process.exit, main()-склейка. Вся бизнес-логика
         // вынесена в processors/* и lib/jobs/* (покрыты отдельно). Покрывается
         // worker integration/e2e, не unit. (План Task 5, variant B.)
-        'src/worker/index.ts'
+        'src/worker/index.ts',
+        // Чисто типовые модули (только `export type` / `interface`): компилируются
+        // в пустой JS, исполняемого кода нет. v8 c `all:true` ошибочно рапортует их
+        // как 0% (источник без execution-data), хотя ветвлений в них нет. Спека §3:
+        // типовые модули вне denominator. (Перечисляем поимённо, не глобом, чтобы не
+        // вычистить случайно файл с рантайм-логикой.)
+        'src/lib/jobs/types.ts',
+        'src/lib/services/oneCSync/adapter.ts'
       ],
       reporter: ['text-summary', 'json-summary', 'html']
     }

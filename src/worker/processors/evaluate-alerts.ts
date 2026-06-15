@@ -54,6 +54,7 @@ export async function evaluateAlertsProcessor(
 
   for (const key of toResolve) {
     const prev = active.find((a) => a.key === key);
+    /* v8 ignore next -- prev is always found: toResolve keys come from active; ?? key is an unreachable defensive fallback */
     await deliverAlert(db, { kind: 'resolve', message: `Восстановлено: ${prev?.message ?? key}` });
     await db.alertState.update({
       where: { key },
