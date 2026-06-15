@@ -70,7 +70,30 @@ export default defineConfig(({ mode }) => ({
     // Multiple test files share a single live Postgres and use overlapping
     // 1C fixture externalIds; running them in parallel forks causes
     // cross-file cleanup races. Keep file execution sequential.
-    fileParallelism: false
+    fileParallelism: false,
+    coverage: {
+      provider: 'v8',
+      // `all: true` reports source files that NO test imports as 0%, instead
+      // of silently omitting them. Essential for a true baseline — otherwise
+      // the denominator is only "files some test happened to touch".
+      all: true,
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/__tests__/**',
+        'src/**/*.test.{ts,tsx}',
+        'src/e2e/**', // Playwright specs — not executed by Vitest
+        'src/**/*.d.ts',
+        // Беслогичные фреймворк-шеллы Next (спека §3): чистая навигационная
+        // обвязка без ветвлений — покрывается e2e, не unit.
+        'src/**/{layout,loading,error,not-found,global-error,template}.tsx',
+        // Worker process bootstrap: конструирование BullMQ Worker (нужен Redis),
+        // SIGINT/SIGTERM-хендлеры, process.exit, main()-склейка. Вся бизнес-логика
+        // вынесена в processors/* и lib/jobs/* (покрыты отдельно). Покрывается
+        // worker integration/e2e, не unit. (План Task 5, variant B.)
+        'src/worker/index.ts'
+      ],
+      reporter: ['text-summary', 'json-summary', 'html']
+    }
   },
   resolve: {
     alias: {

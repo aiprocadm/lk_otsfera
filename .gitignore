@@ -10,6 +10,10 @@ tsconfig.tsbuildinfo
 .remember/
 .pr-body.md
 
+# Vitest coverage output (regenerated locally, never committed).
+coverage/
+coverage-full-run.log
+
 # Playwright runtime output (kept locally for diffs, never committed).
 # Baseline snapshots under src/e2e/snapshots/*-snapshots/ are committed.
 playwright-report/
