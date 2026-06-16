@@ -17,6 +17,7 @@ type FinStatus = OneCOrderDto['financialStatus'];
 type ExecStatus = OneCOrderDto['executionStatus'];
 
 function deriveFinStatus(total: number, paid: number, isRefund: boolean): FinStatus {
+  /* v8 ignore next -- isRefund is always false at call sites in pullOrders; function signature preserved for future use */
   if (isRefund) return 'refunded';
   if (total <= 0) return 'not_billed';
   if (paid >= total) return 'paid';

@@ -53,7 +53,9 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
           : baseDelayMs * 2 ** i;
       await sleep(retryAfterMs);
     }
+    /* v8 ignore next -- for-loop body end; loop always exits via throw on last attempt */
   }
+  /* v8 ignore next 2 -- dead code: the loop always throws on the last attempt via the guard on line 49 */
   throw lastErr;
 }
 
@@ -71,7 +73,7 @@ export function parseRecords<T>(schema: ZodType<T>, raw: unknown[]): ParseResult
         item && typeof item === 'object' && 'externalId' in item
           ? String((item as { externalId: unknown }).externalId)
           : null;
-      invalid.push({ externalId, issue: res.error.issues[0]?.message ?? 'invalid' });
+      invalid.push({ externalId, issue: /* v8 ignore next -- zod always produces at least one issue */ res.error.issues[0]?.message ?? 'invalid' });
     }
   }
   return { valid, invalid };

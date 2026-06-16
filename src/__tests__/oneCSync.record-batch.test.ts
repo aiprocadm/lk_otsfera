@@ -40,4 +40,27 @@ describe('batchStatus', () => {
     s.invalid = 1;
     expect(batchStatus(s)).toBe('warn');
   });
+  it('is warn when there are skipped records', () => {
+    const s = emptySummary(); s.skipped = 1;
+    expect(batchStatus(s)).toBe('warn');
+  });
+  it('is warn when there are failed records', () => {
+    const s = emptySummary(); s.failed = 1;
+    expect(batchStatus(s)).toBe('warn');
+  });
+});
+
+describe('runRecordBatch — non-Error throw', () => {
+  const schema = z.object({ externalId: z.string(), n: z.number() });
+
+  it('stores string representation of non-Error throws in failures', async () => {
+    const summary = await runRecordBatch(
+      [{ externalId: 'x', n: 1 }],
+      schema,
+      (r) => r.externalId,
+      async () => { throw 'plain string throw'; }
+    );
+    expect(summary.failed).toBe(1);
+    expect(summary.failures[0].error).toBe('plain string throw');
+  });
 });

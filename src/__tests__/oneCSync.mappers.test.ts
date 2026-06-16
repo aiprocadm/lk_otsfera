@@ -90,4 +90,101 @@ describe('1C → Prisma mappers', () => {
     expect(out.externalId).toBe('d1');
     expect(out.type).toBe('act');
   });
+
+  it('mapOrderDto: null/undefined optional date fields become null', () => {
+    const out = mapOrderDto({
+      externalId: '1c-order-null-dates',
+      title: 'T',
+      totalAmount: 0,
+      paidAmount: 0,
+      vatIncluded: false,
+      executionStatus: 'pending' as const,
+      financialStatus: 'not_billed' as const,
+      productMix: [],
+      updatedAt: '2026-05-01T00:00:00Z'
+    });
+    expect(out.orderNumber).toBeNull();
+    expect(out.organizationExternalId).toBeNull();
+    expect(out.organizationInn).toBeNull();
+    expect(out.paidAt).toBeNull();
+    expect(out.contractSignedAt).toBeNull();
+    expect(out.completedAt).toBeNull();
+    expect(out.closedAt).toBeNull();
+    expect(out.vatRate).toBeNull();
+  });
+
+  it('mapPaymentDto: null optional fields become null', () => {
+    const out = mapPaymentDto({
+      externalId: 'p-null',
+      amount: 100,
+      paidAt: '2026-05-01T00:00:00Z',
+      isRefund: false,
+      updatedAt: '2026-05-01T00:00:00Z'
+    });
+    expect(out.orderExternalId).toBeNull();
+    expect(out.organizationExternalId).toBeNull();
+    expect(out.organizationInn).toBeNull();
+    expect(out.method).toBeNull();
+  });
+
+  it('mapDocumentDto: null signedAt becomes null', () => {
+    const out = mapDocumentDto({
+      externalId: 'd-no-signed',
+      orderExternalId: 'o1',
+      type: 'contract',
+      name: 'f.pdf',
+      mimeType: 'application/pdf',
+      size: 1,
+      downloadUrl: 'fake://x',
+      updatedAt: '2026-05-01T00:00:00Z'
+    });
+    expect(out.signedAt).toBeNull();
+  });
+
+  it('mapOrgDto: null optional fields become null', () => {
+    const out = mapOrgDto({
+      externalId: 'org-bare',
+      name: 'Bare Org',
+      updatedAt: '2026-05-01T00:00:00Z'
+    });
+    expect(out.inn).toBeNull();
+    expect(out.kpp).toBeNull();
+    expect(out.partnerExternalId).toBeNull();
+  });
+
+  it('mapOrderDto: truthy optional date fields become Date instances', () => {
+    const out = mapOrderDto({
+      externalId: '1c-order-dates',
+      title: 'T',
+      totalAmount: 100,
+      paidAmount: 50,
+      paidAt: '2026-03-01T00:00:00Z',
+      contractSignedAt: '2026-02-01T00:00:00Z',
+      completedAt: '2026-04-01T00:00:00Z',
+      closedAt: '2026-05-01T00:00:00Z',
+      vatIncluded: true,
+      executionStatus: 'completed' as const,
+      financialStatus: 'paid' as const,
+      productMix: [],
+      updatedAt: '2026-05-01T00:00:00Z'
+    });
+    expect(out.contractSignedAt).toBeInstanceOf(Date);
+    expect(out.completedAt).toBeInstanceOf(Date);
+    expect(out.closedAt).toBeInstanceOf(Date);
+  });
+
+  it('mapDocumentDto: truthy signedAt becomes a Date instance', () => {
+    const out = mapDocumentDto({
+      externalId: 'd-signed',
+      orderExternalId: 'o1',
+      type: 'contract',
+      name: 'f.pdf',
+      mimeType: 'application/pdf',
+      size: 1,
+      signedAt: '2026-05-01T00:00:00Z',
+      downloadUrl: 'fake://x',
+      updatedAt: '2026-05-01T00:00:00Z'
+    });
+    expect(out.signedAt).toBeInstanceOf(Date);
+  });
 });

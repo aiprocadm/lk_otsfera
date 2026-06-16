@@ -1,0 +1,96 @@
+import { describe, it, expect, afterEach, vi } from 'vitest';
+
+// We import the module under test after each env manipulation.
+// resetOneCAdapter() clears the cached singleton, letting us change env vars
+// between tests without stale cache.
+
+describe('getOneCAdapter / resetOneCAdapter', () => {
+  // Save/restore env mutations
+  const savedEnv: Record<string, string | undefined> = {};
+  function setEnv(key: string, value: string | undefined) {
+    savedEnv[key] = process.env[key];
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+  afterEach(() => {
+    for (const [k, v] of Object.entries(savedEnv)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+    // Clear the cache after each test
+    vi.resetModules();
+  });
+
+  it('defaults to FakeOneCAdapter when ONE_C_ADAPTER is unset', async () => {
+    setEnv('ONE_C_ADAPTER', undefined);
+    const { getOneCAdapter } = await import('@/lib/services/oneCSync/index');
+    const adapter = getOneCAdapter();
+    expect(adapter).toBeDefined();
+    // FakeOneCAdapter has pullOrganizations method
+    expect(typeof adapter.pullOrganizations).toBe('function');
+  });
+
+  it('returns the same instance on repeated calls (singleton cache)', async () => {
+    setEnv('ONE_C_ADAPTER', 'fake');
+    const { getOneCAdapter } = await import('@/lib/services/oneCSync/index');
+    const a1 = getOneCAdapter();
+    const a2 = getOneCAdapter();
+    expect(a1).toBe(a2);
+  });
+
+  it('resetOneCAdapter clears the cache', async () => {
+    setEnv('ONE_C_ADAPTER', 'fake');
+    const { getOneCAdapter, resetOneCAdapter } = await import('@/lib/services/oneCSync/index');
+    const a1 = getOneCAdapter();
+    resetOneCAdapter();
+    const a2 = getOneCAdapter();
+    // After reset a fresh instance is created — not the same reference
+    expect(a1).not.toBe(a2);
+  });
+
+  it('returns FakeOneCAdapter when ONE_C_ADAPTER=fake (explicit)', async () => {
+    setEnv('ONE_C_ADAPTER', 'fake');
+    const { getOneCAdapter } = await import('@/lib/services/oneCSync/index');
+    const adapter = getOneCAdapter();
+    expect(adapter).toBeDefined();
+  });
+
+  it('throws for ONE_C_ADAPTER=rest without ONE_C_API_URL', async () => {
+    setEnv('ONE_C_ADAPTER', 'rest');
+    setEnv('ONE_C_API_URL', undefined);
+    setEnv('ONE_C_API_TOKEN', undefined);
+    const { getOneCAdapter } = await import('@/lib/services/oneCSync/index');
+    expect(() => getOneCAdapter()).toThrow('ONE_C_API_URL');
+  });
+
+  it('throws for ONE_C_ADAPTER=rest without ONE_C_API_TOKEN', async () => {
+    setEnv('ONE_C_ADAPTER', 'rest');
+    setEnv('ONE_C_API_URL', 'https://1c.example.com');
+    setEnv('ONE_C_API_TOKEN', undefined);
+    const { getOneCAdapter } = await import('@/lib/services/oneCSync/index');
+    expect(() => getOneCAdapter()).toThrow('ONE_C_API_TOKEN');
+  });
+
+  it('returns RestOneCAdapter when ONE_C_ADAPTER=rest with valid config', async () => {
+    setEnv('ONE_C_ADAPTER', 'rest');
+    setEnv('ONE_C_API_URL', 'https://1c.example.com');
+    setEnv('ONE_C_API_TOKEN', 'secret');
+    const { getOneCAdapter } = await import('@/lib/services/oneCSync/index');
+    const adapter = getOneCAdapter();
+    expect(adapter).toBeDefined();
+    // RestOneCAdapter has pushLead method
+    expect(typeof adapter.pushLead).toBe('function');
+  });
+
+  it('throws "File 1C adapter is not implemented yet" for ONE_C_ADAPTER=file', async () => {
+    setEnv('ONE_C_ADAPTER', 'file');
+    const { getOneCAdapter } = await import('@/lib/services/oneCSync/index');
+    expect(() => getOneCAdapter()).toThrow('File 1C adapter is not implemented yet');
+  });
+
+  it('throws for unknown ONE_C_ADAPTER value', async () => {
+    setEnv('ONE_C_ADAPTER', 'unknown_adapter');
+    const { getOneCAdapter } = await import('@/lib/services/oneCSync/index');
+    expect(() => getOneCAdapter()).toThrow('Unknown ONE_C_ADAPTER value: unknown_adapter');
+  });
+});
