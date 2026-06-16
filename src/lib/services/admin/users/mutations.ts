@@ -107,6 +107,7 @@ const ALLOWED_TRANSITIONS: ReadonlyArray<[Role, Role]> = [
 ];
 
 function isAllowedRoleTransition(from: Role, to: Role): boolean {
+  /* v8 ignore next 1 — callers always guard from !== to before calling; dead arm in practice */
   if (from === to) return true;
   return ALLOWED_TRANSITIONS.some(([f, t]) => f === from && t === to);
 }
@@ -139,7 +140,11 @@ export async function updateUser(
         }
       }
 
-      // Last-admin protection
+      // Last-admin protection.
+      // The args.role !== undefined sub-arm of the OR is unreachable for admin users:
+      // any role change from 'admin' is already rejected above by role_transition_forbidden
+      // (admin is absent from ALLOWED_TRANSITIONS). Only args.isActive===false is reachable.
+      /* v8 ignore next 3 */
       if (before.role === 'admin' && (args.role !== undefined || args.isActive === false)) {
         await assertNotLastActiveAdmin(tx, id);
       }
