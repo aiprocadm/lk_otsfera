@@ -97,9 +97,33 @@ export default defineConfig(({ mode }) => ({
         // типовые модули вне denominator. (Перечисляем поимённо, не глобом, чтобы не
         // вычистить случайно файл с рантайм-логикой.)
         'src/lib/jobs/types.ts',
-        'src/lib/services/oneCSync/adapter.ts'
+        'src/lib/services/oneCSync/adapter.ts',
+        // PHASE-2 (отложено планом coverage-phase1): React-хук формы. Покрывается
+        // в фазе 2 вместе с компонентами (нужен render-харнесс). До тех пор —
+        // вне denominator логического гейта, чтобы порог фазы 1 не падал на нём.
+        'src/lib/ui/useFormAction.ts'
       ],
-      reporter: ['text-summary', 'json-summary', 'html']
+      reporter: ['text-summary', 'json-summary', 'html'],
+      // Per-glob 100%-гейт на логические слои (план Task 11). Применяется ТОЛЬКО к
+      // полному прогону (`npm run test:coverage`, unit+integration) — там denominator
+      // полный и цифра честная. В частичных режимах (`--mode=unit` / `--mode=integration`)
+      // порог снят: ни один из них в одиночку не покрывает весь набор (integration-only
+      // файлы 0% под unit, и наоборот), иначе `test:coverage:unit` падал бы ложно.
+      // ВНИМАНИЕ: гейт ещё НЕ прогнан end-to-end против живого Postgres (на момент
+      // правки PG-форвардинг WSL↔Windows лежал). Требуется один `npm run test:coverage`
+      // с живой БД, чтобы подтвердить (а) проход и (б) что Vitest понимает extglob-ключ
+      // `!(*.tsx)` (открытый вопрос spec §7). См. close-out coverage-phase1.
+      ...(mode !== 'unit' && mode !== 'integration'
+        ? {
+            thresholds: {
+              'src/lib/**/!(*.tsx)': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              'src/server-actions/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              'src/app/api/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              'src/worker/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              'src/middleware.ts': { lines: 100, branches: 100, functions: 100, statements: 100 }
+            }
+          }
+        : {})
     }
   },
   resolve: {
