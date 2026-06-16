@@ -67,6 +67,128 @@ describe('POST /api/organization/documents/[id]/download', () => {
     process.env.FEATURE_ORGANIZATION_CABINET = '1';
   });
 
+  it('returns 404 when organization_cabinet feature flag is disabled', async () => {
+    process.env.FEATURE_ORGANIZATION_CABINET = '0';
+    const res = await downloadPost(postReq(), paramsP);
+    expect(res.status).toBe(404);
+    expect(documentFindUnique).not.toHaveBeenCalled();
+    delete process.env.FEATURE_ORGANIZATION_CABINET;
+  });
+
+  it('respects ?ttl= query param within MIN/MAX bounds', async () => {
+    getSession.mockResolvedValue(orgSession([{ id: 'org-a' }]));
+    documentFindUnique.mockResolvedValue({
+      id: 'd1',
+      name: 'contract.pdf',
+      path: 'org-a/contract.pdf',
+      mimeType: 'application/pdf',
+      scanStatus: 'clean',
+      scanReason: null,
+      counterpartyType: 'organization',
+      counterpartyId: 'org-a'
+    });
+    createSignedUrl.mockResolvedValue({
+      data: { signedUrl: 'https://signed.test/x' },
+      error: null
+    });
+
+    // Request TTL=200 (within 60-300 range)
+    const res = await downloadPost(postReq('?ttl=200'), paramsP);
+    expect(res.status).toBe(200);
+    expect(createSignedUrl).toHaveBeenCalledWith('org-a/contract.pdf', 200);
+  });
+
+  it('clamps ?ttl= above MAX_TTL (300) to 300', async () => {
+    getSession.mockResolvedValue(orgSession([{ id: 'org-a' }]));
+    documentFindUnique.mockResolvedValue({
+      id: 'd1',
+      name: 'x.pdf',
+      path: 'org-a/x.pdf',
+      mimeType: 'application/pdf',
+      scanStatus: 'clean',
+      scanReason: null,
+      counterpartyType: 'organization',
+      counterpartyId: 'org-a'
+    });
+    createSignedUrl.mockResolvedValue({
+      data: { signedUrl: 'https://signed.test/x' },
+      error: null
+    });
+
+    const res = await downloadPost(postReq('?ttl=9999'), paramsP);
+    expect(res.status).toBe(200);
+    // Should be clamped to MAX_TTL=300
+    expect(createSignedUrl).toHaveBeenCalledWith('org-a/x.pdf', 300);
+  });
+
+  it('clamps ?ttl= below MIN_TTL (60) to 60', async () => {
+    getSession.mockResolvedValue(orgSession([{ id: 'org-a' }]));
+    documentFindUnique.mockResolvedValue({
+      id: 'd1',
+      name: 'x.pdf',
+      path: 'org-a/x.pdf',
+      mimeType: 'application/pdf',
+      scanStatus: 'clean',
+      scanReason: null,
+      counterpartyType: 'organization',
+      counterpartyId: 'org-a'
+    });
+    createSignedUrl.mockResolvedValue({
+      data: { signedUrl: 'https://signed.test/x' },
+      error: null
+    });
+
+    const res = await downloadPost(postReq('?ttl=5'), paramsP);
+    expect(res.status).toBe(200);
+    // Should be clamped to MIN_TTL=60
+    expect(createSignedUrl).toHaveBeenCalledWith('org-a/x.pdf', 60);
+  });
+
+  it('uses DEFAULT_TTL when ?ttl= is non-numeric', async () => {
+    getSession.mockResolvedValue(orgSession([{ id: 'org-a' }]));
+    documentFindUnique.mockResolvedValue({
+      id: 'd1',
+      name: 'x.pdf',
+      path: 'org-a/x.pdf',
+      mimeType: 'application/pdf',
+      scanStatus: 'clean',
+      scanReason: null,
+      counterpartyType: 'organization',
+      counterpartyId: 'org-a'
+    });
+    createSignedUrl.mockResolvedValue({
+      data: { signedUrl: 'https://signed.test/x' },
+      error: null
+    });
+
+    const res = await downloadPost(postReq('?ttl=abc'), paramsP);
+    expect(res.status).toBe(200);
+    // DEFAULT_TTL=120 is within bounds, so it passes through
+    expect(createSignedUrl).toHaveBeenCalledWith('org-a/x.pdf', 120);
+  });
+
+  it('uses org context from org_ctx cookie when ?org= is not in query', async () => {
+    getSession.mockResolvedValue(orgSession([{ id: 'org-a' }, { id: 'org-b' }]));
+    cookiesGet.mockReturnValue({ value: 'org-b' });
+    documentFindUnique.mockResolvedValue({
+      id: 'd1',
+      name: 'b-doc.pdf',
+      path: 'org-b/b-doc.pdf',
+      mimeType: 'application/pdf',
+      scanStatus: 'clean',
+      scanReason: null,
+      counterpartyType: 'organization',
+      counterpartyId: 'org-b'
+    });
+    createSignedUrl.mockResolvedValue({
+      data: { signedUrl: 'https://signed.test/cookie' },
+      error: null
+    });
+
+    const res = await downloadPost(postReq(), paramsP);
+    expect(res.status).toBe(200);
+  });
+
   it('redirects when user is not organization-role', async () => {
     getSession.mockResolvedValue({ sub: 'u', role: 'admin' });
     await expect(downloadPost(postReq(), paramsP)).rejects.toThrow('REDIRECT');
@@ -101,7 +223,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
     expect(res.status).toBe(404);
   });
 
-  it('returns 410 for infected document', async () => {
+  it('returns 410 for infected document (with scanReason)', async () => {
     getSession.mockResolvedValue(orgSession([{ id: 'org-a' }]));
     documentFindUnique.mockResolvedValue({
       id: 'd1',
@@ -118,6 +240,26 @@ describe('POST /api/organization/documents/[id]/download', () => {
     const body = (await res.json()) as { code?: string; scanReason?: string };
     expect(body.code).toBe('INFECTED');
     expect(body.scanReason).toBe('EICAR');
+  });
+
+  it('returns 410 for infected document with null scanReason (?? undefined fallback)', async () => {
+    // When scanReason is null, result.scanReason ?? undefined = undefined → omitted from body
+    getSession.mockResolvedValue(orgSession([{ id: 'org-a' }]));
+    documentFindUnique.mockResolvedValue({
+      id: 'd1',
+      name: 'x.pdf',
+      path: 'p',
+      mimeType: 'application/pdf',
+      scanStatus: 'infected',
+      scanReason: null,
+      counterpartyType: 'organization',
+      counterpartyId: 'org-a'
+    });
+    const res = await downloadPost(postReq(), paramsP);
+    expect(res.status).toBe(410);
+    const body = (await res.json()) as { code?: string; scanReason?: unknown };
+    expect(body.code).toBe('INFECTED');
+    expect(body.scanReason).toBeUndefined();
   });
 
   it('returns 200 with signed URL for clean own document', async () => {
@@ -187,7 +329,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
     expect(res.status).toBe(404);
   });
 
-  it('returns 502 if Supabase signed URL creation fails', async () => {
+  it('returns 502 if Supabase signed URL creation fails (with error message)', async () => {
     getSession.mockResolvedValue(orgSession([{ id: 'org-a' }]));
     documentFindUnique.mockResolvedValue({
       id: 'd1',
@@ -200,6 +342,26 @@ describe('POST /api/organization/documents/[id]/download', () => {
       counterpartyId: 'org-a'
     });
     createSignedUrl.mockResolvedValue({ data: null, error: { message: 'storage down' } });
+
+    const res = await downloadPost(postReq(), paramsP);
+    expect(res.status).toBe(502);
+  });
+
+  it('returns 502 when signedUrl absent and error is null (?? fallback for providerError)', async () => {
+    // Covers: error?.message ?? 'Missing signed URL from provider' when error is null
+    getSession.mockResolvedValue(orgSession([{ id: 'org-a' }]));
+    documentFindUnique.mockResolvedValue({
+      id: 'd1',
+      name: 'x.pdf',
+      path: 'org-a/x.pdf',
+      mimeType: 'application/pdf',
+      scanStatus: 'clean',
+      scanReason: null,
+      counterpartyType: 'organization',
+      counterpartyId: 'org-a'
+    });
+    // null error but no signedUrl → triggers the ?? 'Missing signed URL' fallback
+    createSignedUrl.mockResolvedValue({ data: { signedUrl: '' }, error: null });
 
     const res = await downloadPost(postReq(), paramsP);
     expect(res.status).toBe(502);

@@ -23,6 +23,10 @@ async function auditBridgeFailure(params: {
   ip?: string | null;
   reason: string;
 }) {
+  // clientId is always a string (guaranteed by callers via ?? ''), so the
+  // ?? 'unknown' and ?? null fallbacks are unreachable in practice. The
+  // optional type signature exists for forward-compatibility only.
+  /* v8 ignore next 2 */
   const resolvedEntityId = params.entityId ?? params.clientId ?? 'unknown';
 
   await recordAudit(prisma, {
@@ -33,6 +37,7 @@ async function auditBridgeFailure(params: {
     status: 'denied',
     reason: params.reason,
     after: {
+      /* v8 ignore next */
       clientId: params.clientId ?? null,
       ip: params.ip ?? null,
       entityId: resolvedEntityId,

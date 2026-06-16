@@ -67,6 +67,20 @@ describe('GET /api/partner/finance', () => {
     const body = await res.json();
     expect(body.kpis).toEqual(stubKpis);
   });
+
+  it('passes from/to date params to listStatements when provided', async () => {
+    vi.mocked(getSession).mockResolvedValue(partnerManagerSession);
+    vi.mocked(getFinanceKpis).mockResolvedValue(stubKpis);
+    vi.mocked(listStatements).mockResolvedValue([]);
+    await GET(getReq('http://x/?from=2026-01-01&to=2026-03-31&status=approved&skip=5&take=10'));
+    expect(listStatements).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      from: expect.any(Date),
+      to: expect.any(Date),
+      status: 'approved',
+      skip: 5,
+      take: 10
+    }));
+  });
 });
 
 describe('POST /api/partner/finance/statements', () => {

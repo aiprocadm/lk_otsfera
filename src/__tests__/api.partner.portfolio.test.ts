@@ -70,4 +70,19 @@ describe('GET /api/partner/portfolio', () => {
       scopeOrgIds: ['oA', 'oB']
     }));
   });
+
+  it('uses fallback for negative skip (parsePositiveInt returns fallback when value < 0)', async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      sub: 'u', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
+    } as any);
+    vi.mocked(listPortfolio).mockResolvedValue({ items: [], total: 0 });
+
+    await GET(req('?skip=-5&take=-1'));
+
+    // Negative values should fall back to defaults: skip=0, take=20
+    expect(listPortfolio).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      skip: 0,
+      take: 20
+    }));
+  });
 });

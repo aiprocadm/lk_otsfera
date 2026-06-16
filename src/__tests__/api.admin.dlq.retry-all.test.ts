@@ -23,6 +23,16 @@ beforeEach(() => {
 });
 
 describe('POST retry-all', () => {
+  it('returns 401 when requireSession fails', async () => {
+    requireSession.mockResolvedValue({
+      ok: false,
+      response: new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+    });
+    const res = await POST(new Request('http://x', { method: 'POST' }), params('docs.scanDocument'));
+    expect(res.status).toBe(401);
+    expect(retryAllDlq).not.toHaveBeenCalled();
+  });
+
   it('rejects an unknown queue with 400', async () => {
     const res = await POST(new Request('http://x', { method: 'POST' }), params('bogus.queue'));
     expect(res.status).toBe(400);

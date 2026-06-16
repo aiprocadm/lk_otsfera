@@ -26,6 +26,31 @@ const managerSession = {
 const userCtx = (userId: string) => ({ params: Promise.resolve({ userId }) });
 const jsonReq = (b: unknown) => new Request('http://x/', { method: 'POST', body: JSON.stringify(b), headers: { 'content-type': 'application/json' } });
 
+describe('GET /api/partner/team — unauthenticated', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('401 when unauthenticated', async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    expect((await GET()).status).toBe(401);
+  });
+});
+
+describe('POST /api/partner/team — JSON parse failure', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('400 when JSON body cannot be parsed', async () => {
+    vi.mocked(getSession).mockResolvedValue(adminSession);
+    const badReq = new Request('http://x/', { method: 'POST', body: 'NOT JSON', headers: { 'content-type': 'application/json' } });
+    expect((await POST(badReq)).status).toBe(400);
+  });
+
+  it('401 when POST unauthenticated (session is null)', async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    const res = await POST(jsonReq({ email: 'x@x.local', name: 'X', roleInPartner: 'manager', assignedOrgIds: [] }));
+    expect(res.status).toBe(401);
+  });
+});
+
 describe('GET /api/partner/team', () => {
   beforeEach(() => vi.resetAllMocks());
 
@@ -78,6 +103,18 @@ describe('POST /api/partner/team', () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
     vi.mocked(inviteMember).mockRejectedValue(new Error('ORG_OUT_OF_SCOPE'));
     expect((await POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: ['bad'] }))).status).toBe(422);
+  });
+
+  it('rethrows unknown errors from inviteMember (not EMAIL_TAKEN/ORG_OUT_OF_SCOPE)', async () => {
+    vi.mocked(getSession).mockResolvedValue(adminSession);
+    vi.mocked(inviteMember).mockRejectedValue(new Error('DB_DEADLOCK: timeout'));
+    await expect(POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] }))).rejects.toThrow('DB_DEADLOCK');
+  });
+
+  it('non-Error throw in inviteMember → msg="unknown" → rethrows (covers String(err) branch)', async () => {
+    vi.mocked(getSession).mockResolvedValue(adminSession);
+    vi.mocked(inviteMember).mockRejectedValue('plain string rejection');
+    await expect(POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] }))).rejects.toBe('plain string rejection');
   });
 });
 
