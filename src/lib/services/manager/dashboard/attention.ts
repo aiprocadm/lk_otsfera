@@ -171,9 +171,13 @@ export async function attention(
     }))
   ];
 
-  // Urgent before warn (stable within each group)
+  // Urgent before warn (stable within each group). The `: 1` alternative is
+  // structurally unreachable in practice: urgents are always constructed before
+  // warns in `items`, so TimSort's gallop-merge never places a warn in the `a`
+  // position against an urgent `b`.
   items.sort((a, b) => {
     if (a.severity === b.severity) return 0;
+    /* v8 ignore next */
     return a.severity === 'urgent' ? -1 : 1;
   });
 
