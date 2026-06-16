@@ -54,9 +54,61 @@ describe('deliverAlert', () => {
     process.env.ALERT_TELEGRAM_BOT_TOKEN = 'bot123';
     process.env.ALERT_TELEGRAM_CHAT_ID = '42';
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('tg down')));
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await expect(
       deliverAlert(fakePrisma(['a1']), { kind: 'fire', message: 'boom' })
     ).resolves.toBeUndefined();
     expect(createNotificationMock).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledWith('[alerts] telegram failed', expect.anything());
+    errorSpy.mockRestore();
+  });
+
+  it('uses resolve kind with ✅ prefix and "Восстановление" title', async () => {
+    await deliverAlert(fakePrisma(['a1']), { kind: 'resolve', message: 'all good' });
+    expect(createNotificationMock.mock.calls[0][0]).toMatchObject({
+      title: 'Восстановление',
+      body: expect.stringContaining('✅')
+    });
+  });
+
+  it('uses custom type when provided', async () => {
+    await deliverAlert(fakePrisma(['a1']), { kind: 'fire', message: 'x', type: 'custom_alert' });
+    expect(createNotificationMock.mock.calls[0][0]).toMatchObject({ type: 'custom_alert' });
+  });
+
+  it('logs and continues when createNotification throws', async () => {
+    createNotificationMock.mockRejectedValue(new Error('db error'));
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await expect(
+      deliverAlert(fakePrisma(['a1']), { kind: 'fire', message: 'boom' })
+    ).resolves.toBeUndefined();
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[alerts] in-app notification failed',
+      expect.anything()
+    );
+    // Email should still be called despite in-app failure
+    expect(triggerEmailMock).toHaveBeenCalledTimes(1);
+    errorSpy.mockRestore();
+  });
+
+  it('logs and continues when triggerNotificationEmail throws', async () => {
+    triggerEmailMock.mockRejectedValue(new Error('smtp error'));
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await expect(
+      deliverAlert(fakePrisma(['a1']), { kind: 'fire', message: 'boom' })
+    ).resolves.toBeUndefined();
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[alerts] email failed',
+      expect.anything()
+    );
+    errorSpy.mockRestore();
+  });
+
+  it('handles zero admins without error', async () => {
+    await expect(
+      deliverAlert(fakePrisma([]), { kind: 'fire', message: 'boom' })
+    ).resolves.toBeUndefined();
+    expect(createNotificationMock).not.toHaveBeenCalled();
+    expect(triggerEmailMock).not.toHaveBeenCalled();
   });
 });

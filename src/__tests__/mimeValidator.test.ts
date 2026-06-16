@@ -99,4 +99,48 @@ describe('mimeValidator', () => {
     expect(extensionFor('application/vnd.openxmlformats-officedocument.wordprocessingml.document')).toBe('docx');
     expect(extensionFor('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')).toBe('xlsx');
   });
+
+  // ── mime_mismatch branches for each magic-byte type ──────────────────────
+
+  it('rejects JPEG when declared MIME is wrong', () => {
+    const buf = withPadding([0xff, 0xd8, 0xff, 0xe0]);
+    const res = validateMagicBytes('application/pdf', buf);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toBe('mime_mismatch');
+  });
+
+  it('rejects PNG when declared MIME is wrong', () => {
+    const buf = withPadding([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const res = validateMagicBytes('image/jpeg', buf);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toBe('mime_mismatch');
+  });
+
+  it('rejects DOCX when declared MIME is wrong (e.g. xlsx instead of docx)', () => {
+    const zipSig = [0x50, 0x4b, 0x03, 0x04];
+    const marker = new TextEncoder().encode('word/document.xml');
+    const buf = new Uint8Array(64);
+    buf.set(zipSig, 0);
+    buf.set(marker, 30);
+    const res = validateMagicBytes(
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      buf
+    );
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toBe('mime_mismatch');
+  });
+
+  it('rejects XLSX when declared MIME is wrong (e.g. docx instead of xlsx)', () => {
+    const zipSig = [0x50, 0x4b, 0x03, 0x04];
+    const marker = new TextEncoder().encode('xl/workbook.xml');
+    const buf = new Uint8Array(64);
+    buf.set(zipSig, 0);
+    buf.set(marker, 30);
+    const res = validateMagicBytes(
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      buf
+    );
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toBe('mime_mismatch');
+  });
 });
