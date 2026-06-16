@@ -149,6 +149,17 @@ describe('leaderAssignManagerAction — happy path (same company)', () => {
 
     expect(res).toEqual({ ok: false, error: 'already_assigned' });
   });
+
+  it('re-throws non-domain errors', async () => {
+    organizationFindUnique.mockResolvedValue({ companyId: 'co-A' });
+    createAndAssignManager.mockRejectedValue(new Error('DB down'));
+
+    await expect(
+      leaderAssignManagerAction(
+        fd({ mode: 'existing', organizationId: 'org-1', email: 'mgr@t.local' })
+      )
+    ).rejects.toThrow('DB down');
+  });
 });
 
 // ── leaderDeactivateAssignmentAction ────────────────────────────────────────

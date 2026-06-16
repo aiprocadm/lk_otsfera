@@ -281,6 +281,15 @@ describe('transitionOrderStatusAction — forbidden / not_found', () => {
   });
 });
 
+describe('transitionOrderStatusAction — non-domain error re-throw', () => {
+  it('re-throws non-domain errors (e.g. DB connectivity failure)', async () => {
+    orderFindUnique.mockRejectedValue(new Error('DB connection reset'));
+    await expect(
+      transitionOrderStatusAction({ orderId: 'order-1', newStatus: 'in_progress' })
+    ).rejects.toThrow('DB connection reset');
+  });
+});
+
 describe('transitionOrderStatusAction — notification fan-out edge cases', () => {
   it('skips notifyOrgUsers when order has no organizationId', async () => {
     // organizationId is non-null per schema, but defensive coverage for the

@@ -53,6 +53,12 @@ describe('setSchedulePausedAction', () => {
     expect(setSchedulePaused).toHaveBeenCalledWith({}, 'admin-1', 'oneCSync.pullOrders.cron', true);
     expect(res).toEqual({ ok: true, paused: true });
   });
+
+  it('returns validation when schedulerId is missing', async () => {
+    const res = await setSchedulePausedAction(fd({ paused: 'true' }));
+    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(setSchedulePaused).not.toHaveBeenCalled();
+  });
 });
 
 describe('rewindCursorAction', () => {
@@ -66,5 +72,11 @@ describe('rewindCursorAction', () => {
     rewindCursor.mockResolvedValue({ ok: true, entity: 'order', cursor: '2026-06-01T00:00:00.000Z' });
     await rewindCursorAction(fd({ entity: 'order', cursor: '2026-06-01T00:00:00.000Z' }));
     expect(rewindCursor).toHaveBeenCalledWith({}, 'admin-1', 'order', '2026-06-01T00:00:00.000Z');
+  });
+
+  it('returns validation when entity is missing', async () => {
+    const res = await rewindCursorAction(fd({ cursor: '2026-06-01' }));
+    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(rewindCursor).not.toHaveBeenCalled();
   });
 });

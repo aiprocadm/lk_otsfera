@@ -41,7 +41,10 @@ import {
   createPartnerWithAdminAction,
   updatePartnerAction,
   deactivatePartnerAction,
-  reactivatePartnerAction
+  reactivatePartnerAction,
+  updatePartnerFormAction,
+  deactivatePartnerFormAction,
+  reactivatePartnerFormAction
 } from '@/server-actions/admin/partners';
 import { AdminPartnerError } from '@/lib/services/admin/partners';
 
@@ -232,6 +235,61 @@ describe('createPartnerWithAdminAction', () => {
   });
 });
 
+describe('createPartnerWithAdminAction — mapErr re-throw', () => {
+  it('re-throws non-AdminPartnerError errors from the service', async () => {
+    createPartnerWithAdmin.mockRejectedValue(new Error('DB connection reset'));
+    await expect(
+      createPartnerWithAdminAction(
+        fd({ name: 'P', slug: 'p-co', adminEmail: 'a@test.local', adminName: 'Admin' })
+      )
+    ).rejects.toThrow('DB connection reset');
+  });
+
+  it('uses "https://lk.otsfera.ru" as APP_URL fallback when env is not set', async () => {
+    const original = process.env.APP_URL;
+    delete process.env.APP_URL;
+    createPartnerWithAdmin.mockResolvedValue({
+      partner: { id: 'p-fallback', name: 'P', slug: 'p-co' },
+      user: { id: 'u-fallback', email: 'a@x.test' },
+      inviteToken: 'tok-fallback'
+    });
+
+    const res = await createPartnerWithAdminAction(
+      fd({ name: 'P', slug: 'p-co', adminEmail: 'a@x.test', adminName: 'Admin' })
+    );
+    expect(res).toMatchObject({ ok: true });
+    expect((res as { ok: true; inviteUrl: string }).inviteUrl).toContain('https://lk.otsfera.ru');
+
+    if (original !== undefined) process.env.APP_URL = original;
+  });
+
+  it('uses undefined as invitedByName when session.name is absent', async () => {
+    requireAdmin.mockResolvedValue({ sub: 'admin-1', name: null });
+    createPartnerWithAdmin.mockResolvedValue({
+      partner: { id: 'p-nn', name: 'P', slug: 'p-co' },
+      user: { id: 'u-nn', email: 'a@x.test' },
+      inviteToken: 'tok-nn'
+    });
+    sendAdminUserInviteEmail.mockResolvedValue({ status: 'sent' });
+
+    await createPartnerWithAdminAction(
+      fd({ name: 'P', slug: 'p-co', adminEmail: 'a@x.test', adminName: 'Admin' })
+    );
+    expect(sendAdminUserInviteEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ invitedByName: undefined })
+    );
+  });
+});
+
+describe('updatePartnerAction — mapErr re-throw', () => {
+  it('re-throws non-AdminPartnerError errors from the service', async () => {
+    updatePartner.mockRejectedValue(new Error('DB connection reset'));
+    await expect(
+      updatePartnerAction(fd({ id: 'p-1', name: 'X' }))
+    ).rejects.toThrow('DB connection reset');
+  });
+});
+
 describe('updatePartnerAction', () => {
   it('returns validation error when id is missing', async () => {
     const res = await updatePartnerAction(fd({ id: '', name: 'New Name' }));
@@ -335,5 +393,55 @@ describe('reactivatePartnerAction', () => {
     reactivatePartner.mockRejectedValue(new AdminPartnerError('not_found'));
     const res = await reactivatePartnerAction(fd({ id: 'gone-3' }));
     expect(res).toEqual({ ok: false, error: 'not_found' });
+  });
+});
+
+describe('form-action wrappers (discard result, log on failure)', () => {
+  it('updatePartnerFormAction returns void on success', async () => {
+    updatePartner.mockResolvedValue(undefined);
+    const result = await updatePartnerFormAction(fd({ id: 'p-10', name: 'X' }));
+    expect(result).toBeUndefined();
+    expect(updatePartner).toHaveBeenCalled();
+  });
+
+  it('updatePartnerFormAction logs and swallows failure', async () => {
+    updatePartner.mockRejectedValue(new AdminPartnerError('not_found'));
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = await updatePartnerFormAction(fd({ id: 'gone', name: 'X' }));
+    expect(result).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('deactivatePartnerFormAction returns void on success', async () => {
+    deactivatePartner.mockResolvedValue(undefined);
+    const result = await deactivatePartnerFormAction(fd({ id: 'p-20' }));
+    expect(result).toBeUndefined();
+    expect(deactivatePartner).toHaveBeenCalled();
+  });
+
+  it('deactivatePartnerFormAction logs and swallows failure', async () => {
+    deactivatePartner.mockRejectedValue(new AdminPartnerError('not_found'));
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = await deactivatePartnerFormAction(fd({ id: 'gone' }));
+    expect(result).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('reactivatePartnerFormAction returns void on success', async () => {
+    reactivatePartner.mockResolvedValue(undefined);
+    const result = await reactivatePartnerFormAction(fd({ id: 'p-30' }));
+    expect(result).toBeUndefined();
+    expect(reactivatePartner).toHaveBeenCalled();
+  });
+
+  it('reactivatePartnerFormAction logs and swallows failure', async () => {
+    reactivatePartner.mockRejectedValue(new AdminPartnerError('not_found'));
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = await reactivatePartnerFormAction(fd({ id: 'gone' }));
+    expect(result).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 });

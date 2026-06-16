@@ -57,7 +57,9 @@ import {
   deactivateManagerAssignmentAction,
   reactivateManagerAssignmentAction,
   assignOrderManagerAction,
-  setManagerRoleAction
+  setManagerRoleAction,
+  deactivateManagerAssignmentFormAction,
+  reactivateManagerAssignmentFormAction
 } from '@/server-actions/admin/manager';
 import { ManagerInviteError } from '@/lib/services/manager/invite';
 
@@ -359,5 +361,106 @@ describe('setManagerRoleAction — requireAdmin gate', () => {
     const res = await setManagerRoleAction(fd({ userId: 'u-p', role: 'leader' }));
 
     expect(res).toEqual({ ok: false, error: 'not_a_manager' });
+  });
+});
+
+describe('assignOrInviteManagerAction — email failure (graceful degradation)', () => {
+  it('still returns ok:true when sendManagerInviteEmail throws', async () => {
+    organizationFindUnique.mockResolvedValue({ name: 'ACME' });
+    createAndAssignManager.mockResolvedValue({
+      user: { id: 'u-5', email: 'invite@t.local' },
+      inviteUrl: 'https://app/reset-password?token=tok',
+      alreadyHasPassword: false,
+      reactivated: false
+    });
+    sendManagerInviteEmail.mockRejectedValue(new Error('SMTP down'));
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const res = await assignOrInviteManagerAction(
+      fd({ mode: 'new', organizationId: 'org-1', email: 'invite@t.local', name: 'New' })
+    );
+    expect(res).toMatchObject({ ok: true });
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('uses fallback "организация" when org lookup returns null during email send', async () => {
+    organizationFindUnique.mockResolvedValue(null);
+    createAndAssignManager.mockResolvedValue({
+      user: { id: 'u-6', email: 'inv2@t.local' },
+      inviteUrl: 'https://app/reset-password?token=tok2',
+      alreadyHasPassword: false,
+      reactivated: false
+    });
+    sendManagerInviteEmail.mockResolvedValue({ status: 'sent' });
+
+    const res = await assignOrInviteManagerAction(
+      fd({ mode: 'new', organizationId: 'org-missing', email: 'inv2@t.local', name: 'N' })
+    );
+    expect(res).toMatchObject({ ok: true });
+    expect(sendManagerInviteEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ organizationName: 'организация' })
+    );
+  });
+
+  it('uses undefined invitedByName when session.name is absent', async () => {
+    requireAdmin.mockResolvedValue({ sub: 'admin-1', name: null });
+    organizationFindUnique.mockResolvedValue({ name: 'ACME' });
+    createAndAssignManager.mockResolvedValue({
+      user: { id: 'u-7', email: 'inv3@t.local' },
+      inviteUrl: 'https://app/reset-password?token=tok3',
+      alreadyHasPassword: false,
+      reactivated: false
+    });
+    sendManagerInviteEmail.mockResolvedValue({ status: 'sent' });
+
+    await assignOrInviteManagerAction(
+      fd({ mode: 'new', organizationId: 'org-1', email: 'inv3@t.local', name: 'N' })
+    );
+    expect(sendManagerInviteEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ invitedByName: undefined })
+    );
+  });
+});
+
+describe('reactivateManagerAssignmentAction — validation', () => {
+  it('returns validation when assignmentId is missing', async () => {
+    const res = await reactivateManagerAssignmentAction(fd({}));
+    expect(res).toEqual({ ok: false, error: 'validation' });
+    expect(reactivateAssignment).not.toHaveBeenCalled();
+  });
+});
+
+describe('form-action wrappers (discard result, log on failure)', () => {
+  it('deactivateManagerAssignmentFormAction returns void on success', async () => {
+    deactivateAssignment.mockResolvedValue({ ok: true, organizationId: 'org-1' });
+    const result = await deactivateManagerAssignmentFormAction(fd({ assignmentId: 'a-1' }));
+    expect(result).toBeUndefined();
+    expect(deactivateAssignment).toHaveBeenCalled();
+  });
+
+  it('deactivateManagerAssignmentFormAction logs and swallows failure', async () => {
+    deactivateAssignment.mockResolvedValue({ ok: false, reason: 'not_found' });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = await deactivateManagerAssignmentFormAction(fd({ assignmentId: 'bad' }));
+    expect(result).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('reactivateManagerAssignmentFormAction returns void on success', async () => {
+    reactivateAssignment.mockResolvedValue({ ok: true, organizationId: 'org-1' });
+    const result = await reactivateManagerAssignmentFormAction(fd({ assignmentId: 'a-2' }));
+    expect(result).toBeUndefined();
+    expect(reactivateAssignment).toHaveBeenCalled();
+  });
+
+  it('reactivateManagerAssignmentFormAction logs and swallows failure', async () => {
+    reactivateAssignment.mockResolvedValue({ ok: false, reason: 'not_found' });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = await reactivateManagerAssignmentFormAction(fd({ assignmentId: 'bad' }));
+    expect(result).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 });

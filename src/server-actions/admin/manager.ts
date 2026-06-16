@@ -173,6 +173,7 @@ const assignOrderManagerSchema = z.object({
     .string()
     .min(1)
     .nullable()
+    /* v8 ignore next -- v is non-empty-string | null (nullable); '' is rejected by min(1) */
     .transform((v) => (v === '' ? null : v))
 });
 
