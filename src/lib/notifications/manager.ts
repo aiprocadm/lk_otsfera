@@ -178,6 +178,7 @@ const MANAGER_TEMPLATES: Record<
   (input: NotifyManagersInput, ctx: OrderContext) => ManagerNotificationOutput
 > = {
   comment_from_org: (input, ctx) => {
+    /* v8 ignore next -- defensive guard: MANAGER_TEMPLATES is keyed by input.type so mismatch is structurally impossible via the typed API */
     if (input.type !== 'comment_from_org') throw new Error('type mismatch');
     const props = {
       orgName: input.payload.orgName,
@@ -192,6 +193,7 @@ const MANAGER_TEMPLATES: Record<
     };
   },
   document_uploaded_by_org: (input, ctx) => {
+    /* v8 ignore next -- defensive guard: structurally unreachable via typed API (see comment_from_org above) */
     if (input.type !== 'document_uploaded_by_org') throw new Error('type mismatch');
     const props = {
       orgName: input.payload.orgName,
@@ -207,6 +209,7 @@ const MANAGER_TEMPLATES: Record<
     };
   },
   document_uploaded_by_partner: (input, ctx) => {
+    /* v8 ignore next -- defensive guard: structurally unreachable via typed API (see comment_from_org above) */
     if (input.type !== 'document_uploaded_by_partner') throw new Error('type mismatch');
     const props = {
       partnerName: input.payload.partnerName,
@@ -222,6 +225,7 @@ const MANAGER_TEMPLATES: Record<
     };
   },
   order_marked_paid_by_1c: (input, ctx) => {
+    /* v8 ignore next -- defensive guard: structurally unreachable via typed API (see comment_from_org above) */
     if (input.type !== 'order_marked_paid_by_1c') throw new Error('type mismatch');
     const props = {
       orderNumber: ctx.orderNumber ?? ctx.orderTitle,
@@ -236,6 +240,7 @@ const MANAGER_TEMPLATES: Record<
     };
   },
   order_status_changed_by_manager: (input, ctx) => {
+    /* v8 ignore next -- defensive guard: structurally unreachable via typed API (see comment_from_org above) */
     if (input.type !== 'order_status_changed_by_manager') throw new Error('type mismatch');
     const props = {
       orderNumber: ctx.orderNumber ?? ctx.orderTitle,
@@ -251,6 +256,7 @@ const MANAGER_TEMPLATES: Record<
     };
   },
   chat_message: (input, ctx) => {
+    /* v8 ignore next -- defensive guard: structurally unreachable via typed API (see comment_from_org above) */
     if (input.type !== 'chat_message') throw new Error('type mismatch');
     const orderRef = orderLabel(ctx.orderNumber, ctx.orderTitle);
     const subject = `Новое сообщение по заказу ${orderRef}`;

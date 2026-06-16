@@ -83,4 +83,8 @@ describe('canReadOrderLessDocument', () => {
   it('manager denied when doc has no company', () => {
     expect(canReadOrderLessDocument({ role: 'manager', companyId: 'co-1' }, { ...doc, companyId: null })).toBe(false);
   });
+  it('unknown/student role returns false', () => {
+    expect(canReadOrderLessDocument({ role: 'student' }, doc)).toBe(false);
+    expect(canReadOrderLessDocument({ role: 'unknown-role' }, doc)).toBe(false);
+  });
 });
