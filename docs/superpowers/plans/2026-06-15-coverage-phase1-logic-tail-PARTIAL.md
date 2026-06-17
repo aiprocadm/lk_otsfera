@@ -1,6 +1,6 @@
 # Coverage Phase 1 — Logic Tail → 100% — Close-out (PARTIAL)
 
-> Companion to [2026-06-15-coverage-phase1-logic-tail.md](2026-06-15-coverage-phase1-logic-tail.md). План хранит «что планировали»; этот файл — «что отгрузили». Статус **PARTIAL**: вся работа по покрытию выполнена и проверена в unit-режиме, но **авторитетный full-run гейт ещё не прогнан против живого Postgres** (см. «Остаток»).
+> Companion to [2026-06-15-coverage-phase1-logic-tail.md](2026-06-15-coverage-phase1-logic-tail.md). План хранит «что планировали»; этот файл — «что отгрузили». **ОБНОВЛЕНО 2026-06-17: авторитетный full-run гейт ПРОЙДЕН на живом Postgres (`npm run test:coverage` → rc=0); фаза 1 закрыта полностью.** История ниже сохранена для контекста.
 
 ## Статус фаз (задач плана)
 
@@ -63,10 +63,14 @@
 
 ## Остаток (для оператора)
 
-1. **Авторитетный full-run гейт (PG-pending).** Прогнать `npm run test:coverage` с живым Postgres **один раз**, чтобы подтвердить: (а) порог 100% проходит на всех 5 глобах; (б) Vitest 2.1.9 понимает extglob-ключ `'src/lib/**/!(*.tsx)'` (открытый вопрос spec §7). На этом боксе PG живёт в WSL (cluster 16 online), но форвардинг WSL→Windows :5432 отпал в середине сессии (нужен `wsl --shutdown`/admin — оператор; либо прогон изнутри WSL). Логический аргумент, что прогон зелёный: каждый in-scope файл = 100% unit ⟹ ≥100% full; integration-only файлы не тронуты и были 100% в full-baseline.
+1. **✅ Авторитетный full-run гейт — ВАЛИДИРОВАН 2026-06-17 (живой Postgres, изнутри WSL).** `npm run test:coverage` против свежей ICU-БД `cabinet_cov` → **rc=0**: vitest возвращает 0 только когда (а) все тесты зелёные **и** (б) per-glob порог 100% выполнен на всех 5 глобах; extglob-ключ `'src/lib/**/!(*.tsx)'` Vitest 2.1.9 принял (открытый вопрос spec §7 закрыт). Прогон — в клоне `/root/lk-verify` (origin = host-репозиторий, обновлён до 099cd32 через git-bundle, т.к. fetch по 9p-маунту виснет). **Гочи, выявленные по ходу:**
+   - **Свежую тест-БД создавать с `LOCALE_PROVIDER icu`** (обе локальные БД `cabinet`/`cabinet_phaseb` — `C.UTF-8`, где кириллический `ILIKE` не делает case-folding → ложные падения). `CREATE DATABASE cabinet_cov TEMPLATE template0 ENCODING 'UTF8' LOCALE_PROVIDER icu ICU_LOCALE 'und' LOCALE 'C.UTF-8'`.
+   - **`prisma migrate deploy` использует `directUrl` (env `DIRECT_URL`), не `url`.** При смене тест-БД править в `.env` **обе** строки — иначе миграции уходят в одну БД, а runtime-клиент тестов читает другую (пустую) → массовые «table does not exist» (потеряли на этом один прогон).
+   - **Поднять `--testTimeout`/`--hookTimeout`** (использовано 40000/90000): под нагрузкой v8-инструментации на ext4-поверх-Windows дефолтные 5с/10с дают флейки-таймауты даже на тривиальных тестах. Прогон с дефолтами: 3 ложных падения из 3393; с поднятыми — 0.
+   - integration-тесты сами создают данные в `beforeAll` → отдельный `prisma:seed` не нужен.
 2. **Если extglob `!(*.tsx)` не поддержан** — заменить ключ на перечисление под-деревьев `lib` ИЛИ вынести `lib/email/**/*.tsx` в exclude (они PHASE-2).
 3. **Фазы 2–3** программы 100%-покрытия (UI: `components/**`, `app/**/*.tsx`, хуки) — отдельные планы.
 
 ## Незакоммиченный мусор (не от этой работы)
 
-В рабочем дереве лежат untracked скрипты прошлой сессии: `check-*.cjs`, `check-cov*.js`, `scripts/check-*.mjs`. Они **не** относятся к coverage-фазе-1 и не закоммичены. Оператору решить — удалить или оставить.
+~~В рабочем дереве лежат untracked скрипты прошлой сессии: `check-*.cjs`, `check-cov*.js`, `scripts/check-*.mjs`.~~ **Удалены 2026-06-17** (22 untracked-файла), рабочее дерево чистое.
