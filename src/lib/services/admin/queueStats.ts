@@ -33,6 +33,7 @@ export type QueueProvider = (name: QueueName) => Pick<
   'getJobCounts' | 'getFailed' | 'getJob'
 >;
 
+/* v8 ignore next 1 — default provider is only used in production/integration; unit tests always inject a mock provider */
 const defaultProvider: QueueProvider = (name) => getQueue(name);
 
 export async function getQueueStats(

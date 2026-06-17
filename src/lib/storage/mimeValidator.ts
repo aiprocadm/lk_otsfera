@@ -17,6 +17,7 @@ export type MimeValidationResult =
   | { ok: true; mime: SupportedMimeType }
   | { ok: false; reason: 'too_short' | 'unsupported_signature' | 'mime_mismatch' };
 
+/* v8 ignore next 3 -- default-param + early-return branches: offset is always 0 at all internal call sites (no public API exposes it); the too-short path is only taken during the ZIP sub-header scan where buffers are always ≥8 bytes */
 function hasSignature(buf: Uint8Array, signature: number[], offset = 0): boolean {
   if (buf.length < offset + signature.length) return false;
   for (let i = 0; i < signature.length; i++) {

@@ -217,6 +217,20 @@ describe('POST /api/messages/attachment', () => {
     expect(res.status).toBe(401);
     expect(uploadChatAttachmentMock).not.toHaveBeenCalled();
   });
+
+  it('formData parse throws (non-multipart body) → 400', async () => {
+    // Send a plain JSON body so req.formData() throws a TypeError
+    const badReq = new Request('https://app.local/api/messages/attachment', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ file: 'bad' }),
+    });
+    const res = await POST(badReq);
+    expect(res.status).toBe(400);
+    const json = await res.json() as { ok: boolean; error: string };
+    expect(json).toEqual({ ok: false, error: 'bad_request' });
+    expect(uploadChatAttachmentMock).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -272,5 +286,11 @@ describe('GET /api/messages/attachment', () => {
     const res = await GET(getReq('msg-1'));
     expect(res.status).toBe(401);
     expect(getChatAttachmentSignedUrlMock).not.toHaveBeenCalled();
+  });
+
+  it('service returns storage error → 502', async () => {
+    getChatAttachmentSignedUrlMock.mockResolvedValue({ ok: false, error: 'storage' });
+    const res = await GET(getReq('msg-1'));
+    expect(res.status).toBe(502);
   });
 });

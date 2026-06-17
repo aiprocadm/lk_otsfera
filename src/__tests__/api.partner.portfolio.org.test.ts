@@ -24,6 +24,13 @@ describe('GET /api/partner/portfolio/[orgId]', () => {
     expect(res.status).toBe(401);
   });
 
+  it('403 when session role is not partner', async () => {
+    vi.mocked(getSession).mockResolvedValue({ sub: 'u', role: 'organization', organizationId: 'o1' } as any);
+    const res = await GET(new Request('http://x/'), ctx('o1'));
+    expect(res.status).toBe(403);
+    expect(canPartnerAccessOrg).not.toHaveBeenCalled();
+  });
+
   it('403 if partner has no scope for this org', async () => {
     vi.mocked(getSession).mockResolvedValue({ sub: 'u', role: 'partner', partnerId: 'p1' } as any);
     vi.mocked(canPartnerAccessOrg).mockResolvedValue(false);

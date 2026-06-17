@@ -130,4 +130,38 @@ describe('runBackfill', () => {
       skip: 1,
     });
   });
+
+  it('leadAttachment table also uses cursor on subsequent pages', async () => {
+    documentFindMany.mockResolvedValueOnce([]);
+    leadFindMany
+      .mockResolvedValueOnce([{ id: 'l1' }, { id: 'l2' }])
+      .mockResolvedValueOnce([]);
+    await runBackfill(db, { add: queueAdd }, 2);
+    // Second page of leadAttachments uses cursor from last row of first page
+    expect(leadFindMany.mock.calls[1][0]).toMatchObject({
+      cursor: { id: 'l2' },
+      skip: 1,
+    });
+  });
+
+  it('uses BACKFILL_BATCH env variable when batchSize arg not provided', async () => {
+    process.env.BACKFILL_BATCH = '42';
+    documentFindMany.mockResolvedValueOnce([]);
+    leadFindMany.mockResolvedValueOnce([]);
+    // Call without batchSize arg to trigger the default parameter expression
+    await runBackfill(db, { add: queueAdd });
+    expect(documentFindMany.mock.calls[0][0]).toMatchObject({ take: 42 });
+    delete process.env.BACKFILL_BATCH;
+  });
+
+  it('uses default 500 batch size when no BACKFILL_BATCH env and no batchSize arg', async () => {
+    // Covers line 48: process.env.BACKFILL_BATCH ?? '500' — arm 0 (env IS undefined → use '500')
+    // Ensure env is not set
+    delete process.env.BACKFILL_BATCH;
+    documentFindMany.mockResolvedValueOnce([]);
+    leadFindMany.mockResolvedValueOnce([]);
+    await runBackfill(db, { add: queueAdd });
+    // Default batchSize = Number('500') = 500
+    expect(documentFindMany.mock.calls[0][0]).toMatchObject({ take: 500 });
+  });
 });

@@ -259,4 +259,21 @@ describe('POST /api/comments — manager role', () => {
     expect(res.status).toBe(201);
     expect(commentCreate).toHaveBeenCalled();
   });
+
+  it('still returns 201 when notifyOrgUsers throws a non-Error string — covers String(err) branch', async () => {
+    getSession.mockResolvedValue(managerSession({ managedOrgIds: ['org-a'] }));
+    orderFindUnique.mockResolvedValue({
+      id: 'ord-1',
+      managerId: 'u-mgr-1',
+      organizationId: 'org-a',
+      orderNumber: 'ORD-008',
+      title: 'String throw'
+    });
+    // Throwing a non-Error value hits the `String(err)` branch in the catch
+    notifyOrgUsers.mockRejectedValueOnce('plain string rejection');
+
+    const res = await commentsPost(commentReq('ord-1'));
+    expect(res.status).toBe(201);
+    expect(commentCreate).toHaveBeenCalled();
+  });
 });

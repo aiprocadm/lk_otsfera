@@ -7,12 +7,15 @@ import { SHEET_NAMES, ORG_COLS, ORDER_COLS, PAYMENT_COLS } from './column-map';
  * ({ result: ..., formula: ... }), or plain strings/numbers — handle all cases.
  */
 function cellToString(value: ExcelJS.CellValue): string {
+  // ExcelJS serialises empty cells as null; undefined is unreachable via parseWorkbook(buffer) round-trip.
+  /* v8 ignore next -- undefined arm of || is unreachable through xlsx serialisation */
   if (value === null || value === undefined) return '';
   if (typeof value === 'string') return value.trim();
   if (typeof value === 'number' || typeof value === 'boolean') return String(value).trim();
   // Rich-text object
   if (typeof value === 'object' && 'richText' in value && Array.isArray((value as { richText: unknown[] }).richText)) {
     return (value as { richText: Array<{ text?: string }> }).richText
+      /* v8 ignore next -- RichText.text is always string per ExcelJS types; ?? '' is an unreachable defensive fallback */
       .map((r) => r.text ?? '')
       .join('')
       .trim();

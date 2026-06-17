@@ -41,7 +41,10 @@ import {
   createUserAction,
   updateUserAction,
   deactivateUserAction,
-  reactivateUserAction
+  reactivateUserAction,
+  updateUserFormAction,
+  deactivateUserFormAction,
+  reactivateUserFormAction
 } from '@/server-actions/admin/users';
 
 function fd(data: Record<string, string>): FormData {
@@ -116,6 +119,21 @@ describe('createUserAction', () => {
 
     expect(res).toMatchObject({ ok: true });
     expect(revalidatePath).toHaveBeenCalledWith('/admin/users');
+  });
+
+  it('uses undefined as invitedByName when session.name is absent', async () => {
+    requireAdmin.mockResolvedValue({ sub: 'admin-1', name: null });
+    createUser.mockResolvedValue({
+      ok: true,
+      user: { id: 'u-nn', email: 'nn@t.local', name: 'NN', role: 'organization' },
+      inviteToken: 'tok-nn'
+    });
+    sendAdminUserInviteEmail.mockResolvedValue({ status: 'sent' });
+
+    await createUserAction(fd({ email: 'nn@t.local', name: 'NN', role: 'organization' }));
+    expect(sendAdminUserInviteEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ invitedByName: undefined })
+    );
   });
 
   it('maps service failure(duplicate_email) to Failure', async () => {
@@ -223,5 +241,55 @@ describe('reactivateUserAction', () => {
     reactivateUser.mockResolvedValue({ ok: false, error: 'not_found' });
     const res = await reactivateUserAction(fd({ id: 'gone-2' }));
     expect(res).toEqual({ ok: false, error: 'not_found' });
+  });
+});
+
+describe('form-action wrappers (discard result, log on failure)', () => {
+  it('updateUserFormAction returns void on success', async () => {
+    updateUser.mockResolvedValue({ ok: true });
+    const result = await updateUserFormAction(fd({ id: 'u-10', name: 'X' }));
+    expect(result).toBeUndefined();
+    expect(updateUser).toHaveBeenCalled();
+  });
+
+  it('updateUserFormAction logs and swallows failure', async () => {
+    updateUser.mockResolvedValue({ ok: false, error: 'not_found' });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = await updateUserFormAction(fd({ id: 'gone', name: 'X' }));
+    expect(result).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('deactivateUserFormAction returns void on success', async () => {
+    deactivateUser.mockResolvedValue({ ok: true });
+    const result = await deactivateUserFormAction(fd({ id: 'u-20' }));
+    expect(result).toBeUndefined();
+    expect(deactivateUser).toHaveBeenCalled();
+  });
+
+  it('deactivateUserFormAction logs and swallows failure', async () => {
+    deactivateUser.mockResolvedValue({ ok: false, error: 'last_admin_protected' });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = await deactivateUserFormAction(fd({ id: 'last-admin' }));
+    expect(result).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('reactivateUserFormAction returns void on success', async () => {
+    reactivateUser.mockResolvedValue({ ok: true });
+    const result = await reactivateUserFormAction(fd({ id: 'u-30' }));
+    expect(result).toBeUndefined();
+    expect(reactivateUser).toHaveBeenCalled();
+  });
+
+  it('reactivateUserFormAction logs and swallows failure', async () => {
+    reactivateUser.mockResolvedValue({ ok: false, error: 'not_found' });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = await reactivateUserFormAction(fd({ id: 'gone' }));
+    expect(result).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 });

@@ -110,4 +110,90 @@ describe('invitePartnerOrgAdminAction', () => {
     expect(res).toEqual({ ok: false, error: 'forbidden' });
     expect(createOrgAdminInvite).not.toHaveBeenCalled();
   });
+
+  it('skips email when inviteUrl is null (user already has password)', async () => {
+    createOrgAdminInvite.mockResolvedValue({
+      user: { id: 'u-exist', email: 'exist@t.local' },
+      inviteUrl: null,
+      alreadyHasPassword: true
+    });
+
+    const res = await invitePartnerOrgAdminAction(
+      fd({ organizationId: 'org-1', email: 'exist@t.local', name: 'Exist' })
+    );
+    expect(res).toMatchObject({ ok: true, inviteUrl: null, alreadyHasPassword: true });
+    expect(sendOrgInviteEmail).not.toHaveBeenCalled();
+  });
+
+  it('still returns ok:true when sendOrgInviteEmail throws (graceful degradation)', async () => {
+    organizationFindUnique.mockResolvedValue({ name: 'ООО Клиент' });
+    createOrgAdminInvite.mockResolvedValue({
+      user: { id: 'u-new', email: 'cust@t.local' },
+      inviteUrl: 'https://app.test/reset-password?token=tok',
+      alreadyHasPassword: false
+    });
+    sendOrgInviteEmail.mockRejectedValue(new Error('SMTP error'));
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const res = await invitePartnerOrgAdminAction(
+      fd({ organizationId: 'org-1', email: 'cust@t.local', name: 'Customer' })
+    );
+    expect(res).toMatchObject({ ok: true, inviteUrl: 'https://app.test/reset-password?token=tok' });
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('uses "организация" fallback when org lookup returns null during email send', async () => {
+    organizationFindUnique.mockResolvedValue(null);
+    createOrgAdminInvite.mockResolvedValue({
+      user: { id: 'u-n2', email: 'n2@t.local' },
+      inviteUrl: 'https://app.test/reset-password?token=tok2',
+      alreadyHasPassword: false
+    });
+    sendOrgInviteEmail.mockResolvedValue({ status: 'sent' });
+
+    const res = await invitePartnerOrgAdminAction(
+      fd({ organizationId: 'org-missing', email: 'n2@t.local', name: 'N' })
+    );
+    expect(res).toMatchObject({ ok: true });
+    expect(sendOrgInviteEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ organizationName: 'организация' })
+    );
+  });
+
+  it('uses undefined as invitedByName when session.name is absent', async () => {
+    requirePartnerAdmin.mockResolvedValue({
+      sub: 'partner-actor-1',
+      partnerId: 'partner-1',
+      name: null
+    });
+    organizationFindUnique.mockResolvedValue({ name: 'ООО Клиент' });
+    createOrgAdminInvite.mockResolvedValue({
+      user: { id: 'u-n3', email: 'n3@t.local' },
+      inviteUrl: 'https://app.test/reset-password?token=tok3',
+      alreadyHasPassword: false
+    });
+    sendOrgInviteEmail.mockResolvedValue({ status: 'sent' });
+
+    await invitePartnerOrgAdminAction(
+      fd({ organizationId: 'org-1', email: 'n3@t.local', name: 'N' })
+    );
+    expect(sendOrgInviteEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ invitedByName: undefined })
+    );
+  });
+
+  it('re-throws non-domain errors', async () => {
+    createOrgAdminInvite.mockRejectedValue(new Error('DB down'));
+    await expect(
+      invitePartnerOrgAdminAction(fd({ organizationId: 'org-1', email: 'x@t.local', name: 'X' }))
+    ).rejects.toThrow('DB down');
+  });
+
+  it('covers readFormValue null branch when keys are absent from FormData', async () => {
+    // When all keys are absent, readFormValue returns '' → schema validation fails
+    const emptyForm = new FormData();
+    const res = await invitePartnerOrgAdminAction(emptyForm);
+    expect(res).toMatchObject({ ok: false, error: 'validation' });
+  });
 });

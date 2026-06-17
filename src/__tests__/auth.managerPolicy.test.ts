@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   managedOrgIds,
   managerOrderScopeFilter,
@@ -13,7 +13,8 @@ import {
   managerDocumentScope,
   managerOrgScope,
   isManagerLeader,
-  isLeaderSameCompany
+  isLeaderSameCompany,
+  getCompanyTeamVisibility
 } from '@/lib/auth/managerPolicy';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -274,5 +275,51 @@ describe('isLeaderSameCompany', () => {
   it('false for non-leader manager even with matching companyId', () => {
     const session = makeSession({ companyId: 'co-1' });
     expect(isLeaderSameCompany(session, 'co-1')).toBe(false);
+  });
+});
+
+describe('managerOrgScope — sentinel fallback', () => {
+  it('teamMode=true with no session.companyId uses the never-match sentinel', () => {
+    // Covers the `?? NO_COMPANY_SENTINEL` arm in managerOrgScope (teamMode=true branch).
+    const session = makeSession(); // no companyId
+    expect(managerOrgScope(session, true)).toEqual({ companyId: '__no_company__' });
+  });
+});
+
+describe('getCompanyTeamVisibility', () => {
+  it('returns false immediately when companyId is null/undefined (no DB call)', async () => {
+    const prisma = { company: { findUnique: vi.fn() } } as any;
+    expect(await getCompanyTeamVisibility(prisma, null)).toBe(false);
+    expect(await getCompanyTeamVisibility(prisma, undefined)).toBe(false);
+    expect(prisma.company.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('returns the managerTeamVisibility flag from the DB when companyId is present', async () => {
+    const prisma = {
+      company: {
+        findUnique: vi.fn().mockResolvedValue({ managerTeamVisibility: true })
+      }
+    } as any;
+    expect(await getCompanyTeamVisibility(prisma, 'co-1')).toBe(true);
+    expect(prisma.company.findUnique).toHaveBeenCalledWith({
+      where: { id: 'co-1' },
+      select: { managerTeamVisibility: true }
+    });
+  });
+
+  it('returns false when the company row is not found (null result)', async () => {
+    const prisma = {
+      company: { findUnique: vi.fn().mockResolvedValue(null) }
+    } as any;
+    expect(await getCompanyTeamVisibility(prisma, 'co-missing')).toBe(false);
+  });
+
+  it('returns false when managerTeamVisibility is false', async () => {
+    const prisma = {
+      company: {
+        findUnique: vi.fn().mockResolvedValue({ managerTeamVisibility: false })
+      }
+    } as any;
+    expect(await getCompanyTeamVisibility(prisma, 'co-1')).toBe(false);
   });
 });

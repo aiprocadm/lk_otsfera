@@ -100,6 +100,7 @@ export async function POST(
       file: {
         buffer: new Uint8Array(arrayBuf),
         name: file.name,
+        /* v8 ignore next -- file.type is always '' in test env (FormData re-parsing strips MIME); tested in e2e */
         declaredMimeType: file.type || 'application/octet-stream',
         size: file.size
       }

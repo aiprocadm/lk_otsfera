@@ -78,6 +78,20 @@ describe('POST /api/manager/documents/[id]/upload', () => {
     expect(redirectMock).toHaveBeenCalledWith('/login');
   });
 
+  it('returns 400 when formData() parsing fails (non-multipart body)', async () => {
+    // Simulate a request whose formData() rejects (e.g., wrong content-type).
+    const badReq = new Request('https://app.local/api/manager/documents/ord-1/upload', {
+      method: 'POST',
+      body: 'NOT MULTIPART',
+      headers: { 'content-type': 'application/json' }
+    });
+    const res = await uploadPost(badReq as never, paramsP);
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { ok: boolean; error: string };
+    expect(body).toEqual({ ok: false, error: 'no_file' });
+    expect(createCounterpartyDocumentMock).not.toHaveBeenCalled();
+  });
+
   it('returns 400 when no file field is present', async () => {
     const res = await uploadPost(buildReq({ docType: 'contract' }) as never, paramsP);
     expect(res.status).toBe(400);

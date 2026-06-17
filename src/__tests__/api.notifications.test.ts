@@ -120,6 +120,28 @@ describe('GET /api/notifications', () => {
     expect(orBranches).toContainEqual({ meta: { path: ['orderId'], equals: 'order-1' } });
   });
 
+  it('manager with no managedOrgIds: scope has only userId + order branches (no orgId branch)', async () => {
+    const noOrgManagerSession = {
+      sub: 'mgr-2',
+      role: 'manager' as const,
+      managedOrgIds: [] as string[],
+      companyId: 'cmp-1'
+    };
+    requireSession.mockResolvedValue({ ok: true, value: noOrgManagerSession });
+    requireRole.mockReturnValue({ ok: true, value: noOrgManagerSession });
+    orderFindMany.mockResolvedValue([]);
+    notificationFindMany.mockResolvedValue([]);
+
+    const res = await GET();
+    expect(res.status).toBe(200);
+
+    const call = notificationFindMany.mock.calls[0][0];
+    const orBranches = call.where.OR as Array<Record<string, unknown>>;
+    expect(orBranches).toContainEqual({ userId: 'mgr-2' });
+    // No organizationId branch when managedOrgIds is empty
+    expect(orBranches.some((b) => 'organizationId' in b)).toBe(false);
+  });
+
   it('partner: scopes to userId + partnerId', async () => {
     requireSession.mockResolvedValue({ ok: true, value: partnerSession });
     requireRole.mockReturnValue({ ok: true, value: partnerSession });

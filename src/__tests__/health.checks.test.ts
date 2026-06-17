@@ -56,3 +56,17 @@ describe('checkRedis', () => {
     expect(r.error).toBe('redis down');
   });
 });
+
+describe('withTimeout — non-Error rejection', () => {
+  it('converts a non-Error rejection to a string error message', async () => {
+    const r = await withTimeout(() => Promise.reject('raw string error'), 1000);
+    expect(r.ok).toBe(false);
+    expect(r.error).toBe('raw string error');
+  });
+
+  it('uses the default timeout when timeoutMs is omitted', async () => {
+    // withTimeout with default (2000ms) — fn resolves quickly
+    const r = await withTimeout(() => Promise.resolve('OK'));
+    expect(r.ok).toBe(true);
+  });
+});

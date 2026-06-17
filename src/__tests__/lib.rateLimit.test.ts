@@ -1,9 +1,22 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isRateLimited, type RateLimiterClient } from '@/lib/rateLimit';
+
+// Mock connection module so defaultClient() tests don't need real Redis
+const { getRedisConnectionMock } = vi.hoisted(() => ({
+  getRedisConnectionMock: vi.fn()
+}));
+vi.mock('@/lib/jobs/connection', () => ({
+  getRedisConnection: getRedisConnectionMock
+}));
+
+beforeEach(() => {
+  getRedisConnectionMock.mockReset();
+});
 
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe('isRateLimited — in-memory backend (no redis client)', () => {
@@ -12,6 +25,21 @@ describe('isRateLimited — in-memory backend (no redis client)', () => {
     expect(await isRateLimited('mem-a', opts, { client: null })).toBe(false);
     expect(await isRateLimited('mem-a', opts, { client: null })).toBe(false);
     expect(await isRateLimited('mem-a', opts, { client: null })).toBe(true);
+  });
+
+  it('evicts expired entries when store reaches MAX_MEMORY_ENTRIES (10,000)', async () => {
+    vi.useFakeTimers();
+    const opts = { windowMs: 100, max: 100 };
+    // Fill store to MAX_MEMORY_ENTRIES (10,000) with short-lived entries
+    for (let i = 0; i < 10_000; i++) {
+      await isRateLimited(`evict-fill-${i}`, opts, { client: null });
+    }
+    // Advance time past windowMs so all entries are expired
+    vi.advanceTimersByTime(200);
+    // The next call must trigger the eviction path (size >= 10,000)
+    // After eviction all 10,000 old entries are deleted; this new key is fresh
+    const result = await isRateLimited('evict-after', opts, { client: null });
+    expect(result).toBe(false); // first hit for this key
   });
 
   it('counts keys independently', async () => {
@@ -69,7 +97,7 @@ describe('isRateLimited — redis backend', () => {
 });
 
 describe('isRateLimited — graceful degradation', () => {
-  it('falls back to in-memory when the redis command throws', async () => {
+  it('falls back to in-memory when the redis command throws an Error', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const client: RateLimiterClient = {
       incr: async () => {
@@ -80,6 +108,21 @@ describe('isRateLimited — graceful degradation', () => {
     const limited = await isRateLimited('deg-a', { windowMs: 60_000, max: 2 }, { client });
     expect(limited).toBe(false); // degraded to in-memory, first hit allowed
     expect(warn).toHaveBeenCalled();
+    const warnMsg = (warn.mock.calls[0][1] as { error: string }).error;
+    expect(warnMsg).toBe('redis down');
+  });
+
+  it('falls back to in-memory when the redis command throws a non-Error value', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const client: RateLimiterClient = {
+      incr: async () => { throw 'string error'; }, // non-Error throw — intentional
+      pexpire: async () => 1
+    };
+    const limited = await isRateLimited('deg-non-error', { windowMs: 60_000, max: 2 }, { client });
+    expect(limited).toBe(false);
+    expect(warn).toHaveBeenCalled();
+    const warnMsg = (warn.mock.calls[0][1] as { error: string }).error;
+    expect(warnMsg).toBe('string error'); // String(err) branch
   });
 
   it('falls back to in-memory when the redis command times out', async () => {
@@ -92,5 +135,38 @@ describe('isRateLimited — graceful degradation', () => {
     const p = isRateLimited('deg-b', { windowMs: 60_000, max: 2 }, { client, timeoutMs: 50 });
     await vi.advanceTimersByTimeAsync(60);
     expect(await p).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// defaultClient() path — exercises the REDIS_URL branch inside isRateLimited
+// when no explicit `deps` are passed.
+// ---------------------------------------------------------------------------
+describe('isRateLimited — defaultClient() auto-resolution', () => {
+  it('uses in-memory when REDIS_URL is not set (defaultClient returns null)', async () => {
+    vi.stubEnv('REDIS_URL', '');
+    const result = await isRateLimited('dc-no-url', { windowMs: 60_000, max: 10 });
+    expect(result).toBe(false); // first hit → not limited
+    expect(getRedisConnectionMock).not.toHaveBeenCalled();
+  });
+
+  it('uses the Redis connection from getRedisConnection when REDIS_URL is set', async () => {
+    vi.stubEnv('REDIS_URL', 'redis://localhost:6379');
+    let count = 0;
+    getRedisConnectionMock.mockReturnValue({
+      incr: async () => { count += 1; return count; },
+      pexpire: async () => 1
+    });
+    const result = await isRateLimited('dc-with-url', { windowMs: 60_000, max: 10 });
+    expect(result).toBe(false);
+    expect(getRedisConnectionMock).toHaveBeenCalled();
+  });
+
+  it('degrades to in-memory when getRedisConnection throws (REDIS_URL set but connection fails)', async () => {
+    vi.stubEnv('REDIS_URL', 'redis://localhost:6379');
+    getRedisConnectionMock.mockImplementation(() => { throw new Error('no redis'); });
+    // defaultClient() catches the throw and returns null → in-memory path
+    const result = await isRateLimited('dc-throw', { windowMs: 60_000, max: 10 });
+    expect(result).toBe(false);
   });
 });

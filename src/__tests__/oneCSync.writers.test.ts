@@ -215,4 +215,325 @@ describe('upsertPaymentRecord', () => {
     await upsertPaymentRecord(d, payOrderDto, sum, { mode:'live', notify:false });
     expect(sum.skipped).toBe(1); expect(sum.skips[0]).toMatchObject({ reason:'order_not_found' });
   });
+
+  it('skips order-linked payment that is out_of_scope', async () => {
+    const d = pdb();
+    d.order.findUnique.mockResolvedValue({ id:'ord', organizationId:'o', orderNumber:'O1', title:'t' });
+    const sum = emptySummary();
+    await upsertPaymentRecord(d, payOrderDto, sum, { mode:'live', notify:false, scope: { unscoped:false, mayCreateOrgs:false, allowedOrgIds:['other'] } });
+    expect(sum.skipped).toBe(1); expect(sum.skips[0]).toMatchObject({ reason:'out_of_scope' });
+  });
+
+  it('skips when org not found in org-level path', async () => {
+    const d = pdb(); resolveOrganizationRef.mockResolvedValue(null);
+    const sum = emptySummary();
+    await upsertPaymentRecord(d, payOrgDto, sum, { mode:'live', notify:false });
+    expect(sum.skipped).toBe(1); expect(sum.skips[0]).toMatchObject({ reason:'organization_not_found' });
+  });
+
+  it('skips org-level payment that is out_of_scope', async () => {
+    const d = pdb();
+    resolveOrganizationRef.mockResolvedValue({ id:'o-other', companyId:'c', partnerId:null, externalId:'E-ORG' });
+    const sum = emptySummary();
+    await upsertPaymentRecord(d, payOrgDto, sum, { mode:'live', notify:false, scope: { unscoped:false, mayCreateOrgs:false, allowedOrgIds:['different'] } });
+    expect(sum.skipped).toBe(1); expect(sum.skips[0]).toMatchObject({ reason:'out_of_scope' });
+  });
+
+  it('skips when organizationId ends up null (payment without order or org)', async () => {
+    // Path: orderExternalId absent, org found but resolves null organizationId
+    // We test via the explicit null check at line 85 — org with id null is unreachable
+    // via current TS, but we trigger it via the org-path where org.id is ''
+    const payNullOrgDto = { externalId:'P-NULL', organizationInn:'00', amount:1, paidAt:'2026-04-01T00:00:00Z', isRefund:false, updatedAt:'2026-04-01T00:00:00Z' } as any;
+    const d = pdb();
+    // resolveOrg returns an org with a falsy id — triggers organizationId === null path
+    resolveOrganizationRef.mockResolvedValue({ id:'', companyId:'c', partnerId:null, externalId:null });
+    const sum = emptySummary();
+    await upsertPaymentRecord(d, payNullOrgDto, sum, { mode:'live', notify:false });
+    // '' is falsy: organizationId = '' → but the guard is (!organizationId) which is true for ''
+    // So it skips with organization_not_found
+    expect(sum.skipped).toBe(1); expect(sum.skips[0]).toMatchObject({ reason:'organization_not_found' });
+  });
+
+  it('updates existing payment (live)', async () => {
+    const d = pdb();
+    d.order.findUnique.mockResolvedValue({ id:'ord', organizationId:'o', orderNumber:'O1', title:'t' });
+    d.payment.findUnique.mockResolvedValue({ id:'pay-existing' });
+    const sum = emptySummary();
+    await upsertPaymentRecord(d, payOrderDto, sum, { mode:'live', notify:false });
+    expect(d.payment.update).toHaveBeenCalled(); expect(sum.updated).toBe(1);
+  });
+
+  it('shadow mode: counts created but does not write', async () => {
+    const d = pdb();
+    d.order.findUnique.mockResolvedValue({ id:'ord', organizationId:'o', orderNumber:'O1', title:'t' });
+    const sum = emptySummary();
+    await upsertPaymentRecord(d, payOrderDto, sum, { mode:'shadow', notify:false });
+    expect(d.payment.create).not.toHaveBeenCalled(); expect(sum.created).toBe(1);
+  });
+
+  it('notifies org users and managers on new order-linked non-refund payment', async () => {
+    const d = pdb();
+    d.order.findUnique.mockResolvedValue({ id:'ord', organizationId:'o', orderNumber:'O1', title:'t' });
+    const sum = emptySummary();
+    await upsertPaymentRecord(d, payOrderDto, sum, { mode:'live', notify:true });
+    expect(notifyOrgUsers).toHaveBeenCalledWith(d, expect.objectContaining({ type:'payment_received' }));
+    expect(notifyManagers).toHaveBeenCalledWith(d, expect.objectContaining({ type:'order_marked_paid_by_1c' }));
+  });
+
+  it('swallows errors from notifyOrgUsers and notifyManagers (graceful degrade)', async () => {
+    const d = pdb();
+    d.order.findUnique.mockResolvedValue({ id:'ord', organizationId:'o', orderNumber:'O1', title:'t' });
+    notifyOrgUsers.mockRejectedValue(new Error('notify error'));
+    notifyManagers.mockRejectedValue(new Error('mgr notify error'));
+    const sum = emptySummary();
+    // Should NOT throw
+    await expect(upsertPaymentRecord(d, payOrderDto, sum, { mode:'live', notify:true })).resolves.not.toThrow();
+    expect(sum.created).toBe(1);
+  });
+
+  it('does NOT notify when payment is a refund', async () => {
+    const refundDto = { externalId:'PR1', orderExternalId:'O1', amount:50, paidAt:'2026-04-01T00:00:00Z', isRefund:true, updatedAt:'2026-04-01T00:00:00Z' } as any;
+    const d = pdb();
+    d.order.findUnique.mockResolvedValue({ id:'ord', organizationId:'o', orderNumber:'O1', title:'t' });
+    const sum = emptySummary();
+    await upsertPaymentRecord(d, refundDto, sum, { mode:'live', notify:true });
+    expect(notifyOrgUsers).not.toHaveBeenCalled();
+    expect(notifyManagers).not.toHaveBeenCalled();
+  });
+
+  it('bump callback is called on existing payment update', async () => {
+    const d = pdb();
+    d.order.findUnique.mockResolvedValue({ id:'ord', organizationId:'o', orderNumber:'O1', title:'t' });
+    d.payment.findUnique.mockResolvedValue({ id:'pay-ex' });
+    const sum = emptySummary();
+    const bump = vi.fn();
+    await upsertPaymentRecord(d, payOrderDto, sum, { mode:'live', notify:false, bump });
+    expect(bump).toHaveBeenCalledWith(payOrderDto.updatedAt);
+    expect(sum.updated).toBe(1);
+  });
+
+  it('bump callback is called on new payment creation', async () => {
+    const d = pdb();
+    d.order.findUnique.mockResolvedValue({ id:'ord', organizationId:'o', orderNumber:'O1', title:'t' });
+    const sum = emptySummary();
+    const bump = vi.fn();
+    await upsertPaymentRecord(d, payOrderDto, sum, { mode:'live', notify:false, bump });
+    expect(bump).toHaveBeenCalledWith(payOrderDto.updatedAt);
+    expect(sum.created).toBe(1);
+  });
+});
+
+describe('upsertOrderRecord — additional branch coverage', () => {
+  const baseDto = {
+    externalId:'O-EXTRA', orderNumber:'O-EXTRA', title:'T', organizationExternalId:'E-ORG',
+    totalAmount:100, paidAmount:0, vatIncluded:true, executionStatus:'pending', financialStatus:'billed',
+    productMix:[], updatedAt:'2026-04-01T00:00:00Z',
+  } as any;
+
+  beforeEach(() => {
+    resolveOrganizationRef.mockReset(); notifyOrgUsers.mockReset();
+  });
+
+  it('bump callback is called on create', async () => {
+    resolveOrganizationRef.mockResolvedValue({ id:'o', companyId:'c', partnerId:null, externalId:'E-ORG' });
+    const d = { order:{ findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(), update: vi.fn() } } as any;
+    const sum = emptySummary();
+    const bump = vi.fn();
+    await upsertOrderRecord(d, baseDto, sum, { mode:'live', notify:false, bump });
+    expect(bump).toHaveBeenCalledWith(baseDto.updatedAt);
+  });
+
+  it('bump callback is called on update', async () => {
+    resolveOrganizationRef.mockResolvedValue({ id:'o', companyId:'c', partnerId:null, externalId:'E-ORG' });
+    const d = { order:{ findUnique: vi.fn().mockResolvedValue({ id:'ex', organizationId:'o', financialStatus:'billed', orderNumber:'O-EXTRA', title:'T' }), create: vi.fn(), update: vi.fn() } } as any;
+    const sum = emptySummary();
+    const bump = vi.fn();
+    await upsertOrderRecord(d, baseDto, sum, { mode:'live', notify:false, bump });
+    expect(bump).toHaveBeenCalledWith(baseDto.updatedAt);
+  });
+
+  it('sets organizationId on update when existing.organizationId is null', async () => {
+    resolveOrganizationRef.mockResolvedValue({ id:'o-new', companyId:'c', partnerId:null, externalId:'E-ORG' });
+    const d = { order:{ findUnique: vi.fn().mockResolvedValue({ id:'ex', organizationId:null, financialStatus:'billed', orderNumber:'O-EXTRA', title:'T' }), create: vi.fn(), update: vi.fn() } } as any;
+    const sum = emptySummary();
+    await upsertOrderRecord(d, baseDto, sum, { mode:'live', notify:false });
+    const updateData = d.order.update.mock.calls[0][0].data;
+    expect(updateData.organizationId).toBe('o-new');
+  });
+
+  it('uses org.id as targetOrgId when existing.organizationId is null (for notify)', async () => {
+    resolveOrganizationRef.mockResolvedValue({ id:'o-new', companyId:'c', partnerId:null, externalId:'E-ORG' });
+    const changedDto = { ...baseDto, financialStatus:'paid' } as any;
+    const d = { order:{ findUnique: vi.fn().mockResolvedValue({ id:'ex', organizationId:null, financialStatus:'billed', orderNumber:'O-EXTRA', title:'T' }), create: vi.fn(), update: vi.fn() } } as any;
+    const sum = emptySummary();
+    await upsertOrderRecord(d, changedDto, sum, { mode:'live', notify:true });
+    expect(notifyOrgUsers).toHaveBeenCalledWith(d, expect.objectContaining({ organizationId:'o-new' }));
+  });
+
+  it('swallows notifyOrgUsers error on status change (graceful degrade)', async () => {
+    resolveOrganizationRef.mockResolvedValue({ id:'o', companyId:'c', partnerId:null, externalId:'E-ORG' });
+    const changedDto = { ...baseDto, financialStatus:'paid' } as any;
+    const d = { order:{ findUnique: vi.fn().mockResolvedValue({ id:'ex', organizationId:'o', financialStatus:'billed', orderNumber:'O-EXTRA', title:'T' }), create: vi.fn(), update: vi.fn() } } as any;
+    notifyOrgUsers.mockRejectedValue(new Error('notify boom'));
+    const sum = emptySummary();
+    await expect(upsertOrderRecord(d, changedDto, sum, { mode:'live', notify:true })).resolves.not.toThrow();
+    expect(sum.updated).toBe(1);
+  });
+
+  it('does NOT notify when financial status is unchanged', async () => {
+    resolveOrganizationRef.mockResolvedValue({ id:'o', companyId:'c', partnerId:null, externalId:'E-ORG' });
+    // same financialStatus as dto ('billed')
+    const d = { order:{ findUnique: vi.fn().mockResolvedValue({ id:'ex', organizationId:'o', financialStatus:'billed', orderNumber:'O-EXTRA', title:'T' }), create: vi.fn(), update: vi.fn() } } as any;
+    const sum = emptySummary();
+    await upsertOrderRecord(d, baseDto, sum, { mode:'live', notify:true });
+    expect(notifyOrgUsers).not.toHaveBeenCalled();
+  });
+
+  it('skips when org.companyId is null', async () => {
+    resolveOrganizationRef.mockResolvedValue({ id:'o', companyId:null, partnerId:null, externalId:'E-ORG' });
+    const d = { order:{ findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(), update: vi.fn() } } as any;
+    const sum = emptySummary();
+    await upsertOrderRecord(d, baseDto, sum, { mode:'live', notify:false });
+    expect(sum.skipped).toBe(1); expect(sum.skips[0]).toMatchObject({ reason:'organization_not_found' });
+  });
+});
+
+describe('upsertDocumentRecord — additional branch coverage', () => {
+  const docDto = { externalId:'D-EX', orderExternalId:'O-1', type:'contract', name:'Договор', mimeType:'application/pdf', size:10, downloadUrl:'https://1c/d1', updatedAt:'2026-04-01T00:00:00Z' } as any;
+
+  beforeEach(() => {
+    fetchAndStore1CDocument.mockReset();
+    fetchAndStore1CDocument.mockResolvedValue('orders/ord1/1c/uuid-file.pdf');
+    notifyOrgUsers.mockReset();
+    getQueue.mockReset(); getQueue.mockReturnValue({ add: vi.fn() });
+  });
+
+  it('does NOT notify when organizationId is null on new document', async () => {
+    const d = {
+      order: { findUnique: vi.fn().mockResolvedValue({ id:'ord1', organizationId:null, orderNumber:'O-1', title:'t' }) },
+      document: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({ id:'doc1' }), update: vi.fn() },
+    } as any;
+    const sum = emptySummary();
+    await upsertDocumentRecord(d, docDto, sum, { mode:'live', notify:true });
+    expect(notifyOrgUsers).not.toHaveBeenCalled();
+    expect(sum.created).toBe(1);
+  });
+
+  it('swallows document scan enqueue error (graceful degrade)', async () => {
+    const prevRedis = process.env.REDIS_URL;
+    process.env.REDIS_URL = 'redis://test';
+    try {
+      getQueue.mockReturnValue({ add: vi.fn().mockRejectedValue(new Error('redis down')) });
+      const d = {
+        order: { findUnique: vi.fn().mockResolvedValue({ id:'ord1', organizationId:'o1', orderNumber:'O-1', title:'t' }) },
+        document: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({ id:'doc9' }), update: vi.fn() },
+      } as any;
+      const sum = emptySummary();
+      await expect(upsertDocumentRecord(d, docDto, sum, { mode:'live', notify:false })).resolves.not.toThrow();
+      expect(sum.created).toBe(1);
+    } finally {
+      if (prevRedis === undefined) delete process.env.REDIS_URL; else process.env.REDIS_URL = prevRedis;
+    }
+  });
+
+  it('swallows notifyOrgUsers error for document_published (graceful degrade)', async () => {
+    notifyOrgUsers.mockRejectedValue(new Error('notify boom'));
+    const d = {
+      order: { findUnique: vi.fn().mockResolvedValue({ id:'ord1', organizationId:'o1', orderNumber:'O-1', title:'t' }) },
+      document: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({ id:'doc9' }), update: vi.fn() },
+    } as any;
+    const sum = emptySummary();
+    await expect(upsertDocumentRecord(d, docDto, sum, { mode:'live', notify:true })).resolves.not.toThrow();
+    expect(sum.created).toBe(1);
+  });
+
+  it('document update in shadow mode counts updated but does not write', async () => {
+    const d = {
+      order: { findUnique: vi.fn().mockResolvedValue({ id:'ord1', organizationId:'o1', orderNumber:'O-1', title:'t' }) },
+      document: { findUnique: vi.fn().mockResolvedValue({ id:'ex-doc' }), create: vi.fn(), update: vi.fn() },
+    } as any;
+    const sum = emptySummary();
+    await upsertDocumentRecord(d, docDto, sum, { mode:'shadow', notify:false });
+    expect(d.document.update).not.toHaveBeenCalled(); expect(sum.updated).toBe(1);
+  });
+
+  it('bump is called on document update', async () => {
+    const d = {
+      order: { findUnique: vi.fn().mockResolvedValue({ id:'ord1', organizationId:'o1', orderNumber:'O-1', title:'t' }) },
+      document: { findUnique: vi.fn().mockResolvedValue({ id:'ex-doc' }), create: vi.fn(), update: vi.fn() },
+    } as any;
+    const sum = emptySummary();
+    const bump = vi.fn();
+    await upsertDocumentRecord(d, docDto, sum, { mode:'live', notify:false, bump });
+    expect(bump).toHaveBeenCalledWith(docDto.updatedAt);
+    expect(sum.updated).toBe(1);
+  });
+
+  it('bump is called on document create', async () => {
+    fetchAndStore1CDocument.mockResolvedValue('orders/ord1/1c/uuid-file.pdf');
+    const d = {
+      order: { findUnique: vi.fn().mockResolvedValue({ id:'ord1', organizationId:'o1', orderNumber:'O-1', title:'t' }) },
+      document: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({ id:'new-doc' }), update: vi.fn() },
+    } as any;
+    const sum = emptySummary();
+    const bump = vi.fn();
+    await upsertDocumentRecord(d, docDto, sum, { mode:'live', notify:false, bump });
+    expect(bump).toHaveBeenCalledWith(docDto.updatedAt);
+    expect(sum.created).toBe(1);
+  });
+});
+
+describe('upsertOrgRecord — additional branch coverage', () => {
+  const orgDto = { externalId:'ORG-X', name:'ООО Тест', inn:'77', kpp:'01', partnerExternalId:null, updatedAt:'2026-04-01T00:00:00Z' } as any;
+
+  it('skips with no_partner_external_id when partnerExternalId is null', async () => {
+    const d = {
+      partner: { findUnique: vi.fn() },
+      organization: { findUnique: vi.fn(), update: vi.fn() },
+      $transaction: vi.fn(),
+    } as any;
+    const sum = emptySummary();
+    await upsertOrgRecord(d, orgDto, sum, { mode:'live', notify:false });
+    expect(sum.skipped).toBe(1); expect(sum.skips[0]).toMatchObject({ reason:'no_partner_external_id' });
+    expect(d.partner.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('shadow mode: skips $transaction and counts created', async () => {
+    const orgDtoWithPartner = { ...orgDto, partnerExternalId:'p-slug' } as any;
+    const d = {
+      partner: { findUnique: vi.fn().mockResolvedValue({ id:'p1' }) },
+      organization: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
+      $transaction: vi.fn(),
+    } as any;
+    const sum = emptySummary();
+    await upsertOrgRecord(d, orgDtoWithPartner, sum, { mode:'shadow', notify:false });
+    expect(d.$transaction).not.toHaveBeenCalled(); expect(sum.created).toBe(1);
+  });
+
+  it('bump callback is called on existing org update', async () => {
+    const orgDtoWithPartner = { ...orgDto, partnerExternalId:'p-slug' } as any;
+    const d = {
+      partner: { findUnique: vi.fn().mockResolvedValue({ id:'p1' }) },
+      organization: { findUnique: vi.fn().mockResolvedValue({ id:'o1', companyId:'co1' }), update: vi.fn() },
+      $transaction: vi.fn(),
+    } as any;
+    const sum = emptySummary();
+    const bump = vi.fn();
+    await upsertOrgRecord(d, orgDtoWithPartner, sum, { mode:'live', notify:false, bump });
+    expect(bump).toHaveBeenCalledWith(orgDtoWithPartner.updatedAt);
+    expect(sum.updated).toBe(1);
+  });
+
+  it('bump is called on org create', async () => {
+    const orgDtoWithPartner = { ...orgDto, partnerExternalId:'p-slug' } as any;
+    const d = {
+      partner: { findUnique: vi.fn().mockResolvedValue({ id:'p1' }) },
+      organization: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
+      $transaction: vi.fn(async (cb: any) => cb({ company:{ create: vi.fn().mockResolvedValue({ id:'co1' }) }, organization:{ create: vi.fn() } })),
+    } as any;
+    const sum = emptySummary();
+    const bump = vi.fn();
+    await upsertOrgRecord(d, orgDtoWithPartner, sum, { mode:'live', notify:false, bump });
+    expect(bump).toHaveBeenCalledWith(orgDtoWithPartner.updatedAt);
+  });
 });

@@ -53,6 +53,7 @@ export async function requireOrganization(): Promise<SessionPayload> {
 
 export async function requireOrganizationAdmin(orgId?: string): Promise<SessionPayload> {
   const session = await requireOrganization();
+  /* v8 ignore next -- requireOrganization() guards against missing memberships; ?? [] is a defensive fallback that is structurally unreachable */
   const memberships = session.organizationMemberships ?? [];
   const isAdmin = orgId
     ? memberships.some((m) => m.isActive && m.roleInOrg === 'admin' && m.organizationId === orgId)
@@ -63,6 +64,7 @@ export async function requireOrganizationAdmin(orgId?: string): Promise<SessionP
 
 export async function requireOrganizationAdminOrLeader(orgId?: string): Promise<SessionPayload> {
   const session = await requireOrganization();
+  /* v8 ignore next -- requireOrganization() guards against missing memberships; ?? [] is a defensive fallback that is structurally unreachable */
   const memberships = session.organizationMemberships ?? [];
   const ok = memberships.some(
     (m) =>

@@ -118,6 +118,8 @@ function doX(
 - Mock-паттерн: `const { x } = vi.hoisted(() => ({ x: vi.fn() }))` + `vi.mock('@/lib/...', () => ({ x }))`. См. [api.manager.documents.upload.test.ts](src/__tests__/api.manager.documents.upload.test.ts) как эталон.
 - Тестовый env допускает `any` (см. eslint.config.mjs).
 
+**Coverage-гейт 100% на логические слои (фаза 1).** `npm run test:coverage` (полный unit+integration прогон, провайдер `@vitest/coverage-v8`) держит **per-glob порог 100%** (lines/branches/functions/statements) на `src/lib/**/!(*.tsx)`, `src/server-actions/**`, `src/app/api/**`, `src/worker/**`, `src/middleware.ts`. Это **L3/ручной** уровень: гейт требует живого Postgres (честная цифра по сервисам считается только с integration-слоем) и прогоняется перед PR/релизом, **не** в pre-commit/pre-push (полный прогон дорогой). Порог **намеренно снят в частичных режимах** (`--mode=unit`/`--mode=integration`): по отдельности они не покрывают весь denominator (integration-only файлы 0% под unit, и наоборот), поэтому `test:coverage:unit` не падает на пороге. Точечные исключения из denominator: фреймворк-шеллы Next, чисто типовые модули, `worker/index.ts` (process-bootstrap), и **PHASE-2**-файлы (`lib/ui/useFormAction.ts` и прочие React-хуки/`*.tsx`-шаблоны — покрываются в фазе 2). Любое `/* v8 ignore */` обязано нести причину-комментарий. UI-слои (`components/**`, `app/**/*.tsx`) ещё **не** под порогом — это фазы 2–3 программы 100%-покрытия (spec/plan в [docs/superpowers/](docs/superpowers/)).
+
 **Playwright** ([playwright.config.ts](playwright.config.ts)):
 
 - Тесты делятся на **три проекта по префиксу файла**: `manager-*.spec.ts`, `organization-*.spec.ts`, остальное — partner.

@@ -223,4 +223,54 @@ describe('scanDocumentProcessor', () => {
 
     expect(scanSpy).toHaveBeenCalledWith('clamav.local', 3399, expect.any(Buffer));
   });
+
+  it('uses "(empty)" placeholder when ClamAV returns an empty response (|| branch in parseClamAvResponse)', async () => {
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    // An empty response string → response.slice(0, 200) is '' (falsy) → || '(empty)' taken
+    const deps = makeDeps({ scan: vi.fn().mockResolvedValue('') });
+
+    const result = await scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps);
+
+    expect(result.scanStatus).toBe('error');
+    expect(result.scanReason).toContain('(empty)');
+  });
+
+  it('converts non-Error download failure to string (String(err) branch in download catch)', async () => {
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    // Throw a plain string so `err instanceof Error` is false → String(err) branch
+    const deps = makeDeps({
+      download: vi.fn().mockRejectedValue('plain-string-error'),
+    });
+
+    await expect(
+      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps),
+    ).rejects.toBe('plain-string-error');
+
+    expect(db.syncLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        errorMessage: expect.stringContaining('plain-string-error'),
+      }),
+    });
+  });
+
+  it('converts non-Error scanner failure to string (String(err) branch in scan catch)', async () => {
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    // Throw a plain string so `err instanceof Error` is false → String(err) branch
+    const deps = makeDeps({
+      scan: vi.fn().mockRejectedValue('scanner-plain-error'),
+    });
+
+    await expect(
+      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps),
+    ).rejects.toBe('scanner-plain-error');
+
+    expect(db.syncLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        errorMessage: expect.stringContaining('scanner-plain-error'),
+      }),
+    });
+  });
 });

@@ -43,4 +43,22 @@ describe('fmtDateTime', () => {
     // new Date('2026-04-20T14:05:00Z') = 14:05Z = 17:05 МСК
     expect(fmtDateTime(new Date('2026-04-20T14:05:00Z'))).toBe('20.04.2026, 17:05');
   });
+
+  it('принимает строку ISO и форматирует в МСК', () => {
+    expect(fmtDateTime('2026-04-20T14:05:00Z')).toBe('20.04.2026, 17:05');
+  });
+
+  it('невалидная строка -> —', () => {
+    expect(fmtDateTime('not-a-date')).toBe('—');
+  });
+
+  it('невалидный Date -> —', () => {
+    expect(fmtDateTime(new Date('invalid'))).toBe('—');
+  });
+});
+
+describe('fmtDate — дополнительные ветки', () => {
+  it('принимает строку ISO и форматирует в МСК', () => {
+    expect(fmtDate('2026-04-20T17:00:00Z')).toBe('20.04.2026');
+  });
 });

@@ -31,6 +31,7 @@ export async function withTimeout(
       ms: Date.now() - start,
       error: err instanceof Error ? err.message : String(err)
     };
+  /* v8 ignore next 2 -- V8 marks the finally-block as a branch point; the !timer path is unreachable because timer is always assigned synchronously inside new Promise before the race resolves */
   } finally {
     if (timer) clearTimeout(timer);
   }

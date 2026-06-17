@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { RestOneCAdapter } from '@/lib/services/oneCSync/adapter-rest';
-import { buildLeadBody, PARTNER_KEY_FIELD } from '@/lib/services/oneCSync/rest-wire';
+import { buildLeadBody, PARTNER_KEY_FIELD, parseEnvelope, normalizeOrderRecord, buildUrl } from '@/lib/services/oneCSync/rest-wire';
 
 const config = { baseUrl: 'https://1c.example.com', token: 'tok' };
 const validOrder = {
@@ -110,6 +110,99 @@ describe('RestOneCAdapter', () => {
     const r = await new RestOneCAdapter(config).pushLead({ cabinetLeadId: 'l', clientCompanyName: 'c', clientContactName: 'n', subject: 's', productType: [] });
     expect(r.oneCRequestId).toBe('r1');
     expect(fetchMock.mock.calls[0][1].method).toBe('POST');
+  });
+
+  it('pullPayments returns payments array', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [] }));
+    const rows = await new RestOneCAdapter(config).pullPayments({});
+    expect(Array.isArray(rows)).toBe(true);
+  });
+
+  it('pullDocuments returns documents array', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [] }));
+    const rows = await new RestOneCAdapter(config).pullDocuments({});
+    expect(Array.isArray(rows)).toBe(true);
+  });
+
+  it('sets retryAfter on error when Retry-After header > 0 (400 = no retry, fast test)', async () => {
+    // 400 is a fatal (non-transient) error → withRetry throws immediately, no retry loop.
+    // This exercises the retryAfterHeader > 0 branch in doFetch (line 20).
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, status: 400,
+      headers: { get: (h: string) => h === 'retry-after' ? '3' : null },
+      json: async () => ({})
+    }));
+    const adapter = new RestOneCAdapter(config);
+    const err = await adapter.pullOrders({}).catch((e) => e);
+    expect(err.status).toBe(400);
+    expect(err.retryAfter).toBe(3); // truthy header value passes through
+  });
+
+  it('sets retryAfter to undefined when Retry-After header is 0', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, status: 400,
+      headers: { get: (h: string) => h === 'retry-after' ? '0' : null },
+      json: async () => ({})
+    }));
+    const adapter = new RestOneCAdapter(config);
+    const err = await adapter.pullOrders({}).catch((e) => e);
+    expect(err.retryAfter).toBeUndefined(); // 0 is not > 0 → undefined
+  });
+});
+
+describe('parseEnvelope', () => {
+  it('returns items and nextCursor from object envelope', () => {
+    const result = parseEnvelope({ items: [1, 2], nextCursor: 'abc' });
+    expect(result.items).toEqual([1, 2]);
+    expect(result.nextCursor).toBe('abc');
+  });
+
+  it('ignores empty-string nextCursor (returns undefined)', () => {
+    const result = parseEnvelope({ items: [], nextCursor: '' });
+    expect(result.nextCursor).toBeUndefined();
+  });
+
+  it('throws on unexpected envelope shape (not array, not {items})', () => {
+    expect(() => parseEnvelope({ notItems: [] })).toThrow('Unexpected 1C response envelope');
+    expect(() => parseEnvelope(42)).toThrow('Unexpected 1C response envelope');
+    expect(() => parseEnvelope(null)).toThrow('Unexpected 1C response envelope');
+  });
+});
+
+describe('normalizeOrderRecord', () => {
+  it('passes through non-object values unchanged', () => {
+    expect(normalizeOrderRecord(null)).toBeNull();
+    expect(normalizeOrderRecord(42)).toBe(42);
+    expect(normalizeOrderRecord('str')).toBe('str');
+  });
+
+  it('passes through when financialStatus and executionStatus are absent', () => {
+    const rec = { externalId: 'x', totalAmount: 100 };
+    expect(normalizeOrderRecord(rec)).toMatchObject(rec);
+  });
+
+  it('keeps unknown statuses unchanged (zod quarantines them downstream)', () => {
+    const rec = { financialStatus: 'Марсианский', executionStatus: 'Неизвестно' };
+    const out = normalizeOrderRecord(rec) as Record<string, unknown>;
+    expect(out.financialStatus).toBe('Марсианский');
+    expect(out.executionStatus).toBe('Неизвестно');
+  });
+});
+
+describe('buildUrl', () => {
+  it('sets since param when cursor.since is present', () => {
+    const url = buildUrl('https://1c.example.com', '/api/orders', { since: '2026-01-01T00:00:00Z' });
+    expect(url).toContain('since=');
+  });
+
+  it('omits since param when cursor has no since', () => {
+    const url = buildUrl('https://1c.example.com', '/api/orders', {});
+    expect(url).not.toContain('since=');
+  });
+
+  it('sets cursor param when pageCursor is provided', () => {
+    const url = buildUrl('https://1c.example.com', '/api/orders', {}, 'page2');
+    expect(url).toContain('cursor=page2');
   });
 });
 

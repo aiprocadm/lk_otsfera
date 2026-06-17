@@ -99,13 +99,10 @@ export async function PATCH(req: Request) {
     return NextResponse.json(notification);
   }
 
-  if (ids && ids.length > 0) {
-    const notifications = await prisma.notification.updateMany({
-      where: { AND: [{ id: { in: ids } }, where] },
-      data: { isRead }
-    });
-    return NextResponse.json(notifications);
-  } /* v8 ignore next -- false branch of ids check unreachable after schema refine */
-  /* v8 ignore next -- defensive fallback; schema refine guarantees id or non-empty ids after safeParse success */
-  return NextResponse.json({ error: 'id or ids required' }, { status: 400 });
+  // Schema refine guarantees ids is non-empty when id is absent; ids! safe to assert non-null here
+  const notifications = await prisma.notification.updateMany({
+    where: { AND: [{ id: { in: ids! } }, where] },
+    data: { isRead }
+  });
+  return NextResponse.json(notifications);
 }

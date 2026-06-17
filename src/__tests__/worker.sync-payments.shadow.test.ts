@@ -29,3 +29,81 @@ describe('syncPaymentsProcessor shadow mode', () => {
     expect(result.created).toBeGreaterThan(0);
   });
 });
+
+describe('syncPaymentsProcessor record-level handler failure', () => {
+  beforeEach(() => { process.env.ONE_C_ADAPTER = 'fake'; process.env.ONE_C_MODE = 'shadow'; resetOneCAdapter(); });
+  afterEach(() => { delete process.env.ONE_C_MODE; resetOneCAdapter(); });
+
+  it('accumulates per-record failures and covers the getExternalId lambda', async () => {
+    // Making db.order.findUnique throw causes upsertPaymentRecord to fail per-record.
+    // runRecordBatch catches it and calls (dto) => dto.externalId to log the failure.
+    const db = {
+      syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert: vi.fn().mockResolvedValue({}) },
+      order: { findUnique: vi.fn().mockRejectedValue(new Error('order_db_err')) },
+      payment: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+      syncLog: { create: vi.fn().mockResolvedValue({}) }
+    } as unknown as PrismaClient;
+
+    const result = await syncPaymentsProcessor(job, db);
+    expect(result.failed).toBeGreaterThan(0);
+    expect(result.failures[0].externalId).toMatch(/^1c-pay-/);
+  });
+});
+
+describe('syncPaymentsProcessor error path', () => {
+  beforeEach(() => { process.env.ONE_C_ADAPTER = 'fake'; process.env.ONE_C_MODE = 'shadow'; resetOneCAdapter(); });
+  afterEach(() => { delete process.env.ONE_C_MODE; resetOneCAdapter(); });
+
+  it('calls markCursorError + writeSyncLog(skip/error) then re-throws when getCursor throws (Error instance)', async () => {
+    const syncStateUpsert = vi.fn().mockResolvedValue({});
+    const syncLogCreate = vi.fn().mockResolvedValue({});
+    const db = {
+      syncState: { findUnique: vi.fn().mockRejectedValue(new Error('DB_GONE')), upsert: syncStateUpsert },
+      syncLog: { create: syncLogCreate }
+    } as unknown as PrismaClient;
+
+    await expect(syncPaymentsProcessor(job, db)).rejects.toThrow('DB_GONE');
+
+    expect(syncStateUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { entity: 'payment' } })
+    );
+    expect(syncLogCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ entity: 'payment', status: 'error', operation: 'skip' })
+      })
+    );
+  });
+
+  it('covers non-Error thrown value (String branch)', async () => {
+    const db = {
+      syncState: { findUnique: vi.fn().mockRejectedValue('raw-string'), upsert: vi.fn().mockResolvedValue({}) },
+      syncLog: { create: vi.fn().mockResolvedValue({}) }
+    } as unknown as PrismaClient;
+
+    await expect(syncPaymentsProcessor(job, db)).rejects.toBe('raw-string');
+
+    expect((db.syncLog.create as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ errorMessage: 'raw-string' })
+      })
+    );
+  });
+
+  it('swallows markCursorError failure and still writes error log', async () => {
+    const syncStateUpsert = vi.fn().mockRejectedValue(new Error('upsert_dead'));
+    const syncLogCreate = vi.fn().mockResolvedValue({});
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const db = {
+      syncState: { findUnique: vi.fn().mockRejectedValue(new Error('MAIN_ERR')), upsert: syncStateUpsert },
+      syncLog: { create: syncLogCreate }
+    } as unknown as PrismaClient;
+
+    await expect(syncPaymentsProcessor(job, db)).rejects.toThrow('MAIN_ERR');
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[sync-payments]'),
+      expect.anything()
+    );
+    expect(syncLogCreate).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+});

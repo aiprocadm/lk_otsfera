@@ -66,6 +66,13 @@ describe('POST /api/manager/documents/[id]/download', () => {
     process.env.FEATURE_MANAGER_CABINET = '1';
   });
 
+  it('returns 404 when manager_cabinet feature flag is disabled', async () => {
+    process.env.FEATURE_MANAGER_CABINET = '0';
+    const res = await downloadGet(getReq() as never, paramsP);
+    expect(res.status).toBe(404);
+    expect(documentFindUnique).not.toHaveBeenCalled();
+  });
+
   it('redirects when user is not a manager', async () => {
     getSession.mockResolvedValue({ sub: 'u', role: 'admin' });
     await expect(downloadGet(getReq() as never, paramsP)).rejects.toThrow('REDIRECT');
@@ -182,7 +189,7 @@ describe('POST /api/manager/documents/[id]/download', () => {
     expect(commentCount).toHaveBeenCalled();
   });
 
-  it('returns 502 if Supabase signed URL creation fails', async () => {
+  it('returns 502 if Supabase signed URL creation fails (with error object)', async () => {
     getSession.mockResolvedValue(managerSession({ sub: 'u-mgr-1', managedOrgIds: ['org-a'] }));
     documentFindUnique.mockResolvedValue({
       id: 'd1',
@@ -194,6 +201,26 @@ describe('POST /api/manager/documents/[id]/download', () => {
       order: { managerId: null, organizationId: 'org-a' }
     });
     createSignedUrl.mockResolvedValue({ data: null, error: { message: 'storage down' } });
+
+    const res = await downloadGet(getReq() as never, paramsP);
+    expect(res.status).toBe(502);
+  });
+
+  it('returns 502 if signedUrl is missing with no error (null error → ?? fallback)', async () => {
+    // This covers the ?? 'Missing signed URL from provider' branch when error is null
+    // but data.signedUrl is also falsy
+    getSession.mockResolvedValue(managerSession({ sub: 'u-mgr-1', managedOrgIds: ['org-a'] }));
+    documentFindUnique.mockResolvedValue({
+      id: 'd1',
+      name: 'x.pdf',
+      path: 'org-a/x.pdf',
+      mimeType: 'application/pdf',
+      scanStatus: 'clean',
+      scanReason: null,
+      order: { managerId: null, organizationId: 'org-a' }
+    });
+    // error is null, but data.signedUrl is also missing → triggers the ?? fallback
+    createSignedUrl.mockResolvedValue({ data: { signedUrl: '' }, error: null });
 
     const res = await downloadGet(getReq() as never, paramsP);
     expect(res.status).toBe(502);
