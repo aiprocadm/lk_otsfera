@@ -4,6 +4,13 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 // resetOneCAdapter() clears the cached singleton, letting us change env vars
 // between tests without stale cache.
 
+// The dynamic `import('@/lib/services/oneCSync/index')` pulls in the adapter
+// graph and is heavy on first resolution (~7s), which sporadically exceeds the
+// default 5s timeout under machine load. Every case re-imports after
+// vi.resetModules(), so bump the timeout file-scoped — the global default in
+// vitest.config.ts stays tight so genuinely-hung tests still fail fast.
+vi.setConfig({ testTimeout: 30000 });
+
 describe('getOneCAdapter / resetOneCAdapter', () => {
   // Save/restore env mutations
   const savedEnv: Record<string, string | undefined> = {};

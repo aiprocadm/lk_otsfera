@@ -1,5 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderStatementPdf } from '@/lib/services/commission/pdf';
+
+// Real pdfkit rendering + QR encoding takes ~4-8s per case (the QR case longer),
+// which sporadically exceeds the default 5s/15s timeouts under machine load and
+// flakes the pre-push `test:unit` run. Bump the timeout file-scoped only — the
+// global default in vitest.config.ts stays tight so hung tests still fail fast.
+vi.setConfig({ testTimeout: 30000 });
 
 const baseStatement = {
   id: 'stmt-1',
@@ -58,7 +64,7 @@ describe('renderStatementPdf', () => {
     });
     expect(Buffer.isBuffer(buf)).toBe(true);
     expect(buf.length).toBeGreaterThan(1000);
-  }, 15000);
+  });
 
   it('PDF starts with %PDF magic bytes', async () => {
     const buf = await renderStatementPdf({
@@ -109,7 +115,7 @@ describe('renderStatementPdf', () => {
     expect(withQr.slice(0, 4).toString()).toBe('%PDF');
     // QR PNG (~300-500B) + PDF image stream overhead — easily 500B+ delta.
     expect(withQr.length - without.length).toBeGreaterThan(500);
-  }, 15000);
+  });
 
   it('does not throw if QR generation fails (graceful fallback)', async () => {
     // Pass an obviously huge string that exceeds QR capacity (~4296 alphanumeric
@@ -124,5 +130,5 @@ describe('renderStatementPdf', () => {
     });
     expect(Buffer.isBuffer(buf)).toBe(true);
     expect(buf.length).toBeGreaterThan(1000);
-  }, 15000);
+  });
 });
