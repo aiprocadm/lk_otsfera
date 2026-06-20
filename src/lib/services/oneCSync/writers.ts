@@ -135,7 +135,7 @@ export async function upsertDocumentRecord(db: PrismaClient, dto: OneCDocumentDt
   const order = await db.order.findUnique({ where: { externalId: input.orderExternalId }, select: { id: true, organizationId: true, orderNumber: true, title: true } });
   if (!order) { sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'order_not_found' }); return; }
   const existing = await db.document.findUnique({ where: { externalId: input.externalId }, select: { id: true } });
-  // path is NOT a 1C-owned field: it is the Supabase storage key set at creation
+  // path is NOT a 1C-owned field: it is the object-storage key set at creation
   // (DOC-03). Updates only refresh metadata and never touch path.
   const metadata = { name: input.name, mimeType: input.mimeType, size: input.size, type: input.type, signedAt: input.signedAt };
   if (existing) {
@@ -143,7 +143,7 @@ export async function upsertDocumentRecord(db: PrismaClient, dto: OneCDocumentDt
     sum.updated += 1; ctx.bump?.(dto.updatedAt);
   } else {
     if (isLive(ctx)) {
-      // DOC-03: fetch the 1C file into Supabase so `path` is a bucket key (not the
+      // DOC-03: fetch the 1C file into object storage so `path` is a bucket key (not the
       // external URL) — download routes + ClamAV scan work unchanged. Fetch failure
       // skips the doc with a visible reason instead of crashing the batch (§3).
       const storagePath = await fetchAndStore1CDocument({ url: input.downloadUrl, orderId: order.id, name: input.name, mimeType: input.mimeType });

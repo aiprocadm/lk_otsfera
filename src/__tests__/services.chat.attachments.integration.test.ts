@@ -3,8 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 // ---------------------------------------------------------------------------
-// Mock Supabase Storage — we cannot hit a real Supabase instance in CI/gate.
-// Mirror pattern from api.manager.documents.upload.test.ts: stub the module
+// Mock object storage — we cannot hit a real object-storage backend in CI/gate.
+// Mirror pattern from api.manager.documents.upload.test.ts: stub the port
 // before importing the service under test.
 // ---------------------------------------------------------------------------
 const { uploadMock, createSignedUrlMock } = vi.hoisted(() => ({
@@ -12,16 +12,15 @@ const { uploadMock, createSignedUrlMock } = vi.hoisted(() => ({
   createSignedUrlMock: vi.fn(),
 }));
 
-vi.mock('@/lib/storage/supabase', () => ({
+vi.mock('@/lib/storage', () => ({
   documentBucket: 'documents',
-  supabaseAdmin: {
-    storage: {
-      from: () => ({
-        upload: uploadMock,
-        createSignedUrl: createSignedUrlMock,
-      }),
-    },
-  },
+  getObjectStorage: () => ({
+    upload: uploadMock,
+    createSignedUrl: createSignedUrlMock,
+    remove: vi.fn(),
+    download: vi.fn(),
+  }),
+  StorageError: class StorageError extends Error {},
 }));
 
 // new PrismaClient() auto-marks this as integration-mode (vitest.config.ts).
@@ -145,12 +144,9 @@ beforeEach(async () => {
   await seedData();
   vi.clearAllMocks();
   // Default: storage upload succeeds
-  uploadMock.mockResolvedValue({ error: null });
-  // Default: signed URL succeeds
-  createSignedUrlMock.mockResolvedValue({
-    data: { signedUrl: 'https://storage.example.com/signed?token=test' },
-    error: null,
-  });
+  uploadMock.mockResolvedValue(undefined);
+  // Default: signed URL succeeds (port returns the URL string directly)
+  createSignedUrlMock.mockResolvedValue('https://storage.example.com/signed?token=test');
 });
 
 afterAll(async () => {
@@ -185,7 +181,7 @@ describe('uploadChatAttachment integration', () => {
     const [storagePath, buffer, opts] = uploadMock.mock.calls[0]!;
     expect(storagePath).toMatch(new RegExp(`^chat/${orderId}/`));
     expect(buffer).toBe(PDF_MAGIC);
-    expect(opts).toMatchObject({ contentType: 'application/pdf', upsert: false });
+    expect(opts).toMatchObject({ contentType: 'application/pdf' });
   });
 
   it('org user on org side → upload succeeds (canSeeThread passes)', async () => {
@@ -293,7 +289,7 @@ describe('uploadChatAttachment integration', () => {
   });
 
   it('storage upload error → storage', async () => {
-    uploadMock.mockResolvedValue({ error: { message: 'connection refused' } });
+    uploadMock.mockRejectedValue(new Error('connection refused'));
     const result = await uploadChatAttachment(prisma, teamSession, {
       orderId,
       side: 'org',

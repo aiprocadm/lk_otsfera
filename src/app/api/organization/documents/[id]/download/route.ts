@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { requireOrganization } from '@/lib/auth/requireRole';
 import { resolveActiveOrgId } from '@/lib/auth/orgContext';
 import { getOrgDocumentForDownload } from '@/lib/services/organization/documents';
-import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
+import { getObjectStorage } from '@/lib/storage';
 import { recordAudit } from '@/lib/auth/audit';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 
@@ -51,18 +51,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const ttl = resolveTtl(url.searchParams.get('ttl'));
-  const { data, error } = await supabaseAdmin.storage
-    .from(documentBucket)
-    .createSignedUrl(result.path, ttl);
-
-  if (error || !data?.signedUrl) {
+  let signedUrl: string;
+  try {
+    signedUrl = await getObjectStorage().createSignedUrl(result.path, ttl);
+  } catch (error) {
     console.error('Failed to create org document signed URL', {
       correlationId,
       documentId: id,
-      storageBucket: documentBucket,
       storagePath: result.path,
       ttl,
-      providerError: error?.message ?? 'Missing signed URL from provider'
+      providerError: error instanceof Error ? error.message : String(error)
     });
     return NextResponse.json(
       { error: 'Failed to create document download link', correlationId },
@@ -79,7 +77,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   });
 
   return NextResponse.json({
-    downloadUrl: data.signedUrl,
+    downloadUrl: signedUrl,
     expiresInSec: ttl,
     fileName: result.name
   });

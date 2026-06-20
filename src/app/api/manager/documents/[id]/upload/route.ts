@@ -13,7 +13,7 @@ import { createCounterpartyDocument } from '@/lib/services/manager/uploads';
  *
  * Multipart upload endpoint for a manager-issued document attached to a
  * specific order. Delegates to `createCounterpartyDocument` for MIME/size
- * validation, three-way RBAC visibility check, Supabase Storage upload,
+ * validation, three-way RBAC visibility check, object-storage upload,
  * persistence, ClamAV scan enqueue, audit log, and channel-targeted fan-out.
  *
  * The `recipient` form field selects the channel: 'organization' (default) or
@@ -27,7 +27,7 @@ import { createCounterpartyDocument } from '@/lib/services/manager/uploads';
  *   404 — order does not exist
  *   413 — file exceeds 20 MB
  *   415 — MIME type not in the allow-list
- *   500 — Supabase Storage upload failed
+ *   500 — object-storage upload failed
  */
 
 export async function POST(

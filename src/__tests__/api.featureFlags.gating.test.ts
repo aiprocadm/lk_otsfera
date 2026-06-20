@@ -6,8 +6,13 @@ vi.mock('@/lib/services/partner/leads', () => ({
   listLeads: vi.fn(),
   createLead: vi.fn(),
 }));
-vi.mock('@/lib/storage/supabase', () => ({
-  getServerClient: () => ({ storage: { from: () => ({ createSignedUrl: vi.fn() }) } }),
+vi.mock('@/lib/storage', () => ({
+  getObjectStorage: () => ({
+    upload: vi.fn(),
+    createSignedUrl: vi.fn(),
+    remove: vi.fn(),
+    download: vi.fn(),
+  }),
   documentBucket: 'documents',
 }));
 vi.mock('jose', () => ({ jwtVerify: vi.fn() }));

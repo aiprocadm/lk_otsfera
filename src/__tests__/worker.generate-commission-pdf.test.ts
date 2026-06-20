@@ -8,9 +8,13 @@ const { uploadMock, renderPdfMock } = vi.hoisted(() => ({
   renderPdfMock: vi.fn()
 }));
 
-vi.mock('@/lib/storage/supabase', () => ({
-  getServerClient: () => ({ storage: { from: () => ({ upload: uploadMock }) } }),
-  documentBucket: 'documents'
+vi.mock('@/lib/storage', () => ({
+  getObjectStorage: () => ({
+    upload: uploadMock,
+    download: vi.fn(),
+    createSignedUrl: vi.fn(),
+    remove: vi.fn()
+  })
 }));
 vi.mock('@/lib/services/commission/pdf', () => ({
   renderStatementPdf: renderPdfMock
@@ -49,7 +53,7 @@ beforeEach(() => {
   uploadMock.mockReset();
   renderPdfMock.mockReset();
   renderPdfMock.mockResolvedValue(Buffer.from('%PDF-1.4 fake'));
-  uploadMock.mockResolvedValue({ error: null });
+  uploadMock.mockResolvedValue(undefined);
 });
 
 describe('generateCommissionPdfProcessor', () => {
@@ -71,7 +75,7 @@ describe('generateCommissionPdfProcessor', () => {
     const [uploadPath, uploadBuf, uploadOpts] = uploadMock.mock.calls[0];
     expect(uploadPath).toBe(expectedPath);
     expect(Buffer.isBuffer(uploadBuf)).toBe(true);
-    expect(uploadOpts).toMatchObject({ contentType: 'application/pdf', upsert: true });
+    expect(uploadOpts).toMatchObject({ contentType: 'application/pdf' });
 
     const reread = await prisma.commissionStatement.findUnique({
       where: { id: statementId },
@@ -85,11 +89,11 @@ describe('generateCommissionPdfProcessor', () => {
     expect(renderPdfMock).not.toHaveBeenCalled();
   });
 
-  it('throws STORAGE_FAILURE and does not persist pdfPath when upload errors', async () => {
+  it('propagates the storage error and does not persist pdfPath when upload throws', async () => {
     await prisma.commissionStatement.update({ where: { id: statementId }, data: { pdfPath: null } });
-    uploadMock.mockResolvedValue({ error: { message: 'bucket exploded' } });
+    uploadMock.mockRejectedValue(new Error('STORAGE_UPLOAD: bucket exploded'));
 
-    await expect(generateCommissionPdfProcessor(job(statementId), prisma)).rejects.toThrow(/STORAGE_FAILURE/);
+    await expect(generateCommissionPdfProcessor(job(statementId), prisma)).rejects.toThrow(/bucket exploded/);
 
     const reread = await prisma.commissionStatement.findUnique({
       where: { id: statementId },

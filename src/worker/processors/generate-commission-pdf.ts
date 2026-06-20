@@ -1,7 +1,7 @@
 import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
-import { getServerClient, documentBucket } from '@/lib/storage/supabase';
+import { getObjectStorage } from '@/lib/storage';
 import { renderStatementPdf } from '@/lib/services/commission/pdf';
 import type { GenerateCommissionPdfPayload } from '@/lib/jobs/types';
 
@@ -31,12 +31,9 @@ export async function generateCommissionPdfProcessor(
   });
 
   const path = `partners/${statement.partnerId}/commission/${statementId}.pdf`;
-  const storage = getServerClient().storage.from(documentBucket);
-  const { error } = await storage.upload(path, buf, {
-    contentType: 'application/pdf',
-    upsert: true
-  });
-  if (error) throw new Error(`STORAGE_FAILURE: ${error.message}`);
+  // Throws StorageError on provider failure → propagates so BullMQ retries the
+  // job (same failure semantics as the prior Supabase `if (error) throw`).
+  await getObjectStorage().upload(path, buf, { contentType: 'application/pdf' });
 
   await db.commissionStatement.update({
     where: { id: statementId },

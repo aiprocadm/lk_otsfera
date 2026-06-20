@@ -19,14 +19,12 @@ vi.mock('@/lib/db/prisma', () => ({
     commissionStatement: { findFirst: commissionStatementFindFirst }
   }
 }));
-vi.mock('@/lib/storage/supabase', () => ({
-  documentBucket: 'documents',
-  getServerClient: () => ({
-    storage: {
-      from: () => ({
-        createSignedUrl
-      })
-    }
+vi.mock('@/lib/storage', () => ({
+  getObjectStorage: () => ({
+    createSignedUrl,
+    upload: vi.fn(),
+    remove: vi.fn(),
+    download: vi.fn()
   })
 }));
 
@@ -99,29 +97,19 @@ describe('GET /api/partner/finance/statements/[id]/pdf', () => {
     expect(body.error).toBe('PDF not yet generated');
   });
 
-  it('returns 502 when storage createSignedUrl returns an error', async () => {
+  it('returns 502 when storage createSignedUrl throws', async () => {
     commissionStatementFindFirst.mockResolvedValue({ pdfPath: 'uploads/stmt.pdf' });
-    createSignedUrl.mockResolvedValue({
-      data: null,
-      error: { message: 'bucket not found' }
-    });
+    createSignedUrl.mockRejectedValue(new Error('bucket not found'));
     const res = await GET(getReq(), ctx('s1'));
     expect(res.status).toBe(502);
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe('Storage failure');
   });
 
-  it('returns 502 when storage returns no signedUrl even without an error', async () => {
-    commissionStatementFindFirst.mockResolvedValue({ pdfPath: 'uploads/stmt.pdf' });
-    createSignedUrl.mockResolvedValue({ data: { signedUrl: null }, error: null });
-    const res = await GET(getReq(), ctx('s1'));
-    expect(res.status).toBe(502);
-  });
-
   it('returns 307 redirect to signed URL on success', async () => {
     commissionStatementFindFirst.mockResolvedValue({ pdfPath: 'uploads/stmt.pdf' });
     const signedUrl = 'https://storage.example.com/signed-stmt.pdf?token=abc';
-    createSignedUrl.mockResolvedValue({ data: { signedUrl }, error: null });
+    createSignedUrl.mockResolvedValue(signedUrl);
 
     const res = await GET(getReq(), ctx('s1'));
     expect(res.status).toBe(307);
@@ -130,10 +118,7 @@ describe('GET /api/partner/finance/statements/[id]/pdf', () => {
 
   it('scopes the statement query to the authenticated partner', async () => {
     commissionStatementFindFirst.mockResolvedValue({ pdfPath: 'uploads/stmt.pdf' });
-    createSignedUrl.mockResolvedValue({
-      data: { signedUrl: 'https://storage.example.com/file.pdf' },
-      error: null
-    });
+    createSignedUrl.mockResolvedValue('https://storage.example.com/file.pdf');
 
     await GET(getReq(), ctx('stmt-abc'));
 

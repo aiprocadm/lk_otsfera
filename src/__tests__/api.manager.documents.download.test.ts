@@ -32,11 +32,13 @@ vi.mock('@/lib/db/prisma', () => ({
     auditLog: { create: auditCreate }
   }
 }));
-vi.mock('@/lib/storage/supabase', () => ({
-  documentBucket: 'documents',
-  supabaseAdmin: {
-    storage: { from: () => ({ createSignedUrl }) }
-  }
+vi.mock('@/lib/storage', () => ({
+  getObjectStorage: () => ({
+    createSignedUrl,
+    upload: vi.fn(),
+    remove: vi.fn(),
+    download: vi.fn()
+  })
 }));
 
 import { POST as downloadGet } from '@/app/api/manager/documents/[id]/download/route';
@@ -134,10 +136,7 @@ describe('POST /api/manager/documents/[id]/download', () => {
       scanReason: null,
       order: { managerId: null, organizationId: 'org-a' }
     });
-    createSignedUrl.mockResolvedValue({
-      data: { signedUrl: 'https://signed.test/x' },
-      error: null
-    });
+    createSignedUrl.mockResolvedValue('https://signed.test/x');
 
     const res = await downloadGet(getReq() as never, paramsP);
     expect(res.status).toBe(302);
@@ -157,10 +156,7 @@ describe('POST /api/manager/documents/[id]/download', () => {
       scanReason: null,
       order: { managerId: 'u-mgr-1', organizationId: 'org-x' }
     });
-    createSignedUrl.mockResolvedValue({
-      data: { signedUrl: 'https://signed.test/own' },
-      error: null
-    });
+    createSignedUrl.mockResolvedValue('https://signed.test/own');
 
     const res = await downloadGet(getReq() as never, paramsP);
     expect(res.status).toBe(302);
@@ -179,17 +175,14 @@ describe('POST /api/manager/documents/[id]/download', () => {
       order: { managerId: 'someone-else', organizationId: 'org-z' }
     });
     commentCount.mockResolvedValue(2);
-    createSignedUrl.mockResolvedValue({
-      data: { signedUrl: 'https://signed.test/h' },
-      error: null
-    });
+    createSignedUrl.mockResolvedValue('https://signed.test/h');
 
     const res = await downloadGet(getReq() as never, paramsP);
     expect(res.status).toBe(302);
     expect(commentCount).toHaveBeenCalled();
   });
 
-  it('returns 502 if Supabase signed URL creation fails (with error object)', async () => {
+  it('returns 502 if signed URL creation throws (storage error)', async () => {
     getSession.mockResolvedValue(managerSession({ sub: 'u-mgr-1', managedOrgIds: ['org-a'] }));
     documentFindUnique.mockResolvedValue({
       id: 'd1',
@@ -200,27 +193,7 @@ describe('POST /api/manager/documents/[id]/download', () => {
       scanReason: null,
       order: { managerId: null, organizationId: 'org-a' }
     });
-    createSignedUrl.mockResolvedValue({ data: null, error: { message: 'storage down' } });
-
-    const res = await downloadGet(getReq() as never, paramsP);
-    expect(res.status).toBe(502);
-  });
-
-  it('returns 502 if signedUrl is missing with no error (null error → ?? fallback)', async () => {
-    // This covers the ?? 'Missing signed URL from provider' branch when error is null
-    // but data.signedUrl is also falsy
-    getSession.mockResolvedValue(managerSession({ sub: 'u-mgr-1', managedOrgIds: ['org-a'] }));
-    documentFindUnique.mockResolvedValue({
-      id: 'd1',
-      name: 'x.pdf',
-      path: 'org-a/x.pdf',
-      mimeType: 'application/pdf',
-      scanStatus: 'clean',
-      scanReason: null,
-      order: { managerId: null, organizationId: 'org-a' }
-    });
-    // error is null, but data.signedUrl is also missing → triggers the ?? fallback
-    createSignedUrl.mockResolvedValue({ data: { signedUrl: '' }, error: null });
+    createSignedUrl.mockRejectedValue(new Error('storage down'));
 
     const res = await downloadGet(getReq() as never, paramsP);
     expect(res.status).toBe(502);

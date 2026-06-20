@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient, DocumentType, DocumentDirection } from '@prisma/client';
 import { recordAudit } from '@/lib/auth/audit';
-import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
+import { getObjectStorage } from '@/lib/storage';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
 
 /**
  * Shared write path for every document upload (manager outgoing, org/partner
- * incoming). Owns MIME/size validation, magic-byte fingerprinting, Supabase
+ * incoming). Owns MIME/size validation, magic-byte fingerprinting, object-storage
  * upload, the Document row (with counterparty + direction), best-effort scan
  * enqueue, and the audit entry. RBAC and notification fan-out stay in the
  * callers — they differ per direction/role (CLAUDE.md §3).
@@ -91,14 +91,15 @@ export async function persistUploadedDocument(
   const storagePath = args.orderId
     ? `orders/${args.orderId}/${randomUUID()}-${safeName}`
     : `counterparty/${args.counterparty.type}/${args.counterparty.id}/${randomUUID()}-${safeName}`;
-  const { error: uploadError } = await supabaseAdmin.storage
-    .from(documentBucket)
-    .upload(storagePath, args.file.buffer, { contentType: args.file.mimeType, upsert: false });
-  if (uploadError) {
+  try {
+    await getObjectStorage().upload(storagePath, args.file.buffer, {
+      contentType: args.file.mimeType
+    });
+  } catch (uploadError) {
     console.error('[documents/upload-core] storage upload failed', {
       orderId: args.orderId,
       storagePath,
-      providerError: uploadError.message
+      providerError: uploadError instanceof Error ? uploadError.message : String(uploadError)
     });
     return { ok: false, error: 'storage' };
   }

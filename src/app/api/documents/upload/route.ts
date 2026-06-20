@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 import { requireOrderAccess, requireRole, requireSession } from '@/lib/auth/guard';
 import { notifyDocumentCreated, triggerNotificationEmail } from '@/lib/notifications';
 import { getPrimaryOrganizationId } from '@/lib/auth/organization';
-import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
+import { getObjectStorage } from '@/lib/storage';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { recordAudit } from '@/lib/auth/audit';
@@ -101,20 +101,19 @@ export async function POST(req: Request) {
     }
   }
 
-  const { error: uploadError } = await supabaseAdmin.storage
-    .from(documentBucket)
-    .upload(internalPath, Buffer.from(arrayBuffer), { contentType: file.type, upsert: false });
-
-  if (uploadError) {
+  try {
+    await getObjectStorage().upload(internalPath, Buffer.from(arrayBuffer), {
+      contentType: file.type
+    });
+  } catch (uploadError) {
     console.error('Document upload failed', {
       correlationId,
       orderId,
       fileName: file.name,
       fileSize: file.size,
       mimeType: file.type,
-      storageBucket: documentBucket,
       storagePath: internalPath,
-      providerError: uploadError.message
+      providerError: uploadError instanceof Error ? uploadError.message : String(uploadError)
     });
     return errorResponse('STORAGE_UPLOAD_FAILED', 'Failed to upload document', 502, correlationId);
   }

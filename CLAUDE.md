@@ -4,7 +4,7 @@
 
 ## 1. Стек и команды
 
-Next.js 15 (App Router) · React 19 · TypeScript 5 (strict) · Prisma 5 + PostgreSQL · Supabase Auth/Storage · BullMQ + Redis · Vitest · Playwright.
+Next.js 15 (App Router) · React 19 · TypeScript 5 (strict) · Prisma 5 + PostgreSQL · S3-совместимое объектное хранилище · BullMQ + Redis · Vitest · Playwright.
 
 | Команда | Когда использовать |
 |---|---|
@@ -33,7 +33,7 @@ src/server-actions/     ← мутации форм; тонкий адаптер
 src/lib/services/       ← бизнес-логика; НЕ знает про Next/HTTP
 src/lib/auth/           ← jwt, requireRole, requireManager, policy-модули
 src/lib/jobs/           ← BullMQ конфиг очередей (queues.ts, scheduling.ts)
-src/lib/storage/        ← Supabase storage обёртки (server-only)
+src/lib/storage/        ← S3 object-storage порт + адаптер (server-only)
 src/lib/notifications/  ← notifyManagers/notifyOrgUsers + email-dispatch (barrel index.ts → core/org/manager)
 src/lib/featureFlags.ts ← feature flag система
 src/middleware.ts       ← auth + RBAC + feature-flag gate
@@ -166,10 +166,10 @@ removeOnComplete: { count: 1000 }, removeOnFail: false
 
 Не создавай сырой `<dialog>`/`role="dialog"` — используй примитив (guardrail `NO_HANDROLLED_MODAL` в [eslint.config.mjs](eslint.config.mjs)). Прочие презентационные примитивы — `Button`/`Input`/`Select`/`Textarea`/`Badge`/`Spinner`/`Field` в [src/components/ui/](src/components/ui/) (barrel `index.ts`); строки ошибок — через `errorMessageRu` ([src/lib/errors/messages.ts](src/lib/errors/messages.ts)); транзиентный фидбек — через `toast` ([src/lib/ui/toast.ts](src/lib/ui/toast.ts)).
 
-## 10. Документы и Supabase Storage
+## 10. Документы и Object Storage (S3)
 
-- Bucket — `documents` (env `SUPABASE_STORAGE_BUCKET`).
-- Скачивание — **через signed URL** TTL 600 сек, 302-redirect. Никогда не отдавай файл напрямую через приложение.
+- Bucket — `documents` (env `S3_BUCKET`).
+- Скачивание — **через presigned URL** (S3) TTL 600 сек, 302-redirect. Никогда не отдавай файл напрямую через приложение.
 - При upload — обязательно: MIME allow-list + size check (20 МБ), запись `Document` с правильным `direction`, enqueue `docs.scanDocument`, audit log, fan-out уведомления.
 - ClamAV статусы: `pending → clean | infected`. Файлы с `infected` отдают **410 Gone**, не 404 — это разные сигналы (см. download-роуты).
 

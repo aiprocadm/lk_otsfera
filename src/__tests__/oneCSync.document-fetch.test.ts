@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const { uploadMock } = vi.hoisted(() => ({ uploadMock: vi.fn() }));
-vi.mock('@/lib/storage/supabase', () => ({
+vi.mock('@/lib/storage', () => ({
+  getObjectStorage: () => ({ upload: uploadMock, createSignedUrl: vi.fn(), remove: vi.fn(), download: vi.fn() }),
   documentBucket: 'documents',
-  supabaseAdmin: { storage: { from: () => ({ upload: uploadMock }) } }
+  StorageError: class StorageError extends Error {}
 }));
 
 import { fetchAndStore1CDocument } from '@/lib/services/oneCSync/document-fetch';
@@ -14,7 +15,7 @@ beforeEach(() => uploadMock.mockReset());
 describe('fetchAndStore1CDocument (DOC-03)', () => {
   it('fetches the URL and uploads to Supabase, returning a storage key (not a URL)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }));
-    uploadMock.mockResolvedValue({ error: null });
+    uploadMock.mockResolvedValue(undefined);
     const key = await fetchAndStore1CDocument({ url: 'https://1c/x.pdf', orderId: 'ord1', name: 'Договор.pdf', mimeType: 'application/pdf' });
     expect(key).toMatch(/^orders\/ord1\/1c\//);
     expect(key).not.toContain('https://');
@@ -31,8 +32,10 @@ describe('fetchAndStore1CDocument (DOC-03)', () => {
 
   it('returns null when the Supabase upload fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }));
-    uploadMock.mockResolvedValue({ error: { message: 'boom' } });
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    uploadMock.mockRejectedValueOnce(new Error('boom'));
     const key = await fetchAndStore1CDocument({ url: 'https://1c/x', orderId: 'o', name: 'n', mimeType: 'application/pdf' });
+    consoleSpy.mockRestore();
     expect(key).toBeNull();
   });
 

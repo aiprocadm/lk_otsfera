@@ -22,11 +22,10 @@ const {
   listManagerCounterpartiesMock: vi.fn()
 }));
 
-vi.mock('@/lib/storage/supabase', () => ({
+vi.mock('@/lib/storage', () => ({
+  getObjectStorage: () => ({ upload: storageUpload, createSignedUrl: vi.fn(), remove: vi.fn(), download: vi.fn() }),
   documentBucket: 'documents',
-  supabaseAdmin: {
-    storage: { from: () => ({ upload: storageUpload }) }
-  }
+  StorageError: class StorageError extends Error {}
 }));
 vi.mock('@/lib/jobs/queues', () => ({
   getQueue: () => ({ add: queueAdd }),
@@ -87,7 +86,7 @@ describe('services/manager/uploads — createCounterpartyDocument', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     commentCount.mockResolvedValue(0);
-    storageUpload.mockResolvedValue({ data: { path: 'x' }, error: null });
+    storageUpload.mockResolvedValue(undefined);
     queueAdd.mockResolvedValue(undefined);
     notifyOrgUsersMock.mockResolvedValue({
       recipientsNotified: 0,
@@ -129,7 +128,7 @@ describe('services/manager/uploads — createCounterpartyDocument', () => {
     expect(typeof storagePath).toBe('string');
     expect(storagePath).toMatch(/^orders\/ord-1\/.+-invoice\.pdf$/);
     expect(Buffer.isBuffer(buffer)).toBe(true);
-    expect(opts).toMatchObject({ contentType: 'application/pdf', upsert: false });
+    expect(opts).toMatchObject({ contentType: 'application/pdf' });
 
     expect(documentCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -245,10 +244,7 @@ describe('services/manager/uploads — createCounterpartyDocument', () => {
       orderNumber: 'O-400',
       title: 'StorageDown'
     });
-    storageUpload.mockResolvedValue({
-      data: null,
-      error: { message: 'storage down' }
-    });
+    storageUpload.mockRejectedValue(new Error('storage down'));
     const r = await createCounterpartyDocument(
       prismaMock() as never,
       session({ sub: 'u-mgr-1', managedOrgIds: ['org-a'] }),
@@ -413,7 +409,7 @@ describe('services/manager/uploads — createManagerOrderLessDocument', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    storageUpload.mockResolvedValue({ data: { path: 'x' }, error: null });
+    storageUpload.mockResolvedValue(undefined);
     queueAdd.mockResolvedValue(undefined);
     notifyOrgUsersMock.mockResolvedValue({ recipientsNotified: 1, emailsSent: 0, emailsSkipped: 1 });
     notifyPartnerUsersMock.mockResolvedValue({ recipientsNotified: 1, emailsSent: 0, emailsSkipped: 1 });

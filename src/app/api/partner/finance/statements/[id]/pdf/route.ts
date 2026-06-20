@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
 import { requirePartner } from '@/lib/auth/guard';
-import { getServerClient, documentBucket } from '@/lib/storage/supabase';
+import { getObjectStorage } from '@/lib/storage';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 
 const SIGNED_URL_TTL = 600; // 10 minutes
@@ -29,17 +29,18 @@ export async function GET(_req: Request, { params }: Params) {
     return NextResponse.json({ error: 'PDF not yet generated' }, { status: 404 });
   }
 
-  const { data, error } = await getServerClient()
-    .storage.from(documentBucket)
-    .createSignedUrl(statement.pdfPath, SIGNED_URL_TTL, { download: true });
-
-  if (error || !data?.signedUrl) {
+  let signedUrl: string;
+  try {
+    signedUrl = await getObjectStorage().createSignedUrl(statement.pdfPath, SIGNED_URL_TTL, {
+      download: true
+    });
+  } catch (error) {
     console.error('[partner/finance/statements] failed to create PDF signed URL', {
       statementId: id,
-      providerError: error?.message
+      providerError: error instanceof Error ? error.message : String(error)
     });
     return NextResponse.json({ error: 'Storage failure' }, { status: 502 });
   }
 
-  return NextResponse.redirect(data.signedUrl, 307);
+  return NextResponse.redirect(signedUrl, 307);
 }

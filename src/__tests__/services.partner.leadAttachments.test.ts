@@ -21,17 +21,15 @@ const {
   recordAudit: vi.fn()
 }));
 
-vi.mock('@/lib/storage/supabase', () => ({
+vi.mock('@/lib/storage', () => ({
+  getObjectStorage: () => ({
+    upload: storageUpload,
+    remove: storageRemove,
+    createSignedUrl: storageSigned,
+    download: vi.fn()
+  }),
   documentBucket: 'documents',
-  getServerClient: () => ({
-    storage: {
-      from: () => ({
-        upload: storageUpload,
-        remove: storageRemove,
-        createSignedUrl: storageSigned
-      })
-    }
-  })
+  StorageError: class StorageError extends Error {}
 }));
 vi.mock('@/lib/storage/mimeValidator', () => ({ validateMagicBytes, extensionFor }));
 vi.mock('@/lib/auth/policy', () => ({ isPartnerAdmin }));
@@ -83,9 +81,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   validateMagicBytes.mockReturnValue({ ok: true, mime: 'application/pdf' });
   extensionFor.mockReturnValue('pdf');
-  storageUpload.mockResolvedValue({ error: null });
-  storageRemove.mockResolvedValue({ error: null });
-  storageSigned.mockResolvedValue({ data: { signedUrl: 'https://signed' }, error: null });
+  storageUpload.mockResolvedValue(undefined);
+  storageRemove.mockResolvedValue(undefined);
+  storageSigned.mockResolvedValue('https://signed');
   attCreate.mockResolvedValue({ id: 'att-1' });
   isPartnerAdmin.mockReturnValue(false);
   recordAudit.mockResolvedValue(undefined);
@@ -169,7 +167,7 @@ describe('uploadLeadAttachment', () => {
 
   it('STORAGE_FAILURE при ошибке storage.upload', async () => {
     leadFindFirst.mockResolvedValue({ id: 'l1', status: 'new' });
-    storageUpload.mockResolvedValue({ error: { message: 'bucket down' } });
+    storageUpload.mockRejectedValue(new Error('bucket down'));
     const r = await uploadLeadAttachment(prismaMock(), input());
     expect(r).toMatchObject({ ok: false, error: 'STORAGE_FAILURE' });
   });
@@ -434,14 +432,14 @@ describe('getLeadAttachmentDownloadUrl', () => {
 
   it('STORAGE_FAILURE если createSignedUrl вернул ошибку', async () => {
     attFindFirst.mockResolvedValue(foundAtt());
-    storageSigned.mockResolvedValue({ data: null, error: { message: 'storage failure' } });
+    storageSigned.mockRejectedValue(new Error('storage failure'));
     const r = await getLeadAttachmentDownloadUrl(prismaMock(), base());
     expect(r).toMatchObject({ ok: false, error: 'STORAGE_FAILURE' });
   });
 
-  it('STORAGE_FAILURE если signedUrl пустой при отсутствии ошибки', async () => {
+  it('STORAGE_FAILURE если storage port бросает при createSignedUrl', async () => {
     attFindFirst.mockResolvedValue(foundAtt());
-    storageSigned.mockResolvedValue({ data: { signedUrl: null }, error: null });
+    storageSigned.mockRejectedValue(new Error('no signed URL'));
     const r = await getLeadAttachmentDownloadUrl(prismaMock(), base());
     expect(r).toMatchObject({ ok: false, error: 'STORAGE_FAILURE' });
   });

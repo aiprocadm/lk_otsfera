@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { PrismaClient, ThreadSide } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeThread } from './policy';
-import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
+import { getObjectStorage } from '@/lib/storage';
 import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
 
 /**
@@ -92,22 +92,19 @@ export async function uploadChatAttachment(
     return { ok: false, error: 'forbidden' };
   }
 
-  // 3. Upload to Supabase Storage.
+  // 3. Upload to object storage.
   const safeName = sanitizeFilename(args.file.name);
   const storagePath = `chat/${args.orderId}/${randomUUID()}-${safeName}`;
 
-  const { error: uploadError } = await supabaseAdmin.storage
-    .from(documentBucket)
-    .upload(storagePath, args.file.buffer, {
+  try {
+    await getObjectStorage().upload(storagePath, args.file.buffer, {
       contentType: args.file.mimeType,
-      upsert: false,
     });
-
-  if (uploadError) {
+  } catch (uploadError) {
     console.error('[chat/attachments] storage upload failed', {
       orderId: args.orderId,
       storagePath,
-      providerError: uploadError.message,
+      providerError: uploadError instanceof Error ? uploadError.message : String(uploadError),
     });
     return { ok: false, error: 'storage' };
   }
@@ -156,20 +153,17 @@ export async function getChatAttachmentSignedUrl(
     return { ok: false, error: 'forbidden' };
   }
 
-  const { data, error } = await supabaseAdmin.storage
-    .from(documentBucket)
-    .createSignedUrl(message.attachmentPath, 600);
-
-  if (error || !data?.signedUrl) {
+  try {
+    const url = await getObjectStorage().createSignedUrl(message.attachmentPath, 600);
+    return { ok: true, url };
+  } catch (error) {
     console.error('[chat/attachments] failed to create signed URL', {
       messageId,
       attachmentPath: message.attachmentPath,
-      providerError: error?.message ?? 'missing signed URL',
+      providerError: error instanceof Error ? error.message : String(error),
     });
     // 'storage' (→ 502), not 'not_found': the attachment row exists — masking a
     // storage outage as a missing file sends support down the wrong trail.
     return { ok: false, error: 'storage' };
   }
-
-  return { ok: true, url: data.signedUrl };
 }

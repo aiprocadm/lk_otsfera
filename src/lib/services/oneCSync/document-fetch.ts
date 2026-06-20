@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
+import { getObjectStorage } from '@/lib/storage';
 import { withTimeout, withRetry, OneCHttpError } from './resilience';
 
 /**
  * DOC-03: a 1C document arrives as an external download URL. Storing that URL in
- * Document.path would break every download route (they call Supabase
+ * Document.path would break every download route (they call the object-storage
  * createSignedUrl, which expects a bucket key). So we fetch the file from 1C and
  * upload it into the same `documents` bucket as user uploads, returning the
  * storage KEY. The caller then writes that key as path and enqueues a ClamAV scan
@@ -36,11 +36,13 @@ export async function fetchAndStore1CDocument(args: {
     );
 
     const storagePath = `orders/${args.orderId}/1c/${randomUUID()}-${sanitizeFilename(args.name)}`;
-    const { error } = await supabaseAdmin.storage
-      .from(documentBucket)
-      .upload(storagePath, buffer, { contentType: args.mimeType, upsert: false });
-    if (error) {
-      console.warn('[1c] document store failed', { url: args.url, error: error.message });
+    try {
+      await getObjectStorage().upload(storagePath, buffer, { contentType: args.mimeType });
+    } catch (e) {
+      console.warn('[1c] document store failed', {
+        url: args.url,
+        error: e instanceof Error ? e.message : String(e)
+      });
       return null;
     }
     return storagePath;
