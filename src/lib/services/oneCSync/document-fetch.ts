@@ -36,14 +36,13 @@ export async function fetchAndStore1CDocument(args: {
     );
 
     const storagePath = `orders/${args.orderId}/1c/${randomUUID()}-${sanitizeFilename(args.name)}`;
-    let error: Error | null = null;
     try {
       await getObjectStorage().upload(storagePath, buffer, { contentType: args.mimeType });
     } catch (e) {
-      error = e instanceof Error ? e : new Error(String(e));
-    }
-    if (error) {
-      console.warn('[1c] document store failed', { url: args.url, error: error.message });
+      console.warn('[1c] document store failed', {
+        url: args.url,
+        error: e instanceof Error ? e.message : String(e)
+      });
       return null;
     }
     return storagePath;
