@@ -6,7 +6,10 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# --ignore-scripts: skip the `prepare`→husky lifecycle (husky is a devDep, absent
+# under --omit=dev → exit 127); Prisma client is generated explicitly below, and
+# esbuild/tsx ship their platform binary via optionalDependencies (not a script).
+RUN npm ci --ignore-scripts
 
 FROM node:20-alpine AS build
 WORKDIR /app
@@ -20,7 +23,7 @@ RUN npm run build
 FROM node:20-alpine AS runtime-deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 COPY prisma ./prisma
 RUN npx prisma generate
 
