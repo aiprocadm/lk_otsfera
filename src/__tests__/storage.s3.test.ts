@@ -128,3 +128,45 @@ describe('S3Storage.download', () => {
     await expect(storage.download('p')).rejects.toThrow('STORAGE_DOWNLOAD: gone');
   });
 });
+
+describe('S3Storage.createSignedUrl', () => {
+  it('no download opt → no ResponseContentDisposition (inline)', async () => {
+    getSignedUrlMock.mockReset();
+    getSignedUrlMock.mockResolvedValue('https://signed/inline');
+    const { S3Storage } = await import('@/lib/storage/s3');
+    const storage = new S3Storage({ send: sendMock } as never, 'bkt');
+    const url = await storage.createSignedUrl('chat/1/x.png', 600);
+    expect(url).toBe('https://signed/inline');
+    const cmd = getSignedUrlMock.mock.calls[0][1];
+    expect(cmd.input.ResponseContentDisposition).toBeUndefined();
+    expect(getSignedUrlMock.mock.calls[0][2]).toEqual({ expiresIn: 600 });
+  });
+
+  it('download:true → attachment (no filename)', async () => {
+    getSignedUrlMock.mockReset();
+    getSignedUrlMock.mockResolvedValue('https://signed/attach');
+    const { S3Storage } = await import('@/lib/storage/s3');
+    const storage = new S3Storage({ send: sendMock } as never, 'bkt');
+    await storage.createSignedUrl('stmt/1.xlsx', 600, { download: true });
+    const cmd = getSignedUrlMock.mock.calls[0][1];
+    expect(cmd.input.ResponseContentDisposition).toBe('attachment');
+  });
+
+  it('download:string → attachment; filename="<name>"', async () => {
+    getSignedUrlMock.mockReset();
+    getSignedUrlMock.mockResolvedValue('https://signed/named');
+    const { S3Storage } = await import('@/lib/storage/s3');
+    const storage = new S3Storage({ send: sendMock } as never, 'bkt');
+    await storage.createSignedUrl('p', 600, { download: 'отчёт.pdf' });
+    const cmd = getSignedUrlMock.mock.calls[0][1];
+    expect(cmd.input.ResponseContentDisposition).toBe('attachment; filename="отчёт.pdf"');
+  });
+
+  it('wraps failure in StorageError(op=sign)', async () => {
+    getSignedUrlMock.mockReset();
+    getSignedUrlMock.mockRejectedValue(new Error('sig fail'));
+    const { S3Storage } = await import('@/lib/storage/s3');
+    const storage = new S3Storage({ send: sendMock } as never, 'bkt');
+    await expect(storage.createSignedUrl('p', 600)).rejects.toThrow('STORAGE_SIGN: sig fail');
+  });
+});

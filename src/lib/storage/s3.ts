@@ -45,8 +45,30 @@ export class S3Storage implements ObjectStorage {
       throw new StorageError('download', errMsg(e));
     }
   }
-  async createSignedUrl(): Promise<string> {
-    throw new StorageError('sign', 'not implemented');
+  async createSignedUrl(
+    path: string,
+    ttlSeconds: number,
+    opts?: { download?: boolean | string }
+  ): Promise<string> {
+    const disposition =
+      typeof opts?.download === 'string'
+        ? `attachment; filename="${opts.download}"`
+        : opts?.download === true
+          ? 'attachment'
+          : undefined;
+    try {
+      return await getSignedUrl(
+        this.client,
+        new GetObjectCommand({
+          Bucket: this.bucket,
+          Key: path,
+          ResponseContentDisposition: disposition
+        }),
+        { expiresIn: ttlSeconds }
+      );
+    } catch (e) {
+      throw new StorageError('sign', errMsg(e));
+    }
   }
   async remove(): Promise<void> {
     throw new StorageError('remove', 'not implemented');
