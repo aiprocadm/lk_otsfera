@@ -79,3 +79,49 @@ export async function bootstrapAdmin(
 
   return { ok: true, created: true, userId: user.id };
 }
+
+// --- Runner: выполняется только при прямом запуске (tsx scripts/create-admin.ts),
+// --- но НЕ при импорте ядра из тестов. ---
+
+async function main(): Promise<void> {
+  const email = process.env.ADMIN_EMAIL?.trim();
+  const password = process.env.ADMIN_PASSWORD;
+  const name = process.env.ADMIN_NAME?.trim() || 'Администратор';
+  const company = process.env.ADMIN_COMPANY?.trim() || 'Промтехносфера';
+
+  if (!email || !password) {
+    console.error('✗ Заданы не все обязательные env: ADMIN_EMAIL и ADMIN_PASSWORD.');
+    console.error('  Пример: ADMIN_EMAIL=admin@example.ru ADMIN_PASSWORD=secret12 npm run db:create-admin');
+    process.exit(1);
+  }
+
+  const prisma = new PrismaClient();
+  let code = 0;
+  try {
+    const result = await bootstrapAdmin(prisma, { email, password, name, company });
+    if (!result.ok) {
+      const msg: Record<'invalid_email' | 'weak_password' | 'email_taken_non_admin', string> = {
+        invalid_email: 'некорректный ADMIN_EMAIL',
+        weak_password: `ADMIN_PASSWORD короче ${MIN_PASSWORD_LENGTH} символов`,
+        email_taken_non_admin: 'email уже занят пользователем с другой ролью — повышение до admin запрещено'
+      };
+      console.error(`✗ ${msg[result.error]}`);
+      code = 1;
+    } else if (result.created) {
+      console.log(`✓ admin создан: ${email}`);
+    } else {
+      console.log(`• admin уже существует: ${email} (ничего не изменено)`);
+    }
+  } catch (err) {
+    console.error('✗ Ошибка БД при создании админа:', err);
+    code = 1;
+  } finally {
+    await prisma.$disconnect();
+  }
+  process.exit(code);
+}
+
+const invoked = (process.argv[1] ?? '').replace(/\\/g, '/');
+if (invoked.endsWith('scripts/create-admin.ts')) {
+  void main();
+}
