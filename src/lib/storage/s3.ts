@@ -11,6 +11,24 @@ function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
+/**
+ * Build an RFC 6266 Content-Disposition for a presigned GET.
+ * - `download` absent/false → no disposition (inline).
+ * - `download === true`     → bare `attachment`.
+ * - `download` is a filename → `attachment` with an ASCII fallback plus an
+ *   RFC 5987 `filename*` so non-ASCII (e.g. Cyrillic) names render correctly
+ *   and reliably across RF S3 providers / browsers. The ASCII fallback also
+ *   neutralises `"`/`\` so the header can't be broken by the filename.
+ */
+function contentDisposition(download: boolean | string | undefined): string | undefined {
+  if (typeof download === 'string') {
+    const asciiFallback = download.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
+    const encoded = encodeURIComponent(download);
+    return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`;
+  }
+  return download === true ? 'attachment' : undefined;
+}
+
 export class S3Storage implements ObjectStorage {
   constructor(
     private readonly client: S3Client,
@@ -49,12 +67,7 @@ export class S3Storage implements ObjectStorage {
     ttlSeconds: number,
     opts?: { download?: boolean | string }
   ): Promise<string> {
-    const disposition =
-      typeof opts?.download === 'string'
-        ? `attachment; filename="${opts.download}"`
-        : opts?.download === true
-          ? 'attachment'
-          : undefined;
+    const disposition = contentDisposition(opts?.download);
     try {
       return await getSignedUrl(
         this.client,

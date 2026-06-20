@@ -104,6 +104,16 @@ describe('buildS3Storage env validation', () => {
     const { getObjectStorage } = await import('@/lib/storage/s3');
     expect(getObjectStorage()).toBe(getObjectStorage());
   });
+  it('builds without S3_REGION (defaults to ru-central1)', async () => {
+    // Set everything except S3_REGION so the `?? 'ru-central1'` fallback fires.
+    vi.stubEnv('S3_ENDPOINT', 'http://localhost:9000');
+    vi.stubEnv('S3_ACCESS_KEY_ID', 'ak');
+    vi.stubEnv('S3_SECRET_ACCESS_KEY', 'sk');
+    delete process.env.S3_REGION;
+    vi.resetModules();
+    const { buildS3Storage, S3Storage } = await import('@/lib/storage/s3');
+    expect(buildS3Storage()).toBeInstanceOf(S3Storage);
+  });
 });
 
 describe('S3Storage.download', () => {
@@ -126,6 +136,25 @@ describe('S3Storage.download', () => {
     const { S3Storage } = await import('@/lib/storage/s3');
     const storage = new S3Storage({ send: sendMock } as never, 'bkt');
     await expect(storage.download('p')).rejects.toThrow('STORAGE_DOWNLOAD: gone');
+  });
+
+  it('throws StorageError(op=download) when the response has no Body', async () => {
+    sendMock.mockReset();
+    sendMock.mockResolvedValue({});
+    const { S3Storage } = await import('@/lib/storage/s3');
+    const { StorageError } = await import('@/lib/storage/objectStorage');
+    const storage = new S3Storage({ send: sendMock } as never, 'bkt');
+    const p = storage.download('p');
+    await expect(p).rejects.toBeInstanceOf(StorageError);
+    await expect(storage.download('p')).rejects.toThrow('STORAGE_DOWNLOAD: empty body');
+  });
+
+  it('stringifies a non-Error rejection in the StorageError message', async () => {
+    sendMock.mockReset();
+    sendMock.mockRejectedValue('plain string boom');
+    const { S3Storage } = await import('@/lib/storage/s3');
+    const storage = new S3Storage({ send: sendMock } as never, 'bkt');
+    await expect(storage.download('p')).rejects.toThrow('STORAGE_DOWNLOAD: plain string boom');
   });
 });
 
@@ -152,14 +181,41 @@ describe('S3Storage.createSignedUrl', () => {
     expect(cmd.input.ResponseContentDisposition).toBe('attachment');
   });
 
-  it('download:string → attachment; filename="<name>"', async () => {
+  it('download:ascii-string → attachment + filename + filename* (RFC 5987)', async () => {
+    getSignedUrlMock.mockReset();
+    getSignedUrlMock.mockResolvedValue('https://signed/named');
+    const { S3Storage } = await import('@/lib/storage/s3');
+    const storage = new S3Storage({ send: sendMock } as never, 'bkt');
+    await storage.createSignedUrl('p', 600, { download: 'report.pdf' });
+    const cmd = getSignedUrlMock.mock.calls[0][1];
+    expect(cmd.input.ResponseContentDisposition).toBe(
+      'attachment; filename="report.pdf"; filename*=UTF-8\'\'report.pdf'
+    );
+  });
+
+  it('download:cyrillic-string → ascii fallback + RFC 5987 filename*', async () => {
     getSignedUrlMock.mockReset();
     getSignedUrlMock.mockResolvedValue('https://signed/named');
     const { S3Storage } = await import('@/lib/storage/s3');
     const storage = new S3Storage({ send: sendMock } as never, 'bkt');
     await storage.createSignedUrl('p', 600, { download: 'отчёт.pdf' });
     const cmd = getSignedUrlMock.mock.calls[0][1];
-    expect(cmd.input.ResponseContentDisposition).toBe('attachment; filename="отчёт.pdf"');
+    // «отчёт» = 5 non-ASCII chars → 5 underscores; «.pdf» stays ASCII.
+    expect(cmd.input.ResponseContentDisposition).toBe(
+      'attachment; filename="_____.pdf"; filename*=UTF-8\'\'%D0%BE%D1%82%D1%87%D1%91%D1%82.pdf'
+    );
+  });
+
+  it('download:string with a quote → quote replaced in ascii fallback (no broken header)', async () => {
+    getSignedUrlMock.mockReset();
+    getSignedUrlMock.mockResolvedValue('https://signed/named');
+    const { S3Storage } = await import('@/lib/storage/s3');
+    const storage = new S3Storage({ send: sendMock } as never, 'bkt');
+    await storage.createSignedUrl('p', 600, { download: 'a"b.pdf' });
+    const cmd = getSignedUrlMock.mock.calls[0][1];
+    expect(cmd.input.ResponseContentDisposition).toBe(
+      'attachment; filename="a_b.pdf"; filename*=UTF-8\'\'a%22b.pdf'
+    );
   });
 
   it('wraps failure in StorageError(op=sign)', async () => {
