@@ -4,9 +4,13 @@ import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import type { ScanDeps } from '@/worker/processors/scan-document';
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
-vi.mock('@/lib/storage/supabase', () => ({
-  getServerClient: () => ({ storage: { from: () => ({ download: vi.fn() }) } }),
-  documentBucket: 'documents',
+vi.mock('@/lib/storage', () => ({
+  getObjectStorage: () => ({
+    download: vi.fn(),
+    upload: vi.fn(),
+    createSignedUrl: vi.fn(),
+    remove: vi.fn(),
+  }),
 }));
 
 import { scanDocumentProcessor } from '@/worker/processors/scan-document';

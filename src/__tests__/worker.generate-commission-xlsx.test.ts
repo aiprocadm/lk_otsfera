@@ -8,9 +8,13 @@ const { uploadMock, renderXlsxMock } = vi.hoisted(() => ({
   renderXlsxMock: vi.fn()
 }));
 
-vi.mock('@/lib/storage/supabase', () => ({
-  getServerClient: () => ({ storage: { from: () => ({ upload: uploadMock }) } }),
-  documentBucket: 'documents'
+vi.mock('@/lib/storage', () => ({
+  getObjectStorage: () => ({
+    upload: uploadMock,
+    download: vi.fn(),
+    createSignedUrl: vi.fn(),
+    remove: vi.fn()
+  })
 }));
 vi.mock('@/lib/services/commission/xlsx', () => ({
   renderStatementXlsx: renderXlsxMock
@@ -52,7 +56,7 @@ beforeEach(() => {
   uploadMock.mockReset();
   renderXlsxMock.mockReset();
   renderXlsxMock.mockResolvedValue(Buffer.from('PK fake-xlsx'));
-  uploadMock.mockResolvedValue({ error: null });
+  uploadMock.mockResolvedValue(undefined);
 });
 
 describe('generateCommissionXlsxProcessor', () => {
@@ -73,7 +77,7 @@ describe('generateCommissionXlsxProcessor', () => {
     const [uploadPath, uploadBuf, uploadOpts] = uploadMock.mock.calls[0];
     expect(uploadPath).toBe(expectedPath);
     expect(Buffer.isBuffer(uploadBuf)).toBe(true);
-    expect(uploadOpts).toMatchObject({ contentType: XLSX_CONTENT_TYPE, upsert: true });
+    expect(uploadOpts).toMatchObject({ contentType: XLSX_CONTENT_TYPE });
 
     const reread = await prisma.commissionStatement.findUnique({
       where: { id: statementId },
@@ -87,11 +91,11 @@ describe('generateCommissionXlsxProcessor', () => {
     expect(renderXlsxMock).not.toHaveBeenCalled();
   });
 
-  it('throws STORAGE_FAILURE and does not persist xlsxPath when upload errors', async () => {
+  it('propagates the storage error and does not persist xlsxPath when upload throws', async () => {
     await prisma.commissionStatement.update({ where: { id: statementId }, data: { xlsxPath: null } });
-    uploadMock.mockResolvedValue({ error: { message: 'bucket exploded' } });
+    uploadMock.mockRejectedValue(new Error('STORAGE_UPLOAD: bucket exploded'));
 
-    await expect(generateCommissionXlsxProcessor(job(statementId), prisma)).rejects.toThrow(/STORAGE_FAILURE/);
+    await expect(generateCommissionXlsxProcessor(job(statementId), prisma)).rejects.toThrow(/bucket exploded/);
 
     const reread = await prisma.commissionStatement.findUnique({
       where: { id: statementId },

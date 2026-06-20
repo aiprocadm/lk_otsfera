@@ -2,7 +2,7 @@ import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
 import { Socket } from 'node:net';
 import { prisma } from '@/lib/db/prisma';
-import { getServerClient, documentBucket } from '@/lib/storage/supabase';
+import { getObjectStorage } from '@/lib/storage';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import type { ScanDocumentPayload, ScanDocumentTarget } from '@/lib/jobs/types';
 
@@ -58,12 +58,9 @@ function clamAvInstream(host: string, port: number, payload: Buffer): Promise<st
 }
 /* v8 ignore stop */
 
-/* v8 ignore start -- production Supabase storage download; exercised in e2e only, not unit-testable without live storage */
+/* v8 ignore start -- production S3 storage download; exercised in e2e only, not unit-testable without live storage */
 async function defaultDownload(path: string): Promise<Buffer> {
-  const storage = getServerClient().storage.from(documentBucket);
-  const { data, error } = await storage.download(path);
-  if (error || !data) throw new Error(`STORAGE_DOWNLOAD: ${error?.message ?? 'no data'}`);
-  return Buffer.from(await data.arrayBuffer());
+  return getObjectStorage().download(path);
 }
 /* v8 ignore stop */
 
