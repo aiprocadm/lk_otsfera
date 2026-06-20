@@ -170,3 +170,35 @@ describe('S3Storage.createSignedUrl', () => {
     await expect(storage.createSignedUrl('p', 600)).rejects.toThrow('STORAGE_SIGN: sig fail');
   });
 });
+
+describe('S3Storage.remove', () => {
+  it('sends DeleteObjects with a Key per path', async () => {
+    sendMock.mockReset();
+    sendMock.mockResolvedValue({});
+    const { S3Storage } = await import('@/lib/storage/s3');
+    const storage = new S3Storage({ send: sendMock } as never, 'bkt');
+    await storage.remove(['a/1', 'b/2']);
+    const cmd = sendMock.mock.calls[0][0];
+    expect(cmd.input).toMatchObject({
+      Bucket: 'bkt',
+      Delete: { Objects: [{ Key: 'a/1' }, { Key: 'b/2' }] }
+    });
+  });
+
+  it('wraps failure in StorageError(op=remove)', async () => {
+    sendMock.mockReset();
+    sendMock.mockRejectedValue(new Error('nope'));
+    const { S3Storage } = await import('@/lib/storage/s3');
+    const storage = new S3Storage({ send: sendMock } as never, 'bkt');
+    await expect(storage.remove(['x'])).rejects.toThrow('STORAGE_REMOVE: nope');
+  });
+});
+
+describe('storage barrel', () => {
+  it('re-exports getObjectStorage, StorageError, documentBucket', async () => {
+    const mod = await import('@/lib/storage');
+    expect(typeof mod.getObjectStorage).toBe('function');
+    expect(typeof mod.StorageError).toBe('function');
+    expect(typeof mod.documentBucket).toBe('string');
+  });
+});

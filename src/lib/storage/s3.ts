@@ -32,7 +32,6 @@ export class S3Storage implements ObjectStorage {
     }
   }
 
-  // createSignedUrl / remove arrive in Tasks 5–6.
   async download(path: string): Promise<Buffer> {
     try {
       const res = await this.client.send(
@@ -70,8 +69,17 @@ export class S3Storage implements ObjectStorage {
       throw new StorageError('sign', errMsg(e));
     }
   }
-  async remove(): Promise<void> {
-    throw new StorageError('remove', 'not implemented');
+  async remove(paths: string[]): Promise<void> {
+    try {
+      await this.client.send(
+        new DeleteObjectsCommand({
+          Bucket: this.bucket,
+          Delete: { Objects: paths.map((Key) => ({ Key })) }
+        })
+      );
+    } catch (e) {
+      throw new StorageError('remove', errMsg(e));
+    }
   }
 }
 
