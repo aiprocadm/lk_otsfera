@@ -14,7 +14,7 @@
 // Коды выхода: 0 — создан или уже был admin; 1 — ошибка валидации / email занят
 // не-admin / сбой БД.
 
-import { PrismaClient, type Role } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { recordAudit } from '../src/lib/auth/audit';
 
@@ -42,7 +42,8 @@ export async function bootstrapAdmin(
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    if (existing.role === ('admin' as Role)) {
+    // Повторный запуск с тем же email — идемпотентный no-op: пароль НЕ перезаписываем.
+    if (existing.role === Role.admin) {
       return { ok: true, created: false, userId: existing.id };
     }
     return { ok: false, error: 'email_taken_non_admin' };
@@ -58,7 +59,7 @@ export async function bootstrapAdmin(
       data: {
         email,
         name: args.name,
-        role: 'admin' as Role,
+        role: Role.admin,
         passwordHash,
         companyId: company.id,
         isActive: true
