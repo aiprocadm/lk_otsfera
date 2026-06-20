@@ -29,11 +29,13 @@ vi.mock('@/lib/db/prisma', () => ({
     auditLog: { create: auditCreate }
   }
 }));
-vi.mock('@/lib/storage/supabase', () => ({
-  documentBucket: 'docs',
-  supabaseAdmin: {
-    storage: { from: () => ({ createSignedUrl }) }
-  }
+vi.mock('@/lib/storage', () => ({
+  getObjectStorage: () => ({
+    createSignedUrl,
+    upload: vi.fn(),
+    remove: vi.fn(),
+    download: vi.fn()
+  })
 }));
 
 import { POST as downloadPost } from '@/app/api/organization/documents/[id]/download/route';
@@ -87,10 +89,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       counterpartyType: 'organization',
       counterpartyId: 'org-a'
     });
-    createSignedUrl.mockResolvedValue({
-      data: { signedUrl: 'https://signed.test/x' },
-      error: null
-    });
+    createSignedUrl.mockResolvedValue('https://signed.test/x');
 
     // Request TTL=200 (within 60-300 range)
     const res = await downloadPost(postReq('?ttl=200'), paramsP);
@@ -110,10 +109,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       counterpartyType: 'organization',
       counterpartyId: 'org-a'
     });
-    createSignedUrl.mockResolvedValue({
-      data: { signedUrl: 'https://signed.test/x' },
-      error: null
-    });
+    createSignedUrl.mockResolvedValue('https://signed.test/x');
 
     const res = await downloadPost(postReq('?ttl=9999'), paramsP);
     expect(res.status).toBe(200);
@@ -133,10 +129,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       counterpartyType: 'organization',
       counterpartyId: 'org-a'
     });
-    createSignedUrl.mockResolvedValue({
-      data: { signedUrl: 'https://signed.test/x' },
-      error: null
-    });
+    createSignedUrl.mockResolvedValue('https://signed.test/x');
 
     const res = await downloadPost(postReq('?ttl=5'), paramsP);
     expect(res.status).toBe(200);
@@ -156,10 +149,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       counterpartyType: 'organization',
       counterpartyId: 'org-a'
     });
-    createSignedUrl.mockResolvedValue({
-      data: { signedUrl: 'https://signed.test/x' },
-      error: null
-    });
+    createSignedUrl.mockResolvedValue('https://signed.test/x');
 
     const res = await downloadPost(postReq('?ttl=abc'), paramsP);
     expect(res.status).toBe(200);
@@ -180,10 +170,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       counterpartyType: 'organization',
       counterpartyId: 'org-b'
     });
-    createSignedUrl.mockResolvedValue({
-      data: { signedUrl: 'https://signed.test/cookie' },
-      error: null
-    });
+    createSignedUrl.mockResolvedValue('https://signed.test/cookie');
 
     const res = await downloadPost(postReq(), paramsP);
     expect(res.status).toBe(200);
@@ -274,10 +261,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       counterpartyType: 'organization',
       counterpartyId: 'org-a'
     });
-    createSignedUrl.mockResolvedValue({
-      data: { signedUrl: 'https://signed.test/x' },
-      error: null
-    });
+    createSignedUrl.mockResolvedValue('https://signed.test/x');
 
     const res = await downloadPost(postReq(), paramsP);
     expect(res.status).toBe(200);
@@ -302,10 +286,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       counterpartyType: 'organization',
       counterpartyId: 'org-b'
     });
-    createSignedUrl.mockResolvedValue({
-      data: { signedUrl: 'https://signed.test/b' },
-      error: null
-    });
+    createSignedUrl.mockResolvedValue('https://signed.test/b');
 
     const res = await downloadPost(postReq('?org=org-b'), paramsP);
     expect(res.status).toBe(200);
@@ -329,7 +310,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
     expect(res.status).toBe(404);
   });
 
-  it('returns 502 if Supabase signed URL creation fails (with error message)', async () => {
+  it('returns 502 if signed URL creation throws (storage error)', async () => {
     getSession.mockResolvedValue(orgSession([{ id: 'org-a' }]));
     documentFindUnique.mockResolvedValue({
       id: 'd1',
@@ -341,27 +322,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       counterpartyType: 'organization',
       counterpartyId: 'org-a'
     });
-    createSignedUrl.mockResolvedValue({ data: null, error: { message: 'storage down' } });
-
-    const res = await downloadPost(postReq(), paramsP);
-    expect(res.status).toBe(502);
-  });
-
-  it('returns 502 when signedUrl absent and error is null (?? fallback for providerError)', async () => {
-    // Covers: error?.message ?? 'Missing signed URL from provider' when error is null
-    getSession.mockResolvedValue(orgSession([{ id: 'org-a' }]));
-    documentFindUnique.mockResolvedValue({
-      id: 'd1',
-      name: 'x.pdf',
-      path: 'org-a/x.pdf',
-      mimeType: 'application/pdf',
-      scanStatus: 'clean',
-      scanReason: null,
-      counterpartyType: 'organization',
-      counterpartyId: 'org-a'
-    });
-    // null error but no signedUrl → triggers the ?? 'Missing signed URL' fallback
-    createSignedUrl.mockResolvedValue({ data: { signedUrl: '' }, error: null });
+    createSignedUrl.mockRejectedValue(new Error('storage down'));
 
     const res = await downloadPost(postReq(), paramsP);
     expect(res.status).toBe(502);

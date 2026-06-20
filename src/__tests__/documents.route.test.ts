@@ -40,9 +40,8 @@ vi.mock('@/lib/auth/policy', () => ({
   canReadDocument,
   forbiddenResponse: (m: string) => Response.json({ message: m }, { status: 403 })
 }));
-vi.mock('@/lib/storage/supabase', () => ({
-  documentBucket: 'docs',
-  supabaseAdmin: { storage: { from: () => ({ upload, createSignedUrl }) } }
+vi.mock('@/lib/storage', () => ({
+  getObjectStorage: () => ({ upload, createSignedUrl, remove: vi.fn(), download: vi.fn() })
 }));
 vi.mock('@/lib/notifications', () => ({ notifyDocumentCreated: vi.fn(), triggerNotificationEmail: vi.fn() }));
 vi.mock('@/lib/auth/organization', () => ({ getPrimaryOrganizationId: vi.fn().mockResolvedValue('o1') }));
@@ -62,7 +61,7 @@ describe('documents guards', () => {
     findUnique.mockResolvedValue({ id: 'ord1', companyId: 'c1' });
     orgFindFirst.mockResolvedValue({ id: 'o1', partnerId: 'p1' });
     canReadOrder.mockResolvedValue(true);
-    upload.mockResolvedValue({ error: null });
+    upload.mockResolvedValue(undefined);
     create.mockResolvedValue({ id: 'd1', name: 'x.pdf', mimeType: 'application/pdf', createdAt: new Date() });
   });
 
@@ -204,7 +203,7 @@ describe('documents guards', () => {
       order: { companyId: 'c1' }
     });
     canReadDocument.mockResolvedValue(true);
-    createSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://signed' }, error: null });
+    createSignedUrl.mockResolvedValue('https://signed');
     const res = await downloadPost(
       new Request('https://app.local/api/documents/d1/download', { method: 'POST' }),
       { params: Promise.resolve({ id: 'd1' }) }
@@ -240,7 +239,7 @@ describe('documents guards', () => {
       order: { companyId: 'c1' }
     });
     canReadDocument.mockResolvedValue(true);
-    createSignedUrl.mockResolvedValue({ data: null, error: { message: 'bucket error' } });
+    createSignedUrl.mockRejectedValue(new Error('bucket error'));
     const res = await downloadPost(
       new Request('https://app.local/api/documents/d1/download', { method: 'POST' }),
       { params: Promise.resolve({ id: 'd1' }) }
@@ -256,7 +255,7 @@ describe('documents guards', () => {
       order: { companyId: 'c1' }
     });
     canReadDocument.mockResolvedValue(true);
-    createSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://cdn.example/signed' }, error: null });
+    createSignedUrl.mockResolvedValue('https://cdn.example/signed');
     const res = await downloadPost(
       new Request('https://app.local/api/documents/d1/download?ttl=90', { method: 'POST' }),
       { params: Promise.resolve({ id: 'd1' }) }
@@ -275,7 +274,7 @@ describe('documents guards', () => {
       order: { companyId: 'c1' }
     });
     canReadDocument.mockResolvedValue(true);
-    createSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://cdn.example/signed' }, error: null });
+    createSignedUrl.mockResolvedValue('https://cdn.example/signed');
     // Pass a non-numeric TTL; Number('abc') = NaN → should fall back to DEFAULT_TTL (120)
     const res = await downloadPost(
       new Request('https://app.local/api/documents/d1/download?ttl=abc', { method: 'POST' }),
@@ -284,23 +283,6 @@ describe('documents guards', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.expiresInSec).toBe(120); // DEFAULT_TTL clamped to [60,300]
-  });
-
-  it('502 when storage returns no error but missing signedUrl (null data branch)', async () => {
-    const { prisma } = await import('@/lib/db/prisma');
-    (prisma.document.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 'd1', path: 'x', name: 'x.pdf', scanStatus: 'clean', scanReason: null,
-      orderId: 'ord1', companyId: 'c1', counterpartyType: 'organization', counterpartyId: 'o1',
-      order: { companyId: 'c1' }
-    });
-    canReadDocument.mockResolvedValue(true);
-    // error is null but data has no signedUrl → covers the "Missing signed URL from provider" branch
-    createSignedUrl.mockResolvedValue({ data: { signedUrl: '' }, error: null });
-    const res = await downloadPost(
-      new Request('https://app.local/api/documents/d1/download', { method: 'POST' }),
-      { params: Promise.resolve({ id: 'd1' }) }
-    );
-    expect(res.status).toBe(502);
   });
 
   it('410 INFECTED with null scanReason (scanReason ?? undefined = undefined)', async () => {
@@ -330,7 +312,7 @@ describe('documents/upload missing branches', () => {
     findUnique.mockResolvedValue({ id: 'ord1', companyId: 'c1', organizationId: 'o1' });
     orgFindFirst.mockResolvedValue({ id: 'o1', partnerId: 'p1' });
     canReadOrder.mockResolvedValue(true);
-    upload.mockResolvedValue({ error: null });
+    upload.mockResolvedValue(undefined);
     create.mockResolvedValue({ id: 'd1', name: 'x.pdf', mimeType: 'application/pdf', createdAt: new Date() });
   });
 
@@ -383,7 +365,7 @@ describe('documents/upload missing branches', () => {
   });
 
   it('502 when storage upload fails', async () => {
-    upload.mockResolvedValue({ error: { message: 'bucket full' } });
+    upload.mockRejectedValue(new Error('bucket full'));
     const fd = new FormData();
     fd.set('orderId', 'ord1');
     fd.set('file', new File(['%PDF-1.4 minimal'], 'good.pdf', { type: 'application/pdf' }));

@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { getDocumentForDownload } from '@/lib/services/manager/documents';
-import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
+import { getObjectStorage } from '@/lib/storage';
 import { recordAudit } from '@/lib/auth/audit';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 
@@ -47,18 +47,16 @@ export async function POST(
     return new Response('Document quarantined', { status: 410 });
   }
 
-  const { data, error } = await supabaseAdmin.storage
-    .from(documentBucket)
-    .createSignedUrl(result.path, SIGNED_URL_TTL_SEC);
-
-  if (error || !data?.signedUrl) {
+  let signedUrl: string;
+  try {
+    signedUrl = await getObjectStorage().createSignedUrl(result.path, SIGNED_URL_TTL_SEC);
+  } catch (error) {
     console.error('Failed to create manager document signed URL', {
       correlationId,
       documentId: id,
-      storageBucket: documentBucket,
       storagePath: result.path,
       ttl: SIGNED_URL_TTL_SEC,
-      providerError: error?.message ?? 'Missing signed URL from provider'
+      providerError: error instanceof Error ? error.message : String(error)
     });
     return new Response('Storage error', { status: 502 });
   }
@@ -71,5 +69,5 @@ export async function POST(
     after: { ttl: SIGNED_URL_TTL_SEC, viewer: 'manager' }
   });
 
-  return Response.redirect(data.signedUrl, 302);
+  return Response.redirect(signedUrl, 302);
 }
