@@ -9,7 +9,7 @@ import { notFoundIfDisabled } from '@/lib/featureFlags';
 /**
  * POST /api/manager/documents/[id]/download
  *
- * Returns a 302 redirect to a short-lived Supabase Storage signed URL when
+ * Returns a 302 redirect to a short-lived object-storage signed URL when
  * the manager has visibility on the document's parent order (three-way RBAC
  * via managerDocumentScopeFilter — per-order managerId, per-org assignment,
  * or historical comments) and the document is not infected.
@@ -20,7 +20,7 @@ import { notFoundIfDisabled } from '@/lib/featureFlags';
  * Status semantics (matches Phase 7 org route):
  *   - 404: document missing OR out-of-scope (silent; no existence leak)
  *   - 410: document quarantined by ClamAV (scanStatus === 'infected')
- *   - 502: Supabase signing failed
+ *   - 502: object-storage signing failed
  *   - 302: success
  */
 
