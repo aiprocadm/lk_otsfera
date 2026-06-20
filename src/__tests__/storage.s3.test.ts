@@ -105,3 +105,26 @@ describe('buildS3Storage env validation', () => {
     expect(getObjectStorage()).toBe(getObjectStorage());
   });
 });
+
+describe('S3Storage.download', () => {
+  it('returns a Buffer assembled from GetObject body', async () => {
+    sendMock.mockReset();
+    sendMock.mockResolvedValue({
+      Body: { transformToByteArray: async () => new Uint8Array([1, 2, 3]) }
+    });
+    const { S3Storage } = await import('@/lib/storage/s3');
+    const storage = new S3Storage({ send: sendMock } as never, 'bkt');
+    const buf = await storage.download('orders/1/x.pdf');
+    const cmd = sendMock.mock.calls[0][0];
+    expect(cmd.input).toMatchObject({ Bucket: 'bkt', Key: 'orders/1/x.pdf' });
+    expect(buf).toEqual(Buffer.from([1, 2, 3]));
+  });
+
+  it('wraps failure in StorageError(op=download)', async () => {
+    sendMock.mockReset();
+    sendMock.mockRejectedValue(new Error('gone'));
+    const { S3Storage } = await import('@/lib/storage/s3');
+    const storage = new S3Storage({ send: sendMock } as never, 'bkt');
+    await expect(storage.download('p')).rejects.toThrow('STORAGE_DOWNLOAD: gone');
+  });
+});

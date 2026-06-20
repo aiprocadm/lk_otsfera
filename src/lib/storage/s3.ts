@@ -32,9 +32,18 @@ export class S3Storage implements ObjectStorage {
     }
   }
 
-  // download / createSignedUrl / remove arrive in Tasks 4–6.
-  async download(_path: string): Promise<Buffer> {
-    throw new StorageError('download', 'not implemented');
+  // createSignedUrl / remove arrive in Tasks 5–6.
+  async download(path: string): Promise<Buffer> {
+    try {
+      const res = await this.client.send(
+        new GetObjectCommand({ Bucket: this.bucket, Key: path })
+      );
+      if (!res.Body) throw new Error('empty body');
+      const bytes = await res.Body.transformToByteArray();
+      return Buffer.from(bytes);
+    } catch (e) {
+      throw new StorageError('download', errMsg(e));
+    }
   }
   async createSignedUrl(): Promise<string> {
     throw new StorageError('sign', 'not implemented');
