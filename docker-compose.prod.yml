@@ -1,6 +1,7 @@
 # Production stack for topology C (one VM). PostgreSQL is managed (external) and
 # files live in S3 — both reached only via env in .env.production. TLS/reverse-proxy
-# is SP3 (web is published on loopback only).
+# is terminated by the `caddy` service (SP3); web stays on loopback and is reached
+# by caddy over the internal compose network.
 services:
   web:
     image: lk-otsfera:prod
@@ -38,5 +39,18 @@ services:
       retries: 10
     restart: unless-stopped
 
+  caddy:
+    image: caddy:2-alpine
+    ports: ["80:80", "443:443"]          # единственный сервис, смотрящий наружу
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data                 # сертификаты + ACME-аккаунт — stateful, беречь!
+      - caddy_config:/config
+    env_file: .env.production            # грузит APP_DOMAIN в контейнер → Caddyfile {$APP_DOMAIN}
+    depends_on: [web]
+    restart: unless-stopped
+
 volumes:
   redisdata:
+  caddy_data:
+  caddy_config:
