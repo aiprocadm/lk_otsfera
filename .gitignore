@@ -4,6 +4,7 @@ tsconfig.tsbuildinfo
 .env
 .env.local
 .env.*.local
+.env.production
 
 # Local-only assistant/session state — never commit
 .claude/
