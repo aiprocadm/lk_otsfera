@@ -32,11 +32,10 @@ const {
   companyFindUnique: vi.fn()
 }));
 
-vi.mock('@/lib/storage/supabase', () => ({
+vi.mock('@/lib/storage', () => ({
+  getObjectStorage: () => ({ upload: storageUpload, createSignedUrl: vi.fn(), remove: vi.fn(), download: vi.fn() }),
   documentBucket: 'documents',
-  supabaseAdmin: {
-    storage: { from: () => ({ upload: storageUpload }) }
-  }
+  StorageError: class StorageError extends Error {}
 }));
 vi.mock('@/lib/jobs/queues', () => ({
   getQueue: () => ({ add: queueAdd }),
@@ -83,7 +82,7 @@ function prismaMock() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  storageUpload.mockResolvedValue({ data: { path: 'x' }, error: null });
+  storageUpload.mockResolvedValue(undefined);
   queueAdd.mockResolvedValue(undefined);
   documentCreate.mockResolvedValue({ id: 'doc-1' });
   notifyOrgUsersMock.mockResolvedValue({ recipientsNotified: 1 });
@@ -218,7 +217,7 @@ describe('createManagerOrderLessDocument — failure paths', () => {
   });
 
   it('propagates storage error from persistUploadedDocument', async () => {
-    storageUpload.mockResolvedValue({ data: null, error: { message: 'bucket down' } });
+    storageUpload.mockRejectedValue(new Error('bucket down'));
     const sess = session({ companyId: 'co-1', managedOrgIds: ['o1'] });
     const r = await createManagerOrderLessDocument(
       prismaMock(),

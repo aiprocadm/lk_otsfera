@@ -4,19 +4,18 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock Supabase storage
+// Mock object storage
 const uploadMock = vi.fn();
 const createSignedUrlMock = vi.fn();
-vi.mock('@/lib/storage/supabase', () => ({
+vi.mock('@/lib/storage', () => ({
+  getObjectStorage: () => ({
+    upload: uploadMock,
+    createSignedUrl: createSignedUrlMock,
+    remove: vi.fn(),
+    download: vi.fn()
+  }),
   documentBucket: 'documents',
-  supabaseAdmin: {
-    storage: {
-      from: vi.fn(() => ({
-        upload: uploadMock,
-        createSignedUrl: createSignedUrlMock
-      }))
-    }
-  }
+  StorageError: class StorageError extends Error {}
 }));
 
 // Mock mimeValidator
@@ -100,7 +99,7 @@ describe('uploadChatAttachment — unit', () => {
   it('returns storage error when Supabase upload fails', async () => {
     validateMagicBytesMock.mockReturnValue({ ok: true });
     canSeeThreadMock.mockReturnValue(true);
-    uploadMock.mockResolvedValue({ error: new Error('bucket not found') });
+    uploadMock.mockRejectedValue(new Error('bucket not found'));
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const result = await uploadChatAttachment(makePrisma(), session, { orderId: 'o1', side: 'org', file: validFile });
     expect(result).toEqual({ ok: false, error: 'storage' });
@@ -110,7 +109,7 @@ describe('uploadChatAttachment — unit', () => {
   it('returns ok with attachmentPath on successful upload', async () => {
     validateMagicBytesMock.mockReturnValue({ ok: true });
     canSeeThreadMock.mockReturnValue(true);
-    uploadMock.mockResolvedValue({ error: null });
+    uploadMock.mockResolvedValue(undefined);
     const result = await uploadChatAttachment(makePrisma(), session, { orderId: 'o1', side: 'org', file: validFile });
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -121,7 +120,7 @@ describe('uploadChatAttachment — unit', () => {
   it('does NOT run magic-byte check for vnd.ms-excel (unsupported in SUPPORTED_MIME_TYPES)', async () => {
     // vnd.ms-excel is in ALLOWED_MIME_TYPES but NOT in SUPPORTED_MIME_TYPES → no magic check
     canSeeThreadMock.mockReturnValue(true);
-    uploadMock.mockResolvedValue({ error: null });
+    uploadMock.mockResolvedValue(undefined);
     const excelFile = { ...validFile, mimeType: 'application/vnd.ms-excel' };
     const result = await uploadChatAttachment(makePrisma(), session, { orderId: 'o1', side: 'org', file: excelFile });
     expect(validateMagicBytesMock).not.toHaveBeenCalled();
@@ -167,7 +166,7 @@ describe('getChatAttachmentSignedUrl — unit', () => {
 
   it('returns storage error when Supabase signed URL creation fails', async () => {
     canSeeThreadMock.mockReturnValue(true);
-    createSignedUrlMock.mockResolvedValue({ data: null, error: new Error('provider down') });
+    createSignedUrlMock.mockRejectedValue(new Error('provider down'));
     const msg = {
       id: 'm1', attachmentPath: 'chat/o1/uuid-file.pdf',
       thread: { side: 'org', order: { id: 'o1', organizationId: 'org1', partnerId: 'p1', companyId: 'c1' } }
@@ -178,9 +177,9 @@ describe('getChatAttachmentSignedUrl — unit', () => {
     consoleSpy.mockRestore();
   });
 
-  it('returns storage error when signedUrl is missing from response', async () => {
+  it('returns storage error when the storage port throws a StorageError', async () => {
     canSeeThreadMock.mockReturnValue(true);
-    createSignedUrlMock.mockResolvedValue({ data: { signedUrl: null }, error: null });
+    createSignedUrlMock.mockRejectedValue(new Error('missing signed URL'));
     const msg = {
       id: 'm1', attachmentPath: 'chat/o1/uuid-file.pdf',
       thread: { side: 'org', order: { id: 'o1', organizationId: 'org1', partnerId: 'p1', companyId: 'c1' } }
@@ -193,7 +192,7 @@ describe('getChatAttachmentSignedUrl — unit', () => {
 
   it('returns ok with signed URL on success', async () => {
     canSeeThreadMock.mockReturnValue(true);
-    createSignedUrlMock.mockResolvedValue({ data: { signedUrl: 'https://cdn.example.com/signed-url' }, error: null });
+    createSignedUrlMock.mockResolvedValue('https://cdn.example.com/signed-url');
     const msg = {
       id: 'm1', attachmentPath: 'chat/o1/uuid-file.pdf',
       thread: { side: 'org', order: { id: 'o1', organizationId: 'org1', partnerId: 'p1', companyId: 'c1' } }

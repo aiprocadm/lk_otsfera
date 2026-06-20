@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import type { PrismaClient, LeadAttachment, LeadStatus } from '@prisma/client';
-import { getServerClient, documentBucket } from '@/lib/storage/supabase';
+import { getObjectStorage } from '@/lib/storage';
 import {
   validateMagicBytes,
   extensionFor,
@@ -139,13 +139,11 @@ export async function uploadLeadAttachment(
     const ext = extensionFor(validation.mime);
     const path = `partners/${input.partnerId}/leads/${input.leadId}/${fileId}.${ext}`;
 
-    const storage = getServerClient().storage.from(documentBucket);
-    const uploadRes = await storage.upload(path, input.file.buffer, {
-      contentType: validation.mime,
-      upsert: false
-    });
-    if (uploadRes.error) {
-      throw new LeadAttachmentError('STORAGE_FAILURE', uploadRes.error.message);
+    const storage = getObjectStorage();
+    try {
+      await storage.upload(path, Buffer.from(input.file.buffer), { contentType: validation.mime });
+    } catch (e) {
+      throw new LeadAttachmentError('STORAGE_FAILURE', e instanceof Error ? e.message : String(e));
     }
 
     try {
@@ -249,8 +247,7 @@ export async function deleteLeadAttachment(
       });
     });
 
-    await getServerClient()
-      .storage.from(documentBucket)
+    await getObjectStorage()
       .remove([attachment.path])
       .catch(() => undefined);
 
@@ -294,19 +291,19 @@ export async function getLeadAttachmentDownloadUrl(
       );
     }
 
-    const signed = await getServerClient()
-      .storage.from(documentBucket)
-      .createSignedUrl(attachment.path, DOWNLOAD_URL_TTL_SECONDS, {
+    let url: string;
+    try {
+      url = await getObjectStorage().createSignedUrl(attachment.path, DOWNLOAD_URL_TTL_SECONDS, {
         download: attachment.name
       });
-    if (signed.error || !signed.data?.signedUrl) {
+    } catch (e) {
       throw new LeadAttachmentError(
         'STORAGE_FAILURE',
-        signed.error?.message ?? 'Не удалось создать ссылку'
+        e instanceof Error ? e.message : 'Не удалось создать ссылку'
       );
     }
 
-    return { ok: true, url: signed.data.signedUrl, name: attachment.name, mimeType: attachment.mimeType };
+    return { ok: true, url, name: attachment.name, mimeType: attachment.mimeType };
   } catch (e) {
     return toFailure(e);
   }

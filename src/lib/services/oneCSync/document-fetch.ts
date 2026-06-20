@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
+import { getObjectStorage } from '@/lib/storage';
 import { withTimeout, withRetry, OneCHttpError } from './resilience';
 
 /**
@@ -36,9 +36,12 @@ export async function fetchAndStore1CDocument(args: {
     );
 
     const storagePath = `orders/${args.orderId}/1c/${randomUUID()}-${sanitizeFilename(args.name)}`;
-    const { error } = await supabaseAdmin.storage
-      .from(documentBucket)
-      .upload(storagePath, buffer, { contentType: args.mimeType, upsert: false });
+    let error: Error | null = null;
+    try {
+      await getObjectStorage().upload(storagePath, buffer, { contentType: args.mimeType });
+    } catch (e) {
+      error = e instanceof Error ? e : new Error(String(e));
+    }
     if (error) {
       console.warn('[1c] document store failed', { url: args.url, error: error.message });
       return null;

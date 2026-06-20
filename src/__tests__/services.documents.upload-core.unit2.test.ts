@@ -10,9 +10,10 @@ const { uploadMock, addMock, auditMock } = vi.hoisted(() => ({
   addMock: vi.fn(),
   auditMock: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock('@/lib/storage/supabase', () => ({
+vi.mock('@/lib/storage', () => ({
+  getObjectStorage: () => ({ upload: uploadMock, createSignedUrl: vi.fn(), remove: vi.fn(), download: vi.fn() }),
   documentBucket: 'documents',
-  supabaseAdmin: { storage: { from: () => ({ upload: uploadMock }) } },
+  StorageError: class StorageError extends Error {},
 }));
 vi.mock('@/lib/jobs/queues', () => ({ getQueue: () => ({ add: addMock }) }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: auditMock }));
@@ -70,7 +71,7 @@ describe('persistUploadedDocument — storage upload failure', () => {
   };
 
   it('returns storage error when supabase upload fails', async () => {
-    uploadMock.mockResolvedValue({ error: { message: 'storage error' } });
+    uploadMock.mockRejectedValue(new Error('storage error'));
     const prisma = {} as never;
     const r = await persistUploadedDocument(prisma, baseArgs);
     expect(r).toEqual({ ok: false, error: 'storage' });
@@ -78,7 +79,7 @@ describe('persistUploadedDocument — storage upload failure', () => {
   });
 
   it('best-effort scan enqueue: swallows queue error', async () => {
-    uploadMock.mockResolvedValue({ error: null });
+    uploadMock.mockResolvedValue(undefined);
     addMock.mockRejectedValue(new Error('Redis down'));
     const create = vi.fn().mockResolvedValue({ id: 'doc-scan-fail' });
     const prisma = { document: { create } } as never;
@@ -89,7 +90,7 @@ describe('persistUploadedDocument — storage upload failure', () => {
   });
 
   it('coerces unknown docType to "other"', async () => {
-    uploadMock.mockResolvedValue({ error: null });
+    uploadMock.mockResolvedValue(undefined);
     const create = vi.fn().mockResolvedValue({ id: 'doc-other' });
     const prisma = { document: { create } } as never;
     await persistUploadedDocument(prisma, { ...baseArgs, docType: 'totally_unknown_type' });
@@ -98,7 +99,7 @@ describe('persistUploadedDocument — storage upload failure', () => {
 
   it('best-effort scan enqueue: swallows non-Error throw (String(err) branch)', async () => {
     // Covers line 132: err instanceof Error ? err.message : String(err) — arm 0 (err is not an Error)
-    uploadMock.mockResolvedValue({ error: null });
+    uploadMock.mockResolvedValue(undefined);
     addMock.mockRejectedValue('string-rejection'); // throw a plain string, not an Error
     const create = vi.fn().mockResolvedValue({ id: 'doc-string-err' });
     const prisma = { document: { create } } as never;
@@ -107,7 +108,7 @@ describe('persistUploadedDocument — storage upload failure', () => {
   });
 
   it('sanitizes filename with special chars', async () => {
-    uploadMock.mockResolvedValue({ error: null });
+    uploadMock.mockResolvedValue(undefined);
     const create = vi.fn().mockResolvedValue({ id: 'doc-sanitized' });
     const prisma = { document: { create } } as never;
     await persistUploadedDocument(prisma, {

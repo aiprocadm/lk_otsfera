@@ -5,9 +5,10 @@ const { uploadMock, addMock, auditMock } = vi.hoisted(() => ({
   addMock: vi.fn(),
   auditMock: vi.fn()
 }));
-vi.mock('@/lib/storage/supabase', () => ({
+vi.mock('@/lib/storage', () => ({
+  getObjectStorage: () => ({ upload: uploadMock, createSignedUrl: vi.fn(), remove: vi.fn(), download: vi.fn() }),
   documentBucket: 'documents',
-  supabaseAdmin: { storage: { from: () => ({ upload: uploadMock }) } }
+  StorageError: class StorageError extends Error {}
 }));
 vi.mock('@/lib/jobs/queues', () => ({ getQueue: () => ({ add: addMock }) }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: auditMock }));
@@ -49,7 +50,7 @@ describe('persistUploadedDocument', () => {
   });
 
   it('persists with counterparty + direction and enqueues a scan', async () => {
-    uploadMock.mockResolvedValue({ error: null });
+    uploadMock.mockResolvedValue(undefined);
     const create = vi.fn().mockResolvedValue({ id: 'doc-9' });
     const prisma = { document: { create } } as never;
     const r = await persistUploadedDocument(prisma, baseArgs);
@@ -63,7 +64,7 @@ describe('persistUploadedDocument', () => {
   });
 
   it('order-less upload sets companyId, null orderId, and counterparty storage path', async () => {
-    uploadMock.mockResolvedValue({ error: null });
+    uploadMock.mockResolvedValue(undefined);
     const create = vi.fn().mockResolvedValue({ id: 'doc-orderless' });
     const prisma = { document: { create } } as never;
     const result = await persistUploadedDocument(prisma, {
