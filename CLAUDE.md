@@ -4,7 +4,7 @@
 
 ## 1. Стек и команды
 
-Next.js 15 (App Router) · React 19 · TypeScript 5 (strict) · Prisma 5 + PostgreSQL · Supabase Auth/Storage · BullMQ + Redis · Vitest · Playwright.
+Next.js 15 (App Router) · React 19 · TypeScript 5 (strict) · Prisma 5 + PostgreSQL · S3-совместимое объектное хранилище · BullMQ + Redis · Vitest · Playwright.
 
 | Команда | Когда использовать |
 |---|---|

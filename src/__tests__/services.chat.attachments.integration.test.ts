@@ -181,7 +181,7 @@ describe('uploadChatAttachment integration', () => {
     const [storagePath, buffer, opts] = uploadMock.mock.calls[0]!;
     expect(storagePath).toMatch(new RegExp(`^chat/${orderId}/`));
     expect(buffer).toBe(PDF_MAGIC);
-    expect(opts).toMatchObject({ contentType: 'application/pdf', upsert: false });
+    expect(opts).toMatchObject({ contentType: 'application/pdf' });
   });
 
   it('org user on org side → upload succeeds (canSeeThread passes)', async () => {
