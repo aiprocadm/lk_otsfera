@@ -4,7 +4,7 @@ import { withTimeout, withRetry, OneCHttpError } from './resilience';
 
 /**
  * DOC-03: a 1C document arrives as an external download URL. Storing that URL in
- * Document.path would break every download route (they call Supabase
+ * Document.path would break every download route (they call the object-storage
  * createSignedUrl, which expects a bucket key). So we fetch the file from 1C and
  * upload it into the same `documents` bucket as user uploads, returning the
  * storage KEY. The caller then writes that key as path and enqueues a ClamAV scan

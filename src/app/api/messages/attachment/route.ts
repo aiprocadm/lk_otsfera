@@ -20,7 +20,7 @@ import type { ThreadSide } from '@prisma/client';
  *
  * GET /api/messages/attachment?messageId=<id>
  *
- * Returns a 302 redirect to a short-lived (600 s) Supabase Storage signed URL
+ * Returns a 302 redirect to a short-lived (600 s) object-storage presigned URL
  * for the attachment on the given message. Requires the caller to have
  * visibility on the message's parent thread/order.
  */

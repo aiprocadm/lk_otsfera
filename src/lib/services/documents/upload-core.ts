@@ -8,7 +8,7 @@ import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeVali
 
 /**
  * Shared write path for every document upload (manager outgoing, org/partner
- * incoming). Owns MIME/size validation, magic-byte fingerprinting, Supabase
+ * incoming). Owns MIME/size validation, magic-byte fingerprinting, object-storage
  * upload, the Document row (with counterparty + direction), best-effort scan
  * enqueue, and the audit entry. RBAC and notification fan-out stay in the
  * callers — they differ per direction/role (CLAUDE.md §3).

@@ -92,7 +92,7 @@ export async function uploadChatAttachment(
     return { ok: false, error: 'forbidden' };
   }
 
-  // 3. Upload to Supabase Storage.
+  // 3. Upload to object storage.
   const safeName = sanitizeFilename(args.file.name);
   const storagePath = `chat/${args.orderId}/${randomUUID()}-${safeName}`;
 
