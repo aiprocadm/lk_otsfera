@@ -5,6 +5,7 @@ import { listPartnerDeals } from '@/lib/services/partner/deals';
 import { DealsFilter } from '@/components/partner/deals-filter';
 import { DealsTable } from '@/components/partner/deals-table';
 import { DealsCardList } from '@/components/partner/deals-card-list';
+import { pluralizeRu } from '@/lib/format';
 
 type SearchParams = {
   search?: string;
@@ -75,7 +76,7 @@ export default async function PartnerDealsPage({
       <div>
         <h1 className='text-2xl font-bold text-[#111111]'>Заказы</h1>
         <p className='text-sm text-gray-500 mt-0.5'>
-          {total} {pluralize(total, 'заказ', 'заказа', 'заказов')}
+          {total} {pluralizeRu(total, 'заказ', 'заказа', 'заказов')}
         </p>
       </div>
 
@@ -96,14 +97,6 @@ export default async function PartnerDealsPage({
       )}
     </div>
   );
-}
-
-function pluralize(n: number, one: string, few: string, many: string): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return one;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
-  return many;
 }
 
 function Paginator({
