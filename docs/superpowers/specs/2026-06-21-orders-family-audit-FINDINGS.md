@@ -35,11 +35,13 @@ Severity: **P2** — cursor-vs-offset принципиально разные UX
 
 ### F2 — Дублирование Paginator + pluralize в partner и org
 
-`src/app/partner/deals/page.tsx` строки 101–149 и `src/app/organization/orders/page.tsx` строки 108–170 содержат побайтово идентичные функции `pluralize` и `Paginator` (разница только в href-префиксе и сохранении `org`-параметра у org).
+`src/app/partner/deals/page.tsx` строки 101–149 и `src/app/organization/orders/page.tsx` строки 108–170 содержат дублированные функции `pluralize` и `Paginator`:
+- **`pluralize`** — побайтово идентичны (тело функции совпадает символ-в-символ).
+- **`Paginator`** — структурно идентичны, но различаются href-префиксом (`/partner/deals` vs `/organization/orders`) и сохранением `org`-параметра (только у org). Поэтому извлечение требует параметризации (базовый path + текущие searchParams), а не простого copy-paste.
 
 Severity: **P2** — нарушает DRY, риск дивергенции при правке одного без другого.
 
-Канон: извлечь `pluralizeRu(n, one, few, many)` в `src/lib/utils/pluralize.ts` и `PaginatorBar` в `src/components/ui/paginator.tsx` (принимает `href`-билдер или базовый path + searchParams). Это уже запланировано как «общие юниты» в Phase 2 плана.
+Канон: извлечь `pluralizeRu(n, one, few, many)` в `src/lib/format.ts` и презентационный `Paginator` в `src/components/ui/paginator.tsx` (принимает `basePath` + `searchParams`, сам считает страницы). Это уже запланировано как «общие юниты» в Фазе 2 плана (Tasks 2–3).
 
 ---
 
@@ -88,7 +90,7 @@ href={`/manager/orders/${o.id}`}
 
 1. Middleware (`src/middleware.ts`): `/manager` разрешён для `role=manager` — leader является manager по JWT, проходит.
 2. Feature-gate: `/manager` префикс проверяет флаг `manager_cabinet` — должен быть включён (иначе leader-кабинет тоже недоступен).
-3. Страница `src/app/manager/orders/[id]/page.tsx`: `requireManager()` (`src/lib/auth/requireRole.ts` строка 89) — проверяет `session.role !== 'manager'`, leader проходит.
+3. Страница `src/app/manager/orders/[id]/page.tsx`: `requireManager()` (`src/lib/auth/requireRole.ts`, проверка `session.role !== 'manager'` на строке 91) — leader проходит.
 4. Данные: `getOrder()` (`src/lib/services/manager/orders.ts`) вызывает `isLeaderSameCompany()` — специально расширяет видимость leader на всю компанию. Leader **видит деталь заказа** своей компании.
 
 **Вывод:** навигация технически функционирует. Это не P1 (тупика нет). Однако это неявный cross-cabinet переход: leader оказывается на странице `/manager/orders/[id]` (URL содержит `/manager/`), а не на `/leader/orders/[id]`. BackLink на этой странице ведёт обратно на `/manager/orders`, а не на `/leader/orders` — leader вышел из своего кабинета.
@@ -134,7 +136,7 @@ Severity: **P3** — минимальная косметика; не баг.
 2. **Карточный список у manager/leader**: нужен `ManagerOrdersCardList` для мобильных (F3), или manager/leader — desktop-only кабинет?
 3. **Деталь заказа у leader (F5)**: создать `/leader/orders/[id]` с правильным BackLink? или принять cross-cabinet переход как намеренный?
 4. **Param поиска `q` vs `search`**: унифицировать в `search` (затрагивает manager-filter + сервис) или оставить как есть?
-5. **Confirmation Dialog при смене статуса** у manager/leader (F5/ось 5): добавить или считать текущее поведение приемлемым?
+5. **Confirmation Dialog при смене статуса** у manager/leader (ось 5): добавить или считать текущее поведение приемлемым?
 6. **Пагинация cursor/offset** — по спеке §6 НЕ унифицируем в этом проходе. Подтверждаем решение.
 
 ---
