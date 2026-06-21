@@ -1,5 +1,5 @@
 ﻿import { describe, it, expect } from 'vitest';
-import { fmtMoney, fmtDate, fmtDateTime } from '@/lib/format';
+import { fmtMoney, fmtDate, fmtDateTime, pluralizeRu } from '@/lib/format';
 
 describe('fmtMoney', () => {
   it('форматирует число с пробелами-разделителями и ₽', () => {
@@ -60,5 +60,23 @@ describe('fmtDateTime', () => {
 describe('fmtDate — дополнительные ветки', () => {
   it('принимает строку ISO и форматирует в МСК', () => {
     expect(fmtDate('2026-04-20T17:00:00Z')).toBe('20.04.2026');
+  });
+});
+
+describe('pluralizeRu', () => {
+  it('1, 21 -> one (но не 11)', () => {
+    expect(pluralizeRu(1, 'заказ', 'заказа', 'заказов')).toBe('заказ');
+    expect(pluralizeRu(21, 'заказ', 'заказа', 'заказов')).toBe('заказ');
+  });
+  it('2-4, 22-24 -> few (но не 12-14)', () => {
+    expect(pluralizeRu(2, 'заказ', 'заказа', 'заказов')).toBe('заказа');
+    expect(pluralizeRu(24, 'заказ', 'заказа', 'заказов')).toBe('заказа');
+  });
+  it('0, 5, 11, 12, 14 -> many', () => {
+    expect(pluralizeRu(0, 'заказ', 'заказа', 'заказов')).toBe('заказов');
+    expect(pluralizeRu(5, 'заказ', 'заказа', 'заказов')).toBe('заказов');
+    expect(pluralizeRu(11, 'заказ', 'заказа', 'заказов')).toBe('заказов');
+    expect(pluralizeRu(12, 'заказ', 'заказа', 'заказов')).toBe('заказов');
+    expect(pluralizeRu(14, 'заказ', 'заказа', 'заказов')).toBe('заказов');
   });
 });

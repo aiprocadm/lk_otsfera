@@ -10,3 +10,4 @@ export { Dialog, type DialogProps, type DialogSize } from './dialog';
 export { EmptyState } from './empty-state';
 export { LogoutButton } from './logout-button';
 export { TableShell, THead, Th, Tr, Td } from './table';
+export { Paginator } from './paginator';
