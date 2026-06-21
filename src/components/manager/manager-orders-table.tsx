@@ -9,7 +9,7 @@ function fmtMoney(s: string | number): string {
 }
 
 type SearchParams = {
-  q?: string;
+  search?: string;
   executionStatus?: string;
   financialStatus?: string;
   organizationId?: string;
@@ -20,19 +20,20 @@ type Props = {
   rows: ManagerOrderRow[];
   nextCursor: string | null;
   searchParams: SearchParams;
+  basePath?: string;
 };
 
-function buildNextHref(searchParams: SearchParams, cursor: string): string {
+function buildNextHref(searchParams: SearchParams, cursor: string, basePath: string): string {
   const params = new URLSearchParams();
-  if (searchParams.q) params.set('q', searchParams.q);
+  if (searchParams.search) params.set('search', searchParams.search);
   if (searchParams.executionStatus) params.set('executionStatus', searchParams.executionStatus);
   if (searchParams.financialStatus) params.set('financialStatus', searchParams.financialStatus);
   if (searchParams.organizationId) params.set('organizationId', searchParams.organizationId);
   params.set('cursor', cursor);
-  return `/manager/orders?${params.toString()}`;
+  return `${basePath}/orders?${params.toString()}`;
 }
 
-export function ManagerOrdersTable({ rows, nextCursor, searchParams }: Props) {
+export function ManagerOrdersTable({ rows, nextCursor, searchParams, basePath = '/manager' }: Props) {
   if (rows.length === 0) {
     return <EmptyState icon='📋' message='По выбранным фильтрам заказов нет' />;
   }
@@ -56,7 +57,7 @@ export function ManagerOrdersTable({ rows, nextCursor, searchParams }: Props) {
               <Td className='text-gray-500'>{o.orderNumber ?? '—'}</Td>
               <Td>
                 <Link
-                  href={`/manager/orders/${o.id}`}
+                  href={`${basePath}/orders/${o.id}`}
                   className='font-medium text-[#111111] hover:text-[#F97316]'
                 >
                   {o.title}
@@ -89,7 +90,7 @@ export function ManagerOrdersTable({ rows, nextCursor, searchParams }: Props) {
       {nextCursor && (
         <div className='flex justify-center'>
           <Link
-            href={buildNextHref(searchParams, nextCursor)}
+            href={buildNextHref(searchParams, nextCursor, basePath)}
             className='px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-700 hover:border-[#F97316] hover:text-[#F97316]'
           >
             Дальше →

@@ -48,5 +48,9 @@ export async function transitionOrderStatusAction(input: {
   revalidatePath(`/manager/orders/${parsed.data.orderId}`);
   revalidatePath('/manager/orders');
   revalidatePath('/manager/dashboard');
+  // Лидер меняет статус из своего кабинета (/leader/orders/[id]) — инвалидируем и leader-маршруты (R3).
+  revalidatePath(`/leader/orders/${parsed.data.orderId}`);
+  revalidatePath('/leader/orders');
+  revalidatePath('/leader/dashboard');
   return { ok: true, changed: result.changed };
 }

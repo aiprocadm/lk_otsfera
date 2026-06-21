@@ -158,6 +158,10 @@ describe('transitionOrderStatusAction — happy path: pending → in_progress on
     expect(revalidatePath).toHaveBeenCalledWith('/manager/orders/order-1');
     expect(revalidatePath).toHaveBeenCalledWith('/manager/orders');
     expect(revalidatePath).toHaveBeenCalledWith('/manager/dashboard');
+    // Лидер меняет статус из своего кабинета — leader-маршруты тоже инвалидируются (R3).
+    expect(revalidatePath).toHaveBeenCalledWith('/leader/orders/order-1');
+    expect(revalidatePath).toHaveBeenCalledWith('/leader/orders');
+    expect(revalidatePath).toHaveBeenCalledWith('/leader/dashboard');
   });
 });
 
@@ -222,8 +226,8 @@ describe('transitionOrderStatusAction — no-op when status unchanged', () => {
     // The no-op path short-circuits before any fan-out, so peer managers are
     // not notified for an idempotent retry.
     expect(notifyManagers).not.toHaveBeenCalled();
-    // Still revalidates: cheap, and harmless for unchanged state.
-    expect(revalidatePath).toHaveBeenCalledTimes(3);
+    // Still revalidates: cheap, and harmless for unchanged state (3 manager + 3 leader).
+    expect(revalidatePath).toHaveBeenCalledTimes(6);
   });
 });
 

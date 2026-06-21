@@ -77,10 +77,10 @@ describe('listOrders — filter branches', () => {
     expect(filters).toContainEqual({ organizationId: 'org-x' });
   });
 
-  it('adds search (q) filter with OR when provided', async () => {
+  it('adds search filter with OR when provided', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const p = { order: { findMany }, company: { findUnique: vi.fn() } } as never;
-    await listOrders(p, { session: SESSION, q: 'тест' });
+    await listOrders(p, { session: SESSION, search: 'тест' });
     const where = findMany.mock.calls[0][0].where;
     const filters = where.AND;
     expect(filters).toContainEqual({
@@ -89,6 +89,19 @@ describe('listOrders — filter branches', () => {
         { orderNumber: { contains: 'тест', mode: 'insensitive' } }
       ]
     });
+  });
+
+  it('search param filters by title/orderNumber (key accepted)', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const p = { order: { findMany }, company: { findUnique: vi.fn() } } as never;
+    await listOrders(p, { session: SESSION, search: 'ABC-123' });
+    const where = findMany.mock.calls[0][0].where;
+    const filters = where.AND as unknown[];
+    const searchFilter = filters.find(
+      (f) => typeof f === 'object' && f !== null && 'OR' in f
+    ) as { OR: unknown[] } | undefined;
+    expect(searchFilter).toBeDefined();
+    expect(searchFilter!.OR).toHaveLength(2);
   });
 
   it('passes cursor and skip when cursor provided', async () => {
