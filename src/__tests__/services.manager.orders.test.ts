@@ -288,9 +288,9 @@ describe('services/manager/orders — listOrders filters', () => {
     }
   });
 
-  it('q matches orderNumber case-insensitively within scope', async () => {
+  it('search matches orderNumber case-insensitively within scope', async () => {
     const session = managerSession(userBId, [orgBId]);
-    const { rows } = await listOrders(prisma, { session, q: 'mo-mc' });
+    const { rows } = await listOrders(prisma, { session, search: 'mo-mc' });
     expect(rows.some((r) => r.id === orderManagerCId)).toBe(true);
     expect(rows.every((r) => r.id !== orderOrgAId)).toBe(true);
   });

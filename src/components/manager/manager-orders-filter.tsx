@@ -1,7 +1,8 @@
+import React from 'react';
 import Link from 'next/link';
 
 // Server component — pure HTML `<form method="get">` so submit becomes a
-// normal navigation to `/manager/orders?...`. No client JS, no useTransition.
+// normal navigation to `${basePath}/orders?...`. No client JS, no useTransition.
 // The parent page is responsible for re-rendering with the new searchParams.
 
 const EXECUTION_OPTIONS: { value: string; label: string }[] = [
@@ -25,16 +26,17 @@ const FINANCIAL_OPTIONS: { value: string; label: string }[] = [
 type Props = {
   orgs: Array<{ id: string; name: string }>;
   initial: {
-    q?: string;
+    search?: string;
     executionStatus?: string;
     financialStatus?: string;
     organizationId?: string;
   };
+  basePath?: string;
 };
 
-export function ManagerOrdersFilter({ orgs, initial }: Props) {
+export function ManagerOrdersFilter({ orgs, initial, basePath = '/manager' }: Props) {
   const hasFilter =
-    !!initial.q ||
+    !!initial.search ||
     !!initial.executionStatus ||
     !!initial.financialStatus ||
     !!initial.organizationId;
@@ -42,13 +44,13 @@ export function ManagerOrdersFilter({ orgs, initial }: Props) {
   return (
     <form
       method='get'
-      action='/manager/orders'
+      action={`${basePath}/orders`}
       className='bg-white border border-gray-200 rounded-xl p-3 flex flex-col md:flex-row md:items-center gap-2'
     >
       <input
         type='search'
-        name='q'
-        defaultValue={initial.q ?? ''}
+        name='search'
+        defaultValue={initial.search ?? ''}
         placeholder='Поиск по названию или номеру заказа…'
         className='border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:border-[#F97316]'
       />
@@ -99,7 +101,7 @@ export function ManagerOrdersFilter({ orgs, initial }: Props) {
 
       {hasFilter && (
         <Link
-          href='/manager/orders'
+          href={`${basePath}/orders`}
           className='px-3 py-2 text-sm text-gray-600 hover:text-[#F97316]'
         >
           Сбросить

@@ -8,7 +8,7 @@ import { ManagerOrdersTable } from '@/components/manager/manager-orders-table';
 export const dynamic = 'force-dynamic';
 
 type SearchParams = {
-  q?: string;
+  search?: string;
   executionStatus?: string;
   financialStatus?: string;
   organizationId?: string;
@@ -30,8 +30,8 @@ export default async function LeaderOrdersPage({
     <>
       <h1 className='mb-1 text-2xl font-semibold text-[#111111]'>Заказы</h1>
       <p className='text-sm text-gray-500 mb-4'>Все заказы компании</p>
-      <ManagerOrdersFilter orgs={orgs} initial={sp} />
-      <ManagerOrdersTable rows={rows} nextCursor={nextCursor} searchParams={sp} />
+      <ManagerOrdersFilter orgs={orgs} initial={sp} basePath='/leader' />
+      <ManagerOrdersTable rows={rows} nextCursor={nextCursor} searchParams={sp} basePath='/leader' />
     </>
   );
 }

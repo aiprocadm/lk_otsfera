@@ -22,7 +22,7 @@ import {
 
 const ListOrdersOptionsSchema = z.object({
   session: z.custom<SessionPayload>((v) => !!v && typeof v === 'object' && 'sub' in (v as object)),
-  q: z.string().optional(),
+  search: z.string().optional(),
   executionStatus: z.string().optional(),
   financialStatus: z.string().optional(),
   organizationId: z.string().optional(),
@@ -65,11 +65,11 @@ export async function listOrders(
   if (opts.organizationId) {
     filters.push({ organizationId: opts.organizationId });
   }
-  if (opts.q) {
+  if (opts.search) {
     filters.push({
       OR: [
-        { title: { contains: opts.q, mode: 'insensitive' } },
-        { orderNumber: { contains: opts.q, mode: 'insensitive' } }
+        { title: { contains: opts.search, mode: 'insensitive' } },
+        { orderNumber: { contains: opts.search, mode: 'insensitive' } }
       ]
     });
   }

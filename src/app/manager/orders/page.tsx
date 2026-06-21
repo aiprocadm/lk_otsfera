@@ -6,7 +6,7 @@ import { ManagerOrdersFilter } from '@/components/manager/manager-orders-filter'
 import { ManagerOrdersTable } from '@/components/manager/manager-orders-table';
 
 type SearchParams = {
-  q?: string;
+  search?: string;
   executionStatus?: string;
   financialStatus?: string;
   organizationId?: string;
@@ -26,7 +26,10 @@ export default async function ManagerOrdersPage({
   ]);
   return (
     <>
-      <h1 className='mb-4 text-2xl font-semibold'>Заказы</h1>
+      <div className='mb-4'>
+        <h1 className='text-2xl font-semibold text-[#111111]'>Заказы</h1>
+        <p className='text-sm text-gray-500 mt-0.5'>Заказы ваших организаций</p>
+      </div>
       <ManagerOrdersFilter orgs={orgs} initial={sp} />
       <ManagerOrdersTable rows={rows} nextCursor={nextCursor} searchParams={sp} />
     </>
