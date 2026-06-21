@@ -9,6 +9,7 @@ import {
 } from '@/components/organization/org-orders-table';
 import { listOrgOrders } from '@/lib/services/organization/orders';
 import { pluralizeRu } from '@/lib/format';
+import { Paginator } from '@/components/ui';
 
 type SearchParams = {
   org?: string;
@@ -67,9 +68,6 @@ export default async function OrganizationOrdersPage({
     skip
   });
 
-  const page = Math.floor(skip / take) + 1;
-  const pages = Math.max(1, Math.ceil(total / take));
-
   return (
     <OrgAppShell
       userEmail={ctx.session.email}
@@ -91,73 +89,9 @@ export default async function OrganizationOrdersPage({
         <OrgOrdersTable rows={rows} orgParam={sp.org ?? null} />
         <OrgOrdersCardList rows={rows} orgParam={sp.org ?? null} />
 
-        {pages > 1 && (
-          <Paginator
-            take={take}
-            skip={skip}
-            page={page}
-            pages={pages}
-            total={total}
-            searchParams={sp}
-          />
-        )}
+        <Paginator basePath='/organization/orders' searchParams={sp} take={take} skip={skip} total={total} />
       </div>
     </OrgAppShell>
   );
 }
 
-function Paginator({
-  take,
-  skip,
-  page,
-  pages,
-  total,
-  searchParams
-}: {
-  take: number;
-  skip: number;
-  page: number;
-  pages: number;
-  total: number;
-  searchParams: SearchParams;
-}) {
-  function link(targetSkip: number): string {
-    const params = new URLSearchParams();
-    if (searchParams.org) params.set('org', searchParams.org);
-    if (searchParams.search) params.set('search', searchParams.search);
-    if (searchParams.execution) params.set('execution', searchParams.execution);
-    if (searchParams.financial) params.set('financial', searchParams.financial);
-    params.set('take', String(take));
-    if (targetSkip > 0) params.set('skip', String(targetSkip));
-    return `/organization/orders${params.toString() ? '?' + params.toString() : ''}`;
-  }
-
-  const prev = Math.max(0, skip - take);
-  const next = Math.min((pages - 1) * take, skip + take);
-
-  return (
-    <div className='flex items-center justify-between text-sm text-gray-500'>
-      <span>
-        Страница {page} из {pages} · {total} всего
-      </span>
-      <div className='flex gap-2'>
-        {skip > 0 && (
-          <a
-            href={link(prev)}
-            className='px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50'
-          >
-            Назад
-          </a>
-        )}
-        {skip + take < total && (
-          <a
-            href={link(next)}
-            className='px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50'
-          >
-            Вперёд
-          </a>
-        )}
-      </div>
-    </div>
-  );
-}
