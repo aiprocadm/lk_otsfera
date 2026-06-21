@@ -4,6 +4,7 @@ import { listOrders } from '@/lib/services/manager/orders';
 import { listOrganizations } from '@/lib/services/manager/organizations';
 import { ManagerOrdersFilter } from '@/components/manager/manager-orders-filter';
 import { ManagerOrdersTable } from '@/components/manager/manager-orders-table';
+import { ManagerOrdersCardList } from '@/components/manager/manager-orders-card-list';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +33,7 @@ export default async function LeaderOrdersPage({
       <p className='text-sm text-gray-500 mb-4'>Все заказы компании</p>
       <ManagerOrdersFilter orgs={orgs} initial={sp} basePath='/leader' />
       <ManagerOrdersTable rows={rows} nextCursor={nextCursor} searchParams={sp} basePath='/leader' />
+      <ManagerOrdersCardList rows={rows} basePath='/leader' />
     </>
   );
 }
