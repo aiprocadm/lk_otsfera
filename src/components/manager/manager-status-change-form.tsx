@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { transitionOrderStatusAction } from '@/server-actions/manager/transitionOrderStatus';
 import { useFormAction } from '@/lib/ui/useFormAction';
+import { Dialog } from '@/components/ui';
 
 /**
  * Inline status-change widget rendered under the timeline on the manager-side
@@ -15,6 +16,11 @@ import { useFormAction } from '@/lib/ui/useFormAction';
  * `cancelled` and `on_hold` are terminal/locked states that are managed by a
  * separate process (admin tooling / future flow), so when the current order is
  * in one of those states we render a read-only notice instead of the form.
+ *
+ * A confirmation Dialog guards the submit to prevent accidental irreversible
+ * transitions (e.g. marking an order completed). The trigger button opens the
+ * dialog; confirming triggers `formRef.requestSubmit()` which runs the
+ * `action={formAction}` handler normally.
  */
 
 type ManagerSettableStatus = 'pending' | 'in_progress' | 'completed';
@@ -46,6 +52,9 @@ export function ManagerStatusChangeForm({ orderId, currentStatus }: Props) {
   const [newStatus, setNewStatus] = useState<ManagerSettableStatus>(
     isLocked ? 'in_progress' : (currentStatus as ManagerSettableStatus)
   );
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
   // Server-action принимает объект, не FormData — адаптер читает статус из формы.
   const { formAction, pending: isPending, errorText: error } = useFormAction<{
     changed: boolean;
@@ -75,7 +84,7 @@ export function ManagerStatusChangeForm({ orderId, currentStatus }: Props) {
   return (
     <div className='bg-white border border-gray-200 rounded-xl p-5'>
       <h2 className='text-sm font-semibold text-[#111111] mb-3'>Изменить статус</h2>
-      <form action={formAction} className='flex flex-col sm:flex-row sm:items-end gap-3'>
+      <form ref={formRef} action={formAction} className='flex flex-col sm:flex-row sm:items-end gap-3'>
         <label className='text-sm text-gray-700 flex-1'>
           <span className='block text-xs text-gray-500 mb-1'>Новый статус</span>
           <select
@@ -91,8 +100,9 @@ export function ManagerStatusChangeForm({ orderId, currentStatus }: Props) {
           </select>
         </label>
         <button
-          type='submit'
+          type='button'
           disabled={isPending || noop}
+          onClick={() => setConfirmOpen(true)}
           className='px-4 py-2 bg-[#F97316] text-white text-sm font-medium rounded-lg hover:bg-[#EA580C] disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
         >
           {isPending ? 'Сохраняю…' : 'Изменить'}
@@ -103,6 +113,37 @@ export function ManagerStatusChangeForm({ orderId, currentStatus }: Props) {
           {error}
         </p>
       )}
+      <Dialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title='Сменить статус заказа?'
+        busy={isPending}
+      >
+        <p className='text-sm text-gray-700'>
+          Новый статус: «{STATUS_LABEL_RU[newStatus]}». Подтвердить смену?
+        </p>
+        <div className='mt-4 flex justify-end gap-2'>
+          <button
+            type='button'
+            onClick={() => setConfirmOpen(false)}
+            disabled={isPending}
+            className='px-4 py-2 text-sm text-gray-600 hover:text-[#F97316]'
+          >
+            Отмена
+          </button>
+          <button
+            type='button'
+            disabled={isPending}
+            onClick={() => {
+              setConfirmOpen(false);
+              formRef.current?.requestSubmit();
+            }}
+            className='px-4 py-2 bg-[#F97316] text-white text-sm font-medium rounded-lg hover:bg-[#EA580C] disabled:opacity-50'
+          >
+            Подтвердить
+          </button>
+        </div>
+      </Dialog>
     </div>
   );
 }

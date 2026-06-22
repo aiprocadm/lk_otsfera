@@ -247,6 +247,22 @@ describe('documents guards', () => {
     expect(res.status).toBe(502);
   });
 
+  it('502 when createSignedUrl throws a non-Error (String(error) branch)', async () => {
+    const { prisma } = await import('@/lib/db/prisma');
+    (prisma.document.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'd1', path: 'x', name: 'x.pdf', scanStatus: 'clean', scanReason: null,
+      orderId: 'ord1', companyId: 'c1', counterpartyType: 'organization', counterpartyId: 'o1',
+      order: { companyId: 'c1' }
+    });
+    canReadDocument.mockResolvedValue(true);
+    createSignedUrl.mockRejectedValue('provider exploded');
+    const res = await downloadPost(
+      new Request('https://app.local/api/documents/d1/download', { method: 'POST' }),
+      { params: Promise.resolve({ id: 'd1' }) }
+    );
+    expect(res.status).toBe(502);
+  });
+
   it('200 with signed URL and TTL when document is clean', async () => {
     const { prisma } = await import('@/lib/db/prisma');
     (prisma.document.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -366,6 +382,15 @@ describe('documents/upload missing branches', () => {
 
   it('502 when storage upload fails', async () => {
     upload.mockRejectedValue(new Error('bucket full'));
+    const fd = new FormData();
+    fd.set('orderId', 'ord1');
+    fd.set('file', new File(['%PDF-1.4 minimal'], 'good.pdf', { type: 'application/pdf' }));
+    const res = await uploadPost(new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd }));
+    expect(res.status).toBe(502);
+  });
+
+  it('502 when storage upload throws a non-Error (String(uploadError) branch)', async () => {
+    upload.mockRejectedValue('disk full');
     const fd = new FormData();
     fd.set('orderId', 'ord1');
     fd.set('file', new File(['%PDF-1.4 minimal'], 'good.pdf', { type: 'application/pdf' }));

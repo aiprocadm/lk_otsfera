@@ -106,6 +106,15 @@ describe('GET /api/partner/finance/statements/[id]/pdf', () => {
     expect(body.error).toBe('Storage failure');
   });
 
+  it('returns 502 when storage createSignedUrl throws a non-Error (String(error) branch)', async () => {
+    commissionStatementFindFirst.mockResolvedValue({ pdfPath: 'uploads/stmt.pdf' });
+    createSignedUrl.mockRejectedValue('provider exploded');
+    const res = await GET(getReq(), ctx('s1'));
+    expect(res.status).toBe(502);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('Storage failure');
+  });
+
   it('returns 307 redirect to signed URL on success', async () => {
     commissionStatementFindFirst.mockResolvedValue({ pdfPath: 'uploads/stmt.pdf' });
     const signedUrl = 'https://storage.example.com/signed-stmt.pdf?token=abc';
