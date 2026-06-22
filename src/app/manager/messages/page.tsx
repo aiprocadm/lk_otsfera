@@ -27,7 +27,7 @@ export default async function ManagerMessagesPage({
 
   return (
     <>
-      <h1 className='mb-4 text-2xl font-semibold'>Сообщения{chatEnabled && <UnreadBadge />}</h1>
+      <h1 className='mb-4 text-2xl font-semibold text-[#111111]'>Сообщения{chatEnabled && <UnreadBadge />}</h1>
       <h2 className='mb-3 text-lg font-medium text-gray-700'>Комментарии к заказам</h2>
       <ManagerMessagesInbox rows={rows} nextCursor={nextCursor} />
       {chatEnabled && chat && (
