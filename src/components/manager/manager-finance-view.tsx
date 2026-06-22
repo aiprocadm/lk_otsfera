@@ -5,7 +5,13 @@ import { ManagerFinancePayments } from './manager-finance-payments';
 import type { ManagerFinanceOverview } from '@/lib/services/manager/finance';
 import { fmtMoney } from '@/lib/format';
 
-export function ManagerFinanceView({ data }: { data: ManagerFinanceOverview }) {
+export function ManagerFinanceView({
+  data,
+  ordersBasePath = '/manager'
+}: {
+  data: ManagerFinanceOverview;
+  ordersBasePath?: string;
+}) {
   if (data.sections.length === 0) {
     return (
       <div className='bg-white border border-gray-200 rounded-xl p-12 text-center'>
@@ -29,7 +35,7 @@ export function ManagerFinanceView({ data }: { data: ManagerFinanceOverview }) {
             </span>
           </div>
           {s.commission && <OrgFinanceCommission data={s.commission} />}
-          <ManagerFinancePayments payments={s.payments} />
+          <ManagerFinancePayments payments={s.payments} basePath={ordersBasePath} />
         </section>
       ))}
     </div>

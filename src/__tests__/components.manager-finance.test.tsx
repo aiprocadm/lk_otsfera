@@ -3,6 +3,7 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 import { ManagerFinancePayments } from '@/components/manager/manager-finance-payments';
 import { ManagerFinanceView } from '@/components/manager/manager-finance-view';
+import { OrgFinancePayments } from '@/components/organization/org-finance-payments';
 import type { OrgPaymentRow } from '@/lib/services/organization/finance';
 import type { ManagerFinanceOverview } from '@/lib/services/manager/finance';
 
@@ -25,6 +26,29 @@ describe('ManagerFinancePayments', () => {
 
   it('renders empty state when no payments', () => {
     const html = renderToString(<ManagerFinancePayments payments={[]} />);
+    expect(html).toContain('Платежей пока нет');
+  });
+
+  it('respects basePath for the order link (admin → /admin/orders)', () => {
+    const html = renderToString(<ManagerFinancePayments payments={rows} basePath='/admin' />);
+    expect(html).toContain('/admin/orders/ord-1');
+    expect(html).not.toContain('/manager/orders/ord-1');
+  });
+
+  it('respects basePath for the order link (leader → /leader/orders)', () => {
+    const html = renderToString(<ManagerFinancePayments payments={rows} basePath='/leader' />);
+    expect(html).toContain('/leader/orders/ord-1');
+  });
+});
+
+describe('OrgFinancePayments', () => {
+  it('links order rows to /organization/orders carrying the active ?org=', () => {
+    const html = renderToString(<OrgFinancePayments payments={rows} orgId='org-9' />);
+    expect(html).toContain('/organization/orders/ord-1?org=org-9');
+  });
+
+  it('renders empty state when no payments', () => {
+    const html = renderToString(<OrgFinancePayments payments={[]} orgId='org-9' />);
     expect(html).toContain('Платежей пока нет');
   });
 });
@@ -76,6 +100,12 @@ describe('ManagerFinanceView', () => {
       })
     );
     expect(html).not.toContain('Комиссия');
+  });
+
+  it('threads ordersBasePath down to the payment rows', () => {
+    const html = renderToString(<ManagerFinanceView data={overview} ordersBasePath='/admin' />);
+    expect(html).toContain('/admin/orders/ord-1');
+    expect(html).not.toContain('/manager/orders/ord-1');
   });
 
   it('renders empty state when no sections', () => {

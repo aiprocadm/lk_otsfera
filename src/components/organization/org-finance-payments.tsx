@@ -1,18 +1,17 @@
+import React from 'react';
 import Link from 'next/link';
 import type { OrgPaymentRow } from '@/lib/services/organization/finance';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { paymentMethodRu } from '@/lib/i18n/labels';
+import { fmtMoney, fmtDate } from '@/lib/format';
 
-function fmtMoney(val: string): string {
-  const n = Number(val);
-  return (isNaN(n) ? '—' : new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n)) + ' ₽';
-}
-
-function fmtDate(d: Date): string {
-  return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d));
-}
-
-export function OrgFinancePayments({ payments }: { payments: OrgPaymentRow[] }) {
+export function OrgFinancePayments({
+  payments,
+  orgId
+}: {
+  payments: OrgPaymentRow[];
+  orgId: string;
+}) {
   if (payments.length === 0) {
     return (
       <EmptyState icon='💸' message='Платежей пока нет.' />
@@ -34,7 +33,7 @@ export function OrgFinancePayments({ payments }: { payments: OrgPaymentRow[] }) 
               <Td className='text-gray-500'>{fmtDate(p.paidAt)}</Td>
               <Td>
                 {p.orderId ? (
-                  <Link href={`/organization/orders/${p.orderId}`} className='text-[#F97316] hover:underline'>
+                  <Link href={`/organization/orders/${p.orderId}?org=${orgId}`} className='text-[#F97316] hover:underline'>
                     {p.orderNumber ?? '—'}
                   </Link>
                 ) : (

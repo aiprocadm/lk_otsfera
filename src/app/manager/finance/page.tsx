@@ -11,10 +11,12 @@ export default async function ManagerFinancePage() {
   const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
   const data = await getManagerFinanceOverview(prisma, session, { teamMode });
   return (
-    <>
-      <h1 className='mb-1 text-2xl font-semibold text-[#111111]'>Финансы</h1>
-      <p className='text-sm text-gray-500 mb-6'>Оплаты по вашим организациям</p>
-      <ManagerFinanceView data={data} />
-    </>
+    <div className='space-y-6'>
+      <div>
+        <h1 className='text-2xl font-semibold text-[#111111]'>Финансы</h1>
+        <p className='text-sm text-gray-500 mt-0.5'>Оплаты по вашим организациям</p>
+      </div>
+      <ManagerFinanceView data={data} ordersBasePath='/manager' />
+    </div>
   );
 }

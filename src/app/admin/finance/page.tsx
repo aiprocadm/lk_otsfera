@@ -10,12 +10,12 @@ export default async function AdminFinancePage() {
   // admin → unscoped внутри сервиса (session.role==='admin'); teamMode игнорируется.
   const data = await getManagerFinanceOverview(prisma, session, { teamMode: false });
   return (
-    <div className='space-y-5'>
+    <div className='space-y-6'>
       <div>
-        <h1 className='text-2xl font-bold text-[#111111]'>Финансы</h1>
+        <h1 className='text-2xl font-semibold text-[#111111]'>Финансы</h1>
         <p className='text-sm text-gray-500 mt-0.5'>Оплаты по всем организациям</p>
       </div>
-      <ManagerFinanceView data={data} />
+      <ManagerFinanceView data={data} ordersBasePath='/admin' />
     </div>
   );
 }

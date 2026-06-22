@@ -3,17 +3,15 @@ import Link from 'next/link';
 import type { OrgPaymentRow } from '@/lib/services/organization/finance';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { paymentMethodRu } from '@/lib/i18n/labels';
+import { fmtMoney, fmtDate } from '@/lib/format';
 
-function fmtMoney(val: string): string {
-  const n = Number(val);
-  return (isNaN(n) ? '—' : new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n)) + ' ₽';
-}
-
-function fmtDate(d: Date): string {
-  return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d));
-}
-
-export function ManagerFinancePayments({ payments }: { payments: OrgPaymentRow[] }) {
+export function ManagerFinancePayments({
+  payments,
+  basePath = '/manager'
+}: {
+  payments: OrgPaymentRow[];
+  basePath?: string;
+}) {
   if (payments.length === 0) {
     return <EmptyState message='Платежей пока нет.' className='p-8' />;
   }
@@ -31,7 +29,7 @@ export function ManagerFinancePayments({ payments }: { payments: OrgPaymentRow[]
             <Td className='text-gray-500'>{fmtDate(p.paidAt)}</Td>
             <Td>
               {p.orderId ? (
-                <Link href={`/manager/orders/${p.orderId}`} className='text-[#F97316] hover:underline'>
+                <Link href={`${basePath}/orders/${p.orderId}`} className='text-[#F97316] hover:underline'>
                   {p.orderNumber ?? '—'}
                 </Link>
               ) : (
