@@ -7,11 +7,7 @@
 import React from 'react';
 import type { OrgIntermediaryCommission } from '@/lib/services/organization/finance';
 import { THead, Th, Tr, Td } from '@/components/ui';
-
-function fmtMoney(val: string): string {
-  const n = Number(val);
-  return (isNaN(n) ? '—' : new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n)) + ' ₽';
-}
+import { fmtMoney } from '@/lib/format';
 
 export function OrgFinanceCommission({ data }: { data: OrgIntermediaryCommission }) {
   const ratePct = (Number(data.effectiveRate) * 100).toFixed(2);

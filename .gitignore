@@ -23,3 +23,8 @@ test-results/
 
 # Brainstorming visual companion sessions
 .superpowers/
+
+# dev-stack runtime logs
+dev-server.log
+dev-server.err.log
+npm-ci.log

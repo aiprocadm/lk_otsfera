@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import type { StatementListItem } from '@/lib/services/partner/finance';
 import type { CommissionStatementItem } from '@prisma/client';
 import { THead, Th, Tr, Td, EmptyState } from '@/components/ui';
-import { fmtMoney, fmtDate } from '@/lib/format';
+import { fmtMoney, fmtDate, pluralizeRu } from '@/lib/format';
+import { toast } from '@/lib/ui/toast';
 import { useClientResource } from '@/hooks/useClientResource';
 
 type Props = {
@@ -80,8 +81,12 @@ function StatementRow({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ action: 'approve' })
       });
-      if (res.ok) router.refresh();
-      else alert('Ошибка утверждения: ' + res.status);
+      if (res.ok) {
+        toast.success('Отчёт утверждён');
+        router.refresh();
+      } else {
+        toast.error('Не удалось утвердить отчёт');
+      }
     });
   }
 
@@ -102,7 +107,7 @@ function StatementRow({
             </span>
           </div>
           <div className='text-sm text-gray-500 mt-0.5'>
-            {stmt.itemCount} {stmt.itemCount === 1 ? 'заказ' : 'заказов'} · Комиссия: {fmtMoney(String(stmt.totalCommissionAmount))}
+            {stmt.itemCount} {pluralizeRu(stmt.itemCount, 'заказ', 'заказа', 'заказов')} · Комиссия: {fmtMoney(String(stmt.totalCommissionAmount))}
           </div>
         </div>
 

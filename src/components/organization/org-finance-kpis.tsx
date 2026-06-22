@@ -1,11 +1,7 @@
 import React from 'react';
 import { StatCard } from '@/components/dashboard/stat-card';
 import type { OrgFinanceKpis } from '@/lib/services/organization/finance';
-
-function fmtMoney(val: string): string {
-  const n = Number(val);
-  return (isNaN(n) ? '—' : new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n)) + ' ₽';
-}
+import { fmtMoney } from '@/lib/format';
 
 export function OrgFinanceKpisGrid({ kpis }: { kpis: OrgFinanceKpis }) {
   return (
