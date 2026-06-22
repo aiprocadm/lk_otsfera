@@ -5,6 +5,7 @@ import {
 } from '@/server-actions/organization/team';
 import type { OrgMemberRow } from '@/lib/services/organization/team';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
+import { fmtDate } from '@/lib/format';
 
 type Props = {
   members: OrgMemberRow[];
@@ -18,10 +19,6 @@ const ROLE_LABELS: Record<'admin' | 'leader' | 'member', string> = {
   leader: 'Руководитель',
   member: 'Сотрудник'
 };
-
-function fmtDate(d: Date): string {
-  return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(d);
-}
 
 export function TeamTable({ members, organizationId, currentUserId, viewerRole }: Props) {
   if (members.length === 0) {

@@ -5,6 +5,7 @@ import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { TeamTable } from '@/components/organization/team-table';
 import { InviteOrgUserForm } from '@/components/organization/invite-org-user-form';
 import { listMembers } from '@/lib/services/organization/team';
+import { pluralizeRu } from '@/lib/format';
 
 type SearchParams = {
   org?: string;
@@ -40,13 +41,13 @@ export default async function OrganizationTeamPage({
       <div className='space-y-4'>
         <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
           <div>
-            <h1 className='text-2xl font-bold text-[#111111]'>Команда</h1>
+            <h1 className='text-2xl font-semibold text-[#111111]'>Команда</h1>
             <p className='text-sm text-gray-500 mt-0.5'>
-              {members.length} {pluralizeMembers(members.length)} в {ctx.activeOrgName}
+              {members.length} {pluralizeRu(members.length, 'участник', 'участника', 'участников')} в {ctx.activeOrgName}
               {activeAdminCount > 0 && (
                 <span className='text-gray-400'>
                   {' '}
-                  · {activeAdminCount} {pluralizeAdmins(activeAdminCount)}
+                  · {activeAdminCount} {pluralizeRu(activeAdminCount, 'администратор', 'администратора', 'администраторов')}
                 </span>
               )}
             </p>
@@ -71,18 +72,3 @@ export default async function OrganizationTeamPage({
   );
 }
 
-function pluralizeMembers(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return 'участник';
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'участника';
-  return 'участников';
-}
-
-function pluralizeAdmins(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return 'администратор';
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'администратора';
-  return 'администраторов';
-}
