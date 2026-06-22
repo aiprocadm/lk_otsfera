@@ -22,7 +22,7 @@ export default async function OrganizationEnrollmentsPage() {
       viewerRole={ctx.viewerRole}
     >
       <div className='space-y-5'>
-        <h1 className='text-2xl font-bold text-[#111111]'>Заявки на обучение</h1>
+        <h1 className='text-2xl font-semibold text-[#111111]'>Заявки на обучение</h1>
         <EnrollmentRequestForm />
         <EnrollmentList rows={rows} />
       </div>
