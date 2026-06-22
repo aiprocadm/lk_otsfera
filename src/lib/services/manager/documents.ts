@@ -20,7 +20,7 @@ import { managerOrderLessWhere, canReadOrderLessDocument } from '@/lib/auth/docu
 
 const ListDocumentsOptionsSchema = z.object({
   session: z.custom<SessionPayload>((v) => !!v && typeof v === 'object' && 'sub' in (v as object)),
-  q: z.string().optional(),
+  search: z.string().optional(),
   orderId: z.string().optional(),
   type: z.string().optional(),
   take: z.number().int().min(1).max(100).default(50),
@@ -58,8 +58,8 @@ export async function listDocuments(
   const filters: Prisma.DocumentWhereInput[] = [scope];
   if (opts.orderId) filters.push({ orderId: opts.orderId });
   if (opts.type) filters.push({ type: opts.type as DocumentType });
-  if (opts.q) {
-    filters.push({ name: { contains: opts.q, mode: 'insensitive' } });
+  if (opts.search) {
+    filters.push({ name: { contains: opts.search, mode: 'insensitive' } });
   }
 
   const rows = await prisma.document.findMany({
