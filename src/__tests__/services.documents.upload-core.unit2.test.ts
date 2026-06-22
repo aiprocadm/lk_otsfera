@@ -78,6 +78,15 @@ describe('persistUploadedDocument — storage upload failure', () => {
     expect(addMock).not.toHaveBeenCalled();
   });
 
+  it('returns storage error when upload throws a non-Error (String(uploadError) branch)', async () => {
+    // Covers line 102: uploadError instanceof Error ? ... : String(uploadError) — non-Error arm
+    uploadMock.mockRejectedValue('disk full');
+    const prisma = {} as never;
+    const r = await persistUploadedDocument(prisma, baseArgs);
+    expect(r).toEqual({ ok: false, error: 'storage' });
+    expect(addMock).not.toHaveBeenCalled();
+  });
+
   it('best-effort scan enqueue: swallows queue error', async () => {
     uploadMock.mockResolvedValue(undefined);
     addMock.mockRejectedValue(new Error('Redis down'));

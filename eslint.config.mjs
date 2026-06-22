@@ -47,6 +47,10 @@ const NO_MOCK1C_FROM_SRC = {
 };
 
 export default [
+  // Generated coverage reports (istanbul/v8 HTML output) are gitignored artifacts,
+  // not source. They ship their own `/* eslint-disable */` banners which the flat
+  // config flags as "unused directive". Never lint them, wherever they land.
+  { ignores: ['**/coverage/**'] },
   ...coreWebVitals,
   ...typescript,
   {

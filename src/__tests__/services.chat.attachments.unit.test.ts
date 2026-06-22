@@ -106,6 +106,17 @@ describe('uploadChatAttachment — unit', () => {
     consoleSpy.mockRestore();
   });
 
+  it('returns storage error when upload rejects with a non-Error value', async () => {
+    // Exercises the String(uploadError) fallback in the providerError log (non-Error throw).
+    validateMagicBytesMock.mockReturnValue({ ok: true });
+    canSeeThreadMock.mockReturnValue(true);
+    uploadMock.mockRejectedValue('disk full');
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const result = await uploadChatAttachment(makePrisma(), session, { orderId: 'o1', side: 'org', file: validFile });
+    expect(result).toEqual({ ok: false, error: 'storage' });
+    consoleSpy.mockRestore();
+  });
+
   it('returns ok with attachmentPath on successful upload', async () => {
     validateMagicBytesMock.mockReturnValue({ ok: true });
     canSeeThreadMock.mockReturnValue(true);
@@ -180,6 +191,20 @@ describe('getChatAttachmentSignedUrl — unit', () => {
   it('returns storage error when the storage port throws a StorageError', async () => {
     canSeeThreadMock.mockReturnValue(true);
     createSignedUrlMock.mockRejectedValue(new Error('missing signed URL'));
+    const msg = {
+      id: 'm1', attachmentPath: 'chat/o1/uuid-file.pdf',
+      thread: { side: 'org', order: { id: 'o1', organizationId: 'org1', partnerId: 'p1', companyId: 'c1' } }
+    };
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const result = await getChatAttachmentSignedUrl(makeMessagePrisma(msg), session, 'm1');
+    expect(result).toEqual({ ok: false, error: 'storage' });
+    consoleSpy.mockRestore();
+  });
+
+  it('returns storage error when signed URL creation rejects with a non-Error value', async () => {
+    // Exercises the String(error) fallback in the providerError log (non-Error throw).
+    canSeeThreadMock.mockReturnValue(true);
+    createSignedUrlMock.mockRejectedValue('provider exploded');
     const msg = {
       id: 'm1', attachmentPath: 'chat/o1/uuid-file.pdf',
       thread: { side: 'org', order: { id: 'o1', organizationId: 'org1', partnerId: 'p1', companyId: 'c1' } }

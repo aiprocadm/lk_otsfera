@@ -327,4 +327,22 @@ describe('POST /api/organization/documents/[id]/download', () => {
     const res = await downloadPost(postReq(), paramsP);
     expect(res.status).toBe(502);
   });
+
+  it('returns 502 if signed URL creation throws a non-Error (String(error) branch)', async () => {
+    getSession.mockResolvedValue(orgSession([{ id: 'org-a' }]));
+    documentFindUnique.mockResolvedValue({
+      id: 'd1',
+      name: 'x.pdf',
+      path: 'org-a/x.pdf',
+      mimeType: 'application/pdf',
+      scanStatus: 'clean',
+      scanReason: null,
+      counterpartyType: 'organization',
+      counterpartyId: 'org-a'
+    });
+    createSignedUrl.mockRejectedValue('provider exploded');
+
+    const res = await downloadPost(postReq(), paramsP);
+    expect(res.status).toBe(502);
+  });
 });

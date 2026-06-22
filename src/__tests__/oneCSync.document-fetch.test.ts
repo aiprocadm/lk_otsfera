@@ -39,6 +39,16 @@ describe('fetchAndStore1CDocument (DOC-03)', () => {
     expect(key).toBeNull();
   });
 
+  it('returns null when the upload throws a non-Error (inner String(e) branch)', async () => {
+    // fetch succeeds, but storage.upload throws a non-Error → inner catch String(e) arm
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }));
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    uploadMock.mockRejectedValueOnce('disk full');
+    const key = await fetchAndStore1CDocument({ url: 'https://1c/x', orderId: 'o', name: 'n', mimeType: 'application/pdf' });
+    consoleSpy.mockRestore();
+    expect(key).toBeNull();
+  });
+
   it('returns null and logs when fetch throws a non-Error (branch coverage)', async () => {
     // Simulate fetch throwing a non-Error value (e.g. a string)
     vi.stubGlobal('fetch', vi.fn().mockImplementation(() => { throw 'string error'; }));

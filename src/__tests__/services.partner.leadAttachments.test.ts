@@ -172,6 +172,14 @@ describe('uploadLeadAttachment', () => {
     expect(r).toMatchObject({ ok: false, error: 'STORAGE_FAILURE' });
   });
 
+  it('STORAGE_FAILURE при не-Error из storage.upload (ветка String(e))', async () => {
+    // Покрывает строку 146: e instanceof Error ? e.message : String(e) — не-Error плечо
+    leadFindFirst.mockResolvedValue({ id: 'l1', status: 'new' });
+    storageUpload.mockRejectedValue('bucket exploded');
+    const r = await uploadLeadAttachment(prismaMock(), input());
+    expect(r).toMatchObject({ ok: false, error: 'STORAGE_FAILURE' });
+  });
+
   it('проглатывает ошибку enqueue scan и всё равно возвращает ok:true', async () => {
     leadFindFirst.mockResolvedValue({ id: 'l1', status: 'new' });
     queueAdd.mockRejectedValue(new Error('redis down'));
@@ -440,6 +448,14 @@ describe('getLeadAttachmentDownloadUrl', () => {
   it('STORAGE_FAILURE если storage port бросает при createSignedUrl', async () => {
     attFindFirst.mockResolvedValue(foundAtt());
     storageSigned.mockRejectedValue(new Error('no signed URL'));
+    const r = await getLeadAttachmentDownloadUrl(prismaMock(), base());
+    expect(r).toMatchObject({ ok: false, error: 'STORAGE_FAILURE' });
+  });
+
+  it('STORAGE_FAILURE с не-Error из createSignedUrl (fallback-сообщение)', async () => {
+    // Покрывает строку 302: e instanceof Error ? e.message : 'Не удалось создать ссылку' — не-Error плечо
+    attFindFirst.mockResolvedValue(foundAtt());
+    storageSigned.mockRejectedValue('provider exploded');
     const r = await getLeadAttachmentDownloadUrl(prismaMock(), base());
     expect(r).toMatchObject({ ok: false, error: 'STORAGE_FAILURE' });
   });
