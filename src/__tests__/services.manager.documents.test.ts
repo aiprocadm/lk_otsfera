@@ -317,7 +317,7 @@ describe('services/manager/documents — listDocuments filters', () => {
     const session = managerSession(userBId, [orgBId]);
     const { rows } = await listDocuments(prisma, {
       session,
-      q: 'INVOICE',
+      search: 'INVOICE',
       take: 100
     });
     expect(rows.map((r) => r.id)).toEqual([docOrgBId]);

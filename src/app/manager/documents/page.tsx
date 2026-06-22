@@ -7,7 +7,7 @@ import { DocumentsList } from '@/components/partner/documents-list';
 import { ManagerOrderLessUploadForm } from '@/components/manager/manager-order-less-upload-form';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
 
-type SearchParams = { q?: string; type?: string; orderId?: string; cursor?: string; tab?: string };
+type SearchParams = { search?: string; type?: string; orderId?: string; cursor?: string; tab?: string };
 
 // Mirrors prisma/schema.prisma `enum DocumentType` (lower_snake_case literal
 // values) with Russian-language labels — keep this in sync if the enum gains
@@ -92,7 +92,7 @@ export default async function ManagerDocumentsPage({
   // orders tab (default)
   const { rows, nextCursor } = await listDocuments(prisma, {
     session,
-    q: sp.q,
+    search: sp.search,
     type: sp.type || undefined,
     orderId: sp.orderId,
     cursor: sp.cursor
@@ -118,7 +118,7 @@ export default async function ManagerDocumentsPage({
   // Preserve current filters on the "next page" link so cursor pagination does
   // not silently drop the user's filter state.
   const nextParams = new URLSearchParams();
-  if (sp.q) nextParams.set('q', sp.q);
+  if (sp.search) nextParams.set('search', sp.search);
   if (sp.type) nextParams.set('type', sp.type);
   if (sp.orderId) nextParams.set('orderId', sp.orderId);
   if (nextCursor) nextParams.set('cursor', nextCursor);
@@ -126,7 +126,7 @@ export default async function ManagerDocumentsPage({
   // Build href for orders tab that preserves current filters
   const ordersTabHref = (() => {
     const p = new URLSearchParams();
-    if (sp.q) p.set('q', sp.q);
+    if (sp.search) p.set('search', sp.search);
     if (sp.type) p.set('type', sp.type);
     if (sp.orderId) p.set('orderId', sp.orderId);
     const qs = p.toString();
@@ -141,8 +141,8 @@ export default async function ManagerDocumentsPage({
 
       <form method='get' className='flex flex-wrap items-center gap-2'>
         <input
-          name='q'
-          defaultValue={sp.q ?? ''}
+          name='search'
+          defaultValue={sp.search ?? ''}
           placeholder='Поиск по названию…'
           className='border border-gray-200 rounded px-2 py-1 text-sm flex-1 min-w-[200px]'
         />

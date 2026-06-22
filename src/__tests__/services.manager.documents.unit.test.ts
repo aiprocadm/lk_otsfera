@@ -106,10 +106,10 @@ describe('listDocuments', () => {
     expect(where).toMatchObject({ AND: expect.arrayContaining([{ type: 'act' }]) });
   });
 
-  it('applies q filter when provided', async () => {
+  it('applies search filter when provided', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
-    await listDocuments(p, { session: SESSION, q: 'договор' });
+    await listDocuments(p, { session: SESSION, search: 'договор' });
     const where = findMany.mock.calls[0][0].where;
     expect(where).toMatchObject({ AND: expect.arrayContaining([{ name: { contains: 'договор', mode: 'insensitive' } }]) });
   });
