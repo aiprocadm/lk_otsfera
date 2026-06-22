@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { StatementListItem } from '@/lib/services/partner/finance';
 import type { CommissionStatementItem } from '@prisma/client';
@@ -92,10 +92,23 @@ function StatementRow({
 
   return (
     <div className='border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm'>
-      {/* Header row */}
-      <button
+      {/* Header row — role=button (not <button>) so the nested action <button>/<a>
+          controls below stay valid HTML. A <button> inside a <button>, or an <a>
+          inside a <button>, is invalid nesting and triggers a React hydration
+          mismatch (server DOM ≠ browser-corrected DOM) → client re-render / full
+          reload. */}
+      <div
+        role='button'
+        tabIndex={0}
+        aria-expanded={open}
         onClick={toggleOpen}
-        className='w-full text-left px-5 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors'
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleOpen();
+          }
+        }}
+        className='w-full text-left px-5 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors cursor-pointer'
       >
         <div className='flex-1 min-w-0'>
           <div className='flex items-center gap-3'>
@@ -146,7 +159,7 @@ function StatementRow({
         >
           <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
         </svg>
-      </button>
+      </div>
 
       {/* Expandable items */}
       {open && (

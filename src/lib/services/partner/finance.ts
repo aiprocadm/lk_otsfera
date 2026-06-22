@@ -6,7 +6,19 @@ export type FinanceKpis = {
   paidTotal: number;
 };
 
-export type StatementListItem = CommissionStatement & {
+// RSC-safe DTO: Prisma.Decimal is a class instance and cannot cross the
+// Server→Client component boundary (Next would throw "Decimal objects are not
+// supported"). Mirror the DealRow pattern in partner/deals.ts — serialize the
+// Decimal to a fixed-precision string at the service boundary so the page can
+// hand it straight to the client list.
+export type StatementListItem = {
+  id: string;
+  periodFrom: Date;
+  periodTo: Date;
+  status: CommissionStatement['status'];
+  totalCommissionAmount: string;
+  pdfPath: string | null;
+  xlsxPath: string | null;
   itemCount: number;
 };
 
@@ -64,10 +76,23 @@ export async function listStatements(
     orderBy: { periodFrom: 'desc' },
     skip,
     take,
-    include: { _count: { select: { items: true } } }
+    select: {
+      id: true,
+      periodFrom: true,
+      periodTo: true,
+      status: true,
+      totalCommissionAmount: true,
+      pdfPath: true,
+      xlsxPath: true,
+      _count: { select: { items: true } }
+    }
   });
 
-  return rows.map(({ _count, ...s }) => ({ ...s, itemCount: _count.items }));
+  return rows.map(({ _count, totalCommissionAmount, ...s }) => ({
+    ...s,
+    totalCommissionAmount: totalCommissionAmount.toFixed(2),
+    itemCount: _count.items
+  }));
 }
 
 export async function getStatementWithItems(

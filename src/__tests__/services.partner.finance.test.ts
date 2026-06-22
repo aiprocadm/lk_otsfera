@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Prisma } from '@prisma/client';
 import { getFinanceKpis, listStatements, getStatementWithItems } from '@/lib/services/partner/finance';
 
 const { findMany, findFirst } = vi.hoisted(() => ({ findMany: vi.fn(), findFirst: vi.fn() }));
@@ -29,12 +30,12 @@ describe('getFinanceKpis', () => {
 
 describe('listStatements', () => {
   beforeEach(() => findMany.mockResolvedValue([
-    { id: 's1', status: 'paid', _count: { items: 3 } }
+    { id: 's1', status: 'paid', totalCommissionAmount: new Prisma.Decimal('500'), _count: { items: 3 } }
   ]));
 
   it('без фильтров: дефолтные skip/take, маппит itemCount', async () => {
     const r = await listStatements(prisma, { partnerId: 'p1' });
-    expect(r).toEqual([{ id: 's1', status: 'paid', itemCount: 3 }]);
+    expect(r).toEqual([{ id: 's1', status: 'paid', totalCommissionAmount: '500.00', itemCount: 3 }]);
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { partnerId: 'p1', supersededBy: null }, skip: 0, take: 20
     }));
@@ -59,6 +60,16 @@ describe('listStatements', () => {
     const to = new Date('2026-02-01');
     await listStatements(prisma, { partnerId: 'p1', to });
     expect(findMany.mock.calls[0][0].where.periodFrom).toEqual({ lte: to });
+  });
+
+  it('сериализует Decimal totalCommissionAmount в строку (RSC-safe, не утекает Prisma.Decimal в клиент)', async () => {
+    findMany.mockResolvedValue([
+      { id: 's1', status: 'paid', totalCommissionAmount: new Prisma.Decimal('1234.5'), _count: { items: 2 } }
+    ]);
+    const r = await listStatements(prisma, { partnerId: 'p1' });
+    expect(typeof r[0].totalCommissionAmount).toBe('string');
+    expect(r[0].totalCommissionAmount).toBe('1234.50');
+    expect(r[0]).not.toBeInstanceOf(Prisma.Decimal);
   });
 });
 
