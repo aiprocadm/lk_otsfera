@@ -21,7 +21,8 @@ export type AuditEntity =
   | 'payment'
   | 'one_c_import'
   | 'enrollment_request'
-  | 'order_item';
+  | 'order_item'
+  | 'certificate';
 
 export type AuditRecord = {
   userId: string;
