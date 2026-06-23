@@ -2,7 +2,7 @@
 
 **Owner**: QA + Промтехносфера team
 **Trigger**: после merge Phase 8 + C8 в `main` со скрытым флагом (Stage-1 done).
-**Goal**: подтвердить, что кабинет `/manager/*` под `FEATURE_MANAGER_CABINET=1` корректно работает на staging: визуально, по данным, по **RBAC-скоупу (включая C8 company-wide и cross-company изоляцию)**, по интеграциям (Supabase Storage, Resend, ClamAV, BullMQ-worker).
+**Goal**: подтвердить, что кабинет `/manager/*` под `FEATURE_MANAGER_CABINET=1` корректно работает на staging: визуально, по данным, по **RBAC-скоупу (включая C8 company-wide и cross-company изоляцию)**, по интеграциям (S3 object storage, Resend, ClamAV, BullMQ-worker).
 **Duration**: 1–2 недели наблюдения; обязательные 12 шагов ниже — за 1–2 часа.
 **Reference**: [manager spec](superpowers/specs/2026-05-26-manager-cabinet-design.md) · [phase8-DONE](superpowers/plans/2026-05-26-manager-cabinet-phase8-DONE.md) · [C8 spec](superpowers/specs/2026-06-05-c8-manager-company-wide-design.md) · [C8-DONE](superpowers/plans/2026-06-05-c8-manager-company-wide-DONE.md). Общая процедура — [runbook §6.2](runbook-staged-rollout-cabinets.md).
 
@@ -19,7 +19,7 @@
 | Миграции применены | `npx prisma migrate status` | `Database schema is up to date` |
 | C8-поля в БД | `Company.managerTeamVisibility`, `User.managerRole` присутствуют | см. [schema.prisma:104,399](../prisma/schema.prisma) |
 | Worker запущен | процесс `npm run worker:start` / systemd | очереди `oneCSync.*`, `notifications.dispatch`, `emails.send` слушают |
-| Supabase bucket | загрузка тестового файла через admin | 200, файл в bucket `documents` |
+| S3 bucket | загрузка тестового файла через admin | 200, файл в bucket `documents` (`S3_BUCKET`) |
 | Resend | `EMAIL_ENABLED=true`, валидный `RESEND_API_KEY`, `EMAIL_FROM=…@otsfera.ru` | тестовый email доходит |
 
 **Test-seed на staging** (ключевое отличие — нужны ДВЕ компании для cross-company теста):

@@ -7,7 +7,42 @@
 
 ## [Unreleased]
 
-_Изменений после v0.9.0 пока нет._
+Подготовка к проду после pre-release v0.9.0: миграция хранилища под 152-ФЗ, упаковка и
+greenfield-runbook РФ-инфраструктуры, bootstrap-вход в чистую БД, сквозная консистентность
+кабинетов (Track D) и стабилизация запуска. Версия сознательно остаётся `0.9.x` — единственный
+жёсткий блокер `v1.0.0` (живая 1С + стабилизация на проде) не закрыт.
+
+### Изменено
+
+- **Хранилище файлов: Supabase Storage → S3-совместимое (152-ФЗ).** Введён порт `ObjectStorage`
+  (`StorageError`, `documentBucket`) + адаптер `S3Storage` (upload / download→Buffer / remove /
+  createSignedUrl с тремя disposition-ветками, RFC 5987 Content-Disposition). На порт переведены
+  app/api-роуты, `lib/services` и воркер-процессоры; модуль Supabase и зависимость удалены.
+  Env: `S3_ENDPOINT` / `S3_REGION` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_BUCKET` /
+  `S3_FORCE_PATH_STYLE` (см. `.env.example`, CLAUDE.md §10).
+- **Track D — сквозная консистентность кабинетов** (6 семейств экранов × роли): заголовки и
+  плюрализаторы выровнены, формат-хелперы дедуплицированы (`pluralizeRu`→`lib/format`,
+  `ui/Paginator`). Заказы: единый search-параметр `q`→`search`, мобильный card-list для
+  менеджера/руководителя, страница деталей заказа руководителя `/leader/orders/[id]`,
+  confirm-диалог перед сменой статуса. Финансы / документы / сообщения / команда / заявки —
+  выравнивание заголовков и авторизации (org через `requireOrganization()`).
+
+### Добавлено
+
+- **Прод-упаковка и greenfield-runbook РФ.** `Dockerfile` (+`npm ci --ignore-scripts` против
+  husky-prepare), `.dockerignore`, prod-compose, `.env.production.example`; `tsx`+`prisma`
+  переведены в `dependencies`. Runbook РФ-инфраструктуры (provision → TLS → bring-up → hand-off)
+  с design-spec и планом (SP1–SP3).
+- **Bootstrap-вход в чистую БД.** CLI `db:create-admin` (env-driven, idempotent, runner-guard) —
+  закрывает «замкнутый цикл» первого входа в не-демо БД; «демо» = demo-seed + `SHOW_DEMO_LOGINS`.
+- **Self-healing нативный dev-stack** (`scripts/dev-stack.ps1`): портативные PG+Redis без
+  Docker/WSL (идемпотентный запуск по свободному порту).
+
+### Исправлено
+
+- **Стабилизация запуска** (PR #147): утечка Prisma `Decimal` в RSC-границу (partner finance →
+  DTO с `.toFixed(2)`), issuer student-bridge JWT, hydration-ошибка вложенного `<button>`
+  в списке комиссионных ведомостей (toggle → `role="button"`).
 
 ## [0.9.0] — 2026-06-18
 

@@ -62,7 +62,7 @@
 | C8-поля в БД (для manager) | миграция с `Company.managerTeamVisibility` + `User.managerRole` задеплоена | колонки есть (см. [schema.prisma:104,399](../prisma/schema.prisma)) |
 | Worker запущен | процесс `npm run worker:start` / systemd-unit | очереди `oneCSync.*`, `notifications.dispatch`, `emails.send` слушают |
 | Redis доступен | подключение из web и worker | OK — от него зависят rate-limit, alerting, health-readiness |
-| Supabase bucket | загрузка тестового файла через admin | 200, файл в bucket `documents` |
+| S3 bucket | загрузка тестового файла через admin | 200, файл в bucket `documents` (`S3_BUCKET`) |
 | Resend | `EMAIL_ENABLED=true`, валидный `RESEND_API_KEY`, `EMAIL_FROM=…@otsfera.ru` | тестовый email доходит |
 | `JWT_SECRET` | ≥ 32 символов на окружении | иначе middleware редиректит всех на `/login` ([middleware.ts](../src/middleware.ts)) |
 | Liveness | `GET /api/health/live` | `200` |
