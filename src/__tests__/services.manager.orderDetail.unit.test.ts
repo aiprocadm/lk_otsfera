@@ -7,8 +7,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { getOrder } = vi.hoisted(() => ({ getOrder: vi.fn() }));
+const { listOrderItems } = vi.hoisted(() => ({
+  listOrderItems: vi.fn().mockResolvedValue({ ok: true, items: [] })
+}));
 
 vi.mock('@/lib/services/manager/orders', () => ({ getOrder }));
+vi.mock('@/lib/services/training', () => ({ listOrderItems }));
 
 import { loadManagerOrderDetail } from '@/lib/services/manager/orderDetail';
 import type { SessionPayload } from '@/lib/auth/jwt';
@@ -29,6 +33,8 @@ function fakePrisma(auditEntries: unknown[] = [], comments: unknown[] = []) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Restore default: empty items list (most tests don't care about items)
+  listOrderItems.mockResolvedValue({ ok: true, items: [] });
 });
 
 describe('loadManagerOrderDetail', () => {

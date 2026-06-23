@@ -2,6 +2,7 @@ import type { PrismaClient, AuditLog, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { getOrder, type ManagerOrderDetail } from '@/lib/services/manager/orders';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
+import { listOrderItems, type OrderItemRow } from '@/lib/services/training';
 
 type CommentWithAuthor = Prisma.CommentGetPayload<{
   include: { author: { select: { id: true; name: true; email: true; role: true } } };
@@ -12,6 +13,7 @@ export type ManagerOrderDetailData = {
   auditEntries: AuditLog[];
   comments: CommentWithAuthor[];
   documentRows: OrgDocumentRow[];
+  items: OrderItemRow[];
 };
 
 export async function loadManagerOrderDetail(
@@ -26,7 +28,7 @@ export async function loadManagerOrderDetail(
   // (manager-order-timeline filters out partner-economics rows), and the
   // bottom card renders the existing comments read-only until Task 25/31
   // wires the manager-side comments thread + posting in Phase 8.4.
-  const [auditEntries, comments] = await Promise.all([
+  const [auditEntries, comments, itemsResult] = await Promise.all([
     prisma.auditLog.findMany({
       where: {
         entityId: id,
@@ -42,7 +44,8 @@ export async function loadManagerOrderDetail(
         author: { select: { id: true, name: true, email: true, role: true } }
       },
       orderBy: { createdAt: 'asc' }
-    })
+    }),
+    listOrderItems(prisma, session, { orderId: id })
   ]);
 
   // The DocumentsList client component expects the partner/org doc row shape
@@ -61,5 +64,7 @@ export async function loadManagerOrderDetail(
     orderTitle: order.title
   }));
 
-  return { order, auditEntries, comments, documentRows };
+  const items = itemsResult.ok ? itemsResult.items : [];
+
+  return { order, auditEntries, comments, documentRows, items };
 }

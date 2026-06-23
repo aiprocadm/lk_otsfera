@@ -9,6 +9,7 @@ vi.mock('@/components/manager/manager-order-timeline', () => ({ ManagerOrderTime
 vi.mock('@/components/manager/manager-status-change-form', () => ({ ManagerStatusChangeForm: () => null }));
 vi.mock('@/components/manager/manager-payments-list', () => ({ ManagerPaymentsList: () => null }));
 vi.mock('@/components/partner/documents-list', () => ({ DocumentsList: () => null }));
+vi.mock('@/components/training/order-items-section', () => ({ OrderItemsSection: () => null }));
 
 import { ManagerOrderDetailView } from '@/components/manager/manager-order-detail-view';
 
@@ -24,13 +25,19 @@ const data = {
   },
   auditEntries: [],
   comments: [],
-  documentRows: []
+  documentRows: [],
+  items: []
 } as never;
 
 describe('ManagerOrderDetailView', () => {
   it('BackLink ведёт на переданный backHref', () => {
     const html = renderToString(
-      React.createElement(ManagerOrderDetailView, { data, backHref: '/leader/orders' })
+      React.createElement(ManagerOrderDetailView, {
+        data,
+        backHref: '/leader/orders',
+        directions: [],
+        students: []
+      })
     );
     expect(html).toContain('href="/leader/orders"');
     expect(html).toContain('Все заказы');

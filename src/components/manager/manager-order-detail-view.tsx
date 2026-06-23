@@ -6,7 +6,9 @@ import { ManagerOrderTimeline } from '@/components/manager/manager-order-timelin
 import { ManagerStatusChangeForm } from '@/components/manager/manager-status-change-form';
 import { ManagerPaymentsList } from '@/components/manager/manager-payments-list';
 import { DocumentsList } from '@/components/partner/documents-list';
+import { OrderItemsSection } from '@/components/training/order-items-section';
 import type { ManagerOrderDetailData } from '@/lib/services/manager/orderDetail';
+import type { TrainingDirection } from '@prisma/client';
 
 function fmtDateTime(d: Date): string {
   return new Intl.DateTimeFormat('ru-RU', {
@@ -18,14 +20,20 @@ function fmtDateTime(d: Date): string {
   }).format(d);
 }
 
+type Student = { id: string; name: string; email: string };
+
 export function ManagerOrderDetailView({
   data,
-  backHref
+  backHref,
+  directions,
+  students
 }: {
   data: ManagerOrderDetailData;
   backHref: string;
+  directions: TrainingDirection[];
+  students: Student[];
 }) {
-  const { order, auditEntries, comments, documentRows } = data;
+  const { order, auditEntries, comments, documentRows, items } = data;
 
   return (
     <div className='space-y-4'>
@@ -53,6 +61,14 @@ export function ManagerOrderDetailView({
           </div>
 
           <ManagerPaymentsList payments={order.payments} />
+
+          <OrderItemsSection
+            orderId={order.id}
+            canEdit
+            items={items}
+            directions={directions}
+            students={students}
+          />
 
           {/*
             Read-only comments fallback. Phase 8.4 (Task 25 introduces the manager
