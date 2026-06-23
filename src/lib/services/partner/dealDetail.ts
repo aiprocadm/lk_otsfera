@@ -1,4 +1,4 @@
-import type { PrismaClient, ExecutionStatus, FinancialStatus } from '@prisma/client';
+import type { PrismaClient, ExecutionStatus, FinancialStatus, Prisma } from '@prisma/client';
 import { orderStage, type Stage } from '@/lib/orders/humanStage';
 import { partnerChannelWhere } from '@/lib/auth/documentChannelPolicy';
 import type { OrgDocumentRow } from './orgDocuments';
@@ -11,6 +11,14 @@ export type DealCommentRow = {
   createdAt: Date;
   authorName: string;
 };
+
+const ORDER_ITEM_INCLUDE = {
+  student: { select: { id: true, name: true, email: true } },
+  direction: { select: { id: true, name: true } },
+  certificate: { select: { id: true, number: true, validUntil: true } }
+} satisfies Prisma.OrderItemInclude;
+
+export type DealOrderItemRow = Prisma.OrderItemGetPayload<{ include: typeof ORDER_ITEM_INCLUDE }>;
 
 export type DealDetail = {
   id: string;
@@ -36,6 +44,7 @@ export type DealDetail = {
   managerName: string | null;
   documents: DealDocumentRow[];
   comments: DealCommentRow[];
+  items: DealOrderItemRow[];
 };
 
 export async function getPartnerDealDetail(
@@ -66,6 +75,10 @@ export async function getPartnerDealDetail(
       comments: {
         orderBy: { createdAt: 'asc' },
         include: { author: { select: { name: true } } }
+      },
+      items: {
+        include: ORDER_ITEM_INCLUDE,
+        orderBy: { createdAt: 'asc' }
       }
     }
   });
@@ -120,6 +133,7 @@ export async function getPartnerDealDetail(
       body: c.body,
       createdAt: c.createdAt,
       authorName: c.author.name
-    }))
+    })),
+    items: order.items
   };
 }
