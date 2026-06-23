@@ -12,7 +12,7 @@ import type {
 import { resetOneCAdapter } from '@/lib/services/oneCSync';
 import type { SyncJobPayload } from '@/lib/jobs/types';
 
-// DOC-03: the document writer fetches the 1C file into Supabase; fixtures use
+// DOC-03: the document writer fetches the 1C file into object storage (S3); fixtures use
 // unfetchable URLs, so stub the fetch-store to return a deterministic storage key.
 vi.mock('@/lib/services/oneCSync/document-fetch', () => ({
   fetchAndStore1CDocument: vi.fn(async (a: { orderId: string; name: string }) => `orders/${a.orderId}/1c/stored-${a.name}`)

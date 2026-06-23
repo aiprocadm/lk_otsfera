@@ -13,7 +13,7 @@ afterEach(() => vi.unstubAllGlobals());
 beforeEach(() => uploadMock.mockReset());
 
 describe('fetchAndStore1CDocument (DOC-03)', () => {
-  it('fetches the URL and uploads to Supabase, returning a storage key (not a URL)', async () => {
+  it('fetches the URL and uploads to object storage (S3), returning a storage key (not a URL)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }));
     uploadMock.mockResolvedValue(undefined);
     const key = await fetchAndStore1CDocument({ url: 'https://1c/x.pdf', orderId: 'ord1', name: 'Договор.pdf', mimeType: 'application/pdf' });
@@ -30,7 +30,7 @@ describe('fetchAndStore1CDocument (DOC-03)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1); // 404 is not transient → no retry
   });
 
-  it('returns null when the Supabase upload fails', async () => {
+  it('returns null when the object storage (S3) upload fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }));
     const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     uploadMock.mockRejectedValueOnce(new Error('boom'));

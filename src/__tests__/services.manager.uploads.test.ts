@@ -235,7 +235,7 @@ describe('services/manager/uploads — createCounterpartyDocument', () => {
     expect(commentCount).toHaveBeenCalled();
   });
 
-  it('returns storage error when Supabase upload fails (no DB row created)', async () => {
+  it('returns storage error when object storage (S3) upload fails (no DB row created)', async () => {
     orderFindUnique.mockResolvedValue({
       id: 'ord-1',
       managerId: null,

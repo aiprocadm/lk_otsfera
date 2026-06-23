@@ -2,9 +2,9 @@ import { describe, expect, it, beforeAll, afterAll, beforeEach, vi } from 'vites
 import type { Job } from 'bullmq';
 import { PrismaClient } from '@prisma/client';
 
-// DOC-03: the writer now fetches the 1C file into Supabase and stores a bucket
+// DOC-03: the writer now fetches the 1C file into object storage (S3) and stores a bucket
 // key. The fake adapter emits unfetchable `fake://` URLs, so stub the fetch-store
-// to return a deterministic storage key (no network / no Supabase in tests).
+// to return a deterministic storage key (no network / no object storage in tests).
 vi.mock('@/lib/services/oneCSync/document-fetch', () => ({
   fetchAndStore1CDocument: vi.fn(async (a: { orderId: string; name: string }) => `orders/${a.orderId}/1c/stored-${a.name}`)
 }));
@@ -477,7 +477,7 @@ describe('syncDocumentsProcessor', () => {
     for (const d of docs) {
       expect(d.direction).toBe('incoming');
       expect(d.generatedBy).toBe('system');
-      // DOC-03: path is now a Supabase storage key, never the external 1C URL.
+      // DOC-03: path is now an object storage (S3) key, never the external 1C URL.
       expect(d.path).toMatch(/^orders\//);
       expect(d.path).not.toMatch(/^fake:\/\//);
     }
