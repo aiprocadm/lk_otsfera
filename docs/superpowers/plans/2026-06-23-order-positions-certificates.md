@@ -350,29 +350,32 @@ export type DueReminder = { certificateId: string; thresholdDays: number };
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
- * Для каждого удостоверения выбирает НАИБОЛЬШИЙ из ещё не отправленных порогов,
- * который уже наступил (daysLeft <= threshold), но срок ещё не истёк (daysLeft >= 0).
- * Выбираем один порог за прогон — самый «крупный» непройденный, чтобы при первом же
- * запуске после, например, 35-го дня не выстрелить сразу 90+60. Следующие пороги
- * добьются на последующих ежедневных прогонах.
+ * Для каждого удостоверения определяет «активный» порог — НАИМЕНЬШИЙ из порогов,
+ * в чью зону уже вошли (daysLeft <= threshold), — и эмитирует его, если он ещё не
+ * был отправлен. Один порог за прогон; следующий (более мелкий) добьётся при
+ * последующих ежедневных прогонах. Fallback на более крупный порог НЕ делается.
  */
 export function selectDueReminders(
   certs: ExpiringCertificate[],
   today: Date
 ): DueReminder[] {
+  // Сортируем пороги по возрастанию для поиска тесной полосы.
+  const ascThresholds = [...REMINDER_THRESHOLDS].sort((a, b) => a - b) as number[];
   const out: DueReminder[] = [];
   for (const c of certs) {
     if (!c.validUntil) continue;
     const daysLeft = Math.ceil((c.validUntil.getTime() - today.getTime()) / MS_PER_DAY);
     if (daysLeft < 0) continue; // уже просрочено — не напоминаем
-    const sent = new Set(c.sentThresholds);
-    // пороги по убыванию; берём первый наступивший и неотправленный
-    const candidate = REMINDER_THRESHOLDS.find((t) => daysLeft <= t && !sent.has(t));
-    if (candidate != null) out.push({ certificateId: c.id, thresholdDays: candidate });
+    const active = ascThresholds.find((t) => daysLeft <= t); // наименьший t: daysLeft <= t
+    if (active != null && !c.sentThresholds.includes(active)) {
+      out.push({ certificateId: c.id, thresholdDays: active });
+    }
   }
   return out;
 }
 ```
+
+> **Важно (исправлено при реализации):** наивный `REMINDER_THRESHOLDS.find((t) => daysLeft <= t && !sent.has(t))` по убывающему `[90,60,30,7]` БАГ: для 29 дней вернёт 90, а при отправленном 30 — сфолбэчит на 60. Нужен **единственный активный порог** = наименьший t ≥ daysLeft, и эмит только если он не отправлен.
 
 - [ ] **Step 4: Запустить — должен пройти**
 
