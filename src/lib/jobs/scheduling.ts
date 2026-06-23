@@ -172,3 +172,39 @@ export async function registerAlertSchedules(
   }
   return results;
 }
+
+export type CertExpirySchedule = {
+  queueName: Extract<QueueName, 'notifications.certificateExpiry'>;
+  schedulerId: string;
+  pattern: string;
+  tz: string;
+};
+
+export const CERT_EXPIRY_SCHEDULES: ReadonlyArray<CertExpirySchedule> = [
+  {
+    queueName: 'notifications.certificateExpiry',
+    schedulerId: 'notifications.certificateExpiry.cron',
+    pattern: '0 7 * * *',
+    tz: DEFAULT_SYNC_TZ
+  }
+] as const;
+
+export async function registerCertExpirySchedules(
+  getQueueFn: GetQueueFn = getQueue
+): Promise<Array<{ schedulerId: string; queueName: string; pattern: string; tz: string }>> {
+  const results = [];
+  const triggeredAt = new Date().toISOString();
+  for (const schedule of CERT_EXPIRY_SCHEDULES) {
+    const queue = getQueueFn(schedule.queueName);
+    await queue.upsertJobScheduler(
+      schedule.schedulerId,
+      { pattern: schedule.pattern, tz: schedule.tz },
+      { data: { triggeredAt, reason: 'cron' } }
+    );
+    results.push({
+      schedulerId: schedule.schedulerId, queueName: schedule.queueName,
+      pattern: schedule.pattern, tz: schedule.tz
+    });
+  }
+  return results;
+}

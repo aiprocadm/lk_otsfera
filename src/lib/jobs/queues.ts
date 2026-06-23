@@ -14,7 +14,8 @@ export const QUEUE_NAMES = [
   'docs.scanDocument',
   'notifications.dispatch',
   'emails.send',
-  'monitoring.evaluateAlerts'
+  'monitoring.evaluateAlerts',
+  'notifications.certificateExpiry'
 ] as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[number];
