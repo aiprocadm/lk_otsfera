@@ -20,7 +20,8 @@ export type AuditEntity =
   | 'job_queue'
   | 'payment'
   | 'one_c_import'
-  | 'enrollment_request';
+  | 'enrollment_request'
+  | 'order_item';
 
 export type AuditRecord = {
   userId: string;
