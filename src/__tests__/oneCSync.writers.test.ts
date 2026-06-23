@@ -128,7 +128,7 @@ describe('upsertDocumentRecord', () => {
     expect(notifyOrgUsers).toHaveBeenCalled();
     expect(sum.created).toBe(1);
   });
-  // DOC-03: the 1C file is fetched and stored in Supabase; path is a storage key,
+  // DOC-03: the 1C file is fetched and stored in object storage (S3); path is a storage key,
   // never the external URL (download routes assume a bucket key).
   it('fetches+stores the 1C file and writes a storage key as path (DOC-03)', async () => {
     fetchAndStore1CDocument.mockResolvedValue('orders/ord1/1c/uuid-Договор.pdf');

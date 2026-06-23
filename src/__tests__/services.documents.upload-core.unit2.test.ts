@@ -70,7 +70,7 @@ describe('persistUploadedDocument — storage upload failure', () => {
     file: { name: 'a.pdf', size: 10, mimeType: 'application/pdf', buffer: validPdfBuffer },
   };
 
-  it('returns storage error when supabase upload fails', async () => {
+  it('returns storage error when object storage (S3) upload fails', async () => {
     uploadMock.mockRejectedValue(new Error('storage error'));
     const prisma = {} as never;
     const r = await persistUploadedDocument(prisma, baseArgs);

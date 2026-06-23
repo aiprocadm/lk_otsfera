@@ -32,7 +32,7 @@ export async function generateCommissionPdfProcessor(
 
   const path = `partners/${statement.partnerId}/commission/${statementId}.pdf`;
   // Throws StorageError on provider failure → propagates so BullMQ retries the
-  // job (same failure semantics as the prior Supabase `if (error) throw`).
+  // job (fail-loud upload semantics; historically the Supabase client's `if (error) throw`).
   await getObjectStorage().upload(path, buf, { contentType: 'application/pdf' });
 
   await db.commissionStatement.update({

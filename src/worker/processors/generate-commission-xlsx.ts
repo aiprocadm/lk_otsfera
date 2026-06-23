@@ -31,7 +31,7 @@ export async function generateCommissionXlsxProcessor(
 
   const path = `partners/${statement.partnerId}/commission/${statementId}.xlsx`;
   // Throws StorageError on provider failure → propagates so BullMQ retries the
-  // job (same failure semantics as the prior Supabase `if (error) throw`).
+  // job (fail-loud upload semantics; historically the Supabase client's `if (error) throw`).
   await getObjectStorage().upload(path, buf, {
     contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   });

@@ -96,7 +96,7 @@ describe('uploadChatAttachment — unit', () => {
     expect(result).toEqual({ ok: false, error: 'forbidden' });
   });
 
-  it('returns storage error when Supabase upload fails', async () => {
+  it('returns storage error when object storage (S3) upload fails', async () => {
     validateMagicBytesMock.mockReturnValue({ ok: true });
     canSeeThreadMock.mockReturnValue(true);
     uploadMock.mockRejectedValue(new Error('bucket not found'));
@@ -175,7 +175,7 @@ describe('getChatAttachmentSignedUrl — unit', () => {
     expect(result).toEqual({ ok: false, error: 'forbidden' });
   });
 
-  it('returns storage error when Supabase signed URL creation fails', async () => {
+  it('returns storage error when object storage (S3) signed URL creation fails', async () => {
     canSeeThreadMock.mockReturnValue(true);
     createSignedUrlMock.mockRejectedValue(new Error('provider down'));
     const msg = {

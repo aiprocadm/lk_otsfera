@@ -6,7 +6,7 @@ import { resetOneCAdapter } from '@/lib/services/oneCSync';
 import type { SyncJobPayload } from '@/lib/jobs/types';
 
 // Mock fetchAndStore1CDocument so the CREATE path in live mode can be exercised
-// without a live Supabase connection (writers.ts calls it when existing=null).
+// without a live object storage (S3) connection (writers.ts calls it when existing=null).
 vi.mock('@/lib/services/oneCSync/document-fetch', () => ({
   fetchAndStore1CDocument: vi.fn().mockResolvedValue('fake/storage/path.pdf')
 }));
