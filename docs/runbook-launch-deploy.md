@@ -86,7 +86,7 @@ DATABASE_URL=<PROD> npm run dedupe:commission
 ## 3. Процедура деплоя
 
 ### 3.1 Pre-flight
-Сверить инфраструктурный срез из [runbook-staged-rollout-cabinets.md §2](runbook-staged-rollout-cabinets.md) (deploy свежий, worker запущен, Redis/Supabase/Resend живы, `JWT_SECRET` ≥32, `/api/health` green). **Плюс launch-специфика:**
+Сверить инфраструктурный срез из [runbook-staged-rollout-cabinets.md §2](runbook-staged-rollout-cabinets.md) (deploy свежий, worker запущен, Redis/S3-хранилище (`S3_*` env)/Resend живы, `JWT_SECRET` ≥32, `/api/health` green). **Плюс launch-специфика:**
 
 | Чек | Команда / действие | Ожидание |
 |---|---|---|
@@ -131,7 +131,7 @@ FEATURE_CHAT=1            # только если чат идёт в перву�
    ONE_C_API_TOKEN=<реальный>
    ONE_C_MODE=shadow        # ОБЯЗАТЕЛЬНО явно — дефолт=live пишет в боевую БД
    ```
-   Наблюдать в `/admin/sync`: cursor продвигается, RU-статусы переводятся (`translate.ts`, иначе live=0 строк), пагинация Q6 обходит все страницы (нет undercount первой страницы), DOC-03 качает файлы в Supabase. Сверить расхождения shadow vs ожидание.
+   Наблюдать в `/admin/sync`: cursor продвигается, RU-статусы переводятся (`translate.ts`, иначе live=0 строк), пагинация Q6 обходит все страницы (нет undercount первой страницы), DOC-03 качает файлы в S3-хранилище. Сверить расхождения shadow vs ожидание.
 2. **Go/no-go:** shadow без аномалий, cursor-lag в норме, перевод справочников полный.
 3. **Перевод в live:** `ONE_C_MODE=live` (или снять override) → redeploy worker. Наблюдать первый цикл записи в `/admin/sync` + alerting (sync-lag / DLQ).
 

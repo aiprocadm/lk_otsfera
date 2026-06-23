@@ -2,7 +2,7 @@
 
 **Owner**: QA + Промтехносфера team
 **Trigger**: после merge Phase 7 в `main` со скрытым флагом (Stage-1 done).
-**Goal**: подтвердить, что cabinet `/organization/*` под `FEATURE_ORGANIZATION_CABINET=1` корректно работает на staging-окружении: визуально, по данным, по RBAC, по интеграциям (Supabase Storage, Resend, ClamAV, BullMQ-worker).
+**Goal**: подтвердить, что cabinet `/organization/*` под `FEATURE_ORGANIZATION_CABINET=1` корректно работает на staging-окружении: визуально, по данным, по RBAC, по интеграциям (S3 object storage, Resend, ClamAV, BullMQ-worker).
 **Duration**: 1-2 недели наблюдения; обязательные 12 шагов ниже — за 1-2 часа.
 **Reference**: [spec §8.1](superpowers/specs/2026-05-25-organization-cabinet-design.md), [plan Task 41](superpowers/plans/2026-05-25-organization-cabinet-phase7.md).
 
@@ -17,7 +17,7 @@
 | Миграции применены | `npx prisma migrate status` (на staging) | `Database schema is up to date` |
 | Backfill отработал | `node dist/scripts/backfill-order-organization-id.js` или эквивалент | 0 critical warns; все `Order` с `organizationId` |
 | Worker запущен | проверить процесс `npm run worker:start` или systemd unit | очереди `oneCSync.*`, `notifications.dispatch`, `emails.send` слушают |
-| Supabase bucket доступен | загрузить тестовый файл через admin-кабинет | 200, file в bucket `documents` |
+| S3 bucket доступен | загрузить тестовый файл через admin-кабинет | 200, file в bucket `documents` (`S3_BUCKET`) |
 | Resend настроен | `EMAIL_ENABLED=true`, `RESEND_API_KEY` валиден, `EMAIL_FROM=…@otsfera.ru` | тестовый email от admin-кабинета доходит |
 
 **Test-org seed на staging**:

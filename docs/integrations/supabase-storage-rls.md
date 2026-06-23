@@ -1,6 +1,14 @@
 # Supabase Storage RLS for `documents` bucket
 
-**Status:** policy template — apply manually via Supabase Dashboard or CLI.
+> ⚠️ **УСТАРЕЛО (2026-06-22).** Хранилище файлов мигрировало с Supabase Storage на
+> S3-совместимое (152-ФЗ → файлы=ПДн должны оставаться в РФ; см. `ObjectStorage`-порт +
+> `src/lib/storage/s3.ts`, CHANGELOG `[Unreleased]`, CLAUDE.md §10). Supabase-зависимость
+> удалена из кода, поэтому описанные ниже Supabase RLS-политики **в проде не применяются**.
+> Изоляция доступа к файлам держится прикладным слоем (RBAC + service scope) и presigned-URL
+> с TTL 600 сек. Документ сохранён как исторический референс для S3-эквивалента
+> (bucket-policy / IAM-условия на стороне S3-провайдера).
+
+**Status:** ИСТОРИЧЕСКИЙ референс (Supabase удалён). policy template — apply manually via Supabase Dashboard or CLI.
 **Scope:** bucket `documents`, all object operations.
 **Last updated:** 2026-05-22 (Phase 3 plan).
 

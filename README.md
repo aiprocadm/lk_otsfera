@@ -1,7 +1,7 @@
-# B2B Cabinet MVP (Next.js + Supabase + Prisma)
+# B2B Cabinet MVP (Next.js + Prisma + S3)
 
 ## Stack
-Next.js 15, TypeScript, Tailwind, Prisma, PostgreSQL, Supabase Auth/Storage.
+Next.js 15, TypeScript, Tailwind, Prisma, PostgreSQL, S3-совместимое объектное хранилище, BullMQ + Redis.
 
 ## Установка
 1. Установите зависимости:
@@ -24,8 +24,10 @@ npm run prisma:generate
 - `DATABASE_URL`
 - `DIRECT_URL`
 - `JWT_SECRET`
-- `SUPABASE_URL` — URL проекта Supabase для server-only кода (storage/admin client).
-- `SUPABASE_SERVICE_ROLE_KEY` — сервисный ключ Supabase для серверных API.
+- `S3_ENDPOINT` — endpoint S3-совместимого хранилища (РФ-провайдер: Yandex Object Storage / VK Cloud / Selectel; локально MinIO `http://localhost:9000`).
+- `S3_REGION` — регион хранилища (например `ru-central1`).
+- `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` — ключи доступа к хранилищу (server-only).
+- `S3_BUCKET` — имя bucket для документов (по умолчанию `documents`).
 
 Переменные для Student bridge:
 
@@ -38,8 +40,7 @@ npm run prisma:generate
 
 Дополнительно:
 
-- `SUPABASE_ANON_KEY` — публичный ключ для клиентских сценариев (если используются).
-- `SUPABASE_STORAGE_BUCKET` — имя bucket для документов (по умолчанию `documents`).
+- `S3_FORCE_PATH_STYLE` — `1` для MinIO и провайдеров без virtual-host-style (path-style адресация).
 - `DOCUMENT_MAX_FILE_SIZE_MB` — максимальный размер загружаемого файла в MB; значение должно быть конечным числом больше `0` (рекомендуемый диапазон `1..100`, по умолчанию `10`).
 
 ## Локальный запуск
@@ -132,7 +133,8 @@ npm run build
 
 ## Deployment
 - Works on VPS by Docker
-- Works on Vercel + managed Postgres/Supabase
+- РФ-инфраструктура: managed PostgreSQL + S3-совместимое объектное хранилище + Redis
+  (см. [docs/runbook-prod-infra-rf.md](docs/runbook-prod-infra-rf.md))
 
 ## New cabinets (MVP)
 - `/partner/dashboard` — dashboard партнера с агрегированными метриками.
@@ -232,15 +234,15 @@ Opt-in флаги означают: код в `main`, но эндпоинты в
 node -e "console.log(Boolean(process.env.JWT_SECRET), (process.env.JWT_SECRET||'').length)"
 ```
 
-### Supabase URL/key (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`)
+### S3 object storage (`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`)
 
 Симптомы:
 - Ошибки загрузки/скачивания документов.
-- Ошибки инициализации Supabase клиента на сервере.
+- Ошибки инициализации S3-клиента на сервере / `StorageError`.
 
 Проверка:
 ```bash
-node -e "console.log(process.env.SUPABASE_URL, Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY))"
+node -e "console.log(process.env.S3_ENDPOINT, process.env.S3_BUCKET, Boolean(process.env.S3_ACCESS_KEY_ID), Boolean(process.env.S3_SECRET_ACCESS_KEY))"
 ```
 
 ### Prisma DB URL (`DATABASE_URL`, `DIRECT_URL`)
