@@ -36,9 +36,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ certificate: res.certificate }, { status: 201 });
   }
 
+  if (!body.studentId || !body.directionId) {
+    return NextResponse.json({ error: 'validation' }, { status: 400 });
+  }
+
   const res = await createCertificate(prisma, session, {
-    studentId: body.studentId!,
-    directionId: body.directionId!,
+    studentId: body.studentId,
+    directionId: body.directionId,
     number: body.number,
     issuedAt: new Date(body.issuedAt),
     validUntil: body.validUntil ? new Date(body.validUntil) : null,

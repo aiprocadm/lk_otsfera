@@ -113,19 +113,26 @@ export async function createCertificate(
   const student = await assertStudentInScope(prisma, session, args.studentId);
   if (!student) return { ok: false, error: 'forbidden' };
 
-  const certificate = await prisma.certificate.create({
-    data: {
-      studentId: args.studentId,
-      organizationId: student.organizationId,
-      directionId: args.directionId,
-      number: args.number.trim(),
-      issuedAt: args.issuedAt,
-      validUntil: args.validUntil ?? null,
-      orderItemId: args.orderItemId ?? null,
-      documentId: args.documentId ?? null,
-      comment: args.comment?.trim() || null,
-    },
-  });
+  let certificate: Certificate;
+  try {
+    certificate = await prisma.certificate.create({
+      data: {
+        studentId: args.studentId,
+        organizationId: student.organizationId,
+        directionId: args.directionId,
+        number: args.number.trim(),
+        issuedAt: args.issuedAt,
+        validUntil: args.validUntil ?? null,
+        orderItemId: args.orderItemId ?? null,
+        documentId: args.documentId ?? null,
+        comment: args.comment?.trim() || null,
+      },
+    });
+  } catch (e) {
+    // P2003 = FK violation (unknown directionId/studentId) → not_found per Result contract.
+    if ((e as { code?: string }).code === 'P2003') return { ok: false, error: 'not_found' };
+    throw e;
+  }
 
   await recordAudit(prisma, {
     userId: session.sub,

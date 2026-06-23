@@ -267,6 +267,17 @@ describe('POST /api/manager/certificates', () => {
     expect(issueFromOrderItem).not.toHaveBeenCalled();
   });
 
+  it('400 без orderItemId/studentId/directionId — сервис не вызывается', async () => {
+    const req = new Request('http://x', {
+      method: 'POST',
+      body: JSON.stringify({ number: 'CERT-003', issuedAt: '2026-01-01' }),
+    });
+    const res = await certPost(req as never);
+    expect(res.status).toBe(400);
+    expect(createCertificate).not.toHaveBeenCalled();
+    expect(issueFromOrderItem).not.toHaveBeenCalled();
+  });
+
   it('400 validation error', async () => {
     createCertificate.mockResolvedValue({ ok: false, error: 'validation' });
     const req = new Request('http://x', {

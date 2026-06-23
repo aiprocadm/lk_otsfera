@@ -62,6 +62,15 @@ describe('certificates service', () => {
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 
+  it('createCertificate с несуществующим directionId (P2003) → not_found', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 's1', organizationId: 'org1' });
+    prisma.certificate.create.mockRejectedValue({ code: 'P2003' });
+    const res = await createCertificate(prisma, session('manager'), {
+      studentId: 's1', directionId: 'BAD', number: 'N', issuedAt: new Date()
+    });
+    expect(res).toEqual({ ok: false, error: 'not_found' });
+  });
+
   it('issueFromOrderItem создаёт удостоверение и ставит статус certificate_issued', async () => {
     prisma.orderItem.findUnique.mockResolvedValue({
       id: 'it1', directionId: 'd1', student: { id: 's1', organizationId: 'org1' }
