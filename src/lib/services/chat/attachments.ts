@@ -4,12 +4,14 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeThread } from './policy';
 import { getObjectStorage } from '@/lib/storage';
 import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
+import { maxFileSizeBytes } from '@/lib/config/upload';
 
 /**
  * Chat attachment upload + signed-URL download service.
  *
- * Validation is SYNCHRONOUS: MIME allow-list + magic-byte fingerprint + 20 MB
- * size cap. There is NO async ClamAV scan for chat attachments in v1 — the
+ * Validation is SYNCHRONOUS: MIME allow-list + magic-byte fingerprint +
+ * config-driven size cap (maxFileSizeBytes() from @/lib/config/upload).
+ * There is NO async ClamAV scan for chat attachments in v1 — the
  * scan worker only processes `Document` rows, and chat attachments have no
  * corresponding Document record. AV scanning for chat attachments is deferred
  * to v1.1 (planned: store attachment metadata in a dedicated table and enqueue
@@ -18,8 +20,6 @@ import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeVali
  * Storage path: `chat/<orderId>/<uuid>-<sanitized-filename>`
  * No Document row is created; no scan is enqueued.
  */
-
-const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
 // Reuse the same MIME allow-list as the document upload service (manager/uploads.ts).
 const ALLOWED_MIME_TYPES = new Set<string>([
@@ -60,7 +60,7 @@ export async function uploadChatAttachment(
   args: UploadChatAttachmentArgs
 ): Promise<UploadChatAttachmentResult> {
   // 1. Synchronous validation — cheapest checks first.
-  if (args.file.size > MAX_FILE_SIZE_BYTES) {
+  if (args.file.size > maxFileSizeBytes()) {
     return { ok: false, error: 'too_large' };
   }
 

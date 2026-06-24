@@ -615,24 +615,24 @@ describe('__testing helpers', () => {
       process.env.DOCUMENT_MAX_FILE_SIZE_MB = prev;
     });
 
-    it('падает в дефолт 10 МБ на невалидном значении', () => {
+    it('падает в дефолт 200 МБ на невалидном значении', () => {
       const prev = process.env.DOCUMENT_MAX_FILE_SIZE_MB;
       process.env.DOCUMENT_MAX_FILE_SIZE_MB = 'nonsense';
-      expect(__testing.maxFileSizeBytes()).toBe(10 * 1024 * 1024);
+      expect(__testing.maxFileSizeBytes()).toBe(200 * 1024 * 1024);
       process.env.DOCUMENT_MAX_FILE_SIZE_MB = prev;
     });
 
-    it('падает в дефолт 10 МБ на отрицательном значении', () => {
+    it('падает в дефолт 200 МБ на отрицательном значении', () => {
       const prev = process.env.DOCUMENT_MAX_FILE_SIZE_MB;
       process.env.DOCUMENT_MAX_FILE_SIZE_MB = '-5';
-      expect(__testing.maxFileSizeBytes()).toBe(10 * 1024 * 1024);
+      expect(__testing.maxFileSizeBytes()).toBe(200 * 1024 * 1024);
       process.env.DOCUMENT_MAX_FILE_SIZE_MB = prev;
     });
 
-    it('использует 10 МБ дефолт если env не выставлен', () => {
+    it('использует 200 МБ дефолт если env не выставлен', () => {
       const prev = process.env.DOCUMENT_MAX_FILE_SIZE_MB;
       delete process.env.DOCUMENT_MAX_FILE_SIZE_MB;
-      expect(__testing.maxFileSizeBytes()).toBe(10 * 1024 * 1024);
+      expect(__testing.maxFileSizeBytes()).toBe(200 * 1024 * 1024);
       process.env.DOCUMENT_MAX_FILE_SIZE_MB = prev;
     });
   });
