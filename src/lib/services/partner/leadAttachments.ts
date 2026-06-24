@@ -6,6 +6,7 @@ import {
   extensionFor,
   type SupportedMimeType
 } from '@/lib/storage/mimeValidator';
+import { maxFileSizeBytes } from '@/lib/config/upload';
 import { isPartnerAdmin } from '@/lib/auth/policy';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
@@ -74,13 +75,6 @@ function toFailure(e: unknown): LeadAttachmentFailure {
     return { ok: false, error: e.code, message: e.message, ...(e.meta ? { meta: e.meta } : {}) };
   }
   throw e;
-}
-
-function maxFileSizeBytes(): number {
-  const mbStr = process.env.DOCUMENT_MAX_FILE_SIZE_MB?.trim();
-  const mb = mbStr ? Number(mbStr) : 10;
-  if (!Number.isFinite(mb) || mb <= 0) return 10 * 1024 * 1024;
-  return Math.floor(mb * 1024 * 1024);
 }
 
 function sanitizeFilename(name: string): string {

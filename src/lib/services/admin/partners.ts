@@ -176,6 +176,20 @@ export async function updatePartner(
       }
     });
 
+    if (args.commissionRate !== undefined) {
+      const newDec = args.commissionRate === null ? new Prisma.Decimal(0) : new Prisma.Decimal(args.commissionRate);
+      if (!newDec.equals(before.commissionRate ?? new Prisma.Decimal(0))) {
+        await tx.commissionRateChange.create({
+          data: {
+            partnerId: id,
+            oldRate: before.commissionRate ?? null,
+            newRate: newDec,
+            changedById: actorUserId
+          }
+        });
+      }
+    }
+
     await recordAudit(tx, {
       userId: actorUserId,
       action: 'partner_updated',
@@ -296,6 +310,17 @@ export async function createPartnerWithAdmin(
     });
 
     const { token } = await createInviteToken(tx, user.id);
+
+    if (args.commissionRate != null && args.commissionRate !== 0) {
+      await tx.commissionRateChange.create({
+        data: {
+          partnerId: partner.id,
+          oldRate: null,
+          newRate: new Prisma.Decimal(args.commissionRate),
+          changedById: actorUserId
+        }
+      });
+    }
 
     await recordAudit(tx, {
       userId: actorUserId,

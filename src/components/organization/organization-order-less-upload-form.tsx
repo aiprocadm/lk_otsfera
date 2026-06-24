@@ -2,6 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import { uploadOrganizationDocument } from '@/server-actions/organization/documents';
+import { DEFAULT_MAX_FILE_SIZE_MB } from '@/lib/config/upload';
 import { toast } from '@/lib/ui/toast';
 import { useFormAction } from '@/lib/ui/useFormAction';
 
@@ -83,7 +84,7 @@ export function OrganizationOrderLessUploadForm({ organizationId }: { organizati
         {errorText && <p role='alert' className='text-sm text-red-600'>{errorText}</p>}
 
         <p className='text-xs text-gray-400'>
-          Допустимые форматы: PDF, JPG, PNG, DOCX, XLS, XLSX. Максимум 20 МБ.
+          Допустимые форматы: PDF, JPG, PNG, DOCX, XLS, XLSX. Максимум {DEFAULT_MAX_FILE_SIZE_MB} МБ.
         </p>
       </form>
     </div>

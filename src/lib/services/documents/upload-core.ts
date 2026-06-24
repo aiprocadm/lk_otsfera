@@ -5,6 +5,7 @@ import { getObjectStorage } from '@/lib/storage';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
+import { maxFileSizeBytes, ALLOWED_MIME_TYPES } from '@/lib/config/upload';
 
 /**
  * Shared write path for every document upload (manager outgoing, org/partner
@@ -13,17 +14,6 @@ import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeVali
  * enqueue, and the audit entry. RBAC and notification fan-out stay in the
  * callers — they differ per direction/role (CLAUDE.md §3).
  */
-
-const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
-
-const ALLOWED_MIME_TYPES = new Set<string>([
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-]);
 
 /**
  * Validates file size, MIME type, and magic bytes before any DB or storage
@@ -34,7 +24,7 @@ const ALLOWED_MIME_TYPES = new Set<string>([
 export function validateUploadFile(file: { size: number; mimeType: string; buffer: Buffer }):
   | { ok: true }
   | { ok: false; error: 'too_large' | 'invalid_mime' } {
-  if (file.size > MAX_FILE_SIZE_BYTES) return { ok: false, error: 'too_large' };
+  if (file.size > maxFileSizeBytes()) return { ok: false, error: 'too_large' };
   if (!ALLOWED_MIME_TYPES.has(file.mimeType)) return { ok: false, error: 'invalid_mime' };
   if ((SUPPORTED_MIME_TYPES as readonly string[]).includes(file.mimeType)) {
     const validation = validateMagicBytes(file.mimeType, file.buffer);

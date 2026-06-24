@@ -125,6 +125,26 @@ describe('1C → Prisma mappers', () => {
     expect(out.organizationExternalId).toBeNull();
     expect(out.organizationInn).toBeNull();
     expect(out.method).toBeNull();
+    expect(out.purpose).toBeNull();
+    expect(out.paymentOrderNumber).toBeNull();
+    expect(out.vatAmount).toBeNull();
+  });
+
+  it('mapPaymentDto: maps purpose/paymentOrderNumber/vatAmount when present', () => {
+    const out = mapPaymentDto({
+      externalId: 'p-full',
+      orderExternalId: 'o1',
+      amount: 200,
+      paidAt: '2026-05-01T00:00:00Z',
+      isRefund: false,
+      purpose: 'Оплата по договору',
+      paymentOrderNumber: 'ПП-007',
+      vatAmount: 36,
+      updatedAt: '2026-05-01T00:00:00Z'
+    });
+    expect(out.purpose).toBe('Оплата по договору');
+    expect(out.paymentOrderNumber).toBe('ПП-007');
+    expect(out.vatAmount).toBe(36);
   });
 
   it('mapDocumentDto: null signedAt becomes null', () => {

@@ -34,7 +34,7 @@ describe('persistUploadedDocument', () => {
     const prisma = {} as never;
     const r = await persistUploadedDocument(prisma, {
       ...baseArgs,
-      file: { ...baseArgs.file, size: 21 * 1024 * 1024 }
+      file: { ...baseArgs.file, size: 201 * 1024 * 1024 } // config-driven 200 MB limit §11
     });
     expect(r).toEqual({ ok: false, error: 'too_large' });
     expect(uploadMock).not.toHaveBeenCalled();

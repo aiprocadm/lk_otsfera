@@ -14,6 +14,7 @@ greenfield-runbook РФ-инфраструктуры, bootstrap-вход в чи
 
 ### Изменено
 
+- Лимит загрузки документов поднят до 200 МБ (§11 ТЗ) из единого источника; добавлен формат .doc (§13).
 - **Хранилище файлов: Supabase Storage → S3-совместимое (152-ФЗ).** Введён порт `ObjectStorage`
   (`StorageError`, `documentBucket`) + адаптер `S3Storage` (upload / download→Buffer / remove /
   createSignedUrl с тремя disposition-ветками, RFC 5987 Content-Disposition). На порт переведены

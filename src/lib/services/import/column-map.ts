@@ -27,6 +27,8 @@ export const PAYMENT_COLS = {
   amount: 'Сумма',
   paidAt: 'Дата',
   method: 'Вид операции',
-  note: 'Назначение платежа',
+  purpose: 'Назначение платежа',
+  vatAmount: 'НДС',
+  paymentOrderNumber: '№ платёжного поручения',
   orderRef: 'Заказ',
 } as const;

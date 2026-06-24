@@ -15,7 +15,7 @@ describe('resolveErrorText', () => {
   });
 
   it('без errorMap берёт строку из errorMessageRu', () => {
-    expect(resolveErrorText('too_large')).toBe('Файл превышает 20 МБ.');
+    expect(resolveErrorText('too_large')).toBe('Файл превышает допустимый размер.');
   });
 
   it('неизвестный код виден в fallback (паттерн translateError)', () => {
