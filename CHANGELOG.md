@@ -29,6 +29,11 @@ greenfield-runbook РФ-инфраструктуры, bootstrap-вход в чи
 
 ### Добавлено
 
+- **Настраиваемые поля (§11 ТЗ).** Admin заводит доп-поля заказа (text/number/date/select/
+  boolean) в справочнике `/admin/custom-fields`; значения редактируются в карточке заказа
+  (менеджер/админ/руководитель), org/partner видят read-only. Модели `CustomFieldDefinition`
+  (конфиг) + `CustomFieldValue` (значение, полиморфно по entityType, v1=order); деактивация
+  вместо удаления; значения scoped по доступу к заказу (C8). Без feature-flag.
 - **Прод-упаковка и greenfield-runbook РФ.** `Dockerfile` (+`npm ci --ignore-scripts` против
   husky-prepare), `.dockerignore`, prod-compose, `.env.production.example`; `tsx`+`prisma`
   переведены в `dependencies`. Runbook РФ-инфраструктуры (provision → TLS → bring-up → hand-off)
