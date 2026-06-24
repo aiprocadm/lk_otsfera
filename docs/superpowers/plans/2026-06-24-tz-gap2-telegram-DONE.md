@@ -32,7 +32,7 @@ email-фан-аута, ничего не переписано.
 ## Гейты
 
 - `typecheck` ✓ · `lint` ✓ (0 warnings)
-- unit: <ЗАПОЛНИТЬ после полного прогона>
+- unit: **3145 passed / 3 skipped / 0 failed** (290 файлов; включая исправленные nav-count тесты)
 - integration (живой PG): `services.telegram.link` полный цикл generate→link→status→unlink + uniqueness ✓
 - Миграция `20260624010000_user_telegram_link` применена (dev-БД пересоздана под ветку, т.к. от main).
 - **Holistic review (opus): SHIP WITH MINOR FIXES** — все 7 инвариантов PASS (webhook-secret, no-leak, best-effort, graceful-disable, own-account, additive-migration, mirrors-email). 3 минора **исправлены**: инлайн-hex→`orange-600`; try/catch вокруг `linkByCode` в webhook; ключ `telegram_disabled` в `errorMessageRu`.
