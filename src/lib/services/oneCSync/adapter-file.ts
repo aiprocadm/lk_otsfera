@@ -40,7 +40,9 @@ type RawPay = {
   amount: number;
   paidAt: string;
   method: string | null;
-  note: string | null;
+  purpose: string | null;
+  vatAmount: number | null;
+  paymentOrderNumber: string | null;
   orderRef?: string | null;
 };
 
@@ -104,6 +106,9 @@ export class FileOneCAdapter implements OneCAdapter {
         amount: Number(raw.amount) || 0,
         paidAt: raw.paidAt,
         method: raw.method ?? undefined,
+        purpose: raw.purpose ?? undefined,
+        paymentOrderNumber: raw.paymentOrderNumber ?? undefined,
+        vatAmount: raw.vatAmount == null ? undefined : Number(raw.vatAmount),
         isRefund,
         updatedAt: EPOCH,
       };

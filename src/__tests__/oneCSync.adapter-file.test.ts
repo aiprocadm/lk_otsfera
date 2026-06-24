@@ -118,4 +118,64 @@ describe('FileOneCAdapter', () => {
     const pays = await new FileOneCAdapter(Buffer.from('x')).pullPayments({});
     expect(pays[0].amount).toBe(0); // Number('not-a-number') = NaN → || 0
   });
+
+  it('carries purpose, vatAmount, paymentOrderNumber through parse→adapter round-trip', async () => {
+    parseWorkbook.mockResolvedValue({ orgs: [], orders: [], payments: [
+      {
+        externalId: 'P-FIELDS',
+        orgInn: '77',
+        amount: 12000,
+        paidAt: '2026-06-01T00:00:00Z',
+        method: 'Банковский перевод',
+        purpose: 'Оплата по договору №123',
+        vatAmount: 2000,
+        paymentOrderNumber: 'ПП-456',
+        orderRef: null,
+      },
+    ] });
+    const pays = await new FileOneCAdapter(Buffer.from('x')).pullPayments({});
+    expect(pays).toHaveLength(1);
+    expect(pays[0].purpose).toBe('Оплата по договору №123');
+    expect(pays[0].vatAmount).toBe(2000);
+    expect(pays[0].paymentOrderNumber).toBe('ПП-456');
+  });
+
+  it('treats null purpose/vatAmount/paymentOrderNumber as undefined in DTO', async () => {
+    parseWorkbook.mockResolvedValue({ orgs: [], orders: [], payments: [
+      {
+        externalId: 'P-NULL-FIELDS',
+        orgInn: '77',
+        amount: 500,
+        paidAt: '2026-06-01T00:00:00Z',
+        method: null,
+        purpose: null,
+        vatAmount: null,
+        paymentOrderNumber: null,
+        orderRef: null,
+      },
+    ] });
+    const pays = await new FileOneCAdapter(Buffer.from('x')).pullPayments({});
+    expect(pays).toHaveLength(1);
+    expect(pays[0].purpose).toBeUndefined();
+    expect(pays[0].vatAmount).toBeUndefined();
+    expect(pays[0].paymentOrderNumber).toBeUndefined();
+  });
+
+  it('carries vatAmount=0 as 0 (not undefined)', async () => {
+    parseWorkbook.mockResolvedValue({ orgs: [], orders: [], payments: [
+      {
+        externalId: 'P-VAT0',
+        orgInn: '77',
+        amount: 1000,
+        paidAt: '2026-06-01T00:00:00Z',
+        method: null,
+        purpose: null,
+        vatAmount: 0,
+        paymentOrderNumber: null,
+        orderRef: null,
+      },
+    ] });
+    const pays = await new FileOneCAdapter(Buffer.from('x')).pullPayments({});
+    expect(pays[0].vatAmount).toBe(0); // 0 is valid, must not collapse to undefined
+  });
 });
