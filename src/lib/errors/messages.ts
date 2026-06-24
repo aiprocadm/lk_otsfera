@@ -11,13 +11,14 @@ const RU: Record<string, string> = {
   validation: 'Проверьте поля формы.',
   forbidden: 'Нет прав на загрузку.',
   not_found: 'Заказ не найден.',
-  too_large: 'Файл превышает 20 МБ.',
+  too_large: 'Файл превышает допустимый размер.',
   invalid_mime: 'Неподдерживаемый тип файла.',
   storage: 'Не удалось загрузить файл. Попробуйте ещё раз.',
   no_file: 'Файл не выбран.',
   network: 'Сетевая ошибка. Проверьте соединение и попробуйте снова.',
   invalid_recipient: 'У заказа нет партнёра — получатель «партнёр» недоступен.',
-  invalid_credentials: 'Неверный email или пароль.'
+  invalid_credentials: 'Неверный email или пароль.',
+  telegram_disabled: 'Telegram-уведомления не настроены администратором.'
 };
 
 export function errorMessageRu(code: string, fallback = 'Произошла ошибка.'): string {

@@ -132,6 +132,34 @@ describe('listOrgPayments', () => {
       await prisma.payment.delete({ where: { id: imported.id } });
     }
   });
+
+  it('exposes vatAmount/purpose/paymentOrderNumber/enteredByName in ledger row (§7.1)', async () => {
+    // Create a payment with the new §7.1 fields set
+    const richPayment = await prisma.payment.create({
+      data: {
+        organizationId: orgId,
+        orderId: null,
+        amount: new Prisma.Decimal('18000'),
+        vatAmount: new Prisma.Decimal('3000'),
+        purpose: 'Оплата по договору №99',
+        paymentOrderNumber: 'ПП-099',
+        paidAt: new Date('2026-05-25'),
+        method: 'bank'
+        // enteredById: null (no actor in WriteCtx; future work)
+      }
+    });
+    try {
+      const rows = await listOrgPayments(prisma, { organizationId: orgId });
+      const row = rows.find((r) => r.id === richPayment.id);
+      expect(row).toBeDefined();
+      expect(row?.vatAmount).toBe('3000.00');
+      expect(row?.purpose).toBe('Оплата по договору №99');
+      expect(row?.paymentOrderNumber).toBe('ПП-099');
+      expect(row?.enteredByName).toBeNull(); // no actor yet
+    } finally {
+      await prisma.payment.delete({ where: { id: richPayment.id } });
+    }
+  });
 });
 
 describe('getOrgIntermediaryCommission', () => {

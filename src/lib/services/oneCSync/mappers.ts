@@ -77,6 +77,9 @@ export type PaymentUpsertInput = {
   paidAt: Date;
   method: string | null;
   isRefund: boolean;
+  purpose: string | null;
+  paymentOrderNumber: string | null;
+  vatAmount: number | null;
   updatedAt: Date;
 };
 
@@ -90,6 +93,9 @@ export function mapPaymentDto(dto: OneCPaymentDto): PaymentUpsertInput {
     paidAt: new Date(dto.paidAt),
     method: dto.method ?? null,
     isRefund: dto.isRefund,
+    purpose: dto.purpose ?? null,
+    paymentOrderNumber: dto.paymentOrderNumber ?? null,
+    vatAmount: dto.vatAmount ?? null,
     updatedAt: new Date(dto.updatedAt)
   };
 }

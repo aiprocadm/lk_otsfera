@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { DEFAULT_MAX_FILE_SIZE_MB } from '@/lib/config/upload';
 
 const ACCEPT_MIME = [
   'application/pdf',
@@ -17,7 +18,7 @@ type Props = {
   maxSizeMb?: number;
 };
 
-export function LeadAttachmentDropzone({ leadId, maxSizeMb = 10 }: Props) {
+export function LeadAttachmentDropzone({ leadId, maxSizeMb = DEFAULT_MAX_FILE_SIZE_MB }: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);

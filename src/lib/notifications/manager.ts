@@ -8,6 +8,7 @@ import {
   sendNotificationEmail,
   type SendResult,
 } from '@/lib/email/send';
+import { isTelegramEnabled, sendTelegramMessage } from '@/lib/telegram/client';
 import {
   managerCommentFromOrgSubject,
   managerCommentFromOrgText,
@@ -95,6 +96,7 @@ export type ManagerRecipient = {
   id: string;
   email: string;
   name: string | null;
+  telegramChatId?: string | null;
 };
 
 /**
@@ -150,7 +152,7 @@ export async function resolveManagerRecipients(
   // even if they were left on OrganizationManager.
   return db.user.findMany({
     where: { id: { in: Array.from(ids) }, isActive: true },
-    select: { id: true, email: true, name: true }
+    select: { id: true, email: true, name: true, telegramChatId: true }
   });
 }
 
@@ -296,7 +298,7 @@ export async function resolveOrgManagerRecipients(
   if (ids.size === 0) return [];
   return db.user.findMany({
     where: { id: { in: Array.from(ids) }, role: 'manager', isActive: true },
-    select: { id: true, email: true, name: true }
+    select: { id: true, email: true, name: true, telegramChatId: true }
   });
 }
 
@@ -331,6 +333,10 @@ export async function notifyManagersOrderLess(
         if (result.status === 'sent') emailsSent += 1; else emailsSkipped += 1;
       } catch { emailsSkipped += 1; }
     } else emailsSkipped += 1;
+
+    if (r.telegramChatId && isTelegramEnabled()) {
+      await sendTelegramMessage(r.telegramChatId, `${subject}\n\n${shortBody}`).catch(() => {});
+    }
   }
   return { recipientsNotified, emailsSent, emailsSkipped };
 }
@@ -424,6 +430,10 @@ export async function notifyManagers(
       }
     } else {
       emailsSkipped += 1;
+    }
+
+    if (r.telegramChatId && isTelegramEnabled()) {
+      await sendTelegramMessage(r.telegramChatId, `${subject}\n\n${shortBody}`).catch(() => {});
     }
   }
 
