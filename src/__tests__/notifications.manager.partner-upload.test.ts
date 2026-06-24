@@ -10,6 +10,11 @@ vi.mock('@/lib/email/send', () => ({
   sendNotificationEmail: vi.fn()
 }));
 
+vi.mock('@/lib/telegram/client', () => ({
+  isTelegramEnabled: vi.fn().mockReturnValue(false),
+  sendTelegramMessage: vi.fn().mockResolvedValue({ ok: true }),
+}));
+
 import { notifyManagers } from '@/lib/notifications/manager';
 
 describe('notifyManagers — document_uploaded_by_partner', () => {

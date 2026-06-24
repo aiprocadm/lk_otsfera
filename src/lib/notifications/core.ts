@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotificationEmail } from '@/lib/email/send';
 import { isEmailEnabled } from '@/lib/email/transport';
+import { isTelegramEnabled, sendTelegramMessage } from '@/lib/telegram/client';
 
 type NotificationInput = {
   userId: string;
@@ -62,4 +63,29 @@ export async function triggerNotificationEmail(payload: {
     body: payload.body,
     url: payload.url,
   });
+}
+
+/**
+ * Best-effort Telegram notification hook. Mirrors `triggerNotificationEmail` —
+ * called at the same sites with the same payload. Silent no-op when Telegram is
+ * not configured (`TELEGRAM_BOT_TOKEN` / `TELEGRAM_BOT_USERNAME` unset) or the
+ * user has no `telegramChatId`. A transport-level failure must never propagate
+ * to callers — they treat Telegram as a side channel, not the source of truth.
+ */
+export async function triggerNotificationTelegram(payload: {
+  userId: string;
+  title: string;
+  body: string;
+  type: string;
+  url?: string;
+}): Promise<void> {
+  if (!isTelegramEnabled()) return;
+
+  const user = await prisma.user.findUnique({
+    where: { id: payload.userId },
+    select: { telegramChatId: true },
+  });
+  if (!user?.telegramChatId) return;
+
+  await sendTelegramMessage(user.telegramChatId, `${payload.title}\n\n${payload.body}`);
 }

@@ -7,6 +7,7 @@ const {
   createComment,
   notifyMessageCreated,
   triggerNotificationEmail,
+  triggerNotificationTelegram,
   getPrimaryOrganizationId
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
@@ -15,6 +16,7 @@ const {
   createComment: vi.fn(),
   notifyMessageCreated: vi.fn(),
   triggerNotificationEmail: vi.fn(),
+  triggerNotificationTelegram: vi.fn(),
   getPrimaryOrganizationId: vi.fn()
 }));
 
@@ -29,7 +31,7 @@ vi.mock('@/lib/db/prisma', () => ({
     comment: { create: createComment }
   }
 }));
-vi.mock('@/lib/notifications', () => ({ notifyMessageCreated, triggerNotificationEmail }));
+vi.mock('@/lib/notifications', () => ({ notifyMessageCreated, triggerNotificationEmail, triggerNotificationTelegram }));
 vi.mock('@/lib/auth/organization', () => ({ getPrimaryOrganizationId }));
 
 import { POST } from '@/app/api/comments/route';

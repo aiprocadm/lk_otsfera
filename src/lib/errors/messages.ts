@@ -11,7 +11,7 @@ const RU: Record<string, string> = {
   validation: 'Проверьте поля формы.',
   forbidden: 'Нет прав на загрузку.',
   not_found: 'Заказ не найден.',
-  too_large: 'Файл превышает 20 МБ.',
+  too_large: 'Файл превышает допустимый размер.',
   invalid_mime: 'Неподдерживаемый тип файла.',
   storage: 'Не удалось загрузить файл. Попробуйте ещё раз.',
   no_file: 'Файл не выбран.',
@@ -21,7 +21,8 @@ const RU: Record<string, string> = {
   invalid_value: 'Некорректное значение дополнительного поля.',
   invalid_key: 'Ключ: только латиница, цифры и подчёркивание, начиная с буквы.',
   options_required: 'Для типа «список» укажите хотя бы один вариант.',
-  duplicate_key: 'Поле с таким ключом уже существует.'
+  duplicate_key: 'Поле с таким ключом уже существует.',
+  telegram_disabled: 'Telegram-уведомления не настроены администратором.'
 };
 
 export function errorMessageRu(code: string, fallback = 'Произошла ошибка.'): string {

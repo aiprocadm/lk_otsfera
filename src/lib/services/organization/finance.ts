@@ -36,6 +36,10 @@ export type OrgPaymentRow = {
   note: string | null;
   orderId: string | null;
   orderNumber: string | null;
+  vatAmount: string | null;
+  purpose: string | null;
+  paymentOrderNumber: string | null;
+  enteredByName: string | null;
 };
 
 export async function listOrgPayments(
@@ -53,6 +57,10 @@ export async function listOrgPayments(
       method: true,
       isRefund: true,
       note: true,
+      vatAmount: true,
+      purpose: true,
+      paymentOrderNumber: true,
+      enteredBy: { select: { name: true } },
       order: { select: { id: true, orderNumber: true } }
     }
   });
@@ -64,7 +72,11 @@ export async function listOrgPayments(
     isRefund: p.isRefund,
     note: p.note,
     orderId: p.order?.id ?? null,
-    orderNumber: p.order?.orderNumber ?? null
+    orderNumber: p.order?.orderNumber ?? null,
+    vatAmount: p.vatAmount != null ? p.vatAmount.toFixed(2) : null,
+    purpose: p.purpose ?? null,
+    paymentOrderNumber: p.paymentOrderNumber ?? null,
+    enteredByName: p.enteredBy?.name ?? null
   }));
 }
 

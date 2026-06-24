@@ -43,6 +43,9 @@ export const OneCPaymentSchema = z.object({
   paidAt: isoDate,
   method: z.string().optional(),
   isRefund: z.boolean(),
+  purpose: z.string().nullish(),
+  paymentOrderNumber: z.string().nullish(),
+  vatAmount: z.number().nullish(),
   updatedAt: isoDate
 }).refine((p) => !!p.orderExternalId || !!p.organizationExternalId || !!p.organizationInn, {
   message: 'payment requires orderExternalId or organizationExternalId or organizationInn'

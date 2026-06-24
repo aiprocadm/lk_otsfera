@@ -3,7 +3,8 @@ import { PrismaClient } from '@prisma/client';
 
 const { createNotification } = vi.hoisted(() => ({ createNotification: vi.fn().mockResolvedValue({}) }));
 const { triggerNotificationEmail } = vi.hoisted(() => ({ triggerNotificationEmail: vi.fn().mockResolvedValue(undefined) }));
-vi.mock('@/lib/notifications', () => ({ createNotification, triggerNotificationEmail }));
+const { triggerNotificationTelegram } = vi.hoisted(() => ({ triggerNotificationTelegram: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@/lib/notifications', () => ({ createNotification, triggerNotificationEmail, triggerNotificationTelegram }));
 
 import { runCertificateExpiry } from '@/worker/processors/certificate-expiry';
 

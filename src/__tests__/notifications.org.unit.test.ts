@@ -8,12 +8,16 @@ vi.mock('@/lib/email/send', () => ({
   sendOrgOrderStatusChangedEmail: vi.fn(),
   sendNotificationEmail: vi.fn(),
 }));
+vi.mock('@/lib/telegram/client', () => ({
+  isTelegramEnabled: vi.fn().mockReturnValue(false),
+  sendTelegramMessage: vi.fn().mockResolvedValue({ ok: true }),
+}));
 
 import { notifyOrgUsers } from '@/lib/notifications/org';
 
-function dbWith(users: Array<{ id: string; email: string | null }>) {
+function dbWith(users: Array<{ id: string; email: string | null; telegramChatId?: string | null }>) {
   const create = vi.fn().mockResolvedValue({});
-  const organizationUsers = users.map((u) => ({ user: u }));
+  const organizationUsers = users.map((u) => ({ user: { telegramChatId: null, ...u } }));
   return {
     db: {
       organization: {

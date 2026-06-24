@@ -4,16 +4,23 @@ import { BackLink, TableShell, THead, Th, Tr, Td } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { getPartner } from '@/lib/services/admin/partners';
+import { listRateHistory } from '@/lib/services/commission/rateHistory';
 import { PartnerEditForm } from '@/components/admin/partner-edit-form';
 import { fmtDate } from '@/lib/format';
+
+const fmtRate = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 2 });
 
 export const dynamic = 'force-dynamic';
 
 export default async function EditPartnerPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
+  const session = await requireAdmin();
   const { id } = await params;
-  const partner = await getPartner(prisma, id);
+  const [partner, rateHistoryResult] = await Promise.all([
+    getPartner(prisma, id),
+    listRateHistory(prisma, session, id)
+  ]);
   if (!partner) notFound();
+  const rateHistory = rateHistoryResult.ok ? rateHistoryResult.rows : [];
 
   return (
     <div className="space-y-4 max-w-3xl">
@@ -24,6 +31,34 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
       </div>
 
       <PartnerEditForm partner={partner} />
+
+      <div>
+        <h2 className="text-lg font-semibold text-[#111111] mb-3">История ставок комиссии</h2>
+        {rateHistory.length === 0 ? (
+          <p className="text-sm text-gray-500">История изменений ставки отсутствует.</p>
+        ) : (
+          <TableShell>
+            <THead className="bg-[#F3F4F6]">
+              <Th className="py-2 text-[#111111]">Дата</Th>
+              <Th className="py-2 text-[#111111]">Было</Th>
+              <Th className="py-2 text-[#111111]">Стало</Th>
+              <Th className="py-2 text-[#111111]">Кто</Th>
+            </THead>
+            <tbody>
+              {rateHistory.map((row) => (
+                <Tr key={row.id} hover={false} className="border-gray-100">
+                  <Td className="py-2 text-gray-700">{fmtDate(row.effectiveFrom)}</Td>
+                  <Td className="py-2 text-gray-700">
+                    {row.oldRate !== null ? fmtRate.format(row.oldRate) : '—'}
+                  </Td>
+                  <Td className="py-2 text-gray-700">{fmtRate.format(row.newRate)}</Td>
+                  <Td className="py-2 text-gray-500">{row.changedByName ?? '—'}</Td>
+                </Tr>
+              ))}
+            </tbody>
+          </TableShell>
+        )}
+      </div>
 
       <div>
         <h2 className="text-lg font-semibold text-[#111111] mb-3">

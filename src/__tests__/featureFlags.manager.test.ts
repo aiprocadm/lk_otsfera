@@ -67,7 +67,7 @@ describe('manager_cabinet (opt-in flag)', () => {
 });
 
 describe('navByRole.manager — feature-flag gated', () => {
-  it('lists all twelve manager cabinet items in the raw nav (including leader-only Команда + вход в /leader)', () => {
+  it('lists all thirteen manager cabinet items in the raw nav (including leader-only Команда + вход в /leader + Настройки)', () => {
     expect(navByRole.manager.map((i) => i.href)).toEqual([
       '/manager/dashboard',
       '/manager/orders',
@@ -80,7 +80,8 @@ describe('navByRole.manager — feature-flag gated', () => {
       '/manager/enrollments',
       '/manager/messages',
       '/manager/team',
-      '/leader/dashboard'
+      '/leader/dashboard',
+      '/manager/settings'
     ]);
   });
 
@@ -99,26 +100,9 @@ describe('navByRole.manager — feature-flag gated', () => {
     expect(navItemsFor('manager')).toEqual([]);
   });
 
-  it('navItemsFor("manager") returns nine items (no leader-only) when the flag is on but not a leader', () => {
+  it('navItemsFor("manager") returns ten items (no leader-only) when the flag is on but not a leader', () => {
     process.env.FEATURE_MANAGER_CABINET = '1';
     const items = navItemsFor('manager');
-    expect(items).toHaveLength(9);
-    expect(items.map((i) => i.label)).toEqual([
-      'Главная',
-      'Заказы',
-      'Заявки',
-      'Организации',
-      'Финансы',
-      'Загрузка из 1С',
-      'Документы',
-      'Сотрудники',
-      'Сообщения'
-    ]);
-  });
-
-  it('navItemsFor("manager") returns ten items (with Команда) when the flag is on and isManagerLeader=true', () => {
-    process.env.FEATURE_MANAGER_CABINET = '1';
-    const items = navItemsFor('manager', { isManagerLeader: true });
     expect(items).toHaveLength(10);
     expect(items.map((i) => i.label)).toEqual([
       'Главная',
@@ -130,7 +114,26 @@ describe('navByRole.manager — feature-flag gated', () => {
       'Документы',
       'Сотрудники',
       'Сообщения',
-      'Команда'
+      'Настройки'
+    ]);
+  });
+
+  it('navItemsFor("manager") returns eleven items (with Команда) when the flag is on and isManagerLeader=true', () => {
+    process.env.FEATURE_MANAGER_CABINET = '1';
+    const items = navItemsFor('manager', { isManagerLeader: true });
+    expect(items).toHaveLength(11);
+    expect(items.map((i) => i.label)).toEqual([
+      'Главная',
+      'Заказы',
+      'Заявки',
+      'Организации',
+      'Финансы',
+      'Загрузка из 1С',
+      'Документы',
+      'Сотрудники',
+      'Сообщения',
+      'Команда',
+      'Настройки'
     ]);
   });
 });

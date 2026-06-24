@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { selectDueReminders, REMINDER_THRESHOLDS } from '@/lib/services/training/expiry';
-import { createNotification, triggerNotificationEmail } from '@/lib/notifications';
+import { createNotification, triggerNotificationEmail, triggerNotificationTelegram } from '@/lib/notifications';
 
 /**
  * Получатели напоминания: пользователи организации → партнёр (если есть) →
@@ -94,6 +94,7 @@ export async function runCertificateExpiry(
         meta: { certificateId: cert.id, thresholdDays: d.thresholdDays }
       });
       await triggerNotificationEmail({ userId, title, body, type: 'certificate_expiring' });
+      await triggerNotificationTelegram({ userId, title, body, type: 'certificate_expiring' }).catch(() => {});
     }
 
     remindersSent += 1;

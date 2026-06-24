@@ -418,6 +418,9 @@ describe('updatePartner()', () => {
         findUnique: vi.fn().mockResolvedValue(partnerData),
         update: vi.fn().mockResolvedValue(updatedData ?? defaultUpdated)
       },
+      commissionRateChange: {
+        create: vi.fn().mockResolvedValue({})
+      },
       auditLog: { create: vi.fn().mockResolvedValue({}) }
     };
   }
@@ -513,6 +516,43 @@ describe('updatePartner()', () => {
     const auditCall = recordAuditMock.mock.calls[0][1];
     expect(auditCall.before.commissionRate).toBeNull();
     expect(auditCall.after.commissionRate).toBeNull();
+  });
+
+  it('records a CommissionRateChange only when the rate actually changes', async () => {
+    // name-only update → no history row
+    const before = { name: 'Partner', commissionRate: new Prisma.Decimal('0.1'), isActive: true };
+    const updated = { id: 'p1', name: 'New Name', commissionRate: new Prisma.Decimal('0.1'), isActive: true };
+    const tx = makeTx(before, updated);
+    const prisma = makePrismaWithTx(tx);
+
+    await updatePartner(prisma, 'actor1', 'p1', { name: 'New Name' });
+    expect(tx.commissionRateChange.create).not.toHaveBeenCalled();
+
+    // rate change 0.1 → 0.2 → 1 history row with correct fields
+    vi.clearAllMocks();
+    const before2 = { name: 'Partner', commissionRate: new Prisma.Decimal('0.1'), isActive: true };
+    const updated2 = { id: 'p1', name: 'Partner', commissionRate: new Prisma.Decimal('0.2'), isActive: true };
+    const tx2 = makeTx(before2, updated2);
+    const prisma2 = makePrismaWithTx(tx2);
+
+    await updatePartner(prisma2, 'actor-x', 'p1', { commissionRate: 0.2 });
+
+    expect(tx2.commissionRateChange.create).toHaveBeenCalledTimes(1);
+    const createCall = tx2.commissionRateChange.create.mock.calls[0][0];
+    expect(createCall.data.partnerId).toBe('p1');
+    expect(createCall.data.oldRate.equals(new Prisma.Decimal('0.1'))).toBe(true);
+    expect(createCall.data.newRate.equals(new Prisma.Decimal('0.2'))).toBe(true);
+    expect(createCall.data.changedById).toBe('actor-x');
+  });
+
+  it('does not record CommissionRateChange when rate is set to the same value', async () => {
+    const before = { name: 'Partner', commissionRate: new Prisma.Decimal('0.1'), isActive: true };
+    const updated = { id: 'p1', name: 'Partner', commissionRate: new Prisma.Decimal('0.1'), isActive: true };
+    const tx = makeTx(before, updated);
+    const prisma = makePrismaWithTx(tx);
+
+    await updatePartner(prisma, 'actor1', 'p1', { commissionRate: 0.1 });
+    expect(tx.commissionRateChange.create).not.toHaveBeenCalled();
   });
 });
 
@@ -672,6 +712,9 @@ describe('createPartnerWithAdmin()', () => {
       partnerUser: {
         create: vi.fn().mockResolvedValue({})
       },
+      commissionRateChange: {
+        create: vi.fn().mockResolvedValue({})
+      },
       passwordResetToken: {
         create: vi.fn().mockResolvedValue({})
       },
@@ -762,5 +805,37 @@ describe('createPartnerWithAdmin()', () => {
       user: { id: 'u2', email: 'admin@new.com' },
       inviteToken: 'invite-token-abc'
     });
+  });
+
+  it('records a CommissionRateChange on creation when starting rate is non-zero', async () => {
+    const tx = makeTxForCreate();
+    const prisma = makePrismaWithTx(tx);
+
+    await createPartnerWithAdmin(prisma, 'actor1', { ...baseArgs, commissionRate: 0.05 });
+
+    expect(tx.commissionRateChange.create).toHaveBeenCalledTimes(1);
+    const createCall = tx.commissionRateChange.create.mock.calls[0][0];
+    expect(createCall.data.partnerId).toBe('p2');
+    expect(createCall.data.oldRate).toBeNull();
+    expect(createCall.data.newRate.equals(new Prisma.Decimal('0.05'))).toBe(true);
+    expect(createCall.data.changedById).toBe('actor1');
+  });
+
+  it('does not record CommissionRateChange on creation when starting rate is zero', async () => {
+    const tx = makeTxForCreate();
+    const prisma = makePrismaWithTx(tx);
+
+    await createPartnerWithAdmin(prisma, 'actor1', { ...baseArgs, commissionRate: 0 });
+
+    expect(tx.commissionRateChange.create).not.toHaveBeenCalled();
+  });
+
+  it('does not record CommissionRateChange on creation when rate is undefined/null', async () => {
+    const tx = makeTxForCreate();
+    const prisma = makePrismaWithTx(tx);
+
+    await createPartnerWithAdmin(prisma, 'actor1', { ...baseArgs, commissionRate: undefined });
+
+    expect(tx.commissionRateChange.create).not.toHaveBeenCalled();
   });
 });

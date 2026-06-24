@@ -19,4 +19,12 @@ describe('column-map', () => {
   it('payment map exposes optional orderRef column', () => {
     expect(PAYMENT_COLS.orderRef).toBe('Заказ');
   });
+  it('payment map exposes purpose/vatAmount/paymentOrderNumber columns (§7.1)', () => {
+    expect(PAYMENT_COLS.purpose).toBe('Назначение платежа');
+    expect(PAYMENT_COLS.vatAmount).toBe('НДС');
+    expect(PAYMENT_COLS.paymentOrderNumber).toBe('№ платёжного поручения');
+  });
+  it('payment map no longer has legacy note key', () => {
+    expect('note' in PAYMENT_COLS).toBe(false);
+  });
 });

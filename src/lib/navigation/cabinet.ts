@@ -36,7 +36,8 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/admin/partners', label: 'Партнёры', icon: '🏢', group: 'Справочники' },
     { href: '/admin/organizations', label: 'Организации', icon: '🏛', group: 'Справочники' },
     { href: '/admin/training-directions', label: 'Направления обучения', icon: '🎯', group: 'Справочники' },
-    { href: '/admin/custom-fields', label: 'Доп-поля', icon: '🧩', group: 'Справочники' }
+    { href: '/admin/custom-fields', label: 'Доп-поля', icon: '🧩', group: 'Справочники' },
+    { href: '/admin/settings', label: 'Настройки', icon: '⚙', group: 'Платформа' }
   ],
   manager: [
     { href: '/manager/dashboard', label: 'Главная', icon: '⌂', flag: 'manager_cabinet' },
@@ -50,7 +51,8 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/manager/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests' },
     { href: '/manager/messages', label: 'Сообщения', icon: '💬', flag: 'manager_cabinet' },
     { href: '/manager/team', label: 'Команда', icon: '⚙', flag: 'manager_cabinet', leaderOnly: true, hiddenWhenFlag: 'leader_cabinet' },
-    { href: '/leader/dashboard', label: 'Кабинет руководителя', icon: '⚙', flag: 'leader_cabinet', leaderOnly: true }
+    { href: '/leader/dashboard', label: 'Кабинет руководителя', icon: '⚙', flag: 'leader_cabinet', leaderOnly: true },
+    { href: '/manager/settings', label: 'Настройки', icon: '⚙', flag: 'manager_cabinet' }
   ],
   // Пункты leader-меню намеренно БЕЗ flag: внутрь пускает middleware+layout;
   // флаг на каждом пункте дал бы пустой сайдбар при выключении.
@@ -67,7 +69,8 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     // Личный inbox (комментарии+чат) живёт в кабинете менеджера — см. план, «Отклонение от спеки».
     { href: '/manager/messages', label: 'Сообщения', icon: '💬' },
     // Переключатель «играющего тренера» в личный кабинет менеджера.
-    { href: '/manager/dashboard', label: 'Мои заказы', icon: '↩' }
+    { href: '/manager/dashboard', label: 'Мои заказы', icon: '↩' },
+    { href: '/leader/settings', label: 'Настройки', icon: '⚙' }
   ],
   partner: [
     { href: '/partner/dashboard', label: 'Главная' },
@@ -78,7 +81,8 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/partner/documents', label: 'Документы' },
     { href: '/partner/finance', label: 'Финансы' },
     { href: '/partner/team', label: 'Команда', partnerAdminOnly: true },
-    { href: '/partner/messages', label: 'Сообщения', flag: 'chat' }
+    { href: '/partner/messages', label: 'Сообщения', flag: 'chat' },
+    { href: '/partner/settings', label: 'Настройки' }
   ],
   organization: [
     { href: '/organization/dashboard', label: 'Главная', icon: '⌂', flag: 'organization_cabinet' },
@@ -91,7 +95,8 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     // «Сообщения» намеренно под более узким флагом chat (см. CLAUDE.md §5);
     // /student — отдельный shared-entry домен, не часть organization_cabinet.
     { href: '/organization/messages', label: 'Сообщения', icon: '💬', flag: 'chat' },
-    { href: '/student', label: 'Кабинет слушателя', icon: '🎓' }
+    { href: '/student', label: 'Кабинет слушателя', icon: '🎓' },
+    { href: '/organization/settings', label: 'Настройки', icon: '⚙', flag: 'organization_cabinet' }
   ],
   student: [{ href: '/student', label: 'Обучение' }]
 };

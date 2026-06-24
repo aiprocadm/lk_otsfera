@@ -65,8 +65,8 @@ beforeEach(() => {
 // ─── uploadChatAttachment ─────────────────────────────────────────────────────
 
 describe('uploadChatAttachment — unit', () => {
-  it('rejects file exceeding 20 MB size cap', async () => {
-    const bigFile = { ...validFile, size: 21 * 1024 * 1024 };
+  it('rejects file exceeding 200 MB size cap', async () => {
+    const bigFile = { ...validFile, size: 201 * 1024 * 1024 };
     const result = await uploadChatAttachment(makePrisma(), session, { orderId: 'o1', side: 'org', file: bigFile });
     expect(result).toEqual({ ok: false, error: 'too_large' });
   });
