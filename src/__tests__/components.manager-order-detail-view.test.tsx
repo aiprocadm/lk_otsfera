@@ -10,6 +10,7 @@ vi.mock('@/components/manager/manager-status-change-form', () => ({ ManagerStatu
 vi.mock('@/components/manager/manager-payments-list', () => ({ ManagerPaymentsList: () => null }));
 vi.mock('@/components/partner/documents-list', () => ({ DocumentsList: () => null }));
 vi.mock('@/components/training/order-items-section', () => ({ OrderItemsSection: () => null }));
+vi.mock('@/components/orders/order-custom-fields', () => ({ OrderCustomFields: () => null }));
 
 import { ManagerOrderDetailView } from '@/components/manager/manager-order-detail-view';
 
