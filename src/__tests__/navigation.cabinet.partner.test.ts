@@ -186,14 +186,15 @@ describe('navByRole — Финансы (manager + admin)', () => {
   });
 });
 
-describe('navByRole.admin — русский канон с группами (все 14 страниц)', () => {
-  it('содержит все админские страницы, включая ранее потерянные documents/messages/finance + заявки на обучение', () => {
+describe('navByRole.admin — русский канон с группами (все 15 страниц)', () => {
+  it('содержит все админские страницы, включая ранее потерянные documents/messages/finance + заявки на обучение + настройки', () => {
     const hrefs = navByRole.admin.map((i) => i.href);
     for (const lost of ['/admin/documents', '/admin/messages', '/admin/finance', '/admin/enrollments']) {
       expect(hrefs).toContain(lost);
     }
     expect(hrefs).toContain('/admin/training-directions');
-    expect(navByRole.admin).toHaveLength(14);
+    expect(hrefs).toContain('/admin/settings');
+    expect(navByRole.admin).toHaveLength(15);
   });
   it('каждый пункт по-русски, с иконкой и группой', () => {
     for (const item of navByRole.admin) {
@@ -204,8 +205,8 @@ describe('navByRole.admin — русский канон с группами (в�
   });
 });
 
-describe('navByRole.organization — единый источник (канон 9 пунктов)', () => {
-  it('содержит базовые пункты + Заявки на обучение + Сообщения + Кабинет слушателя', () => {
+describe('navByRole.organization — единый источник (канон 10 пунктов)', () => {
+  it('содержит базовые пункты + Заявки на обучение + Сообщения + Кабинет слушателя + Настройки', () => {
     const hrefs = navByRole.organization.map((i) => i.href);
     expect(hrefs).toEqual([
       '/organization/dashboard',
@@ -216,7 +217,8 @@ describe('navByRole.organization — единый источник (канон 9
       '/organization/enrollments',
       '/organization/team',
       '/organization/messages',
-      '/student'
+      '/student',
+      '/organization/settings'
     ]);
   });
 

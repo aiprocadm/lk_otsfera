@@ -43,6 +43,23 @@ npm run prisma:generate
 - `S3_FORCE_PATH_STYLE` — `1` для MinIO и провайдеров без virtual-host-style (path-style адресация).
 - `DOCUMENT_MAX_FILE_SIZE_MB` — максимальный размер загружаемого файла в MB; значение должно быть конечным числом больше `0` (рекомендуемый диапазон `1..200`, по умолчанию `200`).
 
+Telegram-уведомления пользователям (§18, опционально — фича дремлет, если не задано):
+
+- `TELEGRAM_BOT_TOKEN` — токен бота (может совпадать с `ALERT_TELEGRAM_BOT_TOKEN`).
+- `TELEGRAM_BOT_USERNAME` — username бота без `@` (для deep-link `https://t.me/<username>?start=<code>`).
+- `TELEGRAM_WEBHOOK_SECRET` — секрет (32+ симв.) для проверки заголовка `X-Telegram-Bot-Api-Secret-Token`.
+
+Настройка бота: создать бота у @BotFather, затем зарегистрировать webhook (один раз):
+
+```
+curl "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
+  -d "url=https://<APP_HOST>/api/integrations/telegram/webhook" \
+  -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
+```
+
+Пользователь привязывает Telegram в кабинете → «Настройки»: получает deep-link, открывает его и
+жмёт «Старт» у бота. После привязки уведомления зеркалятся в Telegram наравне с ЛК и e-mail.
+
 ## Локальный запуск
 
 ```bash

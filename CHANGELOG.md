@@ -30,6 +30,11 @@ greenfield-runbook РФ-инфраструктуры, bootstrap-вход в чи
 
 ### Добавлено
 
+- **Telegram-уведомления пользователям (§18 ТЗ).** Пользователь привязывает Telegram через
+  deep-link/код (бот-webhook `/api/integrations/telegram/webhook`, secret-token-гейт) на
+  странице «Настройки» в своём кабинете; уведомления зеркалятся в Telegram во всех точках
+  фан-аута (третий best-effort канал рядом с ЛК и e-mail). Graceful-enable через
+  `TELEGRAM_BOT_TOKEN`/`TELEGRAM_BOT_USERNAME` (фича дремлет, если не настроено) — не feature-flag.
 - **Прод-упаковка и greenfield-runbook РФ.** `Dockerfile` (+`npm ci --ignore-scripts` против
   husky-prepare), `.dockerignore`, prod-compose, `.env.production.example`; `tsx`+`prisma`
   переведены в `dependencies`. Runbook РФ-инфраструктуры (provision → TLS → bring-up → hand-off)

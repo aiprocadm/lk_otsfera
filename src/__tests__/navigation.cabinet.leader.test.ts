@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 describe('канон leader', () => {
-  it('8 пунктов: сводка/команда/финансы/заказы/организации/обучение/сообщения/мои заказы', () => {
+  it('9 пунктов: сводка/команда/финансы/заказы/организации/обучение/сообщения/мои заказы/настройки', () => {
     expect(navByRole.leader.map((i) => i.href)).toEqual([
       '/leader/dashboard',
       '/leader/team',
@@ -22,7 +22,8 @@ describe('канон leader', () => {
       '/leader/organizations',
       '/leader/enrollments',
       '/manager/messages',
-      '/manager/dashboard'
+      '/manager/dashboard',
+      '/leader/settings'
     ]);
   });
 
@@ -34,6 +35,14 @@ describe('канон leader', () => {
         expect(item.flag).toBeUndefined();
       }
     }
+  });
+
+  it('«Настройки» указывает на /leader/settings и имеет иконку', () => {
+    const settings = navByRole.leader.find((i) => i.href === '/leader/settings');
+    expect(settings).toBeDefined();
+    expect(settings!.label).toBe('Настройки');
+    expect(settings!.icon).toBeTruthy();
+    expect(settings!.flag).toBeUndefined();
   });
 
   it('каждый пункт по-русски и с иконкой', () => {
