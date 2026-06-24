@@ -15,11 +15,15 @@ const {
   userFindUnique,
   sendNotificationEmailMock,
   isEmailEnabledMock,
+  isTelegramEnabledMock,
+  sendTelegramMessageMock,
 } = vi.hoisted(() => ({
   notificationCreate: vi.fn(),
   userFindUnique: vi.fn(),
   sendNotificationEmailMock: vi.fn(),
   isEmailEnabledMock: vi.fn(),
+  isTelegramEnabledMock: vi.fn(),
+  sendTelegramMessageMock: vi.fn(),
 }));
 
 vi.mock('@/lib/db/prisma', () => ({
@@ -37,6 +41,11 @@ vi.mock('@/lib/email/transport', () => ({
   isEmailEnabled: isEmailEnabledMock,
 }));
 
+vi.mock('@/lib/telegram/client', () => ({
+  isTelegramEnabled: isTelegramEnabledMock,
+  sendTelegramMessage: sendTelegramMessageMock,
+}));
+
 // ---------------------------------------------------------------------------
 // SUT — imported AFTER mocks are registered
 // ---------------------------------------------------------------------------
@@ -47,6 +56,7 @@ import {
   notifyStatusChanged,
   notifyMessageCreated,
   triggerNotificationEmail,
+  triggerNotificationTelegram,
 } from '@/lib/notifications/core';
 // Import via barrel (src/lib/notifications/index.ts) to ensure coverage instruments it.
 // The barrel is a pure re-export module; importing it is sufficient to hit its branch.
@@ -219,5 +229,72 @@ describe('triggerNotificationEmail', () => {
     expect(sendNotificationEmailMock).toHaveBeenCalledWith(
       expect.objectContaining({ recipientName: 'партнёр' })
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// triggerNotificationTelegram
+// ---------------------------------------------------------------------------
+
+describe('triggerNotificationTelegram', () => {
+  const PAYLOAD = {
+    userId: 'u-1',
+    title: 'Уведомление',
+    body: 'Тело',
+    type: 'document_created',
+  };
+
+  it('is a no-op when Telegram is disabled (isTelegramEnabled returns false)', async () => {
+    isTelegramEnabledMock.mockReturnValue(false);
+
+    await triggerNotificationTelegram(PAYLOAD);
+
+    expect(userFindUnique).not.toHaveBeenCalled();
+    expect(sendTelegramMessageMock).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op when user has no telegramChatId (null)', async () => {
+    isTelegramEnabledMock.mockReturnValue(true);
+    userFindUnique.mockResolvedValue({ telegramChatId: null });
+
+    await triggerNotificationTelegram(PAYLOAD);
+
+    expect(sendTelegramMessageMock).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op when user is not found (findUnique returns null)', async () => {
+    isTelegramEnabledMock.mockReturnValue(true);
+    userFindUnique.mockResolvedValue(null);
+
+    await triggerNotificationTelegram(PAYLOAD);
+
+    expect(sendTelegramMessageMock).not.toHaveBeenCalled();
+  });
+
+  it('calls sendTelegramMessage with chatId and "title\\n\\nbody" when enabled and chatId set', async () => {
+    isTelegramEnabledMock.mockReturnValue(true);
+    userFindUnique.mockResolvedValue({ telegramChatId: '123456789' });
+    sendTelegramMessageMock.mockResolvedValue({ ok: true });
+
+    await triggerNotificationTelegram(PAYLOAD);
+
+    expect(sendTelegramMessageMock).toHaveBeenCalledOnce();
+    expect(sendTelegramMessageMock).toHaveBeenCalledWith(
+      '123456789',
+      `${PAYLOAD.title}\n\n${PAYLOAD.body}`
+    );
+  });
+
+  it('selects only telegramChatId from the user record', async () => {
+    isTelegramEnabledMock.mockReturnValue(true);
+    userFindUnique.mockResolvedValue({ telegramChatId: '987654321' });
+    sendTelegramMessageMock.mockResolvedValue({ ok: true });
+
+    await triggerNotificationTelegram(PAYLOAD);
+
+    expect(userFindUnique).toHaveBeenCalledWith({
+      where: { id: PAYLOAD.userId },
+      select: { telegramChatId: true },
+    });
   });
 });

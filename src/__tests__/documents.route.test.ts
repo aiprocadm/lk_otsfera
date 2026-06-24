@@ -43,7 +43,7 @@ vi.mock('@/lib/auth/policy', () => ({
 vi.mock('@/lib/storage', () => ({
   getObjectStorage: () => ({ upload, createSignedUrl, remove: vi.fn(), download: vi.fn() })
 }));
-vi.mock('@/lib/notifications', () => ({ notifyDocumentCreated: vi.fn(), triggerNotificationEmail: vi.fn() }));
+vi.mock('@/lib/notifications', () => ({ notifyDocumentCreated: vi.fn(), triggerNotificationEmail: vi.fn(), triggerNotificationTelegram: vi.fn() }));
 vi.mock('@/lib/auth/organization', () => ({ getPrimaryOrganizationId: vi.fn().mockResolvedValue('o1') }));
 vi.mock('@/lib/jobs/queues', () => ({
   getQueue: () => ({ add: enqueueAdd }),

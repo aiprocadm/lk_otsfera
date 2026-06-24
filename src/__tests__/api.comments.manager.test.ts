@@ -9,6 +9,7 @@ const {
   notifyMessageCreated,
   notifyOrgUsers,
   triggerNotificationEmail,
+  triggerNotificationTelegram,
   getPrimaryOrganizationId
 } = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -19,6 +20,7 @@ const {
   notifyMessageCreated: vi.fn(),
   notifyOrgUsers: vi.fn(),
   triggerNotificationEmail: vi.fn(),
+  triggerNotificationTelegram: vi.fn(),
   getPrimaryOrganizationId: vi.fn()
 }));
 
@@ -33,7 +35,8 @@ vi.mock('@/lib/db/prisma', () => ({
 vi.mock('@/lib/notifications', () => ({
   notifyMessageCreated,
   notifyOrgUsers,
-  triggerNotificationEmail
+  triggerNotificationEmail,
+  triggerNotificationTelegram,
 }));
 vi.mock('@/lib/auth/organization', () => ({
   getPrimaryOrganizationId

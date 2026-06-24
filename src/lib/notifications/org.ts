@@ -7,6 +7,7 @@ import {
   sendOrgPaymentReceivedEmail,
   type SendResult,
 } from '@/lib/email/send';
+import { isTelegramEnabled, sendTelegramMessage } from '@/lib/telegram/client';
 import { getAppBaseUrl, orderLabel } from './shared';
 
 type OrgNotifyInput =
@@ -237,7 +238,7 @@ export async function notifyOrgUsers(
       organizationUsers: {
         where: { isActive: true, user: { isActive: true } },
         select: {
-          user: { select: { id: true, email: true } }
+          user: { select: { id: true, email: true, telegramChatId: true } }
         }
       }
     }
@@ -286,6 +287,10 @@ export async function notifyOrgUsers(
       }
     } else {
       emailsSkipped += 1;
+    }
+
+    if (member.user.telegramChatId && isTelegramEnabled()) {
+      await sendTelegramMessage(member.user.telegramChatId, `${title}\n\n${body}`).catch(() => {});
     }
   }
 

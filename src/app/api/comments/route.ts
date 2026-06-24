@@ -7,7 +7,8 @@ import {
   notifyManagers,
   notifyMessageCreated,
   notifyOrgUsers,
-  triggerNotificationEmail
+  triggerNotificationEmail,
+  triggerNotificationTelegram,
 } from '@/lib/notifications';
 import { getPrimaryOrganizationId } from '@/lib/auth/organization';
 import { recordAudit } from '@/lib/auth/audit';
@@ -191,6 +192,7 @@ export async function POST(req: Request) {
       meta: { orderId, commentId: comment.id }
     });
     await triggerNotificationEmail({ userId: s.sub, title: 'Новое сообщение', body, type: 'message_created' });
+    await triggerNotificationTelegram({ userId: s.sub, title: 'Новое сообщение', body, type: 'message_created' });
   } catch (err) {
     console.warn('[api/comments] notification fan-out failed', {
       commentId: comment.id,
