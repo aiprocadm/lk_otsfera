@@ -8,6 +8,7 @@ import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { recordAudit } from '@/lib/auth/audit';
 import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
+import { resolveMaxFileSizeMb, maxFileSizeBytes } from '@/lib/config/upload';
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
@@ -21,17 +22,8 @@ const ALLOWED_MIME_TYPES = [
 const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.xlsx', '.png', '.jpg', '.jpeg', '.zip'] as const;
 const ALLOWED_FORMATS_ERROR = `Unsupported file format. Allowed formats: ${ALLOWED_EXTENSIONS.join(', ')}`;
 
-const DEFAULT_MAX_FILE_SIZE_MB = 10;
-const MAX_FILE_SIZE_MB_RAW = Number(process.env.DOCUMENT_MAX_FILE_SIZE_MB ?? DEFAULT_MAX_FILE_SIZE_MB);
-/* v8 ignore next -- module-level ternary: false-branch requires module reload with an invalid env value */
-const MAX_FILE_SIZE_MB = Number.isFinite(MAX_FILE_SIZE_MB_RAW) && MAX_FILE_SIZE_MB_RAW > 0 ? MAX_FILE_SIZE_MB_RAW : DEFAULT_MAX_FILE_SIZE_MB;
-/* v8 ignore next 5 -- module-level env-invalid fallback; would require reloading the module with a bad env value */
-if (MAX_FILE_SIZE_MB !== MAX_FILE_SIZE_MB_RAW) {
-  console.warn('[documents/upload] Invalid DOCUMENT_MAX_FILE_SIZE_MB, fallback to default', {
-    fallbackMb: DEFAULT_MAX_FILE_SIZE_MB
-  });
-}
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+const MAX_FILE_SIZE_MB = resolveMaxFileSizeMb();
+const MAX_FILE_SIZE_BYTES = maxFileSizeBytes();
 
 function errorResponse(code: string, message: string, status: number, correlationId?: string) {
   /* v8 ignore next -- correlationId is always crypto.randomUUID(); the {} branch is unreachable in practice */

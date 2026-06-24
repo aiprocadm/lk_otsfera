@@ -195,7 +195,7 @@ describe('createManagerOrderLessDocument — failure paths', () => {
       {
         counterparty: { type: 'organization', id: 'o1' },
         docType: 'other',
-        file: pdf({ size: 20 * 1024 * 1024 + 1 })
+        file: pdf({ size: 201 * 1024 * 1024 }) // config-driven 200 MB limit §11
       }
     );
     expect(r).toEqual({ ok: false, error: 'too_large' });
