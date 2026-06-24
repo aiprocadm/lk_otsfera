@@ -68,7 +68,7 @@ export function TelegramLinkCard({ status }: Props) {
             href={deepLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block text-sm font-medium text-[#F97316] underline break-all"
+            className="inline-block text-sm font-medium text-orange-600 underline break-all"
           >
             Открыть в Telegram
           </a>

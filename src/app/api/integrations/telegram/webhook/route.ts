@@ -34,13 +34,18 @@ export async function POST(req: Request): Promise<Response> {
     const startMatch = /^\/start\s+(\S+)/.exec(text);
     if (startMatch) {
       const code = startMatch[1]!;
-      // Never log the code (§12 security rule)
-      const result = await linkByCode(prisma, { code, chatId });
-      const reply = result.ok
-        ? '✅ Уведомления привязаны к этому чату.'
-        : 'Код недействителен или истёк.';
-      // Best-effort — don't await failure propagation
-      await sendTelegramMessage(chatId, reply).catch(() => {});
+      // Never log the code (§12 security rule). Wrap the whole handling so an
+      // unexpected DB error can't turn into a 500 → Telegram retry-storm.
+      try {
+        const result = await linkByCode(prisma, { code, chatId });
+        const reply = result.ok
+          ? '✅ Уведомления привязаны к этому чату.'
+          : 'Код недействителен или истёк.';
+        // Best-effort — don't await failure propagation
+        await sendTelegramMessage(chatId, reply).catch(() => {});
+      } catch {
+        // Swallow — always 200 below so Telegram doesn't retry.
+      }
     }
   }
 
