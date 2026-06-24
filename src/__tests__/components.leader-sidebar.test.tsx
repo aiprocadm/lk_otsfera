@@ -32,11 +32,11 @@ import { LeaderSidebar } from '@/components/leader/leader-sidebar';
 import { navByRole } from '@/lib/navigation/cabinet';
 
 describe('LeaderSidebar', () => {
-  it('renders 8 nav links from the leader canon, including manager-cabinet bridges', () => {
+  it('renders 9 nav links from the leader canon, including manager-cabinet bridges and Настройки', () => {
     vi.mocked(usePathname).mockReturnValue('/leader/dashboard');
     const html = renderToString(React.createElement(LeaderSidebar, { items: navByRole.leader }));
     const matches = html.match(/data-testid="leader-nav-/g);
-    expect(matches).toHaveLength(8);
+    expect(matches).toHaveLength(9);
     expect(html).toContain('href="/leader/dashboard"');
     expect(html).toContain('href="/leader/team"');
     expect(html).toContain('href="/leader/finance"');
@@ -45,6 +45,7 @@ describe('LeaderSidebar', () => {
     expect(html).toContain('href="/leader/enrollments"');
     expect(html).toContain('href="/manager/messages"');
     expect(html).toContain('href="/manager/dashboard"');
+    expect(html).toContain('href="/leader/settings"');
   });
 
   it('shows the «Руководитель» heading with the Промтехносфера subtitle', () => {

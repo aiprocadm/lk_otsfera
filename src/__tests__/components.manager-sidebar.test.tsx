@@ -42,11 +42,11 @@ afterEach(() => {
 });
 
 describe('ManagerSidebar', () => {
-  it('renders 12 nav links including Заявки, Заявки на обучение, Финансы, Команда и Кабинет руководителя (from raw canon)', () => {
+  it('renders 13 nav links including Заявки, Заявки на обучение, Финансы, Команда, Кабинет руководителя и Настройки (from raw canon)', () => {
     vi.mocked(usePathname).mockReturnValue('/manager/dashboard');
     const html = renderToString(React.createElement(ManagerSidebar, { items: navByRole.manager }));
     const matches = html.match(/data-testid="manager-nav-/g);
-    expect(matches).toHaveLength(12);
+    expect(matches).toHaveLength(13);
     expect(html).toContain('href="/manager/dashboard"');
     expect(html).toContain('href="/manager/orders"');
     expect(html).toContain('href="/manager/leads"');
@@ -59,6 +59,7 @@ describe('ManagerSidebar', () => {
     expect(html).toContain('href="/manager/messages"');
     expect(html).toContain('href="/manager/team"');
     expect(html).toContain('href="/leader/dashboard"');
+    expect(html).toContain('href="/manager/settings"');
   });
 
   it('marks exactly one link active', () => {
