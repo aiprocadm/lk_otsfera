@@ -22,7 +22,9 @@ export type AuditEntity =
   | 'one_c_import'
   | 'enrollment_request'
   | 'order_item'
-  | 'certificate';
+  | 'certificate'
+  | 'custom_field_definition'
+  | 'custom_field_value';
 
 export type AuditRecord = {
   userId: string;

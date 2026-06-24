@@ -11,6 +11,8 @@ import { DealComments } from '@/components/partner/deal-comments';
 import { DocumentsList } from '@/components/partner/documents-list';
 import { PartnerDocumentUploadForm } from '@/components/partner/partner-document-upload-form';
 import { OrderItemsSection } from '@/components/training/order-items-section';
+import { OrderCustomFields } from '@/components/orders/order-custom-fields';
+import { getValuesForEntity } from '@/lib/services/customFields';
 
 export default async function PartnerDealDetailPage({
   params
@@ -26,6 +28,9 @@ export default async function PartnerDealDetailPage({
   });
 
   if (!deal) notFound();
+
+  const customFieldsResult = await getValuesForEntity(prisma, 'order', deal.id);
+  const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
 
   if (deal.organization) {
     const accessible = await canPartnerAccessOrg(session, deal.organization.id);
@@ -61,6 +66,8 @@ export default async function PartnerDealDetailPage({
             directions={[]}
             students={[]}
           />
+
+          <OrderCustomFields fields={customFields} orderId={deal.id} editable={false} />
 
           <DealComments comments={deal.comments} orderId={deal.id} />
         </div>

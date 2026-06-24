@@ -36,6 +36,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/admin/partners', label: 'Партнёры', icon: '🏢', group: 'Справочники' },
     { href: '/admin/organizations', label: 'Организации', icon: '🏛', group: 'Справочники' },
     { href: '/admin/training-directions', label: 'Направления обучения', icon: '🎯', group: 'Справочники' },
+    { href: '/admin/custom-fields', label: 'Доп-поля', icon: '🧩', group: 'Справочники' },
     { href: '/admin/settings', label: 'Настройки', icon: '⚙', group: 'Платформа' }
   ],
   manager: [
