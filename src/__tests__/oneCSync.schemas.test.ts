@@ -46,6 +46,35 @@ describe('oneCSync zod schemas', () => {
     expect(OneCPaymentSchema.safeParse({ externalId:'P3', amount:100, paidAt:'2026-04-01T00:00:00Z', isRefund:false, updatedAt:'2026-04-01T00:00:00Z' }).success).toBe(false);
   });
 
+  it('payment accepts purpose/paymentOrderNumber/vatAmount fields (§7.1)', () => {
+    const r = OneCPaymentSchema.safeParse({
+      externalId: 'P4', orderExternalId: 'O1', amount: 200,
+      paidAt: '2026-04-01T00:00:00Z', isRefund: false,
+      purpose: 'Оплата по договору', paymentOrderNumber: 'ПП-007', vatAmount: 36,
+      updatedAt: '2026-04-01T00:00:00Z'
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.purpose).toBe('Оплата по договору');
+      expect(r.data.paymentOrderNumber).toBe('ПП-007');
+      expect(r.data.vatAmount).toBe(36);
+    }
+  });
+
+  it('payment accepts missing purpose/paymentOrderNumber/vatAmount (all nullish)', () => {
+    const r = OneCPaymentSchema.safeParse({
+      externalId: 'P5', orderExternalId: 'O1', amount: 100,
+      paidAt: '2026-04-01T00:00:00Z', isRefund: false,
+      updatedAt: '2026-04-01T00:00:00Z'
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.purpose).toBeUndefined();
+      expect(r.data.paymentOrderNumber).toBeUndefined();
+      expect(r.data.vatAmount).toBeUndefined();
+    }
+  });
+
   it('order accepts organizationInn instead of organizationExternalId', () => {
     expect(OneCOrderSchema.safeParse({ externalId:'O9', title:'t', organizationInn:'7700', totalAmount:1, paidAmount:0, vatIncluded:true, executionStatus:'pending', financialStatus:'billed', productMix:[], updatedAt:'2026-04-01T00:00:00Z' }).success).toBe(true);
   });

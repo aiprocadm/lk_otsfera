@@ -85,12 +85,17 @@ export async function upsertPaymentRecord(db: PrismaClient, dto: OneCPaymentDto,
   if (!organizationId) { sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'organization_not_found' }); return; }
 
   const existing = await db.payment.findUnique({ where: { externalId: input.externalId }, select: { id: true } });
-  const updatable = { amount: input.amount, paidAt: input.paidAt, method: input.method, isRefund: input.isRefund };
+  const updatable = {
+    amount: input.amount, paidAt: input.paidAt, method: input.method, isRefund: input.isRefund,
+    purpose: input.purpose, paymentOrderNumber: input.paymentOrderNumber, vatAmount: input.vatAmount
+  };
   if (existing) {
     if (isLive(ctx)) await db.payment.update({ where: { id: existing.id }, data: updatable });
     sum.updated += 1; ctx.bump?.(dto.updatedAt);
   } else {
-    if (isLive(ctx)) await db.payment.create({ data: { ...updatable, externalId: input.externalId, orderId, organizationId } });
+    // enteredById: WriteCtx carries no acting-user id (1C sync / file import actor);
+    // manual-entry wiring is future work (§7.1).
+    if (isLive(ctx)) await db.payment.create({ data: { ...updatable, externalId: input.externalId, orderId, organizationId, enteredById: null } });
     sum.created += 1; ctx.bump?.(dto.updatedAt);
     if (ctx.notify && isLive(ctx) && order && order.organizationId && !input.isRefund) {
       try { await notifyOrgUsers(db, { organizationId: order.organizationId, type: 'payment_received', payload: {
