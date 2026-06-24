@@ -8,8 +8,8 @@ import type { OrgPaymentRow } from '@/lib/services/organization/finance';
 import type { ManagerFinanceOverview } from '@/lib/services/manager/finance';
 
 const rows: OrgPaymentRow[] = [
-  { id: 'p1', amount: '40.00', paidAt: new Date('2026-04-01'), method: 'wire', isRefund: false, note: null, orderId: 'ord-1', orderNumber: 'A-1' },
-  { id: 'p2', amount: '10.00', paidAt: new Date('2026-04-02'), method: null, isRefund: false, note: null, orderId: null, orderNumber: null }
+  { id: 'p1', amount: '40.00', paidAt: new Date('2026-04-01'), method: 'wire', isRefund: false, note: null, orderId: 'ord-1', orderNumber: 'A-1', vatAmount: '6.00', purpose: 'Аванс', paymentOrderNumber: 'ПП-1', enteredByName: null },
+  { id: 'p2', amount: '10.00', paidAt: new Date('2026-04-02'), method: null, isRefund: false, note: null, orderId: null, orderNumber: null, vatAmount: null, purpose: null, paymentOrderNumber: null, enteredByName: null }
 ];
 
 describe('ManagerFinancePayments', () => {
