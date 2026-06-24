@@ -29,6 +29,16 @@ greenfield-runbook РФ-инфраструктуры, bootstrap-вход в чи
 
 ### Добавлено
 
+- **Производный 6-стадийный рабочий статус заказа (§10 ТЗ).** Чистая функция `orderWorkingStage`
+  в `lib/orders/humanStage.ts` выводит стадию из уже существующих полей заказа (без изменения
+  enum `ExecutionStatus` и 1С-маппингов): 1 «Новая» → 2 «Договор» → 3 «Оплата» → 4 «Обучение» →
+  5 «Документы» → 6 «Закрыт»; `cancelled`/`on_hold` — терминальные бейджи вне дорожки.
+  Монотонная логика: берётся самая дальняя достигнутая веха. Компонент `OrderStageStepper`
+  (`components/orders/`) встроен в карточку заказа во всех кабинетах (менеджер, руководитель
+  через `ManagerOrderHeader`, организация, партнёр, admin). Метки вынесены в `WORKING_STAGE_LABELS`
+  — переименование §10 без миграции. _Точные названия стадий предложены как дефолт — ожидается
+  подтверждение владельца по §10._
+
 - **Прод-упаковка и greenfield-runbook РФ.** `Dockerfile` (+`npm ci --ignore-scripts` против
   husky-prepare), `.dockerignore`, prod-compose, `.env.production.example`; `tsx`+`prisma`
   переведены в `dependencies`. Runbook РФ-инфраструктуры (provision → TLS → bring-up → hand-off)
