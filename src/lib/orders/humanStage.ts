@@ -1,5 +1,84 @@
 import type { ExecutionStatus, FinancialStatus } from '@prisma/client';
 
+// ─── 6-стадийный рабочий статус (§10) ───────────────────────────────────────
+
+/**
+ * Единственный источник меток 6-стадийной дорожки.
+ * Переименование стадий §10 = правка только этого массива, без миграций.
+ */
+export const WORKING_STAGE_LABELS = [
+  'Новая',      // index 1
+  'Договор',    // index 2
+  'Оплата',     // index 3
+  'Обучение',   // index 4
+  'Документы',  // index 5
+  'Закрыт'      // index 6
+] as const;
+
+export type WorkingStageInput = {
+  executionStatus: ExecutionStatus;
+  contractSignedAt: Date | string | null;
+  completedAt: Date | string | null;
+  closedAt: Date | string | null;
+  /** totalAmount; Decimal сериализуется строкой — принимаем и number */
+  amount: string | number;
+  /** paidAmount; Decimal сериализуется строкой — принимаем и number */
+  paidTotal: string | number;
+};
+
+export type WorkingStage = {
+  index: number;
+  total: 6;
+  label: string;
+  tone: StageTone;
+  terminal: boolean;
+};
+
+function hasValue(v: Date | string | null | undefined): boolean {
+  if (v == null) return false;
+  if (typeof v === 'string') return v.trim() !== '';
+  return true;
+}
+
+/**
+ * Производная 6-стадийная «дорожка» заказа (spec §10).
+ * Монотонная: возвращается САМАЯ дальняя достигнутая веха.
+ * Не мутирует enum ExecutionStatus и не зависит от 1С-маппингов.
+ */
+export function orderWorkingStage(input: WorkingStageInput): WorkingStage {
+  const { executionStatus } = input;
+
+  // Терминальные состояния вне дорожки
+  if (executionStatus === 'cancelled') {
+    return { index: 0, total: 6, label: 'Отменён', tone: 'danger', terminal: true };
+  }
+  if (executionStatus === 'on_hold') {
+    return { index: 0, total: 6, label: 'На паузе', tone: 'warning', terminal: true };
+  }
+
+  // Монотонная проверка сверху вниз: первое совпадение = самая дальняя веха
+  let index: number;
+
+  if (hasValue(input.closedAt)) {
+    index = 6;
+  } else if (executionStatus === 'completed') {
+    index = 5;
+  } else if (executionStatus === 'in_progress') {
+    index = 4;
+  } else if (Number(input.paidTotal) > 0) {
+    index = 3;
+  } else if (hasValue(input.contractSignedAt)) {
+    index = 2;
+  } else {
+    index = 1;
+  }
+
+  const label = WORKING_STAGE_LABELS[index - 1];
+  const tone: StageTone = index === 6 ? 'success' : 'neutral';
+
+  return { index, total: 6, label, tone, terminal: false };
+}
+
 export type StageTone = 'neutral' | 'success' | 'warning' | 'danger';
 
 export type Stage = {
