@@ -12,6 +12,7 @@ import { resolveMaxFileSizeMb, maxFileSizeBytes } from '@/lib/config/upload';
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
+  'application/msword', // .doc (legacy, §13)
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'image/png',
@@ -19,7 +20,7 @@ const ALLOWED_MIME_TYPES = [
   'application/zip'
 ] as const;
 
-const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.xlsx', '.png', '.jpg', '.jpeg', '.zip'] as const;
+const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xlsx', '.png', '.jpg', '.jpeg', '.zip'] as const;
 const ALLOWED_FORMATS_ERROR = `Unsupported file format. Allowed formats: ${ALLOWED_EXTENSIONS.join(', ')}`;
 
 const MAX_FILE_SIZE_MB = resolveMaxFileSizeMb();
