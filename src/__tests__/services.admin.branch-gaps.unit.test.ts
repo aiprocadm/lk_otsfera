@@ -110,6 +110,7 @@ describe('admin/partners — createPartnerWithAdmin null/undefined commissionRat
         create: vi.fn().mockResolvedValue(user),
       },
       partnerUser: { create: vi.fn().mockResolvedValue({}) },
+      commissionRateChange: { create: vi.fn().mockResolvedValue({}) },
     };
   }
 
