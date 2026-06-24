@@ -9,6 +9,8 @@ import {
 } from '@/components/admin/assign-order-manager-form';
 import { executionStage, paymentStage, orderWorkingStage, WORKING_STAGE_LABELS } from '@/lib/orders/humanStage';
 import { OrderStageStepper } from '@/components/orders/order-stage-stepper';
+import { getValuesForEntity } from '@/lib/services/customFields';
+import { OrderCustomFields } from '@/components/orders/order-custom-fields';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,24 +28,28 @@ export default async function AdminOrderDetailPage({
   await requireAdmin();
   const { id } = await params;
 
-  const order = await prisma.order.findUnique({
-    where: { id },
-    include: {
-      organization: { select: { id: true, name: true } },
-      partner: { select: { id: true, name: true } },
-      manager: { select: { id: true, name: true, email: true } }
-    }
-  });
+  const [order, candidates, customFieldsResult] = await Promise.all([
+    prisma.order.findUnique({
+      where: { id },
+      include: {
+        organization: { select: { id: true, name: true } },
+        partner: { select: { id: true, name: true } },
+        manager: { select: { id: true, name: true, email: true } }
+      }
+    }),
+    // The candidate pool for per-order assignment is *all* active managers,
+    // not just those with an existing assignment to the org — admins routinely
+    // need to assign cross-org managers as part of the third visibility branch.
+    prisma.user.findMany({
+      where: { role: 'manager', isActive: true },
+      select: { id: true, name: true, email: true },
+      orderBy: { email: 'asc' }
+    }) as Promise<ManagerCandidate[]>,
+    getValuesForEntity(prisma, 'order', id)
+  ]);
   if (!order) notFound();
 
-  // The candidate pool for per-order assignment is *all* active managers,
-  // not just those with an existing assignment to the org — admins routinely
-  // need to assign cross-org managers as part of the third visibility branch.
-  const candidates: ManagerCandidate[] = await prisma.user.findMany({
-    where: { role: 'manager', isActive: true },
-    select: { id: true, name: true, email: true },
-    orderBy: { email: 'asc' }
-  });
+  const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
 
   return (
     <div className='space-y-5'>
@@ -109,6 +115,8 @@ export default async function AdminOrderDetailPage({
           </div>
         </div>
       </div>
+
+      <OrderCustomFields fields={customFields} orderId={order.id} editable={true} />
 
       <AssignOrderManagerForm
         orderId={order.id}

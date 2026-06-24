@@ -7,7 +7,9 @@ import { ManagerStatusChangeForm } from '@/components/manager/manager-status-cha
 import { ManagerPaymentsList } from '@/components/manager/manager-payments-list';
 import { DocumentsList } from '@/components/partner/documents-list';
 import { OrderItemsSection } from '@/components/training/order-items-section';
+import { OrderCustomFields } from '@/components/orders/order-custom-fields';
 import type { ManagerOrderDetailData } from '@/lib/services/manager/orderDetail';
+import type { FieldWithValue } from '@/lib/services/customFields';
 import type { TrainingDirection } from '@prisma/client';
 
 function fmtDateTime(d: Date): string {
@@ -26,12 +28,14 @@ export function ManagerOrderDetailView({
   data,
   backHref,
   directions,
-  students
+  students,
+  customFields = []
 }: {
   data: ManagerOrderDetailData;
   backHref: string;
   directions: TrainingDirection[];
   students: Student[];
+  customFields?: FieldWithValue[];
 }) {
   const { order, auditEntries, comments, documentRows, items } = data;
 
@@ -69,6 +73,8 @@ export function ManagerOrderDetailView({
             directions={directions}
             students={students}
           />
+
+          <OrderCustomFields fields={customFields} orderId={order.id} editable={true} />
 
           {/*
             Read-only comments fallback. Phase 8.4 (Task 25 introduces the manager
