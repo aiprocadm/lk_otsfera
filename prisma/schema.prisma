@@ -783,3 +783,45 @@ model CertificateReminder {
 
   @@unique([certificateId, thresholdDays])
 }
+
+enum CustomFieldType {
+  text
+  number
+  date
+  select
+  boolean
+}
+
+/// §11: настраиваемое (доп.) поле сущности. Конфигурит admin. Полиморфно по entityType (v1='order').
+model CustomFieldDefinition {
+  id         String             @id @default(cuid())
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  entityType String
+  key        String
+  label      String
+  fieldType  CustomFieldType
+  options    String[]
+  required   Boolean            @default(false)
+  sortOrder  Int                @default(0)
+  isActive   Boolean            @default(true)
+  values     CustomFieldValue[]
+
+  @@unique([entityType, key])
+  @@index([entityType, isActive, sortOrder])
+}
+
+/// §11: значение настраиваемого поля у конкретной записи (полиморфно: entityType+entityId).
+model CustomFieldValue {
+  id           String                @id @default(cuid())
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  definitionId String
+  definition   CustomFieldDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  entityType   String
+  entityId     String
+  value        String?
+
+  @@unique([definitionId, entityId])
+  @@index([entityType, entityId])
+}
