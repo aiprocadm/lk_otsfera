@@ -17,7 +17,8 @@ const RU: Record<string, string> = {
   no_file: 'Файл не выбран.',
   network: 'Сетевая ошибка. Проверьте соединение и попробуйте снова.',
   invalid_recipient: 'У заказа нет партнёра — получатель «партнёр» недоступен.',
-  invalid_credentials: 'Неверный email или пароль.'
+  invalid_credentials: 'Неверный email или пароль.',
+  invalid_value: 'Некорректное значение дополнительного поля.'
 };
 
 export function errorMessageRu(code: string, fallback = 'Произошла ошибка.'): string {
