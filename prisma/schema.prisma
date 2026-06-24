@@ -133,6 +133,9 @@ model User {
   threadReadStates             ThreadReadState[]
   enrollmentsSubmitted         EnrollmentRequest[]   @relation("EnrollmentSubmitter")
   enrollmentsReviewed          EnrollmentRequest[]   @relation("EnrollmentReviewer")
+  telegramChatId               String?               @unique // null = Telegram не привязан (§18)
+  telegramLinkCode             String? // одноразовый код привязки (deep-link start param)
+  telegramLinkCodeExpiresAt    DateTime?
 }
 
 model PartnerUser {
