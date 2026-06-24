@@ -113,4 +113,38 @@ describe('getPartnerDealDetail — unit', () => {
     expect(result!.comments).toHaveLength(1);
     expect(result!.comments[0].authorName).toBe('Автор Петров');
   });
+
+  it('exposes items array from order positions', async () => {
+    const orderWithItems = {
+      ...baseOrder,
+      items: [
+        {
+          id: 'item1',
+          trainingStatus: 'pending',
+          note: null,
+          createdAt: new Date('2024-02-01'),
+          orderId: 'o1',
+          studentId: 's1',
+          directionId: 'd1',
+          student: { id: 's1', name: 'Иван Слушатель', email: 'ivan@demo.local' },
+          direction: { id: 'd1', name: 'Охрана труда' },
+          certificate: null
+        }
+      ]
+    };
+    const prisma = makePrisma(orderWithItems);
+    const result = await getPartnerDealDetail(prisma, { dealId: 'o1', partnerId: 'p1' });
+    expect(result).not.toBeNull();
+    expect(result!.items).toHaveLength(1);
+    expect(result!.items[0].student.name).toBe('Иван Слушатель');
+    expect(result!.items[0].direction.name).toBe('Охрана труда');
+    expect(result!.items[0].certificate).toBeNull();
+  });
+
+  it('exposes empty items array when no positions exist', async () => {
+    const orderWithNoItems = { ...baseOrder, items: [] };
+    const prisma = makePrisma(orderWithNoItems);
+    const result = await getPartnerDealDetail(prisma, { dealId: 'o1', partnerId: 'p1' });
+    expect(result!.items).toEqual([]);
+  });
 });

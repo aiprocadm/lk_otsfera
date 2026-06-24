@@ -367,6 +367,7 @@ model Organization {
   orders                         Order[]               @relation("OrderOrganization")
   payments                       Payment[]
   enrollmentRequests             EnrollmentRequest[]
+  certificates                   Certificate[]
 
   @@index([partnerId])
   @@index([externalId])
@@ -405,14 +406,19 @@ model OrganizationManager {
 }
 
 model Student {
-  id                String       @id @default(cuid())
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-  email             String       @unique
+  id                String        @id @default(cuid())
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  email             String
   name              String
+  status            String        @default("active")
   organizationId    String
-  organization      Organization @relation(fields: [organizationId], references: [id])
+  organization      Organization  @relation(fields: [organizationId], references: [id])
   externalStudentId String?
+  orderItems        OrderItem[]
+  certificates      Certificate[]
+
+  @@unique([organizationId, email])
 }
 
 model Company {
@@ -463,6 +469,7 @@ model Order {
   promotedFromLead Lead?                     @relation("LeadPromoted")
   commissionItems  CommissionStatementItem[]
   threads          OrderThread[]
+  items            OrderItem[]
 
   @@index([partnerId, executionStatus])
   @@index([partnerId, financialStatus])
@@ -668,6 +675,13 @@ enum EnrollmentStatus {
   provisioned
 }
 
+enum TrainingStatus {
+  pending
+  in_progress
+  certificate_issued
+  cancelled
+}
+
 // T5: «заявка на обучение» — submitted by any of 5 roles, reviewed (approved/
 // rejected/provisioned) on our side. Provisioning is MANUAL into the external LMS
 // (no Student/User is created here); externalStudentId is recorded on markProvisioned.
@@ -697,4 +711,75 @@ model EnrollmentRequest {
   @@index([status])
   @@index([partnerId])
   @@index([submittedByUserId])
+}
+
+model TrainingDirection {
+  id           String        @id @default(cuid())
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  name         String
+  slug         String?       @unique
+  isActive     Boolean       @default(true)
+  sortOrder    Int           @default(0)
+  orderItems   OrderItem[]
+  certificates Certificate[]
+
+  @@index([isActive, sortOrder])
+}
+
+model OrderItem {
+  id             String            @id @default(cuid())
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  orderId        String
+  order          Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  studentId      String
+  student        Student           @relation(fields: [studentId], references: [id])
+  directionId    String
+  direction      TrainingDirection @relation(fields: [directionId], references: [id])
+  trainingStatus TrainingStatus    @default(pending)
+  note           String?
+  certificate    Certificate?
+
+  @@unique([orderId, studentId, directionId])
+  @@index([orderId])
+  @@index([studentId])
+  @@index([directionId])
+}
+
+model Certificate {
+  id             String                @id @default(cuid())
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  studentId      String
+  student        Student               @relation(fields: [studentId], references: [id])
+  organizationId String
+  organization   Organization          @relation(fields: [organizationId], references: [id])
+  directionId    String
+  direction      TrainingDirection     @relation(fields: [directionId], references: [id])
+  orderItemId    String?               @unique
+  orderItem      OrderItem?            @relation(fields: [orderItemId], references: [id])
+  number         String
+  issuedAt       DateTime
+  validUntil     DateTime?
+  documentId     String?
+  source         GenerationSource      @default(user)
+  comment        String?
+  reminders      CertificateReminder[]
+
+  @@index([studentId])
+  @@index([organizationId])
+  @@index([validUntil])
+  @@index([directionId])
+}
+
+model CertificateReminder {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  certificateId String
+  certificate   Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  thresholdDays Int
+  sentAt        DateTime    @default(now())
+
+  @@unique([certificateId, thresholdDays])
 }

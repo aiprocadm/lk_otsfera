@@ -1,7 +1,7 @@
 import { Worker, type Processor } from 'bullmq';
 import { getRedisConnection, closeRedisConnection } from '@/lib/jobs/connection';
 import { closeAllQueues, getQueue, type QueueName } from '@/lib/jobs/queues';
-import { registerSyncSchedules, registerCommissionSchedules, registerAlertSchedules, loadPausedSchedulerIds } from '@/lib/jobs/scheduling';
+import { registerSyncSchedules, registerCommissionSchedules, registerAlertSchedules, registerCertExpirySchedules, loadPausedSchedulerIds } from '@/lib/jobs/scheduling';
 import { prisma } from '@/lib/db/prisma';
 import { syncOrdersProcessor } from './processors/sync-orders';
 import { syncPaymentsProcessor } from './processors/sync-payments';
@@ -14,6 +14,7 @@ import { generateCommissionXlsxProcessor } from './processors/generate-commissio
 import { calculateMonthlyCommissionsProcessor } from './processors/calculate-monthly-commissions';
 import { scanDocumentProcessor } from './processors/scan-document';
 import { evaluateAlertsProcessor } from './processors/evaluate-alerts';
+import { certificateExpiryProcessor } from './processors/certificate-expiry';
 import type { PushLeadJobPayload } from '@/lib/jobs/types';
 
 const workers: Worker[] = [];
@@ -63,13 +64,15 @@ async function main() {
   startWorker('docs.calculateMonthlyCommissions', calculateMonthlyCommissionsProcessor as Processor);
   startWorker('docs.scanDocument', scanDocumentProcessor as Processor);
   startWorker('monitoring.evaluateAlerts', evaluateAlertsProcessor as Processor);
+  startWorker('notifications.certificateExpiry', certificateExpiryProcessor as Processor);
 
   if (process.env.ENABLE_SYNC_CRON === '1') {
     const pausedIds = await loadPausedSchedulerIds(prisma);
     const syncSchedules = await registerSyncSchedules(getQueue, pausedIds);
     const commissionSchedules = await registerCommissionSchedules();
     const alertSchedules = await registerAlertSchedules();
-    for (const r of [...syncSchedules, ...commissionSchedules, ...alertSchedules]) {
+    const certExpirySchedules = await registerCertExpirySchedules();
+    for (const r of [...syncSchedules, ...commissionSchedules, ...alertSchedules, ...certExpirySchedules]) {
       console.log('[worker] schedule registered', {
         schedulerId: r.schedulerId,
         queue: r.queueName,

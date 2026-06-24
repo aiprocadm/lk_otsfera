@@ -11,6 +11,7 @@ import { OrgPaymentsList } from '@/components/organization/org-payments-list';
 import { DocumentsList } from '@/components/partner/documents-list';
 import { DealComments } from '@/components/partner/deal-comments';
 import { OrganizationDocumentUploadForm } from '@/components/organization/organization-document-upload-form';
+import { OrderItemsSection } from '@/components/training/order-items-section';
 import type { DealCommentRow } from '@/lib/services/partner/dealDetail';
 import { getOrgOrder } from '@/lib/services/organization/orders';
 
@@ -90,6 +91,14 @@ export default async function OrganizationOrderDetailPage({
             </div>
 
             <OrgPaymentsList payments={order.payments} />
+
+            <OrderItemsSection
+              orderId={order.id}
+              canEdit={false}
+              items={order.items}
+              directions={[]}
+              students={[]}
+            />
 
             <DealComments comments={comments} orderId={order.id} />
           </div>

@@ -26,7 +26,11 @@ export function ManagerStudentsTable({ rows }: { rows: ManagerStudentRow[] }) {
       <tbody>
         {rows.map((s) => (
           <Tr key={s.id}>
-            <Td className='font-medium text-[#111111]'>{s.name}</Td>
+            <Td className='font-medium'>
+              <Link href={`/manager/students/${s.id}`} className='text-[#F97316] hover:underline'>
+                {s.name}
+              </Link>
+            </Td>
             <Td className='text-gray-600'>{s.email}</Td>
             <Td>
               <Link

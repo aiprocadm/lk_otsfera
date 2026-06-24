@@ -60,13 +60,13 @@ describe('AdminSidebar', () => {
     }
   });
 
-  it('renders exactly 13 nav links', () => {
+  it('renders exactly 14 nav links', () => {
     vi.mocked(usePathname).mockReturnValue('/admin/dashboard');
 
     const html = renderToString(React.createElement(AdminSidebar, { items: navByRole.admin }));
 
     const matches = html.match(/data-testid="admin-nav-/g);
-    expect(matches).toHaveLength(13);
+    expect(matches).toHaveLength(14);
   });
 
   it('marks exactly one link as active when on /admin/dashboard', () => {

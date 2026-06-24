@@ -1137,6 +1137,68 @@ describe('organization/orders (unit)', () => {
     await listOrgOrders(prisma, { organizationId: 'org-1', skip: 10 });
     expect(findMany.mock.calls[0][0].skip).toBe(10);
   });
+
+  it('getOrgOrder: exposes items from order positions', async () => {
+    const now = new Date('2026-06-01');
+    const prisma = {
+      order: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'o1', organizationId: 'org-1',
+          orderNumber: 'ЗАК-001', title: 'Тестовый заказ',
+          totalAmount: new Prisma.Decimal('50000'), paidAmount: new Prisma.Decimal('0'),
+          vatIncluded: false, vatRate: null, productMix: [],
+          executionStatus: 'pending', financialStatus: 'not_billed',
+          createdAt: now, deadline: null, contractSignedAt: null,
+          completedAt: null, closedAt: null, paidAt: null, lastSyncedAt: null,
+          manager: null, documents: [], payments: [],
+          _count: { comments: 0 },
+          items: [
+            {
+              id: 'item1',
+              trainingStatus: 'pending',
+              note: null,
+              createdAt: now,
+              orderId: 'o1',
+              studentId: 's1',
+              directionId: 'd1',
+              student: { id: 's1', name: 'Анна Обучаемая', email: 'anna@demo.local' },
+              direction: { id: 'd1', name: 'Пожарная безопасность' },
+              certificate: { id: 'cert1', number: 'ПБ-001', validUntil: null }
+            }
+          ]
+        }),
+      },
+    } as unknown as PrismaClient;
+
+    const result = await getOrgOrder(prisma, 'org-1', 'o1');
+    expect(result).not.toBeNull();
+    expect(result!.items).toHaveLength(1);
+    expect(result!.items[0].student.name).toBe('Анна Обучаемая');
+    expect(result!.items[0].direction.name).toBe('Пожарная безопасность');
+    expect(result!.items[0].certificate?.number).toBe('ПБ-001');
+  });
+
+  it('getOrgOrder: empty items array when no positions', async () => {
+    const prisma = {
+      order: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'o2', organizationId: 'org-1',
+          orderNumber: null, title: 'БезПозиций',
+          totalAmount: new Prisma.Decimal('0'), paidAmount: new Prisma.Decimal('0'),
+          vatIncluded: false, vatRate: null, productMix: [],
+          executionStatus: 'pending', financialStatus: 'not_billed',
+          createdAt: new Date(), deadline: null, contractSignedAt: null,
+          completedAt: null, closedAt: null, paidAt: null, lastSyncedAt: null,
+          manager: null, documents: [], payments: [],
+          _count: { comments: 0 },
+          items: []
+        }),
+      },
+    } as unknown as PrismaClient;
+
+    const result = await getOrgOrder(prisma, 'org-1', 'o2');
+    expect(result!.items).toEqual([]);
+  });
 });
 
 // ===========================================================================

@@ -3,10 +3,19 @@ import type {
   ExecutionStatus,
   FinancialStatus,
   DocumentType,
-  DocumentDirection
+  DocumentDirection,
+  Prisma
 } from '@prisma/client';
 import { orderStage, type Stage } from '@/lib/orders/humanStage';
 import { organizationChannelWhere } from '@/lib/auth/documentChannelPolicy';
+
+const ORDER_ITEM_INCLUDE = {
+  student: { select: { id: true, name: true, email: true } },
+  direction: { select: { id: true, name: true } },
+  certificate: { select: { id: true, number: true, validUntil: true } }
+} satisfies Prisma.OrderItemInclude;
+
+export type OrgOrderItemRow = Prisma.OrderItemGetPayload<{ include: typeof ORDER_ITEM_INCLUDE }>;
 
 export type OrgOrderRow = {
   id: string;
@@ -165,6 +174,7 @@ export type OrgOrderDetail = {
   documents: OrgOrderDocument[];
   payments: OrgOrderPayment[];
   commentsCount: number;
+  items: OrgOrderItemRow[];
 };
 
 export async function getOrgOrder(
@@ -200,7 +210,11 @@ export async function getOrgOrder(
           note: true
         }
       },
-      _count: { select: { comments: true } }
+      _count: { select: { comments: true } },
+      items: {
+        include: ORDER_ITEM_INCLUDE,
+        orderBy: { createdAt: 'asc' }
+      }
     }
   });
 
@@ -254,6 +268,7 @@ export async function getOrgOrder(
       isRefund: p.isRefund,
       note: p.note
     })),
-    commentsCount: order._count.comments
+    commentsCount: order._count.comments,
+    items: order.items
   };
 }

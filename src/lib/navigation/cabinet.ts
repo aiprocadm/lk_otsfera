@@ -34,7 +34,8 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/admin/audit', label: 'Аудит', icon: '🧾', group: 'Операции' },
     { href: '/admin/users', label: 'Пользователи', icon: '👤', group: 'Справочники' },
     { href: '/admin/partners', label: 'Партнёры', icon: '🏢', group: 'Справочники' },
-    { href: '/admin/organizations', label: 'Организации', icon: '🏛', group: 'Справочники' }
+    { href: '/admin/organizations', label: 'Организации', icon: '🏛', group: 'Справочники' },
+    { href: '/admin/training-directions', label: 'Направления обучения', icon: '🎯', group: 'Справочники' }
   ],
   manager: [
     { href: '/manager/dashboard', label: 'Главная', icon: '⌂', flag: 'manager_cabinet' },

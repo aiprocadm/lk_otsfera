@@ -347,6 +347,22 @@ async function main() {
     console.log(`[seed] inserted ${auditSamples.length} demo audit-log entries`);
   }
 
+  // ─── Справочник направлений обучения (§19) ──────────────────────────
+  const TRAINING_DIRECTIONS = [
+    { slug: 'labor-safety', name: 'Охрана труда', sortOrder: 1 },
+    { slug: 'fire-safety', name: 'Пожарная безопасность', sortOrder: 2 },
+    { slug: 'electrical-safety', name: 'Электробезопасность', sortOrder: 3 },
+    { slug: 'other', name: 'Другое', sortOrder: 99 }
+  ];
+  for (const d of TRAINING_DIRECTIONS) {
+    await prisma.trainingDirection.upsert({
+      where: { slug: d.slug },
+      update: { name: d.name, sortOrder: d.sortOrder },
+      create: d
+    });
+  }
+  console.log(`Seeded ${TRAINING_DIRECTIONS.length} training directions`);
+
   console.log('[seed] demo accounts (password = ' + PASSWORD + '):');
   console.log('  - admin@demo.local (role=admin)');
   console.log('  - partner@demo.local (partner admin, sees all orgs)');
