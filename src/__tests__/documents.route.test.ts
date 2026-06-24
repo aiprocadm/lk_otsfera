@@ -399,14 +399,17 @@ describe('documents/upload missing branches', () => {
   });
 
   it('400 when file exceeds MAX_FILE_SIZE_BYTES', async () => {
-    // Create a file larger than 10MB (default MAX_FILE_SIZE_MB = 10)
-    const tenMbPlusOne = new Uint8Array(10 * 1024 * 1024 + 1);
-    // Prefix with PDF magic bytes so it passes the magic-byte check if reached
-    tenMbPlusOne[0] = 0x25; tenMbPlusOne[1] = 0x50; tenMbPlusOne[2] = 0x44; tenMbPlusOne[3] = 0x46;
-    const fd = new FormData();
-    fd.set('orderId', 'ord1');
-    fd.set('file', new File([tenMbPlusOne], 'huge.pdf', { type: 'application/pdf' }));
-    const res = await uploadPost(new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd }));
+    // Allocating 200 MB+ in memory is impractical. Instead, stub req.formData() to return a
+    // synthetic File whose .size property reports 201 MB (config-driven limit §11).
+    const tinyBuf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0, 0, 0, 0]); // PDF magic bytes
+    const hugeFile = new File([tinyBuf], 'huge.pdf', { type: 'application/pdf' });
+    Object.defineProperty(hugeFile, 'size', { value: 201 * 1024 * 1024, configurable: true });
+    const req = new Request('https://app.local/api/documents/upload', { method: 'POST', body: new FormData() });
+    const stubbedFd = new FormData();
+    stubbedFd.set('orderId', 'ord1');
+    stubbedFd.set('file', hugeFile);
+    vi.spyOn(req, 'formData').mockResolvedValueOnce(stubbedFd);
+    const res = await uploadPost(req);
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.code).toBe('FILE_TOO_LARGE');

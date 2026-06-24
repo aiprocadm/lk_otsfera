@@ -202,6 +202,44 @@ describe('upsertPaymentRecord', () => {
     expect(d.payment.create).toHaveBeenCalledWith({ data: expect.objectContaining({ externalId:'P1', orderId:'ord', organizationId:'o' }) });
     expect(sum.created).toBe(1);
   });
+
+  it('persists purpose/paymentOrderNumber/vatAmount on create (§7.1)', async () => {
+    const d = pdb();
+    d.order.findUnique.mockResolvedValue({ id:'ord', organizationId:'o', orderNumber:'O1', title:'t' });
+    const sum = emptySummary();
+    const richDto = {
+      externalId: 'P-RICH', orderExternalId: 'O1', amount: 180, vatAmount: 30,
+      purpose: 'Оплата по договору №5', paymentOrderNumber: 'ПП-007',
+      paidAt: '2026-04-01T00:00:00Z', isRefund: false, updatedAt: '2026-04-01T00:00:00Z'
+    } as any;
+    await upsertPaymentRecord(d, richDto, sum, { mode:'live', notify:false });
+    expect(d.payment.create).toHaveBeenCalledWith({ data: expect.objectContaining({
+      purpose: 'Оплата по договору №5',
+      paymentOrderNumber: 'ПП-007',
+      vatAmount: 30,
+      enteredById: null
+    }) });
+    expect(sum.created).toBe(1);
+  });
+
+  it('persists purpose/paymentOrderNumber/vatAmount on update (§7.1)', async () => {
+    const d = pdb();
+    d.order.findUnique.mockResolvedValue({ id:'ord', organizationId:'o', orderNumber:'O1', title:'t' });
+    d.payment.findUnique.mockResolvedValue({ id:'pay-existing' });
+    const sum = emptySummary();
+    const richDto = {
+      externalId: 'P-UPD', orderExternalId: 'O1', amount: 180, vatAmount: 30,
+      purpose: 'Обновлённое назначение', paymentOrderNumber: 'ПП-008',
+      paidAt: '2026-04-01T00:00:00Z', isRefund: false, updatedAt: '2026-04-01T00:00:00Z'
+    } as any;
+    await upsertPaymentRecord(d, richDto, sum, { mode:'live', notify:false });
+    expect(d.payment.update).toHaveBeenCalledWith({ where: { id:'pay-existing' }, data: expect.objectContaining({
+      purpose: 'Обновлённое назначение',
+      paymentOrderNumber: 'ПП-008',
+      vatAmount: 30
+    }) });
+    expect(sum.updated).toBe(1);
+  });
   it('writes org-level payment when only organizationExternalId present', async () => {
     const d = pdb(); resolveOrganizationRef.mockResolvedValue({ id:'o', companyId:'c', partnerId:null, externalId:'E-ORG' });
     const sum = emptySummary();

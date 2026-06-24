@@ -21,7 +21,11 @@ export function ManagerFinancePayments({
         <Th>Дата</Th>
         <Th>Заказ</Th>
         <Th>Способ</Th>
+        <Th>Назначение</Th>
+        <Th>№ поручения</Th>
+        <Th className='text-right'>НДС</Th>
         <Th className='text-right'>Сумма</Th>
+        <Th>Внёс</Th>
       </THead>
       <tbody>
         {payments.map((p) => (
@@ -39,10 +43,14 @@ export function ManagerFinancePayments({
             <Td className='text-gray-600'>
               {p.isRefund ? <span className='text-red-600'>Возврат</span> : paymentMethodRu(p.method)}
             </Td>
+            <Td className='text-gray-600 max-w-xs truncate'>{p.purpose ?? '—'}</Td>
+            <Td className='text-gray-600'>{p.paymentOrderNumber ?? '—'}</Td>
+            <Td className='text-right text-gray-600'>{p.vatAmount != null ? fmtMoney(p.vatAmount) : '—'}</Td>
             <Td className={`text-right font-medium ${p.isRefund ? 'text-red-600' : 'text-gray-800'}`}>
               {p.isRefund ? '−' : ''}
               {fmtMoney(p.amount)}
             </Td>
+            <Td className='text-gray-500 text-sm'>{p.enteredByName ?? '—'}</Td>
           </Tr>
         ))}
       </tbody>

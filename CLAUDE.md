@@ -170,7 +170,7 @@ removeOnComplete: { count: 1000 }, removeOnFail: false
 
 - Bucket — `documents` (env `S3_BUCKET`).
 - Скачивание — **через presigned URL** (S3) TTL 600 сек, 302-redirect. Никогда не отдавай файл напрямую через приложение.
-- При upload — обязательно: MIME allow-list + size check (20 МБ), запись `Document` с правильным `direction`, enqueue `docs.scanDocument`, audit log, fan-out уведомления.
+- При upload — обязательно: MIME allow-list + size check (200 МБ), запись `Document` с правильным `direction`, enqueue `docs.scanDocument`, audit log, fan-out уведомления.
 - ClamAV статусы: `pending → clean | infected`. Файлы с `infected` отдают **410 Gone**, не 404 — это разные сигналы (см. download-роуты).
 
 ## 11. Известные подводные камни

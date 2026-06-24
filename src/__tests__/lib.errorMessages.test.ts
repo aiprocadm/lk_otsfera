@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { errorMessageRu } from '@/lib/errors/messages';
 describe('errorMessageRu', () => {
   it('maps known stable codes to Russian strings', () => {
-    expect(errorMessageRu('too_large')).toBe('Файл превышает 20 МБ.');
+    expect(errorMessageRu('too_large')).toBe('Файл превышает допустимый размер.');
     expect(errorMessageRu('forbidden')).toBe('Нет прав на загрузку.');
     expect(errorMessageRu('invalid_recipient')).toContain('партнёр');
   });

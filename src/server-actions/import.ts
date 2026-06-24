@@ -3,12 +3,13 @@ import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
 import { previewImport, commitImport } from '@/lib/services/import';
 
-const MAX_BYTES = 20 * 1024 * 1024;
+// лимит парса xlsx-выгрузки 1С (операторский файл), не пользовательский документ §11
+const IMPORT_MAX_XLSX_BYTES = 20 * 1024 * 1024;
 
 async function guardedBuffer(form: FormData): Promise<{ ok: true; buf: Buffer } | { ok: false; error: 'invalid_file' }> {
   const file = form.get('file');
   if (!(file instanceof File)) return { ok: false, error: 'invalid_file' };
-  if (file.size > MAX_BYTES) return { ok: false, error: 'invalid_file' };
+  if (file.size > IMPORT_MAX_XLSX_BYTES) return { ok: false, error: 'invalid_file' };
   if (!file.name.toLowerCase().endsWith('.xlsx')) return { ok: false, error: 'invalid_file' };
   return { ok: true, buf: Buffer.from(await file.arrayBuffer()) };
 }

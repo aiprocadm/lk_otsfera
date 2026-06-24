@@ -161,11 +161,11 @@ describe('services/manager/uploads — createCounterpartyDocument', () => {
     expect(notifyPartnerUsersMock).not.toHaveBeenCalled();
   });
 
-  it('returns too_large when file > 20 MB', async () => {
+  it('returns too_large when file > 200 MB (config-driven limit §11)', async () => {
     const r = await createCounterpartyDocument(
       prismaMock() as never,
       session(),
-      pdfArgs({ size: 20 * 1024 * 1024 + 1, recipient: 'organization' })
+      pdfArgs({ size: 201 * 1024 * 1024, recipient: 'organization' })
     );
     expect(r).toEqual({ ok: false, error: 'too_large' });
     expect(orderFindUnique).not.toHaveBeenCalled();

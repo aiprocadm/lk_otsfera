@@ -133,6 +133,7 @@ model User {
   threadReadStates             ThreadReadState[]
   enrollmentsSubmitted         EnrollmentRequest[]   @relation("EnrollmentSubmitter")
   enrollmentsReviewed          EnrollmentRequest[]   @relation("EnrollmentReviewer")
+  paymentsEntered              Payment[]             @relation("PaymentEnteredBy")
   telegramChatId               String?               @unique // null = Telegram не привязан (§18)
   telegramLinkCode             String? // одноразовый код привязки (deep-link start param)
   telegramLinkCodeExpiresAt    DateTime?
@@ -258,19 +259,24 @@ model CommissionStatementItem {
 }
 
 model Payment {
-  id             String       @id @default(cuid())
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  orderId        String?
-  order          Order?       @relation(fields: [orderId], references: [id])
-  externalId     String?      @unique
-  amount         Decimal      @db.Decimal(14, 2)
-  paidAt         DateTime
-  method         String?
-  isRefund       Boolean      @default(false)
-  note           String?
+  id                 String       @id @default(cuid())
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  organizationId     String
+  organization       Organization @relation(fields: [organizationId], references: [id])
+  orderId            String?
+  order              Order?       @relation(fields: [orderId], references: [id])
+  externalId         String?      @unique
+  amount             Decimal      @db.Decimal(14, 2)
+  paidAt             DateTime
+  method             String?
+  isRefund           Boolean      @default(false)
+  note               String?
+  vatAmount          Decimal?     @db.Decimal(14, 2) // НДС (§7.1); null = не выделен
+  purpose            String? // назначение платежа (§7.1; дублирует семантику note)
+  paymentOrderNumber String? // № платёжного поручения (§7.1)
+  enteredById        String? // кто внёс платёж (§7.1)
+  enteredBy          User?        @relation("PaymentEnteredBy", fields: [enteredById], references: [id])
 
   @@index([orderId])
   @@index([organizationId])
@@ -325,23 +331,39 @@ model SyncSchedulePause {
 }
 
 model Partner {
-  id                   String                @id @default(cuid())
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  name                 String
-  legalName            String?
-  slug                 String?               @unique
-  inn                  String?               @unique
-  commissionRate       Decimal               @default(0) @db.Decimal(6, 4)
-  isActive             Boolean               @default(true)
-  organizations        Organization[]
-  users                User[]
-  orders               Order[]
-  partnerUsers         PartnerUser[]
-  leads                Lead[]
-  commissionStatements CommissionStatement[]
-  notifications        Notification[]
-  enrollmentRequests   EnrollmentRequest[]
+  id                    String                 @id @default(cuid())
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  name                  String
+  legalName             String?
+  slug                  String?                @unique
+  inn                   String?                @unique
+  commissionRate        Decimal                @default(0) @db.Decimal(6, 4)
+  isActive              Boolean                @default(true)
+  organizations         Organization[]
+  users                 User[]
+  orders                Order[]
+  partnerUsers          PartnerUser[]
+  leads                 Lead[]
+  commissionStatements  CommissionStatement[]
+  notifications         Notification[]
+  enrollmentRequests    EnrollmentRequest[]
+  commissionRateChanges CommissionRateChange[]
+}
+
+/// История изменений ставки комиссии партнёра (§9.1). Append-only; audit/display-only —
+/// расчётчик комиссий продолжает брать Partner.commissionRate на момент расчёта.
+model CommissionRateChange {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  partnerId     String
+  partner       Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  oldRate       Decimal? @db.Decimal(6, 4) // null = первичная установка
+  newRate       Decimal  @db.Decimal(6, 4)
+  effectiveFrom DateTime @default(now()) // дата вступления (= момент изменения)
+  changedById   String? // кто изменил (nullable для системных)
+
+  @@index([partnerId, effectiveFrom])
 }
 
 model Organization {
