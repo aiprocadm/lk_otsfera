@@ -3,6 +3,7 @@ import { requireManagerLeader } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { loadManagerOrderDetail } from '@/lib/services/manager/orderDetail';
 import { listDirections } from '@/lib/services/training';
+import { getValuesForEntity } from '@/lib/services/customFields';
 import { ManagerOrderDetailView } from '@/components/manager/manager-order-detail-view';
 
 export default async function LeaderOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -11,15 +12,17 @@ export default async function LeaderOrderDetailPage({ params }: { params: Promis
   const data = await loadManagerOrderDetail(prisma, session, id);
   if (!data) notFound();
 
-  const [directionsResult, students] = await Promise.all([
+  const [directionsResult, students, customFieldsResult] = await Promise.all([
     listDirections(prisma, session),
     prisma.student.findMany({
       where: { organizationId: data.order.organizationId ?? undefined },
       select: { id: true, name: true, email: true },
       orderBy: { name: 'asc' }
-    })
+    }),
+    getValuesForEntity(prisma, 'order', id)
   ]);
   const directions = directionsResult.ok ? directionsResult.directions : [];
+  const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
 
   return (
     <ManagerOrderDetailView
@@ -27,6 +30,7 @@ export default async function LeaderOrderDetailPage({ params }: { params: Promis
       backHref='/leader/orders'
       directions={directions}
       students={students}
+      customFields={customFields}
     />
   );
 }
