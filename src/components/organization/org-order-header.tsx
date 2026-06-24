@@ -1,7 +1,17 @@
 import type { OrgOrderDetail } from '@/lib/services/organization/orders';
 import { DealStatusBadge } from '@/components/partner/deal-status-badge';
+import { orderWorkingStage, WORKING_STAGE_LABELS } from '@/lib/orders/humanStage';
+import { OrderStageStepper } from '@/components/orders/order-stage-stepper';
 
 export function OrgOrderHeader({ order }: { order: OrgOrderDetail }) {
+  const workingStage = orderWorkingStage({
+    executionStatus: order.executionStatus,
+    contractSignedAt: order.contractSignedAt,
+    completedAt: order.completedAt,
+    closedAt: order.closedAt,
+    amount: order.totalAmount,
+    paidTotal: order.paidAmount
+  });
   return (
     <div className='bg-white border border-gray-200 rounded-xl p-5'>
       <div className='flex flex-col md:flex-row md:items-start md:justify-between gap-3'>
@@ -20,6 +30,9 @@ export function OrgOrderHeader({ order }: { order: OrgOrderDetail }) {
             <div className='font-medium text-[#111111]'>{order.managerName}</div>
           </div>
         )}
+      </div>
+      <div className='mt-4'>
+        <OrderStageStepper stage={workingStage} labels={[...WORKING_STAGE_LABELS]} />
       </div>
       {order.productMix.length > 0 && (
         <div className='mt-3 flex flex-wrap gap-1.5'>

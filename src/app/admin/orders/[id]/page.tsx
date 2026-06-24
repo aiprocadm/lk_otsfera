@@ -7,7 +7,8 @@ import {
   AssignOrderManagerForm,
   type ManagerCandidate
 } from '@/components/admin/assign-order-manager-form';
-import { executionStage, paymentStage } from '@/lib/orders/humanStage';
+import { executionStage, paymentStage, orderWorkingStage, WORKING_STAGE_LABELS } from '@/lib/orders/humanStage';
+import { OrderStageStepper } from '@/components/orders/order-stage-stepper';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,20 @@ export default async function AdminOrderDetailPage({
           Заказ № {order.orderNumber}
         </h1>
         <p className='text-sm text-gray-500 mt-0.5'>{order.title}</p>
+      </div>
+
+      <div className='bg-white border border-gray-200 rounded-xl p-4'>
+        <OrderStageStepper
+          stage={orderWorkingStage({
+            executionStatus: order.executionStatus,
+            contractSignedAt: order.contractSignedAt,
+            completedAt: order.completedAt,
+            closedAt: order.closedAt,
+            amount: Number(order.totalAmount),
+            paidTotal: Number(order.paidAmount)
+          })}
+          labels={[...WORKING_STAGE_LABELS]}
+        />
       </div>
 
       <div className='grid gap-3 md:grid-cols-3'>

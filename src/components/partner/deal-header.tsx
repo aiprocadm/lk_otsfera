@@ -2,8 +2,18 @@ import Link from 'next/link';
 import type { DealDetail } from '@/lib/services/partner/dealDetail';
 import { DealStatusBadge } from './deal-status-badge';
 import { orderTypeRu } from '@/lib/i18n/labels';
+import { orderWorkingStage, WORKING_STAGE_LABELS } from '@/lib/orders/humanStage';
+import { OrderStageStepper } from '@/components/orders/order-stage-stepper';
 
 export function DealHeader({ deal }: { deal: DealDetail }) {
+  const workingStage = orderWorkingStage({
+    executionStatus: deal.executionStatus,
+    contractSignedAt: deal.contractSignedAt,
+    completedAt: deal.completedAt,
+    closedAt: deal.closedAt,
+    amount: deal.totalAmount,
+    paidTotal: deal.paidAmount
+  });
   return (
     <div className='bg-white border border-gray-200 rounded-xl p-5'>
       <div className='flex flex-col md:flex-row md:items-start md:justify-between gap-3'>
@@ -35,6 +45,9 @@ export function DealHeader({ deal }: { deal: DealDetail }) {
             <div className='font-medium text-[#111111]'>{deal.managerName}</div>
           </div>
         )}
+      </div>
+      <div className='mt-4'>
+        <OrderStageStepper stage={workingStage} labels={[...WORKING_STAGE_LABELS]} />
       </div>
       {deal.productMix.length > 0 && (
         <div className='mt-3 flex flex-wrap gap-1.5'>

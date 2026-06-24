@@ -1,6 +1,7 @@
 import type { ManagerOrderDetail } from '@/lib/services/manager/orders';
-import { orderStage } from '@/lib/orders/humanStage';
+import { orderStage, orderWorkingStage, WORKING_STAGE_LABELS } from '@/lib/orders/humanStage';
 import { DealStatusBadge } from '@/components/partner/deal-status-badge';
+import { OrderStageStepper } from '@/components/orders/order-stage-stepper';
 
 /**
  * Manager-side sibling of `org-order-header.tsx`. Same visual shape but the
@@ -15,6 +16,14 @@ export function ManagerOrderHeader({ order }: { order: ManagerOrderDetail }) {
   const stage = orderStage({
     executionStatus: order.executionStatus,
     financialStatus: order.financialStatus,
+    amount: Number(order.totalAmount),
+    paidTotal: Number(order.paidAmount)
+  });
+  const workingStage = orderWorkingStage({
+    executionStatus: order.executionStatus,
+    contractSignedAt: order.contractSignedAt,
+    completedAt: order.completedAt,
+    closedAt: order.closedAt,
     amount: Number(order.totalAmount),
     paidTotal: Number(order.paidAmount)
   });
@@ -41,6 +50,9 @@ export function ManagerOrderHeader({ order }: { order: ManagerOrderDetail }) {
             <div className='font-medium text-[#111111]'>{managerName}</div>
           </div>
         )}
+      </div>
+      <div className='mt-4'>
+        <OrderStageStepper stage={workingStage} labels={[...WORKING_STAGE_LABELS]} />
       </div>
       {order.productMix.length > 0 && (
         <div className='mt-3 flex flex-wrap gap-1.5'>
