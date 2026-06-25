@@ -15,7 +15,7 @@ export default async function ManagerPaymentsImportPage() {
   const rows: QueueRow[] = raw.map((r) => ({
     id: r.id, externalId: r.externalId, paidAt: r.paidAt.toISOString(), amount: String(r.amount), isRefund: r.isRefund,
     purpose: r.purpose, counterpartyName: r.counterpartyName, counterpartyInn: r.counterpartyInn,
-    accountCandidates: (r.accountCandidates as string[]) ?? [], candidateOrgName: r.candidateOrgId ? orgName.get(r.candidateOrgId) ?? null : null, matchMethod: r.matchMethod,
+    accountCandidates: (r.accountCandidates as string[]) ?? [], candidateOrgId: r.candidateOrgId, candidateOrgName: r.candidateOrgId ? orgName.get(r.candidateOrgId) ?? null : null, matchMethod: r.matchMethod,
   }));
   return (
     <div className="space-y-6">

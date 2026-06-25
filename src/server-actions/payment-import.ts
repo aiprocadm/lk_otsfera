@@ -1,7 +1,7 @@
 'use server';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
-import { previewPaymentImport, commitPaymentImport, resolveQueueRow, dismissQueueRow } from '@/lib/services/import/oneCAccountCard';
+import { previewPaymentImport, commitPaymentImport, resolveQueueRow, dismissQueueRow, searchResolveOrgs, listResolveOrders } from '@/lib/services/import/oneCAccountCard';
 
 const MAX_BYTES = 20 * 1024 * 1024;
 
@@ -36,4 +36,14 @@ export async function resolveQueueRowAction(args: { rowId: string; organizationI
 export async function dismissQueueRowAction(args: { rowId: string }) {
   const session = await requireSession();
   return dismissQueueRow(prisma, session, args);
+}
+
+export async function searchResolveOrgsAction(args: { q?: string }) {
+  const session = await requireSession();
+  return searchResolveOrgs(prisma, session, args);
+}
+
+export async function listResolveOrdersAction(args: { organizationId: string }) {
+  const session = await requireSession();
+  return listResolveOrders(prisma, session, args);
 }
