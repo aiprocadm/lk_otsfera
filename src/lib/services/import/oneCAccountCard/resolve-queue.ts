@@ -1,0 +1,65 @@
+import type { PrismaClient } from '@prisma/client';
+import type { SessionPayload } from '@/lib/auth/jwt';
+import { upsertPaymentRecord, type WriteCtx } from '@/lib/services/oneCSync/writers';
+import { emptySummary } from '@/lib/services/oneCSync/record-batch';
+import { importScope } from '@/lib/services/oneCSync/scope';
+import type { OneCPaymentDto } from '@/lib/services/oneCSync/dto';
+
+const EPOCH = new Date(0).toISOString();
+type Err = 'forbidden' | 'not_found' | 'org_required';
+function isStaff(s: SessionPayload) { return s.role === 'admin' || s.role === 'manager'; }
+
+/** Список строк, требующих ручного разбора (scoped по компании для не-админа). */
+export async function listQueue(prisma: PrismaClient, session: SessionPayload) {
+  if (!isStaff(session)) return [];
+  const where = session.role === 'admin'
+    ? { status: 'needs_review' }
+    : { status: 'needs_review', batch: { companyId: session.companyId ?? '__none__' } };
+  return prisma.paymentImportRow.findMany({
+    where, orderBy: { createdAt: 'desc' }, take: 200,
+    select: { id: true, externalId: true, paidAt: true, amount: true, isRefund: true, purpose: true, counterpartyName: true, counterpartyInn: true, accountCandidates: true, candidateOrgId: true, candidateOrderId: true, matchMethod: true },
+  });
+}
+
+/** Подтвердить привязку строки очереди → создать Payment через writer, пометить resolved. */
+export async function resolveQueueRow(
+  prisma: PrismaClient, session: SessionPayload,
+  args: { rowId: string; organizationId: string; orderId: string | null }
+): Promise<{ ok: true; paymentId: string | null } | { ok: false; error: Err }> {
+  if (!isStaff(session)) return { ok: false, error: 'forbidden' };
+  const row = await prisma.paymentImportRow.findUnique({ where: { id: args.rowId } });
+  if (!row || row.status !== 'needs_review') return { ok: false, error: 'not_found' };
+  if (!args.organizationId) return { ok: false, error: 'org_required' };
+
+  const org = await prisma.organization.findUnique({ where: { id: args.organizationId }, select: { id: true, inn: true, externalId: true } });
+  if (!org) return { ok: false, error: 'not_found' };
+
+  // строим DTO: если выбран order и у него есть externalId — order-level, иначе org-level
+  let dto: OneCPaymentDto = {
+    externalId: row.externalId, amount: Number(row.amount), paidAt: row.paidAt.toISOString(),
+    method: row.isRefund ? 'возврат' : undefined, purpose: row.purpose ?? undefined,
+    paymentOrderNumber: row.paymentOrderNumber ?? undefined, vatAmount: row.vatAmount == null ? undefined : Number(row.vatAmount),
+    isRefund: row.isRefund, updatedAt: EPOCH, organizationInn: org.inn ?? undefined, organizationExternalId: org.externalId ?? undefined,
+  };
+  if (args.orderId) {
+    const order = await prisma.order.findUnique({ where: { id: args.orderId }, select: { externalId: true } });
+    if (order?.externalId) dto = { ...dto, orderExternalId: order.externalId, organizationInn: undefined, organizationExternalId: undefined };
+  }
+
+  const ctx: WriteCtx = { mode: 'live', notify: true, scope: importScope(session) };
+  const summary = emptySummary();
+  await upsertPaymentRecord(prisma, dto, summary, ctx);
+  const payment = await prisma.payment.findUnique({ where: { externalId: row.externalId }, select: { id: true } });
+  await prisma.paymentImportRow.update({ where: { id: row.id }, data: { status: 'resolved', candidateOrgId: org.id, candidateOrderId: args.orderId, resolvedPaymentId: payment?.id ?? null } });
+  return { ok: true, paymentId: payment?.id ?? null };
+}
+
+export async function dismissQueueRow(
+  prisma: PrismaClient, session: SessionPayload, args: { rowId: string }
+): Promise<{ ok: true } | { ok: false; error: Err }> {
+  if (!isStaff(session)) return { ok: false, error: 'forbidden' };
+  const row = await prisma.paymentImportRow.findUnique({ where: { id: args.rowId }, select: { id: true } });
+  if (!row) return { ok: false, error: 'not_found' };
+  await prisma.paymentImportRow.update({ where: { id: args.rowId }, data: { status: 'dismissed' } });
+  return { ok: true };
+}
