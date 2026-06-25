@@ -134,6 +134,7 @@ model User {
   enrollmentsSubmitted         EnrollmentRequest[]   @relation("EnrollmentSubmitter")
   enrollmentsReviewed          EnrollmentRequest[]   @relation("EnrollmentReviewer")
   paymentsEntered              Payment[]             @relation("PaymentEnteredBy")
+  paymentImportBatches         PaymentImportBatch[]  @relation("PaymentImportBatchBy")
   telegramChatId               String?               @unique // null = Telegram не привязан (§18)
   telegramLinkCode             String? // одноразовый код привязки (deep-link start param)
   telegramLinkCodeExpiresAt    DateTime?
@@ -849,4 +850,46 @@ model CustomFieldValue {
 
   @@unique([definitionId, entityId])
   @@index([entityType, entityId])
+}
+
+model PaymentImportBatch {
+  id           String             @id @default(cuid())
+  createdAt    DateTime           @default(now())
+  importedById String?
+  importedBy   User?              @relation("PaymentImportBatchBy", fields: [importedById], references: [id])
+  companyId    String?
+  fileKey      String?
+  fileName     String
+  counts       Json
+  status       String
+  rows         PaymentImportRow[]
+
+  @@index([companyId, createdAt])
+}
+
+model PaymentImportRow {
+  id                 String             @id @default(cuid())
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  batchId            String
+  batch              PaymentImportBatch @relation(fields: [batchId], references: [id])
+  externalId         String             @unique
+  paidAt             DateTime
+  amount             Decimal            @db.Decimal(14, 2)
+  isRefund           Boolean            @default(false)
+  purpose            String?
+  paymentOrderNumber String?
+  vatAmount          Decimal?           @db.Decimal(14, 2)
+  counterpartyName   String?
+  counterpartyInn    String?
+  accountCandidates  Json
+  status             String             @default("needs_review")
+  candidateOrgId     String?
+  candidateOrderId   String?
+  matchMethod        String?
+  rawRow             Json
+  resolvedPaymentId  String?
+
+  @@index([status, createdAt])
+  @@index([batchId])
 }

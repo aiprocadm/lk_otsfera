@@ -15,7 +15,7 @@ export type SyncLogEntry = {
   entity: SyncLogEntity;
   externalId?: string;
   direction: 'inbound' | 'outbound';
-  operation: 'create' | 'update' | 'skip' | 'delete' | 'check';
+  operation: 'create' | 'update' | 'skip' | 'delete' | 'check' | 'import';
   status: 'success' | 'error' | 'warn';
   errorMessage?: string;
   payload?: unknown;

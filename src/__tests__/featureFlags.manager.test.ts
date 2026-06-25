@@ -67,7 +67,7 @@ describe('manager_cabinet (opt-in flag)', () => {
 });
 
 describe('navByRole.manager — feature-flag gated', () => {
-  it('lists all thirteen manager cabinet items in the raw nav (including leader-only Команда + вход в /leader + Настройки)', () => {
+  it('lists all fourteen manager cabinet items in the raw nav (including leader-only Команда + вход в /leader + Настройки)', () => {
     expect(navByRole.manager.map((i) => i.href)).toEqual([
       '/manager/dashboard',
       '/manager/orders',
@@ -75,6 +75,7 @@ describe('navByRole.manager — feature-flag gated', () => {
       '/manager/organizations',
       '/manager/finance',
       '/manager/import',
+      '/manager/payments-import',
       '/manager/documents',
       '/manager/students',
       '/manager/enrollments',
@@ -100,27 +101,9 @@ describe('navByRole.manager — feature-flag gated', () => {
     expect(navItemsFor('manager')).toEqual([]);
   });
 
-  it('navItemsFor("manager") returns ten items (no leader-only) when the flag is on but not a leader', () => {
+  it('navItemsFor("manager") returns eleven items (no leader-only) when the flag is on but not a leader', () => {
     process.env.FEATURE_MANAGER_CABINET = '1';
     const items = navItemsFor('manager');
-    expect(items).toHaveLength(10);
-    expect(items.map((i) => i.label)).toEqual([
-      'Главная',
-      'Заказы',
-      'Заявки',
-      'Организации',
-      'Финансы',
-      'Загрузка из 1С',
-      'Документы',
-      'Сотрудники',
-      'Сообщения',
-      'Настройки'
-    ]);
-  });
-
-  it('navItemsFor("manager") returns eleven items (with Команда) when the flag is on and isManagerLeader=true', () => {
-    process.env.FEATURE_MANAGER_CABINET = '1';
-    const items = navItemsFor('manager', { isManagerLeader: true });
     expect(items).toHaveLength(11);
     expect(items.map((i) => i.label)).toEqual([
       'Главная',
@@ -129,6 +112,26 @@ describe('navByRole.manager — feature-flag gated', () => {
       'Организации',
       'Финансы',
       'Загрузка из 1С',
+      'Импорт оплат',
+      'Документы',
+      'Сотрудники',
+      'Сообщения',
+      'Настройки'
+    ]);
+  });
+
+  it('navItemsFor("manager") returns twelve items (with Команда) when the flag is on and isManagerLeader=true', () => {
+    process.env.FEATURE_MANAGER_CABINET = '1';
+    const items = navItemsFor('manager', { isManagerLeader: true });
+    expect(items).toHaveLength(12);
+    expect(items.map((i) => i.label)).toEqual([
+      'Главная',
+      'Заказы',
+      'Заявки',
+      'Организации',
+      'Финансы',
+      'Загрузка из 1С',
+      'Импорт оплат',
       'Документы',
       'Сотрудники',
       'Сообщения',
