@@ -186,7 +186,7 @@ describe('navByRole — Финансы (manager + admin)', () => {
   });
 });
 
-describe('navByRole.admin — русский канон с группами (все 16 страниц)', () => {
+describe('navByRole.admin — русский канон с группами (все 17 страниц)', () => {
   it('содержит все админские страницы, включая ранее потерянные documents/messages/finance + заявки на обучение + настройки', () => {
     const hrefs = navByRole.admin.map((i) => i.href);
     for (const lost of ['/admin/documents', '/admin/messages', '/admin/finance', '/admin/enrollments']) {
@@ -195,7 +195,8 @@ describe('navByRole.admin — русский канон с группами (в�
     expect(hrefs).toContain('/admin/training-directions');
     expect(hrefs).toContain('/admin/custom-fields');
     expect(hrefs).toContain('/admin/settings');
-    expect(navByRole.admin).toHaveLength(16);
+    expect(hrefs).toContain('/admin/payments-import');
+    expect(navByRole.admin).toHaveLength(17);
   });
   it('каждый пункт по-русски, с иконкой и группой', () => {
     for (const item of navByRole.admin) {

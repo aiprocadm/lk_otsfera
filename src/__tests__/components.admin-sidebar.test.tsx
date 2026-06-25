@@ -42,6 +42,7 @@ const EXPECTED_HREFS = [
   '/admin/commission-statements',
   '/admin/finance',
   '/admin/import',
+  '/admin/payments-import',
   '/admin/enrollments',
   '/admin/audit',
   '/admin/users',
@@ -52,7 +53,7 @@ const EXPECTED_HREFS = [
 ];
 
 describe('AdminSidebar', () => {
-  it('renders all 14 nav links with correct hrefs', () => {
+  it('renders nav links with correct hrefs', () => {
     vi.mocked(usePathname).mockReturnValue('/admin/dashboard');
 
     const html = renderToString(React.createElement(AdminSidebar, { items: navByRole.admin }));
@@ -62,13 +63,13 @@ describe('AdminSidebar', () => {
     }
   });
 
-  it('renders exactly 16 nav links', () => {
+  it('renders exactly 17 nav links', () => {
     vi.mocked(usePathname).mockReturnValue('/admin/dashboard');
 
     const html = renderToString(React.createElement(AdminSidebar, { items: navByRole.admin }));
 
     const matches = html.match(/data-testid="admin-nav-/g);
-    expect(matches).toHaveLength(16);
+    expect(matches).toHaveLength(17);
   });
 
   it('marks exactly one link as active when on /admin/dashboard', () => {
