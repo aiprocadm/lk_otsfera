@@ -3,6 +3,7 @@ import { getRedisConnection, closeRedisConnection } from '@/lib/jobs/connection'
 import { closeAllQueues, getQueue, type QueueName } from '@/lib/jobs/queues';
 import { registerSyncSchedules, registerCommissionSchedules, registerAlertSchedules, registerCertExpirySchedules, loadPausedSchedulerIds } from '@/lib/jobs/scheduling';
 import { prisma } from '@/lib/db/prisma';
+import { toBullProcessor } from './to-bull-processor';
 import { syncOrdersProcessor } from './processors/sync-orders';
 import { syncPaymentsProcessor } from './processors/sync-payments';
 import { syncDocumentsProcessor } from './processors/sync-documents';
@@ -20,7 +21,9 @@ import type { PushLeadJobPayload } from '@/lib/jobs/types';
 const workers: Worker[] = [];
 
 function startWorker<T = unknown>(queueName: QueueName, processor: Processor<T>): Worker {
-  const worker = new Worker(queueName, processor, {
+  // toBullProcessor: forward only `job`, so each processor's injected `db = prisma`
+  // default survives (BullMQ would otherwise pass its token string into that slot).
+  const worker = new Worker(queueName, toBullProcessor(processor), {
     connection: getRedisConnection(),
     autorun: true
   });
