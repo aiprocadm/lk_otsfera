@@ -6,7 +6,7 @@ import { importScope } from '@/lib/services/oneCSync/scope';
 import type { OneCPaymentDto } from '@/lib/services/oneCSync/dto';
 
 const EPOCH = new Date(0).toISOString();
-type Err = 'forbidden' | 'not_found' | 'org_required';
+type Err = 'forbidden' | 'not_found' | 'org_required' | 'write_skipped';
 function isStaff(s: SessionPayload) { return s.role === 'admin' || s.role === 'manager'; }
 
 /** Список строк, требующих ручного разбора (scoped по компании для не-админа). */
@@ -50,8 +50,10 @@ export async function resolveQueueRow(
   const summary = emptySummary();
   await upsertPaymentRecord(prisma, dto, summary, ctx);
   const payment = await prisma.payment.findUnique({ where: { externalId: row.externalId }, select: { id: true } });
-  await prisma.paymentImportRow.update({ where: { id: row.id }, data: { status: 'resolved', candidateOrgId: org.id, candidateOrderId: args.orderId, resolvedPaymentId: payment?.id ?? null } });
-  return { ok: true, paymentId: payment?.id ?? null };
+  // writer пропустил запись (org вне scope / нет usable ref) → Payment не создан; оставляем строку в очереди
+  if (!payment) return { ok: false, error: 'write_skipped' };
+  await prisma.paymentImportRow.update({ where: { id: row.id }, data: { status: 'resolved', candidateOrgId: org.id, candidateOrderId: args.orderId, resolvedPaymentId: payment.id } });
+  return { ok: true, paymentId: payment.id };
 }
 
 export async function dismissQueueRow(

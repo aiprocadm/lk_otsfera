@@ -26,6 +26,22 @@ describe('resolveQueueRow', () => {
     expect(upsertPaymentRecord).toHaveBeenCalledOnce();
   });
 
+  it('keeps row queued (write_skipped) when writer skips and no Payment is created', async () => {
+    const row = { id: 'r1', externalId: '0000-9', amount: 100, paidAt: new Date('2026-06-01'), isRefund: false, purpose: 'x', paymentOrderNumber: '0000-9', vatAmount: null, status: 'needs_review' };
+    const org = { id: 'org1', inn: '77', externalId: null };
+    const prisma = {
+      paymentImportRow: { findUnique: vi.fn().mockResolvedValue(row), update: vi.fn() },
+      organization: { findUnique: vi.fn().mockResolvedValue(org) },
+      order: { findUnique: vi.fn() },
+      payment: { findUnique: vi.fn().mockResolvedValue(null) },
+    } as never;
+    upsertPaymentRecord.mockImplementation(async () => { /* writer skips: no Payment created */ });
+
+    const res = await resolveQueueRow(prisma, session, { rowId: 'r1', organizationId: 'org1', orderId: null });
+    expect(res).toEqual({ ok: false, error: 'write_skipped' });
+    expect((prisma as { paymentImportRow: { update: ReturnType<typeof vi.fn> } }).paymentImportRow.update).not.toHaveBeenCalled();
+  });
+
   it('returns not_found for missing row', async () => {
     const prisma = { paymentImportRow: { findUnique: vi.fn().mockResolvedValue(null) } } as never;
     expect(await resolveQueueRow(prisma, session, { rowId: 'x', organizationId: 'o', orderId: null })).toEqual({ ok: false, error: 'not_found' });
