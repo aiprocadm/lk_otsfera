@@ -7,7 +7,7 @@
  * возврат-после-выплаты (§9.5/A6) здесь НЕ реализована — это отдельный SP-2.
  */
 import type { PrismaClient, CommissionStatement } from '@prisma/client';
-import { calculateCommission, type PaymentForCalc } from './calculator';
+import { calculateCommission, type PaymentForCalc, type CorrectionForCalc } from './calculator';
 import { resolveRateAt, type RateChange } from './rateResolve';
 import { getQueue } from '@/lib/jobs/queues';
 import { recordAudit } from '@/lib/auth/audit';
@@ -62,6 +62,7 @@ async function updateDraftInPlace(
           statementId,
           orderId: item.orderId,
           paymentId: item.paymentId,
+          correctionId: item.correctionId,
           orderNumber: item.orderNumber,
           organizationName: item.organizationName,
           baseAmount: item.baseAmount,
@@ -158,7 +159,26 @@ export async function calculateStatementForPartner(
     rate: resolveRateAt(rateChanges, p.paidAt, partnerDefaultRate),
   }));
 
-  const calc = calculateCommission(paymentInputs);
+  // A6/§9.5: applied-корректировки, ещё не перенесённые в живую approved/paid
+  // ведомость, добавляем отрицательными строками в текущий draft.
+  const pendingCorrections = await prisma.commissionCorrection.findMany({
+    where: {
+      partnerId,
+      status: 'applied',
+      items: { none: { statement: { status: { in: ['approved', 'paid'] }, supersededBy: null } } },
+    },
+    select: { id: true, amount: true, rate: true, commissionAmount: true },
+  });
+
+  const correctionInputs: CorrectionForCalc[] = pendingCorrections.map((c) => ({
+    correctionId: c.id,
+    organizationName: 'Корректировка §9.5',
+    baseAmount: c.amount.negated(),
+    rate: c.rate,
+    commissionAmount: c.commissionAmount.negated(),
+  }));
+
+  const calc = calculateCommission(paymentInputs, correctionInputs);
 
   // Find latest non-superseded statement for this partner+period
   const existing = await prisma.commissionStatement.findFirst({
@@ -211,6 +231,7 @@ export async function calculateStatementForPartner(
               statementId: created.id,
               orderId: item.orderId,
               paymentId: item.paymentId,
+              correctionId: item.correctionId,
               orderNumber: item.orderNumber,
               organizationName: item.organizationName,
               baseAmount: item.baseAmount,
