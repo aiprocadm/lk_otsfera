@@ -147,6 +147,7 @@ export type UpdatePartnerArgs = {
   name?: string;
   commissionRate?: number | null;
   isActive?: boolean;
+  effectiveFrom?: Date; // A5: дата вступления ставки; default now()
 };
 
 export async function updatePartner(
@@ -184,6 +185,7 @@ export async function updatePartner(
             partnerId: id,
             oldRate: before.commissionRate ?? null,
             newRate: newDec,
+            effectiveFrom: args.effectiveFrom ?? new Date(),
             changedById: actorUserId
           }
         });
