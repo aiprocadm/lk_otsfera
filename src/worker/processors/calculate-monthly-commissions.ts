@@ -36,10 +36,19 @@ export async function calculateMonthlyCommissionsProcessor(
 
   const { periodFrom, periodTo } = prevMonthRange();
 
-  const activePartners = await db.partner.findMany({
-    where: { commissionRate: { gt: 0 } },
-    select: { id: true }
+  // Партнёры, у кого есть хотя бы один платёж в периоде (по paidAt). При истории
+  // ставок текущая ставка 0 ≠ ноль заработка в периоде, поэтому фильтр по
+  // commissionRate>0 заменён на «есть платёж».
+  const paymentRows = await db.payment.findMany({
+    where: { paidAt: { gte: periodFrom, lte: periodTo } },
+    select: { order: { select: { partnerId: true } }, organization: { select: { partnerId: true } } }
   });
+  const partnerIdSet = new Set<string>();
+  for (const p of paymentRows) {
+    const pid = p.order?.partnerId ?? p.organization?.partnerId ?? null;
+    if (pid) partnerIdSet.add(pid);
+  }
+  const activePartners = Array.from(partnerIdSet).map((id) => ({ id }));
 
   let partnersProcessed = 0;
   let partnersSkipped = 0;
