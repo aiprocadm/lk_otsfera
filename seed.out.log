@@ -1,0 +1,66 @@
+
+> lk-otsfera@0.9.0 prisma:seed
+> tsx prisma/seed.ts
+
+[worker] sync-organizations job started { id: 'seed-1782387060975', mode: 'live' }
+[worker] sync-orders job started { id: 'seed-1782387060975', mode: 'live' }
+[worker] sync-payments job started { id: 'seed-1782387060975', mode: 'live' }
+[worker] sync-documents job started { id: 'seed-1782387060975', mode: 'live' }
+[seed] sync results {
+  orgs: {
+    pulled: 3,
+    created: 3,
+    updated: 0,
+    skipped: 0,
+    invalid: 0,
+    failed: 0,
+    skips: [],
+    invalids: [],
+    failures: []
+  },
+  orders: {
+    pulled: 3,
+    created: 3,
+    updated: 0,
+    skipped: 0,
+    invalid: 0,
+    failed: 0,
+    skips: [],
+    invalids: [],
+    failures: []
+  },
+  payments: {
+    pulled: 0,
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    invalid: 0,
+    failed: 0,
+    skips: [],
+    invalids: [],
+    failures: []
+  },
+  documents: {
+    pulled: 3,
+    created: 0,
+    updated: 0,
+    skipped: 3,
+    invalid: 0,
+    failed: 0,
+    skips: [ [Object], [Object], [Object] ],
+    invalids: [],
+    failures: []
+  }
+}
+[seed] created commission statement cmqtf8md8000z5t68mcuqvg64 with 2 items
+[seed] inserted 5 demo audit-log entries
+Seeded 4 training directions
+[seed] demo accounts (password = Password123!):
+  - admin@demo.local (role=admin)
+  - partner@demo.local (partner admin, sees all orgs)
+  - partner-mgr@demo.local (partner manager, scope=1 org)
+  - org@demo.local (organization admin, membership in firstOrg)
+  - manager@demo.local (cabinet manager, assigned to firstOrg)
+  - leader@demo.local (manager-leader, company-wide)
+  - student@demo.local (role=student, лендинг /student)
+[seed] done
