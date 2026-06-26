@@ -66,6 +66,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/leader/dashboard', label: 'Сводка', icon: '⌂' },
     { href: '/leader/team', label: 'Команда', icon: '⚙' },
     { href: '/leader/finance', label: 'Финансы', icon: '₽' },
+    { href: '/leader/commission-corrections', label: 'Корректировки', icon: '🔁' },
     { href: '/leader/orders', label: 'Заказы', icon: '📋' },
     { href: '/leader/organizations', label: 'Организации', icon: '🏢' },
     { href: '/leader/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests' },
