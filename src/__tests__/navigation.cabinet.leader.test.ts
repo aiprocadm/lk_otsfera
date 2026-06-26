@@ -13,11 +13,12 @@ afterEach(() => {
 });
 
 describe('канон leader', () => {
-  it('9 пунктов: сводка/команда/финансы/заказы/организации/обучение/сообщения/мои заказы/настройки', () => {
+  it('10 пунктов: сводка/команда/финансы/корректировки/заказы/организации/обучение/сообщения/мои заказы/настройки', () => {
     expect(navByRole.leader.map((i) => i.href)).toEqual([
       '/leader/dashboard',
       '/leader/team',
       '/leader/finance',
+      '/leader/commission-corrections',
       '/leader/orders',
       '/leader/organizations',
       '/leader/enrollments',

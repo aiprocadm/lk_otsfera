@@ -2,6 +2,7 @@ import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { calculateStatementForPartner } from '@/lib/services/commission/statement';
+import { detectLateRefundCorrections } from '@/lib/services/commission/corrections';
 import { notifyPartnerUsers } from '@/lib/notifications/partner';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { fmtMoney } from '@/lib/format';
@@ -35,6 +36,15 @@ export async function calculateMonthlyCommissionsProcessor(
   console.log('[worker] calculate-monthly-commissions started', { id: job.id });
 
   const { periodFrom, periodTo } = prevMonthRange();
+
+  // A6: подобрать поздние возвраты в закрытые периоды → очередь корректировок.
+  // Best-effort: падение детекта не валит месячный батч (§3 graceful degrade).
+  try {
+    const detected = await detectLateRefundCorrections(db);
+    if (detected > 0) console.log('[worker] late-refund corrections detected', { detected });
+  } catch (e) {
+    console.warn('[worker] correction detection failed', { error: e instanceof Error ? e.message : String(e) });
+  }
 
   // Партнёры, у кого есть хотя бы один платёж в периоде (по paidAt). При истории
   // ставок текущая ставка 0 ≠ ноль заработка в периоде, поэтому фильтр по

@@ -32,14 +32,15 @@ import { LeaderSidebar } from '@/components/leader/leader-sidebar';
 import { navByRole } from '@/lib/navigation/cabinet';
 
 describe('LeaderSidebar', () => {
-  it('renders 9 nav links from the leader canon, including manager-cabinet bridges and Настройки', () => {
+  it('renders 10 nav links from the leader canon, including manager-cabinet bridges and Настройки', () => {
     vi.mocked(usePathname).mockReturnValue('/leader/dashboard');
     const html = renderToString(React.createElement(LeaderSidebar, { items: navByRole.leader }));
     const matches = html.match(/data-testid="leader-nav-/g);
-    expect(matches).toHaveLength(9);
+    expect(matches).toHaveLength(10);
     expect(html).toContain('href="/leader/dashboard"');
     expect(html).toContain('href="/leader/team"');
     expect(html).toContain('href="/leader/finance"');
+    expect(html).toContain('href="/leader/commission-corrections"');
     expect(html).toContain('href="/leader/orders"');
     expect(html).toContain('href="/leader/organizations"');
     expect(html).toContain('href="/leader/enrollments"');
