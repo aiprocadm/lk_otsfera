@@ -344,6 +344,28 @@ describe('updatePartnerAction', () => {
     // undefined != null is false so the ternary passes undefined through unchanged
     expect(args.commissionRate).toBeUndefined();
   });
+
+  it('threads a valid effectiveFrom through to updatePartner as a Date (A5 backdate)', async () => {
+    updatePartner.mockResolvedValue(undefined);
+
+    await updatePartnerAction(fd({ id: 'p-1', commissionRate: '10', effectiveFrom: '2026-04-15' }));
+
+    expect(updatePartner).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      'p-1',
+      expect.objectContaining({ effectiveFrom: new Date('2026-04-15') })
+    );
+  });
+
+  it('rejects an invalid effectiveFrom at validation (never reaches the service)', async () => {
+    updatePartner.mockResolvedValue(undefined);
+
+    const res = await updatePartnerAction(fd({ id: 'p-1', commissionRate: '10', effectiveFrom: 'not-a-date' }));
+
+    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(updatePartner).not.toHaveBeenCalled();
+  });
 });
 
 describe('deactivatePartnerAction', () => {

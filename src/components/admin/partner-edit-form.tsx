@@ -64,6 +64,16 @@ export function PartnerEditForm({ partner }: { partner: PartnerDetail }) {
       </div>
 
       <div>
+        <label className="block text-sm font-medium text-[#111111] mb-1">Дата вступления ставки</label>
+        <input
+          type="date"
+          name="effectiveFrom"
+          className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]"
+        />
+        <p className="text-xs text-gray-500 mt-1">Оставьте пустым — ставка вступит с текущего момента.</p>
+      </div>
+
+      <div>
         <label className="flex items-center gap-2 text-sm font-medium text-[#111111]">
           <input
             type="checkbox"

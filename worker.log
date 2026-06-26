@@ -1,0 +1,26 @@
+
+> lk-otsfera@0.9.0 worker:dev
+> tsx watch src/worker/index.ts
+
+[worker] starting...
+[worker] ENABLE_SYNC_CRON!=1 — cron schedules NOT registered (hot standby mode)
+[worker] ready, listening on queues
+[worker] calculate-monthly-commissions started { id: '1' }
+[worker] calculate-monthly-commissions done {
+  periodFrom: '2026-04-30T21:00:00.000Z',
+  periodTo: '2026-05-31T20:59:59.999Z',
+  partnersProcessed: 0,
+  partnersSkipped: 0,
+  errors: []
+}
+[worker] docs.calculateMonthlyCommissions completed { id: '1' }
+[worker] generate-commission-xlsx started { id: '431', statementId: 'cmqtf8md8000z5t68mcuqvg64' }
+[worker] generate-commission-pdf started { id: '431', statementId: 'cmqtf8md8000z5t68mcuqvg64' }
+[worker] generate-commission-xlsx started { id: '431', statementId: 'cmqtf8md8000z5t68mcuqvg64' }
+[worker] generate-commission-pdf started { id: '431', statementId: 'cmqtf8md8000z5t68mcuqvg64' }
+[worker] generate-commission-xlsx started { id: '431', statementId: 'cmqtf8md8000z5t68mcuqvg64' }
+[worker] generate-commission-pdf started { id: '431', statementId: 'cmqtf8md8000z5t68mcuqvg64' }
+[worker] generate-commission-xlsx started { id: '431', statementId: 'cmqtf8md8000z5t68mcuqvg64' }
+[worker] generate-commission-pdf started { id: '431', statementId: 'cmqtf8md8000z5t68mcuqvg64' }
+[worker] generate-commission-xlsx started { id: '431', statementId: 'cmqtf8md8000z5t68mcuqvg64' }
+[worker] generate-commission-pdf started { id: '431', statementId: 'cmqtf8md8000z5t68mcuqvg64' }

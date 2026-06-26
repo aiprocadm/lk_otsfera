@@ -554,6 +554,22 @@ describe('updatePartner()', () => {
     await updatePartner(prisma, 'actor1', 'p1', { commissionRate: 0.1 });
     expect(tx.commissionRateChange.create).not.toHaveBeenCalled();
   });
+
+  it('updatePartner writes commissionRateChange with provided effectiveFrom (backdate)', async () => {
+    const eff = new Date('2026-04-15T00:00:00Z');
+    const created: { effectiveFrom?: Date } = {};
+    const tx = {
+      partner: {
+        findUnique: vi.fn().mockResolvedValue({ name: 'P', commissionRate: new Prisma.Decimal('0.1'), isActive: true }),
+        update: vi.fn().mockResolvedValue({ name: 'P', commissionRate: new Prisma.Decimal('0.2'), isActive: true }),
+      },
+      commissionRateChange: { create: vi.fn().mockImplementation(({ data }) => { created.effectiveFrom = data.effectiveFrom; return {}; }) },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+    };
+    const db = { $transaction: vi.fn().mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)) } as never;
+    await updatePartner(db, 'admin-1', 'p1', { commissionRate: 0.2, effectiveFrom: eff });
+    expect(created.effectiveFrom).toEqual(eff);
+  });
 });
 
 // ---------------------------------------------------------------------------

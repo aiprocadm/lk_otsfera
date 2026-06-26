@@ -30,7 +30,16 @@ const updateSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1).max(200).optional(),
   commissionRate: z.coerce.number().min(0).max(100).nullable().optional(),
-  isActive: z.coerce.boolean().optional()
+  isActive: z.coerce.boolean().optional(),
+  // Валидируем дату: пустое → опускаем; невалидная строка → ошибка валидации.
+  // Иначе Invalid Date дотекла бы до resolveRateAt (getTime() NaN → ставка молча
+  // не применилась бы ни к одному платежу — денежная ошибка).
+  effectiveFrom: z
+    .string()
+    .optional()
+    .refine((s) => s === undefined || s === '' || !isNaN(new Date(s).getTime()), {
+      message: 'effectiveFrom must be a valid date'
+    })
 });
 
 const targetSchema = z.object({ id: z.string().min(1) });
@@ -94,7 +103,8 @@ export async function updatePartnerAction(fd: FormData): Promise<ActionResult> {
     id: readField(fd, 'id'),
     name: readField(fd, 'name') || undefined,
     commissionRate: readField(fd, 'commissionRate') || undefined,
-    isActive: readField(fd, 'isActive') || undefined
+    isActive: readField(fd, 'isActive') || undefined,
+    effectiveFrom: readField(fd, 'effectiveFrom') || undefined
   });
   if (!parsed.success) return { ok: false, error: 'validation', details: parsed.error.flatten() };
 
@@ -103,7 +113,8 @@ export async function updatePartnerAction(fd: FormData): Promise<ActionResult> {
     const { id, ...raw } = parsed.data;
     const args = {
       ...raw,
-      commissionRate: raw.commissionRate != null ? raw.commissionRate / 100 : raw.commissionRate
+      commissionRate: raw.commissionRate != null ? raw.commissionRate / 100 : raw.commissionRate,
+      effectiveFrom: raw.effectiveFrom ? new Date(raw.effectiveFrom) : undefined
     };
     await updatePartner(prisma, session.sub, id, args);
     revalidatePath('/admin/partners');

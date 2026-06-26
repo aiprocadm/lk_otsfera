@@ -39,7 +39,7 @@ export async function renderStatementXlsx(args: RenderStatementXlsxArgs): Promis
 
   ws.columns = [
     { header: '№',            key: 'num',              width: 6  },
-    { header: 'Заказ',        key: 'orderNumber',      width: 18 },
+    { header: 'Заказ / платёж', key: 'orderNumber',    width: 18 },
     { header: 'Организация',  key: 'organizationName', width: 36 },
     { header: 'База, ₽',      key: 'baseAmount',       width: 16 },
     { header: 'Ставка',       key: 'rate',             width: 10 },

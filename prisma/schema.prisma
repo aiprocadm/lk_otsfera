@@ -247,8 +247,10 @@ model CommissionStatementItem {
   id               String              @id @default(cuid())
   statementId      String
   statement        CommissionStatement @relation(fields: [statementId], references: [id])
-  orderId          String
-  order            Order               @relation(fields: [orderId], references: [id])
+  orderId          String?
+  order            Order?              @relation(fields: [orderId], references: [id])
+  paymentId        String?
+  payment          Payment?            @relation(fields: [paymentId], references: [id])
   orderNumber      String?
   organizationName String
   baseAmount       Decimal             @db.Decimal(14, 2)
@@ -257,6 +259,7 @@ model CommissionStatementItem {
 
   @@index([statementId])
   @@index([orderId])
+  @@index([paymentId])
 }
 
 model Payment {
@@ -278,6 +281,7 @@ model Payment {
   paymentOrderNumber String? // № платёжного поручения (§7.1)
   enteredById        String? // кто внёс платёж (§7.1)
   enteredBy          User?        @relation("PaymentEnteredBy", fields: [enteredById], references: [id])
+  commissionItems    CommissionStatementItem[]
 
   @@index([orderId])
   @@index([organizationId])
@@ -352,8 +356,9 @@ model Partner {
   commissionRateChanges CommissionRateChange[]
 }
 
-/// История изменений ставки комиссии партнёра (§9.1). Append-only; audit/display-only —
-/// расчётчик комиссий продолжает брать Partner.commissionRate на момент расчёта.
+/// История изменений ставки комиссии партнёра (§9.1). Append-only.
+/// Используется расчётчиком (rateResolve.ts) для определения ставки на дату платежа
+/// (A5, §9.2). Partner.commissionRate служит fallback-ом при пустой истории.
 model CommissionRateChange {
   id            String   @id @default(cuid())
   createdAt     DateTime @default(now())

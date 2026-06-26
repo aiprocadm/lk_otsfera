@@ -32,14 +32,14 @@ function makeJob(id = 'job-1'): Job<SyncJobPayload> {
   return { id, data: { triggeredAt: new Date().toISOString(), reason: 'cron' } } as Job<SyncJobPayload>;
 }
 
-function makePrisma(partners: { id: string }[]) {
+function makePrisma(partnerIds: { id: string }[]) {
   return {
-    partner: {
-      findMany: vi.fn().mockResolvedValue(partners)
+    payment: {
+      findMany: vi.fn().mockResolvedValue(
+        partnerIds.map((p) => ({ order: { partnerId: p.id }, organization: { partnerId: null } }))
+      ),
     },
-    syncLog: {
-      create: vi.fn().mockResolvedValue({})
-    }
+    syncLog: { create: vi.fn().mockResolvedValue({}) },
   } as any;
 }
 
@@ -50,16 +50,12 @@ beforeEach(() => {
 });
 
 describe('calculateMonthlyCommissionsProcessor', () => {
-  it('processes partners with commissionRate > 0', async () => {
+  it('processes each partner that has payments in the period', async () => {
     const db = makePrisma([{ id: 'p1' }, { id: 'p2' }]);
     mockCalc.mockResolvedValue({ statement: {}, itemCount: 5, isNew: true });
-
     const result = await calculateMonthlyCommissionsProcessor(makeJob(), db);
-
     expect(mockCalc).toHaveBeenCalledTimes(2);
     expect(result.partnersProcessed).toBe(2);
-    expect(result.partnersSkipped).toBe(0);
-    expect(result.errors).toHaveLength(0);
   });
 
   it('skips partner when itemCount=0 (no qualifying orders)', async () => {

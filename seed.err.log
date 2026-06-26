@@ -1,0 +1,3 @@
+[1c] document fetch failed { url: 'fake://1c-doc-1.pdf', error: 'fetch failed' }
+[1c] document fetch failed { url: 'fake://1c-doc-2.pdf', error: 'fetch failed' }
+[1c] document fetch failed { url: 'fake://1c-doc-3.pdf', error: 'fetch failed' }
