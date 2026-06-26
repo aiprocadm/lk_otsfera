@@ -356,8 +356,9 @@ model Partner {
   commissionRateChanges CommissionRateChange[]
 }
 
-/// История изменений ставки комиссии партнёра (§9.1). Append-only; audit/display-only —
-/// расчётчик комиссий продолжает брать Partner.commissionRate на момент расчёта.
+/// История изменений ставки комиссии партнёра (§9.1). Append-only.
+/// Используется расчётчиком (rateResolve.ts) для определения ставки на дату платежа
+/// (A5, §9.2). Partner.commissionRate служит fallback-ом при пустой истории.
 model CommissionRateChange {
   id            String   @id @default(cuid())
   createdAt     DateTime @default(now())

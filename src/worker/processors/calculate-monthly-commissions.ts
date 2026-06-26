@@ -40,7 +40,16 @@ export async function calculateMonthlyCommissionsProcessor(
   // ставок текущая ставка 0 ≠ ноль заработка в периоде, поэтому фильтр по
   // commissionRate>0 заменён на «есть платёж».
   const paymentRows = await db.payment.findMany({
-    where: { paidAt: { gte: periodFrom, lte: periodTo } },
+    where: {
+      paidAt: { gte: periodFrom, lte: periodTo },
+      // Только платежи с разрешимым партнёром (order?.partnerId ?? organization.partnerId).
+      // Неотнесённые платежи всё равно отсеялись бы в дедупе ниже — не тянем их из БД.
+      OR: [
+        { order: { partnerId: { not: null } } },
+        { order: { partnerId: null }, organization: { partnerId: { not: null } } },
+        { orderId: null, organization: { partnerId: { not: null } } }
+      ]
+    },
     select: { order: { select: { partnerId: true } }, organization: { select: { partnerId: true } } }
   });
   const partnerIdSet = new Set<string>();

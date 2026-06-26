@@ -31,7 +31,15 @@ const updateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   commissionRate: z.coerce.number().min(0).max(100).nullable().optional(),
   isActive: z.coerce.boolean().optional(),
-  effectiveFrom: z.string().optional()
+  // Валидируем дату: пустое → опускаем; невалидная строка → ошибка валидации.
+  // Иначе Invalid Date дотекла бы до resolveRateAt (getTime() NaN → ставка молча
+  // не применилась бы ни к одному платежу — денежная ошибка).
+  effectiveFrom: z
+    .string()
+    .optional()
+    .refine((s) => s === undefined || s === '' || !isNaN(new Date(s).getTime()), {
+      message: 'effectiveFrom must be a valid date'
+    })
 });
 
 const targetSchema = z.object({ id: z.string().min(1) });
