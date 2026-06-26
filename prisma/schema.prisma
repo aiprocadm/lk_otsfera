@@ -244,22 +244,52 @@ model CommissionStatement {
 }
 
 model CommissionStatementItem {
-  id               String              @id @default(cuid())
+  id               String               @id @default(cuid())
   statementId      String
-  statement        CommissionStatement @relation(fields: [statementId], references: [id])
+  statement        CommissionStatement  @relation(fields: [statementId], references: [id])
   orderId          String?
-  order            Order?              @relation(fields: [orderId], references: [id])
+  order            Order?               @relation(fields: [orderId], references: [id])
   paymentId        String?
-  payment          Payment?            @relation(fields: [paymentId], references: [id])
+  payment          Payment?             @relation(fields: [paymentId], references: [id])
+  correctionId     String?
+  correction       CommissionCorrection? @relation(fields: [correctionId], references: [id])
   orderNumber      String?
   organizationName String
-  baseAmount       Decimal             @db.Decimal(14, 2)
-  rate             Decimal             @db.Decimal(6, 4)
-  commissionAmount Decimal             @db.Decimal(14, 2)
+  baseAmount       Decimal              @db.Decimal(14, 2)
+  rate             Decimal              @db.Decimal(6, 4)
+  commissionAmount Decimal              @db.Decimal(14, 2)
 
   @@index([statementId])
   @@index([orderId])
   @@index([paymentId])
+  @@index([correctionId])
+}
+
+model CommissionCorrection {
+  id                   String                    @id @default(cuid())
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  partnerId            String
+  partner              Partner                   @relation(fields: [partnerId], references: [id])
+  paymentId            String?                   @unique
+  payment              Payment?                  @relation(fields: [paymentId], references: [id])
+  originalStatementId  String?
+  originalPeriodFrom   DateTime
+  originalPeriodTo     DateTime
+  amount               Decimal                   @db.Decimal(14, 2)
+  rate                 Decimal                   @db.Decimal(6, 4)
+  commissionAmount     Decimal                   @db.Decimal(14, 2)
+  status               String                    @default("needs_review")
+  reason               String?
+  resolvedByUserId     String?
+  resolvedAt           DateTime?
+  parentCorrectionId   String?
+  carriedReason        String?
+  appliedInStatementId String?
+  items                CommissionStatementItem[]
+
+  @@index([partnerId, status])
+  @@index([status, createdAt])
 }
 
 model Payment {
@@ -279,9 +309,10 @@ model Payment {
   vatAmount          Decimal?     @db.Decimal(14, 2) // НДС (§7.1); null = не выделен
   purpose            String? // назначение платежа (§7.1; дублирует семантику note)
   paymentOrderNumber String? // № платёжного поручения (§7.1)
-  enteredById        String? // кто внёс платёж (§7.1)
-  enteredBy          User?        @relation("PaymentEnteredBy", fields: [enteredById], references: [id])
-  commissionItems    CommissionStatementItem[]
+  enteredById           String? // кто внёс платёж (§7.1)
+  enteredBy             User?        @relation("PaymentEnteredBy", fields: [enteredById], references: [id])
+  commissionItems       CommissionStatementItem[]
+  commissionCorrection  CommissionCorrection?
 
   @@index([orderId])
   @@index([organizationId])
@@ -354,6 +385,7 @@ model Partner {
   notifications         Notification[]
   enrollmentRequests    EnrollmentRequest[]
   commissionRateChanges CommissionRateChange[]
+  commissionCorrections CommissionCorrection[]
 }
 
 /// История изменений ставки комиссии партнёра (§9.1). Append-only.
