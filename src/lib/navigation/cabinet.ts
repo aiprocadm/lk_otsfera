@@ -28,6 +28,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/admin/documents', label: 'Документы', icon: '📄', group: 'Операции' },
     { href: '/admin/messages', label: 'Сообщения', icon: '💬', group: 'Операции' },
     { href: '/admin/commission-statements', label: 'Комиссии', icon: '💰', group: 'Операции' },
+    { href: '/admin/commission-corrections', label: 'Корректировки', icon: '🔁', group: 'Операции' },
     { href: '/admin/finance', label: 'Финансы', icon: '₽', group: 'Операции' },
     { href: '/admin/import', label: 'Загрузка из 1С', icon: '📥', group: 'Операции' },
     { href: '/admin/payments-import', label: 'Импорт оплат', icon: '📥', group: 'Операции' },
