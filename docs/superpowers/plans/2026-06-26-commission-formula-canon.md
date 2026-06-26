@@ -195,7 +195,7 @@ describe('calculateCommission (payment-based)', () => {
     expect(r.totals.totalBaseAmount.toNumber()).toBe(-40000); // raw base kept
     expect(r.totals.totalCommissionAmount.toNumber()).toBe(0); // payout clamped
     expect(r.items).toHaveLength(2);
-    expect(r.items[1].commissionAmount.toNumber()).toBe(-4000); // negative line retained
+    expect(r.items[1].commissionAmount.toNumber()).toBe(-5000); // negative line retained (50000 × 0.1)
   });
 
   it('order-less payment keeps orderId null and computes on full amount', () => {

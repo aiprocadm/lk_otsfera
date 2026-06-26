@@ -1,3 +1,11 @@
+/**
+ * Формирование комиссионной ведомости (§9.2). База партнёра за период =
+ * Σ фактических платежей − Σ возвратов по дате `paidAt`; комиссия = база ×
+ * ставка, действовавшая на дату платежа (`CommissionRateChange`, см.
+ * rateResolve.ts). НДС НЕ вычитается (решение владельца 2026-06-26). Период —
+ * календарный месяц по `paidAt`. Строка ведомости = один платёж. Корректировка
+ * возврат-после-выплаты (§9.5/A6) здесь НЕ реализована — это отдельный SP-2.
+ */
 import type { PrismaClient, CommissionStatement } from '@prisma/client';
 import { calculateCommission, type PaymentForCalc } from './calculator';
 import { resolveRateAt, type RateChange } from './rateResolve';
