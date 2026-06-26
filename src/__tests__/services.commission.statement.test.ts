@@ -10,7 +10,6 @@ let userId: string;
 
 const PERIOD_FROM = new Date('2026-04-01T00:00:00Z');
 const PERIOD_TO = new Date('2026-04-30T23:59:59Z');
-const CLOSED_AT = new Date('2026-04-15T12:00:00Z');
 
 beforeAll(async () => {
   prisma = new PrismaClient();
@@ -47,34 +46,23 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  await prisma.payment.deleteMany({ where: { OR: [{ order: { partnerId } }, { organizationId: orgId }] } });
   await prisma.commissionStatementItem.deleteMany({ where: { statement: { partnerId } } });
   await prisma.commissionStatement.deleteMany({ where: { partnerId } });
   await prisma.order.deleteMany({ where: { partnerId } });
 });
 
-async function createPaidOrder(
-  amount: number,
-  closedAt: Date | null,
-  financialStatus: 'paid' | 'billed' | 'not_billed' | 'partially_paid' | 'refunded' = 'paid'
-) {
+async function createOrder(amount: number) {
   return prisma.order.create({
-    data: {
-      title: 'Test order',
-      companyId,
-      partnerId,
-      organizationId: orgId,
-      totalAmount: amount,
-      paidAmount: amount,
-      paidAt: closedAt,
-      closedAt,
-      financialStatus,
-      executionStatus: 'completed'
-    }
+    data: { title: 'T', companyId, organizationId: orgId, partnerId, totalAmount: amount, financialStatus: 'paid' },
   });
+}
+async function pay(orderId: string | null, amount: number, paidAt: Date, isRefund = false) {
+  return prisma.payment.create({ data: { organizationId: orgId, orderId, amount, paidAt, isRefund } });
 }
 
 describe('calculateStatementForPartner', () => {
-  it('returns isNew=true with 0 items when no orders match period', async () => {
+  it('returns isNew=true with 0 items when no payments match period', async () => {
     const res = await calculateStatementForPartner(prisma, {
       partnerId,
       periodFrom: PERIOD_FROM,
@@ -88,52 +76,43 @@ describe('calculateStatementForPartner', () => {
     expect(res.statement.status).toBe('draft');
   });
 
-  it('creates draft statement with items for paid+closed orders', async () => {
-    await createPaidOrder(100000, CLOSED_AT);
-    await createPaidOrder(200000, CLOSED_AT);
-    const res = await calculateStatementForPartner(prisma, {
-      partnerId,
-      periodFrom: PERIOD_FROM,
-      periodTo: PERIOD_TO,
-      calculatedByUserId: userId
-    });
-    expect(res.isNew).toBe(true);
-    expect(res.itemCount).toBe(2);
-    expect(Number(res.statement.totalBaseAmount)).toBe(300000);
-    expect(Number(res.statement.totalCommissionAmount)).toBe(30000);
+  it('A1: base from actual payments, not order total', async () => {
+    const o = await createOrder(100000);
+    await pay(o.id, 40000, new Date('2026-04-10'));
+    const r = await calculateStatementForPartner(prisma, { partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null });
+    expect(r.itemCount).toBe(1);
+    expect(Number(r.statement.totalBaseAmount)).toBe(40000);
+    expect(Number(r.statement.totalCommissionAmount)).toBe(4000);
   });
 
-  it('uses per-org override rate when present', async () => {
-    await prisma.organization.update({
-      where: { id: orgId },
-      data: { partnerCommissionRate: 0.05 }
-    });
-    await createPaidOrder(100000, CLOSED_AT);
-    // Link order to organization by setting companyId is not enough; we use Organization for resolution
-    // The current schema has Order.companyId but no direct organizationId. Our service must resolve via
-    // Organization.partnerId + companyId match. For this test, we set org override and expect 0.05 rate
-    // applied if our resolver picks up the org. If resolver uses partner-level only (no org match),
-    // it should still default to partner.commissionRate=0.1.
-    const res = await calculateStatementForPartner(prisma, {
-      partnerId,
-      periodFrom: PERIOD_FROM,
-      periodTo: PERIOD_TO,
-      calculatedByUserId: userId
-    });
-    expect(res.itemCount).toBe(1);
-    // We expect either 5000 (org override applied) or 10000 (partner default).
-    // The actual behaviour depends on how resolveRateForOrder works — see statement.ts.
-    const commission = Number(res.statement.totalCommissionAmount);
-    expect([5000, 10000]).toContain(commission);
-    // Cleanup: restore org
-    await prisma.organization.update({
-      where: { id: orgId },
-      data: { partnerCommissionRate: null }
-    });
+  it('A4: payment dated by paidAt, March payment excluded from April', async () => {
+    const o = await createOrder(100000);
+    await pay(o.id, 100000, new Date('2026-04-02'));
+    const o2 = await createOrder(50000);
+    await pay(o2.id, 50000, new Date('2026-03-31'));
+    const r = await calculateStatementForPartner(prisma, { partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null });
+    expect(Number(r.statement.totalBaseAmount)).toBe(100000);
+  });
+
+  it('A1: order-less org-level payment attributed via organization.partnerId', async () => {
+    await pay(null, 25000, new Date('2026-04-12'));
+    const r = await calculateStatementForPartner(prisma, { partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null });
+    expect(r.itemCount).toBe(1);
+    expect(Number(r.statement.totalBaseAmount)).toBe(25000);
+  });
+
+  it('A2: refund in period reduces the base', async () => {
+    const o = await createOrder(100000);
+    await pay(o.id, 100000, new Date('2026-04-05'));
+    await pay(o.id, 30000, new Date('2026-04-20'), true);
+    const r = await calculateStatementForPartner(prisma, { partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null });
+    expect(Number(r.statement.totalBaseAmount)).toBe(70000);
+    expect(Number(r.statement.totalCommissionAmount)).toBe(7000);
   });
 
   it('re-calc on existing draft updates totals in place (isNew=false)', async () => {
-    await createPaidOrder(100000, CLOSED_AT);
+    const o = await createOrder(100000);
+    await pay(o.id, 100000, new Date('2026-04-10'));
     const first = await calculateStatementForPartner(prisma, {
       partnerId,
       periodFrom: PERIOD_FROM,
@@ -143,7 +122,8 @@ describe('calculateStatementForPartner', () => {
     expect(first.isNew).toBe(true);
     expect(Number(first.statement.totalBaseAmount)).toBe(100000);
 
-    await createPaidOrder(50000, CLOSED_AT);
+    const o2 = await createOrder(50000);
+    await pay(o2.id, 50000, new Date('2026-04-12'));
     const second = await calculateStatementForPartner(prisma, {
       partnerId,
       periodFrom: PERIOD_FROM,
@@ -157,7 +137,8 @@ describe('calculateStatementForPartner', () => {
   });
 
   it('re-calc on approved statement creates new with supersededBy on the old one', async () => {
-    await createPaidOrder(100000, CLOSED_AT);
+    const o = await createOrder(100000);
+    await pay(o.id, 100000, new Date('2026-04-10'));
     const first = await calculateStatementForPartner(prisma, {
       partnerId,
       periodFrom: PERIOD_FROM,
@@ -185,35 +166,9 @@ describe('calculateStatementForPartner', () => {
     expect(oldRefreshed?.supersededBy).toBe(second.statement.id);
   });
 
-  it('skips orders outside the period', async () => {
-    const outside = new Date('2026-03-15T00:00:00Z');
-    await createPaidOrder(100000, outside);
-    await createPaidOrder(50000, CLOSED_AT);
-    const res = await calculateStatementForPartner(prisma, {
-      partnerId,
-      periodFrom: PERIOD_FROM,
-      periodTo: PERIOD_TO,
-      calculatedByUserId: userId
-    });
-    expect(res.itemCount).toBe(1);
-    expect(Number(res.statement.totalBaseAmount)).toBe(50000);
-  });
-
-  it('skips orders with financialStatus != paid (default trigger)', async () => {
-    await createPaidOrder(100000, CLOSED_AT, 'billed');
-    await createPaidOrder(50000, CLOSED_AT);
-    const res = await calculateStatementForPartner(prisma, {
-      partnerId,
-      periodFrom: PERIOD_FROM,
-      periodTo: PERIOD_TO,
-      calculatedByUserId: userId
-    });
-    expect(res.itemCount).toBe(1);
-    expect(Number(res.statement.totalBaseAmount)).toBe(50000);
-  });
-
   it('writes audit log on successful calculation', async () => {
-    await createPaidOrder(100000, CLOSED_AT);
+    const o = await createOrder(100000);
+    await pay(o.id, 100000, new Date('2026-04-10'));
     const before = await prisma.auditLog.count({
       where: { action: 'commission_statement_calculated' }
     });
@@ -320,7 +275,8 @@ describe('calculateStatementForPartner — duplicate-accrual guard (C-01)', () =
   });
 
   it('concurrent calc for the same NEW period yields exactly one live statement (no dup, no throw)', async () => {
-    await createPaidOrder(100000, CLOSED_AT);
+    const o = await createOrder(100000);
+    await pay(o.id, 100000, new Date('2026-04-10'));
     const results = await Promise.allSettled([
       calculateStatementForPartner(prisma, { partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: userId }),
       calculateStatementForPartner(prisma, { partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: userId })

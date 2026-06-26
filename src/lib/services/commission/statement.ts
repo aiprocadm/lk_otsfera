@@ -1,9 +1,8 @@
-import type { PrismaClient, CommissionStatement, Prisma } from '@prisma/client';
-import { calculateCommission, type OrderForCalc } from './calculator';
+import type { PrismaClient, CommissionStatement } from '@prisma/client';
+import { calculateCommission, type PaymentForCalc } from './calculator';
+import { resolveRateAt, type RateChange } from './rateResolve';
 import { getQueue } from '@/lib/jobs/queues';
 import { recordAudit } from '@/lib/auth/audit';
-
-export type CommissionTrigger = 'paid_and_closed' | 'paid' | 'completed';
 
 export type CalculateStatementInput = {
   partnerId: string;
@@ -25,101 +24,6 @@ export type CalculateStatementResult = {
   itemCount: number;
   isNew: boolean;
 };
-
-function getTrigger(): CommissionTrigger {
-  const raw = (process.env.COMMISSION_TRIGGER ?? 'paid_and_closed').trim().toLowerCase();
-  if (raw === 'paid' || raw === 'completed' || raw === 'paid_and_closed') return raw;
-  return 'paid_and_closed';
-}
-
-function getVatMode(): 'full' | 'exclude_vat' {
-  return process.env.COMMISSION_VAT_MODE === 'exclude_vat' ? 'exclude_vat' : 'full';
-}
-
-function buildOrdersWhere(
-  partnerId: string,
-  periodFrom: Date,
-  periodTo: Date
-): Prisma.OrderWhereInput {
-  const trigger = getTrigger();
-  if (trigger === 'paid') {
-    return {
-      partnerId,
-      financialStatus: 'paid',
-      paidAt: { gte: periodFrom, lte: periodTo }
-    };
-  }
-  if (trigger === 'completed') {
-    return {
-      partnerId,
-      executionStatus: 'completed',
-      completedAt: { gte: periodFrom, lte: periodTo }
-    };
-  }
-  // paid_and_closed (default)
-  return {
-    partnerId,
-    financialStatus: 'paid',
-    closedAt: { gte: periodFrom, lte: periodTo }
-  };
-}
-
-type OrderWithCompany = {
-  id: string;
-  orderNumber: string | null;
-  totalAmount: Prisma.Decimal;
-  vatIncluded: boolean;
-  vatRate: Prisma.Decimal | null;
-  partnerId: string | null;
-  companyId: string;
-  company: { name: string };
-};
-
-async function resolveRatesAndOrgNames(
-  prisma: PrismaClient,
-  orders: OrderWithCompany[],
-  partnerDefaultRate: Prisma.Decimal
-): Promise<OrderForCalc[]> {
-  const companyIds = Array.from(new Set(orders.map((o) => o.companyId)));
-  const partnerId = orders[0]?.partnerId ?? null;
-
-  const orgs = partnerId
-    ? await prisma.organization.findMany({
-        where: { partnerId, companyId: { in: companyIds } },
-        select: {
-          companyId: true,
-          name: true,
-          partnerCommissionRate: true
-        }
-      })
-    : [];
-
-  const byCompany = new Map<string, { name: string; rate: Prisma.Decimal | null }>();
-  for (const org of orgs) {
-    if (!org.companyId) continue;
-    byCompany.set(org.companyId, {
-      name: org.name,
-      // Keep the override as Decimal — coercing to number here was half of the
-      // precision-loss bug; the calculator consumes Decimal end-to-end now.
-      rate: org.partnerCommissionRate ?? null
-    });
-  }
-
-  return orders.map((o) => {
-    const orgInfo = byCompany.get(o.companyId);
-    const organizationName = orgInfo?.name ?? o.company.name;
-    const rate = orgInfo?.rate ?? partnerDefaultRate;
-    return {
-      id: o.id,
-      orderNumber: o.orderNumber,
-      organizationName,
-      totalAmount: o.totalAmount,
-      vatIncluded: o.vatIncluded,
-      vatRate: o.vatRate,
-      rate
-    };
-  });
-}
 
 /** Duck-typed Prisma unique-violation check (avoids a runtime Prisma import). */
 function isUniqueViolation(err: unknown): boolean {
@@ -149,6 +53,7 @@ async function updateDraftInPlace(
         data: calc.items.map((item) => ({
           statementId,
           orderId: item.orderId,
+          paymentId: item.paymentId,
           orderNumber: item.orderNumber,
           organizationName: item.organizationName,
           baseAmount: item.baseAmount,
@@ -206,22 +111,46 @@ export async function calculateStatementForPartner(
     }
   }
 
-  const orders = await prisma.order.findMany({
-    where: buildOrdersWhere(partnerId, periodFrom, periodTo),
-    select: {
-      id: true,
-      orderNumber: true,
-      totalAmount: true,
-      vatIncluded: true,
-      vatRate: true,
-      partnerId: true,
-      companyId: true,
-      company: { select: { name: true } }
-    }
+  const rateChanges: RateChange[] = await prisma.commissionRateChange.findMany({
+    where: { partnerId },
+    select: { effectiveFrom: true, oldRate: true, newRate: true },
+    orderBy: { effectiveFrom: 'asc' },
   });
 
-  const orderInputs = await resolveRatesAndOrgNames(prisma, orders, partnerDefaultRate);
-  const calc = calculateCommission(orderInputs, { vatMode: getVatMode() });
+  // A1/A4: фактические платежи за период по paidAt, отнесённые этому партнёру.
+  // Партнёр платежа = order?.partnerId ?? organization.partnerId.
+  const payments = await prisma.payment.findMany({
+    where: {
+      paidAt: { gte: periodFrom, lte: periodTo },
+      OR: [
+        { order: { partnerId } },
+        { order: { partnerId: null }, organization: { partnerId } },
+        { orderId: null, organization: { partnerId } },
+      ],
+    },
+    select: {
+      id: true,
+      amount: true,
+      paidAt: true,
+      isRefund: true,
+      orderId: true,
+      order: { select: { orderNumber: true, partnerId: true } },
+      organization: { select: { name: true, partnerId: true } },
+    },
+    orderBy: { paidAt: 'asc' },
+  });
+
+  const paymentInputs: PaymentForCalc[] = payments.map((p) => ({
+    paymentId: p.id,
+    orderId: p.orderId,
+    orderNumber: p.order?.orderNumber ?? null,
+    organizationName: p.organization.name,
+    amount: p.amount,
+    isRefund: p.isRefund,
+    rate: resolveRateAt(rateChanges, p.paidAt, partnerDefaultRate),
+  }));
+
+  const calc = calculateCommission(paymentInputs);
 
   // Find latest non-superseded statement for this partner+period
   const existing = await prisma.commissionStatement.findFirst({
@@ -273,6 +202,7 @@ export async function calculateStatementForPartner(
             data: calc.items.map((item) => ({
               statementId: created.id,
               orderId: item.orderId,
+              paymentId: item.paymentId,
               orderNumber: item.orderNumber,
               organizationName: item.organizationName,
               baseAmount: item.baseAmount,
