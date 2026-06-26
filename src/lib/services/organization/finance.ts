@@ -1,5 +1,5 @@
+import { Prisma } from '@prisma/client';
 import type { PrismaClient, FinancialStatus } from '@prisma/client';
-import { calculateCommission, type OrderForCalc } from '@/lib/services/commission/calculator';
 
 /**
  * Orders considered "billed at all" for the finance hub. `not_billed` and
@@ -116,28 +116,34 @@ export async function getOrgIntermediaryCommission(
   }
   const orders = await prisma.order.findMany({
     where: { organizationId, financialStatus: { in: BILLED_STATUSES } },
-    select: { id: true, orderNumber: true, totalAmount: true, vatIncluded: true, vatRate: true }
+    select: { id: true, orderNumber: true, totalAmount: true }
   });
 
-  const forCalc: OrderForCalc[] = orders.map((o) => ({
-    id: o.id,
-    orderNumber: o.orderNumber,
-    organizationName: org.name,
-    totalAmount: o.totalAmount,
-    vatIncluded: o.vatIncluded,
-    vatRate: o.vatRate,
-    rate: effectiveRate
-  }));
-  const result = calculateCommission(forCalc, { vatMode: 'full' });
+  // Live estimate (NOT the partner statement): base = order total, commission =
+  // base × effectiveRate. Deliberately order-based and override-aware — it stays
+  // a forward-looking estimate for the org finance hub. The canonical partner
+  // statement moved to a payment-based calculator (§9.2); this estimate did not.
+  const HALF_UP = Prisma.Decimal.ROUND_HALF_UP;
+  const toMoney = (v: Prisma.Decimal) => v.toDecimalPlaces(2, HALF_UP);
+
+  const perOrder = orders.map((o) => {
+    const baseAmount = toMoney(o.totalAmount);
+    const commissionAmount = toMoney(baseAmount.mul(effectiveRate));
+    return {
+      orderId: o.id,
+      orderNumber: o.orderNumber,
+      baseAmount: baseAmount.toFixed(2),
+      commissionAmount: commissionAmount.toFixed(2)
+    };
+  });
+  const totalCommission = perOrder.reduce(
+    (sum, i) => sum.plus(new Prisma.Decimal(i.commissionAmount)),
+    new Prisma.Decimal(0)
+  );
 
   return {
     effectiveRate: effectiveRate.toString(),
-    totalCommission: result.totals.totalCommissionAmount.toFixed(2),
-    perOrder: result.items.map((i) => ({
-      orderId: i.orderId,
-      orderNumber: i.orderNumber,
-      baseAmount: i.baseAmount.toFixed(2),
-      commissionAmount: i.commissionAmount.toFixed(2)
-    }))
+    totalCommission: totalCommission.toFixed(2),
+    perOrder
   };
 }
