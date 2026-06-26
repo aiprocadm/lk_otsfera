@@ -24,7 +24,8 @@ export type AuditEntity =
   | 'order_item'
   | 'certificate'
   | 'custom_field_definition'
-  | 'custom_field_value';
+  | 'custom_field_value'
+  | 'commission_correction';
 
 export type AuditRecord = {
   userId: string;

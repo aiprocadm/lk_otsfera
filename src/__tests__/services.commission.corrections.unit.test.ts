@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
-import { detectLateRefundCorrections } from '@/lib/services/commission/corrections';
+import { detectLateRefundCorrections, listCorrectionQueue, resolveCorrection } from '@/lib/services/commission/corrections';
 
 const dec = (n: number) => new Prisma.Decimal(n);
 
@@ -25,6 +25,71 @@ function refundRow(over: any = {}) {
     ...over,
   };
 }
+
+// ── Task 4: listCorrectionQueue + resolveCorrection ──────────────────────────
+
+const adminSession = { role: 'admin', sub: 'u-admin', companyId: null } as any;
+const leaderSession = { role: 'manager', managerRole: 'leader', sub: 'u-leader', companyId: 'co-1' } as any;
+const partnerSession = { role: 'partner', sub: 'u-p', companyId: null } as any;
+
+describe('listCorrectionQueue', () => {
+  it('partner is forbidden (returns empty)', async () => {
+    const db = { commissionCorrection: { findMany: vi.fn() } } as any;
+    expect(await listCorrectionQueue(db, partnerSession)).toEqual([]);
+    expect(db.commissionCorrection.findMany).not.toHaveBeenCalled();
+  });
+  it('admin sees all needs_review (no company filter)', async () => {
+    const db = { commissionCorrection: { findMany: vi.fn().mockResolvedValue([]) } } as any;
+    await listCorrectionQueue(db, adminSession);
+    const where = db.commissionCorrection.findMany.mock.calls[0][0].where;
+    expect(where).toMatchObject({ status: 'needs_review' });
+    expect(where.partner).toBeUndefined();
+  });
+  it('leader is scoped to own company partners', async () => {
+    const db = { commissionCorrection: { findMany: vi.fn().mockResolvedValue([]) } } as any;
+    await listCorrectionQueue(db, leaderSession);
+    const where = db.commissionCorrection.findMany.mock.calls[0][0].where;
+    expect(where.partner).toMatchObject({ organizations: { some: { companyId: 'co-1' } } });
+  });
+});
+
+describe('resolveCorrection', () => {
+  function makeDb(existing: any) {
+    return {
+      commissionCorrection: {
+        findUnique: vi.fn().mockResolvedValue(existing),
+        findFirst: vi.fn().mockResolvedValue(existing),
+      },
+      $transaction: vi.fn().mockImplementation(async (fn: any) => fn({
+        commissionCorrection: { update: vi.fn().mockResolvedValue({}) },
+        auditLog: { create: vi.fn().mockResolvedValue({}) },
+      })),
+    } as any;
+  }
+  it('apply: needs_review → applied', async () => {
+    const r = await resolveCorrection(makeDb({ id: 'c1', status: 'needs_review', partnerId: 'p1' }), adminSession, { correctionId: 'c1', action: 'apply' });
+    expect(r).toEqual({ ok: true });
+  });
+  it('waive requires a reason', async () => {
+    const r = await resolveCorrection(makeDb({ id: 'c1', status: 'needs_review', partnerId: 'p1' }), adminSession, { correctionId: 'c1', action: 'waive', reason: '' });
+    expect(r).toEqual({ ok: false, error: 'reason_required' });
+  });
+  it('partner forbidden', async () => {
+    const r = await resolveCorrection(makeDb({ id: 'c1', status: 'needs_review', partnerId: 'p1' }), partnerSession, { correctionId: 'c1', action: 'apply' });
+    expect(r).toEqual({ ok: false, error: 'forbidden' });
+  });
+  it('not needs_review → invalid_state', async () => {
+    const r = await resolveCorrection(makeDb({ id: 'c1', status: 'applied', partnerId: 'p1' }), adminSession, { correctionId: 'c1', action: 'apply' });
+    expect(r).toEqual({ ok: false, error: 'invalid_state' });
+  });
+  it('not found → not_found', async () => {
+    const d = { commissionCorrection: { findUnique: vi.fn().mockResolvedValue(null) } } as any;
+    const r = await resolveCorrection(d, adminSession, { correctionId: 'missing', action: 'apply' });
+    expect(r).toEqual({ ok: false, error: 'not_found' });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 describe('detectLateRefundCorrections', () => {
   it('creates needs_review for a refund landing in a paid period', async () => {
