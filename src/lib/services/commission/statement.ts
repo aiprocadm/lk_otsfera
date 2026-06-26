@@ -3,8 +3,10 @@
  * Σ фактических платежей − Σ возвратов по дате `paidAt`; комиссия = база ×
  * ставка, действовавшая на дату платежа (`CommissionRateChange`, см.
  * rateResolve.ts). НДС НЕ вычитается (решение владельца 2026-06-26). Период —
- * календарный месяц по `paidAt`. Строка ведомости = один платёж. Корректировка
- * возврат-после-выплаты (§9.5/A6) здесь НЕ реализована — это отдельный SP-2.
+ * календарный месяц по `paidAt`. Строка ведомости = один платёж. A6/§9.5:
+ * applied-корректировки (поздний возврат в закрытый период), ещё не перенесённые
+ * в живую approved/paid ведомость, добавляются сюда отрицательными строками
+ * (детект — corrections.ts; цепочка остатка — lifecycle.approveStatement).
  */
 import type { PrismaClient, CommissionStatement } from '@prisma/client';
 import { calculateCommission, type PaymentForCalc, type CorrectionForCalc } from './calculator';
