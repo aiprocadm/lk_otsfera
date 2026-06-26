@@ -87,7 +87,7 @@ function StatementDocument({ statement, items, partner, qrDataUrl }: StatementDo
         )
       ),
       // Section label
-      React.createElement(Text, { style: styles.sectionLabel }, 'Детализация заказов'),
+      React.createElement(Text, { style: styles.sectionLabel }, 'Детализация платежей'),
       // Table
       React.createElement(
         View,
@@ -97,7 +97,7 @@ function StatementDocument({ statement, items, partner, qrDataUrl }: StatementDo
           View,
           { style: styles.tableHeader },
           React.createElement(Text, { style: [styles.col0, styles.colHeader] }, '№'),
-          React.createElement(Text, { style: [styles.col1, styles.colHeader] }, 'Заказ'),
+          React.createElement(Text, { style: [styles.col1, styles.colHeader] }, 'Заказ / платёж'),
           React.createElement(Text, { style: [styles.col2, styles.colHeader] }, 'Организация'),
           React.createElement(Text, { style: [styles.col3, styles.colHeader] }, 'База, ₽'),
           React.createElement(Text, { style: [styles.col4, styles.colHeader] }, 'Ставка'),
