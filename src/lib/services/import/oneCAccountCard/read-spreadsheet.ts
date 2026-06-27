@@ -1,5 +1,5 @@
-import ExcelJS from 'exceljs';
 import * as XLSX from 'xlsx';
+import { loadXlsxWorkbook } from '../load-xlsx';
 
 export type SpreadsheetFormat = 'xls' | 'xlsx';
 
@@ -27,9 +27,7 @@ function cellToString(v: unknown): string {
 }
 
 async function readXlsx(buffer: Buffer): Promise<string[][]> {
-  const wb = new ExcelJS.Workbook();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await wb.xlsx.load(buffer as any);
+  const wb = await loadXlsxWorkbook(buffer);
   const ws = wb.worksheets[0];
   if (!ws) return [];
   const grid: string[][] = [];

@@ -28,6 +28,7 @@ vi.mock('next/navigation', () => ({
   notFound: () => { throw new Error('NOTFOUND'); },
 }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled: vi.fn() }));
 vi.mock('@/lib/services/training/orderItems', () => ({
   addOrderItem,
   listOrderItems,
@@ -42,6 +43,7 @@ vi.mock('@/lib/services/training/certificates', () => ({
 import { GET, POST } from '@/app/api/manager/orders/[id]/items/route';
 import { PATCH, DELETE } from '@/app/api/manager/order-items/[id]/route';
 import { POST as certPost } from '@/app/api/manager/certificates/route';
+import { notFoundIfDisabled } from '@/lib/featureFlags';
 
 function managerSession(opts: { sub?: string; managedOrgIds?: string[] } = {}) {
   return {
@@ -55,6 +57,50 @@ function managerSession(opts: { sub?: string; managedOrgIds?: string[] } = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   getSession.mockResolvedValue(managerSession());
+  vi.mocked(notFoundIfDisabled).mockReturnValue(undefined as never);
+});
+
+// ── manager_cabinet feature-flag gate ─────────────────────────────────────────
+
+describe('manager_cabinet flag disabled → 404 before handler logic', () => {
+  beforeEach(() => {
+    vi.mocked(notFoundIfDisabled).mockReturnValue(new Response('Not Found', { status: 404 }) as never);
+  });
+
+  it('GET /orders/[id]/items → 404, service untouched', async () => {
+    const res = await GET(new Request('http://x') as never, { params: Promise.resolve({ id: 'o1' }) } as never);
+    expect(res.status).toBe(404);
+    expect(listOrderItems).not.toHaveBeenCalled();
+  });
+
+  it('POST /orders/[id]/items → 404, service untouched', async () => {
+    const req = new Request('http://x', { method: 'POST', body: JSON.stringify({ studentId: 's1', directionId: 'd1' }) });
+    const res = await POST(req as never, { params: Promise.resolve({ id: 'o1' }) } as never);
+    expect(res.status).toBe(404);
+    expect(addOrderItem).not.toHaveBeenCalled();
+  });
+
+  it('PATCH /order-items/[id] → 404, service untouched', async () => {
+    const req = new Request('http://x', { method: 'PATCH', body: JSON.stringify({ trainingStatus: 'completed' }) });
+    const res = await PATCH(req as never, { params: Promise.resolve({ id: 'it1' }) } as never);
+    expect(res.status).toBe(404);
+    expect(updateItemStatus).not.toHaveBeenCalled();
+  });
+
+  it('DELETE /order-items/[id] → 404, service untouched', async () => {
+    const req = new Request('http://x', { method: 'DELETE' });
+    const res = await DELETE(req as never, { params: Promise.resolve({ id: 'it1' }) } as never);
+    expect(res.status).toBe(404);
+    expect(removeOrderItem).not.toHaveBeenCalled();
+  });
+
+  it('POST /certificates → 404, service untouched', async () => {
+    const req = new Request('http://x', { method: 'POST', body: JSON.stringify({ orderItemId: 'oi1', number: 'X', issuedAt: '2026-01-01' }) });
+    const res = await certPost(req as never);
+    expect(res.status).toBe(404);
+    expect(issueFromOrderItem).not.toHaveBeenCalled();
+    expect(createCertificate).not.toHaveBeenCalled();
+  });
 });
 
 // ── GET /api/manager/orders/[id]/items ────────────────────────────────────────

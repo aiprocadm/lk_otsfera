@@ -22,7 +22,9 @@ const RU: Record<string, string> = {
   invalid_key: 'Ключ: только латиница, цифры и подчёркивание, начиная с буквы.',
   options_required: 'Для типа «список» укажите хотя бы один вариант.',
   duplicate_key: 'Поле с таким ключом уже существует.',
-  telegram_disabled: 'Telegram-уведомления не настроены администратором.'
+  telegram_disabled: 'Telegram-уведомления не настроены администратором.',
+  duplicate_email: 'Пользователь с таким email уже существует.',
+  admin_role_via_ui: 'Создание admin через UI недоступно.'
 };
 
 export function errorMessageRu(code: string, fallback = 'Произошла ошибка.'): string {

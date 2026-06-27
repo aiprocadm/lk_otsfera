@@ -4,6 +4,11 @@ import { prisma } from '@/lib/db/prisma';
 import { requireOrderAccess, requireSession, forbiddenResponse } from '@/lib/auth/guard';
 import { canSeeOrder } from '@/lib/auth/organizationPolicy';
 import {
+  canSeeOrder as canSeeOrderMgr,
+  managedOrgIds,
+  getCompanyTeamVisibility,
+} from '@/lib/auth/managerPolicy';
+import {
   notifyManagers,
   notifyMessageCreated,
   notifyOrgUsers,
@@ -93,9 +98,6 @@ export async function POST(req: Request) {
   // per-org, or historical comments). Mirrors the upload service hot-path:
   // count comments only when the cheaper per-order/per-org checks miss.
   if (s.role === 'manager') {
-    const { canSeeOrder: canSeeOrderMgr, managedOrgIds, getCompanyTeamVisibility } = await import(
-      '@/lib/auth/managerPolicy'
-    );
     const teamMode = await getCompanyTeamVisibility(prisma, s.companyId);
     const order = await prisma.order.findUnique({
       where: { id: orderId },

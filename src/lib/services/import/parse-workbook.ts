@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import { SHEET_NAMES, ORG_COLS, ORDER_COLS, PAYMENT_COLS } from './column-map';
+import { loadXlsxWorkbook } from './load-xlsx';
 
 /**
  * Normalise an ExcelJS cell value to a plain string for header matching.
@@ -52,9 +53,7 @@ function readSheet(wb: ExcelJS.Workbook, sheetName: string, cols: Record<string,
 }
 
 export async function parseWorkbook(buffer: Buffer | ArrayBuffer) {
-  const wb = new ExcelJS.Workbook();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await wb.xlsx.load(buffer as any);
+  const wb = await loadXlsxWorkbook(buffer);
   return {
     orgs: readSheet(wb, SHEET_NAMES.orgs, ORG_COLS),
     orders: readSheet(wb, SHEET_NAMES.orders, ORDER_COLS),
