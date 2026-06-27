@@ -12,6 +12,8 @@
 #
 # Пути портативных сборок (по умолчанию в профиле пользователя) — через env:
 #   $env:PG_HOME  $env:PG_DATA  $env:REDIS_HOME
+# Порты (дефолты PG 5432 / Redis 6500) — через env:
+#   $env:PG_PORT  $env:REDIS_PORT
 
 [CmdletBinding()]
 param(
@@ -34,8 +36,11 @@ $RedisExe= Join-Path $RedisHome 'redis-server.exe'
 $RedisCli= Join-Path $RedisHome 'redis-cli.exe'
 
 $DbName  = 'cabinet'
-$PgPort  = 5432
-$RedisPort = 6379
+$PgPort  = if ($env:PG_PORT)    { [int]$env:PG_PORT }    else { 5432 }
+# 6379 попадает в зарезервированный Windows-диапазон (Hyper-V/WSL) и Redis там не
+# биндится → дефолт 6500. Переопределяется через $env:REDIS_PORT. Должен совпадать
+# с REDIS_URL в .env и с проверкой порта в dev-watchdog.ps1.
+$RedisPort = if ($env:REDIS_PORT) { [int]$env:REDIS_PORT } else { 6500 }
 
 function Info($m)  { Write-Host "[stack] $m" -ForegroundColor Cyan }
 function Ok($m)    { Write-Host "[ ok  ] $m" -ForegroundColor Green }
@@ -136,10 +141,12 @@ Pop-Location
 # 4. Redis — конфиг, запуск, PONG
 # ---------------------------------------------------------------------------
 $RedisConf = Join-Path $RedisHome 'redis.conf'
-if (-not (Test-Path $RedisConf)) {
-  # Конфиг-файл, а не CLI: Start-Process отбрасывает пустой `--save ""`,
-  # из-за чего Redis падает с "Not enough parameters available for --save".
-  Set-Content -Path $RedisConf -Value @('port 6379','save ""','appendonly no') -Encoding ascii
+# Конфиг-файл, а не CLI: Start-Process отбрасывает пустой `--save ""`,
+# из-за чего Redis падает с "Not enough parameters available for --save".
+# Перегенерируем, если конфига нет ИЛИ он закрепляет другой порт (иначе stale
+# `port 6379` переживёт смену $RedisPort и Redis снова не поднимется).
+if (-not (Test-Path $RedisConf) -or -not ((Get-Content $RedisConf -ErrorAction SilentlyContinue) -contains "port $RedisPort")) {
+  Set-Content -Path $RedisConf -Value @("port $RedisPort", 'save ""', 'appendonly no') -Encoding ascii
 }
 if (Test-Port $RedisPort) {
   Skip "Redis: порт $RedisPort уже занят"
@@ -162,7 +169,7 @@ Ok "Redis отвечает PONG на :$RedisPort"
 # 5. Итог + dev-сервер
 # ---------------------------------------------------------------------------
 Write-Host ''
-Ok 'локальный стек готов: PostgreSQL :5432 + Redis :6379 + БД cabinet (миграции применены)'
+Ok "локальный стек готов: PostgreSQL :$PgPort + Redis :$RedisPort + БД cabinet (миграции применены)"
 
 if ($NoDev) {
   Info '-NoDev: пропускаю запуск next dev'
