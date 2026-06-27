@@ -66,31 +66,29 @@ export async function PATCH(
     ? session.assignedOrgIds
     : undefined;
 
-  try {
-    const lead = await withdrawLead(prisma, {
-      leadId: id,
-      partnerId: partnerResult.value.partnerId,
-      scopeOrgIds: scope,
-      reason: parsed.data.reason ?? ''
-    });
+  const res = await withdrawLead(prisma, {
+    leadId: id,
+    partnerId: partnerResult.value.partnerId,
+    scopeOrgIds: scope,
+    reason: parsed.data.reason ?? ''
+  });
 
-    await recordAudit(prisma, {
-      action: 'lead_withdrawn',
-      entity: 'lead',
-      entityId: lead.id,
-      userId: session.sub,
-      reason: lead.rejectedReason ?? undefined,
-      after: {
-        partnerId: partnerResult.value.partnerId,
-      },
-    });
-
-    return NextResponse.json({ id: lead.id, status: lead.status });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'unknown';
-    if (msg.startsWith('NOT_FOUND')) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    if (msg.startsWith('ALREADY_REJECTED')) return NextResponse.json({ error: 'ALREADY_REJECTED' }, { status: 409 });
-    if (msg.startsWith('ALREADY_PROMOTED')) return NextResponse.json({ error: 'ALREADY_PROMOTED' }, { status: 409 });
-    throw err;
+  if (!res.ok) {
+    const status = res.error === 'not_found' ? 404 : 409;
+    return NextResponse.json({ error: res.error }, { status });
   }
+
+  const lead = res.lead;
+  await recordAudit(prisma, {
+    action: 'lead_withdrawn',
+    entity: 'lead',
+    entityId: lead.id,
+    userId: session.sub,
+    reason: lead.rejectedReason ?? undefined,
+    after: {
+      partnerId: partnerResult.value.partnerId,
+    },
+  });
+
+  return NextResponse.json({ id: lead.id, status: lead.status });
 }

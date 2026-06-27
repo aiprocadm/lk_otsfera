@@ -96,43 +96,41 @@ export async function POST(req: Request) {
     : undefined;
 
   if (data.organizationId && scope && !scope.includes(data.organizationId)) {
-    return NextResponse.json({ error: 'ORG_OUT_OF_SCOPE' }, { status: 422 });
+    return NextResponse.json({ error: 'org_out_of_scope' }, { status: 422 });
   }
 
-  try {
-    const lead = await createLead(prisma, {
+  const created = await createLead(prisma, {
+    partnerId: partnerResult.value.partnerId,
+    createdByUserId: session.sub,
+    organizationId: data.organizationId ?? null,
+    clientCompanyName: data.clientCompanyName,
+    clientInn: data.clientInn ?? null,
+    clientContactName: data.clientContactName,
+    clientContactPhone: data.clientContactPhone ?? null,
+    clientContactEmail: data.clientContactEmail || null,
+    subject: data.subject,
+    estimatedAmount: data.estimatedAmount ?? null,
+    productType: data.productType ?? [],
+    notes: data.notes ?? null
+  });
+
+  if (!created.ok) {
+    const status = created.error === 'org_out_of_scope' ? 422 : 400;
+    return NextResponse.json({ error: created.error }, { status });
+  }
+
+  const lead = created.lead;
+  await recordAudit(prisma, {
+    action: 'lead_created',
+    entity: 'lead',
+    entityId: lead.id,
+    userId: session.sub,
+    after: {
       partnerId: partnerResult.value.partnerId,
-      createdByUserId: session.sub,
-      organizationId: data.organizationId ?? null,
-      clientCompanyName: data.clientCompanyName,
-      clientInn: data.clientInn ?? null,
-      clientContactName: data.clientContactName,
-      clientContactPhone: data.clientContactPhone ?? null,
-      clientContactEmail: data.clientContactEmail || null,
-      subject: data.subject,
-      estimatedAmount: data.estimatedAmount ?? null,
-      productType: data.productType ?? [],
-      notes: data.notes ?? null
-    });
+      clientCompanyName: lead.clientCompanyName,
+      subject: lead.subject,
+    },
+  });
 
-    await recordAudit(prisma, {
-      action: 'lead_created',
-      entity: 'lead',
-      entityId: lead.id,
-      userId: session.sub,
-      after: {
-        partnerId: partnerResult.value.partnerId,
-        clientCompanyName: lead.clientCompanyName,
-        subject: lead.subject,
-      },
-    });
-
-    return NextResponse.json({ id: lead.id, status: lead.status }, { status: 201 });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'unknown';
-    if (msg.startsWith('ORG_OUT_OF_SCOPE')) {
-      return NextResponse.json({ error: 'ORG_OUT_OF_SCOPE' }, { status: 422 });
-    }
-    throw err;
-  }
+  return NextResponse.json({ id: lead.id, status: lead.status }, { status: 201 });
 }
