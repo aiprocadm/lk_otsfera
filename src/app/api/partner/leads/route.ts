@@ -115,8 +115,7 @@ export async function POST(req: Request) {
   });
 
   if (!created.ok) {
-    const status = created.error === 'org_out_of_scope' ? 422 : 400;
-    return NextResponse.json({ error: created.error }, { status });
+    return NextResponse.json({ error: created.error }, { status: 422 });
   }
 
   const lead = created.lead;
