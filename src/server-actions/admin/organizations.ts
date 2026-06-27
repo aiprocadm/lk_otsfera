@@ -94,30 +94,14 @@ export async function setOrgRateOverrideAction(fd: FormData): Promise<ActionResu
   if (org.partnerId === null) return { ok: false as const, error: 'not_found' as const };
   const partnerId: string = org.partnerId;
 
-  try {
-    if (clear) {
-      await clearOrgCommissionRate(prisma, {
-        organizationId,
-        partnerId,
-        reason,
-        changedByUserId: session.sub
-      });
-    } else if (ratePercent !== undefined) {
-      await setOrgCommissionRate(prisma, {
-        organizationId,
-        partnerId,
-        newRate: ratePercent / 100,
-        reason,
-        changedByUserId: session.sub
-      });
-    } else {
-      return { ok: false as const, error: 'validation' as const };
-    }
-    revalidatePath(`/admin/organizations/${organizationId}`);
-    return { ok: true };
-  } catch (e) {
-    return mapErr(e);
-  }
+  const res = clear
+    ? await clearOrgCommissionRate(prisma, { organizationId, partnerId, reason, changedByUserId: session.sub })
+    : ratePercent !== undefined
+      ? await setOrgCommissionRate(prisma, { organizationId, partnerId, newRate: ratePercent / 100, reason, changedByUserId: session.sub })
+      : ({ ok: false as const, error: 'validation' as const });
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath(`/admin/organizations/${organizationId}`);
+  return { ok: true };
 }
 
 // <form action> wrappers must return void, so the Result is discarded — but a

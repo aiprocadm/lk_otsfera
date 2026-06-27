@@ -27,29 +27,33 @@ function makePrisma(org: object | null) {
 describe('setOrgCommissionRate — unit', () => {
   beforeEach(() => { recordAuditMock.mockReset().mockResolvedValue(undefined); });
 
-  it('throws RATE_OUT_OF_RANGE for negative rate', async () => {
-    await expect(setOrgCommissionRate(makePrisma(null), {
+  it('returns rate_out_of_range for negative rate', async () => {
+    const res = await setOrgCommissionRate(makePrisma(null), {
       organizationId: 'o1', partnerId: 'p1', newRate: -0.1, reason: 'x', changedByUserId: 'u1'
-    })).rejects.toThrow('RATE_OUT_OF_RANGE');
+    });
+    expect(res).toEqual({ ok: false, error: 'rate_out_of_range' });
   });
 
-  it('throws RATE_OUT_OF_RANGE for rate >= 1', async () => {
-    await expect(setOrgCommissionRate(makePrisma(null), {
+  it('returns rate_out_of_range for rate >= 1', async () => {
+    const res = await setOrgCommissionRate(makePrisma(null), {
       organizationId: 'o1', partnerId: 'p1', newRate: 1, reason: 'x', changedByUserId: 'u1'
-    })).rejects.toThrow('RATE_OUT_OF_RANGE');
+    });
+    expect(res).toEqual({ ok: false, error: 'rate_out_of_range' });
   });
 
-  it('throws NOT_FOUND when org not under partner', async () => {
-    await expect(setOrgCommissionRate(makePrisma(null), {
+  it('returns not_found when org not under partner', async () => {
+    const res = await setOrgCommissionRate(makePrisma(null), {
       organizationId: 'o1', partnerId: 'p1', newRate: 0.1, reason: 'x', changedByUserId: 'u1'
-    })).rejects.toThrow('NOT_FOUND');
+    });
+    expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('records "inherited" in audit before.rate when existing rate is null', async () => {
     const prisma = makePrisma({ id: 'o1', partnerCommissionRate: null });
-    await setOrgCommissionRate(prisma, {
+    const res = await setOrgCommissionRate(prisma, {
       organizationId: 'o1', partnerId: 'p1', newRate: 0.08, reason: 'VIP', changedByUserId: 'u1'
     });
+    expect(res.ok).toBe(true);
     const [, auditArgs] = recordAuditMock.mock.calls[0];
     expect(auditArgs.before.rate).toBe('inherited');
     expect(auditArgs.after.rate).toBe('0.08');
@@ -58,9 +62,10 @@ describe('setOrgCommissionRate — unit', () => {
   it('records existing rate in audit before.rate when rate is set', async () => {
     const existingRate = { toString: () => '0.05' };
     const prisma = makePrisma({ id: 'o1', partnerCommissionRate: existingRate });
-    await setOrgCommissionRate(prisma, {
+    const res = await setOrgCommissionRate(prisma, {
       organizationId: 'o1', partnerId: 'p1', newRate: 0.08, reason: 'Upgrade', changedByUserId: 'u1'
     });
+    expect(res.ok).toBe(true);
     const [, auditArgs] = recordAuditMock.mock.calls[0];
     expect(auditArgs.before.rate).toBe('0.05');
     expect(auditArgs.after.rate).toBe('0.08');
@@ -70,17 +75,19 @@ describe('setOrgCommissionRate — unit', () => {
 describe('clearOrgCommissionRate — unit', () => {
   beforeEach(() => { recordAuditMock.mockReset().mockResolvedValue(undefined); });
 
-  it('throws NOT_FOUND when org not under partner', async () => {
-    await expect(clearOrgCommissionRate(makePrisma(null), {
+  it('returns not_found when org not under partner', async () => {
+    const res = await clearOrgCommissionRate(makePrisma(null), {
       organizationId: 'o1', partnerId: 'p1', reason: 'x', changedByUserId: 'u1'
-    })).rejects.toThrow('NOT_FOUND');
+    });
+    expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('records "inherited" in audit when clearing a null rate', async () => {
     const prisma = makePrisma({ id: 'o1', partnerCommissionRate: null });
-    await clearOrgCommissionRate(prisma, {
+    const res = await clearOrgCommissionRate(prisma, {
       organizationId: 'o1', partnerId: 'p1', reason: 'reset', changedByUserId: 'u1'
     });
+    expect(res.ok).toBe(true);
     const [, auditArgs] = recordAuditMock.mock.calls[0];
     expect(auditArgs.before.rate).toBe('inherited');
     expect(auditArgs.after.rate).toBe('cleared');
@@ -89,9 +96,10 @@ describe('clearOrgCommissionRate — unit', () => {
   it('records existing rate string in audit when clearing a set rate', async () => {
     const existingRate = { toString: () => '0.10' };
     const prisma = makePrisma({ id: 'o1', partnerCommissionRate: existingRate });
-    await clearOrgCommissionRate(prisma, {
+    const res = await clearOrgCommissionRate(prisma, {
       organizationId: 'o1', partnerId: 'p1', reason: 'clean', changedByUserId: 'u1'
     });
+    expect(res.ok).toBe(true);
     const [, auditArgs] = recordAuditMock.mock.calls[0];
     expect(auditArgs.before.rate).toBe('0.10');
   });
