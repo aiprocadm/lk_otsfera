@@ -17,12 +17,19 @@ vi.mock('@/lib/notifications/partner', () => ({
   notifyPartnerUsers: vi.fn()
 }));
 
+// Mock late-refund correction detector (A6)
+vi.mock('@/lib/services/commission/corrections', () => ({
+  detectLateRefundCorrections: vi.fn().mockResolvedValue(0),
+}));
+
 import { calculateMonthlyCommissionsProcessor } from '@/worker/processors/calculate-monthly-commissions';
 import { calculateStatementForPartner } from '@/lib/services/commission/statement';
 import { notifyPartnerUsers } from '@/lib/notifications/partner';
+import { detectLateRefundCorrections } from '@/lib/services/commission/corrections';
 
 const mockCalc = calculateStatementForPartner as ReturnType<typeof vi.fn>;
 const mockNotify = notifyPartnerUsers as ReturnType<typeof vi.fn>;
+const mockDetect = detectLateRefundCorrections as ReturnType<typeof vi.fn>;
 
 function statementFixture(over: Record<string, unknown> = {}) {
   return { id: 's1', periodFrom: new Date(2026, 4, 1), totalCommissionAmount: { toString: () => '125000' }, ...over };
@@ -47,6 +54,8 @@ beforeEach(() => {
   mockCalc.mockReset();
   mockNotify.mockReset();
   mockNotify.mockResolvedValue({ recipientsNotified: 1, emailsSent: 1, emailsSkipped: 0 });
+  mockDetect.mockClear();
+  mockDetect.mockResolvedValue(0);
 });
 
 describe('calculateMonthlyCommissionsProcessor', () => {
@@ -255,5 +264,13 @@ describe('calculateMonthlyCommissionsProcessor', () => {
       expect.objectContaining({ error: 'notify-plain-string' })
     );
     warnSpy.mockRestore();
+  });
+
+  // A6: late-refund correction detector runs before partner selection (best-effort).
+  it('runs late-refund detection before computing statements', async () => {
+    const db = makePrisma([{ id: 'p1' }]);
+    mockCalc.mockResolvedValue({ statement: {}, itemCount: 1, isNew: true });
+    await calculateMonthlyCommissionsProcessor(makeJob(), db);
+    expect(mockDetect).toHaveBeenCalledWith(db);
   });
 });

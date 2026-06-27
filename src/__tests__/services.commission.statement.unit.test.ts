@@ -36,6 +36,7 @@ type DbOpts = {
   partner?: unknown;
   payments?: unknown[];
   rateChanges?: unknown[];
+  corrections?: unknown[];
   existing?: unknown;
   findFirstQueue?: unknown[];
   tx?: ReturnType<typeof makeTx>;
@@ -54,6 +55,7 @@ function makeDb(o: DbOpts = {}) {
     partner: { findUnique: vi.fn().mockResolvedValue('partner' in o ? o.partner : { commissionRate: new Prisma.Decimal('0.1') }) },
     commissionRateChange: { findMany: vi.fn().mockResolvedValue(o.rateChanges ?? []) },
     payment: { findMany: vi.fn().mockResolvedValue(o.payments ?? []) },
+    commissionCorrection: { findMany: vi.fn().mockResolvedValue((o as any).corrections ?? []) },
     commissionStatement: { findFirst, create: tx.commissionStatement.create, update: tx.commissionStatement.update },
     $transaction: o.$transaction ?? vi.fn().mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
     _tx: tx,
@@ -224,5 +226,23 @@ describe('calculateStatementForPartner — unit (payment model)', () => {
     await expect(calculateStatementForPartner(db as never, {
       partnerId: 'p1', periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null,
     })).rejects.toThrow('Network');
+  });
+
+  it('A6: applied correction not yet carried becomes a negative line', async () => {
+    const db = makeDb({
+      payments: [paymentRow({ amount: new Prisma.Decimal('100000') })],
+      corrections: [{
+        id: 'corr-1', amount: new Prisma.Decimal('30000'), rate: new Prisma.Decimal('0.2'),
+        commissionAmount: new Prisma.Decimal('6000'),
+      }],
+    } as any);
+    await calculateStatementForPartner(db as never, {
+      partnerId: 'p1', periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null,
+    });
+    const rows = db._tx.commissionStatementItem.createMany.mock.calls[0][0].data;
+    const corrLine = rows.find((x: { correctionId?: string }) => x.correctionId === 'corr-1');
+    expect(corrLine).toBeTruthy();
+    expect(Number(corrLine.commissionAmount)).toBe(-6000);
+    expect(corrLine.paymentId).toBeNull();
   });
 });

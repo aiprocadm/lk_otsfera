@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Prisma } from '@prisma/client';
-import { calculateCommission, type PaymentForCalc } from '@/lib/services/commission/calculator';
+import { calculateCommission, type PaymentForCalc, type CorrectionForCalc } from '@/lib/services/commission/calculator';
 
 function payment(overrides: Partial<{
   paymentId: string; orderId: string | null; orderNumber: string | null;
@@ -104,5 +104,56 @@ describe('calculateCommission (payment-based)', () => {
       payment({ paymentId: 'b', amount: 300000, rate: 0.05 }),
     ]);
     expect(r.totals.averageRate.toNumber()).toBeCloseTo((0.1 * 100000 + 0.05 * 300000) / 400000, 6);
+  });
+
+  function correction(over: Partial<{
+    correctionId: string;
+    organizationName: string;
+    baseAmount: number | string;
+    rate: number | string;
+    commissionAmount: number | string;
+  }> = {}): CorrectionForCalc {
+    return {
+      correctionId: over.correctionId ?? 'c1',
+      organizationName: over.organizationName ?? 'Корректировка §9.5',
+      baseAmount: new Prisma.Decimal(over.baseAmount ?? -30000),
+      rate: new Prisma.Decimal(over.rate ?? 0.2),
+      commissionAmount: new Prisma.Decimal(over.commissionAmount ?? -6000),
+    };
+  }
+
+  it('A6: correction lines fold into items and reduce total commission', () => {
+    const r = calculateCommission(
+      [payment({ amount: 100000, rate: 0.2 })],
+      [correction({ baseAmount: -30000, commissionAmount: -6000 })]
+    );
+    expect(r.items).toHaveLength(2);
+    const corr = r.items.find((i) => i.correctionId === 'c1')!;
+    expect(corr.paymentId).toBeNull();
+    expect(corr.orderId).toBeNull();
+    expect(corr.commissionAmount.toNumber()).toBe(-6000);
+    expect(r.totals.totalCommissionAmount.toNumber()).toBe(14000);
+  });
+
+  it('A6/R2: corrections exceeding payments clamp total to 0 (lines kept)', () => {
+    const r = calculateCommission(
+      [payment({ amount: 10000, rate: 0.1 })],
+      [correction({ baseAmount: -50000, commissionAmount: -5000 })]
+    );
+    expect(r.totals.totalCommissionAmount.toNumber()).toBe(0);
+    expect(r.items).toHaveLength(2);
+  });
+
+  it('A6: uses pre-computed commissionAmount, not amount×rate (chain remainder with rate 0)', () => {
+    const r = calculateCommission(
+      [],
+      [correction({ correctionId: 'chain', rate: 0, baseAmount: -4000, commissionAmount: -4000 })]
+    );
+    expect(r.items[0].commissionAmount.toNumber()).toBe(-4000);
+  });
+
+  it('correction-only with no payments → clamped 0 total', () => {
+    const r = calculateCommission([], [correction({ commissionAmount: -6000 })]);
+    expect(r.totals.totalCommissionAmount.toNumber()).toBe(0);
   });
 });

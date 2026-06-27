@@ -3,6 +3,7 @@
  * integration suite (mocked prisma, no live Postgres required).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { Prisma } from '@prisma/client';
 
 const { recordAudit } = vi.hoisted(() => ({ recordAudit: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
@@ -12,11 +13,13 @@ import { approveStatement, markStatementPaid } from '@/lib/services/commission/l
 beforeEach(() => { recordAudit.mockClear(); });
 
 function makePrismaForApprove({
-  statement = null as { id: string; status: string; supersededBy: string | null } | null,
+  statement = null as { id: string; status: string; supersededBy: string | null; partnerId?: string; periodFrom?: Date; periodTo?: Date } | null,
 } = {}) {
   const updated = { id: statement?.id ?? 's1', status: 'approved' };
   const tx = {
     commissionStatement: { update: vi.fn().mockResolvedValue(updated) },
+    commissionStatementItem: { findMany: vi.fn().mockResolvedValue([]) },
+    commissionCorrection: { create: vi.fn() },
   };
   return {
     commissionStatement: {
@@ -53,7 +56,7 @@ describe('approveStatement — unit', () => {
 
   it('throws LIFECYCLE_VIOLATION when statement is superseded', async () => {
     const db = makePrismaForApprove({
-      statement: { id: 's1', status: 'draft', supersededBy: 's2' },
+      statement: { id: 's1', status: 'draft', supersededBy: 's2', partnerId: 'p1', periodFrom: new Date('2026-05-01'), periodTo: new Date('2026-05-31') },
     });
     await expect(
       approveStatement(db as never, { statementId: 's1', partnerId: 'p1', approvedByUserId: 'u1' })
@@ -62,7 +65,7 @@ describe('approveStatement — unit', () => {
 
   it('throws LIFECYCLE_VIOLATION when status is not draft (e.g. approved)', async () => {
     const db = makePrismaForApprove({
-      statement: { id: 's1', status: 'approved', supersededBy: null },
+      statement: { id: 's1', status: 'approved', supersededBy: null, partnerId: 'p1', periodFrom: new Date('2026-05-01'), periodTo: new Date('2026-05-31') },
     });
     await expect(
       approveStatement(db as never, { statementId: 's1', partnerId: 'p1', approvedByUserId: 'u1' })
@@ -71,7 +74,7 @@ describe('approveStatement — unit', () => {
 
   it('throws LIFECYCLE_VIOLATION when status is paid', async () => {
     const db = makePrismaForApprove({
-      statement: { id: 's1', status: 'paid', supersededBy: null },
+      statement: { id: 's1', status: 'paid', supersededBy: null, partnerId: 'p1', periodFrom: new Date('2026-05-01'), periodTo: new Date('2026-05-31') },
     });
     await expect(
       approveStatement(db as never, { statementId: 's1', partnerId: 'p1', approvedByUserId: 'u1' })
@@ -80,7 +83,7 @@ describe('approveStatement — unit', () => {
 
   it('transitions draft → approved and records audit', async () => {
     const db = makePrismaForApprove({
-      statement: { id: 's1', status: 'draft', supersededBy: null },
+      statement: { id: 's1', status: 'draft', supersededBy: null, partnerId: 'p1', periodFrom: new Date('2026-05-01'), periodTo: new Date('2026-05-31') },
     });
     const result = await approveStatement(db as never, {
       statementId: 's1',
@@ -93,6 +96,67 @@ describe('approveStatement — unit', () => {
       action: 'commission_statement_approved',
       userId: 'u-partner',
     });
+  });
+
+  it('A6: approve materialises a chained remainder correction when clamped', async () => {
+    const items = [
+      { commissionAmount: new Prisma.Decimal('1000'), correctionId: null },
+      { commissionAmount: new Prisma.Decimal('-5000'), correctionId: 'corr-1' },
+    ];
+    const created: any[] = [];
+    const tx = {
+      commissionStatement: { update: vi.fn().mockResolvedValue({ id: 's1', status: 'approved' }) },
+      commissionStatementItem: { findMany: vi.fn().mockResolvedValue(items) },
+      commissionCorrection: { create: vi.fn().mockImplementation(({ data }: any) => { created.push(data); return {}; }) },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+    };
+    const db = {
+      commissionStatement: { findFirst: vi.fn().mockResolvedValue({ id: 's1', status: 'draft', supersededBy: null, partnerId: 'p1', periodFrom: new Date('2026-05-01'), periodTo: new Date('2026-05-31') }) },
+      $transaction: vi.fn().mockImplementation(async (fn: any) => fn(tx)),
+    } as any;
+
+    await approveStatement(db, { statementId: 's1', partnerId: 'p1', approvedByUserId: 'u1' });
+
+    expect(created).toHaveLength(1);
+    expect(Number(created[0].commissionAmount)).toBe(4000);
+    expect(created[0].status).toBe('applied');
+    expect(created[0].paymentId).toBeNull();
+    expect(created[0].parentCorrectionId).toBe('corr-1');
+  });
+
+  it('A6: approve with no clamp creates no chain correction', async () => {
+    const items = [
+      { commissionAmount: new Prisma.Decimal('50000'), correctionId: null },
+      { commissionAmount: new Prisma.Decimal('-6000'), correctionId: 'corr-1' },
+    ];
+    const tx = {
+      commissionStatement: { update: vi.fn().mockResolvedValue({ id: 's1', status: 'approved' }) },
+      commissionStatementItem: { findMany: vi.fn().mockResolvedValue(items) },
+      commissionCorrection: { create: vi.fn() },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+    };
+    const db = {
+      commissionStatement: { findFirst: vi.fn().mockResolvedValue({ id: 's1', status: 'draft', supersededBy: null, partnerId: 'p1', periodFrom: new Date('2026-05-01'), periodTo: new Date('2026-05-31') }) },
+      $transaction: vi.fn().mockImplementation(async (fn: any) => fn(tx)),
+    } as any;
+    await approveStatement(db, { statementId: 's1', partnerId: 'p1', approvedByUserId: 'u1' });
+    expect(tx.commissionCorrection.create).not.toHaveBeenCalled();
+  });
+
+  it('A6: approve with no correction lines creates no chain correction', async () => {
+    const items = [{ commissionAmount: new Prisma.Decimal('-100'), correctionId: null }];
+    const tx = {
+      commissionStatement: { update: vi.fn().mockResolvedValue({ id: 's1', status: 'approved' }) },
+      commissionStatementItem: { findMany: vi.fn().mockResolvedValue(items) },
+      commissionCorrection: { create: vi.fn() },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+    };
+    const db = {
+      commissionStatement: { findFirst: vi.fn().mockResolvedValue({ id: 's1', status: 'draft', supersededBy: null, partnerId: 'p1', periodFrom: new Date('2026-05-01'), periodTo: new Date('2026-05-31') }) },
+      $transaction: vi.fn().mockImplementation(async (fn: any) => fn(tx)),
+    } as any;
+    await approveStatement(db, { statementId: 's1', partnerId: 'p1', approvedByUserId: 'u1' });
+    expect(tx.commissionCorrection.create).not.toHaveBeenCalled();
   });
 });
 
