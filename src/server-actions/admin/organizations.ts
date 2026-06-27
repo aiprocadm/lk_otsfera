@@ -43,10 +43,6 @@ function readField(fd: FormData, key: string): string {
 
 function mapErr(e: unknown): Failure {
   if (e instanceof AdminOrgError) return { ok: false, error: e.code };
-  if (e instanceof Error) {
-    if (e.message.startsWith('NOT_FOUND')) return { ok: false, error: 'not_found' };
-    if (e.message.startsWith('RATE_OUT_OF_RANGE')) return { ok: false, error: 'rate_out_of_range' };
-  }
   throw e;
 }
 
