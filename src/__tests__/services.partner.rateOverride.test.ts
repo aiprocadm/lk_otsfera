@@ -79,28 +79,28 @@ describe('setOrgCommissionRate', () => {
   });
 
   it('rejects rates out of (0, 1) range', async () => {
-    await expect(
-      setOrgCommissionRate(prisma, {
+    expect(
+      await setOrgCommissionRate(prisma, {
         organizationId: orgId, partnerId,
         newRate: -0.1, reason: 'X', changedByUserId: userId
       })
-    ).rejects.toThrow(/RATE_OUT_OF_RANGE/);
+    ).toEqual({ ok: false, error: 'rate_out_of_range' });
 
-    await expect(
-      setOrgCommissionRate(prisma, {
+    expect(
+      await setOrgCommissionRate(prisma, {
         organizationId: orgId, partnerId,
         newRate: 1.5, reason: 'X', changedByUserId: userId
       })
-    ).rejects.toThrow(/RATE_OUT_OF_RANGE/);
+    ).toEqual({ ok: false, error: 'rate_out_of_range' });
   });
 
   it('refuses to change org outside partner', async () => {
-    await expect(
-      setOrgCommissionRate(prisma, {
+    expect(
+      await setOrgCommissionRate(prisma, {
         organizationId: orgId, partnerId: 'no-such',
         newRate: 0.08, reason: 'X', changedByUserId: userId
       })
-    ).rejects.toThrow(/NOT_FOUND/);
+    ).toEqual({ ok: false, error: 'not_found' });
   });
 });
 

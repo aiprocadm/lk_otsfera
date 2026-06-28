@@ -63,7 +63,7 @@ describe('setTeamVisibilityAction — validation', () => {
 
 describe('setTeamVisibilityAction — happy path', () => {
   it('calls setTeamVisibility and revalidates when leader has companyId', async () => {
-    setTeamVisibility.mockResolvedValue({ changed: true });
+    setTeamVisibility.mockResolvedValue({ ok: true, changed: true });
 
     const res = await setTeamVisibilityAction({ enabled: true });
 
@@ -79,7 +79,7 @@ describe('setTeamVisibilityAction — happy path', () => {
   });
 
   it('returns changed:false when visibility was already set to the same value', async () => {
-    setTeamVisibility.mockResolvedValue({ changed: false });
+    setTeamVisibility.mockResolvedValue({ ok: true, changed: false });
 
     const res = await setTeamVisibilityAction({ enabled: false });
 
@@ -93,5 +93,16 @@ describe('setTeamVisibilityAction — happy path', () => {
     // revalidatePath still fires (idempotent, harmless)
     expect(revalidatePath).toHaveBeenCalledWith('/manager/team');
     expect(revalidatePath).toHaveBeenCalledWith('/manager/dashboard');
+  });
+});
+
+describe('setTeamVisibilityAction — company_not_found', () => {
+  it('returns company_not_found and does not revalidate when company row is missing', async () => {
+    setTeamVisibility.mockResolvedValue({ ok: false, error: 'company_not_found' });
+
+    const res = await setTeamVisibilityAction({ enabled: true });
+
+    expect(res).toEqual({ ok: false, error: 'company_not_found' });
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

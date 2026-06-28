@@ -22,7 +22,17 @@ const RU: Record<string, string> = {
   invalid_key: 'Ключ: только латиница, цифры и подчёркивание, начиная с буквы.',
   options_required: 'Для типа «список» укажите хотя бы один вариант.',
   duplicate_key: 'Поле с таким ключом уже существует.',
-  telegram_disabled: 'Telegram-уведомления не настроены администратором.'
+  telegram_disabled: 'Telegram-уведомления не настроены администратором.',
+  org_out_of_scope: 'Организация вне вашей зоны видимости.',
+  already_rejected: 'Заявка уже отклонена.',
+  already_promoted: 'Заявка уже переведена в заказ.',
+  rate_out_of_range: 'Ставка должна быть в диапазоне (0, 1).',
+  company_not_found: 'Компания не найдена.',
+  requires_admin: 'Действие доступно только администратору организации.',
+  already_member: 'Пользователь уже состоит в организации.',
+  last_admin_protected: 'Нельзя удалить последнего администратора организации.',
+  self_action_forbidden: 'Нельзя выполнить это действие над собой.',
+  lifecycle_violation: 'Недопустимый переход статуса.'
 };
 
 export function errorMessageRu(code: string, fallback = 'Произошла ошибка.'): string {

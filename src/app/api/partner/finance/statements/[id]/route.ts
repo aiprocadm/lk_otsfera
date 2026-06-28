@@ -32,38 +32,31 @@ export async function PATCH(request: Request, { params }: Params) {
     const guard = requirePartnerAdmin(session);
     if (!guard.ok) return guard.response;
 
-    try {
-      const updated = await approveStatement(prisma, {
-        statementId: id,
-        partnerId: guard.value.partnerId,
-        approvedByUserId: guard.value.sub
-      });
-      return NextResponse.json({ statement: updated });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      if (msg.startsWith('NOT_FOUND')) return NextResponse.json({ error: msg }, { status: 404 });
-      if (msg.startsWith('LIFECYCLE_VIOLATION')) return NextResponse.json({ error: msg }, { status: 409 });
-      throw err;
+    const res = await approveStatement(prisma, {
+      statementId: id,
+      partnerId: guard.value.partnerId,
+      approvedByUserId: guard.value.sub
+    });
+    if (!res.ok) {
+      const status = res.error === 'not_found' ? 404 : 409;
+      return NextResponse.json({ error: res.error }, { status });
     }
+    return NextResponse.json({ statement: res.statement });
   }
 
   if (action === 'markPaid') {
     if (session.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access only' }, { status: 403 });
     }
-    try {
-      const updated = await markStatementPaid(prisma, {
-        statementId: id,
-        paidByUserId: session.sub
-      });
-      return NextResponse.json({ statement: updated });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      if (msg.startsWith('NOT_FOUND')) return NextResponse.json({ error: msg }, { status: 404 });
-      if (msg.startsWith('FORBIDDEN')) return NextResponse.json({ error: msg }, { status: 403 });
-      if (msg.startsWith('LIFECYCLE_VIOLATION')) return NextResponse.json({ error: msg }, { status: 409 });
-      throw err;
+    const res = await markStatementPaid(prisma, {
+      statementId: id,
+      paidByUserId: session.sub
+    });
+    if (!res.ok) {
+      const status = res.error === 'not_found' ? 404 : res.error === 'forbidden' ? 403 : 409;
+      return NextResponse.json({ error: res.error }, { status });
     }
+    return NextResponse.json({ statement: res.statement });
   }
 
   return NextResponse.json({ error: 'Invalid action. Use approve or markPaid' }, { status: 400 });

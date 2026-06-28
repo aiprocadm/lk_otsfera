@@ -1306,6 +1306,8 @@ describe('organization/team — inviteMember (unit)', () => {
       'actor-1',
     );
 
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('unreachable');
     expect(result.user.email).toBe('new@x.com');
     expect(result.inviteUrl).toContain('/reset-password?token=invite-token-123');
     expect(result.alreadyHasPassword).toBe(false);
@@ -1327,6 +1329,8 @@ describe('organization/team — inviteMember (unit)', () => {
       'actor-1',
     );
 
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('unreachable');
     expect(result.inviteUrl).toBeNull();
     expect(result.alreadyHasPassword).toBe(true);
   });
@@ -1342,9 +1346,8 @@ describe('organization/team — inviteMember (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await expect(
-      inviteMember(prisma, { organizationId: 'org-1', email: 'dup@x.com', name: 'Dup', roleInOrg: 'member' }, 'actor-1'),
-    ).rejects.toMatchObject({ code: 'already_member' });
+    const res = await inviteMember(prisma, { organizationId: 'org-1', email: 'dup@x.com', name: 'Dup', roleInOrg: 'member' }, 'actor-1');
+    expect(res).toEqual({ ok: false, error: 'already_member' });
   });
 
   it('leader cannot invite new admin → throws requires_admin (pre-transaction)', async () => {
@@ -1352,15 +1355,14 @@ describe('organization/team — inviteMember (unit)', () => {
       $transaction: vi.fn(),
     } as unknown as PrismaClient;
 
-    await expect(
-      inviteMember(
-        prisma,
-        { organizationId: 'org-1', email: 'new@x.com', name: 'X', roleInOrg: 'admin' },
-        'actor-1',
-        {},
-        'leader',
-      ),
-    ).rejects.toMatchObject({ code: 'requires_admin' });
+    const res = await inviteMember(
+      prisma,
+      { organizationId: 'org-1', email: 'new@x.com', name: 'X', roleInOrg: 'admin' },
+      'actor-1',
+      {},
+      'leader',
+    );
+    expect(res).toEqual({ ok: false, error: 'requires_admin' });
     expect((prisma.$transaction as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
   });
 
@@ -1375,15 +1377,14 @@ describe('organization/team — inviteMember (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await expect(
-      inviteMember(
-        prisma,
-        { organizationId: 'org-1', email: 'admin@x.com', name: 'Admin', roleInOrg: 'member' },
-        'actor-1',
-        {},
-        'leader',
-      ),
-    ).rejects.toMatchObject({ code: 'requires_admin' });
+    const res = await inviteMember(
+      prisma,
+      { organizationId: 'org-1', email: 'admin@x.com', name: 'Admin', roleInOrg: 'member' },
+      'actor-1',
+      {},
+      'leader',
+    );
+    expect(res).toEqual({ ok: false, error: 'requires_admin' });
   });
 
   it('reactivates deactivated membership with new role', async () => {
@@ -1404,6 +1405,8 @@ describe('organization/team — inviteMember (unit)', () => {
       'actor-1',
     );
 
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('unreachable');
     expect(result.user.email).toBe('old@x.com');
     expect(tx.organizationUser.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { isActive: true, roleInOrg: 'leader' } }),
@@ -1477,10 +1480,22 @@ describe('organization/team — inviteMember (unit)', () => {
         'actor-1',
       );
 
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error('unreachable');
       expect(result.inviteUrl).toContain('https://custom.example.com/reset-password?token=tk-custom');
     } finally {
       process.env.APP_URL = originalAppUrl;
     }
+  });
+
+  it('non-OrgMemberError thrown inside tx re-throws (boundary-catch)', async () => {
+    const prisma = {
+      $transaction: vi.fn().mockRejectedValue(new Error('DB crashed')),
+    } as unknown as PrismaClient;
+
+    await expect(
+      inviteMember(prisma, { organizationId: 'org-1', email: 'x@x.com', name: 'X', roleInOrg: 'member' }, 'actor-1'),
+    ).rejects.toThrow('DB crashed');
   });
 });
 
@@ -1498,9 +1513,8 @@ describe('organization/team — updateMemberRole (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await expect(
-      updateMemberRole(prisma, 'org-1', 'ou-missing', 'admin', 'actor-1'),
-    ).rejects.toMatchObject({ code: 'not_found' });
+    const res = await updateMemberRole(prisma, 'org-1', 'ou-missing', 'admin', 'actor-1');
+    expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('not_found when orgUser belongs to different org (cross-tenant guard)', async () => {
@@ -1513,9 +1527,8 @@ describe('organization/team — updateMemberRole (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await expect(
-      updateMemberRole(prisma, 'org-1', 'ou1', 'admin', 'actor-1'),
-    ).rejects.toMatchObject({ code: 'not_found' });
+    const res = await updateMemberRole(prisma, 'org-1', 'ou1', 'admin', 'actor-1');
+    expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('self_action_forbidden when actor targets themselves', async () => {
@@ -1528,9 +1541,8 @@ describe('organization/team — updateMemberRole (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await expect(
-      updateMemberRole(prisma, 'org-1', 'ou1', 'member', 'actor-1'),
-    ).rejects.toMatchObject({ code: 'self_action_forbidden' });
+    const res = await updateMemberRole(prisma, 'org-1', 'ou1', 'member', 'actor-1');
+    expect(res).toEqual({ ok: false, error: 'self_action_forbidden' });
   });
 
   it('leader cannot promote to admin', async () => {
@@ -1543,9 +1555,8 @@ describe('organization/team — updateMemberRole (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await expect(
-      updateMemberRole(prisma, 'org-1', 'ou2', 'admin', 'actor-1', 'leader'),
-    ).rejects.toMatchObject({ code: 'requires_admin' });
+    const res = await updateMemberRole(prisma, 'org-1', 'ou2', 'admin', 'actor-1', 'leader');
+    expect(res).toEqual({ ok: false, error: 'requires_admin' });
   });
 
   it('leader cannot change role of existing admin', async () => {
@@ -1558,9 +1569,8 @@ describe('organization/team — updateMemberRole (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await expect(
-      updateMemberRole(prisma, 'org-1', 'ou3', 'member', 'actor-1', 'leader'),
-    ).rejects.toMatchObject({ code: 'requires_admin' });
+    const res = await updateMemberRole(prisma, 'org-1', 'ou3', 'member', 'actor-1', 'leader');
+    expect(res).toEqual({ ok: false, error: 'requires_admin' });
   });
 
   it('no-op when newRole === currentRole (non-leader touching non-admin)', async () => {
@@ -1573,7 +1583,8 @@ describe('organization/team — updateMemberRole (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await updateMemberRole(prisma, 'org-1', 'ou4', 'member', 'actor-1');
+    const res = await updateMemberRole(prisma, 'org-1', 'ou4', 'member', 'actor-1');
+    expect(res).toEqual({ ok: true });
     expect(tx.organizationUser.update).not.toHaveBeenCalled();
   });
 
@@ -1588,9 +1599,8 @@ describe('organization/team — updateMemberRole (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await expect(
-      updateMemberRole(prisma, 'org-1', 'ou5', 'member', 'actor-1'),
-    ).rejects.toMatchObject({ code: 'last_admin_protected' });
+    const res = await updateMemberRole(prisma, 'org-1', 'ou5', 'member', 'actor-1');
+    expect(res).toEqual({ ok: false, error: 'last_admin_protected' });
   });
 
   it('promotes member to admin and writes audit', async () => {
@@ -1603,7 +1613,8 @@ describe('organization/team — updateMemberRole (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await updateMemberRole(prisma, 'org-1', 'ou6', 'admin', 'actor-1');
+    const res = await updateMemberRole(prisma, 'org-1', 'ou6', 'admin', 'actor-1');
+    expect(res).toEqual({ ok: true });
     expect(tx.organizationUser.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { roleInOrg: 'admin' } }),
     );
@@ -1621,10 +1632,21 @@ describe('organization/team — updateMemberRole (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await updateMemberRole(prisma, 'org-1', 'ou7', 'member', 'actor-1');
+    const res = await updateMemberRole(prisma, 'org-1', 'ou7', 'member', 'actor-1');
+    expect(res).toEqual({ ok: true });
     expect(tx.organizationUser.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { roleInOrg: 'member' } }),
     );
+  });
+
+  it('non-OrgMemberError thrown inside tx re-throws (boundary-catch)', async () => {
+    const prisma = {
+      $transaction: vi.fn().mockRejectedValue(new Error('DB crashed')),
+    } as unknown as PrismaClient;
+
+    await expect(
+      updateMemberRole(prisma, 'org-1', 'ou1', 'admin', 'actor-1'),
+    ).rejects.toThrow('DB crashed');
   });
 });
 
@@ -1644,9 +1666,8 @@ describe('organization/team — deactivateMember (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await expect(
-      deactivateMember(prisma, 'org-1', 'ou0', 'actor-1'),
-    ).rejects.toMatchObject({ code: 'self_action_forbidden' });
+    const res = await deactivateMember(prisma, 'org-1', 'ou0', 'actor-1');
+    expect(res).toEqual({ ok: false, error: 'self_action_forbidden' });
   });
 
   it('leader cannot deactivate admin', async () => {
@@ -1659,9 +1680,8 @@ describe('organization/team — deactivateMember (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await expect(
-      deactivateMember(prisma, 'org-1', 'ou3', 'actor-1', 'leader'),
-    ).rejects.toMatchObject({ code: 'requires_admin' });
+    const res = await deactivateMember(prisma, 'org-1', 'ou3', 'actor-1', 'leader');
+    expect(res).toEqual({ ok: false, error: 'requires_admin' });
   });
 
   it('no-op when member already inactive', async () => {
@@ -1674,7 +1694,8 @@ describe('organization/team — deactivateMember (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await deactivateMember(prisma, 'org-1', 'ou1', 'actor-1');
+    const res = await deactivateMember(prisma, 'org-1', 'ou1', 'actor-1');
+    expect(res).toEqual({ ok: true });
     expect(tx.organizationUser.update).not.toHaveBeenCalled();
   });
 
@@ -1688,7 +1709,8 @@ describe('organization/team — deactivateMember (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await deactivateMember(prisma, 'org-1', 'ou2', 'actor-1');
+    const res = await deactivateMember(prisma, 'org-1', 'ou2', 'actor-1');
+    expect(res).toEqual({ ok: true });
     expect(tx.organizationUser.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { isActive: false } }),
     );
@@ -1705,9 +1727,8 @@ describe('organization/team — deactivateMember (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await expect(
-      deactivateMember(prisma, 'org-1', 'ou4', 'actor-1'),
-    ).rejects.toMatchObject({ code: 'last_admin_protected' });
+    const res = await deactivateMember(prisma, 'org-1', 'ou4', 'actor-1');
+    expect(res).toEqual({ ok: false, error: 'last_admin_protected' });
   });
 
   it('deactivates admin when other admins exist', async () => {
@@ -1721,10 +1742,21 @@ describe('organization/team — deactivateMember (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await deactivateMember(prisma, 'org-1', 'ou5', 'actor-1');
+    const res = await deactivateMember(prisma, 'org-1', 'ou5', 'actor-1');
+    expect(res).toEqual({ ok: true });
     expect(tx.organizationUser.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { isActive: false } }),
     );
+  });
+
+  it('non-OrgMemberError thrown inside tx re-throws (boundary-catch)', async () => {
+    const prisma = {
+      $transaction: vi.fn().mockRejectedValue(new Error('DB crashed')),
+    } as unknown as PrismaClient;
+
+    await expect(
+      deactivateMember(prisma, 'org-1', 'ou1', 'actor-1'),
+    ).rejects.toThrow('DB crashed');
   });
 });
 
@@ -1744,9 +1776,8 @@ describe('organization/team — reactivateMember (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await expect(
-      reactivateMember(prisma, 'org-1', 'ou0', 'actor-1'),
-    ).rejects.toMatchObject({ code: 'self_action_forbidden' });
+    const res = await reactivateMember(prisma, 'org-1', 'ou0', 'actor-1');
+    expect(res).toEqual({ ok: false, error: 'self_action_forbidden' });
   });
 
   it('leader cannot reactivate admin', async () => {
@@ -1759,9 +1790,8 @@ describe('organization/team — reactivateMember (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await expect(
-      reactivateMember(prisma, 'org-1', 'ou4', 'actor-1', 'leader'),
-    ).rejects.toMatchObject({ code: 'requires_admin' });
+    const res = await reactivateMember(prisma, 'org-1', 'ou4', 'actor-1', 'leader');
+    expect(res).toEqual({ ok: false, error: 'requires_admin' });
   });
 
   it('no-op when member already active', async () => {
@@ -1774,7 +1804,8 @@ describe('organization/team — reactivateMember (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await reactivateMember(prisma, 'org-1', 'ou1', 'actor-1');
+    const res = await reactivateMember(prisma, 'org-1', 'ou1', 'actor-1');
+    expect(res).toEqual({ ok: true });
     expect(tx.organizationUser.update).not.toHaveBeenCalled();
   });
 
@@ -1788,11 +1819,22 @@ describe('organization/team — reactivateMember (unit)', () => {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    await reactivateMember(prisma, 'org-1', 'ou2', 'actor-1');
+    const res = await reactivateMember(prisma, 'org-1', 'ou2', 'actor-1');
+    expect(res).toEqual({ ok: true });
     expect(tx.organizationUser.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { isActive: true } }),
     );
     expect(recordAuditMock).toHaveBeenCalled();
+  });
+
+  it('non-OrgMemberError thrown inside tx re-throws (boundary-catch)', async () => {
+    const prisma = {
+      $transaction: vi.fn().mockRejectedValue(new Error('DB crashed')),
+    } as unknown as PrismaClient;
+
+    await expect(
+      reactivateMember(prisma, 'org-1', 'ou1', 'actor-1'),
+    ).rejects.toThrow('DB crashed');
   });
 });
 
@@ -1896,6 +1938,29 @@ describe('organization/invite — createOrgAdminInvite (unit)', () => {
         { actorUserId: 'actor-partner', source: 'partner', actorPartnerId: 'partner-A' },
       ),
     ).resolves.toBeDefined();
+  });
+
+  it('re-throws OrgMemberError when underlying inviteMember returns {ok:false} (shim throw-contract)', async () => {
+    // Existing ACTIVE membership → org inviteMember hits the already_member path
+    // and returns { ok: false }. The shim must re-throw it as OrgMemberError so
+    // the partner/admin inviteOrgAdmin cabinets (left out of the Result migration)
+    // keep catching OrgMemberError unchanged. Covers invite.ts:80.
+    const prisma = makePrisma(
+      { id: 'org-1', partnerId: 'partner-A' },
+      {
+        user: { findUnique: vi.fn().mockResolvedValue({ id: 'u-dup', email: 'dup@x.com', passwordHash: 'x' }) },
+        organizationUser: {
+          findUnique: vi.fn().mockResolvedValue({ id: 'ou-dup', isActive: true, roleInOrg: 'member', organizationId: 'org-1' }),
+        },
+      },
+    );
+    await expect(
+      createOrgAdminInvite(
+        prisma,
+        { organizationId: 'org-1', email: 'dup@x.com', name: 'Dup' },
+        { actorUserId: 'actor-admin', source: 'platform_admin' },
+      ),
+    ).rejects.toMatchObject({ code: 'already_member', name: 'OrgMemberError' });
   });
 
   it('OrgInviteError has correct code, name, and is an Error instance', () => {

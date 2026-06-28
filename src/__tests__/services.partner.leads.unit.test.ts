@@ -157,7 +157,8 @@ describe('createLead — unit', () => {
       clientCompanyName: 'ООО X', clientContactName: 'Y', subject: 'Z'
     });
     expect(prisma.organization.findFirst).not.toHaveBeenCalled();
-    expect(result.status).toBe('new');
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.lead.status).toBe('new');
   });
 
   it('trims optional string fields when provided (covers ?.trim() positive branches)', async () => {
@@ -188,16 +189,17 @@ describe('createLead — unit', () => {
     expect(data.productType).toEqual(['IT', 'SEC']);
   });
 
-  it('throws ORG_OUT_OF_SCOPE when organizationId not under partner (mocked)', async () => {
+  it('returns org_out_of_scope when organizationId not under partner (mocked)', async () => {
     const prisma = {
       organization: { findFirst: vi.fn().mockResolvedValue(null) },
       lead: { create: vi.fn() }
     } as any;
-    await expect(createLead(prisma, {
+    const res = await createLead(prisma, {
       partnerId: 'p1', createdByUserId: 'u1',
       organizationId: 'foreign-org',
       clientCompanyName: 'X', clientContactName: 'Y', subject: 'Z'
-    })).rejects.toThrow('ORG_OUT_OF_SCOPE');
+    });
+    expect(res).toEqual({ ok: false, error: 'org_out_of_scope' });
   });
 
   it('sets estimatedAmount null when not provided', async () => {
@@ -219,40 +221,37 @@ describe('createLead — unit', () => {
 });
 
 describe('withdrawLead — unit', () => {
-  it('throws ALREADY_PROMOTED for promoted_to_order status', async () => {
+  it('returns already_promoted for promoted_to_order status', async () => {
     const prisma = {
       lead: {
         findFirst: vi.fn().mockResolvedValue({ id: 'l1', status: 'promoted_to_order' }),
         update: vi.fn()
       }
     } as any;
-    await expect(
-      withdrawLead(prisma, { leadId: 'l1', partnerId: 'p1', reason: 'x' })
-    ).rejects.toThrow('ALREADY_PROMOTED');
+    const res = await withdrawLead(prisma, { leadId: 'l1', partnerId: 'p1', reason: 'x' });
+    expect(res).toEqual({ ok: false, error: 'already_promoted' });
   });
 
-  it('throws ALREADY_REJECTED for already-rejected lead', async () => {
+  it('returns already_rejected for already-rejected lead', async () => {
     const prisma = {
       lead: {
         findFirst: vi.fn().mockResolvedValue({ id: 'l2', status: 'rejected' }),
         update: vi.fn()
       }
     } as any;
-    await expect(
-      withdrawLead(prisma, { leadId: 'l2', partnerId: 'p1', reason: 'x' })
-    ).rejects.toThrow('ALREADY_REJECTED');
+    const res = await withdrawLead(prisma, { leadId: 'l2', partnerId: 'p1', reason: 'x' });
+    expect(res).toEqual({ ok: false, error: 'already_rejected' });
   });
 
-  it('throws NOT_FOUND when lead not found', async () => {
+  it('returns not_found when lead not found', async () => {
     const prisma = {
       lead: {
         findFirst: vi.fn().mockResolvedValue(null),
         update: vi.fn()
       }
     } as any;
-    await expect(
-      withdrawLead(prisma, { leadId: 'missing', partnerId: 'p1', reason: 'x' })
-    ).rejects.toThrow('NOT_FOUND');
+    const res = await withdrawLead(prisma, { leadId: 'missing', partnerId: 'p1', reason: 'x' });
+    expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('updates lead to rejected status when valid', async () => {
@@ -264,7 +263,8 @@ describe('withdrawLead — unit', () => {
       }
     } as any;
     const result = await withdrawLead(prisma, { leadId: 'l3', partnerId: 'p1', reason: 'Отозван' });
-    expect(result.status).toBe('rejected');
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.lead.status).toBe('rejected');
     expect(update.mock.calls[0][0].data.rejectedReason).toBe('Отозван');
   });
 
@@ -283,11 +283,8 @@ describe('withdrawLead — unit', () => {
   it('passes scopeOrgIds OR filter when provided', async () => {
     const findFirst = vi.fn().mockResolvedValue(null);
     const prisma = { lead: { findFirst, update: vi.fn() } } as any;
-    try {
-      await withdrawLead(prisma, { leadId: 'l1', partnerId: 'p1', scopeOrgIds: ['org1'], reason: 'x' });
-    } catch {
-      // expected NOT_FOUND
-    }
+    const res = await withdrawLead(prisma, { leadId: 'l1', partnerId: 'p1', scopeOrgIds: ['org1'], reason: 'x' });
+    expect(res).toEqual({ ok: false, error: 'not_found' });
     const where = findFirst.mock.calls[0][0].where;
     expect(where.OR).toBeDefined();
   });

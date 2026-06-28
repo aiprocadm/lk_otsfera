@@ -43,35 +43,24 @@ describe('POST /api/enrollments', () => {
   });
   it('201 when a partner submits', async () => {
     vi.mocked(getSession).mockResolvedValue(partner);
-    vi.mocked(submitEnrollmentRequest).mockResolvedValue({ id: 'E1' } as never);
+    vi.mocked(submitEnrollmentRequest).mockResolvedValue({ ok: true, request: { id: 'E1' } } as never);
     const res = await POST(jsonReq({ studentName: 'И', studentEmail: 'i@x.ru', courseTitle: 'ОТ' }));
     expect(res.status).toBe(201);
+    expect(await res.json()).toEqual({ id: 'E1' });
   });
-  it('maps VALIDATION → 400', async () => {
+  it('maps validation Result → 400', async () => {
     vi.mocked(getSession).mockResolvedValue(partner);
-    vi.mocked(submitEnrollmentRequest).mockRejectedValue(new Error('VALIDATION: required'));
-    expect((await POST(jsonReq({}))).status).toBe(400);
+    vi.mocked(submitEnrollmentRequest).mockResolvedValue({ ok: false, error: 'validation' } as never);
+    const res = await POST(jsonReq({}));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'validation' });
   });
-  it('maps FORBIDDEN → 403 from service', async () => {
+  it('maps forbidden Result → 403 from service', async () => {
     vi.mocked(getSession).mockResolvedValue(partner);
-    vi.mocked(submitEnrollmentRequest).mockRejectedValue(new Error('FORBIDDEN: not allowed'));
-    expect((await POST(jsonReq({}))).status).toBe(403);
-  });
-  it('maps NOT_FOUND → 404 from service', async () => {
-    vi.mocked(getSession).mockResolvedValue(partner);
-    vi.mocked(submitEnrollmentRequest).mockRejectedValue(new Error('NOT_FOUND: org'));
-    expect((await POST(jsonReq({}))).status).toBe(404);
-  });
-  it('re-throws unknown errors from service (not wrapped)', async () => {
-    vi.mocked(getSession).mockResolvedValue(partner);
-    vi.mocked(submitEnrollmentRequest).mockRejectedValue(new Error('UNEXPECTED_DB_ERROR'));
-    await expect(POST(jsonReq({}))).rejects.toThrow('UNEXPECTED_DB_ERROR');
-  });
-
-  it('re-throws non-Error (string) from service (mapError branch[0]: not instanceof Error)', async () => {
-    vi.mocked(getSession).mockResolvedValue(partner);
-    vi.mocked(submitEnrollmentRequest).mockRejectedValue('plain string rejection');
-    await expect(POST(jsonReq({}))).rejects.toBe('plain string rejection');
+    vi.mocked(submitEnrollmentRequest).mockResolvedValue({ ok: false, error: 'forbidden' } as never);
+    const res = await POST(jsonReq({}));
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: 'forbidden' });
   });
   it('404 when feature flag disabled', async () => {
     vi.mocked(notFoundIfDisabled).mockReturnValue(new Response('Not Found', { status: 404 }));

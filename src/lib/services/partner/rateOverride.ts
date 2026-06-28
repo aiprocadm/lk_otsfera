@@ -12,16 +12,16 @@ export type SetRateInput = {
 export async function setOrgCommissionRate(
   prisma: PrismaClient,
   input: SetRateInput
-): Promise<void> {
+): Promise<{ ok: true } | { ok: false; error: 'rate_out_of_range' | 'not_found' }> {
   if (!(input.newRate > 0 && input.newRate < 1)) {
-    throw new Error('RATE_OUT_OF_RANGE: rate must be in (0, 1)');
+    return { ok: false, error: 'rate_out_of_range' };
   }
 
   const org = await prisma.organization.findFirst({
     where: { id: input.organizationId, partnerId: input.partnerId },
     select: { id: true, partnerCommissionRate: true }
   });
-  if (!org) throw new Error('NOT_FOUND: organization not under given partner');
+  if (!org) return { ok: false, error: 'not_found' };
 
   await prisma.$transaction(async (tx) => {
     await tx.organization.update({
@@ -43,17 +43,19 @@ export async function setOrgCommissionRate(
       reason: input.reason,
     });
   });
+
+  return { ok: true };
 }
 
 export async function clearOrgCommissionRate(
   prisma: PrismaClient,
   input: { organizationId: string; partnerId: string; reason: string; changedByUserId: string }
-): Promise<void> {
+): Promise<{ ok: true } | { ok: false; error: 'not_found' }> {
   const org = await prisma.organization.findFirst({
     where: { id: input.organizationId, partnerId: input.partnerId },
     select: { id: true, partnerCommissionRate: true }
   });
-  if (!org) throw new Error('NOT_FOUND');
+  if (!org) return { ok: false, error: 'not_found' };
 
   await prisma.$transaction(async (tx) => {
     await tx.organization.update({
@@ -75,4 +77,6 @@ export async function clearOrgCommissionRate(
       reason: input.reason,
     });
   });
+
+  return { ok: true };
 }

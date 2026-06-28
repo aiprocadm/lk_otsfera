@@ -39,22 +39,22 @@ describe('submitEnrollmentRequest', () => {
     } as never;
   }
   it('rejects empty required fields', async () => {
-    await expect(submitEnrollmentRequest(db(), s({ role: 'admin' }), { studentName: '', studentEmail: 'a@b.c', courseTitle: 'X' }))
-      .rejects.toThrow(/VALIDATION/);
+    const r = await submitEnrollmentRequest(db(), s({ role: 'admin' }), { studentName: '', studentEmail: 'a@b.c', courseTitle: 'X' });
+    expect(r).toEqual({ ok: false, error: 'validation' });
   });
   it('snapshots submitterRole and partnerId for a partner', async () => {
     const r = await submitEnrollmentRequest(db(), s({ role: 'partner', partnerId: 'p1' }), { studentName: 'Иван', studentEmail: 'i@x.ru', courseTitle: 'ОТ', organizationId: 'o1' });
-    expect(r.submitterRole).toBe('partner');
-    expect(r.partnerId).toBe('p1');
+    expect(r.ok && r.request.submitterRole).toBe('partner');
+    expect(r.ok && r.request.partnerId).toBe('p1');
   });
   it('blocks a partner targeting an org outside its scope', async () => {
     const d = db({ organization: { findFirst: vi.fn().mockResolvedValue(null) } });
-    await expect(submitEnrollmentRequest(d, s({ role: 'partner', partnerId: 'p1' }), { studentName: 'И', studentEmail: 'i@x.ru', courseTitle: 'ОТ', organizationId: 'oX' }))
-      .rejects.toThrow(/FORBIDDEN/);
+    const r = await submitEnrollmentRequest(d, s({ role: 'partner', partnerId: 'p1' }), { studentName: 'И', studentEmail: 'i@x.ru', courseTitle: 'ОТ', organizationId: 'oX' });
+    expect(r).toEqual({ ok: false, error: 'forbidden' });
   });
   it('forbids a role that cannot submit (student)', async () => {
-    await expect(submitEnrollmentRequest(db(), s({ role: 'student' }), { studentName: 'И', studentEmail: 'i@x.ru', courseTitle: 'ОТ' }))
-      .rejects.toThrow(/FORBIDDEN/);
+    const r = await submitEnrollmentRequest(db(), s({ role: 'student' }), { studentName: 'И', studentEmail: 'i@x.ru', courseTitle: 'ОТ' });
+    expect(r).toEqual({ ok: false, error: 'forbidden' });
   });
 });
 

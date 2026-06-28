@@ -9,14 +9,6 @@ import type { EnrollmentStatus } from '@prisma/client';
 
 const STATUSES = ['pending', 'approved', 'rejected', 'provisioned'];
 
-function mapError(err: unknown): NextResponse {
-  const msg = err instanceof Error ? err.message : 'Unknown error';
-  if (msg.startsWith('VALIDATION')) return NextResponse.json({ error: msg }, { status: 400 });
-  if (msg.startsWith('FORBIDDEN')) return NextResponse.json({ error: msg }, { status: 403 });
-  if (msg.startsWith('NOT_FOUND')) return NextResponse.json({ error: msg }, { status: 404 });
-  throw err;
-}
-
 export async function POST(req: Request) {
   const disabled = notFoundIfDisabled('enrollment_requests');
   if (disabled) return disabled;
@@ -26,18 +18,18 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
-  try {
-    const created = await submitEnrollmentRequest(prisma, session, {
-      studentName: String(body.studentName ?? ''),
-      studentEmail: String(body.studentEmail ?? ''),
-      courseTitle: String(body.courseTitle ?? ''),
-      organizationId: body.organizationId ?? null,
-      note: body.note ?? null
-    });
-    return NextResponse.json({ id: created.id }, { status: 201 });
-  } catch (err) {
-    return mapError(err);
+  const res = await submitEnrollmentRequest(prisma, session, {
+    studentName: String(body.studentName ?? ''),
+    studentEmail: String(body.studentEmail ?? ''),
+    courseTitle: String(body.courseTitle ?? ''),
+    organizationId: body.organizationId ?? null,
+    note: body.note ?? null
+  });
+  if (!res.ok) {
+    const status = res.error === 'validation' ? 400 : 403;
+    return NextResponse.json({ error: res.error }, { status });
   }
+  return NextResponse.json({ id: res.request.id }, { status: 201 });
 }
 
 export async function GET(req: Request) {

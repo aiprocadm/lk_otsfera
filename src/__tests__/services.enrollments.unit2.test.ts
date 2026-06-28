@@ -7,6 +7,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { recordAudit } = vi.hoisted(() => ({ recordAudit: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 
+const { canSubmitEnrollments, submitterRoleLabel, canReviewEnrollments } = vi.hoisted(() => ({
+  canSubmitEnrollments: vi.fn(() => true),
+  submitterRoleLabel: vi.fn((s: { role: string }) => s.role),
+  // list.ts depends on this; keep real semantics so the list-scope tests stay valid.
+  canReviewEnrollments: vi.fn((s: { role: string }) => s.role === 'manager' || s.role === 'admin'),
+}));
+vi.mock('@/lib/services/enrollments/policy', () => ({
+  canSubmitEnrollments,
+  submitterRoleLabel,
+  canReviewEnrollments,
+}));
+
 import { submitEnrollmentRequest } from '@/lib/services/enrollments/submit';
 import { listEnrollmentRequests } from '@/lib/services/enrollments/list';
 import { approveEnrollment, rejectEnrollment, markProvisioned } from '@/lib/services/enrollments/lifecycle';
@@ -20,6 +32,12 @@ const sess = (over: Record<string, unknown> = {}) =>
 // submitEnrollmentRequest — uncovered branches
 // ───────────────────────────────────────────
 describe('submitEnrollmentRequest — additional branches', () => {
+  beforeEach(() => {
+    canSubmitEnrollments.mockReturnValue(true);
+    canSubmitEnrollments.mockClear();
+    submitterRoleLabel.mockClear();
+  });
+
   function db(over: Record<string, unknown> = {}) {
     return {
       enrollmentRequest: {
@@ -33,6 +51,59 @@ describe('submitEnrollmentRequest — additional branches', () => {
     } as never;
   }
 
+  // ─── §3 Result guard branches ───
+  it('forbidden role (canSubmitEnrollments → false) → { ok:false, error:forbidden } and no create', async () => {
+    canSubmitEnrollments.mockReturnValue(false);
+    const create = vi.fn();
+    const d = db({ enrollmentRequest: { create } });
+    const res = await submitEnrollmentRequest(d, sess({ role: 'student' }), {
+      studentName: 'Иван',
+      studentEmail: 'i@x.ru',
+      courseTitle: 'ОТ',
+    });
+    expect(res).toEqual({ ok: false, error: 'forbidden' });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('missing required field (empty studentEmail) → { ok:false, error:validation }', async () => {
+    const create = vi.fn();
+    const d = db({ enrollmentRequest: { create } });
+    const res = await submitEnrollmentRequest(d, sess({ role: 'admin' }), {
+      studentName: 'Иван',
+      studentEmail: '',
+      courseTitle: 'ОТ',
+    });
+    expect(res).toEqual({ ok: false, error: 'validation' });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('partner with organizationId not under partner (findFirst → null) → { ok:false, error:forbidden }', async () => {
+    const create = vi.fn();
+    const d = db({
+      enrollmentRequest: { create },
+      organization: { findFirst: vi.fn().mockResolvedValue(null) },
+    });
+    const res = await submitEnrollmentRequest(d, sess({ role: 'partner', partnerId: 'p1' }), {
+      studentName: 'Иван',
+      studentEmail: 'i@x.ru',
+      courseTitle: 'ОТ',
+      organizationId: 'o-other',
+    });
+    expect(res).toEqual({ ok: false, error: 'forbidden' });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('happy path → ok:true with request.id and recordAudit called', async () => {
+    const res = await submitEnrollmentRequest(db(), sess({ role: 'admin' }), {
+      studentName: 'Иван',
+      studentEmail: 'i@x.ru',
+      courseTitle: 'ОТ',
+    });
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.request.id).toBe('E1');
+    expect(recordAudit).toHaveBeenCalled();
+  });
+
   it('organization role with explicit organizationId inside memberships — uses that org', async () => {
     const s = sess({
       role: 'organization',
@@ -45,23 +116,22 @@ describe('submitEnrollmentRequest — additional branches', () => {
       courseTitle: 'ОТ',
       organizationId: 'o-explicit',
     });
-    expect(r.organizationId).toBe('o-explicit');
+    expect(r.ok && r.request.organizationId).toBe('o-explicit');
   });
 
-  it('organization role with organizationId NOT in memberships → FORBIDDEN', async () => {
+  it('organization role with organizationId NOT in memberships → forbidden', async () => {
     const s = sess({
       role: 'organization',
       organizationId: 'o-default',
       organizationMemberships: [{ organizationId: 'o-mine', isActive: true }],
     });
-    await expect(
-      submitEnrollmentRequest(db(), s, {
-        studentName: 'Иван',
-        studentEmail: 'i@x.ru',
-        courseTitle: 'ОТ',
-        organizationId: 'o-OTHER',
-      })
-    ).rejects.toThrow(/FORBIDDEN/);
+    const r = await submitEnrollmentRequest(db(), s, {
+      studentName: 'Иван',
+      studentEmail: 'i@x.ru',
+      courseTitle: 'ОТ',
+      organizationId: 'o-OTHER',
+    });
+    expect(r).toEqual({ ok: false, error: 'forbidden' });
   });
 
   it('organization role with NO organizationId → falls back to ids[0] from active memberships', async () => {
@@ -75,7 +145,7 @@ describe('submitEnrollmentRequest — additional branches', () => {
       studentEmail: 'i@x.ru',
       courseTitle: 'ОТ',
     });
-    expect(r.organizationId).toBe('o-first');
+    expect(r.ok && r.request.organizationId).toBe('o-first');
   });
 
   it('organization role with NO organizationId and NO active memberships → organizationId=null', async () => {
@@ -90,7 +160,7 @@ describe('submitEnrollmentRequest — additional branches', () => {
       courseTitle: 'ОТ',
     });
     // session.organizationId is null, ids[0] is undefined → null
-    expect(r.organizationId).toBeNull();
+    expect(r.ok && r.request.organizationId).toBeNull();
   });
 
   it('organization role with organizationMemberships=undefined → uses session.organizationId', async () => {
@@ -106,7 +176,7 @@ describe('submitEnrollmentRequest — additional branches', () => {
       courseTitle: 'ОТ',
     });
     // ids = [] (memberships undefined → []), organizationId falls back to session.organizationId
-    expect(r.organizationId).toBe('o-session');
+    expect(r.ok && r.request.organizationId).toBe('o-session');
   });
 
   it('partner role with NO organizationId → partnerId set, organizationId null', async () => {
@@ -116,8 +186,8 @@ describe('submitEnrollmentRequest — additional branches', () => {
       courseTitle: 'ОТ',
       // no organizationId
     });
-    expect(r.partnerId).toBe('p1');
-    expect(r.organizationId).toBeNull();
+    expect(r.ok && r.request.partnerId).toBe('p1');
+    expect(r.ok && r.request.organizationId).toBeNull();
   });
 
   it('partner role WITH organizationId and non-null partnerId → hits findFirst with partnerId (line 45 arm 0)', async () => {
@@ -142,7 +212,7 @@ describe('submitEnrollmentRequest — additional branches', () => {
     expect(orgFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ partnerId: 'p-real' }) })
     );
-    expect(r.organizationId).toBe('o-scoped');
+    expect(r.ok && r.request.organizationId).toBe('o-scoped');
   });
 
   it('partner role with no partnerId in session → partnerId=null', async () => {
@@ -151,7 +221,7 @@ describe('submitEnrollmentRequest — additional branches', () => {
       studentEmail: 'i@x.ru',
       courseTitle: 'ОТ',
     });
-    expect(r.partnerId).toBeNull();
+    expect(r.ok && r.request.partnerId).toBeNull();
   });
 
   it('partner WITH organizationId and null partnerId → findFirst uses undefined (covers line 45 ?? arm 0)', async () => {
@@ -176,7 +246,7 @@ describe('submitEnrollmentRequest — additional branches', () => {
     expect(orgFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ partnerId: undefined }) })
     );
-    expect(r.organizationId).toBe('o-unscoped');
+    expect(r.ok && r.request.organizationId).toBe('o-unscoped');
   });
 
   it('note trimmed to null when empty string', async () => {
@@ -186,7 +256,7 @@ describe('submitEnrollmentRequest — additional branches', () => {
       courseTitle: 'ОТ',
       note: '   ',
     });
-    expect(r.note).toBeNull();
+    expect(r.ok && r.request.note).toBeNull();
   });
 
   it('note preserved when non-empty', async () => {
@@ -196,7 +266,7 @@ describe('submitEnrollmentRequest — additional branches', () => {
       courseTitle: 'ОТ',
       note: 'спецкурс',
     });
-    expect(r.note).toBe('спецкурс');
+    expect(r.ok && r.request.note).toBe('спецкурс');
   });
 });
 

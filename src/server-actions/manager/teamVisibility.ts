@@ -10,7 +10,7 @@ const InputSchema = z.object({ enabled: z.boolean() });
 
 export type SetTeamVisibilityResult =
   | { ok: true; changed: boolean }
-  | { ok: false; error: 'validation' | 'no_company' };
+  | { ok: false; error: 'validation' | 'no_company' | 'company_not_found' };
 
 export async function setTeamVisibilityAction(input: {
   enabled: boolean;
@@ -21,8 +21,9 @@ export async function setTeamVisibilityAction(input: {
   const session = await requireManagerLeader();
   if (!session.companyId) return { ok: false, error: 'no_company' };
 
-  const result = await setTeamVisibility(prisma, session.sub, session.companyId, parsed.data.enabled);
+  const res = await setTeamVisibility(prisma, session.sub, session.companyId, parsed.data.enabled);
+  if (!res.ok) return { ok: false, error: res.error };
   revalidatePath('/manager/team');
   revalidatePath('/manager/dashboard');
-  return { ok: true, changed: result.changed };
+  return { ok: true, changed: res.changed };
 }

@@ -5,8 +5,7 @@ import {
   inviteMember,
   updateMemberRole,
   deactivateMember,
-  reactivateMember,
-  OrgMemberError
+  reactivateMember
 } from '@/lib/services/organization/team';
 
 let prisma: PrismaClient;
@@ -153,6 +152,8 @@ describe('inviteMember', () => {
       { organizationId: orgId, email, name: 'New One', roleInOrg: 'member' },
       actorAdminUserId
     );
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected ok');
     expect(result.user.email).toBe(email);
     expect(result.inviteUrl).toMatch(/\/reset-password\?token=/);
     expect(result.alreadyHasPassword).toBe(false);
@@ -183,6 +184,8 @@ describe('inviteMember', () => {
       { organizationId: orgId, email, name: 'Existing', roleInOrg: 'member' },
       actorAdminUserId
     );
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected ok');
     expect(result.inviteUrl).toBeNull();
     expect(result.alreadyHasPassword).toBe(true);
 
@@ -192,20 +195,19 @@ describe('inviteMember', () => {
     expect(orgUser?.isActive).toBe(true);
   });
 
-  it('throws already_member when user is already an active member', async () => {
+  it('returns already_member when user is already an active member', async () => {
     const email = `invitee-dup-${Date.now()}@t.local`;
     await inviteMember(
       prisma,
       { organizationId: orgId, email, name: 'Dup', roleInOrg: 'member' },
       actorAdminUserId
     );
-    await expect(
-      inviteMember(
-        prisma,
-        { organizationId: orgId, email, name: 'Dup', roleInOrg: 'member' },
-        actorAdminUserId
-      )
-    ).rejects.toThrow(OrgMemberError);
+    const res = await inviteMember(
+      prisma,
+      { organizationId: orgId, email, name: 'Dup', roleInOrg: 'member' },
+      actorAdminUserId
+    );
+    expect(res).toEqual({ ok: false, error: 'already_member' });
   });
 
   it('reactivates inactive membership with new role', async () => {
@@ -215,6 +217,8 @@ describe('inviteMember', () => {
       { organizationId: orgId, email, name: 'Reactivate', roleInOrg: 'member' },
       actorAdminUserId
     );
+    expect(first.ok).toBe(true);
+    if (!first.ok) throw new Error('expected ok');
     // deactivate the membership directly
     await prisma.organizationUser.updateMany({
       where: { organizationId: orgId, userId: first.user.id },
@@ -225,6 +229,8 @@ describe('inviteMember', () => {
       { organizationId: orgId, email, name: 'Reactivate', roleInOrg: 'admin' },
       actorAdminUserId
     );
+    expect(second.ok).toBe(true);
+    if (!second.ok) throw new Error('expected ok');
     expect(second.user.id).toBe(first.user.id);
 
     const orgUser = await prisma.organizationUser.findFirst({
@@ -237,15 +243,15 @@ describe('inviteMember', () => {
 
 describe('updateMemberRole', () => {
   it('promotes a member to admin', async () => {
-    await updateMemberRole(prisma, orgId, memberOrgUserId, 'admin', actorAdminUserId);
+    const res = await updateMemberRole(prisma, orgId, memberOrgUserId, 'admin', actorAdminUserId);
+    expect(res).toEqual({ ok: true });
     const row = await prisma.organizationUser.findUnique({ where: { id: memberOrgUserId } });
     expect(row?.roleInOrg).toBe('admin');
   });
 
-  it('throws self_action_forbidden when actor targets themselves', async () => {
-    await expect(
-      updateMemberRole(prisma, orgId, actorAdminOrgUserId, 'member', actorAdminUserId)
-    ).rejects.toMatchObject({ code: 'self_action_forbidden' });
+  it('returns self_action_forbidden when actor targets themselves', async () => {
+    const res = await updateMemberRole(prisma, orgId, actorAdminOrgUserId, 'member', actorAdminUserId);
+    expect(res).toEqual({ ok: false, error: 'self_action_forbidden' });
   });
 
   it('throws last_admin_protected when demoting the last active admin', async () => {
@@ -270,19 +276,18 @@ describe('updateMemberRole', () => {
       data: { isActive: false }
     });
     // member (acting as some other user — use memberUserId) tries to demote secondAdmin
-    await expect(
-      updateMemberRole(prisma, orgId, secondAdminOrgUserId, 'member', memberUserId)
-    ).rejects.toMatchObject({ code: 'last_admin_protected' });
+    const res = await updateMemberRole(prisma, orgId, secondAdminOrgUserId, 'member', memberUserId);
+    expect(res).toEqual({ ok: false, error: 'last_admin_protected' });
   });
 
-  it('throws not_found for unknown orgUserId', async () => {
-    await expect(
-      updateMemberRole(prisma, orgId, 'nonexistent', 'admin', actorAdminUserId)
-    ).rejects.toMatchObject({ code: 'not_found' });
+  it('returns not_found for unknown orgUserId', async () => {
+    const res = await updateMemberRole(prisma, orgId, 'nonexistent', 'admin', actorAdminUserId);
+    expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('is a no-op when newRole === currentRole', async () => {
-    await updateMemberRole(prisma, orgId, secondAdminOrgUserId, 'admin', actorAdminUserId);
+    const res = await updateMemberRole(prisma, orgId, secondAdminOrgUserId, 'admin', actorAdminUserId);
+    expect(res).toEqual({ ok: true });
     const row = await prisma.organizationUser.findUnique({ where: { id: secondAdminOrgUserId } });
     expect(row?.roleInOrg).toBe('admin');
   });
@@ -290,26 +295,25 @@ describe('updateMemberRole', () => {
 
 describe('deactivateMember', () => {
   it('deactivates an active member', async () => {
-    await deactivateMember(prisma, orgId, memberOrgUserId, actorAdminUserId);
+    const res = await deactivateMember(prisma, orgId, memberOrgUserId, actorAdminUserId);
+    expect(res).toEqual({ ok: true });
     const row = await prisma.organizationUser.findUnique({ where: { id: memberOrgUserId } });
     expect(row?.isActive).toBe(false);
   });
 
-  it('throws self_action_forbidden when actor targets themselves', async () => {
-    await expect(
-      deactivateMember(prisma, orgId, actorAdminOrgUserId, actorAdminUserId)
-    ).rejects.toMatchObject({ code: 'self_action_forbidden' });
+  it('returns self_action_forbidden when actor targets themselves', async () => {
+    const res = await deactivateMember(prisma, orgId, actorAdminOrgUserId, actorAdminUserId);
+    expect(res).toEqual({ ok: false, error: 'self_action_forbidden' });
   });
 
-  it('throws last_admin_protected when deactivating the last active admin', async () => {
+  it('returns last_admin_protected when deactivating the last active admin', async () => {
     await prisma.organizationUser.update({
       where: { id: secondAdminOrgUserId },
       data: { isActive: false }
     });
     // actorAdmin is now sole active admin; member (acting as someone else) tries to deactivate them
-    await expect(
-      deactivateMember(prisma, orgId, actorAdminOrgUserId, memberUserId)
-    ).rejects.toMatchObject({ code: 'last_admin_protected' });
+    const res = await deactivateMember(prisma, orgId, actorAdminOrgUserId, memberUserId);
+    expect(res).toEqual({ ok: false, error: 'last_admin_protected' });
   });
 });
 
@@ -319,19 +323,20 @@ describe('reactivateMember', () => {
       where: { id: memberOrgUserId },
       data: { isActive: false }
     });
-    await reactivateMember(prisma, orgId, memberOrgUserId, actorAdminUserId);
+    const res = await reactivateMember(prisma, orgId, memberOrgUserId, actorAdminUserId);
+    expect(res).toEqual({ ok: true });
     const row = await prisma.organizationUser.findUnique({ where: { id: memberOrgUserId } });
     expect(row?.isActive).toBe(true);
   });
 
-  it('throws self_action_forbidden when actor targets themselves', async () => {
-    await expect(
-      reactivateMember(prisma, orgId, actorAdminOrgUserId, actorAdminUserId)
-    ).rejects.toMatchObject({ code: 'self_action_forbidden' });
+  it('returns self_action_forbidden when actor targets themselves', async () => {
+    const res = await reactivateMember(prisma, orgId, actorAdminOrgUserId, actorAdminUserId);
+    expect(res).toEqual({ ok: false, error: 'self_action_forbidden' });
   });
 
   it('is a no-op when already active', async () => {
-    await reactivateMember(prisma, orgId, memberOrgUserId, actorAdminUserId);
+    const res = await reactivateMember(prisma, orgId, memberOrgUserId, actorAdminUserId);
+    expect(res).toEqual({ ok: true });
     const row = await prisma.organizationUser.findUnique({ where: { id: memberOrgUserId } });
     expect(row?.isActive).toBe(true);
   });
@@ -341,45 +346,43 @@ describe('reactivateMember', () => {
 // controls privilege here — userId only drives the self-action guard and audit log.
 describe('leader privilege-escalation guards', () => {
   it('leader cannot promote a member to admin', async () => {
-    await expect(
-      updateMemberRole(prisma, orgId, memberOrgUserId, 'admin', actorAdminUserId, 'leader')
-    ).rejects.toMatchObject({ code: 'requires_admin' });
+    const res = await updateMemberRole(prisma, orgId, memberOrgUserId, 'admin', actorAdminUserId, 'leader');
+    expect(res).toEqual({ ok: false, error: 'requires_admin' });
     const row = await prisma.organizationUser.findUnique({ where: { id: memberOrgUserId } });
     expect(row?.roleInOrg).toBe('member'); // untouched
   });
 
   it('leader cannot change the role of an existing admin', async () => {
-    await expect(
-      updateMemberRole(prisma, orgId, secondAdminOrgUserId, 'member', actorAdminUserId, 'leader')
-    ).rejects.toMatchObject({ code: 'requires_admin' });
+    const res = await updateMemberRole(prisma, orgId, secondAdminOrgUserId, 'member', actorAdminUserId, 'leader');
+    expect(res).toEqual({ ok: false, error: 'requires_admin' });
   });
 
   it('leader cannot deactivate an admin', async () => {
-    await expect(
-      deactivateMember(prisma, orgId, secondAdminOrgUserId, actorAdminUserId, 'leader')
-    ).rejects.toMatchObject({ code: 'requires_admin' });
+    const res = await deactivateMember(prisma, orgId, secondAdminOrgUserId, actorAdminUserId, 'leader');
+    expect(res).toEqual({ ok: false, error: 'requires_admin' });
   });
 
   it('leader CAN promote a member to leader', async () => {
-    await updateMemberRole(prisma, orgId, memberOrgUserId, 'leader', actorAdminUserId, 'leader');
+    const res = await updateMemberRole(prisma, orgId, memberOrgUserId, 'leader', actorAdminUserId, 'leader');
+    expect(res).toEqual({ ok: true });
     const row = await prisma.organizationUser.findUnique({ where: { id: memberOrgUserId } });
     expect(row?.roleInOrg).toBe('leader');
   });
 
   it('leader cannot invite a new admin', async () => {
-    await expect(
-      inviteMember(
-        prisma,
-        { organizationId: orgId, email: `team-leadinvite-${Date.now()}@t.local`, name: 'X', roleInOrg: 'admin' },
-        actorAdminUserId,
-        {},
-        'leader'
-      )
-    ).rejects.toMatchObject({ code: 'requires_admin' });
+    const res = await inviteMember(
+      prisma,
+      { organizationId: orgId, email: `team-leadinvite-${Date.now()}@t.local`, name: 'X', roleInOrg: 'admin' },
+      actorAdminUserId,
+      {},
+      'leader'
+    );
+    expect(res).toEqual({ ok: false, error: 'requires_admin' });
   });
 
   it('admin (default actorRole) is unrestricted — promotes member to admin', async () => {
-    await updateMemberRole(prisma, orgId, memberOrgUserId, 'admin', actorAdminUserId);
+    const res = await updateMemberRole(prisma, orgId, memberOrgUserId, 'admin', actorAdminUserId);
+    expect(res).toEqual({ ok: true });
     const row = await prisma.organizationUser.findUnique({ where: { id: memberOrgUserId } });
     expect(row?.roleInOrg).toBe('admin');
   });
@@ -392,15 +395,14 @@ describe('leader privilege-escalation guards', () => {
       data: { isActive: false }
     });
     const adminUser = await prisma.user.findUnique({ where: { id: secondAdminUserId } });
-    await expect(
-      inviteMember(
-        prisma,
-        { organizationId: orgId, email: adminUser!.email, name: 'Re', roleInOrg: 'member' },
-        actorAdminUserId,
-        {},
-        'leader'
-      )
-    ).rejects.toMatchObject({ code: 'requires_admin' });
+    const res = await inviteMember(
+      prisma,
+      { organizationId: orgId, email: adminUser!.email, name: 'Re', roleInOrg: 'member' },
+      actorAdminUserId,
+      {},
+      'leader'
+    );
+    expect(res).toEqual({ ok: false, error: 'requires_admin' });
     const row = await prisma.organizationUser.findUnique({ where: { id: secondAdminOrgUserId } });
     expect(row?.roleInOrg).toBe('admin'); // untouched
     expect(row?.isActive).toBe(false);
@@ -429,15 +431,15 @@ describe('cross-organization isolation (IDOR guard)', () => {
     });
 
     try {
-      await expect(
-        updateMemberRole(prisma, orgId, foreignOrgUser.id, 'admin', actorAdminUserId)
-      ).rejects.toMatchObject({ code: 'not_found' });
-      await expect(
-        deactivateMember(prisma, orgId, foreignOrgUser.id, actorAdminUserId)
-      ).rejects.toMatchObject({ code: 'not_found' });
-      await expect(
-        reactivateMember(prisma, orgId, foreignOrgUser.id, actorAdminUserId)
-      ).rejects.toMatchObject({ code: 'not_found' });
+      expect(
+        await updateMemberRole(prisma, orgId, foreignOrgUser.id, 'admin', actorAdminUserId)
+      ).toEqual({ ok: false, error: 'not_found' });
+      expect(
+        await deactivateMember(prisma, orgId, foreignOrgUser.id, actorAdminUserId)
+      ).toEqual({ ok: false, error: 'not_found' });
+      expect(
+        await reactivateMember(prisma, orgId, foreignOrgUser.id, actorAdminUserId)
+      ).toEqual({ ok: false, error: 'not_found' });
 
       // The foreign membership must be completely untouched.
       const untouched = await prisma.organizationUser.findUnique({ where: { id: foreignOrgUser.id } });

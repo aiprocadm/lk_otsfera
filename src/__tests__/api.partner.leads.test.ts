@@ -182,7 +182,7 @@ describe('POST /api/partner/leads', () => {
 
   it('201 on success and audit-logs the create', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession);
-    vi.mocked(createLead).mockResolvedValue({ id: 'lead-1', status: 'new', clientCompanyName: 'X', subject: 'S' } as any);
+    vi.mocked(createLead).mockResolvedValue({ ok: true, lead: { id: 'lead-1', status: 'new', clientCompanyName: 'X', subject: 'S' } } as any);
 
     const res = await POST(jsonReq({
       clientCompanyName: 'ООО Тест',
@@ -211,9 +211,9 @@ describe('POST /api/partner/leads', () => {
     expect(res.status).toBe(422);
   });
 
-  it('422 propagates ORG_OUT_OF_SCOPE from service', async () => {
+  it('422 propagates org_out_of_scope from service', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession);
-    vi.mocked(createLead).mockRejectedValue(new Error('ORG_OUT_OF_SCOPE'));
+    vi.mocked(createLead).mockResolvedValue({ ok: false, error: 'org_out_of_scope' } as any);
 
     const res = await POST(jsonReq({
       organizationId: 'o-bad',
@@ -222,28 +222,8 @@ describe('POST /api/partner/leads', () => {
       subject: 'Z'
     }));
     expect(res.status).toBe(422);
-  });
-
-  it('rethrows non-ORG_OUT_OF_SCOPE errors from createLead (throw err branch)', async () => {
-    vi.mocked(getSession).mockResolvedValue(partnerSession);
-    vi.mocked(createLead).mockRejectedValue(new Error('DB_DEADLOCK: cannot acquire lock'));
-
-    await expect(POST(jsonReq({
-      clientCompanyName: 'X',
-      clientContactName: 'Y',
-      subject: 'Z'
-    }))).rejects.toThrow('DB_DEADLOCK');
-  });
-
-  it('non-Error throw in createLead → msg="unknown" → rethrows (covers String(err) branch)', async () => {
-    vi.mocked(getSession).mockResolvedValue(partnerSession);
-    vi.mocked(createLead).mockRejectedValue('plain string error');
-
-    await expect(POST(jsonReq({
-      clientCompanyName: 'X',
-      clientContactName: 'Y',
-      subject: 'Z'
-    }))).rejects.toBe('plain string error');
+    const body = await res.json() as { error: string };
+    expect(body.error).toBe('org_out_of_scope');
   });
 });
 
@@ -349,19 +329,19 @@ describe('PATCH /api/partner/leads/[id] — guards & additional branches', () =>
     expect(res.status).toBe(400);
   });
 
-  it('409 on ALREADY_REJECTED', async () => {
+  it('409 on already_rejected', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession);
-    vi.mocked(withdrawLead).mockRejectedValue(new Error('ALREADY_REJECTED: already withdrawn'));
+    vi.mocked(withdrawLead).mockResolvedValue({ ok: false, error: 'already_rejected' } as any);
     const res = await PATCH(jsonReq({ action: 'withdraw' }, 'PATCH'), ctx('l'));
     expect(res.status).toBe(409);
     const body = await res.json() as { error: string };
-    expect(body.error).toBe('ALREADY_REJECTED');
+    expect(body.error).toBe('already_rejected');
   });
 
   it('200 on withdraw with scoped session — assignedOrgIds passed as scopeOrgIds (covers TRUE branch L65)', async () => {
     // scopedSession has assignedOrgIds: ['oA'] → length > 0 → TRUE branch evaluates session.assignedOrgIds
     vi.mocked(getSession).mockResolvedValue(scopedSession);
-    vi.mocked(withdrawLead).mockResolvedValue({ id: 'lead-s', status: 'rejected', rejectedReason: null } as any);
+    vi.mocked(withdrawLead).mockResolvedValue({ ok: true, lead: { id: 'lead-s', status: 'rejected', rejectedReason: null } } as any);
 
     const res = await PATCH(jsonReq({ action: 'withdraw' }, 'PATCH'), ctx('lead-s'));
     expect(res.status).toBe(200);
@@ -382,7 +362,7 @@ describe('PATCH /api/partner/leads/[id]', () => {
 
   it('200 on withdraw (with non-null rejectedReason)', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession);
-    vi.mocked(withdrawLead).mockResolvedValue({ id: 'l', status: 'rejected', rejectedReason: 'Отозван партнёром' } as any);
+    vi.mocked(withdrawLead).mockResolvedValue({ ok: true, lead: { id: 'l', status: 'rejected', rejectedReason: 'Отозван партнёром' } } as any);
 
     const res = await PATCH(jsonReq({ action: 'withdraw' }, 'PATCH'), ctx('l'));
     expect(res.status).toBe(200);
@@ -392,7 +372,7 @@ describe('PATCH /api/partner/leads/[id]', () => {
   it('200 on withdraw with null rejectedReason (?? undefined fallback in audit)', async () => {
     // When rejectedReason is null → lead.rejectedReason ?? undefined = undefined
     vi.mocked(getSession).mockResolvedValue(partnerSession);
-    vi.mocked(withdrawLead).mockResolvedValue({ id: 'l', status: 'rejected', rejectedReason: null } as any);
+    vi.mocked(withdrawLead).mockResolvedValue({ ok: true, lead: { id: 'l', status: 'rejected', rejectedReason: null } } as any);
 
     const res = await PATCH(jsonReq({ action: 'withdraw' }, 'PATCH'), ctx('l'));
     expect(res.status).toBe(200);
@@ -402,7 +382,7 @@ describe('PATCH /api/partner/leads/[id]', () => {
     // session.assignedOrgIds is null → && short-circuits → scope = undefined
     const sessionNoOrgs = { ...partnerSession, assignedOrgIds: null } as any;
     vi.mocked(getSession).mockResolvedValue(sessionNoOrgs);
-    vi.mocked(withdrawLead).mockResolvedValue({ id: 'l', status: 'rejected', rejectedReason: null } as any);
+    vi.mocked(withdrawLead).mockResolvedValue({ ok: true, lead: { id: 'l', status: 'rejected', rejectedReason: null } } as any);
 
     const res = await PATCH(jsonReq({ action: 'withdraw' }, 'PATCH'), ctx('l'));
     expect(res.status).toBe(200);
@@ -411,33 +391,23 @@ describe('PATCH /api/partner/leads/[id]', () => {
     }));
   });
 
-  it('rethrows unknown errors from withdrawLead (not NOT_FOUND/ALREADY_REJECTED/ALREADY_PROMOTED)', async () => {
+  it('409 on already_promoted', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession);
-    vi.mocked(withdrawLead).mockRejectedValue(new Error('DB_DEADLOCK: timeout'));
-
-    await expect(PATCH(jsonReq({ action: 'withdraw' }, 'PATCH'), ctx('l'))).rejects.toThrow('DB_DEADLOCK');
-  });
-
-  it('non-Error throw in withdrawLead → msg="unknown" → rethrows', async () => {
-    vi.mocked(getSession).mockResolvedValue(partnerSession);
-    vi.mocked(withdrawLead).mockRejectedValue('plain string rejection');
-
-    await expect(PATCH(jsonReq({ action: 'withdraw' }, 'PATCH'), ctx('l'))).rejects.toBe('plain string rejection');
-  });
-
-  it('409 on ALREADY_PROMOTED', async () => {
-    vi.mocked(getSession).mockResolvedValue(partnerSession);
-    vi.mocked(withdrawLead).mockRejectedValue(new Error('ALREADY_PROMOTED'));
+    vi.mocked(withdrawLead).mockResolvedValue({ ok: false, error: 'already_promoted' } as any);
 
     const res = await PATCH(jsonReq({ action: 'withdraw' }, 'PATCH'), ctx('l'));
     expect(res.status).toBe(409);
+    const body = await res.json() as { error: string };
+    expect(body.error).toBe('already_promoted');
   });
 
-  it('404 on NOT_FOUND', async () => {
+  it('404 on not_found', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession);
-    vi.mocked(withdrawLead).mockRejectedValue(new Error('NOT_FOUND'));
+    vi.mocked(withdrawLead).mockResolvedValue({ ok: false, error: 'not_found' } as any);
 
     const res = await PATCH(jsonReq({ action: 'withdraw' }, 'PATCH'), ctx('l'));
     expect(res.status).toBe(404);
+    const body = await res.json() as { error: string };
+    expect(body.error).toBe('not_found');
   });
 });
