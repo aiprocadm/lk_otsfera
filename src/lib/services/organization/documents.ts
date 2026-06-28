@@ -1,5 +1,6 @@
 import type { PrismaClient, DocumentType, DocumentDirection } from '@prisma/client';
-import { INFECTED_HIDDEN_WHERE } from '@/lib/services/scan/visibility';
+import type { Prisma } from '@prisma/client';
+import { organizationChannelWhere, documentInChannel, orderBoundWhere, orderLessWhere } from '@/lib/auth/documentChannelPolicy';
 
 export type OrgDocRow = {
   id: string;
@@ -9,15 +10,16 @@ export type OrgDocRow = {
   signedAt: Date | null;
   createdAt: Date;
   size: number | null;
-  orderId: string;
+  orderId: string | null;
   orderNumber: string | null;
-  orderTitle: string;
+  orderTitle: string | null;
 };
 
 export type ListOrgDocumentsOptions = {
   organizationId: string;
   type?: DocumentType;
   orderId?: string;
+  orderLess?: boolean;
   from?: Date;
   to?: Date;
   search?: string;
@@ -53,11 +55,6 @@ export async function listOrgDocuments(
   const take = normalizeTake(opts.take);
   const skip = normalizeSkip(opts.skip);
 
-  const orderScope: { organizationId: string; id?: string } = {
-    organizationId: opts.organizationId
-  };
-  if (opts.orderId) orderScope.id = opts.orderId;
-
   const dateFilter =
     opts.from || opts.to
       ? {
@@ -68,13 +65,12 @@ export async function listOrgDocuments(
         }
       : {};
 
-  const baseWhere = {
-    order: orderScope,
-    ...INFECTED_HIDDEN_WHERE,
+  const baseWhere: Prisma.DocumentWhereInput = {
+    ...organizationChannelWhere(opts.organizationId),
+    ...(opts.orderLess ? orderLessWhere() : orderBoundWhere()),
+    ...(opts.orderId ? { orderId: opts.orderId } : {}),
     ...dateFilter,
-    ...(opts.search
-      ? { name: { contains: opts.search, mode: 'insensitive' as const } }
-      : {})
+    ...(opts.search ? { name: { contains: opts.search, mode: 'insensitive' as const } } : {})
   };
 
   const filteredWhere = {
@@ -122,8 +118,8 @@ export async function listOrgDocuments(
     createdAt: d.createdAt,
     size: d.size,
     orderId: d.orderId,
-    orderNumber: d.order.orderNumber,
-    orderTitle: d.order.title
+    orderNumber: d.order?.orderNumber ?? null,
+    orderTitle: d.order?.title ?? null
   }));
 
   return { rows, total, countsByType };
@@ -148,14 +144,15 @@ export async function getOrgDocumentForDownload(
       mimeType: true,
       scanStatus: true,
       scanReason: true,
-      order: { select: { organizationId: true } }
+      counterpartyType: true,
+      counterpartyId: true
     }
   });
 
   if (!doc) return { ok: false, error: 'not_found' };
 
-  // Silent 404 for foreign org: do not reveal existence.
-  if (doc.order.organizationId !== organizationId) {
+  // Silent not_found for documents outside the org channel: no existence leak.
+  if (!documentInChannel(doc, { type: 'organization', id: organizationId })) {
     return { ok: false, error: 'not_found' };
   }
 

@@ -137,7 +137,7 @@ describe('getStatementAuditLog', () => {
     const entries = await getStatementAuditLog(prisma, 's1');
 
     expect(findMany).toHaveBeenCalledWith({
-      where: { entity: 'CommissionStatement', entityId: 's1' },
+      where: { entity: 'commission_statement', entityId: 's1' },
       orderBy: { createdAt: 'asc' },
       include: { user: { select: { name: true } } },
     });

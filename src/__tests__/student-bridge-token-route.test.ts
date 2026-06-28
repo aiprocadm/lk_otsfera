@@ -6,14 +6,16 @@ const {
   findUnique,
   updateMany,
   auditCreate,
-  transaction
+  transaction,
+  isRateLimited
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   requireRole: vi.fn(),
   findUnique: vi.fn(),
   updateMany: vi.fn(),
   auditCreate: vi.fn(),
-  transaction: vi.fn()
+  transaction: vi.fn(),
+  isRateLimited: vi.fn()
 }));
 
 vi.mock('@/lib/auth/guard', () => ({ requireSession, requireRole }));
@@ -24,6 +26,8 @@ vi.mock('@/lib/db/prisma', () => ({
     $transaction: transaction
   }
 }));
+// Rate limiter mocked here; its own behavior is covered by lib.rateLimit.test.ts.
+vi.mock('@/lib/rateLimit', () => ({ isRateLimited }));
 
 import { POST } from '@/app/api/student/bridge/token/route';
 
@@ -51,8 +55,9 @@ describe('POST /api/student/bridge/token', () => {
     requireRole.mockReturnValue({ ok: true });
     transaction.mockImplementation(async (cb: (tx: ReturnType<typeof buildTxClient>) => unknown) => cb(buildTxClient()));
     process.env.STUDENT_BRIDGE_SHARED_SECRET = 'shared-secret';
-    process.env.STUDENT_BRIDGE_RATE_LIMIT_MAX = '50';
-    process.env.STUDENT_BRIDGE_RATE_LIMIT_WINDOW_MS = '60000';
+    // Default to "not rate limited" so existing flows are unaffected; the 429
+    // path is exercised by its own test below.
+    isRateLimited.mockResolvedValue(false);
   });
 
   it('denies untrusted bridge client', async () => {
@@ -118,5 +123,17 @@ describe('POST /api/student/bridge/token', () => {
     expect(await res.json()).toEqual({ token: 'token-1', token_type: 'Bearer' });
     expect(updateMany).toHaveBeenCalled();
     expect(transaction).toHaveBeenCalled();
+  });
+
+  it('returns 429 and audits when the rate limiter trips', async () => {
+    isRateLimited.mockResolvedValueOnce(true);
+    const res = await POST(
+      buildReq({ code: 'abc123' }, { 'x-bridge-client': 'svc-a', 'x-bridge-secret': 'shared-secret' }) as never
+    );
+    expect(res.status).toBe(429);
+    const auditedActions = auditCreate.mock.calls.map((c) => c[0]?.data?.action);
+    expect(auditedActions).toContain('STUDENT_BRIDGE_RATE_LIMITED');
+    // Tripped before consuming the one-time code, so no grant claim happened.
+    expect(updateMany).not.toHaveBeenCalled();
   });
 });

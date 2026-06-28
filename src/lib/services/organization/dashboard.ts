@@ -1,7 +1,34 @@
 import type { PrismaClient } from '@prisma/client';
-import type { OrgDashboardKpis } from '@/components/organization/org-kpi-grid';
-import type { OrgAttention, OrgAttentionItem } from '@/components/organization/org-attention-list';
-import type { OrgEvent } from '@/components/organization/org-events-feed';
+import { organizationChannelWhere } from '@/lib/auth/documentChannelPolicy';
+import { fmtMoney } from '@/lib/format';
+
+export type OrgDashboardKpis = {
+  activeOrders: number;
+  outstandingAmount: string;
+  studentsCount: number;
+  recentDocumentsCount: number;
+};
+
+export type OrgAttentionItem = {
+  id: string;
+  kind: 'billed_unpaid' | 'unsigned_act' | 'completed_open';
+  orderId: string | null;
+  title: string;
+  meta?: string;
+  severity: 'warn' | 'urgent';
+};
+
+export type OrgAttention = {
+  items: OrgAttentionItem[];
+};
+
+export type OrgEvent = {
+  id: string;
+  kind: 'document_published' | 'payment_received' | 'order_status_changed' | 'comment_posted';
+  orderId: string | null;
+  title: string;
+  at: Date;
+};
 
 const THIRTY_DAYS_MS = 30 * 24 * 3600 * 1000;
 const SEVEN_DAYS_MS = 7 * 24 * 3600 * 1000;
@@ -32,9 +59,8 @@ export async function kpis(
     prisma.student.count({ where: { organizationId } }),
     prisma.document.count({
       where: {
-        order: { organizationId },
-        createdAt: { gte: since30 },
-        scanStatus: { not: 'infected' }
+        ...organizationChannelWhere(organizationId),
+        createdAt: { gte: since30 }
       }
     })
   ]);
@@ -74,13 +100,14 @@ export async function attention(
       select: { id: true, orderNumber: true, title: true, totalAmount: true, paidAmount: true }
     }),
     // Acts pending signature: created more than 3 days ago and not signed
+    // orderId: { not: null } — order-less docs must not enter this order-centric feed
     prisma.document.findMany({
       where: {
-        order: { organizationId },
+        ...organizationChannelWhere(organizationId),
         type: 'act',
         signedAt: null,
         createdAt: { lt: threeDaysAgo },
-        scanStatus: { not: 'infected' }
+        orderId: { not: null }
       },
       orderBy: { createdAt: 'asc' },
       take: ATTENTION_CAP,
@@ -105,7 +132,7 @@ export async function attention(
       kind: 'billed_unpaid',
       orderId: o.id,
       title: `Счёт по заказу ${o.orderNumber ?? o.title} ждёт оплаты`,
-      meta: `${(Number(o.totalAmount) - Number(o.paidAmount)).toFixed(0)} ₽`,
+      meta: fmtMoney(Number(o.totalAmount) - Number(o.paidAmount)),
       severity: 'urgent'
     })),
     ...unsignedActs.map((d): OrgAttentionItem => ({
@@ -113,7 +140,7 @@ export async function attention(
       kind: 'unsigned_act',
       orderId: d.orderId,
       title: `Акт «${d.name}» требует подписания`,
-      meta: d.order.orderNumber ?? undefined,
+      meta: d.order?.orderNumber ?? undefined,
       severity: 'warn'
     })),
     ...completedOpen.map((o): OrgAttentionItem => ({
@@ -137,13 +164,13 @@ export async function recentEvents(
 
   const [documents, payments, statusAudits, comments] = await Promise.all([
     prisma.document.findMany({
-      where: { order: { organizationId }, scanStatus: { not: 'infected' } },
+      where: { ...organizationChannelWhere(organizationId), orderId: { not: null } },
       orderBy: { createdAt: 'desc' },
       take: fetchLimit,
       select: { id: true, name: true, createdAt: true, orderId: true }
     }),
     prisma.payment.findMany({
-      where: { order: { organizationId } },
+      where: { organizationId },
       orderBy: { paidAt: 'desc' },
       take: fetchLimit,
       select: { id: true, amount: true, paidAt: true, orderId: true }
@@ -189,7 +216,7 @@ export async function recentEvents(
       id: `pay-${p.id}`,
       kind: 'payment_received',
       orderId: p.orderId,
-      title: `Получена оплата ${Number(p.amount).toFixed(0)} ₽`,
+      title: `Получена оплата ${fmtMoney(Number(p.amount))}`,
       at: p.paidAt
     })),
     ...statusAudits

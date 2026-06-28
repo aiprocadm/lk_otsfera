@@ -3,7 +3,18 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { requireOrderAccess, requireSession, forbiddenResponse } from '@/lib/auth/guard';
 import { canSeeOrder } from '@/lib/auth/organizationPolicy';
-import { notifyMessageCreated, triggerNotificationEmail } from '@/lib/notifications';
+import {
+  canSeeOrder as canSeeOrderMgr,
+  managedOrgIds,
+  getCompanyTeamVisibility,
+} from '@/lib/auth/managerPolicy';
+import {
+  notifyManagers,
+  notifyMessageCreated,
+  notifyOrgUsers,
+  triggerNotificationEmail,
+  triggerNotificationTelegram,
+} from '@/lib/notifications';
 import { getPrimaryOrganizationId } from '@/lib/auth/organization';
 import { recordAudit } from '@/lib/auth/audit';
 
@@ -37,7 +48,11 @@ export async function POST(req: Request) {
   if (s.role === 'organization') {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { id: true, organizationId: true }
+      select: {
+        id: true,
+        organizationId: true,
+        organization: { select: { name: true } }
+      }
     });
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (!canSeeOrder(s, order)) return forbiddenResponse('Access denied');
@@ -54,27 +69,139 @@ export async function POST(req: Request) {
       after: { commentId: comment.id, viewer: 'organization' }
     });
 
+    // Best-effort fan-out to managers in scope of this order. Failure here must
+    // NOT roll back the comment — the in-app row is the source of truth, the
+    // email is a side channel. notifyManagers itself returns an empty summary
+    // when the order has no manager assignment (per-order, per-org, or
+    // historical), so a missing manager is not an error.
+    try {
+      await notifyManagers(prisma, {
+        orderId: order.id,
+        type: 'comment_from_org',
+        payload: {
+          orgName: order.organization?.name ?? '',
+          commentExcerpt: body.slice(0, 200)
+        }
+      });
+    } catch (err) {
+      console.warn('[api/comments] notifyManagers (comment_from_org) failed', {
+        commentId: comment.id,
+        orderId: order.id,
+        error: err instanceof Error ? err.message : String(err)
+      });
+    }
+
+    return NextResponse.json(comment, { status: 201 });
+  }
+
+  // Manager-cabinet users: three-way visibility via managerPolicy (per-order,
+  // per-org, or historical comments). Mirrors the upload service hot-path:
+  // count comments only when the cheaper per-order/per-org checks miss.
+  if (s.role === 'manager') {
+    const teamMode = await getCompanyTeamVisibility(prisma, s.companyId);
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        managerId: true,
+        organizationId: true,
+        companyId: true,
+        orderNumber: true,
+        title: true
+      }
+    });
+    if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    let commentsCountByMe = 0;
+    if (!teamMode && order.managerId !== s.sub) {
+      const inOrgScope =
+        order.organizationId !== null &&
+        managedOrgIds(s).includes(order.organizationId);
+      if (!inOrgScope) {
+        commentsCountByMe = await prisma.comment.count({
+          where: { orderId: order.id, authorId: s.sub }
+        });
+      }
+    }
+    if (!canSeeOrderMgr(s, { ...order, commentsCountByMe }, teamMode)) {
+      return forbiddenResponse('Access denied');
+    }
+
+    const comment = await prisma.comment.create({
+      data: { orderId, body, authorId: s.sub }
+    });
+
+    await recordAudit(prisma, {
+      action: 'comment_posted',
+      entity: 'order',
+      entityId: orderId,
+      userId: s.sub,
+      after: { commentId: comment.id, viewer: 'manager' }
+    });
+
+    if (order.organizationId) {
+      try {
+        await notifyOrgUsers(prisma, {
+          organizationId: order.organizationId,
+          type: 'manager_replied',
+          payload: {
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            orderTitle: order.title,
+            commentExcerpt: body.slice(0, 200)
+          }
+        });
+      } catch (err) {
+        console.warn('[api/comments] notifyOrgUsers (manager_replied) failed', {
+          commentId: comment.id,
+          organizationId: order.organizationId,
+          error: err instanceof Error ? err.message : String(err)
+        });
+      }
+    }
+
     return NextResponse.json(comment, { status: 201 });
   }
 
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const orderAccess = await requireOrderAccess(s, order);
-  if (!orderAccess.ok) return orderAccess.response;
+
+  // Partner: pin to own orders. The generic canReadOrder grants company-level
+  // access, which would let a partner comment on a sibling partner's order in
+  // the same company — the partner cabinet itself only ever surfaces orders
+  // with order.partnerId === session.partnerId.
+  if (s.role === 'partner') {
+    if (!s.partnerId || order.partnerId !== s.partnerId) {
+      return forbiddenResponse('Access denied');
+    }
+  } else {
+    const orderAccess = await requireOrderAccess(s, order);
+    if (!orderAccess.ok) return orderAccess.response;
+  }
 
   const comment = await prisma.comment.create({ data: { orderId, body, authorId: s.sub } });
-  const organizationId = await getPrimaryOrganizationId(s);
 
-  await notifyMessageCreated({
-    userId: s.sub,
-    organizationId,
-    partnerId: s.partnerId,
-    title: 'Новое сообщение',
-    body,
-    meta: { orderId, commentId: comment.id }
-  });
-
-  await triggerNotificationEmail({ userId: s.sub, title: 'Новое сообщение', body, type: 'message_created' });
+  // Best-effort fan-out: the comment row is committed; notification/email
+  // transport failures must not turn into a 500 for an already-posted comment.
+  try {
+    const organizationId = await getPrimaryOrganizationId(s);
+    await notifyMessageCreated({
+      userId: s.sub,
+      organizationId,
+      partnerId: s.partnerId,
+      title: 'Новое сообщение',
+      body,
+      meta: { orderId, commentId: comment.id }
+    });
+    await triggerNotificationEmail({ userId: s.sub, title: 'Новое сообщение', body, type: 'message_created' });
+    await triggerNotificationTelegram({ userId: s.sub, title: 'Новое сообщение', body, type: 'message_created' });
+  } catch (err) {
+    console.warn('[api/comments] notification fan-out failed', {
+      commentId: comment.id,
+      orderId,
+      error: err instanceof Error ? err.message : String(err)
+    });
+  }
 
   return NextResponse.json(comment);
 }

@@ -4,9 +4,13 @@ import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import type { ScanDeps } from '@/worker/processors/scan-document';
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
-vi.mock('@/lib/storage/supabase', () => ({
-  getServerClient: () => ({ storage: { from: () => ({ download: vi.fn() }) } }),
-  documentBucket: 'documents',
+vi.mock('@/lib/storage', () => ({
+  getObjectStorage: () => ({
+    download: vi.fn(),
+    upload: vi.fn(),
+    createSignedUrl: vi.fn(),
+    remove: vi.fn(),
+  }),
 }));
 
 import { scanDocumentProcessor } from '@/worker/processors/scan-document';
@@ -121,20 +125,23 @@ describe('scanDocumentProcessor', () => {
     expect(db.syncLog.create).not.toHaveBeenCalled();
   });
 
-  it('falls back to clean + warn when ClamAV is unreachable', async () => {
+  it('re-throws when ClamAV is unreachable (job retries) and never marks the file clean', async () => {
     process.env.CLAMAV_HOST = 'clamav.local';
     const db = makeDb();
     const deps = makeDeps({
       scan: vi.fn().mockRejectedValue(new Error('ECONNREFUSED')),
     });
 
-    const result = await scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps);
+    await expect(
+      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps),
+    ).rejects.toThrow(/ECONNREFUSED/);
 
-    expect(result.scanStatus).toBe('clean');
+    // Must NOT persist any status (especially not 'clean') on a scanner outage.
+    expect(db.document.update).not.toHaveBeenCalled();
     expect(db.syncLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         entity: 'scan',
-        status: 'warn',
+        status: 'error',
         errorMessage: expect.stringContaining('ECONNREFUSED'),
       }),
     });
@@ -154,21 +161,29 @@ describe('scanDocumentProcessor', () => {
     });
   });
 
-  it('marks scan as error when storage download throws', async () => {
+  it('re-throws when storage download fails (job retries) and leaves the row pending', async () => {
     process.env.CLAMAV_HOST = 'clamav.local';
     const db = makeDb();
     const deps = makeDeps({
-      download: vi.fn().mockRejectedValue(new Error('STORAGE_DOWNLOAD: not found')),
+      download: vi.fn().mockRejectedValue(new Error('STORAGE_DOWNLOAD: timeout')),
       scan: vi.fn(),
     });
 
-    const result = await scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps);
+    await expect(
+      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps),
+    ).rejects.toThrow(/STORAGE_DOWNLOAD/);
 
-    expect(result.scanStatus).toBe('error');
-    expect(result.scanReason).toContain('STORAGE_DOWNLOAD');
+    // Must NOT persist a terminal 'error' status: the backfill sweep only
+    // re-enqueues 'pending' rows, so a transient storage failure marked as
+    // 'error' would strand the document unscanned forever.
+    expect(db.document.update).not.toHaveBeenCalled();
     expect(deps.scan).not.toHaveBeenCalled();
     expect(db.syncLog.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ entity: 'scan', status: 'error' }),
+      data: expect.objectContaining({
+        entity: 'scan',
+        status: 'error',
+        errorMessage: expect.stringContaining('STORAGE_DOWNLOAD'),
+      }),
     });
   });
 
@@ -211,5 +226,55 @@ describe('scanDocumentProcessor', () => {
     await scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps);
 
     expect(scanSpy).toHaveBeenCalledWith('clamav.local', 3399, expect.any(Buffer));
+  });
+
+  it('uses "(empty)" placeholder when ClamAV returns an empty response (|| branch in parseClamAvResponse)', async () => {
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    // An empty response string → response.slice(0, 200) is '' (falsy) → || '(empty)' taken
+    const deps = makeDeps({ scan: vi.fn().mockResolvedValue('') });
+
+    const result = await scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps);
+
+    expect(result.scanStatus).toBe('error');
+    expect(result.scanReason).toContain('(empty)');
+  });
+
+  it('converts non-Error download failure to string (String(err) branch in download catch)', async () => {
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    // Throw a plain string so `err instanceof Error` is false → String(err) branch
+    const deps = makeDeps({
+      download: vi.fn().mockRejectedValue('plain-string-error'),
+    });
+
+    await expect(
+      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps),
+    ).rejects.toBe('plain-string-error');
+
+    expect(db.syncLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        errorMessage: expect.stringContaining('plain-string-error'),
+      }),
+    });
+  });
+
+  it('converts non-Error scanner failure to string (String(err) branch in scan catch)', async () => {
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    // Throw a plain string so `err instanceof Error` is false → String(err) branch
+    const deps = makeDeps({
+      scan: vi.fn().mockRejectedValue('scanner-plain-error'),
+    });
+
+    await expect(
+      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps),
+    ).rejects.toBe('scanner-plain-error');
+
+    expect(db.syncLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        errorMessage: expect.stringContaining('scanner-plain-error'),
+      }),
+    });
   });
 });

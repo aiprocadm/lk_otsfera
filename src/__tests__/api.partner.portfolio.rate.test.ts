@@ -58,6 +58,7 @@ describe('PUT /api/partner/portfolio/[orgId]/rate', () => {
       sub: 'admin-user', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
     } as any);
     vi.mocked(canPartnerAccessOrg).mockResolvedValue(true);
+    vi.mocked(setOrgCommissionRate).mockResolvedValue({ ok: true });
 
     const res = await PUT(body({ rate: 0.08, reason: 'VIP' }), ctx('o1'));
     expect(res.status).toBe(204);
@@ -71,9 +72,34 @@ describe('PUT /api/partner/portfolio/[orgId]/rate', () => {
       sub: 'admin-user', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
     } as any);
     vi.mocked(canPartnerAccessOrg).mockResolvedValue(true);
+    vi.mocked(clearOrgCommissionRate).mockResolvedValue({ ok: true });
 
     const res = await PUT(body({ rate: null, reason: 'возврат к базе' }), ctx('o1'));
     expect(res.status).toBe(204);
     expect(clearOrgCommissionRate).toHaveBeenCalled();
+  });
+
+  it('404 when service returns not_found', async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      sub: 'admin-user', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
+    } as any);
+    vi.mocked(canPartnerAccessOrg).mockResolvedValue(true);
+    vi.mocked(setOrgCommissionRate).mockResolvedValue({ ok: false, error: 'not_found' });
+
+    const res = await PUT(body({ rate: 0.08, reason: 'VIP' }), ctx('o1'));
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'not_found' });
+  });
+
+  it('422 when service returns rate_out_of_range', async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      sub: 'admin-user', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
+    } as any);
+    vi.mocked(canPartnerAccessOrg).mockResolvedValue(true);
+    vi.mocked(setOrgCommissionRate).mockResolvedValue({ ok: false, error: 'rate_out_of_range' });
+
+    const res = await PUT(body({ rate: 0.08, reason: 'VIP' }), ctx('o1'));
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ error: 'rate_out_of_range' });
   });
 });

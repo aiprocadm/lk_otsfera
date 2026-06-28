@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
-import Link from 'next/link';
+import { BackLink } from '@/components/ui';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requirePartner } from '@/lib/auth/requireRole';
 import { getPartnerDealDetail } from '@/lib/services/partner/dealDetail';
 import { canPartnerAccessOrg } from '@/lib/auth/policy';
 import { DealHeader } from '@/components/partner/deal-header';
@@ -9,14 +9,17 @@ import { DealAmounts } from '@/components/partner/deal-amounts';
 import { DealTimeline } from '@/components/partner/deal-timeline';
 import { DealComments } from '@/components/partner/deal-comments';
 import { DocumentsList } from '@/components/partner/documents-list';
+import { PartnerDocumentUploadForm } from '@/components/partner/partner-document-upload-form';
+import { OrderItemsSection } from '@/components/training/order-items-section';
+import { OrderCustomFields } from '@/components/orders/order-custom-fields';
+import { getValuesForEntity } from '@/lib/services/customFields';
 
 export default async function PartnerDealDetailPage({
   params
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getSession();
-  if (!session?.partnerId) redirect('/login');
+  const session = await requirePartner();
 
   const { id } = await params;
   const deal = await getPartnerDealDetail(prisma, {
@@ -26,6 +29,9 @@ export default async function PartnerDealDetailPage({
 
   if (!deal) notFound();
 
+  const customFieldsResult = await getValuesForEntity(prisma, 'order', deal.id);
+  const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
+
   if (deal.organization) {
     const accessible = await canPartnerAccessOrg(session, deal.organization.id);
     if (!accessible) redirect('/forbidden');
@@ -34,9 +40,7 @@ export default async function PartnerDealDetailPage({
   return (
     <div className='space-y-4'>
       <div className='text-sm'>
-        <Link href='/partner/deals' className='text-gray-500 hover:text-[#F97316]'>
-          ← Все сделки
-        </Link>
+        <BackLink href='/partner/deals' label='Все заказы' />
       </div>
 
       <DealHeader deal={deal} />
@@ -52,7 +56,18 @@ export default async function PartnerDealDetailPage({
               )}
             </h2>
             <DocumentsList rows={deal.documents} />
+            <PartnerDocumentUploadForm orderId={id} />
           </div>
+
+          <OrderItemsSection
+            orderId={deal.id}
+            canEdit={false}
+            items={deal.items}
+            directions={[]}
+            students={[]}
+          />
+
+          <OrderCustomFields fields={customFields} orderId={deal.id} editable={false} />
 
           <DealComments comments={deal.comments} orderId={deal.id} />
         </div>

@@ -56,6 +56,11 @@ enum DocumentDirection {
   outgoing
 }
 
+enum CounterpartyType {
+  organization
+  partner
+}
+
 enum GenerationSource {
   user
   system
@@ -87,36 +92,52 @@ enum CommissionStatementStatus {
   superseded
 }
 
+enum ThreadSide {
+  org
+  partner
+}
+
 model User {
-  id                  String               @id @default(cuid())
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  email               String               @unique
-  passwordHash        String?
-  name                String
-  isActive            Boolean              @default(true)
-  role                Role                 @default(organization)
-  companyId           String?
-  company             Company?             @relation(fields: [companyId], references: [id])
-  partnerId           String?
-  partner             Partner?             @relation(fields: [partnerId], references: [id])
-  organizationId      String?
-  organization        Organization?        @relation("UserOrganization", fields: [organizationId], references: [id])
-  organizationUsers   OrganizationUser[]
-  externalStudentId   String?
-  managedOrders       Order[]              @relation("OrderManager")
-  comments            Comment[]
-  documents           Document[]
-  auditLogs           AuditLog[]
-  notifications       Notification[]
-  studentBridgeGrants StudentBridgeGrant[]
-  partnerMemberships  PartnerUser[]        @relation("PartnerMembership")
-  leadsAuthored       Lead[]               @relation("LeadAuthor")
-  leadsManaged        Lead[]               @relation("LeadManager")
-  leadAttachmentsAuthored LeadAttachment[] @relation("LeadAttachmentAuthor")
+  id                           String                @id @default(cuid())
+  createdAt                    DateTime              @default(now())
+  updatedAt                    DateTime              @updatedAt
+  email                        String                @unique
+  passwordHash                 String?
+  name                         String
+  isActive                     Boolean               @default(true)
+  role                         Role                  @default(organization)
+  managerRole                  String? // null = regular manager, 'leader' = руководитель
+  companyId                    String?
+  company                      Company?              @relation(fields: [companyId], references: [id])
+  partnerId                    String?
+  partner                      Partner?              @relation(fields: [partnerId], references: [id])
+  organizationId               String?
+  organization                 Organization?         @relation("UserOrganization", fields: [organizationId], references: [id])
+  organizationUsers            OrganizationUser[]
+  managedOrganizations         OrganizationManager[] @relation("UserManagedOrgs")
+  externalStudentId            String?
+  managedOrders                Order[]               @relation("OrderManager")
+  comments                     Comment[]
+  documents                    Document[]
+  auditLogs                    AuditLog[]
+  notifications                Notification[]
+  studentBridgeGrants          StudentBridgeGrant[]
+  partnerMemberships           PartnerUser[]         @relation("PartnerMembership")
+  leadsAuthored                Lead[]                @relation("LeadAuthor")
+  leadsManaged                 Lead[]                @relation("LeadManager")
+  leadAttachmentsAuthored      LeadAttachment[]      @relation("LeadAttachmentAuthor")
   commissionStatementsAuthored CommissionStatement[] @relation("CommissionAuthor")
-  savedViews          SavedView[]          @relation("SavedViewOwner")
-  passwordResetTokens PasswordResetToken[]
+  savedViews                   SavedView[]           @relation("SavedViewOwner")
+  passwordResetTokens          PasswordResetToken[]
+  authoredMessages             Message[]             @relation("MessageAuthor")
+  threadReadStates             ThreadReadState[]
+  enrollmentsSubmitted         EnrollmentRequest[]   @relation("EnrollmentSubmitter")
+  enrollmentsReviewed          EnrollmentRequest[]   @relation("EnrollmentReviewer")
+  paymentsEntered              Payment[]             @relation("PaymentEnteredBy")
+  paymentImportBatches         PaymentImportBatch[]  @relation("PaymentImportBatchBy")
+  telegramChatId               String?               @unique // null = Telegram не привязан (§18)
+  telegramLinkCode             String? // одноразовый код привязки (deep-link start param)
+  telegramLinkCodeExpiresAt    DateTime?
 }
 
 model PartnerUser {
@@ -162,6 +183,7 @@ model Lead {
   rejectedReason     String?
   notes              String?
   externalIdInOneC   String?
+  pushedToOneCAt     DateTime?
   attachments        LeadAttachment[]
 
   @@index([partnerId, status])
@@ -170,12 +192,12 @@ model Lead {
 }
 
 model LeadAttachment {
-  id              String   @id @default(cuid())
-  createdAt       DateTime @default(now())
+  id              String    @id @default(cuid())
+  createdAt       DateTime  @default(now())
   leadId          String
-  lead            Lead     @relation(fields: [leadId], references: [id])
+  lead            Lead      @relation(fields: [leadId], references: [id])
   createdByUserId String?
-  createdByUser   User?    @relation("LeadAttachmentAuthor", fields: [createdByUserId], references: [id])
+  createdByUser   User?     @relation("LeadAttachmentAuthor", fields: [createdByUserId], references: [id])
   name            String
   path            String
   mimeType        String
@@ -212,41 +234,88 @@ model CommissionStatement {
   supersededBy          String?
   notes                 String?
   items                 CommissionStatementItem[]
+  // C-01: a PARTIAL unique index on (partnerId, periodFrom, periodTo) WHERE
+  // supersededBy IS NULL enforces "at most one live statement per period" while
+  // allowing superseded history. Prisma can't express partial indexes, so it
+  // lives in migration 20260614000000_commission_statement_partial_unique.
 
   @@index([partnerId, periodFrom, periodTo])
   @@index([status])
 }
 
 model CommissionStatementItem {
-  id               String              @id @default(cuid())
+  id               String               @id @default(cuid())
   statementId      String
-  statement        CommissionStatement @relation(fields: [statementId], references: [id])
-  orderId          String
-  order            Order               @relation(fields: [orderId], references: [id])
+  statement        CommissionStatement  @relation(fields: [statementId], references: [id])
+  orderId          String?
+  order            Order?               @relation(fields: [orderId], references: [id])
+  paymentId        String?
+  payment          Payment?             @relation(fields: [paymentId], references: [id])
+  correctionId     String?
+  correction       CommissionCorrection? @relation(fields: [correctionId], references: [id])
   orderNumber      String?
   organizationName String
-  baseAmount       Decimal             @db.Decimal(14, 2)
-  rate             Decimal             @db.Decimal(6, 4)
-  commissionAmount Decimal             @db.Decimal(14, 2)
+  baseAmount       Decimal              @db.Decimal(14, 2)
+  rate             Decimal              @db.Decimal(6, 4)
+  commissionAmount Decimal              @db.Decimal(14, 2)
 
   @@index([statementId])
   @@index([orderId])
+  @@index([paymentId])
+  @@index([correctionId])
+}
+
+model CommissionCorrection {
+  id                   String                    @id @default(cuid())
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  partnerId            String
+  partner              Partner                   @relation(fields: [partnerId], references: [id])
+  paymentId            String?                   @unique
+  payment              Payment?                  @relation(fields: [paymentId], references: [id])
+  originalStatementId  String?
+  originalPeriodFrom   DateTime
+  originalPeriodTo     DateTime
+  amount               Decimal                   @db.Decimal(14, 2)
+  rate                 Decimal                   @db.Decimal(6, 4)
+  commissionAmount     Decimal                   @db.Decimal(14, 2)
+  status               String                    @default("needs_review")
+  reason               String?
+  resolvedByUserId     String?
+  resolvedAt           DateTime?
+  parentCorrectionId   String?
+  carriedReason        String?
+  appliedInStatementId String?
+  items                CommissionStatementItem[]
+
+  @@index([partnerId, status])
+  @@index([status, createdAt])
 }
 
 model Payment {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  orderId    String
-  order      Order    @relation(fields: [orderId], references: [id])
-  externalId String?  @unique
-  amount     Decimal  @db.Decimal(14, 2)
-  paidAt     DateTime
-  method     String?
-  isRefund   Boolean  @default(false)
-  note       String?
+  id                 String       @id @default(cuid())
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  organizationId     String
+  organization       Organization @relation(fields: [organizationId], references: [id])
+  orderId            String?
+  order              Order?       @relation(fields: [orderId], references: [id])
+  externalId         String?      @unique
+  amount             Decimal      @db.Decimal(14, 2)
+  paidAt             DateTime
+  method             String?
+  isRefund           Boolean      @default(false)
+  note               String?
+  vatAmount          Decimal?     @db.Decimal(14, 2) // НДС (§7.1); null = не выделен
+  purpose            String? // назначение платежа (§7.1; дублирует семантику note)
+  paymentOrderNumber String? // № платёжного поручения (§7.1)
+  enteredById           String? // кто внёс платёж (§7.1)
+  enteredBy             User?        @relation("PaymentEnteredBy", fields: [enteredById], references: [id])
+  commissionItems       CommissionStatementItem[]
+  commissionCorrection  CommissionCorrection?
 
   @@index([orderId])
+  @@index([organizationId])
   @@index([paidAt])
   @@index([externalId])
 }
@@ -282,47 +351,86 @@ model SyncLog {
   @@index([status, createdAt])
 }
 
+model SyncState {
+  entity        String    @id
+  cursor        String?
+  lastRunAt     DateTime?
+  lastSuccessAt DateTime?
+  lastError     String?
+  updatedAt     DateTime  @updatedAt
+}
+
+model SyncSchedulePause {
+  schedulerId String   @id
+  pausedAt    DateTime @default(now())
+  pausedBy    String
+}
+
 model Partner {
-  id             String         @id @default(cuid())
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  name           String
-  legalName      String?
-  slug           String?        @unique
-  commissionRate Decimal        @default(0) @db.Decimal(6, 4)
-  isActive       Boolean        @default(true)
-  organizations        Organization[]
-  users                User[]
-  orders               Order[]
-  partnerUsers         PartnerUser[]
-  leads                Lead[]
-  commissionStatements CommissionStatement[]
-  notifications        Notification[]
+  id                    String                 @id @default(cuid())
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  name                  String
+  legalName             String?
+  slug                  String?                @unique
+  inn                   String?                @unique
+  commissionRate        Decimal                @default(0) @db.Decimal(6, 4)
+  isActive              Boolean                @default(true)
+  organizations         Organization[]
+  users                 User[]
+  orders                Order[]
+  partnerUsers          PartnerUser[]
+  leads                 Lead[]
+  commissionStatements  CommissionStatement[]
+  notifications         Notification[]
+  enrollmentRequests    EnrollmentRequest[]
+  commissionRateChanges CommissionRateChange[]
+  commissionCorrections CommissionCorrection[]
+}
+
+/// История изменений ставки комиссии партнёра (§9.1). Append-only.
+/// Используется расчётчиком (rateResolve.ts) для определения ставки на дату платежа
+/// (A5, §9.2). Partner.commissionRate служит fallback-ом при пустой истории.
+model CommissionRateChange {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  partnerId     String
+  partner       Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  oldRate       Decimal? @db.Decimal(6, 4) // null = первичная установка
+  newRate       Decimal  @db.Decimal(6, 4)
+  effectiveFrom DateTime @default(now()) // дата вступления (= момент изменения)
+  changedById   String? // кто изменил (nullable для системных)
+
+  @@index([partnerId, effectiveFrom])
 }
 
 model Organization {
-  id                             String             @id @default(cuid())
-  createdAt                      DateTime           @default(now())
-  updatedAt                      DateTime           @updatedAt
+  id                             String                @id @default(cuid())
+  createdAt                      DateTime              @default(now())
+  updatedAt                      DateTime              @updatedAt
   name                           String
-  externalId                     String?            @unique
-  inn                            String?
+  externalId                     String?               @unique
+  inn                            String?               @unique
   kpp                            String?
-  partnerId                      String
-  partner                        Partner            @relation(fields: [partnerId], references: [id])
+  partnerId                      String?
+  partner                        Partner?              @relation(fields: [partnerId], references: [id])
   companyId                      String?
-  company                        Company?           @relation(fields: [companyId], references: [id])
+  company                        Company?              @relation(fields: [companyId], references: [id])
   assignedManagerUserId          String?
-  partnerCommissionRate          Decimal?           @db.Decimal(6, 4)
+  partnerCommissionRate          Decimal?              @db.Decimal(6, 4)
   partnerCommissionRateNote      String?
   partnerCommissionRateChangedAt DateTime?
   partnerCommissionRateChangedBy String?
   students                       Student[]
-  users                          User[]             @relation("UserOrganization")
+  users                          User[]                @relation("UserOrganization")
   organizationUsers              OrganizationUser[]
+  managers                       OrganizationManager[] @relation("OrganizationManagers")
   notifications                  Notification[]
   leads                          Lead[]
-  orders                         Order[]            @relation("OrderOrganization")
+  orders                         Order[]               @relation("OrderOrganization")
+  payments                       Payment[]
+  enrollmentRequests             EnrollmentRequest[]
+  certificates                   Certificate[]
 
   @@index([partnerId])
   @@index([externalId])
@@ -345,62 +453,86 @@ model OrganizationUser {
   @@index([organizationId, isActive])
 }
 
+model OrganizationManager {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation("OrganizationManagers", fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation("UserManagedOrgs", fields: [userId], references: [id], onDelete: Cascade)
+  isActive       Boolean      @default(true)
+  assignedAt     DateTime     @default(now())
+  assignedBy     String?
+  deactivatedAt  DateTime?
+
+  @@unique([organizationId, userId])
+  @@index([userId, isActive])
+}
+
 model Student {
-  id                String       @id @default(cuid())
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-  email             String       @unique
+  id                String        @id @default(cuid())
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  email             String
   name              String
+  status            String        @default("active")
   organizationId    String
-  organization      Organization @relation(fields: [organizationId], references: [id])
+  organization      Organization  @relation(fields: [organizationId], references: [id])
   externalStudentId String?
+  orderItems        OrderItem[]
+  certificates      Certificate[]
+
+  @@unique([organizationId, email])
 }
 
 model Company {
-  id            String         @id @default(cuid())
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  name          String
-  users         User[]
-  orders        Order[]
-  organizations Organization[]
+  id                    String         @id @default(cuid())
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  name                  String
+  managerTeamVisibility Boolean        @default(false)
+  users                 User[]
+  orders                Order[]
+  organizations         Organization[]
+  documents             Document[]
 }
 
 model Order {
-  id               String          @id @default(cuid())
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  externalId       String?         @unique
+  id               String                    @id @default(cuid())
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  externalId       String?                   @unique
   orderNumber      String?
   title            String
-  status           OrderStatus     @default(new)
-  executionStatus  ExecutionStatus @default(pending)
-  financialStatus  FinancialStatus @default(not_billed)
-  totalAmount      Decimal         @default(0) @db.Decimal(14, 2)
-  paidAmount       Decimal         @default(0) @db.Decimal(14, 2)
+  status           OrderStatus               @default(new)
+  executionStatus  ExecutionStatus           @default(pending)
+  financialStatus  FinancialStatus           @default(not_billed)
+  totalAmount      Decimal                   @default(0) @db.Decimal(14, 2)
+  paidAmount       Decimal                   @default(0) @db.Decimal(14, 2)
   paidAt           DateTime?
   contractSignedAt DateTime?
   completedAt      DateTime?
   closedAt         DateTime?
   lastSyncedAt     DateTime?
-  vatIncluded      Boolean         @default(true)
-  vatRate          Decimal?        @db.Decimal(5, 4)
+  vatIncluded      Boolean                   @default(true)
+  vatRate          Decimal?                  @db.Decimal(5, 4)
   productMix       String[]
   deadline         DateTime?
   companyId        String
-  company          Company         @relation(fields: [companyId], references: [id])
+  company          Company                   @relation(fields: [companyId], references: [id])
   partnerId        String?
-  partner          Partner?        @relation(fields: [partnerId], references: [id])
+  partner          Partner?                  @relation(fields: [partnerId], references: [id])
   organizationId   String
-  organization     Organization    @relation("OrderOrganization", fields: [organizationId], references: [id])
+  organization     Organization              @relation("OrderOrganization", fields: [organizationId], references: [id])
   managerId        String?
-  manager          User?           @relation("OrderManager", fields: [managerId], references: [id])
+  manager          User?                     @relation("OrderManager", fields: [managerId], references: [id])
   documents        Document[]
   comments         Comment[]
   uploads          Upload[]
   payments         Payment[]
-  promotedFromLead Lead?           @relation("LeadPromoted")
+  promotedFromLead Lead?                     @relation("LeadPromoted")
   commissionItems  CommissionStatementItem[]
+  threads          OrderThread[]
+  items            OrderItem[]
 
   @@index([partnerId, executionStatus])
   @@index([partnerId, financialStatus])
@@ -408,6 +540,7 @@ model Order {
   @@index([organizationId, financialStatus])
   @@index([externalId])
   @@index([closedAt])
+  @@index([managerId, executionStatus])
 }
 
 model Document {
@@ -425,8 +558,14 @@ model Document {
   signedAt           DateTime?
   generatedBy        GenerationSource  @default(user)
   externalId         String?           @unique
-  orderId            String
-  order              Order             @relation(fields: [orderId], references: [id])
+  orderId            String?
+  order              Order?            @relation(fields: [orderId], references: [id])
+  companyId          String?
+  // Restrict (not SetNull): an order-less doc with companyId nulled would
+  // violate the XOR CHECK below. Companies are not deleted in normal ops.
+  company            Company?          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  counterpartyType   CounterpartyType
+  counterpartyId     String
   uploadedById       String?
   uploadedBy         User?             @relation(fields: [uploadedById], references: [id])
   scanStatus         String            @default("pending")
@@ -434,9 +573,11 @@ model Document {
   scannedAt          DateTime?
 
   @@index([orderId, type])
+  @@index([counterpartyType, counterpartyId])
   @@index([type, createdAt])
   @@index([externalId])
   @@index([scanStatus])
+  @@index([companyId])
 }
 
 model Comment {
@@ -449,6 +590,8 @@ model Comment {
   authorId       String
   author         User     @relation(fields: [authorId], references: [id])
   attachmentPath String?
+
+  @@index([authorId, orderId])
 }
 
 model Upload {
@@ -518,7 +661,7 @@ model PasswordResetToken {
   token     String    @unique
   userId    String
   user      User      @relation(fields: [userId], references: [id])
-  purpose   String    // "invite" | "reset"
+  purpose   String // "invite" | "reset"
   expiresAt DateTime
   usedAt    DateTime?
 
@@ -534,4 +677,256 @@ model StudentBridgeTokenJti {
   usedAt    DateTime
 
   @@index([expiresAt])
+}
+
+model AlertState {
+  key            String    @id
+  status         String // "firing" | "resolved"
+  severity       String // "warning" | "critical"
+  message        String
+  value          Int?
+  firstSeenAt    DateTime  @default(now())
+  lastNotifiedAt DateTime  @default(now())
+  resolvedAt     DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status])
+}
+
+model OrderThread {
+  id            String            @id @default(cuid())
+  orderId       String
+  order         Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  side          ThreadSide
+  createdAt     DateTime          @default(now())
+  lastMessageAt DateTime          @default(now())
+  messages      Message[]
+  readStates    ThreadReadState[]
+
+  @@unique([orderId, side])
+  @@index([side, lastMessageAt])
+}
+
+model Message {
+  id             String      @id @default(cuid())
+  threadId       String
+  thread         OrderThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorId       String
+  author         User        @relation("MessageAuthor", fields: [authorId], references: [id])
+  body           String
+  attachmentPath String?
+  createdAt      DateTime    @default(now())
+
+  @@index([threadId, createdAt])
+}
+
+model ThreadReadState {
+  id         String      @id @default(cuid())
+  threadId   String
+  thread     OrderThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt DateTime    @default(now())
+
+  @@unique([threadId, userId])
+}
+
+enum EnrollmentStatus {
+  pending
+  approved
+  rejected
+  provisioned
+}
+
+enum TrainingStatus {
+  pending
+  in_progress
+  certificate_issued
+  cancelled
+}
+
+// T5: «заявка на обучение» — submitted by any of 5 roles, reviewed (approved/
+// rejected/provisioned) on our side. Provisioning is MANUAL into the external LMS
+// (no Student/User is created here); externalStudentId is recorded on markProvisioned.
+model EnrollmentRequest {
+  id                String           @id @default(cuid())
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  submittedByUserId String
+  submittedByUser   User             @relation("EnrollmentSubmitter", fields: [submittedByUserId], references: [id])
+  submitterRole     String
+  partnerId         String?
+  partner           Partner?         @relation(fields: [partnerId], references: [id])
+  organizationId    String?
+  organization      Organization?    @relation(fields: [organizationId], references: [id])
+  studentName       String
+  studentEmail      String
+  courseTitle       String
+  note              String?
+  status            EnrollmentStatus @default(pending)
+  reviewedByUserId  String?
+  reviewedByUser    User?            @relation("EnrollmentReviewer", fields: [reviewedByUserId], references: [id])
+  reviewedAt        DateTime?
+  rejectedReason    String?
+  externalStudentId String?
+  provisionedAt     DateTime?
+
+  @@index([status])
+  @@index([partnerId])
+  @@index([submittedByUserId])
+}
+
+model TrainingDirection {
+  id           String        @id @default(cuid())
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  name         String
+  slug         String?       @unique
+  isActive     Boolean       @default(true)
+  sortOrder    Int           @default(0)
+  orderItems   OrderItem[]
+  certificates Certificate[]
+
+  @@index([isActive, sortOrder])
+}
+
+model OrderItem {
+  id             String            @id @default(cuid())
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  orderId        String
+  order          Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  studentId      String
+  student        Student           @relation(fields: [studentId], references: [id])
+  directionId    String
+  direction      TrainingDirection @relation(fields: [directionId], references: [id])
+  trainingStatus TrainingStatus    @default(pending)
+  note           String?
+  certificate    Certificate?
+
+  @@unique([orderId, studentId, directionId])
+  @@index([orderId])
+  @@index([studentId])
+  @@index([directionId])
+}
+
+model Certificate {
+  id             String                @id @default(cuid())
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  studentId      String
+  student        Student               @relation(fields: [studentId], references: [id])
+  organizationId String
+  organization   Organization          @relation(fields: [organizationId], references: [id])
+  directionId    String
+  direction      TrainingDirection     @relation(fields: [directionId], references: [id])
+  orderItemId    String?               @unique
+  orderItem      OrderItem?            @relation(fields: [orderItemId], references: [id])
+  number         String
+  issuedAt       DateTime
+  validUntil     DateTime?
+  documentId     String?
+  source         GenerationSource      @default(user)
+  comment        String?
+  reminders      CertificateReminder[]
+
+  @@index([studentId])
+  @@index([organizationId])
+  @@index([validUntil])
+  @@index([directionId])
+}
+
+model CertificateReminder {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  certificateId String
+  certificate   Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  thresholdDays Int
+  sentAt        DateTime    @default(now())
+
+  @@unique([certificateId, thresholdDays])
+}
+
+enum CustomFieldType {
+  text
+  number
+  date
+  select
+  boolean
+}
+
+/// §11: настраиваемое (доп.) поле сущности. Конфигурит admin. Полиморфно по entityType (v1='order').
+model CustomFieldDefinition {
+  id         String             @id @default(cuid())
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  entityType String
+  key        String
+  label      String
+  fieldType  CustomFieldType
+  options    String[]
+  required   Boolean            @default(false)
+  sortOrder  Int                @default(0)
+  isActive   Boolean            @default(true)
+  values     CustomFieldValue[]
+
+  @@unique([entityType, key])
+  @@index([entityType, isActive, sortOrder])
+}
+
+/// §11: значение настраиваемого поля у конкретной записи (полиморфно: entityType+entityId).
+model CustomFieldValue {
+  id           String                @id @default(cuid())
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  definitionId String
+  definition   CustomFieldDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  entityType   String
+  entityId     String
+  value        String?
+
+  @@unique([definitionId, entityId])
+  @@index([entityType, entityId])
+}
+
+model PaymentImportBatch {
+  id           String             @id @default(cuid())
+  createdAt    DateTime           @default(now())
+  importedById String?
+  importedBy   User?              @relation("PaymentImportBatchBy", fields: [importedById], references: [id])
+  companyId    String?
+  fileKey      String?
+  fileName     String
+  counts       Json
+  status       String
+  rows         PaymentImportRow[]
+
+  @@index([companyId, createdAt])
+}
+
+model PaymentImportRow {
+  id                 String             @id @default(cuid())
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  batchId            String
+  batch              PaymentImportBatch @relation(fields: [batchId], references: [id])
+  externalId         String             @unique
+  paidAt             DateTime
+  amount             Decimal            @db.Decimal(14, 2)
+  isRefund           Boolean            @default(false)
+  purpose            String?
+  paymentOrderNumber String?
+  vatAmount          Decimal?           @db.Decimal(14, 2)
+  counterpartyName   String?
+  counterpartyInn    String?
+  accountCandidates  Json
+  status             String             @default("needs_review")
+  candidateOrgId     String?
+  candidateOrderId   String?
+  matchMethod        String?
+  rawRow             Json
+  resolvedPaymentId  String?
+
+  @@index([status, createdAt])
+  @@index([batchId])
 }

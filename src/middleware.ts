@@ -7,7 +7,18 @@ import { isFeatureEnabled, type FeatureFlag } from '@/lib/featureFlags';
 
 const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   { prefix: '/partner/leads', flag: 'partner_leads' },
+  { prefix: '/partner/messages', flag: 'chat' },
+  { prefix: '/organization/messages', flag: 'chat' },
+  // T5: every enrollment surface dark-launches together under one flag (the
+  // cabinet-level flags below still apply additively via their own prefixes).
+  { prefix: '/partner/enrollments', flag: 'enrollment_requests' },
+  { prefix: '/organization/enrollments', flag: 'enrollment_requests' },
+  { prefix: '/manager/enrollments', flag: 'enrollment_requests' },
+  { prefix: '/leader/enrollments', flag: 'enrollment_requests' },
+  { prefix: '/admin/enrollments', flag: 'enrollment_requests' },
   { prefix: '/organization', flag: 'organization_cabinet' },
+  { prefix: '/manager', flag: 'manager_cabinet' },
+  { prefix: '/leader', flag: 'leader_cabinet' },
 ];
 
 const MIN_JWT_SECRET_LENGTH = 32;
@@ -42,8 +53,14 @@ export async function middleware(req: NextRequest) {
     const { payload } = await jwtVerify(token, secret);
     const role = payload.role as Role;
 
+    // Руководитель менеджеров при включённом кабинете попадает в /leader.
+    // managerRole — контрактный claim JWT (C8); флаг проверяем здесь же,
+    // чтобы при выключенном leader_cabinet редирект вёл в обычный кабинет.
+    const isLeader = role === 'manager' && (payload as { managerRole?: string }).managerRole === 'leader';
+    const home = isLeader && isFeatureEnabled('leader_cabinet') ? '/leader/dashboard' : roleHome[role];
+
     if (isAuthPage) {
-      return NextResponse.redirect(new URL(roleHome[role], req.url));
+      return NextResponse.redirect(new URL(home, req.url));
     }
 
     for (const [prefix, allowedRoles] of Object.entries(protectedPrefixes)) {
@@ -64,7 +81,7 @@ export async function middleware(req: NextRequest) {
     }
 
     if (pathname === '/' || pathname === '/dashboard') {
-      return NextResponse.redirect(new URL(roleHome[role], req.url));
+      return NextResponse.redirect(new URL(home, req.url));
     }
 
     // Feature-flag gate: 404 for prefixes whose flag is disabled. Runs after

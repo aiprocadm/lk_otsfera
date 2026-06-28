@@ -1,19 +1,14 @@
-import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requirePartner } from '@/lib/auth/requireRole';
 import { isPartnerAdmin } from '@/lib/auth/policy';
 import { getFinanceKpis, listStatements } from '@/lib/services/partner/finance';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { CommissionStatementsList } from '@/components/partner/commission-statements-list';
 import { ManualCalcForm } from '@/components/partner/manual-calc-form';
-
-function fmtMoney(amount: number): string {
-  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(amount) + ' ₽';
-}
+import { fmtMoney } from '@/lib/format';
 
 export default async function FinancePage() {
-  const session = await getSession();
-  if (!session?.partnerId) redirect('/login');
+  const session = await requirePartner();
 
   const { partnerId } = session;
   const [kpis, statements] = await Promise.all([
@@ -27,7 +22,7 @@ export default async function FinancePage() {
     <div className='space-y-6'>
       <div className='flex items-center justify-between'>
         <div>
-          <h1 className='text-2xl font-bold text-[#111111]'>Финансы</h1>
+          <h1 className='text-2xl font-semibold text-[#111111]'>Финансы</h1>
           <p className='text-sm text-gray-500 mt-0.5'>Комиссионные отчёты и выплаты</p>
         </div>
         {canManage && <ManualCalcForm />}

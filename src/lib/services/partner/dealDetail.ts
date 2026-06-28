@@ -1,5 +1,6 @@
-import type { PrismaClient, ExecutionStatus, FinancialStatus } from '@prisma/client';
-import { humanStage, type Stage } from '@/lib/orders/humanStage';
+import type { PrismaClient, ExecutionStatus, FinancialStatus, Prisma } from '@prisma/client';
+import { orderStage, type Stage } from '@/lib/orders/humanStage';
+import { partnerChannelWhere } from '@/lib/auth/documentChannelPolicy';
 import type { OrgDocumentRow } from './orgDocuments';
 
 export type DealDocumentRow = OrgDocumentRow;
@@ -10,6 +11,14 @@ export type DealCommentRow = {
   createdAt: Date;
   authorName: string;
 };
+
+const ORDER_ITEM_INCLUDE = {
+  student: { select: { id: true, name: true, email: true } },
+  direction: { select: { id: true, name: true } },
+  certificate: { select: { id: true, number: true, validUntil: true } }
+} satisfies Prisma.OrderItemInclude;
+
+export type DealOrderItemRow = Prisma.OrderItemGetPayload<{ include: typeof ORDER_ITEM_INCLUDE }>;
 
 export type DealDetail = {
   id: string;
@@ -35,6 +44,7 @@ export type DealDetail = {
   managerName: string | null;
   documents: DealDocumentRow[];
   comments: DealCommentRow[];
+  items: DealOrderItemRow[];
 };
 
 export async function getPartnerDealDetail(
@@ -42,10 +52,15 @@ export async function getPartnerDealDetail(
   args: { dealId: string; partnerId: string }
 ): Promise<DealDetail | null> {
   const order = await prisma.order.findFirst({
-    where: { id: args.dealId, partnerId: args.partnerId },
+    // F2: visible only via the partner's own lead, not legacy Order.partnerId.
+    where: { id: args.dealId, promotedFromLead: { partnerId: args.partnerId } },
     include: {
       manager: { select: { name: true } },
+      // F8: read the order's own organization (exact), not a partner+company lookup
+      // that can resolve to the wrong org when two orgs share a company.
+      organization: { select: { id: true, name: true, inn: true } },
       documents: {
+        where: partnerChannelWhere(args.partnerId),
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
@@ -60,16 +75,17 @@ export async function getPartnerDealDetail(
       comments: {
         orderBy: { createdAt: 'asc' },
         include: { author: { select: { name: true } } }
+      },
+      items: {
+        include: ORDER_ITEM_INCLUDE,
+        orderBy: { createdAt: 'asc' }
       }
     }
   });
 
   if (!order) return null;
 
-  const org = await prisma.organization.findFirst({
-    where: { partnerId: args.partnerId, companyId: order.companyId },
-    select: { id: true, name: true, inn: true }
-  });
+  const org = order.organization;
 
   const debt = (Number(order.totalAmount) - Number(order.paidAmount)).toFixed(2);
 
@@ -77,9 +93,11 @@ export async function getPartnerDealDetail(
     id: order.id,
     orderNumber: order.orderNumber,
     title: order.title,
-    stage: humanStage({
+    stage: orderStage({
       executionStatus: order.executionStatus,
-      financialStatus: order.financialStatus
+      financialStatus: order.financialStatus,
+      amount: Number(order.totalAmount),
+      paidTotal: Number(order.paidAmount)
     }),
     executionStatus: order.executionStatus,
     financialStatus: order.financialStatus,
@@ -115,6 +133,7 @@ export async function getPartnerDealDetail(
       body: c.body,
       createdAt: c.createdAt,
       authorName: c.author.name
-    }))
+    })),
+    items: order.items
   };
 }

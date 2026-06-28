@@ -1,31 +1,47 @@
 'use client';
-import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
+import { Dialog } from '@/components/ui/dialog';
+import { useFetchSubmit } from '@/lib/ui/useFetchSubmit';
+
+const ERROR_MAP: Record<string, string> = {
+  EMAIL_TAKEN: 'Пользователь с таким email уже существует',
+  ORG_OUT_OF_SCOPE: 'Одна из организаций не входит в портфель партнёра'
+};
 
 export function InviteMemberForm({
   orgs
 }: {
   orgs: { id: string; name: string }[];
 }) {
-  const router = useRouter();
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [open, setOpen] = useState(false);
 
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [roleInPartner, setRole] = useState<'admin' | 'manager'>('manager');
   const [allOrgs, setAllOrgs] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  function open() {
+  const { formAction, pending, errorText, reset } = useFetchSubmit({
+    url: '/api/partner/team',
+    body: () => ({
+      email,
+      name,
+      roleInPartner,
+      assignedOrgIds: allOrgs ? [] : [...selected]
+    }),
+    errorMap: ERROR_MAP,
+    onSuccess: () => setOpen(false),
+    refresh: true
+  });
+
+  function openDialog() {
     setEmail('');
     setName('');
     setRole('manager');
     setAllOrgs(true);
     setSelected(new Set());
-    setError(null);
-    dialogRef.current?.showModal();
+    reset();
+    setOpen(true);
   }
 
   function toggleOrg(id: string) {
@@ -37,69 +53,31 @@ export function InviteMemberForm({
     });
   }
 
-  async function submit() {
-    setError(null);
-    setSubmitting(true);
-    try {
-      const assignedOrgIds = allOrgs ? [] : [...selected];
-      const res = await fetch('/api/partner/team', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, name, roleInPartner, assignedOrgIds })
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        if (body.error === 'EMAIL_TAKEN') {
-          setError('Пользователь с таким email уже существует');
-        } else if (body.error === 'ORG_OUT_OF_SCOPE') {
-          setError('Одна из организаций не входит в портфель партнёра');
-        } else if (typeof body.error === 'string') {
-          setError(body.error);
-        } else {
-          setError('Ошибка приглашения');
-        }
-        return;
-      }
-      dialogRef.current?.close();
-      router.refresh();
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   const valid = email.trim().length > 3 && email.includes('@') && name.trim().length > 0;
 
   return (
     <>
       <button
         type='button'
-        onClick={open}
+        onClick={openDialog}
         className='inline-flex items-center gap-1.5 px-4 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C]'
       >
         <span className='text-lg leading-none'>+</span>
         Пригласить
       </button>
 
-      <dialog
-        ref={dialogRef}
-        className='rounded-xl p-0 max-w-lg w-[92vw] backdrop:bg-black/40'
-        onClose={() => setError(null)}
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title='Пригласить сотрудника'
+        size='lg'
+        busy={pending}
+        error={errorText}
       >
-        <form
-          method='dialog'
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (valid && !submitting) submit();
-          }}
-          className='p-5 space-y-4'
-        >
-          <div>
-            <h3 className='text-base font-semibold text-[#111111]'>Пригласить сотрудника</h3>
-            <p className='text-xs text-gray-500 mt-1'>
-              Создадим аккаунт с временным паролем — отправим инструкцию по входу на email.
-            </p>
-          </div>
+        <form action={formAction} className='space-y-4'>
+          <p className='text-xs text-gray-500'>
+            Создадим аккаунт с временным паролем — отправим инструкцию по входу на email.
+          </p>
 
           <label className='block'>
             <span className='text-sm text-gray-700'>Имя</span>
@@ -180,31 +158,25 @@ export function InviteMemberForm({
             )}
           </fieldset>
 
-          {error && (
-            <div className='text-sm text-red-700 bg-red-50 border border-red-100 rounded px-3 py-2'>
-              {error}
-            </div>
-          )}
-
           <div className='flex justify-end gap-2 pt-2 border-t border-gray-100'>
             <button
               type='button'
-              onClick={() => dialogRef.current?.close()}
+              onClick={() => setOpen(false)}
               className='px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50'
-              disabled={submitting}
+              disabled={pending}
             >
               Отмена
             </button>
             <button
               type='submit'
-              disabled={submitting || !valid || (!allOrgs && selected.size === 0)}
+              disabled={pending || !valid || (!allOrgs && selected.size === 0)}
               className='px-4 py-2 text-sm bg-[#F97316] text-white rounded-lg hover:bg-[#EA580C] disabled:opacity-50'
             >
-              {submitting ? 'Отправка…' : 'Пригласить'}
+              {pending ? 'Отправка…' : 'Пригласить'}
             </button>
           </div>
         </form>
-      </dialog>
+      </Dialog>
     </>
   );
 }

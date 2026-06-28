@@ -25,7 +25,7 @@ afterEach(() => {
 });
 
 // Opt-in flags invert the default and have separate coverage below.
-const OPT_IN_FLAGS = new Set(['organization_cabinet']);
+const OPT_IN_FLAGS = new Set(['organization_cabinet', 'manager_cabinet', 'leader_cabinet', 'chat', 'enrollment_requests']);
 
 describe('isFeatureEnabled', () => {
   it('returns true when the env var is unset (default-enabled opt-out flags)', () => {

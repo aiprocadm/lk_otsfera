@@ -1,0 +1,14 @@
+# Reverse-proxy + автоматический HTTPS для топологии C (SP3).
+# Caddy выпускает сертификат Let's Encrypt на {$APP_DOMAIN} при первом запросе,
+# редиректит HTTP→HTTPS и авто-обновляет сертификат (без cron).
+# {$APP_DOMAIN} читается из окружения контейнера (env_file в docker-compose.prod.yml).
+#
+# Опционально: раскомментировать глобальный блок для ACME-уведомлений об истечении:
+# {
+# 	email ops@example.ru
+# }
+
+{$APP_DOMAIN} {
+	reverse_proxy web:3000
+	encode gzip
+}

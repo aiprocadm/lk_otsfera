@@ -1,6 +1,7 @@
 import type { Queue } from 'bullmq';
 import { getQueue, type QueueName } from './queues';
 import type { SyncJobPayload } from './types';
+import type { PrismaClient } from '@prisma/client';
 
 export type SyncScheduleQueueName = Extract<
   QueueName,
@@ -101,11 +102,13 @@ export async function registerCommissionSchedules(
 }
 
 export async function registerSyncSchedules(
-  getQueueFn: GetQueueFn = getQueue
+  getQueueFn: GetQueueFn = getQueue,
+  pausedSchedulerIds: ReadonlySet<string> = new Set(),
 ): Promise<RegisteredSchedule[]> {
   const results: RegisteredSchedule[] = [];
   const registeredAt = new Date().toISOString();
   for (const schedule of SYNC_SCHEDULES) {
+    if (pausedSchedulerIds.has(schedule.schedulerId)) continue;
     const queue = getQueueFn(schedule.queueName);
     const payload: SyncJobPayload = {
       triggeredAt: registeredAt,
@@ -121,6 +124,86 @@ export async function registerSyncSchedules(
       queueName: schedule.queueName,
       pattern: schedule.pattern,
       tz: schedule.tz
+    });
+  }
+  return results;
+}
+
+/** Reads the paused-schedule set so the worker can skip them at registration. */
+export async function loadPausedSchedulerIds(prisma: PrismaClient): Promise<Set<string>> {
+  const rows = await prisma.syncSchedulePause.findMany({ select: { schedulerId: true } });
+  return new Set(rows.map((r) => r.schedulerId));
+}
+
+export type AlertSchedule = {
+  queueName: Extract<QueueName, 'monitoring.evaluateAlerts'>;
+  schedulerId: string;
+  pattern: string;
+  tz: string;
+};
+
+export const ALERT_SCHEDULES: ReadonlyArray<AlertSchedule> = [
+  {
+    queueName: 'monitoring.evaluateAlerts',
+    schedulerId: 'monitoring.evaluateAlerts.cron',
+    pattern: '*/5 * * * *',
+    tz: DEFAULT_SYNC_TZ
+  }
+] as const;
+
+export async function registerAlertSchedules(
+  getQueueFn: GetQueueFn = getQueue
+): Promise<Array<{ schedulerId: string; queueName: string; pattern: string; tz: string }>> {
+  const results = [];
+  const triggeredAt = new Date().toISOString();
+  for (const schedule of ALERT_SCHEDULES) {
+    const queue = getQueueFn(schedule.queueName);
+    await queue.upsertJobScheduler(
+      schedule.schedulerId,
+      { pattern: schedule.pattern, tz: schedule.tz },
+      { data: { triggeredAt, reason: 'cron' } }
+    );
+    results.push({
+      schedulerId: schedule.schedulerId,
+      queueName: schedule.queueName,
+      pattern: schedule.pattern,
+      tz: schedule.tz
+    });
+  }
+  return results;
+}
+
+export type CertExpirySchedule = {
+  queueName: Extract<QueueName, 'notifications.certificateExpiry'>;
+  schedulerId: string;
+  pattern: string;
+  tz: string;
+};
+
+export const CERT_EXPIRY_SCHEDULES: ReadonlyArray<CertExpirySchedule> = [
+  {
+    queueName: 'notifications.certificateExpiry',
+    schedulerId: 'notifications.certificateExpiry.cron',
+    pattern: '0 7 * * *',
+    tz: DEFAULT_SYNC_TZ
+  }
+] as const;
+
+export async function registerCertExpirySchedules(
+  getQueueFn: GetQueueFn = getQueue
+): Promise<Array<{ schedulerId: string; queueName: string; pattern: string; tz: string }>> {
+  const results = [];
+  const triggeredAt = new Date().toISOString();
+  for (const schedule of CERT_EXPIRY_SCHEDULES) {
+    const queue = getQueueFn(schedule.queueName);
+    await queue.upsertJobScheduler(
+      schedule.schedulerId,
+      { pattern: schedule.pattern, tz: schedule.tz },
+      { data: { triggeredAt, reason: 'cron' } }
+    );
+    results.push({
+      schedulerId: schedule.schedulerId, queueName: schedule.queueName,
+      pattern: schedule.pattern, tz: schedule.tz
     });
   }
   return results;

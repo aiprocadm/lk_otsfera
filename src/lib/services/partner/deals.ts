@@ -1,5 +1,5 @@
 import type { PrismaClient, ExecutionStatus, FinancialStatus } from '@prisma/client';
-import { humanStage, type Stage } from '@/lib/orders/humanStage';
+import { orderStage, type Stage } from '@/lib/orders/humanStage';
 
 export type DealRow = {
   id: string;
@@ -37,27 +37,15 @@ export async function listPartnerDeals(
   prisma: PrismaClient,
   filter: DealsFilter
 ): Promise<DealsResult> {
-  const orgs = await prisma.organization.findMany({
-    where: {
-      partnerId: filter.partnerId,
-      ...(filter.scopeOrgIds && filter.scopeOrgIds.length > 0
-        ? { id: { in: filter.scopeOrgIds } }
-        : {})
-    },
-    select: { id: true, name: true, companyId: true }
-  });
-
-  const companyIds = orgs.map((o) => o.companyId).filter((id): id is string => Boolean(id));
-  if (companyIds.length === 0) return { rows: [], total: 0 };
-
-  const orgByCompanyId = new Map<string, { id: string; name: string }>();
-  for (const o of orgs) {
-    if (o.companyId) orgByCompanyId.set(o.companyId, { id: o.id, name: o.name });
-  }
-
+  // F2: the partner sees an order ONLY through its own lead (Order.promotedFromLead
+  // → Lead.partnerId), not via the legacy direct Order.partnerId. F8: organization
+  // name is read from the order's own organization relation (exact per-order),
+  // never a companyId→org map that collides when 2 orgs share a company.
   const where = {
-    partnerId: filter.partnerId,
-    companyId: { in: companyIds },
+    promotedFromLead: { partnerId: filter.partnerId },
+    ...(filter.scopeOrgIds && filter.scopeOrgIds.length > 0
+      ? { organizationId: { in: filter.scopeOrgIds } }
+      : {}),
     ...(filter.executionStatus ? { executionStatus: filter.executionStatus } : {}),
     ...(filter.financialStatus ? { financialStatus: filter.financialStatus } : {}),
     ...(filter.search
@@ -85,16 +73,15 @@ export async function listPartnerDeals(
         paidAmount: true,
         executionStatus: true,
         financialStatus: true,
-        companyId: true,
         createdAt: true,
         deadline: true,
-        closedAt: true
+        closedAt: true,
+        organization: { select: { id: true, name: true } }
       }
     })
   ]);
 
   const rows: DealRow[] = orders.map((o) => {
-    const org = orgByCompanyId.get(o.companyId);
     const debt = (Number(o.totalAmount) - Number(o.paidAmount)).toFixed(2);
 
     return {
@@ -106,12 +93,14 @@ export async function listPartnerDeals(
       debt,
       executionStatus: o.executionStatus,
       financialStatus: o.financialStatus,
-      stage: humanStage({
+      stage: orderStage({
         executionStatus: o.executionStatus,
-        financialStatus: o.financialStatus
+        financialStatus: o.financialStatus,
+        amount: Number(o.totalAmount),
+        paidTotal: Number(o.paidAmount)
       }),
-      organizationName: org?.name ?? '—',
-      organizationId: org?.id ?? null,
+      organizationName: o.organization?.name ?? '—',
+      organizationId: o.organization?.id ?? null,
       createdAt: o.createdAt,
       deadline: o.deadline,
       closedAt: o.closedAt

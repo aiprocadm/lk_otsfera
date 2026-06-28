@@ -26,6 +26,31 @@ const managerSession = {
 const userCtx = (userId: string) => ({ params: Promise.resolve({ userId }) });
 const jsonReq = (b: unknown) => new Request('http://x/', { method: 'POST', body: JSON.stringify(b), headers: { 'content-type': 'application/json' } });
 
+describe('GET /api/partner/team — unauthenticated', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('401 when unauthenticated', async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    expect((await GET()).status).toBe(401);
+  });
+});
+
+describe('POST /api/partner/team — JSON parse failure', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('400 when JSON body cannot be parsed', async () => {
+    vi.mocked(getSession).mockResolvedValue(adminSession);
+    const badReq = new Request('http://x/', { method: 'POST', body: 'NOT JSON', headers: { 'content-type': 'application/json' } });
+    expect((await POST(badReq)).status).toBe(400);
+  });
+
+  it('401 when POST unauthenticated (session is null)', async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    const res = await POST(jsonReq({ email: 'x@x.local', name: 'X', roleInPartner: 'manager', assignedOrgIds: [] }));
+    expect(res.status).toBe(401);
+  });
+});
+
 describe('GET /api/partner/team', () => {
   beforeEach(() => vi.resetAllMocks());
 
@@ -59,7 +84,7 @@ describe('POST /api/partner/team', () => {
 
   it('201 on success', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(inviteMember).mockResolvedValue({ user: { id: 'u1' }, partnerUser: { id: 'pu1' } } as any);
+    vi.mocked(inviteMember).mockResolvedValue({ ok: true, user: { id: 'u1' }, partnerUser: { id: 'pu1' } } as any);
 
     const res = await POST(jsonReq({ email: 'x@x.local', name: 'Имя', roleInPartner: 'manager', assignedOrgIds: ['oA'] }));
     expect(res.status).toBe(201);
@@ -68,30 +93,57 @@ describe('POST /api/partner/team', () => {
     });
   });
 
-  it('409 on EMAIL_TAKEN', async () => {
+  it('409 on email_taken', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(inviteMember).mockRejectedValue(new Error('EMAIL_TAKEN: ...'));
-    expect((await POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] }))).status).toBe(409);
+    vi.mocked(inviteMember).mockResolvedValue({ ok: false, error: 'email_taken' } as any);
+    const res = await POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] }));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'email_taken' });
   });
 
-  it('422 on ORG_OUT_OF_SCOPE', async () => {
+  it('422 on org_out_of_scope', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(inviteMember).mockRejectedValue(new Error('ORG_OUT_OF_SCOPE'));
-    expect((await POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: ['bad'] }))).status).toBe(422);
+    vi.mocked(inviteMember).mockResolvedValue({ ok: false, error: 'org_out_of_scope' } as any);
+    const res = await POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: ['bad'] }));
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ error: 'org_out_of_scope' });
+  });
+
+  it('propagates unexpected errors from inviteMember', async () => {
+    vi.mocked(getSession).mockResolvedValue(adminSession);
+    vi.mocked(inviteMember).mockRejectedValue(new Error('DB_DEADLOCK: timeout'));
+    await expect(POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] }))).rejects.toThrow('DB_DEADLOCK');
   });
 });
 
 describe('PUT /api/partner/team/[userId]', () => {
   beforeEach(() => vi.resetAllMocks());
 
+  it('401 when unauthenticated', async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    expect((await PUT(jsonReq({ assignedOrgIds: [] }), userCtx('u'))).status).toBe(401);
+  });
+
   it('403 non-admin', async () => {
     vi.mocked(getSession).mockResolvedValue(managerSession);
     expect((await PUT(jsonReq({ assignedOrgIds: [] }), userCtx('u'))).status).toBe(403);
   });
 
+  it('400 on invalid payload (missing assignedOrgIds)', async () => {
+    vi.mocked(getSession).mockResolvedValue(adminSession);
+    const req = new Request('http://x/', { method: 'PUT', body: JSON.stringify({ wrong: 'field' }), headers: { 'content-type': 'application/json' } });
+    expect((await PUT(req, userCtx('u'))).status).toBe(400);
+  });
+
+  it('400 on JSON parse failure', async () => {
+    vi.mocked(getSession).mockResolvedValue(adminSession);
+    const req = new Request('http://x/', { method: 'PUT', body: 'not-json', headers: { 'content-type': 'text/plain' } });
+    expect((await PUT(req, userCtx('u'))).status).toBe(400);
+  });
+
   it('200 on successful assignOrgs', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(assignOrgs).mockResolvedValue({} as any);
+    vi.mocked(assignOrgs).mockResolvedValue({ ok: true, partnerUser: { id: 'pu1' } } as any);
 
     const res = await PUT(jsonReq({ assignedOrgIds: ['oA', 'oB'] }), userCtx('user-1'));
     expect(res.status).toBe(200);
@@ -99,10 +151,29 @@ describe('PUT /api/partner/team/[userId]', () => {
       partnerId: 'p1', userId: 'user-1', assignedOrgIds: ['oA', 'oB']
     });
   });
+
+  it('422 on org_out_of_scope from assignOrgs', async () => {
+    vi.mocked(getSession).mockResolvedValue(adminSession);
+    vi.mocked(assignOrgs).mockResolvedValue({ ok: false, error: 'org_out_of_scope' } as any);
+    const res = await PUT(jsonReq({ assignedOrgIds: ['bad'] }), userCtx('u'));
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ error: 'org_out_of_scope' });
+  });
+
+  it('propagates unexpected errors from assignOrgs', async () => {
+    vi.mocked(getSession).mockResolvedValue(adminSession);
+    vi.mocked(assignOrgs).mockRejectedValue(new Error('DB_DEADLOCK: timeout'));
+    await expect(PUT(jsonReq({ assignedOrgIds: [] }), userCtx('u'))).rejects.toThrow('DB_DEADLOCK');
+  });
 });
 
 describe('DELETE /api/partner/team/[userId]', () => {
   beforeEach(() => vi.resetAllMocks());
+
+  it('401 when unauthenticated', async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    expect((await DELETE(new Request('http://x/'), userCtx('u'))).status).toBe(401);
+  });
 
   it('403 non-admin', async () => {
     vi.mocked(getSession).mockResolvedValue(managerSession);
@@ -111,14 +182,30 @@ describe('DELETE /api/partner/team/[userId]', () => {
 
   it('204 on deactivate', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(deactivateMember).mockResolvedValue({} as any);
+    vi.mocked(deactivateMember).mockResolvedValue({ ok: true, partnerUser: { id: 'pu1' } } as any);
 
     expect((await DELETE(new Request('http://x/'), userCtx('user-1'))).status).toBe(204);
   });
 
-  it('409 on LAST_ADMIN', async () => {
+  it('409 on last_admin_protected', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(deactivateMember).mockRejectedValue(new Error('LAST_ADMIN'));
-    expect((await DELETE(new Request('http://x/'), userCtx('user-1'))).status).toBe(409);
+    vi.mocked(deactivateMember).mockResolvedValue({ ok: false, error: 'last_admin_protected' } as any);
+    const res = await DELETE(new Request('http://x/'), userCtx('user-1'));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'last_admin_protected' });
+  });
+
+  it('404 when user not found in deactivate', async () => {
+    vi.mocked(getSession).mockResolvedValue(adminSession);
+    vi.mocked(deactivateMember).mockResolvedValue({ ok: false, error: 'not_found' } as any);
+    const res = await DELETE(new Request('http://x/'), userCtx('u'));
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'not_found' });
+  });
+
+  it('propagates unexpected errors from deactivateMember', async () => {
+    vi.mocked(getSession).mockResolvedValue(adminSession);
+    vi.mocked(deactivateMember).mockRejectedValue(new Error('DB_DEADLOCK: timeout'));
+    await expect(DELETE(new Request('http://x/'), userCtx('u'))).rejects.toThrow('DB_DEADLOCK');
   });
 });

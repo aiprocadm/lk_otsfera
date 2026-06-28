@@ -1,5 +1,18 @@
-import { describe, expect, it, expectTypeOf } from 'vitest';
+import { describe, expect, it, expectTypeOf, beforeAll, afterAll } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { Document } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+
+let prisma: PrismaClient;
+
+beforeAll(() => {
+  prisma = new PrismaClient();
+});
+
+afterAll(async () => {
+  await prisma.$disconnect();
+});
 
 describe('Document model fields', () => {
   it('has type/direction/version/generationSource and nullable uploadedBy', () => {
@@ -15,5 +28,30 @@ describe('Document model fields', () => {
   it('uploadedById is nullable to allow system-generated docs', () => {
     const sample: Document['uploadedById'] = null;
     expect(sample).toBeNull();
+  });
+
+  it('Document has counterpartyType + counterpartyId and CounterpartyType enum exists', () => {
+    const schema = readFileSync(
+      join(process.cwd(), 'prisma', 'schema.prisma'),
+      'utf8'
+    );
+    expect(schema).toMatch(/enum CounterpartyType \{[\s\S]*organization[\s\S]*partner[\s\S]*\}/);
+    expect(schema).toMatch(/counterpartyType\s+CounterpartyType/);
+    expect(schema).toMatch(/counterpartyId\s+String/);
+    expect(schema).toMatch(/@@index\(\[counterpartyType, counterpartyId\]\)/);
+  });
+});
+
+describe('Document XOR constraint (integration)', () => {
+  it('rejects a document that is neither order-bound nor order-less (XOR CHECK)', async () => {
+    await expect(
+      prisma.document.create({
+        data: {
+          name: 'bad.pdf', path: 'fake://bad', mimeType: 'application/pdf', type: 'other',
+          counterpartyType: 'organization', counterpartyId: 'x'
+          // no orderId, no companyId
+        } as never
+      })
+    ).rejects.toThrow();
   });
 });

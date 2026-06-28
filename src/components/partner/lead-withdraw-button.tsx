@@ -1,73 +1,54 @@
 'use client';
-import { useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { Dialog } from '@/components/ui/dialog';
+import { useFetchSubmit } from '@/lib/ui/useFetchSubmit';
+
+const ERROR_MAP: Record<string, string> = {
+  ALREADY_REJECTED: 'Заявка уже отклонена',
+  ALREADY_PROMOTED: 'Заявка уже конвертирована в заказ'
+};
 
 export function LeadWithdrawButton({ leadId }: { leadId: string }) {
-  const router = useRouter();
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  function open() {
+  const { formAction, pending, errorText, reset } = useFetchSubmit({
+    url: `/api/partner/leads/${leadId}`,
+    method: 'PATCH',
+    body: () => ({ action: 'withdraw', reason: reason.trim() }),
+    errorMap: ERROR_MAP,
+    onSuccess: () => setOpen(false),
+    refresh: true
+  });
+
+  function openDialog() {
     setReason('');
-    setError(null);
-    dialogRef.current?.showModal();
-  }
-
-  async function submit() {
-    setError(null);
-    setSubmitting(true);
-    try {
-      const res = await fetch(`/api/partner/leads/${leadId}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action: 'withdraw', reason: reason.trim() })
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        if (body.error === 'ALREADY_REJECTED') setError('Заявка уже отклонена');
-        else if (body.error === 'ALREADY_PROMOTED') setError('Заявка уже конвертирована в заказ');
-        else setError(body.error ?? 'Не удалось отозвать заявку');
-        return;
-      }
-      dialogRef.current?.close();
-      router.refresh();
-    } finally {
-      setSubmitting(false);
-    }
+    reset();
+    setOpen(true);
   }
 
   return (
     <>
       <button
         type='button'
-        onClick={open}
+        onClick={openDialog}
         className='px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700'
       >
         Отозвать
       </button>
 
-      <dialog
-        ref={dialogRef}
-        className='rounded-xl p-0 max-w-md w-[92vw] backdrop:bg-black/40'
-        onClose={() => setError(null)}
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title='Отозвать заявку'
+        size='md'
+        busy={pending}
+        error={errorText}
       >
-        <form
-          method='dialog'
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!submitting) submit();
-          }}
-          className='p-5 space-y-4'
-        >
-          <div>
-            <h3 className='text-base font-semibold text-[#111111]'>Отозвать заявку</h3>
-            <p className='text-xs text-gray-500 mt-1'>
-              Действие нельзя отменить. Заявка перейдёт в статус «Отклонена».
-            </p>
-          </div>
+        <form action={formAction} className='space-y-4'>
+          <p className='text-xs text-gray-500'>
+            Действие нельзя отменить. Заявка перейдёт в статус «Отклонена».
+          </p>
 
           <label className='block'>
             <span className='text-sm text-gray-700'>Причина (необязательно)</span>
@@ -81,31 +62,25 @@ export function LeadWithdrawButton({ leadId }: { leadId: string }) {
             />
           </label>
 
-          {error && (
-            <div className='text-sm text-red-700 bg-red-50 border border-red-100 rounded px-3 py-2'>
-              {error}
-            </div>
-          )}
-
           <div className='flex justify-end gap-2 pt-2 border-t border-gray-100'>
             <button
               type='button'
-              onClick={() => dialogRef.current?.close()}
+              onClick={() => setOpen(false)}
               className='px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50'
-              disabled={submitting}
+              disabled={pending}
             >
               Отмена
             </button>
             <button
               type='submit'
-              disabled={submitting}
+              disabled={pending}
               className='px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50'
             >
-              {submitting ? 'Отзываем…' : 'Отозвать'}
+              {pending ? 'Отзываем…' : 'Отозвать'}
             </button>
           </div>
         </form>
-      </dialog>
+      </Dialog>
     </>
   );
 }

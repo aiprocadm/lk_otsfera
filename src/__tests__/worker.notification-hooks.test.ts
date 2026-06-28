@@ -12,6 +12,12 @@ import type {
 import { resetOneCAdapter } from '@/lib/services/oneCSync';
 import type { SyncJobPayload } from '@/lib/jobs/types';
 
+// DOC-03: the document writer fetches the 1C file into object storage (S3); fixtures use
+// unfetchable URLs, so stub the fetch-store to return a deterministic storage key.
+vi.mock('@/lib/services/oneCSync/document-fetch', () => ({
+  fetchAndStore1CDocument: vi.fn(async (a: { orderId: string; name: string }) => `orders/${a.orderId}/1c/stored-${a.name}`)
+}));
+
 class ScriptedAdapter implements OneCAdapter {
   public orders: OneCOrderDto[] = [];
   public payments: OneCPaymentDto[] = [];
@@ -177,7 +183,7 @@ describe('syncPaymentsProcessor notification hook', () => {
     // seed an existing payment with same externalId
     const externalId = `nh-pay-existing-${Date.now()}`;
     await prisma.payment.create({
-      data: { externalId, orderId, amount: 50000, paidAt: new Date(), isRefund: false }
+      data: { externalId, organizationId: orgId, orderId, amount: 50000, paidAt: new Date(), isRefund: false }
     });
     adapter.payments = [
       {
@@ -258,7 +264,9 @@ describe('syncDocumentsProcessor notification hook', () => {
         mimeType: 'application/pdf',
         type: 'contract',
         direction: 'incoming',
-        generatedBy: 'system'
+        generatedBy: 'system',
+        counterpartyType: 'organization',
+        counterpartyId: orgId
       }
     });
     adapter.documents = [

@@ -1,0 +1,10 @@
+[worker] docs.generateCommissionXlsx failed { id: '431', error: 'S3_ENDPOINT is not configured' }
+[worker] docs.generateCommissionPdf failed { id: '431', error: 'S3_ENDPOINT is not configured' }
+[worker] docs.generateCommissionXlsx failed { id: '431', error: 'S3_ENDPOINT is not configured' }
+[worker] docs.generateCommissionPdf failed { id: '431', error: 'S3_ENDPOINT is not configured' }
+[worker] docs.generateCommissionXlsx failed { id: '431', error: 'S3_ENDPOINT is not configured' }
+[worker] docs.generateCommissionPdf failed { id: '431', error: 'S3_ENDPOINT is not configured' }
+[worker] docs.generateCommissionXlsx failed { id: '431', error: 'S3_ENDPOINT is not configured' }
+[worker] docs.generateCommissionPdf failed { id: '431', error: 'S3_ENDPOINT is not configured' }
+[worker] docs.generateCommissionXlsx failed { id: '431', error: 'S3_ENDPOINT is not configured' }
+[worker] docs.generateCommissionPdf failed { id: '431', error: 'S3_ENDPOINT is not configured' }

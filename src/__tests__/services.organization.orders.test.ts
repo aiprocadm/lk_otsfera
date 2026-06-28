@@ -98,7 +98,9 @@ beforeAll(async () => {
       path: 'fake://contract',
       mimeType: 'application/pdf',
       type: 'contract',
-      orderId: orderA1Id
+      orderId: orderA1Id,
+      counterpartyType: 'organization',
+      counterpartyId: orgAId
     }
   });
   await prisma.document.create({
@@ -108,11 +110,13 @@ beforeAll(async () => {
       mimeType: 'application/pdf',
       type: 'other',
       orderId: orderA1Id,
-      scanStatus: 'infected'
+      scanStatus: 'infected',
+      counterpartyType: 'organization',
+      counterpartyId: orgAId
     }
   });
   await prisma.payment.create({
-    data: { orderId: orderA1Id, amount: 25000, paidAt: new Date(), method: 'bank' }
+    data: { organizationId: orgAId, orderId: orderA1Id, amount: 25000, paidAt: new Date(), method: 'bank' }
   });
   await prisma.comment.create({
     data: { orderId: orderA1Id, body: 'first comment', authorId: managerId }

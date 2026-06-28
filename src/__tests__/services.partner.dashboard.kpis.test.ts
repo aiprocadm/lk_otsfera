@@ -16,42 +16,29 @@ beforeAll(async () => {
     data: { name: 'A', partnerId, companyId: company.id }
   });
 
-  await prisma.order.createMany({
-    data: [
-      {
-        title: 'Открытая 1', companyId: company.id, partnerId, organizationId: org.id,
-        totalAmount: 100000, paidAmount: 0,
-        executionStatus: 'in_progress', financialStatus: 'billed'
-      },
-      {
-        title: 'Открытая 2', companyId: company.id, partnerId, organizationId: org.id,
-        totalAmount: 80000, paidAmount: 30000,
-        executionStatus: 'in_progress', financialStatus: 'partially_paid'
-      },
-      {
-        title: 'Завершённая, оплачена в этом месяце', companyId: company.id, partnerId, organizationId: org.id,
-        totalAmount: 200000, paidAmount: 200000,
-        executionStatus: 'completed', financialStatus: 'paid',
-        closedAt: new Date(),
-        paidAt: new Date()
-      },
-      {
-        title: 'Отменённая', companyId: company.id, partnerId, organizationId: org.id,
-        totalAmount: 500000, paidAmount: 0,
-        executionStatus: 'cancelled', financialStatus: 'not_billed'
-      }
-    ]
-  });
-
   const u = await prisma.user.create({
     data: { email: `kpi-${Date.now()}@t.local`, passwordHash: 'x', name: 'L', role: 'partner', partnerId }
   });
+
+  // F2: a partner sees an order ONLY via its own lead. Each order is created then
+  // linked to a promoting lead (promotedOrderId), so the dashboard counts it.
+  const orders = [
+    { title: 'Открытая 1', totalAmount: 100000, paidAmount: 0, executionStatus: 'in_progress' as const, financialStatus: 'billed' as const },
+    { title: 'Открытая 2', totalAmount: 80000, paidAmount: 30000, executionStatus: 'in_progress' as const, financialStatus: 'partially_paid' as const },
+    { title: 'Завершённая, оплачена в этом месяце', totalAmount: 200000, paidAmount: 200000, executionStatus: 'completed' as const, financialStatus: 'paid' as const, closedAt: new Date(), paidAt: new Date() },
+    { title: 'Отменённая', totalAmount: 500000, paidAmount: 0, executionStatus: 'cancelled' as const, financialStatus: 'not_billed' as const }
+  ];
+  for (const od of orders) {
+    const order = await prisma.order.create({ data: { ...od, companyId: company.id, partnerId, organizationId: org.id } });
+    await prisma.lead.create({ data: { partnerId, createdByUserId: u.id, organizationId: org.id, clientCompanyName: od.title, clientContactName: 'X', subject: od.title, status: 'promoted_to_order', productType: [], promotedOrderId: order.id } });
+  }
+
+  // Active/other leads for the activeLeads KPI (not promoted to orders).
   await prisma.lead.createMany({
     data: [
       { partnerId, createdByUserId: u.id, clientCompanyName: 'L1', clientContactName: 'X', subject: 'S1', status: 'new', productType: [] },
       { partnerId, createdByUserId: u.id, clientCompanyName: 'L2', clientContactName: 'X', subject: 'S2', status: 'in_review', productType: [] },
       { partnerId, createdByUserId: u.id, clientCompanyName: 'L3', clientContactName: 'X', subject: 'S3', status: 'qualified', productType: [] },
-      { partnerId, createdByUserId: u.id, clientCompanyName: 'L4', clientContactName: 'X', subject: 'S4', status: 'promoted_to_order', productType: [] },
       { partnerId, createdByUserId: u.id, clientCompanyName: 'L5', clientContactName: 'X', subject: 'S5', status: 'rejected', productType: [] }
     ]
   });

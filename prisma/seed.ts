@@ -7,6 +7,7 @@ import { syncOrdersProcessor } from '../src/worker/processors/sync-orders';
 import { syncPaymentsProcessor } from '../src/worker/processors/sync-payments';
 import { syncDocumentsProcessor } from '../src/worker/processors/sync-documents';
 import { calculateStatementForPartner } from '../src/lib/services/commission/statement';
+import { recordAudit } from '../src/lib/auth/audit';
 import type { SyncJobPayload } from '../src/lib/jobs/types';
 
 const PARTNER_SLUG = '1c-partner-001';
@@ -30,7 +31,7 @@ async function main() {
     update: {},
     create: { id: 'demo-company', name: 'Demo LLC' }
   });
-  await prisma.user.upsert({
+  const admin = await prisma.user.upsert({
     where: { email: 'admin@demo.local' },
     update: {},
     create: {
@@ -84,7 +85,7 @@ async function main() {
 
   const firstOrg = await prisma.organization.findFirst({
     where: { partnerId: partner.id, externalId: '1c-org-001' },
-    select: { id: true }
+    select: { id: true, companyId: true }
   });
   const managerScope = firstOrg ? [firstOrg.id] : [];
 
@@ -129,6 +130,13 @@ async function main() {
   if (!firstOrg) {
     throw new Error('[seed] expected firstOrg to be populated by sync-organizations — cannot attach demo commission order');
   }
+  if (!firstOrg.companyId) {
+    throw new Error('[seed] firstOrg has no companyId — leader/manager company-wide scope would be empty');
+  }
+  // Единая компания для заказов, менеджера и руководителя: синканные заказы и orgs
+  // живут в компании firstOrg (sync-organizations создаёт по компании на org), а
+  // company-wide выборки лидера фильтруют по этому companyId.
+  const demoCompanyId = firstOrg.companyId;
 
   await prisma.order.upsert({
     where: { id: 'demo-order-commission' },
@@ -138,7 +146,7 @@ async function main() {
       externalId: 'DEMO-COMM-001',
       orderNumber: 'DEMO-COMM-001',
       title: 'Демо-заказ для комиссии',
-      companyId: company.id,
+      companyId: demoCompanyId,
       partnerId: partner.id,
       organizationId: firstOrg.id,
       totalAmount: 100000,
@@ -159,15 +167,19 @@ async function main() {
     }
   });
 
+  let demoStatementId: string;
   if (!existingStatement) {
-    const { statement, itemCount } = await calculateStatementForPartner(prisma, {
+    const result = await calculateStatementForPartner(prisma, {
       partnerId: partner.id,
       periodFrom: prevMonthFrom,
       periodTo: prevMonthTo,
       calculatedByUserId: null
     });
-    console.log(`[seed] created commission statement ${statement.id} with ${itemCount} items`);
+    if (!result.ok) throw new Error(`[seed] commission statement calc failed: ${result.error}`);
+    demoStatementId = result.statement.id;
+    console.log(`[seed] created commission statement ${result.statement.id} with ${result.itemCount} items`);
   } else {
+    demoStatementId = existingStatement.id;
     console.log(`[seed] commission statement already exists: ${existingStatement.id}`);
   }
 
@@ -195,11 +207,171 @@ async function main() {
     });
   }
 
+  // ─── Demo: manager user assigned to firstOrg (for e2e + manual smoke) ──
+  // companyId привязан к компании firstOrg — иначе менеджер не попадёт в ростер
+  // руководителя (listCompanyManagers фильтрует по User.companyId).
+  if (firstOrg) {
+    const managerUser = await prisma.user.upsert({
+      where: { email: 'manager@demo.local' },
+      update: { role: 'manager', isActive: true, passwordHash, name: 'Demo Manager', companyId: demoCompanyId },
+      create: {
+        email: 'manager@demo.local',
+        name: 'Demo Manager',
+        passwordHash,
+        role: 'manager',
+        companyId: demoCompanyId
+      }
+    });
+    await prisma.organizationManager.upsert({
+      where: {
+        organizationId_userId: { organizationId: firstOrg.id, userId: managerUser.id }
+      },
+      update: { isActive: true, deactivatedAt: null },
+      create: {
+        organizationId: firstOrg.id,
+        userId: managerUser.id,
+        isActive: true
+      }
+    });
+  }
+
+  // ─── Demo: manager-leader (кнопка «Руководитель» на /login) ─────────
+  // ВАЖНО: companyId обязателен — company-wide scope лидера выводится из него
+  // (companyId=null деградирует в deny/скоуп, см. managerPolicy). Привязываем к
+  // компании firstOrg — там живут синканные заказы и orgs, иначе кабинет пуст.
+  if (firstOrg) {
+    await prisma.user.upsert({
+      where: { email: 'leader@demo.local' },
+      update: { role: 'manager', managerRole: 'leader', isActive: true, passwordHash, name: 'Demo Leader', companyId: demoCompanyId },
+      create: {
+        email: 'leader@demo.local',
+        name: 'Demo Leader',
+        passwordHash,
+        role: 'manager',
+        managerRole: 'leader',
+        companyId: demoCompanyId
+      }
+    });
+  }
+
+  // ─── Demo: student user (для кнопки «Студент» на /login) ────────────
+  await prisma.user.upsert({
+    where: { email: 'student@demo.local' },
+    update: { role: 'student', isActive: true, passwordHash, name: 'Demo Student' },
+    create: {
+      email: 'student@demo.local',
+      name: 'Demo Student',
+      passwordHash,
+      role: 'student'
+    }
+  });
+
+  // ─── Admin-facing fixtures (6.7): norate partner, org rate override, audit sample ──
+  // A second partner with commissionRate = 0 powers the dashboard "Партнёры без
+  // ставки" attention item and the /admin/partners?filter=norate filter. Fixed id
+  // so the admin-partners edit e2e snapshot can navigate to it deterministically.
+  const noRatePartner = await prisma.partner.upsert({
+    where: { slug: 'demo-partner-norate' },
+    update: { commissionRate: 0, isActive: true },
+    create: {
+      id: 'demo-partner-norate',
+      name: 'ООО «Демо-Партнёр без ставки»',
+      legalName: 'ООО «Демо-Партнёр без ставки»',
+      slug: 'demo-partner-norate',
+      commissionRate: 0,
+      isActive: true
+    }
+  });
+
+  // One organization carries an explicit partner-commission-rate override so the
+  // admin org-edit page (and its e2e snapshot) renders the override block.
+  if (firstOrg) {
+    await prisma.organization.update({
+      where: { id: firstOrg.id },
+      data: {
+        partnerCommissionRate: 0.15,
+        partnerCommissionRateNote: 'Индивидуальная ставка для демо-организации',
+        partnerCommissionRateChangedAt: new Date(),
+        partnerCommissionRateChangedBy: admin.id
+      }
+    });
+  }
+
+  // A spread of audit entries across entities/actions so the /admin/audit viewer
+  // and the dashboard events feed have content. Guarded by a sentinel lookup so
+  // re-running the seed doesn't pile up duplicates (recordAudit always inserts).
+  const demoAuditSeeded = await prisma.auditLog.findFirst({
+    where: { action: 'partner_created', entity: 'partner', entityId: noRatePartner.id }
+  });
+  if (!demoAuditSeeded) {
+    const auditSamples: Array<Parameters<typeof recordAudit>[1]> = [
+      {
+        userId: admin.id,
+        action: 'partner_created',
+        entity: 'partner',
+        entityId: noRatePartner.id,
+        after: { name: noRatePartner.name, commissionRate: '0' }
+      },
+      {
+        userId: admin.id,
+        action: 'partner_commission_rate_changed',
+        entity: 'partner',
+        entityId: partner.id,
+        before: { commissionRate: '0.05' },
+        after: { commissionRate: '0.10' }
+      },
+      {
+        userId: admin.id,
+        action: 'organization_rate_override',
+        entity: 'organization',
+        entityId: firstOrg.id,
+        after: { partnerCommissionRate: '0.15' }
+      },
+      {
+        userId: admin.id,
+        action: 'user_role_changed',
+        entity: 'user',
+        entityId: partnerManager.id,
+        before: { role: 'student' },
+        after: { role: 'partner' }
+      },
+      {
+        userId: admin.id,
+        action: 'commission_statement_approved',
+        entity: 'commission_statement',
+        entityId: demoStatementId
+      }
+    ];
+    for (const rec of auditSamples) {
+      await recordAudit(prisma, rec);
+    }
+    console.log(`[seed] inserted ${auditSamples.length} demo audit-log entries`);
+  }
+
+  // ─── Справочник направлений обучения (§19) ──────────────────────────
+  const TRAINING_DIRECTIONS = [
+    { slug: 'labor-safety', name: 'Охрана труда', sortOrder: 1 },
+    { slug: 'fire-safety', name: 'Пожарная безопасность', sortOrder: 2 },
+    { slug: 'electrical-safety', name: 'Электробезопасность', sortOrder: 3 },
+    { slug: 'other', name: 'Другое', sortOrder: 99 }
+  ];
+  for (const d of TRAINING_DIRECTIONS) {
+    await prisma.trainingDirection.upsert({
+      where: { slug: d.slug },
+      update: { name: d.name, sortOrder: d.sortOrder },
+      create: d
+    });
+  }
+  console.log(`Seeded ${TRAINING_DIRECTIONS.length} training directions`);
+
   console.log('[seed] demo accounts (password = ' + PASSWORD + '):');
   console.log('  - admin@demo.local (role=admin)');
   console.log('  - partner@demo.local (partner admin, sees all orgs)');
   console.log('  - partner-mgr@demo.local (partner manager, scope=' + managerScope.length + ' org)');
   console.log('  - org@demo.local (organization admin, membership in firstOrg)');
+  console.log('  - manager@demo.local (cabinet manager, assigned to firstOrg)');
+  console.log('  - leader@demo.local (manager-leader, company-wide)');
+  console.log('  - student@demo.local (role=student, лендинг /student)');
   console.log('[seed] done');
 }
 

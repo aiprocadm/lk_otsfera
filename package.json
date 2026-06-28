@@ -1,9 +1,10 @@
 {
   "name": "lk-otsfera",
-  "version": "0.1.0",
+  "version": "0.9.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:stack": "pwsh -File scripts/dev-stack.ps1",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -11,19 +12,38 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed.ts",
+    "db:recreate-local": "tsx scripts/recreate-local-db.ts",
+    "db:create-admin": "tsx scripts/create-admin.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:unit": "vitest run --mode=unit",
+    "test:integration": "vitest run --mode=integration",
+    "test:coverage": "vitest run --coverage",
+    "test:coverage:unit": "vitest run --mode=unit --coverage",
     "test:watch": "vitest",
+    "test:changed": "vitest run --mode=unit --changed --bail=1 --no-coverage",
+    "gate": "tsx scripts/gate.ts",
+    "gate:down": "tsx scripts/gate.ts --down",
+    "preflight:inn": "tsx scripts/preflight-inn-unique.ts",
+    "dedupe:commission": "tsx scripts/dedupe-commission-statements.ts",
     "e2e:visual": "playwright test",
     "e2e:visual:update": "playwright test --update-snapshots",
     "worker": "tsx src/worker/index.ts",
     "worker:dev": "tsx watch src/worker/index.ts",
-    "format": "prettier --write ."
+    "mock:1c": "tsx mock-1c/main.ts",
+    "format": "prettier --write .",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx}": [
+      "eslint --max-warnings=0"
+    ]
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1073.0",
+    "@aws-sdk/s3-request-presigner": "^3.1073.0",
     "@prisma/client": "^5.14.0",
     "@react-pdf/renderer": "^4.5.1",
-    "@supabase/supabase-js": "^2.49.8",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.76.10",
     "clsx": "^2.1.1",
@@ -32,6 +52,7 @@
     "jose": "^5.9.6",
     "lucide-react": "^0.511.0",
     "next": "^15.0.0",
+    "prisma": "^5.14.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -39,6 +60,8 @@
     "resend": "^6.12.3",
     "sonner": "^2.0.3",
     "tailwind-merge": "^3.3.0",
+    "tsx": "^4.19.4",
+    "xlsx": "^0.18.5",
     "zod": "^3.24.4"
   },
   "devDependencies": {
@@ -48,13 +71,14 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.1.3",
     "@types/react-dom": "^19.1.3",
+    "@vitest/coverage-v8": "^2.1.9",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.6",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.5",
     "postcss": "^8.5.3",
-    "prisma": "^5.14.0",
     "tailwindcss": "^3.4.17",
-    "tsx": "^4.19.4",
     "typescript": "^5.8.3",
     "vitest": "^2.1.8"
   }

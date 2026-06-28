@@ -37,7 +37,7 @@ export default defineConfig({
       testMatch: /auth\.setup\.ts/,
     },
     // Partner cabinet snapshots — anything in snapshots/ that isn't prefixed
-    // with `organization-`. Uses the partner storageState.
+    // with `organization-` or `manager-`. Uses the partner storageState.
     {
       name: 'desktop',
       use: {
@@ -46,7 +46,7 @@ export default defineConfig({
         storageState: 'playwright-report/.auth/partner.json',
       },
       dependencies: ['setup'],
-      testMatch: /snapshots\/(?!organization-).*\.spec\.ts/,
+      testMatch: /snapshots\/(?!organization-|manager-|admin-).*\.spec\.ts/,
     },
     {
       name: 'mobile',
@@ -56,7 +56,7 @@ export default defineConfig({
         storageState: 'playwright-report/.auth/partner.json',
       },
       dependencies: ['setup'],
-      testMatch: /snapshots\/(?!organization-).*\.spec\.ts/,
+      testMatch: /snapshots\/(?!organization-|manager-|admin-).*\.spec\.ts/,
     },
     // Organization cabinet snapshots — only files prefixed with `organization-`.
     // Uses the organization storageState.
@@ -80,6 +80,50 @@ export default defineConfig({
       dependencies: ['setup'],
       testMatch: /snapshots\/organization-.*\.spec\.ts/,
     },
+    // Manager cabinet snapshots — only files prefixed with `manager-`. Uses
+    // the manager storageState seeded by `manager@demo.local` in prisma/seed.ts.
+    {
+      name: 'mgr-desktop',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1280, height: 800 },
+        storageState: 'playwright-report/.auth/manager.json',
+      },
+      dependencies: ['setup'],
+      testMatch: /snapshots\/manager-.*\.spec\.ts/,
+    },
+    {
+      name: 'mgr-mobile',
+      use: {
+        ...devices['iPhone 13'],
+        viewport: { width: 375, height: 667 },
+        storageState: 'playwright-report/.auth/manager.json',
+      },
+      dependencies: ['setup'],
+      testMatch: /snapshots\/manager-.*\.spec\.ts/,
+    },
+    // Admin cabinet snapshots — only files prefixed with `admin-`. Uses the
+    // admin storageState seeded by `admin@demo.local` in prisma/seed.ts.
+    {
+      name: 'admin-desktop',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1280, height: 800 },
+        storageState: 'playwright-report/.auth/admin.json',
+      },
+      dependencies: ['setup'],
+      testMatch: /snapshots\/admin-.*\.spec\.ts/,
+    },
+    {
+      name: 'admin-mobile',
+      use: {
+        ...devices['iPhone 13'],
+        viewport: { width: 375, height: 667 },
+        storageState: 'playwright-report/.auth/admin.json',
+      },
+      dependencies: ['setup'],
+      testMatch: /snapshots\/admin-.*\.spec\.ts/,
+    },
   ],
   webServer: process.env.PLAYWRIGHT_BASE_URL
     ? undefined
@@ -88,5 +132,14 @@ export default defineConfig({
         url: 'http://localhost:3000',
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
+        // organization_cabinet / manager_cabinet are opt-in flags (off by
+        // default for staged rollout, see src/lib/featureFlags.ts). Their e2e
+        // specs need the cabinets live, so enable both for the test dev-server.
+        // Playwright merges this onto process.env, so .env (DATABASE_URL, …)
+        // is preserved.
+        env: {
+          FEATURE_ORGANIZATION_CABINET: '1',
+          FEATURE_MANAGER_CABINET: '1',
+        },
       },
 });

@@ -1,8 +1,9 @@
 import { Worker, type Processor } from 'bullmq';
 import { getRedisConnection, closeRedisConnection } from '@/lib/jobs/connection';
-import { closeAllQueues, type QueueName } from '@/lib/jobs/queues';
-import { registerSyncSchedules, registerCommissionSchedules } from '@/lib/jobs/scheduling';
+import { closeAllQueues, getQueue, type QueueName } from '@/lib/jobs/queues';
+import { registerSyncSchedules, registerCommissionSchedules, registerAlertSchedules, registerCertExpirySchedules, loadPausedSchedulerIds } from '@/lib/jobs/scheduling';
 import { prisma } from '@/lib/db/prisma';
+import { toBullProcessor } from './to-bull-processor';
 import { syncOrdersProcessor } from './processors/sync-orders';
 import { syncPaymentsProcessor } from './processors/sync-payments';
 import { syncDocumentsProcessor } from './processors/sync-documents';
@@ -13,12 +14,16 @@ import { generateCommissionPdfProcessor } from './processors/generate-commission
 import { generateCommissionXlsxProcessor } from './processors/generate-commission-xlsx';
 import { calculateMonthlyCommissionsProcessor } from './processors/calculate-monthly-commissions';
 import { scanDocumentProcessor } from './processors/scan-document';
+import { evaluateAlertsProcessor } from './processors/evaluate-alerts';
+import { certificateExpiryProcessor } from './processors/certificate-expiry';
 import type { PushLeadJobPayload } from '@/lib/jobs/types';
 
 const workers: Worker[] = [];
 
 function startWorker<T = unknown>(queueName: QueueName, processor: Processor<T>): Worker {
-  const worker = new Worker(queueName, processor, {
+  // toBullProcessor: forward only `job`, so each processor's injected `db = prisma`
+  // default survives (BullMQ would otherwise pass its token string into that slot).
+  const worker = new Worker(queueName, toBullProcessor(processor), {
     connection: getRedisConnection(),
     autorun: true
   });
@@ -61,11 +66,16 @@ async function main() {
   startWorker('docs.generateCommissionXlsx', generateCommissionXlsxProcessor as Processor);
   startWorker('docs.calculateMonthlyCommissions', calculateMonthlyCommissionsProcessor as Processor);
   startWorker('docs.scanDocument', scanDocumentProcessor as Processor);
+  startWorker('monitoring.evaluateAlerts', evaluateAlertsProcessor as Processor);
+  startWorker('notifications.certificateExpiry', certificateExpiryProcessor as Processor);
 
   if (process.env.ENABLE_SYNC_CRON === '1') {
-    const syncSchedules = await registerSyncSchedules();
+    const pausedIds = await loadPausedSchedulerIds(prisma);
+    const syncSchedules = await registerSyncSchedules(getQueue, pausedIds);
     const commissionSchedules = await registerCommissionSchedules();
-    for (const r of [...syncSchedules, ...commissionSchedules]) {
+    const alertSchedules = await registerAlertSchedules();
+    const certExpirySchedules = await registerCertExpirySchedules();
+    for (const r of [...syncSchedules, ...commissionSchedules, ...alertSchedules, ...certExpirySchedules]) {
       console.log('[worker] schedule registered', {
         schedulerId: r.schedulerId,
         queue: r.queueName,

@@ -1,6 +1,13 @@
-import { describe, expect, it, beforeAll, afterAll } from 'vitest';
+import { describe, expect, it, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import type { Job } from 'bullmq';
 import { PrismaClient } from '@prisma/client';
+
+// DOC-03: the writer now fetches the 1C file into object storage (S3) and stores a bucket
+// key. The fake adapter emits unfetchable `fake://` URLs, so stub the fetch-store
+// to return a deterministic storage key (no network / no object storage in tests).
+vi.mock('@/lib/services/oneCSync/document-fetch', () => ({
+  fetchAndStore1CDocument: vi.fn(async (a: { orderId: string; name: string }) => `orders/${a.orderId}/1c/stored-${a.name}`)
+}));
 import { syncOrganizationsProcessor } from '@/worker/processors/sync-organizations';
 import { syncOrdersProcessor } from '@/worker/processors/sync-orders';
 import { syncPaymentsProcessor } from '@/worker/processors/sync-payments';
@@ -54,12 +61,17 @@ async function cleanupOrgs() {
   }
 }
 async function cleanupAll() {
+  await prisma.syncState.deleteMany({});
   await cleanupDocs();
   await cleanupPayments();
   await cleanupOrders();
   await cleanupOrgs();
 }
 
+// Robust cascade: deletes EVERYTHING transitively under a partner in correct FK
+// order. Must tolerate rows other tests attached to this partner's shared seed
+// data (e.g. comments on its orders, audit logs for its users) — the suite
+// shares one Postgres, so this teardown can't assume it created all the children.
 async function deletePartnerCascade(pid: string) {
   const orgs = await prisma.organization.findMany({
     where: { partnerId: pid },
@@ -70,11 +82,36 @@ async function deletePartnerCascade(pid: string) {
 
   const orderIds = (
     await prisma.order.findMany({
-      where: { OR: [{ partnerId: pid }, { companyId: { in: companyIds } }] },
+      where: {
+        OR: [{ partnerId: pid }, { companyId: { in: companyIds } }, { organizationId: { in: orgIds } }]
+      },
       select: { id: true }
     })
   ).map((o) => o.id);
+
+  const userIds = (
+    await prisma.user.findMany({ where: { partnerId: pid }, select: { id: true } })
+  ).map((u) => u.id);
+
+  // Leads FK orders (promotedOrderId) and users (createdBy/assignedManager),
+  // so they (and their attachments) must die before both.
+  const leadIds = (
+    await prisma.lead.findMany({
+      where: { OR: [{ partnerId: pid }, { organizationId: { in: orgIds } }] },
+      select: { id: true }
+    })
+  ).map((l) => l.id);
+  if (leadIds.length) {
+    await prisma.leadAttachment.deleteMany({ where: { leadId: { in: leadIds } } });
+    await prisma.lead.deleteMany({ where: { id: { in: leadIds } } });
+  }
+
+  // Order children → orders. Comment and Upload also FK Order and were missing
+  // before — another test leaving a comment on this partner's seed order would
+  // make the bare order.deleteMany() throw.
   if (orderIds.length) {
+    await prisma.comment.deleteMany({ where: { orderId: { in: orderIds } } });
+    await prisma.upload.deleteMany({ where: { orderId: { in: orderIds } } });
     await prisma.document.deleteMany({ where: { orderId: { in: orderIds } } });
     await prisma.payment.deleteMany({ where: { orderId: { in: orderIds } } });
     // CommissionStatementItem has FKs to both Order and CommissionStatement —
@@ -83,14 +120,28 @@ async function deletePartnerCascade(pid: string) {
     await prisma.order.deleteMany({ where: { id: { in: orderIds } } });
   }
 
-  await prisma.lead.deleteMany({ where: { partnerId: pid } });
   await prisma.commissionStatementItem.deleteMany({ where: { statement: { partnerId: pid } } });
   await prisma.commissionStatement.deleteMany({ where: { partnerId: pid } });
+
+  // Everything FK-ing the partner's users must die before the users themselves.
+  if (userIds.length) {
+    await prisma.auditLog.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.savedView.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.studentBridgeGrant.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.passwordResetToken.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.comment.deleteMany({ where: { authorId: { in: userIds } } });
+    await prisma.notification.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.organizationManager.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.organizationUser.deleteMany({ where: { userId: { in: userIds } } });
+  }
   await prisma.notification.deleteMany({ where: { partnerId: pid } });
   await prisma.partnerUser.deleteMany({ where: { partnerId: pid } });
   await prisma.user.deleteMany({ where: { partnerId: pid } });
+
   if (orgIds.length) {
+    await prisma.notification.deleteMany({ where: { organizationId: { in: orgIds } } });
     await prisma.organizationUser.deleteMany({ where: { organizationId: { in: orgIds } } });
+    await prisma.organizationManager.deleteMany({ where: { organizationId: { in: orgIds } } });
     await prisma.student.deleteMany({ where: { organizationId: { in: orgIds } } });
     await prisma.organization.deleteMany({ where: { id: { in: orgIds } } });
   }
@@ -124,9 +175,16 @@ afterAll(async () => {
   await prisma.syncLog.deleteMany({
     where: { entity: { in: ['organization', 'order', 'payment', 'document'] } }
   });
+  await prisma.syncState.deleteMany({});
   await deletePartnerCascade(partnerId);
   resetOneCAdapter();
   await prisma.$disconnect();
+});
+
+beforeEach(async () => {
+  // Every test starts from an empty cursor → full pull → existing assertions hold.
+  // The one incremental test below clears once then runs the processor twice itself.
+  await prisma.syncState.deleteMany({});
 });
 
 describe('syncOrganizationsProcessor', () => {
@@ -266,7 +324,7 @@ describe('syncOrdersProcessor', () => {
     );
     const orderByExt = new Map(orders.map((o) => [o.externalId, o.organizationId]));
     for (const fakeOrder of FAKE_ORDERS) {
-      const expectedOrgId = orgByExt.get(fakeOrder.organizationExternalId);
+      const expectedOrgId = orgByExt.get(fakeOrder.organizationExternalId!);
       expect(orderByExt.get(fakeOrder.externalId)).toBe(expectedOrgId);
     }
   });
@@ -335,6 +393,28 @@ describe('syncOrdersProcessor', () => {
 
     await syncOrganizationsProcessor(job(), prisma);
   });
+
+  it('advances the cursor so a re-run only re-pulls within the 5-min overlap window', async () => {
+    process.env.ONE_C_CURSOR_OVERLAP_MINUTES = '5';
+    await cleanupDocs();
+    await cleanupPayments();
+    await cleanupOrders();
+    await prisma.syncState.deleteMany({});
+
+    const first = await syncOrdersProcessor(job(), prisma);
+    expect(first.created).toBe(FAKE_ORDERS.length);
+
+    // Second run WITHOUT clearing the cursor: only orders with updatedAt within
+    // 5 min of the max watermark are re-pulled. FAKE_ORDERS have distinct, days-apart
+    // updatedAt, so exactly the newest one falls inside the overlap window.
+    const second = await syncOrdersProcessor(job(), prisma);
+    expect(second.pulled).toBe(1);
+    expect(second.created).toBe(0);
+    expect(second.updated).toBe(1);
+
+    delete process.env.ONE_C_CURSOR_OVERLAP_MINUTES;
+    await prisma.syncState.deleteMany({});
+  });
 });
 
 describe('syncPaymentsProcessor', () => {
@@ -397,7 +477,9 @@ describe('syncDocumentsProcessor', () => {
     for (const d of docs) {
       expect(d.direction).toBe('incoming');
       expect(d.generatedBy).toBe('system');
-      expect(d.path).toMatch(/^fake:\/\//);
+      // DOC-03: path is now an object storage (S3) key, never the external 1C URL.
+      expect(d.path).toMatch(/^orders\//);
+      expect(d.path).not.toMatch(/^fake:\/\//);
     }
     expect(docs.map((d) => d.type).sort()).toEqual(['act', 'contract', 'invoice']);
   });

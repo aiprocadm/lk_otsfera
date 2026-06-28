@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { BackLink } from '@/components/ui';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
 import { requireAdmin } from '@/lib/auth/requireRole';
@@ -7,6 +7,7 @@ import {
   getStatementAuditLog,
 } from '@/lib/services/admin/commissionStatements';
 import { MarkPaidForm } from '@/components/admin/mark-paid-form';
+import { fmtMoney, fmtDate, fmtDateTime } from '@/lib/format';
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Черновик',
@@ -28,13 +29,6 @@ const ACTION_LABELS: Record<string, string> = {
   commission_statement_paid: 'Выплачен',
 };
 
-function fmtMoney(val: unknown): string {
-  const n = Number(val);
-  return Number.isFinite(n)
-    ? new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n) + ' ₽'
-    : '—';
-}
-
 function fmtPeriod(from: Date, to: Date): string {
   const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
   const f = new Date(from);
@@ -42,18 +36,7 @@ function fmtPeriod(from: Date, to: Date): string {
   if (f.getMonth() === t.getMonth() && f.getFullYear() === t.getFullYear()) {
     return `${months[f.getMonth()]} ${f.getFullYear()}`;
   }
-  return `${f.toLocaleDateString('ru-RU')} — ${t.toLocaleDateString('ru-RU')}`;
-}
-
-function fmtDate(d: Date | null): string {
-  if (!d) return '—';
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(d);
+  return `${fmtDate(f)} — ${fmtDate(t)}`;
 }
 
 export default async function AdminCommissionStatementDetailPage({
@@ -61,7 +44,7 @@ export default async function AdminCommissionStatementDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await requireAdmin();
+  await requireAdmin();
 
   const { id } = await params;
   const [statement, audit] = await Promise.all([
@@ -73,9 +56,7 @@ export default async function AdminCommissionStatementDetailPage({
   return (
     <div className='space-y-5'>
       <div className='flex items-center gap-3 text-sm text-gray-500'>
-        <Link href='/admin/commission-statements' className='hover:text-[#F97316]'>
-          ← Все отчёты
-        </Link>
+        <BackLink href='/admin/commission-statements' label='Все отчёты' />
       </div>
 
       <div className='bg-white border border-gray-200 rounded-xl p-6 space-y-4'>
@@ -103,18 +84,18 @@ export default async function AdminCommissionStatementDetailPage({
           <div>
             <div className='text-xs text-gray-500'>База, всего</div>
             <div className='font-semibold text-[#111111] tabular-nums'>
-              {fmtMoney(statement.totalBaseAmount)}
+              {fmtMoney(String(statement.totalBaseAmount))}
             </div>
           </div>
           <div>
             <div className='text-xs text-gray-500'>Комиссия, всего</div>
             <div className='font-semibold text-[#F97316] tabular-nums'>
-              {fmtMoney(statement.totalCommissionAmount)}
+              {fmtMoney(String(statement.totalCommissionAmount))}
             </div>
           </div>
           <div>
             <div className='text-xs text-gray-500'>Выплачено</div>
-            <div className='font-semibold text-[#111111] tabular-nums'>{fmtDate(statement.paidAt)}</div>
+            <div className='font-semibold text-[#111111] tabular-nums'>{statement.paidAt ? fmtDateTime(statement.paidAt) : '—'}</div>
           </div>
         </div>
 
@@ -152,11 +133,11 @@ export default async function AdminCommissionStatementDetailPage({
         <table className='w-full text-sm mt-3'>
           <thead className='bg-gray-50 text-gray-600'>
             <tr>
-              <th className='text-left px-4 py-3 font-medium'>Заказ</th>
-              <th className='text-left px-4 py-3 font-medium'>Организация</th>
-              <th className='text-right px-4 py-3 font-medium'>База</th>
-              <th className='text-right px-4 py-3 font-medium'>Ставка</th>
-              <th className='text-right px-4 py-3 font-medium'>Комиссия</th>
+              <th scope='col' className='text-left px-4 py-3 font-medium'>Заказ</th>
+              <th scope='col' className='text-left px-4 py-3 font-medium'>Организация</th>
+              <th scope='col' className='text-right px-4 py-3 font-medium'>База</th>
+              <th scope='col' className='text-right px-4 py-3 font-medium'>Ставка</th>
+              <th scope='col' className='text-right px-4 py-3 font-medium'>Комиссия</th>
             </tr>
           </thead>
           <tbody>
@@ -172,13 +153,13 @@ export default async function AdminCommissionStatementDetailPage({
                 <td className='px-4 py-2 text-gray-700'>{item.orderNumber ?? '—'}</td>
                 <td className='px-4 py-2 text-gray-700'>{item.organizationName}</td>
                 <td className='px-4 py-2 text-right tabular-nums text-gray-700'>
-                  {fmtMoney(item.baseAmount)}
+                  {fmtMoney(String(item.baseAmount))}
                 </td>
                 <td className='px-4 py-2 text-right tabular-nums text-gray-500'>
                   {(Number(item.rate) * 100).toFixed(2)}%
                 </td>
                 <td className='px-4 py-2 text-right tabular-nums font-medium text-[#111111]'>
-                  {fmtMoney(item.commissionAmount)}
+                  {fmtMoney(String(item.commissionAmount))}
                 </td>
               </tr>
             ))}
@@ -205,7 +186,7 @@ export default async function AdminCommissionStatementDetailPage({
                     {entry.userName ?? entry.userId}
                   </div>
                 </div>
-                <div className='text-xs text-gray-500 tabular-nums'>{fmtDate(entry.createdAt)}</div>
+                <div className='text-xs text-gray-500 tabular-nums'>{fmtDateTime(entry.createdAt)}</div>
               </li>
             ))}
           </ol>

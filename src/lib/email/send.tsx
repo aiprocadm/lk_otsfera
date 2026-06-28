@@ -29,6 +29,34 @@ import {
   OrgPaymentReceivedTemplate,
   orgPaymentReceivedSubject,
   orgPaymentReceivedText,
+  OrgManagerRepliedTemplate,
+  orgManagerRepliedSubject,
+  orgManagerRepliedText,
+  ManagerCommentFromOrg,
+  managerCommentFromOrgSubject,
+  managerCommentFromOrgText,
+  ManagerDocumentUploadedByOrg,
+  managerDocumentUploadedByOrgSubject,
+  managerDocumentUploadedByOrgText,
+  ManagerDocumentUploadedByPartner,
+  managerDocumentUploadedByPartnerSubject,
+  managerDocumentUploadedByPartnerText,
+  ManagerOrderMarkedPaidBy1C,
+  managerOrderMarkedPaidBy1CSubject,
+  managerOrderMarkedPaidBy1CText,
+  ManagerOrderStatusChanged,
+  managerOrderStatusChangedSubject,
+  managerOrderStatusChangedText,
+  ManagerInviteTemplate,
+  managerInviteSubject,
+  managerInviteText,
+  AdminUserInviteTemplate,
+  adminUserInviteSubject,
+  adminUserInviteText,
+  PartnerDocumentPublished,
+  partnerDocumentPublishedSubject,
+  partnerDocumentPublishedText,
+  type PartnerDocumentPublishedProps,
   type CommissionReadyProps,
   type DocumentUploadedProps,
   type LeadPromotedProps,
@@ -37,6 +65,14 @@ import {
   type OrgInviteProps,
   type OrgOrderStatusChangedProps,
   type OrgPaymentReceivedProps,
+  type OrgManagerRepliedProps,
+  type ManagerCommentFromOrgProps,
+  type ManagerDocumentUploadedByOrgProps,
+  type ManagerDocumentUploadedByPartnerProps,
+  type ManagerOrderMarkedPaidBy1CProps,
+  type ManagerOrderStatusChangedProps,
+  type ManagerInviteProps,
+  type AdminUserInviteProps,
 } from './templates';
 
 export type SendOptions = {
@@ -211,6 +247,150 @@ export async function sendOrgOrderStatusChangedEmail(
       subject: orgOrderStatusChangedSubject(props),
       html: await renderHtml(<OrgOrderStatusChangedTemplate {...props} />),
       text: orgOrderStatusChangedText(props),
+    },
+    options,
+  );
+}
+
+export async function sendOrgManagerRepliedEmail(
+  args: { to: string } & OrgManagerRepliedProps,
+  options: SendOptions = {},
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: orgManagerRepliedSubject(props),
+      html: await renderHtml(<OrgManagerRepliedTemplate {...props} />),
+      text: orgManagerRepliedText(props),
+    },
+    options,
+  );
+}
+
+export async function sendManagerCommentFromOrgEmail(
+  args: { to: string } & ManagerCommentFromOrgProps,
+  options: SendOptions = {},
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: managerCommentFromOrgSubject(props),
+      html: await renderHtml(<ManagerCommentFromOrg {...props} />),
+      text: managerCommentFromOrgText(props),
+    },
+    options,
+  );
+}
+
+export async function sendManagerDocumentUploadedByOrgEmail(
+  args: { to: string } & ManagerDocumentUploadedByOrgProps,
+  options: SendOptions = {},
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: managerDocumentUploadedByOrgSubject(props),
+      html: await renderHtml(<ManagerDocumentUploadedByOrg {...props} />),
+      text: managerDocumentUploadedByOrgText(props),
+    },
+    options,
+  );
+}
+
+export async function sendManagerOrderMarkedPaidBy1CEmail(
+  args: { to: string } & ManagerOrderMarkedPaidBy1CProps,
+  options: SendOptions = {},
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: managerOrderMarkedPaidBy1CSubject(props),
+      html: await renderHtml(<ManagerOrderMarkedPaidBy1C {...props} />),
+      text: managerOrderMarkedPaidBy1CText(props),
+    },
+    options,
+  );
+}
+
+export async function sendManagerOrderStatusChangedEmail(
+  args: { to: string } & ManagerOrderStatusChangedProps,
+  options: SendOptions = {},
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: managerOrderStatusChangedSubject(props),
+      html: await renderHtml(<ManagerOrderStatusChanged {...props} />),
+      text: managerOrderStatusChangedText(props),
+    },
+    options,
+  );
+}
+
+export async function sendManagerInviteEmail(
+  args: { to: string } & ManagerInviteProps,
+  options: SendOptions = {},
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: managerInviteSubject(props.organizationName),
+      html: await renderHtml(<ManagerInviteTemplate {...props} />),
+      text: managerInviteText(props),
+    },
+    options,
+  );
+}
+
+export async function sendAdminUserInviteEmail(
+  args: { to: string } & AdminUserInviteProps,
+  options: SendOptions = {},
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: adminUserInviteSubject(),
+      html: await renderHtml(<AdminUserInviteTemplate {...props} />),
+      text: adminUserInviteText(props),
+    },
+    options,
+  );
+}
+
+export async function sendPartnerDocumentPublishedEmail(
+  args: { to: string } & PartnerDocumentPublishedProps,
+  options: SendOptions = {},
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: partnerDocumentPublishedSubject(props),
+      html: await renderHtml(<PartnerDocumentPublished {...props} />),
+      text: partnerDocumentPublishedText(props),
+    },
+    options,
+  );
+}
+
+export async function sendManagerDocumentUploadedByPartnerEmail(
+  args: { to: string } & ManagerDocumentUploadedByPartnerProps,
+  options: SendOptions = {},
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: managerDocumentUploadedByPartnerSubject(props),
+      html: await renderHtml(<ManagerDocumentUploadedByPartner {...props} />),
+      text: managerDocumentUploadedByPartnerText(props),
     },
     options,
   );

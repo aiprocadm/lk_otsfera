@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Attention } from '@/lib/services/partner/dashboard';
+import { fmtDate } from '@/lib/format';
 
 export function AttentionList({ data }: { data: Attention }) {
   const empty =
@@ -25,9 +26,9 @@ export function AttentionList({ data }: { data: Attention }) {
               href={`/partner/deals/${o.id}`}
               className='text-gray-700 hover:text-[#F97316] flex-1 min-w-0 truncate'
             >
-              🕒 Сделка «{o.title}» зависла
+              🕒 Заказ «{o.title}» завис
             </Link>
-            <span className='text-gray-400 text-xs whitespace-nowrap'>обн. {o.updatedAt.toLocaleDateString('ru-RU')}</span>
+            <span className='text-gray-400 text-xs whitespace-nowrap'>обн. {fmtDate(o.updatedAt)}</span>
           </li>
         ))}
         {data.overdueOrders.map((o) => (
@@ -38,7 +39,7 @@ export function AttentionList({ data }: { data: Attention }) {
             >
               ⚠ Просрочка: «{o.title}»
             </Link>
-            <span className='text-gray-400 text-xs whitespace-nowrap'>до {o.deadline?.toLocaleDateString('ru-RU') ?? '—'}</span>
+            <span className='text-gray-400 text-xs whitespace-nowrap'>до {o.deadline ? fmtDate(o.deadline) : '—'}</span>
           </li>
         ))}
         {data.staleLeads.map((l) => (
@@ -49,7 +50,7 @@ export function AttentionList({ data }: { data: Attention }) {
             >
               👤 Лид «{l.clientCompanyName}» без квалификации
             </Link>
-            <span className='text-gray-400 text-xs whitespace-nowrap'>с {l.createdAt.toLocaleDateString('ru-RU')}</span>
+            <span className='text-gray-400 text-xs whitespace-nowrap'>с {fmtDate(l.createdAt)}</span>
           </li>
         ))}
       </ul>

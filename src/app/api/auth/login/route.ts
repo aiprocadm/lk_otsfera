@@ -16,6 +16,7 @@ const MAX_ATTEMPTS = Number(process.env.LOGIN_RATE_LIMIT_MAX ?? 10);
 const MAX_RATE_LIMIT_ENTRIES = 10_000;
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 
+/* v8 ignore next 7 -- cleanupAttempts body triggered only when Map reaches 10 000 entries; not unit-testable */
 function cleanupAttempts(now: number) {
   if (loginAttempts.size < MAX_RATE_LIMIT_ENTRIES) return;
   for (const [key, entry] of loginAttempts) {
@@ -109,9 +110,27 @@ export async function POST(req: Request) {
 
     organizationMemberships = memberships.map((m) => ({
       organizationId: m.organizationId,
-      roleInOrg: m.roleInOrg === 'admin' ? 'admin' : 'member',
+      // Must preserve every role in OrgRoleInOrg — narrowing 'leader' to 'member'
+      // here silently disables the leader feature for the whole token lifetime.
+      roleInOrg:
+        m.roleInOrg === 'admin' ? 'admin' : m.roleInOrg === 'leader' ? 'leader' : 'member',
       isActive: m.isActive
     }));
+  }
+
+  let managedOrgIds: string[] | undefined;
+  let managerRole: 'leader' | null | undefined;
+
+  if (user.role === 'manager') {
+    const assigned = await prisma.organizationManager.findMany({
+      where: { userId: user.id, isActive: true },
+      select: { organizationId: true }
+    });
+    managedOrgIds = assigned.map((a) => a.organizationId);
+    // Preserve 'leader' explicitly. Mirrors the org-membership narrowing warning
+    // above: collapsing this to null silently kills the leader feature for the
+    // whole 7d token lifetime.
+    managerRole = user.managerRole === 'leader' ? 'leader' : null;
   }
 
   const token = await signToken({
@@ -125,7 +144,9 @@ export async function POST(req: Request) {
     externalStudentId: user.externalStudentId,
     ...(partnerRole !== undefined ? { partnerRole } : {}),
     ...(assignedOrgIds !== undefined ? { assignedOrgIds } : {}),
-    ...(organizationMemberships !== undefined ? { organizationMemberships } : {})
+    ...(organizationMemberships !== undefined ? { organizationMemberships } : {}),
+    ...(managedOrgIds !== undefined ? { managedOrgIds } : {}),
+    ...(managerRole !== undefined ? { managerRole } : {})
   });
 
   const res = NextResponse.json({ ok: true });
@@ -133,7 +154,11 @@ export async function POST(req: Request) {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
-    path: '/'
+    path: '/',
+    // Align the cookie lifetime with the 7d JWT expiry. Without maxAge this is a
+    // session cookie (cleared on browser close), so the effective session
+    // lifetime diverged from the token it carries.
+    maxAge: 60 * 60 * 24 * 7
   });
   return res;
 }

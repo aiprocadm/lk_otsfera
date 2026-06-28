@@ -1,43 +1,20 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useFetchSubmit } from '@/lib/ui/useFetchSubmit';
 
 const MAX_LEN = 5000;
 
 export function AddCommentForm({ orderId }: { orderId: string }) {
-  const router = useRouter();
   const [body, setBody] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmed = body.trim();
-    if (!trimmed) return;
-
-    setError(null);
-    setSubmitting(true);
-    try {
-      const res = await fetch('/api/comments', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ orderId, body: trimmed })
-      });
-
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        setError(typeof errBody.error === 'string' ? errBody.error : 'Не удалось отправить комментарий');
-        return;
-      }
-      setBody('');
-      router.refresh();
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  const { formAction, pending, errorText } = useFetchSubmit({
+    url: '/api/comments',
+    body: () => ({ orderId, body: body.trim() }),
+    onSuccess: () => setBody(''),
+    refresh: true
+  });
 
   return (
-    <form onSubmit={submit} className='space-y-2 pt-3 border-t border-gray-100'>
+    <form action={formAction} className='space-y-2 pt-3 border-t border-gray-100'>
       <label className='block'>
         <span className='sr-only'>Новый комментарий</span>
         <textarea
@@ -50,9 +27,9 @@ export function AddCommentForm({ orderId }: { orderId: string }) {
         />
       </label>
 
-      {error && (
+      {errorText && (
         <div className='text-sm text-red-700 bg-red-50 border border-red-100 rounded px-3 py-2'>
-          {error}
+          {errorText}
         </div>
       )}
 
@@ -62,10 +39,10 @@ export function AddCommentForm({ orderId }: { orderId: string }) {
         </span>
         <button
           type='submit'
-          disabled={submitting || body.trim().length === 0}
+          disabled={pending || body.trim().length === 0}
           className='px-3 py-1.5 text-sm bg-[#F97316] text-white rounded-lg hover:bg-[#EA580C] disabled:opacity-50'
         >
-          {submitting ? 'Отправка…' : 'Отправить'}
+          {pending ? 'Отправка…' : 'Отправить'}
         </button>
       </div>
     </form>

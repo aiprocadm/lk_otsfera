@@ -1,5 +1,6 @@
 import type { TeamRow } from '@/lib/services/partner/team';
 import { MemberRowActions } from './member-row-actions';
+import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 
 export function TeamTable({
   rows,
@@ -12,66 +13,56 @@ export function TeamTable({
 }) {
   if (rows.length === 0) {
     return (
-      <div className='bg-white border border-gray-200 rounded-xl p-12 text-center'>
-        <div className='w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3'>
-          <span className='text-2xl'>👥</span>
-        </div>
-        <p className='text-gray-500 text-sm'>В команде пока никого нет — пригласите первого сотрудника</p>
-      </div>
+      <EmptyState icon='👥' message='В команде пока никого нет — пригласите первого сотрудника' />
     );
   }
 
   return (
-    <div className='hidden md:block bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm'>
-      <table className='w-full text-sm'>
-        <thead>
-          <tr className='border-b border-gray-100 bg-gray-50 text-left'>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Сотрудник</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Email</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Роль</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600'>Доступ к организациям</th>
-            <th className='px-4 py-2.5 font-medium text-gray-600 w-32'></th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr
-              key={row.userId}
-              className={`border-b border-gray-50 ${i === rows.length - 1 ? 'border-b-0' : ''} ${
-                row.isActive ? 'hover:bg-[#FFF7ED]' : 'bg-gray-50/50 text-gray-400'
-              }`}
-            >
-              <td className='px-4 py-2.5'>
-                <div className={`font-medium ${row.isActive ? 'text-[#111111]' : 'text-gray-400'}`}>
-                  {row.name}
-                  {row.userId === currentUserId && (
-                    <span className='ml-2 text-xs text-gray-400'>(вы)</span>
-                  )}
-                </div>
-                {!row.isActive && <div className='text-xs text-gray-400'>деактивирован</div>}
-              </td>
-              <td className='px-4 py-2.5 text-gray-500'>{row.email}</td>
-              <td className='px-4 py-2.5'>
-                <RoleBadge role={row.roleInPartner} active={row.isActive} />
-              </td>
-              <td className='px-4 py-2.5 text-gray-500'>
-                <ScopeSummary assignedOrgIds={row.assignedOrgIds} orgs={orgs} />
-              </td>
-              <td className='px-4 py-2.5 text-right'>
-                {row.isActive && row.userId !== currentUserId && (
-                  <MemberRowActions
-                    userId={row.userId}
-                    name={row.name}
-                    initialAssignedOrgIds={row.assignedOrgIds}
-                    orgs={orgs}
-                  />
+    <TableShell className='hidden md:block'>
+      <THead>
+        <Th>Сотрудник</Th>
+        <Th>Email</Th>
+        <Th>Роль</Th>
+        <Th>Доступ к организациям</Th>
+        <Th className='w-32'></Th>
+      </THead>
+      <tbody>
+        {rows.map((row) => (
+          <Tr
+            key={row.userId}
+            hover={row.isActive}
+            className={row.isActive ? undefined : 'bg-gray-50/50 text-gray-400'}
+          >
+            <Td>
+              <div className={`font-medium ${row.isActive ? 'text-[#111111]' : 'text-gray-400'}`}>
+                {row.name}
+                {row.userId === currentUserId && (
+                  <span className='ml-2 text-xs text-gray-400'>(вы)</span>
                 )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+              </div>
+              {!row.isActive && <div className='text-xs text-gray-400'>деактивирован</div>}
+            </Td>
+            <Td className='text-gray-500'>{row.email}</Td>
+            <Td>
+              <RoleBadge role={row.roleInPartner} active={row.isActive} />
+            </Td>
+            <Td className='text-gray-500'>
+              <ScopeSummary assignedOrgIds={row.assignedOrgIds} orgs={orgs} />
+            </Td>
+            <Td className='text-right'>
+              {row.isActive && row.userId !== currentUserId && (
+                <MemberRowActions
+                  userId={row.userId}
+                  name={row.name}
+                  initialAssignedOrgIds={row.assignedOrgIds}
+                  orgs={orgs}
+                />
+              )}
+            </Td>
+          </Tr>
+        ))}
+      </tbody>
+    </TableShell>
   );
 }
 

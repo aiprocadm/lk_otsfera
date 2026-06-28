@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { requireRole, requireSession } from '@/lib/auth/guard';
+import { managedOrgIds, managerOrderScopeFilter } from '@/lib/auth/managerPolicy';
 
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -17,23 +18,25 @@ async function buildScopeWhere(session: SessionPayload) {
   if (session.role === 'admin') return {};
 
   if (session.role === 'manager') {
-    const memberships = await prisma.organizationUser.findMany({
-      where: { userId: session.sub, isActive: true },
-      select: { organizationId: true }
+    // Manager visibility follows managerOrderScopeFilter (per-order ownership +
+    // per-org scope from session.managedOrgIds + historical commenter access).
+    // Notification has no direct Order FK, so we hydrate the in-scope order IDs
+    // and match them via meta.orderId for order-bound fan-outs that did not
+    // also stamp organizationId (e.g. per-order ownership in a foreign org).
+    const orgIds = managedOrgIds(session);
+    const visibleOrders = await prisma.order.findMany({
+      where: managerOrderScopeFilter(session),
+      select: { id: true }
     });
+    const orderIds = visibleOrders.map((order) => order.id);
 
-    const organizationIds = memberships.map((membership) => membership.organizationId);
-
-    if (organizationIds.length === 0) {
-      return { id: { in: [] } };
+    const branches: Array<Record<string, unknown>> = [{ userId: session.sub }];
+    if (orgIds.length > 0) branches.push({ organizationId: { in: orgIds } });
+    for (const orderId of orderIds) {
+      branches.push({ meta: { path: ['orderId'], equals: orderId } });
     }
 
-    return {
-      OR: [
-        { userId: session.sub },
-        { organizationId: { in: organizationIds } }
-      ]
-    };
+    return { OR: branches };
   }
 
   const scope: Array<Record<string, unknown>> = [{ userId: session.sub }];
@@ -96,13 +99,10 @@ export async function PATCH(req: Request) {
     return NextResponse.json(notification);
   }
 
-  if (ids && ids.length > 0) {
-    const notifications = await prisma.notification.updateMany({
-      where: { AND: [{ id: { in: ids } }, where] },
-      data: { isRead }
-    });
-    return NextResponse.json(notifications);
-  }
-
-  return NextResponse.json({ error: 'id or ids required' }, { status: 400 });
+  // Schema refine guarantees ids is non-empty when id is absent; ids! safe to assert non-null here
+  const notifications = await prisma.notification.updateMany({
+    where: { AND: [{ id: { in: ids! } }, where] },
+    data: { isRead }
+  });
+  return NextResponse.json(notifications);
 }

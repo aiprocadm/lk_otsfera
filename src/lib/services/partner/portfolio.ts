@@ -47,18 +47,17 @@ export async function listPortfolio(
         id: true,
         name: true,
         inn: true,
-        assignedManagerUserId: true,
-        companyId: true
+        assignedManagerUserId: true
       }
     })
   ]);
 
   const items: PortfolioItem[] = await Promise.all(
     rows.map(async (org) => {
-      if (!org.companyId) return baseItem(org, 0, '0.00');
-
+      // F2: count only orders visible via the partner's leads; scope by the exact
+      // organizationId (not companyId, which would also be the F8 collision).
       const orders = await prisma.order.findMany({
-        where: { companyId: org.companyId, partnerId: filters.partnerId },
+        where: { organizationId: org.id, promotedFromLead: { partnerId: filters.partnerId } },
         select: { totalAmount: true, paidAmount: true, executionStatus: true }
       });
 

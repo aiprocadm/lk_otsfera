@@ -68,6 +68,29 @@ describe('auth login route — organization memberships', () => {
     );
   });
 
+  it('preserves the leader role in the signed token', async () => {
+    findUniqueUser.mockResolvedValue(orgUser());
+    findManyMemberships.mockResolvedValue([
+      { organizationId: 'org-A', roleInOrg: 'leader', isActive: true }
+    ]);
+
+    await POST(
+      new Request('https://app.local/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'org@example.com', password: 'pw' }),
+        headers: { 'content-type': 'application/json' }
+      })
+    );
+
+    expect(signToken).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationMemberships: [
+          { organizationId: 'org-A', roleInOrg: 'leader', isActive: true }
+        ]
+      })
+    );
+  });
+
   it('coerces unexpected roleInOrg values to member', async () => {
     findUniqueUser.mockResolvedValue(orgUser());
     findManyMemberships.mockResolvedValue([

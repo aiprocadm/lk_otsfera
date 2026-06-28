@@ -33,6 +33,7 @@ export type QueueProvider = (name: QueueName) => Pick<
   'getJobCounts' | 'getFailed' | 'getJob'
 >;
 
+/* v8 ignore next 1 — default provider is only used in production/integration; unit tests always inject a mock provider */
 const defaultProvider: QueueProvider = (name) => getQueue(name);
 
 export async function getQueueStats(
@@ -99,5 +100,39 @@ export async function retryDlqJob(
       ok: false,
       reason: err instanceof Error ? err.message : 'RETRY_FAILED',
     };
+  }
+}
+
+const BULK_RETRY_CAP = 500;
+
+export type BulkRetryResult =
+  | { ok: true; retried: number; failed: number; truncated: boolean }
+  | { ok: false; error: 'queue_unavailable' };
+
+/**
+ * Retries up to BULK_RETRY_CAP failed jobs in one queue. Per-job retry errors
+ * are counted (not thrown) so one stuck job can't block the batch. `truncated`
+ * signals the cap was hit and more failures may remain. Audit is written by the
+ * caller (route) — queueStats stays prisma-free.
+ */
+export async function retryAllDlq(
+  queue: QueueName,
+  provider: QueueProvider = defaultProvider,
+): Promise<BulkRetryResult> {
+  try {
+    const jobs = await provider(queue).getFailed(0, BULK_RETRY_CAP - 1);
+    let retried = 0;
+    let failed = 0;
+    for (const job of jobs) {
+      try {
+        await job.retry();
+        retried++;
+      } catch {
+        failed++;
+      }
+    }
+    return { ok: true, retried, failed, truncated: jobs.length >= BULK_RETRY_CAP };
+  } catch {
+    return { ok: false, error: 'queue_unavailable' };
   }
 }

@@ -1,26 +1,50 @@
-export type OrderForCalc = {
-  id: string;
+import { Prisma } from '@prisma/client';
+
+/**
+ * Commission calculator — money math end-to-end on Prisma.Decimal (decimal.js),
+ * never JS `number`. Каждая строка = один платёж (§9.2). База = полная сумма
+ * платежа: НДС НЕ вычитается (решение владельца 2026-06-26, перекрывает «без
+ * НДС» в §9.2). Возврат (`isRefund`) — отрицательная строка (A2). Все суммы
+ * округляются HALF_UP до копейки; итог комиссии = точная сумма уже округлённых
+ * строк, затем зажимается в ≥0 (R2: отрицательный нетто-месяц не уходит в
+ * выплату; перенос «минуса» — A6/SP-2). A6 (§9.5): корректировки приходят
+ * готовыми строками (`corrections`), уже посчитанными; калькулятор их только
+ * складывает (не пересчитывает из amount×rate).
+ */
+
+export type PaymentForCalc = {
+  paymentId: string;
+  orderId: string | null;
   orderNumber: string | null;
   organizationName: string;
-  totalAmount: number;
-  vatIncluded: boolean;
-  vatRate: number | null;
-  rate: number;
+  amount: Prisma.Decimal;
+  isRefund: boolean;
+  rate: Prisma.Decimal;
+};
+
+export type CorrectionForCalc = {
+  correctionId: string;
+  organizationName: string;
+  baseAmount: Prisma.Decimal;     // уже отрицательная
+  rate: Prisma.Decimal;           // для отображения
+  commissionAmount: Prisma.Decimal; // уже отрицательная, НЕ пересчитывается
 };
 
 export type CalculatorItem = {
-  orderId: string;
+  paymentId: string | null;
+  orderId: string | null;
+  correctionId: string | null;
   orderNumber: string | null;
   organizationName: string;
-  baseAmount: number;
-  rate: number;
-  commissionAmount: number;
+  baseAmount: Prisma.Decimal;
+  rate: Prisma.Decimal;
+  commissionAmount: Prisma.Decimal;
 };
 
 export type CalculatorTotals = {
-  totalBaseAmount: number;
-  totalCommissionAmount: number;
-  averageRate: number;
+  totalBaseAmount: Prisma.Decimal;
+  totalCommissionAmount: Prisma.Decimal;
+  averageRate: Prisma.Decimal;
 };
 
 export type CalculatorResult = {
@@ -28,53 +52,56 @@ export type CalculatorResult = {
   totals: CalculatorTotals;
 };
 
-export type CalculatorOptions = {
-  vatMode?: 'full' | 'exclude_vat';
-};
+const MONEY_SCALE = 2; // kopecks
+const RATE_SCALE = 4; // Decimal(6,4)
+const HALF_UP = Prisma.Decimal.ROUND_HALF_UP;
+const ZERO = new Prisma.Decimal(0);
 
-const DEFAULT_VAT_RATE = 0.2;
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
-function round4(n: number): number {
-  return Math.round(n * 10000) / 10000;
-}
-
-function baseAmountFor(order: OrderForCalc, vatMode: 'full' | 'exclude_vat'): number {
-  if (vatMode === 'full') return order.totalAmount;
-  if (!order.vatIncluded) return order.totalAmount;
-  const vatRate = order.vatRate ?? DEFAULT_VAT_RATE;
-  return order.totalAmount / (1 + vatRate);
+function toMoney(value: Prisma.Decimal): Prisma.Decimal {
+  return value.toDecimalPlaces(MONEY_SCALE, HALF_UP);
 }
 
 export function calculateCommission(
-  orders: OrderForCalc[],
-  opts: CalculatorOptions = {}
+  payments: PaymentForCalc[],
+  corrections: CorrectionForCalc[] = []
 ): CalculatorResult {
-  const vatMode = opts.vatMode ?? 'full';
-
-  const items: CalculatorItem[] = orders.map((o) => {
-    const baseAmount = round2(baseAmountFor(o, vatMode));
-    const commissionAmount = round2(baseAmount * o.rate);
+  const paymentItems: CalculatorItem[] = payments.map((p) => {
+    const signed = p.isRefund ? p.amount.negated() : p.amount;
+    const baseAmount = toMoney(signed);
+    const commissionAmount = toMoney(baseAmount.mul(p.rate));
     return {
-      orderId: o.id,
-      orderNumber: o.orderNumber,
-      organizationName: o.organizationName,
+      paymentId: p.paymentId,
+      orderId: p.orderId,
+      correctionId: null,
+      orderNumber: p.orderNumber,
+      organizationName: p.organizationName,
       baseAmount,
-      rate: o.rate,
-      commissionAmount
+      rate: p.rate,
+      commissionAmount,
     };
   });
 
-  const totalBaseAmount = round2(items.reduce((s, i) => s + i.baseAmount, 0));
-  const totalCommissionAmount = round2(items.reduce((s, i) => s + i.commissionAmount, 0));
-  const weightedRateSum = items.reduce((s, i) => s + i.rate * i.baseAmount, 0);
-  const averageRate = totalBaseAmount > 0 ? round4(weightedRateSum / totalBaseAmount) : 0;
+  const correctionItems: CalculatorItem[] = corrections.map((c) => ({
+    paymentId: null,
+    orderId: null,
+    correctionId: c.correctionId,
+    orderNumber: null,
+    organizationName: c.organizationName,
+    baseAmount: toMoney(c.baseAmount),
+    rate: c.rate,
+    commissionAmount: toMoney(c.commissionAmount),
+  }));
 
-  return {
-    items,
-    totals: { totalBaseAmount, totalCommissionAmount, averageRate }
-  };
+  const items = [...paymentItems, ...correctionItems];
+
+  const totalBaseAmount = items.reduce((sum, i) => sum.plus(i.baseAmount), ZERO);
+  const rawCommission = items.reduce((sum, i) => sum.plus(i.commissionAmount), ZERO);
+  const totalCommissionAmount = rawCommission.lt(0) ? ZERO : rawCommission;
+
+  const weightedRateSum = items.reduce((sum, i) => sum.plus(i.rate.mul(i.baseAmount)), ZERO);
+  const averageRate = totalBaseAmount.gt(0)
+    ? weightedRateSum.div(totalBaseAmount).toDecimalPlaces(RATE_SCALE, HALF_UP)
+    : ZERO;
+
+  return { items, totals: { totalBaseAmount, totalCommissionAmount, averageRate } };
 }

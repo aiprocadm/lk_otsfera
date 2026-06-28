@@ -4,13 +4,27 @@ tsconfig.tsbuildinfo
 .env
 .env.local
 .env.*.local
+.env.production
 
 # Local-only assistant/session state — never commit
 .claude/
 .remember/
 .pr-body.md
 
+# Vitest coverage output (regenerated locally, never committed).
+coverage/
+coverage-full-run.log
+coverage-*.log
+
 # Playwright runtime output (kept locally for diffs, never committed).
 # Baseline snapshots under src/e2e/snapshots/*-snapshots/ are committed.
 playwright-report/
 test-results/
+
+# Brainstorming visual companion sessions
+.superpowers/
+
+# dev-stack runtime logs
+dev-server.log
+dev-server.err.log
+npm-ci.log

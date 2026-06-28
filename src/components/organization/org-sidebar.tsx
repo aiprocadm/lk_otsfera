@@ -3,27 +3,19 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-
-type NavItem = { href: string; label: string; icon: string; adminOnly?: boolean };
-
-const ITEMS: NavItem[] = [
-  { href: '/organization/dashboard', label: 'Главная', icon: '⌂' },
-  { href: '/organization/orders', label: 'Заказы', icon: '📋' },
-  { href: '/organization/documents', label: 'Документы', icon: '📄' },
-  { href: '/organization/students', label: 'Сотрудники', icon: '👥' },
-  { href: '/organization/team', label: 'Команда', icon: '⚙', adminOnly: true }
-];
+import type { NavItem } from '@/lib/navigation/cabinet';
 
 export type OrgSidebarMembership = {
   organizationId: string;
   organizationName: string;
-  roleInOrg: 'admin' | 'member';
+  roleInOrg: 'admin' | 'leader' | 'member';
 };
 
 export function OrgSidebar(props: {
+  items: NavItem[];
   memberships: OrgSidebarMembership[];
   activeOrgId: string;
-  viewerRole: 'admin' | 'member';
+  viewerRole: 'admin' | 'leader' | 'member';
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -47,7 +39,12 @@ export function OrgSidebar(props: {
     router.push(`${pathname}?${sp.toString()}`);
   }
 
-  const items = ITEMS.filter((it) => !it.adminOnly || props.viewerRole === 'admin');
+  // orgAdminOrLeaderOnly items (Команда) видны admin И leader — оба управляют
+  // командой (server action enforces per-row privilege). Флаг-фильтрация (chat)
+  // уже сделана на сервере в navItemsFor — сюда приходит готовый список.
+  const items = props.items.filter(
+    (it) => !it.orgAdminOrLeaderOnly || props.viewerRole === 'admin' || props.viewerRole === 'leader'
+  );
 
   return (
     <nav className='w-60 min-h-screen bg-white border-r border-gray-200 p-4 flex-shrink-0'>
@@ -92,7 +89,7 @@ export function OrgSidebar(props: {
                 data-testid={`org-nav-${item.href.replace(/\//g, '-')}`}
                 data-active={isActive ? 'true' : 'false'}
               >
-                <span className='text-base'>{item.icon}</span>
+                {item.icon ? <span className='text-base'>{item.icon}</span> : null}
                 <span>{item.label}</span>
               </Link>
             </li>

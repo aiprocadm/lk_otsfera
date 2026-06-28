@@ -3,13 +3,13 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
-import { requireOrganizationAdmin } from '@/lib/auth/requireRole';
+import { requireOrganizationAdminOrLeader } from '@/lib/auth/requireRole';
+import { isOrgAdmin } from '@/lib/auth/organizationPolicy';
 import {
   inviteMember,
   updateMemberRole,
   deactivateMember,
   reactivateMember,
-  OrgMemberError,
   type OrgMemberErrorCode,
   type InviteMemberResult
 } from '@/lib/services/organization/team';
@@ -27,13 +27,13 @@ const inviteSchema = z.object({
   organizationId: z.string().min(1),
   email: z.string().email(),
   name: z.string().min(1).max(200),
-  roleInOrg: z.enum(['admin', 'member'])
+  roleInOrg: z.enum(['admin', 'leader', 'member'])
 });
 
 const roleSchema = z.object({
   organizationId: z.string().min(1),
   orgUserId: z.string().min(1),
-  newRole: z.enum(['admin', 'member'])
+  newRole: z.enum(['admin', 'leader', 'member'])
 });
 
 const targetSchema = z.object({
@@ -44,13 +44,6 @@ const targetSchema = z.object({
 function readFormValue(formData: FormData, key: string): string {
   const v = formData.get(key);
   return typeof v === 'string' ? v : '';
-}
-
-function mapMemberError(e: unknown): Failure {
-  if (e instanceof OrgMemberError) {
-    return { ok: false, error: e.code };
-  }
-  throw e;
 }
 
 export async function inviteOrgMemberAction(
@@ -72,19 +65,24 @@ export async function inviteOrgMemberAction(
     return { ok: false, error: 'validation', details: parsed.error.flatten() };
   }
 
-  const session = await requireOrganizationAdmin(parsed.data.organizationId);
+  const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);
+  const actorRole = isOrgAdmin(session, parsed.data.organizationId) ? 'admin' : 'leader';
 
-  try {
-    const result = await inviteMember(
-      prisma,
-      parsed.data,
-      session.sub,
-      { source: 'organization' }
-    );
+  const res = await inviteMember(
+    prisma,
+    parsed.data,
+    session.sub,
+    { source: 'organization' },
+    actorRole
+  );
+  if (!res.ok) return { ok: false, error: res.error };
 
-    // Send invite email best-effort. send() returns 'skipped' silently when
-    // EMAIL_ENABLED!=true or RESEND_API_KEY is missing — no need to gate here.
-    if (result.inviteUrl !== null) {
+  // Send invite email best-effort. send() returns 'skipped' silently when
+  // EMAIL_ENABLED!=true or RESEND_API_KEY is missing, but a live transport
+  // can still reject — that must not fail the action: the invite is already
+  // created and inviteUrl is returned for the "Copy link" fallback.
+  if (res.inviteUrl !== null) {
+    try {
       const org = await prisma.organization.findUnique({
         where: { id: parsed.data.organizationId },
         select: { name: true }
@@ -92,21 +90,21 @@ export async function inviteOrgMemberAction(
       await sendOrgInviteEmail({
         to: parsed.data.email,
         organizationName: org?.name ?? 'организация',
-        inviteUrl: result.inviteUrl,
+        inviteUrl: res.inviteUrl,
         invitedByName: session.name ?? undefined
       });
+    } catch (e) {
+      console.warn('[organization/team] send invite email failed', e);
     }
-
-    revalidatePath('/organization/team');
-    return {
-      ok: true,
-      user: result.user,
-      inviteUrl: result.inviteUrl,
-      alreadyHasPassword: result.alreadyHasPassword
-    };
-  } catch (e) {
-    return mapMemberError(e);
   }
+
+  revalidatePath('/organization/team');
+  return {
+    ok: true,
+    user: res.user,
+    inviteUrl: res.inviteUrl,
+    alreadyHasPassword: res.alreadyHasPassword
+  };
 }
 
 export async function updateOrgMemberRoleAction(formData: FormData): Promise<ActionResult> {
@@ -119,15 +117,13 @@ export async function updateOrgMemberRoleAction(formData: FormData): Promise<Act
     return { ok: false, error: 'validation', details: parsed.error.flatten() };
   }
 
-  const session = await requireOrganizationAdmin(parsed.data.organizationId);
+  const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);
+  const actorRole = isOrgAdmin(session, parsed.data.organizationId) ? 'admin' : 'leader';
 
-  try {
-    await updateMemberRole(prisma, parsed.data.orgUserId, parsed.data.newRole, session.sub);
-    revalidatePath('/organization/team');
-    return { ok: true };
-  } catch (e) {
-    return mapMemberError(e);
-  }
+  const res = await updateMemberRole(prisma, parsed.data.organizationId, parsed.data.orgUserId, parsed.data.newRole, session.sub, actorRole);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/organization/team');
+  return { ok: true };
 }
 
 export async function deactivateOrgMemberAction(formData: FormData): Promise<ActionResult> {
@@ -139,15 +135,13 @@ export async function deactivateOrgMemberAction(formData: FormData): Promise<Act
     return { ok: false, error: 'validation', details: parsed.error.flatten() };
   }
 
-  const session = await requireOrganizationAdmin(parsed.data.organizationId);
+  const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);
+  const actorRole = isOrgAdmin(session, parsed.data.organizationId) ? 'admin' : 'leader';
 
-  try {
-    await deactivateMember(prisma, parsed.data.orgUserId, session.sub);
-    revalidatePath('/organization/team');
-    return { ok: true };
-  } catch (e) {
-    return mapMemberError(e);
-  }
+  const res = await deactivateMember(prisma, parsed.data.organizationId, parsed.data.orgUserId, session.sub, actorRole);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/organization/team');
+  return { ok: true };
 }
 
 export async function reactivateOrgMemberAction(formData: FormData): Promise<ActionResult> {
@@ -159,15 +153,13 @@ export async function reactivateOrgMemberAction(formData: FormData): Promise<Act
     return { ok: false, error: 'validation', details: parsed.error.flatten() };
   }
 
-  const session = await requireOrganizationAdmin(parsed.data.organizationId);
+  const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);
+  const actorRole = isOrgAdmin(session, parsed.data.organizationId) ? 'admin' : 'leader';
 
-  try {
-    await reactivateMember(prisma, parsed.data.orgUserId, session.sub);
-    revalidatePath('/organization/team');
-    return { ok: true };
-  } catch (e) {
-    return mapMemberError(e);
-  }
+  const res = await reactivateMember(prisma, parsed.data.organizationId, parsed.data.orgUserId, session.sub, actorRole);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/organization/team');
+  return { ok: true };
 }
 
 // ----- Form-compatible thin wrappers ---------------------------------------
@@ -179,13 +171,16 @@ export async function reactivateOrgMemberAction(formData: FormData): Promise<Act
 // are caught visually — though without inline error text.
 
 export async function updateOrgMemberRoleFormAction(formData: FormData): Promise<void> {
-  await updateOrgMemberRoleAction(formData);
+  const result = await updateOrgMemberRoleAction(formData);
+  if (!result.ok) console.warn('[organization/team] updateOrgMemberRoleFormAction failed', result);
 }
 
 export async function deactivateOrgMemberFormAction(formData: FormData): Promise<void> {
-  await deactivateOrgMemberAction(formData);
+  const result = await deactivateOrgMemberAction(formData);
+  if (!result.ok) console.warn('[organization/team] deactivateOrgMemberFormAction failed', result);
 }
 
 export async function reactivateOrgMemberFormAction(formData: FormData): Promise<void> {
-  await reactivateOrgMemberAction(formData);
+  const result = await reactivateOrgMemberAction(formData);
+  if (!result.ok) console.warn('[organization/team] reactivateOrgMemberFormAction failed', result);
 }

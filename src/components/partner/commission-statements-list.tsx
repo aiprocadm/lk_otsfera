@@ -1,9 +1,13 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { StatementListItem } from '@/lib/services/partner/finance';
 import type { CommissionStatementItem } from '@prisma/client';
+import { THead, Th, Tr, Td, EmptyState } from '@/components/ui';
+import { fmtMoney, fmtDate, pluralizeRu } from '@/lib/format';
+import { toast } from '@/lib/ui/toast';
+import { useClientResource } from '@/hooks/useClientResource';
 
 type Props = {
   statements: StatementListItem[];
@@ -24,11 +28,6 @@ const STATUS_COLORS: Record<string, string> = {
   superseded: 'bg-gray-100 text-gray-400'
 };
 
-function fmtMoney(val: unknown): string {
-  const n = Number(val);
-  return isNaN(n) ? '—' : new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n) + ' ₽';
-}
-
 function fmtPeriod(from: Date, to: Date): string {
   const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
   const f = new Date(from);
@@ -36,7 +35,7 @@ function fmtPeriod(from: Date, to: Date): string {
   if (f.getMonth() === t.getMonth() && f.getFullYear() === t.getFullYear()) {
     return `${months[f.getMonth()]} ${f.getFullYear()}`;
   }
-  return `${f.toLocaleDateString('ru-RU')} — ${t.toLocaleDateString('ru-RU')}`;
+  return `${fmtDate(f)} — ${fmtDate(t)}`;
 }
 
 function DownloadButton({ href, label }: { href: string; label: string }) {
@@ -60,26 +59,19 @@ function StatementRow({
   canManage: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<CommissionStatementItem[] | null>(null);
-  const [loadingItems, setLoadingItems] = useState(false);
+  const { data: items, loading: loadingItems } = useClientResource<CommissionStatementItem[]>(
+    `/api/partner/finance/statements/${stmt.id}`,
+    {
+      enabled: open,
+      select: (d) =>
+        (d as { statement?: { items?: CommissionStatementItem[] } }).statement?.items ?? [],
+    }
+  );
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  async function toggleOpen() {
-    const next = !open;
-    setOpen(next);
-    if (next && items === null) {
-      setLoadingItems(true);
-      try {
-        const res = await fetch(`/api/partner/finance/statements/${stmt.id}`);
-        if (res.ok) {
-          const data = await res.json() as { statement?: { items?: CommissionStatementItem[] } };
-          setItems(data.statement?.items ?? []);
-        }
-      } finally {
-        setLoadingItems(false);
-      }
-    }
+  function toggleOpen() {
+    setOpen((v) => !v);
   }
 
   async function handleApprove() {
@@ -89,17 +81,34 @@ function StatementRow({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ action: 'approve' })
       });
-      if (res.ok) router.refresh();
-      else alert('Ошибка утверждения: ' + res.status);
+      if (res.ok) {
+        toast.success('Отчёт утверждён');
+        router.refresh();
+      } else {
+        toast.error('Не удалось утвердить отчёт');
+      }
     });
   }
 
   return (
     <div className='border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm'>
-      {/* Header row */}
-      <button
+      {/* Header row — role=button (not <button>) so the nested action <button>/<a>
+          controls below stay valid HTML. A <button> inside a <button>, or an <a>
+          inside a <button>, is invalid nesting and triggers a React hydration
+          mismatch (server DOM ≠ browser-corrected DOM) → client re-render / full
+          reload. */}
+      <div
+        role='button'
+        tabIndex={0}
+        aria-expanded={open}
         onClick={toggleOpen}
-        className='w-full text-left px-5 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors'
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleOpen();
+          }
+        }}
+        className='w-full text-left px-5 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors cursor-pointer'
       >
         <div className='flex-1 min-w-0'>
           <div className='flex items-center gap-3'>
@@ -111,7 +120,7 @@ function StatementRow({
             </span>
           </div>
           <div className='text-sm text-gray-500 mt-0.5'>
-            {stmt.itemCount} {stmt.itemCount === 1 ? 'заказ' : 'заказов'} · Комиссия: {fmtMoney(stmt.totalCommissionAmount)}
+            {stmt.itemCount} {pluralizeRu(stmt.itemCount, 'заказ', 'заказа', 'заказов')} · Комиссия: {fmtMoney(String(stmt.totalCommissionAmount))}
           </div>
         </div>
 
@@ -150,44 +159,42 @@ function StatementRow({
         >
           <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
         </svg>
-      </button>
+      </div>
 
       {/* Expandable items */}
       {open && (
         <div className='border-t border-gray-100 overflow-x-auto'>
           <table className='w-full text-sm'>
-            <thead>
-              <tr className='bg-gray-50 text-left'>
-                <th className='px-4 py-2 font-medium text-gray-500'>Заказ</th>
-                <th className='px-4 py-2 font-medium text-gray-500'>Организация</th>
-                <th className='px-4 py-2 font-medium text-gray-500 text-right'>База, ₽</th>
-                <th className='px-4 py-2 font-medium text-gray-500 text-right'>Ставка</th>
-                <th className='px-4 py-2 font-medium text-gray-500 text-right'>Комиссия, ₽</th>
-              </tr>
-            </thead>
+            <THead>
+              <Th className='py-2 text-gray-500'>Заказ</Th>
+              <Th className='py-2 text-gray-500'>Организация</Th>
+              <Th className='py-2 text-gray-500 text-right'>База, ₽</Th>
+              <Th className='py-2 text-gray-500 text-right'>Ставка</Th>
+              <Th className='py-2 text-gray-500 text-right'>Комиссия, ₽</Th>
+            </THead>
             <tbody>
               {loadingItems && (
-                <tr>
-                  <td colSpan={5} className='px-4 py-4 text-center text-gray-400 text-xs'>
+                <Tr hover={false}>
+                  <Td colSpan={5} className='py-4 text-center text-gray-400 text-xs'>
                     Загружаю…
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               )}
               {!loadingItems && items?.map((item) => (
-                <tr key={item.id} className='border-t border-gray-50'>
-                  <td className='px-4 py-2 text-gray-700'>{item.orderNumber ?? '—'}</td>
-                  <td className='px-4 py-2 text-gray-700'>{item.organizationName}</td>
-                  <td className='px-4 py-2 text-right text-gray-700'>{fmtMoney(item.baseAmount)}</td>
-                  <td className='px-4 py-2 text-right text-gray-500'>{(Number(item.rate) * 100).toFixed(2)}%</td>
-                  <td className='px-4 py-2 text-right font-medium text-gray-700'>{fmtMoney(item.commissionAmount)}</td>
-                </tr>
+                <Tr key={item.id} hover={false}>
+                  <Td className='py-2 text-gray-700'>{item.orderNumber ?? '—'}</Td>
+                  <Td className='py-2 text-gray-700'>{item.organizationName}</Td>
+                  <Td className='py-2 text-right text-gray-700'>{fmtMoney(String(item.baseAmount))}</Td>
+                  <Td className='py-2 text-right text-gray-500'>{(Number(item.rate) * 100).toFixed(2)}%</Td>
+                  <Td className='py-2 text-right font-medium text-gray-700'>{fmtMoney(String(item.commissionAmount))}</Td>
+                </Tr>
               ))}
               {!loadingItems && items !== null && items.length === 0 && (
-                <tr>
-                  <td colSpan={5} className='px-4 py-4 text-center text-gray-400 text-xs'>
+                <Tr hover={false}>
+                  <Td colSpan={5} className='py-4 text-center text-gray-400 text-xs'>
                     Нет данных
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               )}
             </tbody>
           </table>
@@ -200,15 +207,13 @@ function StatementRow({
 export function CommissionStatementsList({ statements, canManage }: Props) {
   if (statements.length === 0) {
     return (
-      <div className='bg-white border border-gray-200 rounded-xl p-12 text-center'>
-        <div className='text-4xl mb-3'>📊</div>
-        <p className='text-gray-500 text-sm'>Отчётов ещё нет.</p>
+      <EmptyState icon='📊' message='Отчётов ещё нет.'>
         {canManage && (
           <p className='text-gray-400 text-xs mt-1'>
             Нажмите «Сформировать за период», чтобы создать первый отчёт.
           </p>
         )}
-      </div>
+      </EmptyState>
     );
   }
 

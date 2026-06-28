@@ -46,6 +46,13 @@ function getStudentRedirectConfig() {
 export default async function StudentRedirectPage() {
   const session = await getSession();
   if (!session) return null;
+  // Defense-in-depth: this page mints a bridge token with role:'student'
+  // hard-coded. Middleware also lets organization/manager/admin into /student
+  // (shared cabinet entry), so the external SSO handoff itself must be
+  // student-only — otherwise a non-student could obtain a student-scoped token.
+  if (session.role !== 'student') {
+    return <div className='p-6'>Переход в кабинет слушателя доступен только обучающимся.</div>;
+  }
 
   const { redirectUrl: externalUrl, allowlist: studentPortalAllowlist } = getStudentRedirectConfig();
   if (!externalUrl) return <div className='p-6'>STUDENT_REDIRECT_URL не настроен</div>;
@@ -74,8 +81,15 @@ export default async function StudentRedirectPage() {
   });
 
   const code = randomUUID();
+  // Clamp the one-time code lifetime to [10, 300]s. Guards an operator setting
+  // STUDENT_BRIDGE_CODE_TTL_SEC to 0/negative/NaN (→ floor) or an excessively
+  // long window (→ ceiling) that would leave a live grant + JWT redeemable for
+  // hours.
+  const codeTtlSec = Number.isFinite(bridgeCodeTtlSec)
+    ? Math.min(300, Math.max(10, bridgeCodeTtlSec))
+    : 60;
   // eslint-disable-next-line react-hooks/purity -- server component, Date.now() is safe here
-  const expiresAt = new Date(Date.now() + Math.max(10, bridgeCodeTtlSec) * 1000);
+  const expiresAt = new Date(Date.now() + codeTtlSec * 1000);
 
   await prisma.$transaction(async (tx) => {
     await recordAudit(tx, {
@@ -99,7 +113,9 @@ export default async function StudentRedirectPage() {
       entity: 'student_bridge',
       entityId: jti,
       userId: session.sub,
-      after: { code, expiresAt: expiresAt.toISOString() },
+      // SECURITY: never log the one-time bridge code (CLAUDE.md §12). The jti in
+      // `entityId` already correlates the grant for forensics.
+      after: { expiresAt: expiresAt.toISOString() },
     });
   });
 

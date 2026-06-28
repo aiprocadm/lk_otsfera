@@ -425,4 +425,21 @@ describe('recentEvents()', () => {
     expect(events[0]).toMatchObject({ id: 'e1', actor: 'Менеджер', verb: 'commission_statement_paid' });
     expect(events[1]).toMatchObject({ id: 'e2', actor: 'partner@example.com', verb: 'lead_created' });
   });
+
+  it('falls back to "—" when user is null (actor record deleted)', async () => {
+    const findMany = vi.fn().mockResolvedValue([
+      {
+        id: 'a-null',
+        action: 'lead_created',
+        entity: 'lead',
+        entityId: 'l1',
+        createdAt: new Date(),
+        user: null, // actor row deleted — covers `r.user?.name || r.user?.email || '—'`
+      },
+    ]);
+    const prisma = makePrisma({ auditLog: { findMany } });
+
+    const events = await recentEvents(prisma);
+    expect(events[0].actor).toBe('—');
+  });
 });

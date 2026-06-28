@@ -32,15 +32,27 @@ export async function POST(req: NextRequest) {
 
   if (user && user.isActive) {
     const { token } = await createInviteToken(prisma, user.id, undefined, 'reset');
-    const resetUrl = `${process.env.APP_URL ?? ''}/reset-password?token=${token}`;
+    const baseUrl = process.env.APP_URL?.trim() || 'https://lk.otsfera.ru';
+    const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
     const props = { name: user.name, resetUrl };
-    await send({
-      to: email,
-      subject: passwordResetSubject(),
-      html: await renderHtml(React.createElement(PasswordResetTemplate, props)),
-      text: passwordResetText(props),
-    });
+    // Best-effort: an email-transport failure must not surface to the caller. A
+    // 500 here is only reachable when the user exists + is active, so letting it
+    // propagate would leak account existence and break the uniform { ok: true }
+    // enumeration guard returned below.
+    try {
+      await send({
+        to: email,
+        subject: passwordResetSubject(),
+        html: await renderHtml(React.createElement(PasswordResetTemplate, props)),
+        text: passwordResetText(props),
+      });
+    } catch (err) {
+      console.error('[reset-password/request] email send failed', {
+        userId: user.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   return NextResponse.json({ ok: true });

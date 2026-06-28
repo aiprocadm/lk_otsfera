@@ -18,6 +18,8 @@ let docA1ActId: string;
 let docA1InfectedId: string;
 let docA2InvoiceId: string;
 let docB1ContractId: string;
+let docA1CommissionId: string;
+let docOrderLessId: string;
 
 beforeAll(async () => {
   prisma = new PrismaClient();
@@ -68,7 +70,8 @@ beforeAll(async () => {
     data: {
       name: 'contract-A1.pdf', path: 'fake://contract-a1',
       mimeType: 'application/pdf', type: 'contract',
-      orderId: orderA1Id, createdAt: tenDaysAgo
+      orderId: orderA1Id, createdAt: tenDaysAgo,
+      counterpartyType: 'organization', counterpartyId: orgAId
     }
   });
   docA1ContractId = dContract.id;
@@ -77,7 +80,8 @@ beforeAll(async () => {
     data: {
       name: 'act-A1.pdf', path: 'fake://act-a1',
       mimeType: 'application/pdf', type: 'act',
-      orderId: orderA1Id
+      orderId: orderA1Id,
+      counterpartyType: 'organization', counterpartyId: orgAId
     }
   });
   docA1ActId = dAct.id;
@@ -86,7 +90,8 @@ beforeAll(async () => {
     data: {
       name: 'malware-A1.pdf', path: 'fake://infected-a1',
       mimeType: 'application/pdf', type: 'other',
-      orderId: orderA1Id, scanStatus: 'infected', scanReason: 'EICAR test'
+      orderId: orderA1Id, scanStatus: 'infected', scanReason: 'EICAR test',
+      counterpartyType: 'organization', counterpartyId: orgAId
     }
   });
   docA1InfectedId = dInfected.id;
@@ -95,7 +100,8 @@ beforeAll(async () => {
     data: {
       name: 'invoice-A2.pdf', path: 'fake://invoice-a2',
       mimeType: 'application/pdf', type: 'invoice',
-      orderId: orderA2Id
+      orderId: orderA2Id,
+      counterpartyType: 'organization', counterpartyId: orgAId
     }
   });
   docA2InvoiceId = dInvoice.id;
@@ -104,15 +110,40 @@ beforeAll(async () => {
     data: {
       name: 'contract-B1.pdf', path: 'fake://contract-b1',
       mimeType: 'application/pdf', type: 'contract',
-      orderId: orderB1Id
+      orderId: orderB1Id,
+      counterpartyType: 'organization', counterpartyId: orgBId
     }
   });
   docB1ContractId = dB.id;
+
+  // Partner-channel doc on orderA1 — must NOT be visible to the org
+  const dCommission = await prisma.document.create({
+    data: {
+      name: 'commission-A1.pdf', path: 'fake://commission-a1',
+      mimeType: 'application/pdf', type: 'commission_statement',
+      orderId: orderA1Id,
+      counterpartyType: 'partner', counterpartyId: partnerId
+    }
+  });
+  docA1CommissionId = dCommission.id;
+
+  // Order-less org doc (no orderId) — should appear only when orderLess=true
+  const dOrderLess = await prisma.document.create({
+    data: {
+      name: 'gen.pdf', path: 'fake://gen',
+      mimeType: 'application/pdf', type: 'other',
+      counterpartyType: 'organization', counterpartyId: orgAId,
+      companyId
+    }
+  });
+  docOrderLessId = dOrderLess.id;
 
 });
 
 afterAll(async () => {
   await prisma.document.deleteMany({ where: { order: { partnerId } } });
+  // Delete order-less org doc (no orderId — not caught by the order-scoped filter above)
+  await prisma.document.deleteMany({ where: { orderId: null, counterpartyId: orgAId, counterpartyType: 'organization' } });
   await prisma.order.deleteMany({ where: { partnerId } });
   await prisma.organization.deleteMany({ where: { id: { in: [orgAId, orgBId] } } });
   await prisma.partner.delete({ where: { id: partnerId } });
@@ -211,6 +242,21 @@ describe('services/organization/documents — listOrgDocuments', () => {
     expect(countsByType.act).toBe(1);
     expect(countsByType.invoice).toBe(1);
   });
+
+  it('does NOT leak partner-channel documents to the organization', async () => {
+    const { rows, total } = await listOrgDocuments(prisma, { organizationId: orgAId });
+    const ids = rows.map((r) => r.id);
+    expect(ids).not.toContain(docA1CommissionId);
+    expect(total).toBe(3); // contract + act + invoice; commission is partner-channel
+  });
+
+  it('orderLess=true returns only order-less docs; default returns only order-bound', async () => {
+    const bound = await listOrgDocuments(prisma, { organizationId: orgAId });
+    const less = await listOrgDocuments(prisma, { organizationId: orgAId, orderLess: true });
+    expect(bound.rows.every((r) => r.orderId !== null)).toBe(true);
+    expect(less.rows.every((r) => r.orderId === null)).toBe(true);
+    expect(less.rows.map((r) => r.id)).toContain(docOrderLessId);
+  });
 });
 
 describe('services/organization/documents — getOrgDocumentForDownload', () => {
@@ -242,5 +288,26 @@ describe('services/organization/documents — getOrgDocumentForDownload', () => 
     } else {
       throw new Error('expected infected discriminator');
     }
+  });
+
+  it('download of a partner-channel doc returns not_found for the org', async () => {
+    const r = await getOrgDocumentForDownload(prisma, orgAId, docA1CommissionId);
+    expect(r).toEqual({ ok: false, error: 'not_found' });
+  });
+
+  it('org downloads its own order-less doc successfully', async () => {
+    const r = await getOrgDocumentForDownload(prisma, orgAId, docOrderLessId);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.path).toBe('fake://gen');
+      expect(r.mimeType).toBe('application/pdf');
+      expect(r.name).toBe('gen.pdf');
+    }
+  });
+
+  it('org gets not_found for another orgs order-less doc', async () => {
+    // orgB does not own docOrderLessId (counterpartyId = orgAId)
+    const r = await getOrgDocumentForDownload(prisma, orgBId, docOrderLessId);
+    expect(r).toEqual({ ok: false, error: 'not_found' });
   });
 });

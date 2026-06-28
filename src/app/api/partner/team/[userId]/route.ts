@@ -26,32 +26,28 @@ export async function PUT(
     return NextResponse.json({ error: 'Invalid payload', details: parsed.error.flatten() }, { status: 400 });
   }
 
-  try {
-    const updated = await assignOrgs(prisma, {
-      partnerId: admin.value.partnerId,
-      userId,
-      assignedOrgIds: parsed.data.assignedOrgIds
-    });
-
-    await recordAudit(prisma, {
-      action: 'partner_member_scope_changed',
-      entity: 'partner_user',
-      entityId: updated.id,
-      userId: session.sub,
-      after: {
-        partnerId: admin.value.partnerId,
-        targetUserId: userId,
-        assignedOrgIds: parsed.data.assignedOrgIds,
-      },
-    });
-
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'unknown';
-    if (msg.startsWith('ORG_OUT_OF_SCOPE')) return NextResponse.json({ error: 'ORG_OUT_OF_SCOPE' }, { status: 422 });
-    if (msg.startsWith('NOT_FOUND')) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
-    throw err;
+  const res = await assignOrgs(prisma, {
+    partnerId: admin.value.partnerId,
+    userId,
+    assignedOrgIds: parsed.data.assignedOrgIds
+  });
+  if (!res.ok) {
+    return NextResponse.json({ error: res.error }, { status: 422 });
   }
+
+  await recordAudit(prisma, {
+    action: 'partner_member_scope_changed',
+    entity: 'partner_user',
+    entityId: res.partnerUser.id,
+    userId: session.sub,
+    after: {
+      partnerId: admin.value.partnerId,
+      targetUserId: userId,
+      assignedOrgIds: parsed.data.assignedOrgIds,
+    },
+  });
+
+  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(
@@ -66,25 +62,22 @@ export async function DELETE(
 
   const { userId } = await ctx.params;
 
-  try {
-    const deactivated = await deactivateMember(prisma, { partnerId: admin.value.partnerId, userId });
-
-    await recordAudit(prisma, {
-      action: 'partner_member_deactivated',
-      entity: 'partner_user',
-      entityId: deactivated.id,
-      userId: session.sub,
-      after: {
-        partnerId: admin.value.partnerId,
-        targetUserId: userId,
-      },
-    });
-
-    return new NextResponse(null, { status: 204 });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'unknown';
-    if (msg.startsWith('LAST_ADMIN')) return NextResponse.json({ error: 'LAST_ADMIN' }, { status: 409 });
-    if (msg.startsWith('NOT_FOUND')) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
-    throw err;
+  const res = await deactivateMember(prisma, { partnerId: admin.value.partnerId, userId });
+  if (!res.ok) {
+    const status = res.error === 'not_found' ? 404 : 409;
+    return NextResponse.json({ error: res.error }, { status });
   }
+
+  await recordAudit(prisma, {
+    action: 'partner_member_deactivated',
+    entity: 'partner_user',
+    entityId: res.partnerUser.id,
+    userId: session.sub,
+    after: {
+      partnerId: admin.value.partnerId,
+      targetUserId: userId,
+    },
+  });
+
+  return new NextResponse(null, { status: 204 });
 }

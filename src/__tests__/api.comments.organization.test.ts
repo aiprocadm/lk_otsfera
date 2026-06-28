@@ -5,16 +5,20 @@ const {
   orderFindUnique,
   commentCreate,
   auditCreate,
+  notifyManagers,
   notifyMessageCreated,
   triggerNotificationEmail,
+  triggerNotificationTelegram,
   getPrimaryOrganizationId
 } = vi.hoisted(() => ({
   getSession: vi.fn(),
   orderFindUnique: vi.fn(),
   commentCreate: vi.fn(),
   auditCreate: vi.fn(),
+  notifyManagers: vi.fn(),
   notifyMessageCreated: vi.fn(),
   triggerNotificationEmail: vi.fn(),
+  triggerNotificationTelegram: vi.fn(),
   getPrimaryOrganizationId: vi.fn()
 }));
 
@@ -27,8 +31,10 @@ vi.mock('@/lib/db/prisma', () => ({
   }
 }));
 vi.mock('@/lib/notifications', () => ({
+  notifyManagers,
   notifyMessageCreated,
-  triggerNotificationEmail
+  triggerNotificationEmail,
+  triggerNotificationTelegram,
 }));
 vi.mock('@/lib/auth/organization', () => ({
   getPrimaryOrganizationId
@@ -66,6 +72,11 @@ describe('POST /api/comments — organization role', () => {
       body: 'hello from org',
       createdAt: new Date(),
       authorId: 'u-org-1'
+    });
+    notifyManagers.mockResolvedValue({
+      recipientsNotified: 0,
+      emailsSent: 0,
+      emailsSkipped: 0
     });
   });
 
@@ -166,5 +177,124 @@ describe('POST /api/comments — partner/admin flow unchanged', () => {
     expect(res.status).toBe(200);
     expect(notifyMessageCreated).toHaveBeenCalled();
     expect(triggerNotificationEmail).toHaveBeenCalled();
+  });
+
+  it('401 when unauthenticated (getSession returns null → requireSession returns !ok)', async () => {
+    getSession.mockResolvedValue(null);
+    const res = await commentsPost(commentReq('ord-1'));
+    expect(res.status).toBe(401);
+    expect(commentCreate).not.toHaveBeenCalled();
+  });
+
+  it('404 when order does not exist in the generic (admin) path', async () => {
+    getSession.mockResolvedValue({ sub: 'u-admin', role: 'admin' });
+    orderFindUnique.mockResolvedValue(null);
+    const res = await commentsPost(commentReq('ord-missing'));
+    expect(res.status).toBe(404);
+    expect(commentCreate).not.toHaveBeenCalled();
+  });
+
+  it('still returns 200 when notification fan-out throws (best-effort)', async () => {
+    getSession.mockResolvedValue({ sub: 'u-admin', role: 'admin' });
+    orderFindUnique.mockResolvedValue({ id: 'ord-1', companyId: 'c1', organizationId: 'org-x' });
+    notifyMessageCreated.mockRejectedValueOnce(new Error('transport down'));
+
+    const res = await commentsPost(commentReq('ord-1', 'hi'));
+    expect(res.status).toBe(200);
+    expect(commentCreate).toHaveBeenCalled();
+  });
+
+  it('still returns 200 when fan-out throws a non-Error string — covers String(err) in partner/admin branch', async () => {
+    // Throwing a non-Error value in the try block covers String(err) branch at line 198
+    getSession.mockResolvedValue({ sub: 'u-admin', role: 'admin' });
+    orderFindUnique.mockResolvedValue({ id: 'ord-1', companyId: 'c1', organizationId: 'org-x' });
+    notifyMessageCreated.mockRejectedValueOnce('plain string fan-out error');
+
+    const res = await commentsPost(commentReq('ord-1', 'hi'));
+    expect(res.status).toBe(200);
+    expect(commentCreate).toHaveBeenCalled();
+  });
+});
+
+
+describe('POST /api/comments — non-Error throw in notifyManagers catch (org branch)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    commentCreate.mockResolvedValue({
+      id: 'c1',
+      orderId: 'ord-1',
+      body: 'hi',
+      createdAt: new Date(),
+      authorId: 'u-org-1'
+    });
+    notifyManagers.mockResolvedValue({
+      recipientsNotified: 0,
+      emailsSent: 0,
+      emailsSkipped: 0
+    });
+  });
+
+  it('still returns 201 when notifyManagers throws a non-Error string — covers String(err) in org branch', async () => {
+    getSession.mockResolvedValue(orgSession([{ id: 'org-a' }]));
+    orderFindUnique.mockResolvedValue({ id: 'ord-1', organizationId: 'org-a' });
+    // Throw a plain string (not an Error) to hit the String(err) branch
+    notifyManagers.mockRejectedValueOnce('network timeout string');
+
+    const res = await commentsPost(commentReq('ord-1'));
+    expect(res.status).toBe(201);
+    expect(commentCreate).toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/comments — parse & partner-role branches', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getPrimaryOrganizationId.mockResolvedValue(null);
+    commentCreate.mockResolvedValue({
+      id: 'c1',
+      orderId: 'ord-1',
+      body: 'hi',
+      createdAt: new Date(),
+      authorId: 'u-partner'
+    });
+  });
+
+  it('400 when request body is invalid JSON', async () => {
+    getSession.mockResolvedValue({ sub: 'u-partner', role: 'partner', partnerId: 'p1' });
+    const badReq = new Request('https://app.local/api/comments', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: 'NOT JSON'
+    });
+    const res = await commentsPost(badReq);
+    expect(res.status).toBe(400);
+    expect(commentCreate).not.toHaveBeenCalled();
+  });
+
+  it('403 when partner session has no partnerId', async () => {
+    // Partner session without partnerId: the route checks !s.partnerId → 403
+    getSession.mockResolvedValue({ sub: 'u-p', role: 'partner' });
+    orderFindUnique.mockResolvedValue({ id: 'ord-1', partnerId: 'p1' });
+    const res = await commentsPost(commentReq('ord-1'));
+    expect(res.status).toBe(403);
+    expect(commentCreate).not.toHaveBeenCalled();
+  });
+
+  it('403 when partner session partnerId does not match order.partnerId', async () => {
+    getSession.mockResolvedValue({ sub: 'u-p', role: 'partner', partnerId: 'p-other' });
+    orderFindUnique.mockResolvedValue({ id: 'ord-1', partnerId: 'p1' });
+    const res = await commentsPost(commentReq('ord-1'));
+    expect(res.status).toBe(403);
+    expect(commentCreate).not.toHaveBeenCalled();
+  });
+
+  it('201 when partner session partnerId matches order.partnerId', async () => {
+    getSession.mockResolvedValue({ sub: 'u-p', role: 'partner', partnerId: 'p1' });
+    orderFindUnique.mockResolvedValue({ id: 'ord-1', partnerId: 'p1' });
+    notifyMessageCreated.mockResolvedValue(undefined);
+    triggerNotificationEmail.mockResolvedValue(undefined);
+    const res = await commentsPost(commentReq('ord-1'));
+    expect(res.status).toBe(200);
+    expect(commentCreate).toHaveBeenCalled();
   });
 });

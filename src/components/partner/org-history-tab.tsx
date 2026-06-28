@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma';
+import { fmtDateTime } from '@/lib/format';
 
 const labels: Record<string, string> = {
   partner_commission_rate_changed: 'Изменена ставка комиссии'
@@ -22,7 +23,7 @@ export async function HistoryTab({ orgId }: { orgId: string }) {
         <li key={r.id} className='px-4 py-3'>
           <div className='flex justify-between text-xs text-gray-500'>
             <span>{r.user?.name ?? 'Система'}</span>
-            <span>{r.createdAt.toLocaleString('ru-RU')}</span>
+            <span>{fmtDateTime(r.createdAt)}</span>
           </div>
           <div className='text-sm text-[#111111] mt-0.5'>
             {labels[r.action] ?? r.action}

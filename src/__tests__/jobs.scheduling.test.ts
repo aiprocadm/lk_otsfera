@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { registerSyncSchedules, SYNC_SCHEDULES } from '@/lib/jobs/scheduling';
+import {
+  registerSyncSchedules,
+  SYNC_SCHEDULES,
+  loadPausedSchedulerIds,
+  registerCommissionSchedules,
+  COMMISSION_SCHEDULES,
+  DEFAULT_SYNC_TZ
+} from '@/lib/jobs/scheduling';
 import type { Queue } from 'bullmq';
 
 function makeFakeQueue() {
@@ -83,5 +90,60 @@ describe('registerSyncSchedules', () => {
       expect((d as { reason?: string }).reason).toBe('cron');
       expect((d as { triggeredAt?: string }).triggeredAt).toBeTruthy();
     }
+  });
+});
+
+describe('registerSyncSchedules — paused skipping', () => {
+  it('skips schedules whose schedulerId is paused', async () => {
+    const getQueue = () => ({ upsertJobScheduler: vi.fn(async (id: string) => ({ id })) } as unknown as Queue);
+    const result = await registerSyncSchedules(getQueue as never, new Set(['oneCSync.pullOrders.cron']));
+    expect(result).toHaveLength(4);
+    expect(result.map((r) => r.schedulerId)).not.toContain('oneCSync.pullOrders.cron');
+  });
+});
+
+describe('loadPausedSchedulerIds', () => {
+  it('returns a Set of paused schedulerIds from the DB', async () => {
+    const prisma = {
+      syncSchedulePause: { findMany: vi.fn().mockResolvedValue([{ schedulerId: 'a' }, { schedulerId: 'b' }]) },
+    } as never;
+    const set = await loadPausedSchedulerIds(prisma);
+    expect(set).toEqual(new Set(['a', 'b']));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// registerCommissionSchedules
+// ---------------------------------------------------------------------------
+describe('registerCommissionSchedules', () => {
+  it('registers the monthly-commissions cron and returns schedule metadata', async () => {
+    const calls: Array<{ id: string; opts: { pattern?: string; tz?: string }; data: unknown }> = [];
+    const getQueue = () =>
+      ({
+        upsertJobScheduler: vi.fn(async (id: string, opts, template) => {
+          calls.push({ id, opts: opts as { pattern?: string; tz?: string }, data: (template as { data?: unknown })?.data });
+          return { id };
+        })
+      } as unknown as Queue);
+
+    const result = await registerCommissionSchedules(getQueue as never);
+
+    expect(result).toHaveLength(COMMISSION_SCHEDULES.length);
+    expect(result).toHaveLength(1);
+    expect(result[0].queueName).toBe('docs.calculateMonthlyCommissions');
+    expect(result[0].schedulerId).toBe('docs.calculateMonthlyCommissions.cron');
+    expect(result[0].pattern).toBe('0 6 1 * *');
+    expect(result[0].tz).toBe(DEFAULT_SYNC_TZ);
+    expect(calls[0].opts.tz).toBe('Europe/Moscow');
+    expect((calls[0].data as { reason?: string }).reason).toBe('cron');
+    expect((calls[0].data as { triggeredAt?: string }).triggeredAt).toBeTruthy();
+  });
+
+  it('uses the injected getQueue function (DI)', async () => {
+    const getQueueSpy = vi.fn().mockReturnValue({
+      upsertJobScheduler: vi.fn().mockResolvedValue({ id: 'x' })
+    });
+    await registerCommissionSchedules(getQueueSpy as never);
+    expect(getQueueSpy).toHaveBeenCalledWith('docs.calculateMonthlyCommissions');
   });
 });

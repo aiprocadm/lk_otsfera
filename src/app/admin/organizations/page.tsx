@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { requireAdmin } from '@/lib/auth/requireRole';
+import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { prisma } from '@/lib/db/prisma';
+import { listOrganizations } from '@/lib/services/admin/organizations';
+import type { OrgFilters } from '@/lib/services/admin/organizations';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +12,8 @@ const PAGE_SIZE = 50;
 type SearchParams = {
   q?: string;
   skip?: string;
+  partnerId?: string;
+  withRateOverride?: string;
 };
 
 export default async function AdminOrganizationsPage({
@@ -20,29 +25,27 @@ export default async function AdminOrganizationsPage({
   const sp = await searchParams;
   const q = sp.q?.trim() ?? '';
   const skip = Number.isFinite(Number(sp.skip)) ? Math.max(0, Number(sp.skip)) : 0;
+  const partnerId = sp.partnerId || undefined;
+  const withRateOverride =
+    sp.withRateOverride === 'true' ? true
+    : sp.withRateOverride === 'false' ? false
+    : undefined;
 
-  const where = q
-    ? {
-        OR: [
-          { name: { contains: q, mode: 'insensitive' as const } },
-          { inn: { contains: q, mode: 'insensitive' as const } },
-          { externalId: { contains: q, mode: 'insensitive' as const } }
-        ]
-      }
-    : {};
+  const filters: OrgFilters = {
+    q: q || undefined,
+    partnerId,
+    withRateOverride,
+    take: PAGE_SIZE,
+    skip
+  };
 
-  const [orgs, total] = await Promise.all([
-    prisma.organization.findMany({
-      where,
-      include: {
-        partner: { select: { id: true, name: true } },
-        _count: { select: { orders: true, organizationUsers: true } }
-      },
-      orderBy: { name: 'asc' },
-      take: PAGE_SIZE,
-      skip
-    }),
-    prisma.organization.count({ where })
+  const [{ rows: orgs, total }, partners] = await Promise.all([
+    listOrganizations(prisma, filters),
+    prisma.partner.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' }
+    })
   ]);
 
   return (
@@ -55,14 +58,35 @@ export default async function AdminOrganizationsPage({
             {q && <span className='text-gray-400'> · по запросу «{q}»</span>}
           </p>
         </div>
-        <form method='get' className='flex gap-2'>
+        <form method='get' className='flex flex-wrap gap-2'>
           <input
             type='search'
             name='q'
             defaultValue={q}
             placeholder='Поиск по названию, ИНН, 1С-id…'
-            className='border border-gray-200 rounded-lg px-3 py-2 text-sm w-full md:w-72 focus:outline-none focus:border-[#F97316]'
+            className='border border-gray-200 rounded-lg px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:border-[#F97316]'
           />
+          <select
+            name='partnerId'
+            defaultValue={sp.partnerId ?? ''}
+            className='border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'
+          >
+            <option value=''>— все партнёры —</option>
+            {partners.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <select
+            name='withRateOverride'
+            defaultValue={sp.withRateOverride ?? ''}
+            className='border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'
+          >
+            <option value=''>— любые —</option>
+            <option value='true'>только со ставкой override</option>
+            <option value='false'>только без override</option>
+          </select>
           <button
             type='submit'
             className='px-3 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C]'
@@ -72,52 +96,55 @@ export default async function AdminOrganizationsPage({
         </form>
       </div>
 
-      <div className='bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm'>
-        <table className='w-full text-sm'>
-          <thead>
-            <tr className='border-b border-gray-100 bg-gray-50 text-left'>
-              <th className='px-4 py-2.5 font-medium text-gray-600'>Название</th>
-              <th className='px-4 py-2.5 font-medium text-gray-600'>ИНН</th>
-              <th className='px-4 py-2.5 font-medium text-gray-600'>Партнёр</th>
-              <th className='px-4 py-2.5 font-medium text-gray-600 text-right'>Заказы</th>
-              <th className='px-4 py-2.5 font-medium text-gray-600 text-right'>Доступ</th>
-            </tr>
-          </thead>
+      {orgs.length === 0 ? (
+        <EmptyState icon='🏛' message='По заданному фильтру организаций не нашлось.' />
+      ) : (
+        <TableShell>
+          <THead>
+            <Th>Название</Th>
+            <Th>ИНН</Th>
+            <Th>Партнёр</Th>
+            <Th className='text-right'>Заказы</Th>
+            <Th className='text-right'>Доступ</Th>
+          </THead>
           <tbody>
-            {orgs.length === 0 ? (
-              <tr>
-                <td colSpan={5} className='px-4 py-8 text-center text-gray-500'>
-                  Ничего не нашли
-                </td>
-              </tr>
-            ) : (
-              orgs.map((o) => (
-                <tr key={o.id} className='border-b border-gray-50 hover:bg-[#FFF7ED]'>
-                  <td className='px-4 py-2.5 font-medium text-[#111111]'>
-                    <Link
-                      href={`/admin/organizations/${o.id}`}
-                      className='hover:text-[#F97316]'
+            {orgs.map((o) => (
+              <Tr key={o.id}>
+                <Td className='font-medium text-[#111111]'>
+                  <Link
+                    href={`/admin/organizations/${o.id}`}
+                    className='hover:text-[#F97316]'
+                  >
+                    {o.name}
+                  </Link>
+                  {o.partnerCommissionRate !== null && (
+                    <span
+                      title='Ставка override задана'
+                      className='ml-1.5 text-[#F97316] text-xs'
                     >
-                      {o.name}
-                    </Link>
-                  </td>
-                  <td className='px-4 py-2.5 text-gray-500 font-mono text-xs'>
-                    {o.inn ?? '—'}
-                  </td>
-                  <td className='px-4 py-2.5 text-gray-600'>{o.partner.name}</td>
-                  <td className='px-4 py-2.5 text-right text-gray-600'>{o._count.orders}</td>
-                  <td className='px-4 py-2.5 text-right text-gray-600'>
-                    {o._count.organizationUsers}
-                  </td>
-                </tr>
-              ))
-            )}
+                      ●
+                    </span>
+                  )}
+                </Td>
+                <Td className='text-gray-500 font-mono text-xs'>{o.inn ?? '—'}</Td>
+                <Td className='text-gray-600'>{o.partner?.name ?? 'Без партнёра'}</Td>
+                <Td className='text-right text-gray-600'>{o.ordersCount}</Td>
+                <Td className='text-right text-gray-600'>{o.organizationUsersCount}</Td>
+              </Tr>
+            ))}
           </tbody>
-        </table>
-      </div>
+        </TableShell>
+      )}
 
       {total > PAGE_SIZE && (
-        <Paginator skip={skip} take={PAGE_SIZE} total={total} q={q} />
+        <Paginator
+          skip={skip}
+          take={PAGE_SIZE}
+          total={total}
+          q={q}
+          partnerId={sp.partnerId ?? ''}
+          withRateOverride={sp.withRateOverride ?? ''}
+        />
       )}
     </div>
   );
@@ -127,16 +154,22 @@ function Paginator({
   skip,
   take,
   total,
-  q
+  q,
+  partnerId,
+  withRateOverride
 }: {
   skip: number;
   take: number;
   total: number;
   q: string;
+  partnerId: string;
+  withRateOverride: string;
 }) {
   function link(s: number): string {
     const p = new URLSearchParams();
     if (q) p.set('q', q);
+    if (partnerId) p.set('partnerId', partnerId);
+    if (withRateOverride) p.set('withRateOverride', withRateOverride);
     if (s > 0) p.set('skip', String(s));
     return `/admin/organizations${p.toString() ? '?' + p.toString() : ''}`;
   }

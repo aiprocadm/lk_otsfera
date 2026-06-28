@@ -58,4 +58,17 @@ describe('GET /api/partner/dashboard', () => {
     await GET();
     expect(kpis).toHaveBeenCalledWith(expect.anything(), { partnerId: 'p1', scopeOrgIds: ['oA', 'oB'] });
   });
+
+  it('defaults scopeOrgIds to [] when assignedOrgIds is null/undefined', async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      sub: 'u', role: 'partner', partnerId: 'p1', partnerRole: 'admin'
+      // assignedOrgIds intentionally omitted → undefined
+    } as any);
+    vi.mocked(kpis).mockResolvedValue({ openOrders: 0, outstanding: '0.00', activeLeads: 0, commissionThisMonth: '0.00' });
+    vi.mocked(attention).mockResolvedValue({ stuckOrders: [], overdueOrders: [], staleLeads: [] });
+    vi.mocked(recentEvents).mockResolvedValue([]);
+
+    await GET();
+    expect(kpis).toHaveBeenCalledWith(expect.anything(), { partnerId: 'p1', scopeOrgIds: [] });
+  });
 });

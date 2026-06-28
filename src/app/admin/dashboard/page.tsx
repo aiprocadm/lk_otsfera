@@ -2,7 +2,9 @@ import Link from 'next/link';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { kpis, attention, recentEvents } from '@/lib/services/admin/dashboard';
+import { auditActionRu } from '@/lib/i18n/auditActions';
 import { StatCard } from '@/components/dashboard/stat-card';
+import { fmtDateTime } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +27,7 @@ export default async function AdminDashboardPage() {
       {/* KPI Grid */}
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
         {k.map((tile) => (
-          <StatCard key={tile.label} title={tile.label} value={tile.value} />
+          <StatCard key={tile.label} title={tile.label} value={tile.value} href={tile.href} />
         ))}
       </div>
 
@@ -67,14 +69,14 @@ export default async function AdminDashboardPage() {
             <ul className="space-y-2 text-sm">
               {events.map((e) => (
                 <li key={e.id} className="flex items-center justify-between gap-3">
-                  <span className="text-gray-700 flex-1 min-w-0 truncate">
-                    <span className="font-medium">{e.actor}</span>
-                    {' — '}
-                    {e.verb}
-                    {e.entity ? ` (${e.entity}` + (e.entityRef ? ` #${e.entityRef}` : '') + ')' : ''}
-                  </span>
+                  <Link
+                    href={`/admin/audit?entity=${e.entity}&action=${e.verb}`}
+                    className="text-gray-700 flex-1 min-w-0 truncate hover:text-[#F97316] hover:underline"
+                  >
+                    <span className="font-medium">{e.actor}</span> {auditActionRu(e.verb)}
+                  </Link>
                   <span className="text-gray-400 text-xs whitespace-nowrap">
-                    {e.timestamp.toLocaleString('ru-RU')}
+                    {fmtDateTime(e.timestamp)}
                   </span>
                 </li>
               ))}

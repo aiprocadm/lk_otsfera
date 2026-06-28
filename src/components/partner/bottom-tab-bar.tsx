@@ -5,8 +5,8 @@ import { usePathname } from 'next/navigation';
 type Tab = { href: string; label: string; icon: string; disabled?: boolean };
 
 const TABS: Tab[] = [
-  { href: '/partner/dashboard', label: 'Кабинет', icon: '⌂' },
-  { href: '/partner/deals', label: 'Сделки', icon: '📋' },
+  { href: '/partner/dashboard', label: 'Главная', icon: '⌂' },
+  { href: '/partner/deals', label: 'Заказы', icon: '📋' },
   { href: '/partner/leads', label: 'Заявки', icon: '✚' },
   { href: '/partner/documents', label: 'Документы', icon: '📄' }
 ];

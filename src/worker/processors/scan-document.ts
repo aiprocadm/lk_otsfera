@@ -2,7 +2,7 @@ import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
 import { Socket } from 'node:net';
 import { prisma } from '@/lib/db/prisma';
-import { getServerClient, documentBucket } from '@/lib/storage/supabase';
+import { getObjectStorage } from '@/lib/storage';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import type { ScanDocumentPayload, ScanDocumentTarget } from '@/lib/jobs/types';
 
@@ -22,6 +22,7 @@ export type ScanDeps = {
 
 const INSTREAM_CHUNK_BYTES = 64 * 1024;
 
+/* v8 ignore start -- production ClamAV TCP implementation; exercised in e2e only, not unit-testable without a live scanner */
 function clamAvInstream(host: string, port: number, payload: Buffer): Promise<string> {
   const timeoutMs = Number(process.env.CLAMAV_TIMEOUT_MS ?? '30000');
   return new Promise((resolve, reject) => {
@@ -55,13 +56,13 @@ function clamAvInstream(host: string, port: number, payload: Buffer): Promise<st
     socket.connect(port, host);
   });
 }
+/* v8 ignore stop */
 
+/* v8 ignore start -- production S3 storage download; exercised in e2e only, not unit-testable without live storage */
 async function defaultDownload(path: string): Promise<Buffer> {
-  const storage = getServerClient().storage.from(documentBucket);
-  const { data, error } = await storage.download(path);
-  if (error || !data) throw new Error(`STORAGE_DOWNLOAD: ${error?.message ?? 'no data'}`);
-  return Buffer.from(await data.arrayBuffer());
+  return getObjectStorage().download(path);
 }
+/* v8 ignore stop */
 
 export const defaultScanDeps: ScanDeps = {
   scan: clamAvInstream,
@@ -141,7 +142,12 @@ export async function scanDocumentProcessor(
     payload = await deps.download(target.path);
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
-    await persistResult(db, kind, id, 'error', reason);
+    // SECURITY: mirror the scanner-unreachable branch below — do NOT persist a
+    // terminal 'error' status on a download failure. The backfill sweep only
+    // re-enqueues 'pending' rows, so persisting 'error' here would strand the
+    // document unscanned (and still downloadable) forever after a transient
+    // storage outage. Re-throw so BullMQ retries; the row stays 'pending' for
+    // the backfill sweep if the outage outlives the retry budget.
     await writeSyncLog(
       {
         entity: 'scan',
@@ -149,11 +155,11 @@ export async function scanDocumentProcessor(
         direction: 'inbound',
         operation: 'check',
         status: 'error',
-        errorMessage: reason,
+        errorMessage: `Storage download failed: ${reason}`,
       },
       db,
     );
-    return { kind, id, scanStatus: 'error', scanReason: reason };
+    throw err;
   }
 
   let response: string;
@@ -161,19 +167,24 @@ export async function scanDocumentProcessor(
     response = await deps.scan(host, port, payload);
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
-    await persistResult(db, kind, id, 'clean', null);
+    // SECURITY: do NOT mark the document clean when the scanner is unreachable —
+    // that would permanently whitelist an unscanned file. Re-throw so BullMQ
+    // retries (attempts:5, exponential backoff); a persistent outage lands the
+    // job in the DLQ and leaves the document `pending` for the backfill sweep to
+    // rescan once ClamAV recovers. (The CLAMAV_HOST-unset branch above is the
+    // only intentional clean-by-default path, for envs without a scanner.)
     await writeSyncLog(
       {
         entity: 'scan',
         externalId: id,
         direction: 'inbound',
         operation: 'check',
-        status: 'warn',
-        errorMessage: `ClamAV unreachable, marking clean: ${reason}`,
+        status: 'error',
+        errorMessage: `ClamAV unreachable: ${reason}`,
       },
       db,
     );
-    return { kind, id, scanStatus: 'clean', scanReason: null };
+    throw err;
   }
 
   const parsed = parseClamAvResponse(response);

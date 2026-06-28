@@ -1,8 +1,7 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import type { LeadStatus } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requirePartner } from '@/lib/auth/requireRole';
 import { listLeads } from '@/lib/services/partner/leads';
 import { LeadsTable } from '@/components/partner/leads-table';
 import { LeadsCardList } from '@/components/partner/leads-card-list';
@@ -27,8 +26,7 @@ export default async function PartnerLeadsPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const session = await getSession();
-  if (!session?.partnerId) redirect('/login');
+  const session = await requirePartner();
 
   const sp = await searchParams;
   const take = Math.min(

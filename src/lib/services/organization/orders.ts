@@ -3,9 +3,19 @@ import type {
   ExecutionStatus,
   FinancialStatus,
   DocumentType,
-  DocumentDirection
+  DocumentDirection,
+  Prisma
 } from '@prisma/client';
-import { humanStage, type Stage } from '@/lib/orders/humanStage';
+import { orderStage, type Stage } from '@/lib/orders/humanStage';
+import { organizationChannelWhere } from '@/lib/auth/documentChannelPolicy';
+
+const ORDER_ITEM_INCLUDE = {
+  student: { select: { id: true, name: true, email: true } },
+  direction: { select: { id: true, name: true } },
+  certificate: { select: { id: true, number: true, validUntil: true } }
+} satisfies Prisma.OrderItemInclude;
+
+export type OrgOrderItemRow = Prisma.OrderItemGetPayload<{ include: typeof ORDER_ITEM_INCLUDE }>;
 
 export type OrgOrderRow = {
   id: string;
@@ -103,9 +113,11 @@ export async function listOrgOrders(
     debt: (Number(o.totalAmount) - Number(o.paidAmount)).toFixed(2),
     executionStatus: o.executionStatus,
     financialStatus: o.financialStatus,
-    stage: humanStage({
+    stage: orderStage({
       executionStatus: o.executionStatus,
-      financialStatus: o.financialStatus
+      financialStatus: o.financialStatus,
+      amount: Number(o.totalAmount),
+      paidTotal: Number(o.paidAmount)
     }),
     createdAt: o.createdAt,
     deadline: o.deadline,
@@ -162,6 +174,7 @@ export type OrgOrderDetail = {
   documents: OrgOrderDocument[];
   payments: OrgOrderPayment[];
   commentsCount: number;
+  items: OrgOrderItemRow[];
 };
 
 export async function getOrgOrder(
@@ -174,7 +187,7 @@ export async function getOrgOrder(
     include: {
       manager: { select: { name: true } },
       documents: {
-        where: { scanStatus: { not: 'infected' } },
+        where: organizationChannelWhere(organizationId),
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
@@ -197,7 +210,11 @@ export async function getOrgOrder(
           note: true
         }
       },
-      _count: { select: { comments: true } }
+      _count: { select: { comments: true } },
+      items: {
+        include: ORDER_ITEM_INCLUDE,
+        orderBy: { createdAt: 'asc' }
+      }
     }
   });
 
@@ -209,9 +226,11 @@ export async function getOrgOrder(
     organizationId: order.organizationId,
     orderNumber: order.orderNumber,
     title: order.title,
-    stage: humanStage({
+    stage: orderStage({
       executionStatus: order.executionStatus,
-      financialStatus: order.financialStatus
+      financialStatus: order.financialStatus,
+      amount: Number(order.totalAmount),
+      paidTotal: Number(order.paidAmount)
     }),
     executionStatus: order.executionStatus,
     financialStatus: order.financialStatus,
@@ -249,6 +268,7 @@ export async function getOrgOrder(
       isRefund: p.isRefund,
       note: p.note
     })),
-    commentsCount: order._count.comments
+    commentsCount: order._count.comments,
+    items: order.items
   };
 }

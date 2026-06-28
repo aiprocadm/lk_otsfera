@@ -31,42 +31,52 @@ vi.mock('next/link', () => ({
 
 import { usePathname } from 'next/navigation';
 import { AdminSidebar } from '@/components/admin/admin-sidebar';
+import { navByRole } from '@/lib/navigation/cabinet';
 
 const EXPECTED_HREFS = [
   '/admin/dashboard',
   '/admin/health',
   '/admin/sync',
+  '/admin/documents',
+  '/admin/messages',
   '/admin/commission-statements',
+  '/admin/commission-corrections',
+  '/admin/finance',
+  '/admin/import',
+  '/admin/payments-import',
+  '/admin/enrollments',
   '/admin/audit',
   '/admin/users',
   '/admin/partners',
   '/admin/organizations',
+  '/admin/custom-fields',
+  '/admin/settings',
 ];
 
 describe('AdminSidebar', () => {
-  it('renders all 8 nav links with correct hrefs', () => {
+  it('renders nav links with correct hrefs', () => {
     vi.mocked(usePathname).mockReturnValue('/admin/dashboard');
 
-    const html = renderToString(React.createElement(AdminSidebar));
+    const html = renderToString(React.createElement(AdminSidebar, { items: navByRole.admin }));
 
     for (const href of EXPECTED_HREFS) {
       expect(html).toContain(`href="${href}"`);
     }
   });
 
-  it('renders exactly 8 nav links', () => {
+  it('renders exactly 18 nav links', () => {
     vi.mocked(usePathname).mockReturnValue('/admin/dashboard');
 
-    const html = renderToString(React.createElement(AdminSidebar));
+    const html = renderToString(React.createElement(AdminSidebar, { items: navByRole.admin }));
 
     const matches = html.match(/data-testid="admin-nav-/g);
-    expect(matches).toHaveLength(8);
+    expect(matches).toHaveLength(18);
   });
 
   it('marks exactly one link as active when on /admin/dashboard', () => {
     vi.mocked(usePathname).mockReturnValue('/admin/dashboard');
 
-    const html = renderToString(React.createElement(AdminSidebar));
+    const html = renderToString(React.createElement(AdminSidebar, { items: navByRole.admin }));
 
     const activeMatches = html.match(/data-active="true"/g);
     expect(activeMatches).toHaveLength(1);
@@ -76,7 +86,7 @@ describe('AdminSidebar', () => {
   it('marks exactly one link as active when on /admin/users', () => {
     vi.mocked(usePathname).mockReturnValue('/admin/users');
 
-    const html = renderToString(React.createElement(AdminSidebar));
+    const html = renderToString(React.createElement(AdminSidebar, { items: navByRole.admin }));
 
     const activeMatches = html.match(/data-active="true"/g);
     expect(activeMatches).toHaveLength(1);
@@ -86,7 +96,7 @@ describe('AdminSidebar', () => {
   it('marks users link as active for a sub-path /admin/users/123', () => {
     vi.mocked(usePathname).mockReturnValue('/admin/users/123');
 
-    const html = renderToString(React.createElement(AdminSidebar));
+    const html = renderToString(React.createElement(AdminSidebar, { items: navByRole.admin }));
 
     const activeMatches = html.match(/data-active="true"/g);
     expect(activeMatches).toHaveLength(1);
@@ -96,7 +106,7 @@ describe('AdminSidebar', () => {
   it('renders group titles: Платформа, Операции, Справочники', () => {
     vi.mocked(usePathname).mockReturnValue('/admin/health');
 
-    const html = renderToString(React.createElement(AdminSidebar));
+    const html = renderToString(React.createElement(AdminSidebar, { items: navByRole.admin }));
 
     expect(html).toContain('Платформа');
     expect(html).toContain('Операции');
@@ -106,7 +116,7 @@ describe('AdminSidebar', () => {
   it('marks no link active when pathname does not match any item', () => {
     vi.mocked(usePathname).mockReturnValue('/some/other/page');
 
-    const html = renderToString(React.createElement(AdminSidebar));
+    const html = renderToString(React.createElement(AdminSidebar, { items: navByRole.admin }));
 
     const activeMatches = html.match(/data-active="true"/g);
     expect(activeMatches).toBeNull();

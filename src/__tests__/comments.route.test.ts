@@ -7,6 +7,7 @@ const {
   createComment,
   notifyMessageCreated,
   triggerNotificationEmail,
+  triggerNotificationTelegram,
   getPrimaryOrganizationId
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
@@ -15,17 +16,22 @@ const {
   createComment: vi.fn(),
   notifyMessageCreated: vi.fn(),
   triggerNotificationEmail: vi.fn(),
+  triggerNotificationTelegram: vi.fn(),
   getPrimaryOrganizationId: vi.fn()
 }));
 
-vi.mock('@/lib/auth/guard', () => ({ requireSession, requireOrderAccess }));
+vi.mock('@/lib/auth/guard', () => ({
+  requireSession,
+  requireOrderAccess,
+  forbiddenResponse: (m: string) => Response.json({ message: m }, { status: 403 })
+}));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     order: { findUnique: findOrder },
     comment: { create: createComment }
   }
 }));
-vi.mock('@/lib/notifications', () => ({ notifyMessageCreated, triggerNotificationEmail }));
+vi.mock('@/lib/notifications', () => ({ notifyMessageCreated, triggerNotificationEmail, triggerNotificationTelegram }));
 vi.mock('@/lib/auth/organization', () => ({ getPrimaryOrganizationId }));
 
 import { POST } from '@/app/api/comments/route';
@@ -91,5 +97,28 @@ describe('POST /api/comments', () => {
     expect(triggerNotificationEmail).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'u1', type: 'message_created' })
     );
+  });
+
+  it('still returns the comment when notification fan-out fails (best-effort)', async () => {
+    notifyMessageCreated.mockRejectedValue(new Error('notify transport down'));
+    const res = await POST(makeRequest({ orderId: 'ord1', body: 'hello' }));
+    expect(res.status).toBe(200);
+    expect(createComment).toHaveBeenCalled();
+  });
+
+  it('partner can comment only on own orders (partnerId pin)', async () => {
+    requireSession.mockResolvedValue({ ok: true, value: { sub: 'u1', role: 'partner', partnerId: 'p1' } });
+    findOrder.mockResolvedValue({ id: 'ord1', companyId: 'c1', partnerId: 'p1' });
+    const res = await POST(makeRequest({ orderId: 'ord1', body: 'hello' }));
+    expect(res.status).toBe(200);
+    expect(requireOrderAccess).not.toHaveBeenCalled();
+  });
+
+  it("partner cannot comment on a sibling partner's order in the same company", async () => {
+    requireSession.mockResolvedValue({ ok: true, value: { sub: 'u1', role: 'partner', partnerId: 'p1' } });
+    findOrder.mockResolvedValue({ id: 'ord1', companyId: 'c1', partnerId: 'pX' });
+    const res = await POST(makeRequest({ orderId: 'ord1', body: 'hello' }));
+    expect(res.status).toBe(403);
+    expect(createComment).not.toHaveBeenCalled();
   });
 });

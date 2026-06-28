@@ -1,4 +1,5 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
+import type { OrgRoleInOrg } from '@/lib/auth/jwt';
 import { createInviteToken } from '@/lib/auth/passwordReset';
 import { recordAudit } from '@/lib/auth/audit';
 
@@ -6,6 +7,7 @@ export type OrgMemberErrorCode =
   | 'already_member'
   | 'last_admin_protected'
   | 'self_action_forbidden'
+  | 'requires_admin'
   | 'not_found';
 
 export class OrgMemberError extends Error {
@@ -22,7 +24,7 @@ export type OrgMemberRow = {
   userId: string;
   email: string;
   name: string;
-  roleInOrg: 'admin' | 'member';
+  roleInOrg: 'admin' | 'leader' | 'member';
   isActive: boolean;
   invitedAt: Date;
   lastLoginAt: Date | null;
@@ -32,7 +34,7 @@ export type InviteMemberInput = {
   organizationId: string;
   email: string;
   name: string;
-  roleInOrg: 'admin' | 'member';
+  roleInOrg: 'admin' | 'leader' | 'member';
 };
 
 export type InviteMemberResult = {
@@ -41,8 +43,10 @@ export type InviteMemberResult = {
   alreadyHasPassword: boolean;
 };
 
-function normaliseRole(value: string | null | undefined): 'admin' | 'member' {
-  return value === 'admin' ? 'admin' : 'member';
+function normaliseRole(value: string | null | undefined): 'admin' | 'leader' | 'member' {
+  if (value === 'admin') return 'admin';
+  if (value === 'leader') return 'leader';
+  return 'member';
 }
 
 function getAppBaseUrl(): string {
@@ -80,9 +84,14 @@ export async function inviteMember(
   prisma: PrismaClient,
   args: InviteMemberInput,
   actorUserId: string,
-  audit: InviteMemberAuditMeta = {}
-): Promise<InviteMemberResult> {
-  return prisma.$transaction(async (tx) => {
+  audit: InviteMemberAuditMeta = {},
+  actorRole: OrgRoleInOrg = 'admin' // back-compat default; callers must pass real actor role
+): Promise<({ ok: true } & InviteMemberResult) | { ok: false; error: OrgMemberErrorCode }> {
+  try {
+    if (actorRole === 'leader' && args.roleInOrg === 'admin') {
+      throw new OrgMemberError('requires_admin');
+    }
+    const result = await prisma.$transaction(async (tx) => {
     let user = await tx.user.findUnique({ where: { email: args.email } });
     let isNewUser = false;
     if (!user) {
@@ -112,6 +121,12 @@ export async function inviteMember(
     if (existing) {
       if (existing.isActive) {
         throw new OrgMemberError('already_member');
+      }
+      // A leader must not reactivate/alter an existing admin membership — the
+      // pre-transaction guard only blocks granting admin to a NEW invite; this
+      // closes the reactivation path (re-inviting a deactivated admin).
+      if (actorRole === 'leader' && normaliseRole(existing.roleInOrg) === 'admin') {
+        throw new OrgMemberError('requires_admin');
       }
       const updated = await tx.organizationUser.update({
         where: { id: existing.id },
@@ -162,15 +177,25 @@ export async function inviteMember(
       inviteUrl,
       alreadyHasPassword
     };
-  });
+    });
+    return { ok: true, ...result };
+  } catch (e) {
+    if (e instanceof OrgMemberError) return { ok: false, error: e.code };
+    throw e;
+  }
 }
 
 async function loadOrgUserOrThrow(
   tx: Prisma.TransactionClient,
+  organizationId: string,
   orgUserId: string
 ) {
   const row = await tx.organizationUser.findUnique({ where: { id: orgUserId } });
-  if (!row) throw new OrgMemberError('not_found');
+  // Cross-tenant guard: the membership must belong to the organization the
+  // caller was authorised for. Without this, an admin of org A could mutate
+  // members of org B by passing a foreign orgUserId — the server action only
+  // verifies admin-ship of the *claimed* org, not that the target lives in it.
+  if (!row || row.organizationId !== organizationId) throw new OrgMemberError('not_found');
   return row;
 }
 
@@ -194,94 +219,129 @@ async function assertNotLastActiveAdmin(
 
 export async function updateMemberRole(
   prisma: PrismaClient,
+  organizationId: string,
   orgUserId: string,
-  newRole: 'admin' | 'member',
-  actorUserId: string
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    const target = await loadOrgUserOrThrow(tx, orgUserId);
-    if (target.userId === actorUserId) {
-      throw new OrgMemberError('self_action_forbidden');
-    }
-    const currentRole = normaliseRole(target.roleInOrg);
-    if (currentRole === newRole) return; // no-op
+  newRole: 'admin' | 'leader' | 'member',
+  actorUserId: string,
+  actorRole: OrgRoleInOrg = 'admin' // back-compat default; callers must pass real actor role
+): Promise<{ ok: true } | { ok: false; error: OrgMemberErrorCode }> {
+  try {
+    await prisma.$transaction(async (tx) => {
+      const target = await loadOrgUserOrThrow(tx, organizationId, orgUserId);
+      if (target.userId === actorUserId) {
+        throw new OrgMemberError('self_action_forbidden');
+      }
+      const currentRole = normaliseRole(target.roleInOrg);
+      if (actorRole === 'leader' && (currentRole === 'admin' || newRole === 'admin')) {
+        throw new OrgMemberError('requires_admin');
+      }
+      // Guard above must run before this no-op: a leader touching an admin row
+      // must fail even when newRole === currentRole.
+      if (currentRole === newRole) return; // no-op
 
-    if (currentRole === 'admin' && newRole === 'member' && target.isActive) {
-      await assertNotLastActiveAdmin(tx, target.organizationId, target.id);
-    }
+      if (currentRole === 'admin' && newRole === 'member' && target.isActive) {
+        await assertNotLastActiveAdmin(tx, target.organizationId, target.id);
+      }
 
-    await tx.organizationUser.update({
-      where: { id: target.id },
-      data: { roleInOrg: newRole }
+      await tx.organizationUser.update({
+        where: { id: target.id },
+        data: { roleInOrg: newRole }
+      });
+
+      await recordAudit(tx, {
+        userId: actorUserId,
+        action: 'org_member_role_changed',
+        entity: 'organization_user',
+        entityId: target.id,
+        before: { roleInOrg: currentRole },
+        after: { roleInOrg: newRole }
+      });
     });
-
-    await recordAudit(tx, {
-      userId: actorUserId,
-      action: 'org_member_role_changed',
-      entity: 'organization_user',
-      entityId: target.id,
-      before: { roleInOrg: currentRole },
-      after: { roleInOrg: newRole }
-    });
-  });
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof OrgMemberError) return { ok: false, error: e.code };
+    throw e;
+  }
 }
 
 export async function deactivateMember(
   prisma: PrismaClient,
+  organizationId: string,
   orgUserId: string,
-  actorUserId: string
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    const target = await loadOrgUserOrThrow(tx, orgUserId);
-    if (target.userId === actorUserId) {
-      throw new OrgMemberError('self_action_forbidden');
-    }
-    if (!target.isActive) return; // no-op
+  actorUserId: string,
+  actorRole: OrgRoleInOrg = 'admin' // back-compat default; callers must pass real actor role
+): Promise<{ ok: true } | { ok: false; error: OrgMemberErrorCode }> {
+  try {
+    await prisma.$transaction(async (tx) => {
+      const target = await loadOrgUserOrThrow(tx, organizationId, orgUserId);
+      if (target.userId === actorUserId) {
+        throw new OrgMemberError('self_action_forbidden');
+      }
+      if (actorRole === 'leader' && normaliseRole(target.roleInOrg) === 'admin') {
+        throw new OrgMemberError('requires_admin');
+      }
+      if (!target.isActive) return; // no-op
 
-    if (normaliseRole(target.roleInOrg) === 'admin') {
-      await assertNotLastActiveAdmin(tx, target.organizationId, target.id);
-    }
+      if (normaliseRole(target.roleInOrg) === 'admin') {
+        await assertNotLastActiveAdmin(tx, target.organizationId, target.id);
+      }
 
-    await tx.organizationUser.update({
-      where: { id: target.id },
-      data: { isActive: false }
+      await tx.organizationUser.update({
+        where: { id: target.id },
+        data: { isActive: false }
+      });
+
+      await recordAudit(tx, {
+        userId: actorUserId,
+        action: 'org_member_deactivated',
+        entity: 'organization_user',
+        entityId: target.id,
+        before: { isActive: true },
+        after: { isActive: false }
+      });
     });
-
-    await recordAudit(tx, {
-      userId: actorUserId,
-      action: 'org_member_deactivated',
-      entity: 'organization_user',
-      entityId: target.id,
-      before: { isActive: true },
-      after: { isActive: false }
-    });
-  });
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof OrgMemberError) return { ok: false, error: e.code };
+    throw e;
+  }
 }
 
 export async function reactivateMember(
   prisma: PrismaClient,
+  organizationId: string,
   orgUserId: string,
-  actorUserId: string
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    const target = await loadOrgUserOrThrow(tx, orgUserId);
-    if (target.userId === actorUserId) {
-      throw new OrgMemberError('self_action_forbidden');
-    }
-    if (target.isActive) return; // no-op
+  actorUserId: string,
+  actorRole: OrgRoleInOrg = 'admin' // back-compat default; callers must pass real actor role
+): Promise<{ ok: true } | { ok: false; error: OrgMemberErrorCode }> {
+  try {
+    await prisma.$transaction(async (tx) => {
+      const target = await loadOrgUserOrThrow(tx, organizationId, orgUserId);
+      if (target.userId === actorUserId) {
+        throw new OrgMemberError('self_action_forbidden');
+      }
+      if (actorRole === 'leader' && normaliseRole(target.roleInOrg) === 'admin') {
+        throw new OrgMemberError('requires_admin');
+      }
+      if (target.isActive) return; // no-op
 
-    await tx.organizationUser.update({
-      where: { id: target.id },
-      data: { isActive: true }
-    });
+      await tx.organizationUser.update({
+        where: { id: target.id },
+        data: { isActive: true }
+      });
 
-    await recordAudit(tx, {
-      userId: actorUserId,
-      action: 'org_member_reactivated',
-      entity: 'organization_user',
-      entityId: target.id,
-      before: { isActive: false },
-      after: { isActive: true }
+      await recordAudit(tx, {
+        userId: actorUserId,
+        action: 'org_member_reactivated',
+        entity: 'organization_user',
+        entityId: target.id,
+        before: { isActive: false },
+        after: { isActive: true }
+      });
     });
-  });
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof OrgMemberError) return { ok: false, error: e.code };
+    throw e;
+  }
 }

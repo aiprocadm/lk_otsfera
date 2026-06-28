@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/guard';
 import { canReadDocument, forbiddenResponse } from '@/lib/auth/policy';
-import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
+import { getObjectStorage } from '@/lib/storage';
 import { recordAudit } from '@/lib/auth/audit';
 
 const MIN_TTL = 60;
@@ -24,7 +24,11 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params;
   const doc = await prisma.document.findUnique({
     where: { id },
-    include: { order: { select: { companyId: true } } }
+    select: {
+      id: true, path: true, name: true, scanStatus: true, scanReason: true,
+      orderId: true, companyId: true, counterpartyType: true, counterpartyId: true,
+      order: { select: { companyId: true } }
+    }
   });
   if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (!(await canReadDocument(s, doc))) return forbiddenResponse('You do not have access to this document');
@@ -36,16 +40,16 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   }
 
   const ttl = resolveTtl(new URL(_req.url).searchParams.get('ttl'));
-  const { data, error } = await supabaseAdmin.storage.from(documentBucket).createSignedUrl(doc.path, ttl);
-
-  if (error || !data?.signedUrl) {
+  let signedUrl: string;
+  try {
+    signedUrl = await getObjectStorage().createSignedUrl(doc.path, ttl);
+  } catch (error) {
     console.error('Failed to create document signed URL', {
       correlationId,
       documentId: doc.id,
-      storageBucket: documentBucket,
       storagePath: doc.path,
       ttl,
-      providerError: error?.message ?? 'Missing signed URL from provider'
+      providerError: error instanceof Error ? error.message : String(error)
     });
     return NextResponse.json({ error: 'Failed to create document download link', correlationId }, { status: 502 });
   }
@@ -58,5 +62,5 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     after: { ttl },
   });
 
-  return NextResponse.json({ downloadUrl: data.signedUrl, expiresInSec: ttl, fileName: doc.name });
+  return NextResponse.json({ downloadUrl: signedUrl, expiresInSec: ttl, fileName: doc.name });
 }

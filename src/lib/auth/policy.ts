@@ -1,10 +1,18 @@
 import { prisma } from '@/lib/db/prisma';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { canReadOrderLessDocument } from '@/lib/auth/documentChannelPolicy';
 
 type AccessErrorCode = 'FORBIDDEN';
 
 type OrderLike = { id: string; companyId: string };
-type DocumentLike = { id: string; orderId: string; order?: { companyId: string } };
+type DocumentLike = {
+  id: string;
+  orderId: string | null;
+  companyId?: string | null;
+  order?: { companyId: string } | null;
+  counterpartyType?: 'organization' | 'partner';
+  counterpartyId?: string;
+};
 
 export function forbiddenResponse(message = 'Access denied', code: AccessErrorCode = 'FORBIDDEN') {
   return Response.json({ code, message }, { status: 403 });
@@ -25,8 +33,16 @@ export async function canAccessOrganization(session: SessionPayload, organizatio
   }
 
   if (session.role === 'manager') {
-    const membership = await prisma.organizationUser.findFirst({ where: { userId: session.sub, organizationId, isActive: true }, select: { id: true } });
-    return Boolean(membership);
+    const { canSeeOrganization, getCompanyTeamVisibility } = await import('@/lib/auth/managerPolicy');
+    const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+    if (teamMode) {
+      const org = await prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { companyId: true }
+      });
+      return !!session.companyId && org?.companyId === session.companyId;
+    }
+    return canSeeOrganization(session, organizationId);
   }
 
   return false;
@@ -51,28 +67,71 @@ export async function canReadOrder(session: SessionPayload, order: OrderLike) {
   }
 
   if (session.role === 'manager') {
-    const membership = await prisma.organizationUser.findFirst({
-      where: {
-        userId: session.sub,
-        isActive: true,
-        organization: { companyId: order.companyId }
-      },
-      select: { id: true }
+    const { canSeeOrder, getCompanyTeamVisibility } = await import('@/lib/auth/managerPolicy');
+    const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+    // `order` already carries companyId, so company-wide is a pure comparison.
+    if (teamMode) return !!session.companyId && order.companyId === session.companyId;
+    // Scoped mode: assignment graph only (no comments-history at this guard).
+    const fullOrder = await prisma.order.findUnique({
+      where: { id: order.id },
+      select: { managerId: true, organizationId: true, companyId: true }
     });
-    return Boolean(membership);
+    if (!fullOrder) return false;
+    return canSeeOrder(session, fullOrder, false);
   }
 
   return false;
 }
 
 export async function canReadDocument(session: SessionPayload, document: DocumentLike) {
-  const doc = document.order?.companyId
+  // Re-fetch unless the caller already provided every field both branches need.
+  // An order-bound doc is complete when order.companyId is present;
+  // an order-less doc is complete only when companyId is present (orderId===null alone
+  // is not sufficient — a missing companyId would reach the downstream gate with null).
+  const haveAll =
+    !!document.counterpartyType && !!document.counterpartyId &&
+    (!!document.order?.companyId || !!document.companyId);
+  const doc = haveAll
     ? document
-    : await prisma.document.findUnique({ where: { id: document.id }, select: { id: true, order: { select: { companyId: true } } } });
+    : await prisma.document.findUnique({
+        where: { id: document.id },
+        select: {
+          id: true, orderId: true, companyId: true,
+          counterpartyType: true, counterpartyId: true,
+          order: { select: { companyId: true } }
+        }
+      });
+  if (!doc || !doc.counterpartyType || !doc.counterpartyId) return false;
 
-  if (!doc?.order?.companyId) return false;
+  // Order-less branch: order is null, company anchor lives on the doc.
+  if (doc.orderId === null) {
+    return canReadOrderLessDocument(session, {
+      counterpartyType: doc.counterpartyType,
+      counterpartyId: doc.counterpartyId,
+      companyId: doc.companyId ?? null
+    });
+  }
 
-  return canReadOrder(session, { id: doc.id, companyId: doc.order.companyId });
+  // Order-bound branch (unchanged from Phase A).
+  if (!doc.order?.companyId) return false;
+
+  // Channel isolation for client roles (defense-in-depth at the download gate):
+  // a partner reads only its partner-channel; an organization only org-channel.
+  // Managers/admins see both channels within their order scope (unchanged).
+  if (session.role === 'partner') {
+    if (doc.counterpartyType !== 'partner' || doc.counterpartyId !== session.partnerId) return false;
+  } else if (session.role === 'organization') {
+    // Pin BOTH type and counterpartyId (DOC-01): canReadOrder() below is company-level
+    // for orgs and does NOT isolate to a specific organization, so without this an org
+    // user could read a sibling org's document within the same company. Symmetric to
+    // the partner branch above.
+    if (doc.counterpartyType !== 'organization' || doc.counterpartyId !== session.organizationId) return false;
+  }
+
+  // Pass the parent ORDER id, not the document id: canReadOrder() for the
+  // manager role looks the Order up by this id, so passing doc.id silently
+  // denied every manager. Both branches carry orderId now.
+  return canReadOrder(session, { id: doc.orderId, companyId: doc.order.companyId });
 }
 
 export function isPartnerAdmin(session: SessionPayload): boolean {

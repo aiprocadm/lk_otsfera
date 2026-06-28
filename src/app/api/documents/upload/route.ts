@@ -1,15 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { requireOrderAccess, requireSession } from '@/lib/auth/guard';
-import { notifyDocumentCreated, triggerNotificationEmail } from '@/lib/notifications';
+import { requireOrderAccess, requireRole, requireSession } from '@/lib/auth/guard';
+import { notifyDocumentCreated, triggerNotificationEmail, triggerNotificationTelegram } from '@/lib/notifications';
 import { getPrimaryOrganizationId } from '@/lib/auth/organization';
-import { documentBucket, supabaseAdmin } from '@/lib/storage/supabase';
+import { getObjectStorage } from '@/lib/storage';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { recordAudit } from '@/lib/auth/audit';
+import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
+import { resolveMaxFileSizeMb, maxFileSizeBytes } from '@/lib/config/upload';
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
+  'application/msword', // .doc (legacy, §13)
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'image/png',
@@ -17,20 +20,14 @@ const ALLOWED_MIME_TYPES = [
   'application/zip'
 ] as const;
 
-const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.xlsx', '.png', '.jpg', '.jpeg', '.zip'] as const;
+const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xlsx', '.png', '.jpg', '.jpeg', '.zip'] as const;
 const ALLOWED_FORMATS_ERROR = `Unsupported file format. Allowed formats: ${ALLOWED_EXTENSIONS.join(', ')}`;
 
-const DEFAULT_MAX_FILE_SIZE_MB = 10;
-const MAX_FILE_SIZE_MB_RAW = Number(process.env.DOCUMENT_MAX_FILE_SIZE_MB ?? DEFAULT_MAX_FILE_SIZE_MB);
-const MAX_FILE_SIZE_MB = Number.isFinite(MAX_FILE_SIZE_MB_RAW) && MAX_FILE_SIZE_MB_RAW > 0 ? MAX_FILE_SIZE_MB_RAW : DEFAULT_MAX_FILE_SIZE_MB;
-if (MAX_FILE_SIZE_MB !== MAX_FILE_SIZE_MB_RAW) {
-  console.warn('[documents/upload] Invalid DOCUMENT_MAX_FILE_SIZE_MB, fallback to default', {
-    fallbackMb: DEFAULT_MAX_FILE_SIZE_MB
-  });
-}
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+const MAX_FILE_SIZE_MB = resolveMaxFileSizeMb();
+const MAX_FILE_SIZE_BYTES = maxFileSizeBytes();
 
 function errorResponse(code: string, message: string, status: number, correlationId?: string) {
+  /* v8 ignore next -- correlationId is always crypto.randomUUID(); the {} branch is unreachable in practice */
   return NextResponse.json({ code, message, ...(correlationId ? { correlationId } : {}) }, { status });
 }
 
@@ -44,7 +41,15 @@ export async function POST(req: Request) {
   if (!sessionResult.ok) return sessionResult.response;
   const s = sessionResult.value;
 
-  const form = await req.formData();
+  // Admin-only: the sole consumer is the admin DocumentsPanel. Partner and
+  // organization uploads go through their channel-scoped paths (server-action /
+  // manager API), which pin counterparty — this legacy route writes to the
+  // org channel unconditionally and must not be reachable by other roles.
+  const roleResult = requireRole(s, ['admin']);
+  if (!roleResult.ok) return roleResult.response;
+
+  const form = await req.formData().catch(() => null);
+  if (!form) return errorResponse('BAD_REQUEST', 'Expected multipart form-data', 400, correlationId);
   const orderId = String(form.get('orderId') ?? '');
   const file = form.get('file');
 
@@ -77,26 +82,45 @@ export async function POST(req: Request) {
   const internalPath = `${tenantPath}/${Date.now()}-${sanitizeFilename(file.name)}`;
 
   const arrayBuffer = await file.arrayBuffer();
-  const { error: uploadError } = await supabaseAdmin.storage
-    .from(documentBucket)
-    .upload(internalPath, Buffer.from(arrayBuffer), { contentType: file.type, upsert: false });
 
-  if (uploadError) {
+  // Defense-in-depth: when the declared MIME is one we can fingerprint, the
+  // file's magic bytes must match — defeats content-type/extension spoofing.
+  // Types the validator can't fingerprint (e.g. application/zip) fall through
+  // to the allow-list + async ClamAV scan.
+  if ((SUPPORTED_MIME_TYPES as readonly string[]).includes(file.type)) {
+    const validation = validateMagicBytes(file.type, new Uint8Array(arrayBuffer));
+    if (!validation.ok) {
+      return errorResponse('INVALID_FILE_FORMAT', ALLOWED_FORMATS_ERROR, 400, correlationId);
+    }
+  }
+
+  try {
+    await getObjectStorage().upload(internalPath, Buffer.from(arrayBuffer), {
+      contentType: file.type
+    });
+  } catch (uploadError) {
     console.error('Document upload failed', {
       correlationId,
       orderId,
       fileName: file.name,
       fileSize: file.size,
       mimeType: file.type,
-      storageBucket: documentBucket,
       storagePath: internalPath,
-      providerError: uploadError.message
+      providerError: uploadError instanceof Error ? uploadError.message : String(uploadError)
     });
     return errorResponse('STORAGE_UPLOAD_FAILED', 'Failed to upload document', 502, correlationId);
   }
 
   const doc = await prisma.document.create({
-    data: { orderId, name: file.name, path: internalPath, mimeType: file.type, uploadedById: s.sub }
+    data: {
+      orderId,
+      counterpartyType: 'organization',
+      counterpartyId: order.organizationId,
+      name: file.name,
+      path: internalPath,
+      mimeType: file.type,
+      uploadedById: s.sub
+    }
   });
 
   await recordAudit(prisma, {
@@ -120,18 +144,28 @@ export async function POST(req: Request) {
     });
   }
 
-  const organizationId = await getPrimaryOrganizationId(s);
-
-  await notifyDocumentCreated({
-    userId: s.sub,
-    organizationId,
-    partnerId: s.partnerId,
-    title: 'Новый документ',
-    body: `Загружен документ ${file.name}`,
-    meta: { orderId, documentId: doc.id }
-  });
-
-  await triggerNotificationEmail({ userId: s.sub, title: 'Новый документ', body: `Загружен документ ${file.name}`, type: 'document_created' });
+  // Best-effort fan-out: the document row is already committed; a notification
+  // or email transport failure must not surface as an upload error (the client
+  // would retry and create a duplicate).
+  try {
+    const organizationId = await getPrimaryOrganizationId(s);
+    await notifyDocumentCreated({
+      userId: s.sub,
+      organizationId,
+      partnerId: s.partnerId,
+      title: 'Новый документ',
+      body: `Загружен документ ${file.name}`,
+      meta: { orderId, documentId: doc.id }
+    });
+    await triggerNotificationEmail({ userId: s.sub, title: 'Новый документ', body: `Загружен документ ${file.name}`, type: 'document_created' });
+    await triggerNotificationTelegram({ userId: s.sub, title: 'Новый документ', body: `Загружен документ ${file.name}`, type: 'document_created' });
+  } catch (err) {
+    console.warn('[documents/upload] notification fan-out failed', {
+      correlationId,
+      documentId: doc.id,
+      error: err instanceof Error ? err.message : String(err)
+    });
+  }
 
   return NextResponse.json({ id: doc.id, name: doc.name, mimeType: doc.mimeType, createdAt: doc.createdAt });
 }

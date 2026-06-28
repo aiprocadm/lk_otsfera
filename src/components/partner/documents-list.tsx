@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -101,6 +101,10 @@ export function DocumentsList({
                 <span>{fmtDate(doc.createdAt)}</span>
                 <span aria-hidden>·</span>
                 <span>{fmtSize(doc.size)}</span>
+                <span aria-hidden>·</span>
+                <span className={doc.direction === 'incoming' ? 'text-blue-700' : 'text-gray-500'}>
+                  {doc.direction === 'incoming' ? 'Входящий' : 'Исходящий'}
+                </span>
                 {doc.signedAt && (
                   <>
                     <span aria-hidden>·</span>
@@ -109,7 +113,7 @@ export function DocumentsList({
                 )}
               </div>
               <div className='text-xs text-gray-400 mt-0.5 truncate'>
-                Сделка: {doc.orderNumber ?? doc.orderTitle}
+                {doc.orderId ? `Заказ: ${doc.orderNumber ?? doc.orderTitle}` : 'Общий документ'}
               </div>
             </div>
 

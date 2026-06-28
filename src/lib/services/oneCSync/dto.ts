@@ -1,54 +1,19 @@
-export type OneCOrgDto = {
-  externalId: string;
-  name: string;
-  legalName?: string;
-  inn?: string;
-  kpp?: string;
-  partnerExternalId?: string;
-  updatedAt: string;
-};
+import type { z } from 'zod';
+import type {
+  OneCOrgSchema,
+  OneCOrderSchema,
+  OneCPaymentSchema,
+  OneCDocumentSchema,
+  OneCLeadPushResultSchema
+} from './schemas';
 
-export type OneCOrderDto = {
-  externalId: string;
-  orderNumber?: string;
-  title: string;
-  organizationExternalId: string;
-  totalAmount: number;
-  paidAmount: number;
-  paidAt?: string;
-  contractSignedAt?: string;
-  completedAt?: string;
-  closedAt?: string;
-  vatIncluded: boolean;
-  vatRate?: number;
-  executionStatus: 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'on_hold';
-  financialStatus: 'not_billed' | 'billed' | 'partially_paid' | 'paid' | 'refunded';
-  productMix: string[];
-  updatedAt: string;
-};
+export type OneCOrgDto = z.infer<typeof OneCOrgSchema>;
+export type OneCOrderDto = z.infer<typeof OneCOrderSchema>;
+export type OneCPaymentDto = z.infer<typeof OneCPaymentSchema>;
+export type OneCDocumentDto = z.infer<typeof OneCDocumentSchema>;
+export type OneCLeadPushResult = z.infer<typeof OneCLeadPushResultSchema>;
 
-export type OneCPaymentDto = {
-  externalId: string;
-  orderExternalId: string;
-  amount: number;
-  paidAt: string;
-  method?: string;
-  isRefund: boolean;
-  updatedAt: string;
-};
-
-export type OneCDocumentDto = {
-  externalId: string;
-  orderExternalId: string;
-  type: 'contract' | 'extra_agreement' | 'invoice' | 'act' | 'waybill' | 'certificate' | 'report' | 'other';
-  name: string;
-  mimeType: string;
-  size: number;
-  signedAt?: string;
-  downloadUrl: string;
-  updatedAt: string;
-};
-
+// Outbound payload we construct — no need to runtime-validate our own output.
 export type OneCLeadPushPayload = {
   partnerExternalId?: string;
   partnerSlug?: string;
@@ -62,11 +27,6 @@ export type OneCLeadPushPayload = {
   estimatedAmount?: number;
   productType: string[];
   notes?: string;
-};
-
-export type OneCLeadPushResult = {
-  acceptedAt: string;
-  oneCRequestId?: string;
 };
 
 export type SyncCursor = {

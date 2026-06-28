@@ -128,4 +128,40 @@ describe('POST /api/auth/reset-password/request', () => {
     expect(send).not.toHaveBeenCalled();
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
   });
+
+  it('200 even when email send throws (best-effort, must not propagate)', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeUser as any);
+    vi.mocked(send).mockRejectedValue(new Error('SMTP failure'));
+
+    const res = await POST(jsonReq({ email: 'user@example.com' }));
+
+    expect(res.status).toBe(200);
+    expect((await res.json())).toEqual({ ok: true });
+    // send was called but failed; token was still created
+    expect(createInviteToken).toHaveBeenCalled();
+  });
+
+  it('200 even when send throws a non-Error (string) — covers String(err) branch', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeUser as any);
+    vi.mocked(send).mockRejectedValue('plain string rejection');
+
+    const res = await POST(jsonReq({ email: 'user@example.com' }));
+
+    expect(res.status).toBe(200);
+    expect((await res.json())).toEqual({ ok: true });
+    expect(createInviteToken).toHaveBeenCalled();
+  });
+
+  it('200 uses fallback baseUrl when APP_URL is unset — covers || branch', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeUser as any);
+    delete process.env.APP_URL;
+
+    const res = await POST(jsonReq({ email: 'user@example.com' }));
+
+    expect(res.status).toBe(200);
+    // Restore for subsequent tests
+    process.env.APP_URL = 'https://example.com';
+    // send was still called (with the fallback lk.otsfera.ru URL in the email)
+    expect(send).toHaveBeenCalled();
+  });
 });

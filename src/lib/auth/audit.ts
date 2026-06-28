@@ -5,13 +5,27 @@ export type AuditEntity =
   | 'partner'
   | 'organization'
   | 'organization_user'
+  | 'organization_manager'
   | 'order'
   | 'commission_statement'
   | 'lead'
   | 'lead_attachment'
   | 'document'
   | 'partner_user'
-  | 'student_bridge';
+  | 'student_bridge'
+  | 'order_thread'
+  | 'company'
+  | 'sync_state'
+  | 'sync_schedule'
+  | 'job_queue'
+  | 'payment'
+  | 'one_c_import'
+  | 'enrollment_request'
+  | 'order_item'
+  | 'certificate'
+  | 'custom_field_definition'
+  | 'custom_field_value'
+  | 'commission_correction';
 
 export type AuditRecord = {
   userId: string;

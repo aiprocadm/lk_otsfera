@@ -29,8 +29,14 @@ export async function POST(request: Request) {
     partnerId,
     periodFrom,
     periodTo,
-    calculatedByUserId: sub
+    calculatedByUserId: sub,
+    // C-05: manual entry accepts arbitrary ranges → guard against overlap.
+    rejectOverlap: true
   });
+  if (!result.ok) {
+    const status = result.error === 'partner_not_found' ? 404 : 409;
+    return NextResponse.json({ error: result.error }, { status });
+  }
 
   return NextResponse.json(
     { statement: result.statement, itemCount: result.itemCount, isNew: result.isNew },

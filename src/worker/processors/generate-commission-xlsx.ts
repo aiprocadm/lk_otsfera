@@ -1,7 +1,7 @@
 import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
-import { getServerClient, documentBucket } from '@/lib/storage/supabase';
+import { getObjectStorage } from '@/lib/storage';
 import { renderStatementXlsx } from '@/lib/services/commission/xlsx';
 import type { GenerateCommissionXlsxPayload } from '@/lib/jobs/types';
 
@@ -30,12 +30,11 @@ export async function generateCommissionXlsxProcessor(
   });
 
   const path = `partners/${statement.partnerId}/commission/${statementId}.xlsx`;
-  const storage = getServerClient().storage.from(documentBucket);
-  const { error } = await storage.upload(path, buf, {
-    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    upsert: true
+  // Throws StorageError on provider failure → propagates so BullMQ retries the
+  // job (fail-loud upload semantics; historically the Supabase client's `if (error) throw`).
+  await getObjectStorage().upload(path, buf, {
+    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   });
-  if (error) throw new Error(`STORAGE_FAILURE: ${error.message}`);
 
   await db.commissionStatement.update({
     where: { id: statementId },

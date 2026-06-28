@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { BackLink } from '@/components/ui';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
@@ -10,8 +10,12 @@ import { OrgOrderTimeline } from '@/components/organization/org-order-timeline';
 import { OrgPaymentsList } from '@/components/organization/org-payments-list';
 import { DocumentsList } from '@/components/partner/documents-list';
 import { DealComments } from '@/components/partner/deal-comments';
+import { OrganizationDocumentUploadForm } from '@/components/organization/organization-document-upload-form';
+import { OrderItemsSection } from '@/components/training/order-items-section';
+import { OrderCustomFields } from '@/components/orders/order-custom-fields';
 import type { DealCommentRow } from '@/lib/services/partner/dealDetail';
 import { getOrgOrder } from '@/lib/services/organization/orders';
+import { getValuesForEntity } from '@/lib/services/customFields';
 
 type Params = { id: string };
 type SearchParams = { org?: string };
@@ -36,17 +40,21 @@ export default async function OrganizationOrderDetailPage({
     notFound();
   }
 
-  const commentRows = await prisma.comment.findMany({
-    where: { orderId: order.id },
-    orderBy: { createdAt: 'asc' },
-    include: { author: { select: { name: true } } }
-  });
+  const [commentRows, customFieldsResult] = await Promise.all([
+    prisma.comment.findMany({
+      where: { orderId: order.id },
+      orderBy: { createdAt: 'asc' },
+      include: { author: { select: { name: true } } }
+    }),
+    getValuesForEntity(prisma, 'order', order.id)
+  ]);
   const comments: DealCommentRow[] = commentRows.map((c) => ({
     id: c.id,
     body: c.body,
     createdAt: c.createdAt,
     authorName: c.author.name
   }));
+  const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
 
   const backHref = sp.org
     ? `/organization/orders?org=${encodeURIComponent(sp.org)}`
@@ -62,9 +70,7 @@ export default async function OrganizationOrderDetailPage({
     >
       <div className='space-y-4'>
         <div className='text-sm'>
-          <Link href={backHref} className='text-gray-500 hover:text-[#F97316]'>
-            ← Все заказы
-          </Link>
+          <BackLink href={backHref} label='Все заказы' />
         </div>
 
         <OrgOrderHeader order={order} />
@@ -87,9 +93,20 @@ export default async function OrganizationOrderDetailPage({
                   sp.org ? `?org=${encodeURIComponent(sp.org)}` : ''
                 }
               />
+              <OrganizationDocumentUploadForm organizationId={ctx.activeOrgId} orderId={order.id} />
             </div>
 
             <OrgPaymentsList payments={order.payments} />
+
+            <OrderItemsSection
+              orderId={order.id}
+              canEdit={false}
+              items={order.items}
+              directions={[]}
+              students={[]}
+            />
+
+            <OrderCustomFields fields={customFields} orderId={order.id} editable={false} />
 
             <DealComments comments={comments} orderId={order.id} />
           </div>

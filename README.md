@@ -1,7 +1,7 @@
-# B2B Cabinet MVP (Next.js + Supabase + Prisma)
+# B2B Cabinet MVP (Next.js + Prisma + S3)
 
 ## Stack
-Next.js 15, TypeScript, Tailwind, Prisma, PostgreSQL, Supabase Auth/Storage.
+Next.js 15, TypeScript, Tailwind, Prisma, PostgreSQL, S3-совместимое объектное хранилище, BullMQ + Redis.
 
 ## Установка
 1. Установите зависимости:
@@ -24,8 +24,10 @@ npm run prisma:generate
 - `DATABASE_URL`
 - `DIRECT_URL`
 - `JWT_SECRET`
-- `SUPABASE_URL` — URL проекта Supabase для server-only кода (storage/admin client).
-- `SUPABASE_SERVICE_ROLE_KEY` — сервисный ключ Supabase для серверных API.
+- `S3_ENDPOINT` — endpoint S3-совместимого хранилища (РФ-провайдер: Yandex Object Storage / VK Cloud / Selectel; локально MinIO `http://localhost:9000`).
+- `S3_REGION` — регион хранилища (например `ru-central1`).
+- `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` — ключи доступа к хранилищу (server-only).
+- `S3_BUCKET` — имя bucket для документов (по умолчанию `documents`).
 
 Переменные для Student bridge:
 
@@ -38,9 +40,25 @@ npm run prisma:generate
 
 Дополнительно:
 
-- `SUPABASE_ANON_KEY` — публичный ключ для клиентских сценариев (если используются).
-- `SUPABASE_STORAGE_BUCKET` — имя bucket для документов (по умолчанию `documents`).
-- `DOCUMENT_MAX_FILE_SIZE_MB` — максимальный размер загружаемого файла в MB; значение должно быть конечным числом больше `0` (рекомендуемый диапазон `1..100`, по умолчанию `10`).
+- `S3_FORCE_PATH_STYLE` — `1` для MinIO и провайдеров без virtual-host-style (path-style адресация).
+- `DOCUMENT_MAX_FILE_SIZE_MB` — максимальный размер загружаемого файла в MB; значение должно быть конечным числом больше `0` (рекомендуемый диапазон `1..200`, по умолчанию `200`).
+
+Telegram-уведомления пользователям (§18, опционально — фича дремлет, если не задано):
+
+- `TELEGRAM_BOT_TOKEN` — токен бота (может совпадать с `ALERT_TELEGRAM_BOT_TOKEN`).
+- `TELEGRAM_BOT_USERNAME` — username бота без `@` (для deep-link `https://t.me/<username>?start=<code>`).
+- `TELEGRAM_WEBHOOK_SECRET` — секрет (32+ симв.) для проверки заголовка `X-Telegram-Bot-Api-Secret-Token`.
+
+Настройка бота: создать бота у @BotFather, затем зарегистрировать webhook (один раз):
+
+```
+curl "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
+  -d "url=https://<APP_HOST>/api/integrations/telegram/webhook" \
+  -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
+```
+
+Пользователь привязывает Telegram в кабинете → «Настройки»: получает deep-link, открывает его и
+жмёт «Старт» у бота. После привязки уведомления зеркалятся в Telegram наравне с ЛК и e-mail.
 
 ## Локальный запуск
 
@@ -83,15 +101,35 @@ npm run prisma:seed
 
 ## Тесты
 
-Запуск unit/integration тестов:
+Тестовая дисциплина — трёхслойная (см. [CLAUDE.md §6](CLAUDE.md)). GH Actions отключены, гейтинг локальный через Husky.
+
+| Команда | Слой | Когда |
+|---|---|---|
+| `npm test` | Всё (unit + integration) | Полный прогон |
+| `npm run test:unit` | Только unit (без БД) | Pre-push hook, быстрая обратная связь |
+| `npm run test:integration` | Только integration (нужен Postgres) | Перед PR / релизом, вручную |
+| `npm run test:changed` | Vitest на изменённых файлах в unit-режиме | Pre-commit hook (автоматически) |
+| `npm run test:watch` | Интерактивный режим | Во время разработки |
+
+**Husky hooks** ([.husky/pre-commit](.husky/pre-commit), [.husky/pre-push](.husky/pre-push)) ставятся автоматически после `npm install` через `prepare` скрипт. Бипас: `git commit --no-verify` (использовать редко).
+
+**Integration-слой** требует поднятого Postgres (см. [docker-compose.yml](docker-compose.yml)):
+
 ```bash
-npm test
+docker compose up -d db redis
+npm run prisma:migrate:deploy
+npm run test:integration
 ```
 
-Режим наблюдения:
-```bash
-npm run test:watch
-```
+> **Windows / локаль `C` — кириллический поиск.** Postgres сворачивает регистр (`lower()` и `ILIKE`, который Prisma генерит для `mode:'insensitive'`) по **коллации**, а не по глобальной настройке. Если локальная БД создана под локалью `C`/`POSIX` (типичный дефолт `template1` на Windows-кластере, который наследует БД, авто-созданная `prisma migrate deploy`), регистр сворачивается **только для ASCII** — и регистронезависимый поиск по кириллице молча возвращает 0 строк. Симптом: падают ровно integration-тесты поиска (org orders/students, partner portfolio) при зелёных unit. Это средовой дефект, не баг кода. Фикс — пересоздать локальную БД с ICU-провайдером (полное Unicode-сворачивание):
+>
+> ```bash
+> npm run db:recreate-local          # drop + create `cabinet` с LOCALE_PROVIDER icu, проверка сворачивания
+> npm run prisma:migrate:deploy
+> npm run prisma:seed                # seed не завершается сам локально (BullMQ handle) — Ctrl-C после "[seed] done"
+> ```
+>
+> Скрипт ([scripts/recreate-local-db.ts](scripts/recreate-local-db.ts)) защищён на работу только с `localhost`. Диагностика: `SELECT ('Иван' ILIKE 'иван')` → `false` подтверждает сломанную локаль.
 
 ## Build
 
@@ -112,13 +150,27 @@ npm run build
 
 ## Deployment
 - Works on VPS by Docker
-- Works on Vercel + managed Postgres/Supabase
+- РФ-инфраструктура: managed PostgreSQL + S3-совместимое объектное хранилище + Redis
+  (см. [docs/runbook-prod-infra-rf.md](docs/runbook-prod-infra-rf.md))
 
 ## New cabinets (MVP)
 - `/partner/dashboard` — dashboard партнера с агрегированными метриками.
 - `/organization/dashboard` — dashboard организации.
+- `/manager/dashboard` — dashboard внутреннего менеджера Промтехносферы.
 - `/student` + `/student/redirect` — временный SSO-like переход во внешний LMS по signed JWT.
 - Middleware ограничивает доступ по ролям и изолирует кабинеты.
+
+## Cabinet rollout status
+
+| Cabinet | Маршрут | Feature flag | Default | Состояние |
+|---|---|---|---|---|
+| Partner | `/partner/*` | — | always on | Production (Phase 0–5 done) |
+| Organization | `/organization/*` | `FEATURE_ORGANIZATION_CABINET` | **opt-in** (off) | Staged rollout (Phase 7 done, operator-driven enablement) |
+| Manager | `/manager/*` | `FEATURE_MANAGER_CABINET` | **opt-in** (off) | Staged rollout (Phase 8 done, operator-driven enablement) |
+| Admin | `/admin/*` | — | always on | Production (Phase 6.0–6.7 done — см. [admin-cabinet-6.3-6.7-DONE.md](docs/superpowers/plans/2026-05-29-admin-cabinet-6.3-6.7-DONE.md)) |
+| Student | `/student/*` | — | always on | Production (bridge redirect) |
+
+Opt-in флаги означают: код в `main`, но эндпоинты возвращают 404 пока env-флаг не выставлен в `1/true/on`. Это поэтапная раскатка по операторам — см. [src/lib/featureFlags.ts](src/lib/featureFlags.ts) для семантики флагов. Пошаговая процедура включения (staging-smoke → флип флага на prod → наблюдение → откат) — в **[runbook staged-rollout](docs/runbook-staged-rollout-cabinets.md)** (smoke-чеклисты: [organization](docs/qa-staging-smoke-organization.md) · [manager](docs/qa-staging-smoke-manager.md)).
 
 ## Явная RBAC-матрица
 
@@ -199,15 +251,15 @@ npm run build
 node -e "console.log(Boolean(process.env.JWT_SECRET), (process.env.JWT_SECRET||'').length)"
 ```
 
-### Supabase URL/key (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`)
+### S3 object storage (`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`)
 
 Симптомы:
 - Ошибки загрузки/скачивания документов.
-- Ошибки инициализации Supabase клиента на сервере.
+- Ошибки инициализации S3-клиента на сервере / `StorageError`.
 
 Проверка:
 ```bash
-node -e "console.log(process.env.SUPABASE_URL, Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY))"
+node -e "console.log(process.env.S3_ENDPOINT, process.env.S3_BUCKET, Boolean(process.env.S3_ACCESS_KEY_ID), Boolean(process.env.S3_SECRET_ACCESS_KEY))"
 ```
 
 ### Prisma DB URL (`DATABASE_URL`, `DIRECT_URL`)
@@ -238,22 +290,36 @@ npm run typecheck
 npm run lint
 ```
 
-3. Тесты:
+3. Unit-тесты (без БД):
 ```bash
-npm test
+npm run test:unit
 ```
 
-4. Проверка production build:
+4. Integration-тесты (нужен поднятый Postgres):
+```bash
+docker compose up -d db redis
+npm run prisma:migrate:deploy
+npm run test:integration
+```
+
+5. Проверка production build:
 ```bash
 npm run build
 ```
 
-5. Применение production-миграций:
+6. Dev-server boot check (ловит ошибки маршрутизации, которые `next build` не видит — например конфликт slug-имён в одном динамическом сегменте, см. инцидент с `[id]` vs `[orderId]` в `/api/manager/documents` после PR #58):
+```bash
+npm run dev
+# дождаться "✓ Ready in ..." в логе, убедиться что нет ERROR/Failed,
+# затем остановить Ctrl+C. ~30 секунд.
+```
+
+7. Применение production-миграций:
 ```bash
 npm run prisma:migrate:deploy
 ```
 
-6. (Опционально) smoke-check авторизации и роутов по ролям:
+8. (Опционально) smoke-check авторизации и роутов по ролям:
 - `admin` → доступ только к `/admin/*`.
 - `manager` → доступ только к `/manager/*`.
 - `partner` → доступ к `/partner/*`, без `/admin/*` и `/manager/*`.

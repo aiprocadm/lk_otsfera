@@ -70,4 +70,59 @@ describe('auth middleware', () => {
     expect(res.headers.get('location')).toBe('https://app.local/forbidden');
     expect(res.url).toBe('');
   });
+
+  it('redirects admin away from /partner (no dead door; admin works via /admin/*)', async () => {
+    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'admin' } } as any);
+    const res = await middleware(req('/partner/dashboard', 'tkn'));
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toBe('https://app.local/forbidden');
+  });
+
+  it('redirects admin away from /organization (no dead door)', async () => {
+    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'admin' } } as any);
+    const res = await middleware(req('/organization/dashboard', 'tkn'));
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toBe('https://app.local/forbidden');
+  });
+
+  it('still lets admin into its own /admin/* cabinet', async () => {
+    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'admin' } } as any);
+    const res = await middleware(req('/admin/orders', 'tkn'));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('location')).toBeNull();
+  });
+
+  it('redirects unauthenticated user on a protected path to /login', async () => {
+    // no token, non-auth page → branch in getJwtSecret is not even reached;
+    // the "if (!token)" arm that redirects to /login fires immediately.
+    const res = await middleware(req('/partner/dashboard'));
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toBe('https://app.local/login');
+  });
+
+  it('redirects to /login when JWT_SECRET is missing (getJwtSecret returns null)', async () => {
+    // Arm: process.env.JWT_SECRET is undefined → jwtSecret is falsy → return null
+    // → middleware: !secret → redirect /login
+    delete process.env.JWT_SECRET;
+    const res = await middleware(req('/partner/dashboard', 'tkn'));
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toBe('https://app.local/login');
+  });
+
+  it('redirects to /login when JWT_SECRET is too short (< 32 chars)', async () => {
+    // Arm: jwtSecret.length < MIN_JWT_SECRET_LENGTH → console.error + return null
+    // → middleware: !secret → redirect /login
+    process.env.JWT_SECRET = 'short';
+    const res = await middleware(req('/partner/dashboard', 'tkn'));
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toBe('https://app.local/login');
+  });
+
+  it('redirects to /login when jwtVerify throws (invalid/expired token)', async () => {
+    // catch-block arm: jwtVerify rejects → redirect /login
+    vi.mocked(jwtVerify).mockRejectedValue(new Error('invalid signature'));
+    const res = await middleware(req('/partner/dashboard', 'tkn'));
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toBe('https://app.local/login');
+  });
 });

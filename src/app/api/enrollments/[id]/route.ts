@@ -1,0 +1,41 @@
+import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth/session';
+import { prisma } from '@/lib/db/prisma';
+import { notFoundIfDisabled } from '@/lib/featureFlags';
+import { canReviewEnrollments } from '@/lib/services/enrollments/policy';
+import { approveEnrollment, rejectEnrollment, markProvisioned } from '@/lib/services/enrollments/lifecycle';
+
+type Params = { params: Promise<{ id: string }> };
+
+const statusFor = (error: 'not_found' | 'lifecycle_violation' | 'validation'): number =>
+  error === 'validation' ? 400 : error === 'not_found' ? 404 : 409;
+
+export async function PATCH(req: Request, { params }: Params) {
+  const disabled = notFoundIfDisabled('enrollment_requests');
+  if (disabled) return disabled;
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!canReviewEnrollments(session)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+
+  const { id } = await params;
+  const body = await req.json().catch(() => null);
+  const action = body?.action;
+  const reviewerId = session.sub;
+
+  if (action === 'approve') {
+    const r = await approveEnrollment(prisma, { id, reviewerId });
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: statusFor(r.error) });
+    return NextResponse.json({ request: r.request });
+  }
+  if (action === 'reject') {
+    const r = await rejectEnrollment(prisma, { id, reviewerId, reason: String(body?.reason ?? '') });
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: statusFor(r.error) });
+    return NextResponse.json({ request: r.request });
+  }
+  if (action === 'markProvisioned') {
+    const r = await markProvisioned(prisma, { id, reviewerId, externalStudentId: String(body?.externalStudentId ?? '') });
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: statusFor(r.error) });
+    return NextResponse.json({ request: r.request });
+  }
+  return NextResponse.json({ error: 'Invalid action. Use approve|reject|markProvisioned' }, { status: 400 });
+}

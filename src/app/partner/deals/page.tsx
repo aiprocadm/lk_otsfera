@@ -1,11 +1,12 @@
-import { redirect } from 'next/navigation';
 import type { ExecutionStatus, FinancialStatus } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { requirePartner } from '@/lib/auth/requireRole';
 import { listPartnerDeals } from '@/lib/services/partner/deals';
 import { DealsFilter } from '@/components/partner/deals-filter';
 import { DealsTable } from '@/components/partner/deals-table';
 import { DealsCardList } from '@/components/partner/deals-card-list';
+import { pluralizeRu } from '@/lib/format';
+import { Paginator } from '@/components/ui';
 
 type SearchParams = {
   search?: string;
@@ -38,8 +39,7 @@ export default async function PartnerDealsPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const session = await getSession();
-  if (!session?.partnerId) redirect('/login');
+  const session = await requirePartner();
 
   const sp = await searchParams;
   const take = Math.min(
@@ -69,15 +69,12 @@ export default async function PartnerDealsPage({
     skip
   });
 
-  const page = Math.floor(skip / take) + 1;
-  const pages = Math.max(1, Math.ceil(total / take));
-
   return (
     <div className='space-y-4'>
       <div>
-        <h1 className='text-2xl font-bold text-[#111111]'>Сделки</h1>
+        <h1 className='text-2xl font-semibold text-[#111111]'>Заказы</h1>
         <p className='text-sm text-gray-500 mt-0.5'>
-          {total} {pluralize(total, 'сделка', 'сделки', 'сделок')}
+          {total} {pluralizeRu(total, 'заказ', 'заказа', 'заказов')}
         </p>
       </div>
 
@@ -86,66 +83,8 @@ export default async function PartnerDealsPage({
       <DealsTable rows={rows} />
       <DealsCardList rows={rows} />
 
-      {pages > 1 && (
-        <Paginator
-          take={take}
-          skip={skip}
-          page={page}
-          pages={pages}
-          total={total}
-          searchParams={sp}
-        />
-      )}
+      <Paginator basePath='/partner/deals' searchParams={sp} take={take} skip={skip} total={total} />
     </div>
   );
 }
 
-function pluralize(n: number, one: string, few: string, many: string): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return one;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
-  return many;
-}
-
-function Paginator({
-  take, skip, page, pages, total, searchParams
-}: {
-  take: number;
-  skip: number;
-  page: number;
-  pages: number;
-  total: number;
-  searchParams: SearchParams;
-}) {
-  function link(targetSkip: number): string {
-    const params = new URLSearchParams();
-    if (searchParams.search) params.set('search', searchParams.search);
-    if (searchParams.execution) params.set('execution', searchParams.execution);
-    if (searchParams.financial) params.set('financial', searchParams.financial);
-    params.set('take', String(take));
-    if (targetSkip > 0) params.set('skip', String(targetSkip));
-    return `/partner/deals${params.toString() ? '?' + params.toString() : ''}`;
-  }
-
-  const prev = Math.max(0, skip - take);
-  const next = Math.min((pages - 1) * take, skip + take);
-
-  return (
-    <div className='flex items-center justify-between text-sm text-gray-500'>
-      <span>Страница {page} из {pages} · {total} всего</span>
-      <div className='flex gap-2'>
-        {skip > 0 && (
-          <a href={link(prev)} className='px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50'>
-            Назад
-          </a>
-        )}
-        {skip + take < total && (
-          <a href={link(next)} className='px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50'>
-            Вперёд
-          </a>
-        )}
-      </div>
-    </div>
-  );
-}

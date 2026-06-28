@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
-import { canPartnerAccessOrg, isPartnerAdmin } from '@/lib/auth/policy';
+import { requirePartnerAdmin } from '@/lib/auth/requireRole';
+import { canPartnerAccessOrg } from '@/lib/auth/policy';
 import { getOrgCard } from '@/lib/services/partner/orgCard';
 import { OrgCardHeader } from '@/components/partner/org-card-header';
 import { OrgTabs } from '@/components/partner/org-tabs';
@@ -10,9 +10,7 @@ import { RateOverrideForm } from '@/components/partner/rate-override-form';
 export default async function OrgSettingsPage({
   params
 }: { params: Promise<{ orgId: string }> }) {
-  const session = await getSession();
-  if (!session?.partnerId) redirect('/login');
-  if (!isPartnerAdmin(session)) redirect('/forbidden');
+  const session = await requirePartnerAdmin();
 
   const { orgId } = await params;
   const access = await canPartnerAccessOrg(session, orgId);

@@ -1,6 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useFetchSubmit } from '@/lib/ui/useFetchSubmit';
 
 type OrgOption = { id: string; name: string };
 
@@ -9,6 +10,15 @@ const PRODUCT_OPTIONS = [
   { value: 'service', label: 'Услуги' },
   { value: 'supply', label: 'Поставка' }
 ];
+
+const ERROR_MAP: Record<string, string> = {
+  ORG_OUT_OF_SCOPE: 'Эта организация недоступна в вашем scope',
+  'Invalid payload': 'Проверьте корректность заполненных полей'
+};
+
+function parseEstimated(raw: string): number | null {
+  return raw.trim() ? Number(raw.replace(/\s/g, '').replace(',', '.')) : null;
+}
 
 export function LeadCreateForm({ orgs }: { orgs: OrgOption[] }) {
   const router = useRouter();
@@ -23,8 +33,31 @@ export function LeadCreateForm({ orgs }: { orgs: OrgOption[] }) {
   const [estimatedAmount, setEstimatedAmount] = useState('');
   const [productType, setProductType] = useState<Set<string>>(new Set());
   const [notes, setNotes] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const estimatedNum = parseEstimated(estimatedAmount);
+  const amountInvalid =
+    estimatedNum !== null && (!Number.isFinite(estimatedNum) || estimatedNum < 0);
+
+  const { formAction, pending, errorText } = useFetchSubmit<{ id: string }>({
+    url: '/api/partner/leads',
+    body: () => ({
+      organizationId: organizationId || null,
+      clientCompanyName: clientCompanyName.trim(),
+      clientInn: clientInn.trim() || null,
+      clientContactName: clientContactName.trim(),
+      clientContactPhone: clientContactPhone.trim() || null,
+      clientContactEmail: clientContactEmail.trim() || null,
+      subject: subject.trim(),
+      estimatedAmount: estimatedNum,
+      productType: [...productType],
+      notes: notes.trim() || null
+    }),
+    errorMap: ERROR_MAP,
+    onSuccess: ({ id }) => {
+      router.push(`/partner/leads/${id}`);
+    },
+    refresh: true
+  });
 
   function toggleProduct(v: string) {
     setProductType((prev) => {
@@ -41,65 +74,18 @@ export function LeadCreateForm({ orgs }: { orgs: OrgOption[] }) {
     if (org && !clientCompanyName) setClient(org.name);
   }
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setSubmitting(true);
-
-    const estimatedNum = estimatedAmount.trim()
-      ? Number(estimatedAmount.replace(/\s/g, '').replace(',', '.'))
-      : null;
-    if (estimatedNum !== null && (!Number.isFinite(estimatedNum) || estimatedNum < 0)) {
-      setError('Оценка суммы должна быть положительным числом');
-      setSubmitting(false);
-      return;
-    }
-
-    try {
-      const res = await fetch('/api/partner/leads', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          organizationId: organizationId || null,
-          clientCompanyName: clientCompanyName.trim(),
-          clientInn: clientInn.trim() || null,
-          clientContactName: clientContactName.trim(),
-          clientContactPhone: clientContactPhone.trim() || null,
-          clientContactEmail: clientContactEmail.trim() || null,
-          subject: subject.trim(),
-          estimatedAmount: estimatedNum,
-          productType: [...productType],
-          notes: notes.trim() || null
-        })
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        if (body.error === 'ORG_OUT_OF_SCOPE') {
-          setError('Эта организация недоступна в вашем scope');
-        } else if (body.error === 'Invalid payload') {
-          setError('Проверьте корректность заполненных полей');
-        } else {
-          setError(body.error ?? 'Не удалось создать заявку');
-        }
-        return;
-      }
-
-      const { id } = (await res.json()) as { id: string };
-      router.push(`/partner/leads/${id}`);
-      router.refresh();
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   const valid =
     clientCompanyName.trim().length > 0 &&
     clientContactName.trim().length > 0 &&
-    subject.trim().length > 0;
+    subject.trim().length > 0 &&
+    !amountInvalid;
+
+  const inlineError = amountInvalid
+    ? 'Оценка суммы должна быть положительным числом'
+    : errorText;
 
   return (
-    <form onSubmit={submit} className='space-y-5 bg-white border border-gray-200 rounded-xl p-5'>
+    <form action={formAction} className='space-y-5 bg-white border border-gray-200 rounded-xl p-5'>
       <Section title='Клиент' hint='Кому адресована заявка'>
         {orgs.length > 0 && (
           <label className='block'>
@@ -249,9 +235,9 @@ export function LeadCreateForm({ orgs }: { orgs: OrgOption[] }) {
         </label>
       </Section>
 
-      {error && (
+      {inlineError && (
         <div className='text-sm text-red-700 bg-red-50 border border-red-100 rounded px-3 py-2'>
-          {error}
+          {inlineError}
         </div>
       )}
 
@@ -260,16 +246,16 @@ export function LeadCreateForm({ orgs }: { orgs: OrgOption[] }) {
           type='button'
           onClick={() => router.back()}
           className='px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50'
-          disabled={submitting}
+          disabled={pending}
         >
           Отмена
         </button>
         <button
           type='submit'
-          disabled={submitting || !valid}
+          disabled={pending || !valid}
           className='px-4 py-2 text-sm bg-[#F97316] text-white rounded-lg hover:bg-[#EA580C] disabled:opacity-50'
         >
-          {submitting ? 'Создание…' : 'Создать заявку'}
+          {pending ? 'Создание…' : 'Создать заявку'}
         </button>
       </div>
     </form>
