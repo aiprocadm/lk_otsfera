@@ -6,7 +6,6 @@ import { prisma } from '@/lib/db/prisma';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import {
   updateOrganization,
-  AdminOrgError,
   type AdminOrgErrorCode
 } from '@/lib/services/admin/organizations';
 import {
@@ -41,11 +40,6 @@ function readField(fd: FormData, key: string): string {
   return typeof v === 'string' ? v : '';
 }
 
-function mapErr(e: unknown): Failure {
-  if (e instanceof AdminOrgError) return { ok: false, error: e.code };
-  throw e;
-}
-
 export async function updateOrganizationAction(fd: FormData): Promise<ActionResult> {
   const parsed = updateSchema.safeParse({
     id: readField(fd, 'id'),
@@ -56,15 +50,12 @@ export async function updateOrganizationAction(fd: FormData): Promise<ActionResu
   if (!parsed.success) return { ok: false, error: 'validation', details: parsed.error.flatten() };
 
   const session = await requireAdmin();
-  try {
-    const { id, ...args } = parsed.data;
-    await updateOrganization(prisma, session.sub, id, args);
-    revalidatePath('/admin/organizations');
-    revalidatePath(`/admin/organizations/${id}`);
-    return { ok: true };
-  } catch (e) {
-    return mapErr(e);
-  }
+  const { id, ...args } = parsed.data;
+  const res = await updateOrganization(prisma, session.sub, id, args);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/admin/organizations');
+  revalidatePath(`/admin/organizations/${id}`);
+  return { ok: true };
 }
 
 export async function setOrgRateOverrideAction(fd: FormData): Promise<ActionResult> {

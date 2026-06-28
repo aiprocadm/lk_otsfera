@@ -130,30 +130,36 @@ export async function updateOrganization(
   actorUserId: string,
   id: string,
   args: UpdateOrgArgs
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    const before = await tx.organization.findUnique({
-      where: { id },
-      select: { name: true, inn: true, kpp: true }
-    });
-    if (!before) throw new AdminOrgError('not_found');
+): Promise<{ ok: true } | { ok: false; error: AdminOrgErrorCode }> {
+  try {
+    await prisma.$transaction(async (tx) => {
+      const before = await tx.organization.findUnique({
+        where: { id },
+        select: { name: true, inn: true, kpp: true }
+      });
+      if (!before) throw new AdminOrgError('not_found');
 
-    await tx.organization.update({
-      where: { id },
-      data: {
-        ...(args.name !== undefined ? { name: args.name } : {}),
-        ...(args.inn !== undefined ? { inn: args.inn } : {}),
-        ...(args.kpp !== undefined ? { kpp: args.kpp } : {})
-      }
-    });
+      await tx.organization.update({
+        where: { id },
+        data: {
+          ...(args.name !== undefined ? { name: args.name } : {}),
+          ...(args.inn !== undefined ? { inn: args.inn } : {}),
+          ...(args.kpp !== undefined ? { kpp: args.kpp } : {})
+        }
+      });
 
-    await recordAudit(tx, {
-      userId: actorUserId,
-      action: 'organization_updated',
-      entity: 'organization',
-      entityId: id,
-      before,
-      after: args
+      await recordAudit(tx, {
+        userId: actorUserId,
+        action: 'organization_updated',
+        entity: 'organization',
+        entityId: id,
+        before,
+        after: args
+      });
     });
-  });
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof AdminOrgError) return { ok: false, error: e.code };
+    throw e;
+  }
 }

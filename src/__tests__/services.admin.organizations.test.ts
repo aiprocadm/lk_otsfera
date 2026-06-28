@@ -334,20 +334,20 @@ describe('updateOrganization()', () => {
     } as unknown as PrismaClient;
   }
 
-  it('throws not_found when org does not exist', async () => {
+  it('returns not_found when org does not exist', async () => {
     const tx = makeTx(null);
     const prisma = makePrismaWithTx(tx);
 
-    await expect(updateOrganization(prisma, 'actor1', 'missing', { name: 'New' }))
-      .rejects.toMatchObject({ code: 'not_found' });
+    expect(await updateOrganization(prisma, 'actor1', 'missing', { name: 'New' }))
+      .toEqual({ ok: false, error: 'not_found' });
   });
 
-  it('throws AdminOrgError (not just any Error) when not found', async () => {
+  it('returns a §3 Result (not a throw) when not found', async () => {
     const tx = makeTx(null);
     const prisma = makePrismaWithTx(tx);
 
-    await expect(updateOrganization(prisma, 'actor1', 'missing', {}))
-      .rejects.toBeInstanceOf(AdminOrgError);
+    expect(await updateOrganization(prisma, 'actor1', 'missing', {}))
+      .toEqual({ ok: false, error: 'not_found' });
   });
 
   it('happy path: calls tx.organization.update with only provided fields', async () => {
