@@ -122,45 +122,48 @@ describe('PATCH /api/enrollments/[id]', () => {
 
   it('200 when a manager approves', async () => {
     vi.mocked(getSession).mockResolvedValue(manager);
-    vi.mocked(approveEnrollment).mockResolvedValue({ id: 'E1', status: 'approved' } as never);
+    vi.mocked(approveEnrollment).mockResolvedValue({ ok: true, request: { id: 'E1', status: 'approved' } } as never);
     const res = await PATCH(jsonReq({ action: 'approve' }, 'PATCH'), ctx('E1'));
     expect(res.status).toBe(200);
   });
 
   it('200 when a manager rejects with reason', async () => {
     vi.mocked(getSession).mockResolvedValue(manager);
-    vi.mocked(rejectEnrollment).mockResolvedValue({ id: 'E1', status: 'rejected' } as never);
+    vi.mocked(rejectEnrollment).mockResolvedValue({ ok: true, request: { id: 'E1', status: 'rejected' } } as never);
     const res = await PATCH(jsonReq({ action: 'reject', reason: 'no' }, 'PATCH'), ctx('E1'));
     expect(res.status).toBe(200);
   });
 
   it('200 when a manager rejects without reason (body?.reason ?? empty-string branch)', async () => {
     vi.mocked(getSession).mockResolvedValue(manager);
-    vi.mocked(rejectEnrollment).mockResolvedValue({ id: 'E1', status: 'rejected' } as never);
+    vi.mocked(rejectEnrollment).mockResolvedValue({ ok: true, request: { id: 'E1', status: 'rejected' } } as never);
     const res = await PATCH(jsonReq({ action: 'reject' }, 'PATCH'), ctx('E1'));
     expect(res.status).toBe(200);
     expect(vi.mocked(rejectEnrollment)).toHaveBeenCalledWith({}, expect.objectContaining({ reason: '' }));
   });
 
-  it('maps VALIDATION → 400 from lifecycle', async () => {
+  it('maps validation → 400 from lifecycle', async () => {
     vi.mocked(getSession).mockResolvedValue(manager);
-    vi.mocked(approveEnrollment).mockRejectedValue(new Error('VALIDATION: missing field'));
-    const res = await PATCH(jsonReq({ action: 'approve' }, 'PATCH'), ctx('E1'));
+    vi.mocked(markProvisioned).mockResolvedValue({ ok: false, error: 'validation' } as never);
+    const res = await PATCH(jsonReq({ action: 'markProvisioned', externalStudentId: '' }, 'PATCH'), ctx('E1'));
     expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'validation' });
   });
 
-  it('maps NOT_FOUND → 404 from lifecycle', async () => {
+  it('maps not_found → 404 from lifecycle', async () => {
     vi.mocked(getSession).mockResolvedValue(manager);
-    vi.mocked(approveEnrollment).mockRejectedValue(new Error('NOT_FOUND: enrollment'));
+    vi.mocked(approveEnrollment).mockResolvedValue({ ok: false, error: 'not_found' } as never);
     const res = await PATCH(jsonReq({ action: 'approve' }, 'PATCH'), ctx('E1'));
     expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'not_found' });
   });
 
-  it('maps LIFECYCLE_VIOLATION → 409', async () => {
+  it('maps lifecycle_violation → 409', async () => {
     vi.mocked(getSession).mockResolvedValue(manager);
-    vi.mocked(markProvisioned).mockRejectedValue(new Error('LIFECYCLE_VIOLATION: cannot provision from pending'));
+    vi.mocked(markProvisioned).mockResolvedValue({ ok: false, error: 'lifecycle_violation' } as never);
     const res = await PATCH(jsonReq({ action: 'markProvisioned', externalStudentId: 'X' }, 'PATCH'), ctx('E1'));
     expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'lifecycle_violation' });
   });
 
   it('unknown action → 400', async () => {
@@ -171,22 +174,16 @@ describe('PATCH /api/enrollments/[id]', () => {
 
   it('markProvisioned uses empty string when externalStudentId is missing from body', async () => {
     vi.mocked(getSession).mockResolvedValue(manager);
-    vi.mocked(markProvisioned).mockResolvedValue({ id: 'E1', status: 'provisioned' } as never);
+    vi.mocked(markProvisioned).mockResolvedValue({ ok: true, request: { id: 'E1', status: 'provisioned' } } as never);
     // body has no externalStudentId — should default to ''
     const res = await PATCH(jsonReq({ action: 'markProvisioned' }, 'PATCH'), ctx('E1'));
     expect(res.status).toBe(200);
     expect(vi.mocked(markProvisioned)).toHaveBeenCalledWith({}, expect.objectContaining({ externalStudentId: '' }));
   });
 
-  it('re-throws unknown errors (not wrapped)', async () => {
+  it('propagates unexpected errors from the service', async () => {
     vi.mocked(getSession).mockResolvedValue(manager);
     vi.mocked(approveEnrollment).mockRejectedValue(new Error('UNEXPECTED_DB_ERROR'));
     await expect(PATCH(jsonReq({ action: 'approve' }, 'PATCH'), ctx('E1'))).rejects.toThrow('UNEXPECTED_DB_ERROR');
-  });
-
-  it('re-throws non-Error (string) from service (mapError branch[0]: not instanceof Error)', async () => {
-    vi.mocked(getSession).mockResolvedValue(manager);
-    vi.mocked(approveEnrollment).mockRejectedValue('plain string rejection');
-    await expect(PATCH(jsonReq({ action: 'approve' }, 'PATCH'), ctx('E1'))).rejects.toBe('plain string rejection');
   });
 });
