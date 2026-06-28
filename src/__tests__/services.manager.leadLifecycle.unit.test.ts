@@ -5,7 +5,7 @@
  * - promoteLead: org with companyId=null
  * - rejectLead: empty reason defaults to 'Отклонён менеджером'
  * - notifyPartnerLeadStatus: swallows errors (best-effort)
- * - loadLead: throws NOT_FOUND when lead is null
+ * - loadLead: returns not_found Result when lead is null
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -39,17 +39,17 @@ beforeEach(() => {
   notifyPartnerUsers.mockReset();
 });
 
-describe('loadLead — NOT_FOUND branch', () => {
-  it('throws NOT_FOUND when lead does not exist', async () => {
+describe('loadLead — not_found branch', () => {
+  it('returns not_found when lead does not exist', async () => {
     const d = db(null);
-    await expect(assignLead(d, { leadId: 'nonexistent', managerId: 'm1' })).rejects.toThrow('NOT_FOUND: lead');
+    expect(await assignLead(d, { leadId: 'nonexistent', managerId: 'm1' })).toEqual({ ok: false, error: 'not_found' });
   });
 });
 
 describe('assignLead — additional branches', () => {
   it('rejects assigning a rejected lead (mirrors promoted guard)', async () => {
     const d = db({ id: 'L1', status: 'rejected', partnerId: 'p1', organizationId: 'o1' });
-    await expect(assignLead(d, { leadId: 'L1', managerId: 'm1' })).rejects.toThrow(/LIFECYCLE_VIOLATION/);
+    expect(await assignLead(d, { leadId: 'L1', managerId: 'm1' })).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 
   it('does NOT notify partner when status does not change (already in_review)', async () => {
@@ -70,7 +70,7 @@ describe('setLeadStatus — additional branches', () => {
     // If lead.status is unknown (e.g., 'promoted_to_order' or any string not in ALLOWED_STATUS),
     // `allowed` is [] and any target fails
     const d = db({ id: 'L1', status: 'promoted_to_order', partnerId: 'p1', organizationId: 'o1' });
-    await expect(setLeadStatus(d, { leadId: 'L1', managerId: 'm1', status: 'in_review' })).rejects.toThrow(/LIFECYCLE_VIOLATION/);
+    expect(await setLeadStatus(d, { leadId: 'L1', managerId: 'm1', status: 'in_review' })).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 
   it('notifyPartnerLeadStatus swallows errors (best-effort) — Error instance', async () => {
@@ -78,7 +78,8 @@ describe('setLeadStatus — additional branches', () => {
     const d = db({ id: 'L1', status: 'in_review', partnerId: 'p1', organizationId: 'o1', clientCompanyName: 'Acme', subject: 'S' });
     // should not throw even though notify fails
     const r = await setLeadStatus(d, { leadId: 'L1', managerId: 'm1', status: 'qualified' });
-    expect(r.status).toBe('qualified');
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.lead.status).toBe('qualified');
   });
 
   it('notifyPartnerLeadStatus swallows non-Error throws (String(err) branch)', async () => {
@@ -86,7 +87,8 @@ describe('setLeadStatus — additional branches', () => {
     notifyPartnerUsers.mockRejectedValueOnce('network gone');
     const d = db({ id: 'L1', status: 'in_review', partnerId: 'p1', organizationId: 'o1', clientCompanyName: 'Acme', subject: 'S' });
     const r = await setLeadStatus(d, { leadId: 'L1', managerId: 'm1', status: 'qualified' });
-    expect(r.status).toBe('qualified');
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.lead.status).toBe('qualified');
   });
 });
 
@@ -96,19 +98,19 @@ describe('promoteLead — additional branches', () => {
     const d = db(lead);
     // Override organization findUnique to return null companyId
     ((d as any).organization.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({ companyId: null });
-    await expect(promoteLead(d, { leadId: 'L1', managerId: 'm1' })).rejects.toThrow('LIFECYCLE_VIOLATION: lead organization has no company');
+    expect(await promoteLead(d, { leadId: 'L1', managerId: 'm1' })).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 
   it('throws when org itself not found (findUnique returns null)', async () => {
     const lead = { id: 'L1', status: 'qualified', partnerId: 'p1', organizationId: 'o1', subject: 'S', estimatedAmount: null, promotedOrderId: null };
     const d = db(lead);
     ((d as any).organization.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    await expect(promoteLead(d, { leadId: 'L1', managerId: 'm1' })).rejects.toThrow('LIFECYCLE_VIOLATION: lead organization has no company');
+    expect(await promoteLead(d, { leadId: 'L1', managerId: 'm1' })).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 
   it('throws for rejected lead', async () => {
     const d = db({ id: 'L1', status: 'rejected', partnerId: 'p1', organizationId: 'o1', promotedOrderId: null });
-    await expect(promoteLead(d, { leadId: 'L1', managerId: 'm1' })).rejects.toThrow(/cannot promote a rejected lead/);
+    expect(await promoteLead(d, { leadId: 'L1', managerId: 'm1' })).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 
   it('uses estimatedAmount=0 when null (totalAmount fallback)', async () => {
@@ -139,14 +141,16 @@ describe('rejectLead — additional branches', () => {
   it('uses default reason when empty string passed', async () => {
     const d = db({ id: 'L1', status: 'in_review', partnerId: 'p1', organizationId: 'o1', clientCompanyName: 'A', subject: 'S' });
     const r = await rejectLead(d, { leadId: 'L1', managerId: 'm1', reason: '' });
-    expect(r.rejectedReason).toBe('Отклонён менеджером');
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.lead.rejectedReason).toBe('Отклонён менеджером');
   });
 
   it('uses default reason when whitespace-only string passed', async () => {
     const d = db({ id: 'L1', status: 'in_review', partnerId: 'p1', organizationId: 'o1', clientCompanyName: 'A', subject: 'S' });
     const r = await rejectLead(d, { leadId: 'L1', managerId: 'm1', reason: '   ' });
+    if (!r.ok) throw new Error('expected ok');
     // trim() of whitespace is empty, which is falsy, so default is used
-    expect(r.rejectedReason).toBe('Отклонён менеджером');
+    expect(r.lead.rejectedReason).toBe('Отклонён менеджером');
   });
 
   it('notifies partner on rejection', async () => {

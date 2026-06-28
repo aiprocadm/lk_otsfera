@@ -71,29 +71,31 @@ describe('GET /api/manager/leads/[id]', () => {
 
 describe('PATCH /api/manager/leads/[id]', () => {
   it('assign → 200', async () => {
-    vi.mocked(assignLead).mockResolvedValue({ id: 'L1' } as never);
+    vi.mocked(assignLead).mockResolvedValue({ ok: true, lead: { id: 'L1' } } as never);
     const res = await PATCH(patchReq({ action: 'assign' }), ctx('L1'));
     expect(res.status).toBe(200);
     expect(vi.mocked(assignLead)).toHaveBeenCalledWith({}, expect.objectContaining({ leadId: 'L1', managerId: 'm1' }));
   });
 
   it('promote → 201 with orderId', async () => {
-    vi.mocked(promoteLead).mockResolvedValue({ order: { id: 'ord9' }, lead: { id: 'L1' } } as never);
+    vi.mocked(promoteLead).mockResolvedValue({ ok: true, order: { id: 'ord9' }, lead: { id: 'L1' } } as never);
     const res = await PATCH(patchReq({ action: 'promote' }), ctx('L1'));
     expect(res.status).toBe(201);
     expect(await res.json()).toMatchObject({ orderId: 'ord9' });
   });
 
-  it('maps LIFECYCLE_VIOLATION → 409', async () => {
-    vi.mocked(promoteLead).mockRejectedValue(new Error('LIFECYCLE_VIOLATION: lead already promoted'));
+  it('maps lifecycle_violation → 409', async () => {
+    vi.mocked(promoteLead).mockResolvedValue({ ok: false, error: 'lifecycle_violation' } as never);
     const res = await PATCH(patchReq({ action: 'promote' }), ctx('L1'));
     expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'lifecycle_violation' });
   });
 
-  it('maps NOT_FOUND → 404', async () => {
-    vi.mocked(setLeadStatus).mockRejectedValue(new Error('NOT_FOUND: lead'));
+  it('maps not_found → 404', async () => {
+    vi.mocked(setLeadStatus).mockResolvedValue({ ok: false, error: 'not_found' } as never);
     const res = await PATCH(patchReq({ action: 'setStatus', status: 'qualified' }), ctx('Lx'));
     expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'not_found' });
   });
 
   it('unknown action → 400', async () => {
@@ -108,32 +110,27 @@ describe('PATCH /api/manager/leads/[id]', () => {
   });
 
   it('reject → 200 with explicit reason', async () => {
-    vi.mocked(rejectLead).mockResolvedValue({ id: 'L1' } as never);
+    vi.mocked(rejectLead).mockResolvedValue({ ok: true, lead: { id: 'L1' } } as never);
     const res = await PATCH(patchReq({ action: 'reject', reason: 'не прошёл' }), ctx('L1'));
     expect(res.status).toBe(200);
     expect(vi.mocked(rejectLead)).toHaveBeenCalledWith({}, expect.objectContaining({ leadId: 'L1', reason: 'не прошёл' }));
   });
 
   it('reject → 200 without reason (defaults to empty string)', async () => {
-    vi.mocked(rejectLead).mockResolvedValue({ id: 'L1' } as never);
+    vi.mocked(rejectLead).mockResolvedValue({ ok: true, lead: { id: 'L1' } } as never);
     const res = await PATCH(patchReq({ action: 'reject' }), ctx('L1'));
     expect(res.status).toBe(200);
     expect(vi.mocked(rejectLead)).toHaveBeenCalledWith({}, expect.objectContaining({ reason: '' }));
   });
 
   it('setStatus → 200', async () => {
-    vi.mocked(setLeadStatus).mockResolvedValue({ id: 'L1' } as never);
+    vi.mocked(setLeadStatus).mockResolvedValue({ ok: true, lead: { id: 'L1' } } as never);
     const res = await PATCH(patchReq({ action: 'setStatus', status: 'qualified' }), ctx('L1'));
     expect(res.status).toBe(200);
   });
 
-  it('throws unknown errors (non-LIFECYCLE_VIOLATION, non-NOT_FOUND)', async () => {
+  it('propagates unexpected errors from the service', async () => {
     vi.mocked(assignLead).mockRejectedValue(new Error('UNEXPECTED_ERROR: something broke'));
     await expect(PATCH(patchReq({ action: 'assign' }), ctx('L1'))).rejects.toThrow('UNEXPECTED_ERROR');
-  });
-
-  it('throws non-Error from service (mapError branch[0]: not instanceof Error → msg=Unknown error)', async () => {
-    vi.mocked(assignLead).mockRejectedValue('plain string rejection');
-    await expect(PATCH(patchReq({ action: 'assign' }), ctx('L1'))).rejects.toBe('plain string rejection');
   });
 });
