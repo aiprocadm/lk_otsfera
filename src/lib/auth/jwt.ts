@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { JWTPayload, SignJWT, jwtVerify } from 'jose';
 import { Prisma } from '@prisma/client';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 
 const MIN_JWT_SECRET_LENGTH = 32;
@@ -53,6 +54,44 @@ export type SessionPayload = {
 };
 
 export type StudentBridgePayload = Pick<SessionPayload, 'sub' | 'role' | 'organizationId' | 'email' | 'name' | 'externalStudentId'>;
+
+// Runtime guards for verified JWT payloads. `jwtVerify` returns an untyped
+// `JWTPayload` (string-keyed, values `unknown`); casting it straight to our
+// session shape would trust a malformed/forged token's structure. These schemas
+// validate the contractual claims at the trust boundary. Unknown standard claims
+// (iat/exp/aud/iss/jti) are stripped here and re-merged where the caller needs them.
+const roleSchema = z.enum(['admin', 'manager', 'partner', 'organization', 'student']);
+
+const organizationMembershipSchema = z.object({
+  organizationId: z.string(),
+  roleInOrg: z.enum(['admin', 'leader', 'member']),
+  isActive: z.boolean()
+});
+
+const sessionPayloadSchema = z.object({
+  sub: z.string().min(1),
+  role: roleSchema,
+  companyId: z.string().nullish(),
+  partnerId: z.string().nullish(),
+  partnerRole: z.enum(['admin', 'manager']).nullish(),
+  assignedOrgIds: z.array(z.string()).optional(),
+  managedOrgIds: z.array(z.string()).optional(),
+  managerRole: z.literal('leader').nullish(),
+  organizationId: z.string().nullish(),
+  organizationMemberships: z.array(organizationMembershipSchema).optional(),
+  email: z.string().optional(),
+  name: z.string().optional(),
+  externalStudentId: z.string().nullish()
+});
+
+const studentBridgePayloadSchema = z.object({
+  sub: z.string().min(1),
+  role: roleSchema,
+  organizationId: z.string().nullish(),
+  email: z.string().optional(),
+  name: z.string().optional(),
+  externalStudentId: z.string().nullish()
+});
 
 
 function getStudentBridgeSecret() {
@@ -125,9 +164,9 @@ export async function signStudentBridgeToken(payload: StudentBridgePayload) {
   return { token, jti, iat: now };
 }
 
-export async function verifyToken(token: string) {
+export async function verifyToken(token: string): Promise<SessionPayload> {
   const { payload } = await jwtVerify(token, getJwtSecret());
-  return payload as unknown as SessionPayload;
+  return sessionPayloadSchema.parse(payload) as SessionPayload;
 }
 
 
@@ -141,7 +180,11 @@ export async function verifyStudentBridgeToken(token: string) {
     throw new Error('invalid student bridge token payload');
   }
 
+  // Validate the contractual claims; re-merge onto the raw payload so standard
+  // JWT claims (aud/iss/jti/exp/iat) consumed downstream are preserved.
+  const claims = studentBridgePayloadSchema.parse(payload);
+
   await consumeStudentBridgeJti(payload.jti, payload.exp);
 
-  return payload as JWTPayload & StudentBridgePayload;
+  return { ...payload, ...claims } as JWTPayload & StudentBridgePayload;
 }

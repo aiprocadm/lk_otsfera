@@ -20,11 +20,13 @@ vi.mock('next/navigation', () => ({
   }
 }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled: vi.fn() }));
 vi.mock('@/lib/services/manager/uploads', () => ({
   createCounterpartyDocument: createCounterpartyDocumentMock
 }));
 
 import { POST as uploadPost } from '@/app/api/manager/documents/[id]/upload/route';
+import { notFoundIfDisabled } from '@/lib/featureFlags';
 
 function managerSession(opts: { sub?: string; managedOrgIds?: string[] } = {}) {
   return {
@@ -54,6 +56,17 @@ describe('POST /api/manager/documents/[id]/upload', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getSession.mockResolvedValue(managerSession());
+    vi.mocked(notFoundIfDisabled).mockReturnValue(undefined as never);
+  });
+
+  it('returns 404 when the manager cabinet flag is disabled', async () => {
+    vi.mocked(notFoundIfDisabled).mockReturnValue(new Response('Not Found', { status: 404 }) as never);
+    const res = await uploadPost(
+      buildReq({ file: new File(['x'], 'a.pdf', { type: 'application/pdf' }) }) as never,
+      paramsP
+    );
+    expect(res.status).toBe(404);
+    expect(createCounterpartyDocumentMock).not.toHaveBeenCalled();
   });
 
   it('redirects when caller is not a manager', async () => {

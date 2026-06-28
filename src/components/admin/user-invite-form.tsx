@@ -7,18 +7,14 @@ import { useFormAction } from '@/lib/ui/useFormAction';
 
 type Partner = { id: string; name: string };
 
-const ERROR_MAP: Record<string, string> = {
-  duplicate_email: 'Пользователь с таким email уже существует.',
-  admin_role_via_ui: 'Создание admin через UI недоступно.',
-  validation: 'Проверьте корректность полей.'
-};
-
 export function UserInviteForm({ partners }: { partners: Partner[] }) {
   const router = useRouter();
+  // Коды ошибок локализуются централизованно через errorMessageRu (см. useFormAction);
+  // admin-специфичные коды (duplicate_email/admin_role_via_ui) живут в lib/errors/messages.
   const { formAction, pending, errorText, data } = useFormAction<{
     user: { id: string; email: string };
     inviteUrl: string;
-  }>({ action: createUserAction, errorMap: ERROR_MAP });
+  }>({ action: createUserAction });
   const inviteUrl = data?.inviteUrl ?? null;
   const [role, setRole] = useState<'organization' | 'partner' | 'manager' | 'student'>('organization');
 
