@@ -46,7 +46,6 @@ import {
   deactivatePartnerFormAction,
   reactivatePartnerFormAction
 } from '@/server-actions/admin/partners';
-import { AdminPartnerError } from '@/lib/services/admin/partners';
 
 function fd(data: Record<string, string>): FormData {
   const f = new FormData();
@@ -96,6 +95,7 @@ describe('createPartnerWithAdminAction', () => {
   it('happy path returns ok:true with partner, user and inviteUrl', async () => {
     process.env.APP_URL = 'https://app.test';
     createPartnerWithAdmin.mockResolvedValue({
+      ok: true,
       partner: { id: 'p-1', name: 'Test Partner', slug: 'test-partner' },
       user: { id: 'u-1', email: 'admin@partner.local' },
       inviteToken: 'tok-abc'
@@ -124,6 +124,7 @@ describe('createPartnerWithAdminAction', () => {
   it('sends invite email with role:partner on success', async () => {
     process.env.APP_URL = 'https://app.test';
     createPartnerWithAdmin.mockResolvedValue({
+      ok: true,
       partner: { id: 'p-2', name: 'Email Partner', slug: 'email-partner' },
       user: { id: 'u-2', email: 'admin@email-partner.local' },
       inviteToken: 'tok-email'
@@ -151,6 +152,7 @@ describe('createPartnerWithAdminAction', () => {
 
   it('still returns ok:true when email send fails (graceful degradation)', async () => {
     createPartnerWithAdmin.mockResolvedValue({
+      ok: true,
       partner: { id: 'p-3', name: 'Fail Partner', slug: 'fail-partner' },
       user: { id: 'u-3', email: 'fail@partner.local' },
       inviteToken: 'tok-fail'
@@ -171,7 +173,7 @@ describe('createPartnerWithAdminAction', () => {
   });
 
   it('maps AdminPartnerError(duplicate_slug) to Failure', async () => {
-    createPartnerWithAdmin.mockRejectedValue(new AdminPartnerError('duplicate_slug'));
+    createPartnerWithAdmin.mockResolvedValue({ ok: false, error: 'duplicate_slug' });
 
     const res = await createPartnerWithAdminAction(
       fd({
@@ -187,7 +189,7 @@ describe('createPartnerWithAdminAction', () => {
   });
 
   it('maps AdminPartnerError(duplicate_email) to Failure', async () => {
-    createPartnerWithAdmin.mockRejectedValue(new AdminPartnerError('duplicate_email'));
+    createPartnerWithAdmin.mockResolvedValue({ ok: false, error: 'duplicate_email' });
 
     const res = await createPartnerWithAdminAction(
       fd({
@@ -203,6 +205,7 @@ describe('createPartnerWithAdminAction', () => {
 
   it('converts form percentage to fraction before calling service (5 → 0.05)', async () => {
     createPartnerWithAdmin.mockResolvedValue({
+      ok: true,
       partner: { id: 'p-rate', name: 'P', slug: 'p-co' },
       user: { id: 'u-rate', email: 'a@x.test' },
       inviteToken: 'tok-rate'
@@ -221,6 +224,7 @@ describe('createPartnerWithAdminAction', () => {
 
   it('omits commissionRate when form field is empty (undefined → undefined)', async () => {
     createPartnerWithAdmin.mockResolvedValue({
+      ok: true,
       partner: { id: 'p-norat', name: 'P', slug: 'p-co' },
       user: { id: 'u-norat', email: 'a@x.test' },
       inviteToken: 'tok-norat'
@@ -249,6 +253,7 @@ describe('createPartnerWithAdminAction — mapErr re-throw', () => {
     const original = process.env.APP_URL;
     delete process.env.APP_URL;
     createPartnerWithAdmin.mockResolvedValue({
+      ok: true,
       partner: { id: 'p-fallback', name: 'P', slug: 'p-co' },
       user: { id: 'u-fallback', email: 'a@x.test' },
       inviteToken: 'tok-fallback'
@@ -266,6 +271,7 @@ describe('createPartnerWithAdminAction — mapErr re-throw', () => {
   it('uses undefined as invitedByName when session.name is absent', async () => {
     requireAdmin.mockResolvedValue({ sub: 'admin-1', name: null });
     createPartnerWithAdmin.mockResolvedValue({
+      ok: true,
       partner: { id: 'p-nn', name: 'P', slug: 'p-co' },
       user: { id: 'u-nn', email: 'a@x.test' },
       inviteToken: 'tok-nn'
@@ -298,7 +304,7 @@ describe('updatePartnerAction', () => {
   });
 
   it('happy path calls updatePartner and revalidates both paths', async () => {
-    updatePartner.mockResolvedValue(undefined);
+    updatePartner.mockResolvedValue({ ok: true });
 
     const res = await updatePartnerAction(
       fd({ id: 'p-10', name: 'Updated Name' })
@@ -316,13 +322,13 @@ describe('updatePartnerAction', () => {
   });
 
   it('maps AdminPartnerError(not_found) to Failure', async () => {
-    updatePartner.mockRejectedValue(new AdminPartnerError('not_found'));
+    updatePartner.mockResolvedValue({ ok: false, error: 'not_found' });
     const res = await updatePartnerAction(fd({ id: 'gone-1', name: 'X' }));
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('converts form percentage to fraction (5 → 0.05)', async () => {
-    updatePartner.mockResolvedValue(undefined);
+    updatePartner.mockResolvedValue({ ok: true });
 
     await updatePartnerAction(fd({ id: 'p-1', commissionRate: '5' }));
 
@@ -335,7 +341,7 @@ describe('updatePartnerAction', () => {
   });
 
   it('passes empty commissionRate as undefined (clear rate → undefined)', async () => {
-    updatePartner.mockResolvedValue(undefined);
+    updatePartner.mockResolvedValue({ ok: true });
 
     await updatePartnerAction(fd({ id: 'p-1', commissionRate: '' }));
 
@@ -346,7 +352,7 @@ describe('updatePartnerAction', () => {
   });
 
   it('threads a valid effectiveFrom through to updatePartner as a Date (A5 backdate)', async () => {
-    updatePartner.mockResolvedValue(undefined);
+    updatePartner.mockResolvedValue({ ok: true });
 
     await updatePartnerAction(fd({ id: 'p-1', commissionRate: '10', effectiveFrom: '2026-04-15' }));
 
@@ -359,7 +365,7 @@ describe('updatePartnerAction', () => {
   });
 
   it('rejects an invalid effectiveFrom at validation (never reaches the service)', async () => {
-    updatePartner.mockResolvedValue(undefined);
+    updatePartner.mockResolvedValue({ ok: true });
 
     const res = await updatePartnerAction(fd({ id: 'p-1', commissionRate: '10', effectiveFrom: 'not-a-date' }));
 
@@ -376,7 +382,7 @@ describe('deactivatePartnerAction', () => {
   });
 
   it('happy path calls deactivatePartner and revalidates list + detail', async () => {
-    deactivatePartner.mockResolvedValue(undefined);
+    deactivatePartner.mockResolvedValue({ ok: true });
 
     const res = await deactivatePartnerAction(fd({ id: 'p-20' }));
 
@@ -387,7 +393,7 @@ describe('deactivatePartnerAction', () => {
   });
 
   it('maps AdminPartnerError(not_found) to Failure', async () => {
-    deactivatePartner.mockRejectedValue(new AdminPartnerError('not_found'));
+    deactivatePartner.mockResolvedValue({ ok: false, error: 'not_found' });
     const res = await deactivatePartnerAction(fd({ id: 'gone-2' }));
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
@@ -401,7 +407,7 @@ describe('reactivatePartnerAction', () => {
   });
 
   it('happy path calls reactivatePartner and revalidates list + detail', async () => {
-    reactivatePartner.mockResolvedValue(undefined);
+    reactivatePartner.mockResolvedValue({ ok: true });
 
     const res = await reactivatePartnerAction(fd({ id: 'p-30' }));
 
@@ -412,7 +418,7 @@ describe('reactivatePartnerAction', () => {
   });
 
   it('maps AdminPartnerError(not_found) to Failure', async () => {
-    reactivatePartner.mockRejectedValue(new AdminPartnerError('not_found'));
+    reactivatePartner.mockResolvedValue({ ok: false, error: 'not_found' });
     const res = await reactivatePartnerAction(fd({ id: 'gone-3' }));
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
@@ -420,14 +426,14 @@ describe('reactivatePartnerAction', () => {
 
 describe('form-action wrappers (discard result, log on failure)', () => {
   it('updatePartnerFormAction returns void on success', async () => {
-    updatePartner.mockResolvedValue(undefined);
+    updatePartner.mockResolvedValue({ ok: true });
     const result = await updatePartnerFormAction(fd({ id: 'p-10', name: 'X' }));
     expect(result).toBeUndefined();
     expect(updatePartner).toHaveBeenCalled();
   });
 
   it('updatePartnerFormAction logs and swallows failure', async () => {
-    updatePartner.mockRejectedValue(new AdminPartnerError('not_found'));
+    updatePartner.mockResolvedValue({ ok: false, error: 'not_found' });
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const result = await updatePartnerFormAction(fd({ id: 'gone', name: 'X' }));
     expect(result).toBeUndefined();
@@ -436,14 +442,14 @@ describe('form-action wrappers (discard result, log on failure)', () => {
   });
 
   it('deactivatePartnerFormAction returns void on success', async () => {
-    deactivatePartner.mockResolvedValue(undefined);
+    deactivatePartner.mockResolvedValue({ ok: true });
     const result = await deactivatePartnerFormAction(fd({ id: 'p-20' }));
     expect(result).toBeUndefined();
     expect(deactivatePartner).toHaveBeenCalled();
   });
 
   it('deactivatePartnerFormAction logs and swallows failure', async () => {
-    deactivatePartner.mockRejectedValue(new AdminPartnerError('not_found'));
+    deactivatePartner.mockResolvedValue({ ok: false, error: 'not_found' });
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const result = await deactivatePartnerFormAction(fd({ id: 'gone' }));
     expect(result).toBeUndefined();
@@ -452,14 +458,14 @@ describe('form-action wrappers (discard result, log on failure)', () => {
   });
 
   it('reactivatePartnerFormAction returns void on success', async () => {
-    reactivatePartner.mockResolvedValue(undefined);
+    reactivatePartner.mockResolvedValue({ ok: true });
     const result = await reactivatePartnerFormAction(fd({ id: 'p-30' }));
     expect(result).toBeUndefined();
     expect(reactivatePartner).toHaveBeenCalled();
   });
 
   it('reactivatePartnerFormAction logs and swallows failure', async () => {
-    reactivatePartner.mockRejectedValue(new AdminPartnerError('not_found'));
+    reactivatePartner.mockResolvedValue({ ok: false, error: 'not_found' });
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const result = await reactivatePartnerFormAction(fd({ id: 'gone' }));
     expect(result).toBeUndefined();

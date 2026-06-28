@@ -155,8 +155,9 @@ export async function updatePartner(
   actorUserId: string,
   id: string,
   args: UpdatePartnerArgs
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
+): Promise<{ ok: true } | { ok: false; error: AdminPartnerErrorCode }> {
+  try {
+    await prisma.$transaction(async (tx) => {
     const before = await tx.partner.findUnique({
       where: { id },
       select: { name: true, commissionRate: true, isActive: true }
@@ -208,15 +209,21 @@ export async function updatePartner(
         isActive: updated.isActive
       }
     });
-  });
+    });
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof AdminPartnerError) return { ok: false, error: e.code };
+    throw e;
+  }
 }
 
 export async function deactivatePartner(
   prisma: PrismaClient,
   actorUserId: string,
   id: string
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
+): Promise<{ ok: true } | { ok: false; error: AdminPartnerErrorCode }> {
+  try {
+    await prisma.$transaction(async (tx) => {
     const before = await tx.partner.findUnique({ where: { id }, select: { isActive: true } });
     if (!before) throw new AdminPartnerError('not_found');
     if (!before.isActive) return;
@@ -230,15 +237,21 @@ export async function deactivatePartner(
       before: { isActive: true },
       after: { isActive: false }
     });
-  });
+    });
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof AdminPartnerError) return { ok: false, error: e.code };
+    throw e;
+  }
 }
 
 export async function reactivatePartner(
   prisma: PrismaClient,
   actorUserId: string,
   id: string
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
+): Promise<{ ok: true } | { ok: false; error: AdminPartnerErrorCode }> {
+  try {
+    await prisma.$transaction(async (tx) => {
     const before = await tx.partner.findUnique({ where: { id }, select: { isActive: true } });
     if (!before) throw new AdminPartnerError('not_found');
     if (before.isActive) return;
@@ -252,7 +265,12 @@ export async function reactivatePartner(
       before: { isActive: false },
       after: { isActive: true }
     });
-  });
+    });
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof AdminPartnerError) return { ok: false, error: e.code };
+    throw e;
+  }
 }
 
 export type CreatePartnerWithAdminArgs = {
@@ -273,8 +291,12 @@ export async function createPartnerWithAdmin(
   prisma: PrismaClient,
   actorUserId: string,
   args: CreatePartnerWithAdminArgs
-): Promise<CreatePartnerWithAdminResult> {
-  return prisma.$transaction(async (tx) => {
+): Promise<
+  | ({ ok: true } & CreatePartnerWithAdminResult)
+  | { ok: false; error: AdminPartnerErrorCode }
+> {
+  try {
+    const result = await prisma.$transaction(async (tx) => {
     const slugExists = await tx.partner.findUnique({ where: { slug: args.slug } });
     if (slugExists) throw new AdminPartnerError('duplicate_slug');
 
@@ -343,5 +365,10 @@ export async function createPartnerWithAdmin(
       user: { id: user.id, email: user.email },
       inviteToken: token
     };
-  });
+    });
+    return { ok: true, ...result };
+  } catch (e) {
+    if (e instanceof AdminPartnerError) return { ok: false, error: e.code };
+    throw e;
+  }
 }

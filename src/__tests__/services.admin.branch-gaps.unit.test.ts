@@ -140,6 +140,7 @@ describe('admin/partners — createPartnerWithAdmin null/undefined commissionRat
       }),
     );
     // partner.slug is null → `partner.slug ?? ''` → ''
+    if (!result.ok) throw new Error('expected ok');
     expect(result.partner.slug).toBe('');
   });
 
@@ -191,6 +192,7 @@ describe('admin/partners — createPartnerWithAdmin null/undefined commissionRat
       adminName: 'Иван Иванов',
     });
 
+    if (!result.ok) throw new Error('expected ok');
     expect(result.partner.slug).toBe('noviy-partner');
     expect(recordAuditMock).toHaveBeenCalledWith(
       tx,
