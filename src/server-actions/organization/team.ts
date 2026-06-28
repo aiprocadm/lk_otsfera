@@ -10,7 +10,6 @@ import {
   updateMemberRole,
   deactivateMember,
   reactivateMember,
-  OrgMemberError,
   type OrgMemberErrorCode,
   type InviteMemberResult
 } from '@/lib/services/organization/team';
@@ -47,13 +46,6 @@ function readFormValue(formData: FormData, key: string): string {
   return typeof v === 'string' ? v : '';
 }
 
-function mapMemberError(e: unknown): Failure {
-  if (e instanceof OrgMemberError) {
-    return { ok: false, error: e.code };
-  }
-  throw e;
-}
-
 export async function inviteOrgMemberAction(
   formData: FormData
 ): Promise<
@@ -76,46 +68,43 @@ export async function inviteOrgMemberAction(
   const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);
   const actorRole = isOrgAdmin(session, parsed.data.organizationId) ? 'admin' : 'leader';
 
-  try {
-    const result = await inviteMember(
-      prisma,
-      parsed.data,
-      session.sub,
-      { source: 'organization' },
-      actorRole
-    );
+  const res = await inviteMember(
+    prisma,
+    parsed.data,
+    session.sub,
+    { source: 'organization' },
+    actorRole
+  );
+  if (!res.ok) return { ok: false, error: res.error };
 
-    // Send invite email best-effort. send() returns 'skipped' silently when
-    // EMAIL_ENABLED!=true or RESEND_API_KEY is missing, but a live transport
-    // can still reject — that must not fail the action: the invite is already
-    // created and inviteUrl is returned for the "Copy link" fallback.
-    if (result.inviteUrl !== null) {
-      try {
-        const org = await prisma.organization.findUnique({
-          where: { id: parsed.data.organizationId },
-          select: { name: true }
-        });
-        await sendOrgInviteEmail({
-          to: parsed.data.email,
-          organizationName: org?.name ?? 'организация',
-          inviteUrl: result.inviteUrl,
-          invitedByName: session.name ?? undefined
-        });
-      } catch (e) {
-        console.warn('[organization/team] send invite email failed', e);
-      }
+  // Send invite email best-effort. send() returns 'skipped' silently when
+  // EMAIL_ENABLED!=true or RESEND_API_KEY is missing, but a live transport
+  // can still reject — that must not fail the action: the invite is already
+  // created and inviteUrl is returned for the "Copy link" fallback.
+  if (res.inviteUrl !== null) {
+    try {
+      const org = await prisma.organization.findUnique({
+        where: { id: parsed.data.organizationId },
+        select: { name: true }
+      });
+      await sendOrgInviteEmail({
+        to: parsed.data.email,
+        organizationName: org?.name ?? 'организация',
+        inviteUrl: res.inviteUrl,
+        invitedByName: session.name ?? undefined
+      });
+    } catch (e) {
+      console.warn('[organization/team] send invite email failed', e);
     }
-
-    revalidatePath('/organization/team');
-    return {
-      ok: true,
-      user: result.user,
-      inviteUrl: result.inviteUrl,
-      alreadyHasPassword: result.alreadyHasPassword
-    };
-  } catch (e) {
-    return mapMemberError(e);
   }
+
+  revalidatePath('/organization/team');
+  return {
+    ok: true,
+    user: res.user,
+    inviteUrl: res.inviteUrl,
+    alreadyHasPassword: res.alreadyHasPassword
+  };
 }
 
 export async function updateOrgMemberRoleAction(formData: FormData): Promise<ActionResult> {
@@ -131,13 +120,10 @@ export async function updateOrgMemberRoleAction(formData: FormData): Promise<Act
   const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);
   const actorRole = isOrgAdmin(session, parsed.data.organizationId) ? 'admin' : 'leader';
 
-  try {
-    await updateMemberRole(prisma, parsed.data.organizationId, parsed.data.orgUserId, parsed.data.newRole, session.sub, actorRole);
-    revalidatePath('/organization/team');
-    return { ok: true };
-  } catch (e) {
-    return mapMemberError(e);
-  }
+  const res = await updateMemberRole(prisma, parsed.data.organizationId, parsed.data.orgUserId, parsed.data.newRole, session.sub, actorRole);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/organization/team');
+  return { ok: true };
 }
 
 export async function deactivateOrgMemberAction(formData: FormData): Promise<ActionResult> {
@@ -152,13 +138,10 @@ export async function deactivateOrgMemberAction(formData: FormData): Promise<Act
   const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);
   const actorRole = isOrgAdmin(session, parsed.data.organizationId) ? 'admin' : 'leader';
 
-  try {
-    await deactivateMember(prisma, parsed.data.organizationId, parsed.data.orgUserId, session.sub, actorRole);
-    revalidatePath('/organization/team');
-    return { ok: true };
-  } catch (e) {
-    return mapMemberError(e);
-  }
+  const res = await deactivateMember(prisma, parsed.data.organizationId, parsed.data.orgUserId, session.sub, actorRole);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/organization/team');
+  return { ok: true };
 }
 
 export async function reactivateOrgMemberAction(formData: FormData): Promise<ActionResult> {
@@ -173,13 +156,10 @@ export async function reactivateOrgMemberAction(formData: FormData): Promise<Act
   const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);
   const actorRole = isOrgAdmin(session, parsed.data.organizationId) ? 'admin' : 'leader';
 
-  try {
-    await reactivateMember(prisma, parsed.data.organizationId, parsed.data.orgUserId, session.sub, actorRole);
-    revalidatePath('/organization/team');
-    return { ok: true };
-  } catch (e) {
-    return mapMemberError(e);
-  }
+  const res = await reactivateMember(prisma, parsed.data.organizationId, parsed.data.orgUserId, session.sub, actorRole);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/organization/team');
+  return { ok: true };
 }
 
 // ----- Form-compatible thin wrappers ---------------------------------------

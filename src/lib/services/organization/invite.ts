@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import {
   inviteMember,
+  OrgMemberError,
   type InviteMemberResult
 } from './team';
 
@@ -65,7 +66,7 @@ export async function createOrgAdminInvite(
     }
   }
 
-  return inviteMember(
+  const r = await inviteMember(
     prisma,
     {
       organizationId: args.organizationId,
@@ -76,4 +77,10 @@ export async function createOrgAdminInvite(
     ctx.actorUserId,
     { source: ctx.source }
   );
+  if (!r.ok) throw new OrgMemberError(r.error);
+  return {
+    user: r.user,
+    inviteUrl: r.inviteUrl,
+    alreadyHasPassword: r.alreadyHasPassword
+  };
 }

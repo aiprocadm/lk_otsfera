@@ -58,7 +58,6 @@ import {
   deactivateOrgMemberFormAction,
   reactivateOrgMemberFormAction
 } from '@/server-actions/organization/team';
-import { OrgMemberError } from '@/lib/services/organization/team';
 
 function fd(data: Record<string, string>): FormData {
   const f = new FormData();
@@ -90,6 +89,7 @@ describe('inviteOrgMemberAction', () => {
   it('happy path returns inviteUrl and sends email when invite token created', async () => {
     organizationFindUnique.mockResolvedValue({ name: 'ООО Тест' });
     inviteMember.mockResolvedValue({
+      ok: true,
       user: { id: 'u1', email: 'new@t.local' },
       inviteUrl: 'https://app.test/reset-password?token=abc',
       alreadyHasPassword: false
@@ -114,6 +114,7 @@ describe('inviteOrgMemberAction', () => {
 
   it('skips email when user already has password (inviteUrl null)', async () => {
     inviteMember.mockResolvedValue({
+      ok: true,
       user: { id: 'u2', email: 'existing@t.local' },
       inviteUrl: null,
       alreadyHasPassword: true
@@ -131,8 +132,8 @@ describe('inviteOrgMemberAction', () => {
     expect(sendOrgInviteEmail).not.toHaveBeenCalled();
   });
 
-  it('maps OrgMemberError(already_member) to {ok:false, error:already_member}', async () => {
-    inviteMember.mockRejectedValue(new OrgMemberError('already_member'));
+  it('maps already_member Result to {ok:false, error:already_member}', async () => {
+    inviteMember.mockResolvedValue({ ok: false, error: 'already_member' });
     const res = await inviteOrgMemberAction(
       fd({ organizationId: 'org-1', email: 'dup@t.local', name: 'D', roleInOrg: 'member' })
     );
@@ -143,7 +144,7 @@ describe('inviteOrgMemberAction', () => {
 
 describe('updateOrgMemberRoleAction', () => {
   it('calls updateMemberRole and revalidates', async () => {
-    updateMemberRole.mockResolvedValue(undefined);
+    updateMemberRole.mockResolvedValue({ ok: true });
     const res = await updateOrgMemberRoleAction(
       fd({ organizationId: 'org-1', orgUserId: 'ou-1', newRole: 'admin' })
     );
@@ -160,7 +161,7 @@ describe('updateOrgMemberRoleAction', () => {
   });
 
   it('maps self_action_forbidden', async () => {
-    updateMemberRole.mockRejectedValue(new OrgMemberError('self_action_forbidden'));
+    updateMemberRole.mockResolvedValue({ ok: false, error: 'self_action_forbidden' });
     const res = await updateOrgMemberRoleAction(
       fd({ organizationId: 'org-1', orgUserId: 'ou-1', newRole: 'member' })
     );
@@ -168,7 +169,7 @@ describe('updateOrgMemberRoleAction', () => {
   });
 
   it('maps last_admin_protected', async () => {
-    updateMemberRole.mockRejectedValue(new OrgMemberError('last_admin_protected'));
+    updateMemberRole.mockResolvedValue({ ok: false, error: 'last_admin_protected' });
     const res = await updateOrgMemberRoleAction(
       fd({ organizationId: 'org-1', orgUserId: 'ou-1', newRole: 'member' })
     );
@@ -178,7 +179,7 @@ describe('updateOrgMemberRoleAction', () => {
 
 describe('deactivateOrgMemberAction', () => {
   it('calls deactivateMember and revalidates', async () => {
-    deactivateMember.mockResolvedValue(undefined);
+    deactivateMember.mockResolvedValue({ ok: true });
     const res = await deactivateOrgMemberAction(
       fd({ organizationId: 'org-1', orgUserId: 'ou-1' })
     );
@@ -187,7 +188,7 @@ describe('deactivateOrgMemberAction', () => {
   });
 
   it('maps not_found', async () => {
-    deactivateMember.mockRejectedValue(new OrgMemberError('not_found'));
+    deactivateMember.mockResolvedValue({ ok: false, error: 'not_found' });
     const res = await deactivateOrgMemberAction(
       fd({ organizationId: 'org-1', orgUserId: 'gone' })
     );
@@ -197,7 +198,7 @@ describe('deactivateOrgMemberAction', () => {
 
 describe('reactivateOrgMemberAction', () => {
   it('calls reactivateMember and revalidates', async () => {
-    reactivateMember.mockResolvedValue(undefined);
+    reactivateMember.mockResolvedValue({ ok: true });
     const res = await reactivateOrgMemberAction(
       fd({ organizationId: 'org-1', orgUserId: 'ou-1' })
     );
@@ -210,6 +211,7 @@ describe('inviteOrgMemberAction — email failure (graceful degradation)', () =>
   it('still returns ok:true when sendOrgInviteEmail throws', async () => {
     organizationFindUnique.mockResolvedValue({ name: 'ООО Тест' });
     inviteMember.mockResolvedValue({
+      ok: true,
       user: { id: 'u3', email: 'new2@t.local' },
       inviteUrl: 'https://app.test/reset-password?token=def',
       alreadyHasPassword: false
@@ -261,8 +263,8 @@ describe('reactivateOrgMemberAction — validation + error mapping', () => {
     expect(reactivateMember).not.toHaveBeenCalled();
   });
 
-  it('maps OrgMemberError(not_found) to {ok:false, error:not_found}', async () => {
-    reactivateMember.mockRejectedValue(new OrgMemberError('not_found'));
+  it('maps not_found Result to {ok:false, error:not_found}', async () => {
+    reactivateMember.mockResolvedValue({ ok: false, error: 'not_found' });
     const res = await reactivateOrgMemberAction(
       fd({ organizationId: 'org-1', orgUserId: 'gone' })
     );
@@ -272,7 +274,7 @@ describe('reactivateOrgMemberAction — validation + error mapping', () => {
 
 describe('form-action wrappers (discard result, log on failure)', () => {
   it('updateOrgMemberRoleFormAction returns void on success', async () => {
-    updateMemberRole.mockResolvedValue(undefined);
+    updateMemberRole.mockResolvedValue({ ok: true });
     const result = await updateOrgMemberRoleFormAction(
       fd({ organizationId: 'org-1', orgUserId: 'ou-1', newRole: 'member' })
     );
@@ -282,7 +284,7 @@ describe('form-action wrappers (discard result, log on failure)', () => {
 
   it('updateOrgMemberRoleFormAction logs and swallows failure', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    updateMemberRole.mockRejectedValue(new OrgMemberError('not_found'));
+    updateMemberRole.mockResolvedValue({ ok: false, error: 'not_found' });
     const result = await updateOrgMemberRoleFormAction(
       fd({ organizationId: 'org-1', orgUserId: 'gone', newRole: 'member' })
     );
@@ -292,7 +294,7 @@ describe('form-action wrappers (discard result, log on failure)', () => {
   });
 
   it('deactivateOrgMemberFormAction returns void on success', async () => {
-    deactivateMember.mockResolvedValue(undefined);
+    deactivateMember.mockResolvedValue({ ok: true });
     const result = await deactivateOrgMemberFormAction(
       fd({ organizationId: 'org-1', orgUserId: 'ou-1' })
     );
@@ -302,7 +304,7 @@ describe('form-action wrappers (discard result, log on failure)', () => {
 
   it('deactivateOrgMemberFormAction logs and swallows failure', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    deactivateMember.mockRejectedValue(new OrgMemberError('not_found'));
+    deactivateMember.mockResolvedValue({ ok: false, error: 'not_found' });
     const result = await deactivateOrgMemberFormAction(
       fd({ organizationId: 'org-1', orgUserId: 'gone' })
     );
@@ -312,7 +314,7 @@ describe('form-action wrappers (discard result, log on failure)', () => {
   });
 
   it('reactivateOrgMemberFormAction returns void on success', async () => {
-    reactivateMember.mockResolvedValue(undefined);
+    reactivateMember.mockResolvedValue({ ok: true });
     const result = await reactivateOrgMemberFormAction(
       fd({ organizationId: 'org-1', orgUserId: 'ou-1' })
     );
@@ -322,7 +324,7 @@ describe('form-action wrappers (discard result, log on failure)', () => {
 
   it('reactivateOrgMemberFormAction logs and swallows failure', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    reactivateMember.mockRejectedValue(new OrgMemberError('not_found'));
+    reactivateMember.mockResolvedValue({ ok: false, error: 'not_found' });
     const result = await reactivateOrgMemberFormAction(
       fd({ organizationId: 'org-1', orgUserId: 'gone' })
     );
@@ -337,6 +339,7 @@ describe('inviteOrgMemberAction — null/fallback branches', () => {
     // When roleInOrg key is absent: formData.get('roleInOrg') returns null
     // → readFormValue returns '' → '' || 'member' → 'member'
     inviteMember.mockResolvedValue({
+      ok: true,
       user: { id: 'uf', email: 'f@t.local' },
       inviteUrl: null,
       alreadyHasPassword: true
@@ -360,6 +363,7 @@ describe('inviteOrgMemberAction — null/fallback branches', () => {
   it('uses "организация" fallback when org lookup returns null during email', async () => {
     organizationFindUnique.mockResolvedValue(null);
     inviteMember.mockResolvedValue({
+      ok: true,
       user: { id: 'u-null-org', email: 'no@t.local' },
       inviteUrl: 'https://app/reset?token=qq',
       alreadyHasPassword: false
@@ -383,6 +387,7 @@ describe('inviteOrgMemberAction — null/fallback branches', () => {
     });
     organizationFindUnique.mockResolvedValue({ name: 'ООО Тест' });
     inviteMember.mockResolvedValue({
+      ok: true,
       user: { id: 'u-nn', email: 'nn@t.local' },
       inviteUrl: 'https://app/reset?token=nn',
       alreadyHasPassword: false
@@ -409,6 +414,7 @@ describe('actorRole leader arm (isOrgAdmin=false) for invite/deactivate/reactiva
   it('inviteOrgMemberAction passes actorRole="leader" when actor is a leader', async () => {
     isOrgAdmin.mockReturnValue(false);
     inviteMember.mockResolvedValue({
+      ok: true,
       user: { id: 'u-ldr', email: 'ldr@t.local' },
       inviteUrl: null,
       alreadyHasPassword: true
@@ -428,7 +434,7 @@ describe('actorRole leader arm (isOrgAdmin=false) for invite/deactivate/reactiva
 
   it('deactivateOrgMemberAction passes actorRole="leader" when actor is a leader', async () => {
     isOrgAdmin.mockReturnValue(false);
-    deactivateMember.mockResolvedValue(undefined);
+    deactivateMember.mockResolvedValue({ ok: true });
     const res = await deactivateOrgMemberAction(
       fd({ organizationId: 'org-1', orgUserId: 'ou-1' })
     );
@@ -440,7 +446,7 @@ describe('actorRole leader arm (isOrgAdmin=false) for invite/deactivate/reactiva
 
   it('reactivateOrgMemberAction passes actorRole="leader" when actor is a leader', async () => {
     isOrgAdmin.mockReturnValue(false);
-    reactivateMember.mockResolvedValue(undefined);
+    reactivateMember.mockResolvedValue({ ok: true });
     const res = await reactivateOrgMemberAction(
       fd({ organizationId: 'org-1', orgUserId: 'ou-1' })
     );
@@ -458,7 +464,7 @@ describe('leader actor threads actorRole', () => {
       organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'leader', isActive: true }]
     });
     isOrgAdmin.mockReturnValue(false);
-    updateMemberRole.mockResolvedValue(undefined);
+    updateMemberRole.mockResolvedValue({ ok: true });
 
     const res = await updateOrgMemberRoleAction(
       fd({ organizationId: 'org-1', orgUserId: 'ou-9', newRole: 'leader' })
@@ -480,7 +486,7 @@ describe('leader actor threads actorRole', () => {
       organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'leader', isActive: true }]
     });
     isOrgAdmin.mockReturnValue(false);
-    updateMemberRole.mockRejectedValue(new OrgMemberError('requires_admin'));
+    updateMemberRole.mockResolvedValue({ ok: false, error: 'requires_admin' });
 
     const res = await updateOrgMemberRoleAction(
       fd({ organizationId: 'org-1', orgUserId: 'ou-9', newRole: 'admin' })
@@ -490,6 +496,7 @@ describe('leader actor threads actorRole', () => {
 
   it('accepts roleInOrg=leader in the invite schema and passes actorRole', async () => {
     inviteMember.mockResolvedValue({
+      ok: true,
       user: { id: 'u', email: 'l@t.local' },
       inviteUrl: null,
       alreadyHasPassword: true
