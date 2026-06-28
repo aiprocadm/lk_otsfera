@@ -32,21 +32,16 @@ import { notifyManagers, notifyOrgUsers } from '@/lib/notifications';
 const MANAGER_SETTABLE_STATUSES = ['pending', 'in_progress', 'completed'] as const;
 export type ManagerSettableStatus = (typeof MANAGER_SETTABLE_STATUSES)[number];
 
-export class ManagerStatusError extends Error {
-  constructor(public code: 'invalid_status' | 'forbidden' | 'not_found') {
-    super(code);
-    this.name = 'ManagerStatusError';
-  }
-}
+export type ManagerStatusErrorCode = 'invalid_status' | 'forbidden' | 'not_found';
 
 export async function transitionOrderStatus(
   prisma: PrismaClient,
   session: SessionPayload,
   orderId: string,
   newStatus: ManagerSettableStatus
-): Promise<{ changed: boolean }> {
+): Promise<{ ok: true; changed: boolean } | { ok: false; error: ManagerStatusErrorCode }> {
   if (!MANAGER_SETTABLE_STATUSES.includes(newStatus)) {
-    throw new ManagerStatusError('invalid_status');
+    return { ok: false, error: 'invalid_status' };
   }
 
   const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
@@ -62,18 +57,18 @@ export async function transitionOrderStatus(
       title: true
     }
   });
-  if (!order) throw new ManagerStatusError('not_found');
+  if (!order) return { ok: false, error: 'not_found' };
 
   // Defence-in-depth on the write path (mode-aware): company-wide ⇒ same-company,
   // otherwise the three-way scope.
   if (!canSeeOrder(session, order, teamMode)) {
-    throw new ManagerStatusError('forbidden');
+    return { ok: false, error: 'forbidden' };
   }
 
   // No-op when the order is already in the target status — avoids spurious
   // audit rows and avoidable notification fan-out on idempotent retries.
   if (order.executionStatus === newStatus) {
-    return { changed: false };
+    return { ok: true, changed: false };
   }
 
   const previousStatus = order.executionStatus;
@@ -145,5 +140,5 @@ export async function transitionOrderStatus(
     });
   }
 
-  return { changed: true };
+  return { ok: true, changed: true };
 }

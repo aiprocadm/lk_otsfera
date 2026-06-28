@@ -19,7 +19,7 @@ vi.mock('@/lib/auth/managerPolicy', () => ({ getCompanyTeamVisibility, canSeeOrd
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 vi.mock('@/lib/notifications', () => ({ notifyOrgUsers, notifyManagers }));
 
-import { transitionOrderStatus, ManagerStatusError } from '@/lib/services/manager/status';
+import { transitionOrderStatus } from '@/lib/services/manager/status';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const SESSION: SessionPayload = {
@@ -64,35 +64,32 @@ beforeEach(() => {
 });
 
 describe('transitionOrderStatus', () => {
-  it('throws ManagerStatusError invalid_status for unsupported status', async () => {
+  it('returns invalid_status for unsupported status', async () => {
     const p = makePrisma(makeOrder());
-    await expect(
-      transitionOrderStatus(p, SESSION, 'ord-1', 'cancelled' as never)
-    ).rejects.toThrow(ManagerStatusError);
-    await expect(
-      transitionOrderStatus(p, SESSION, 'ord-1', 'cancelled' as never)
-    ).rejects.toMatchObject({ code: 'invalid_status' });
+    expect(
+      await transitionOrderStatus(p, SESSION, 'ord-1', 'cancelled' as never)
+    ).toEqual({ ok: false, error: 'invalid_status' });
   });
 
-  it('throws ManagerStatusError not_found when order does not exist', async () => {
+  it('returns not_found when order does not exist', async () => {
     const p = makePrisma(null);
-    await expect(
-      transitionOrderStatus(p, SESSION, 'ord-nonexistent', 'in_progress')
-    ).rejects.toMatchObject({ code: 'not_found' });
+    expect(
+      await transitionOrderStatus(p, SESSION, 'ord-nonexistent', 'in_progress')
+    ).toEqual({ ok: false, error: 'not_found' });
   });
 
-  it('throws ManagerStatusError forbidden when canSeeOrder returns false', async () => {
+  it('returns forbidden when canSeeOrder returns false', async () => {
     canSeeOrder.mockReturnValue(false);
     const p = makePrisma(makeOrder());
-    await expect(
-      transitionOrderStatus(p, SESSION, 'ord-1', 'in_progress')
-    ).rejects.toMatchObject({ code: 'forbidden' });
+    expect(
+      await transitionOrderStatus(p, SESSION, 'ord-1', 'in_progress')
+    ).toEqual({ ok: false, error: 'forbidden' });
   });
 
   it('returns { changed: false } when order is already in target status', async () => {
     const p = makePrisma(makeOrder({ executionStatus: 'in_progress' }));
     const result = await transitionOrderStatus(p, SESSION, 'ord-1', 'in_progress');
-    expect(result).toEqual({ changed: false });
+    expect(result).toEqual({ ok: true, changed: false });
     expect(recordAudit).not.toHaveBeenCalled();
     expect(notifyOrgUsers).not.toHaveBeenCalled();
   });
@@ -100,7 +97,7 @@ describe('transitionOrderStatus', () => {
   it('returns { changed: true } and writes audit on successful transition', async () => {
     const p = makePrisma(makeOrder({ executionStatus: 'pending' }));
     const result = await transitionOrderStatus(p, SESSION, 'ord-1', 'in_progress');
-    expect(result).toEqual({ changed: true });
+    expect(result).toEqual({ ok: true, changed: true });
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ action: 'order_status_changed' })
@@ -158,7 +155,7 @@ describe('transitionOrderStatus', () => {
     notifyManagers.mockRejectedValueOnce(new Error('email API down'));
     const p = makePrisma(makeOrder({ organizationId: 'org-1' }));
     const result = await transitionOrderStatus(p, SESSION, 'ord-1', 'in_progress');
-    expect(result).toEqual({ changed: true });
+    expect(result).toEqual({ ok: true, changed: true });
   });
 
   it('uses actorName from user lookup in notifyManagers payload', async () => {
@@ -196,6 +193,6 @@ describe('transitionOrderStatus', () => {
     notifyManagers.mockRejectedValueOnce('network-gone');
     const p = makePrisma(makeOrder({ organizationId: 'org-1' }));
     const result = await transitionOrderStatus(p, SESSION, 'ord-1', 'in_progress');
-    expect(result).toEqual({ changed: true });
+    expect(result).toEqual({ ok: true, changed: true });
   });
 });
