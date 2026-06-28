@@ -1487,6 +1487,16 @@ describe('organization/team — inviteMember (unit)', () => {
       process.env.APP_URL = originalAppUrl;
     }
   });
+
+  it('non-OrgMemberError thrown inside tx re-throws (boundary-catch)', async () => {
+    const prisma = {
+      $transaction: vi.fn().mockRejectedValue(new Error('DB crashed')),
+    } as unknown as PrismaClient;
+
+    await expect(
+      inviteMember(prisma, { organizationId: 'org-1', email: 'x@x.com', name: 'X', roleInOrg: 'member' }, 'actor-1'),
+    ).rejects.toThrow('DB crashed');
+  });
 });
 
 describe('organization/team — updateMemberRole (unit)', () => {
@@ -1628,6 +1638,16 @@ describe('organization/team — updateMemberRole (unit)', () => {
       expect.objectContaining({ data: { roleInOrg: 'member' } }),
     );
   });
+
+  it('non-OrgMemberError thrown inside tx re-throws (boundary-catch)', async () => {
+    const prisma = {
+      $transaction: vi.fn().mockRejectedValue(new Error('DB crashed')),
+    } as unknown as PrismaClient;
+
+    await expect(
+      updateMemberRole(prisma, 'org-1', 'ou1', 'admin', 'actor-1'),
+    ).rejects.toThrow('DB crashed');
+  });
 });
 
 describe('organization/team — deactivateMember (unit)', () => {
@@ -1728,6 +1748,16 @@ describe('organization/team — deactivateMember (unit)', () => {
       expect.objectContaining({ data: { isActive: false } }),
     );
   });
+
+  it('non-OrgMemberError thrown inside tx re-throws (boundary-catch)', async () => {
+    const prisma = {
+      $transaction: vi.fn().mockRejectedValue(new Error('DB crashed')),
+    } as unknown as PrismaClient;
+
+    await expect(
+      deactivateMember(prisma, 'org-1', 'ou1', 'actor-1'),
+    ).rejects.toThrow('DB crashed');
+  });
 });
 
 describe('organization/team — reactivateMember (unit)', () => {
@@ -1795,6 +1825,16 @@ describe('organization/team — reactivateMember (unit)', () => {
       expect.objectContaining({ data: { isActive: true } }),
     );
     expect(recordAuditMock).toHaveBeenCalled();
+  });
+
+  it('non-OrgMemberError thrown inside tx re-throws (boundary-catch)', async () => {
+    const prisma = {
+      $transaction: vi.fn().mockRejectedValue(new Error('DB crashed')),
+    } as unknown as PrismaClient;
+
+    await expect(
+      reactivateMember(prisma, 'org-1', 'ou1', 'actor-1'),
+    ).rejects.toThrow('DB crashed');
   });
 });
 
@@ -1898,6 +1938,29 @@ describe('organization/invite — createOrgAdminInvite (unit)', () => {
         { actorUserId: 'actor-partner', source: 'partner', actorPartnerId: 'partner-A' },
       ),
     ).resolves.toBeDefined();
+  });
+
+  it('re-throws OrgMemberError when underlying inviteMember returns {ok:false} (shim throw-contract)', async () => {
+    // Existing ACTIVE membership → org inviteMember hits the already_member path
+    // and returns { ok: false }. The shim must re-throw it as OrgMemberError so
+    // the partner/admin inviteOrgAdmin cabinets (left out of the Result migration)
+    // keep catching OrgMemberError unchanged. Covers invite.ts:80.
+    const prisma = makePrisma(
+      { id: 'org-1', partnerId: 'partner-A' },
+      {
+        user: { findUnique: vi.fn().mockResolvedValue({ id: 'u-dup', email: 'dup@x.com', passwordHash: 'x' }) },
+        organizationUser: {
+          findUnique: vi.fn().mockResolvedValue({ id: 'ou-dup', isActive: true, roleInOrg: 'member', organizationId: 'org-1' }),
+        },
+      },
+    );
+    await expect(
+      createOrgAdminInvite(
+        prisma,
+        { organizationId: 'org-1', email: 'dup@x.com', name: 'Dup' },
+        { actorUserId: 'actor-admin', source: 'platform_admin' },
+      ),
+    ).rejects.toMatchObject({ code: 'already_member', name: 'OrgMemberError' });
   });
 
   it('OrgInviteError has correct code, name, and is an Error instance', () => {

@@ -77,6 +77,7 @@ export async function createOrgAdminInvite(
     ctx.actorUserId,
     { source: ctx.source }
   );
+  // Re-throw to preserve this shim's throw-contract: the partner/admin inviteOrgAdmin cabinets still consume OrgMemberError throws (Task 7 kept them out of the Result migration scope).
   if (!r.ok) throw new OrgMemberError(r.error);
   return {
     user: r.user,
