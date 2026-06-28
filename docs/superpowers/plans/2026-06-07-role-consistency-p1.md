@@ -238,13 +238,16 @@ export async function requireManagerLeader(): Promise<SessionPayload> {
 В `src/lib/auth/jwt.ts` над тремя type-алиасами под-ролей (строки 17-21) добавить комментарий-контракт:
 
 ```ts
-// Словарь под-ролей («руководитель» проекта реализован тремя под-ролями, by
-// design §4 — три домена, три гарда). Значения СТАБИЛЬНЫ (миграция дорогая):
-//  - partnerRole='manager'  = «партнёрский администратор» (исторически назван
-//    manager; НЕ путать с top-level Role 'manager'). Гард requirePartnerAdmin.
-//  - roleInOrg='leader'      = старший в организации. Гард requireOrganizationAdminOrLeader.
-//  - managerRole='leader'    = старший менеджер (company-wide, C8). Гард requireManagerLeader.
-// Контракт отказа по под-роли единый: redirect → /forbidden (см. requireRole.ts).
+// Словарь под-ролей. «Старший»/team-lead проекта реализован тремя под-ролями
+// (by design §4 — три домена, три гарда) и в каждом назван по-разному:
+//  - partnerRole='admin'    = партнёрский администратор (управляет командой партнёра).
+//    Гард requirePartnerAdmin (partnerRole === 'admin'). ВНИМАНИЕ: partnerRole='manager'
+//    — наоборот, обычный scoped-партнёр (дефолт), НЕ админ; строка 'manager' здесь
+//    не связана с top-level Role 'manager' (разные поля/namespace).
+//  - roleInOrg='leader'     = старший в организации (+ 'admin'). Гард requireOrganizationAdminOrLeader.
+//  - managerRole='leader'   = старший менеджер (company-wide, C8). Гард requireManagerLeader.
+// Значения СТАБИЛЬНЫ (миграция дорогая). Контракт отказа по под-роли единый:
+// redirect → /forbidden (см. requireRole.ts).
 export type PartnerRoleInPartner = 'admin' | 'manager';
 
 export type OrgRoleInOrg = 'admin' | 'leader' | 'member';

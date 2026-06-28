@@ -3,7 +3,7 @@
 **Дата завершения:** 2026-06-07
 **Branch:** `claude/role-consistency-audit`
 **Base commit (план):** `b105b19` (docs(plan): role consistency P1)
-**Head commit P1:** `c07996a` (fix(rbac): remove admin dead-doors from cabinet prefixes)
+**Последний код-коммит P1:** `c07996a` (fix(rbac): remove admin dead-doors). Docs/close-out — `4c282ff`; пост-ревью фикс инвертированного словаря — отдельным коммитом (см. Task 2 ниже).
 **Источник:** [план role-consistency-p1](2026-06-07-role-consistency-p1.md) · [spec §6](../specs/2026-06-07-role-consistency-audit-design.md)
 
 P1 — «контракт-хармонизация»: три дешёвых кросс-ролевых дрейфа из аудита согласованности ролей. Defense-in-depth (§4) ни в одной правке не ослаблен — только выровнен контракт и видимость.
@@ -17,7 +17,7 @@ P1 — «контракт-хармонизация»: три дешёвых кр
 
 ### Task 2 — ось 1: единый redirect-контракт под-ролей + словарь (`db6f2ed`)
 - `src/lib/auth/requireRole.ts`: `requireManagerLeader` при нехватке elevation теперь редиректит на `/forbidden` (было `/manager/dashboard`) — как `requirePartnerAdmin` и `requireOrganizationAdminOrLeader`. QA-смоук уже ожидал `/forbidden` → код приведён к задокументированному намерению.
-- `src/lib/auth/jwt.ts`: комментарий-словарь под-ролей над тремя type-алиасами (значения СТАБИЛЬНЫ — миграция дорогая; зафиксировано, почему `partnerRole='manager'` ≠ top-level `Role 'manager'`).
+- `src/lib/auth/jwt.ts`: комментарий-словарь под-ролей над тремя type-алиасами (значения СТАБИЛЬНЫ — миграция дорогая; зафиксировано, что партнёрский админ = `partnerRole='admin'`, а `partnerRole='manager'` — обычный scoped-партнёр, не связанный со строкой top-level `Role 'manager'`). Изначальная инверсия в этом словаре поймана финальным holistic-ревью и исправлена (`fix(auth): correct inverted partner sub-role glossary`).
 - `requireManagerForOrg`/`ForOrder` намеренно НЕ тронуты: их `/manager/dashboard`-redirect — это scope-deny, а не elevation-deny.
 
 ### Task 3 — ось 4: Model A — убрать «мёртвые двери» admin (`c07996a`)
