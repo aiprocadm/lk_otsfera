@@ -68,6 +68,8 @@ describe('team.inviteMember', () => {
       assignedOrgIds: [orgIds[0]]
     });
 
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected ok');
     expect(result.user.email).toBe('new@x.local');
     expect(result.user.role).toBe('partner');
     expect(result.partnerUser.roleInPartner).toBe('manager');
@@ -79,12 +81,12 @@ describe('team.inviteMember', () => {
       data: { email: 'dup@x.local', passwordHash: 'h', name: 'D', role: 'partner', partnerId }
     });
 
-    await expect(
-      inviteMember(prisma, {
+    expect(
+      await inviteMember(prisma, {
         partnerId, email: 'dup@x.local', name: 'X',
         roleInPartner: 'manager', assignedOrgIds: []
       })
-    ).rejects.toThrow(/already exists|EMAIL_TAKEN/);
+    ).toEqual({ ok: false, error: 'email_taken' });
   });
 
   it('rejects assignedOrgIds outside partner', async () => {
@@ -94,12 +96,12 @@ describe('team.inviteMember', () => {
       data: { name: 'Foreign', partnerId: otherPartner.id, companyId: c.id }
     });
 
-    await expect(
-      inviteMember(prisma, {
+    expect(
+      await inviteMember(prisma, {
         partnerId, email: 'x@x.local', name: 'X',
         roleInPartner: 'manager', assignedOrgIds: [foreignOrg.id]
       })
-    ).rejects.toThrow(/ORG_OUT_OF_SCOPE|outside partner/);
+    ).toEqual({ ok: false, error: 'org_out_of_scope' });
 
     await prisma.organization.delete({ where: { id: foreignOrg.id } });
     await prisma.company.deleteMany({ where: { name: { startsWith: 'OthC-' } } });
@@ -117,7 +119,8 @@ describe('team.assignOrgs', () => {
     });
 
     const updated = await assignOrgs(prisma, { partnerId, userId: u.id, assignedOrgIds: orgIds });
-    expect(updated.assignedOrgIds).toEqual(orgIds);
+    if (!updated.ok) throw new Error('expected ok');
+    expect(updated.partnerUser.assignedOrgIds).toEqual(orgIds);
   });
 
   it('rejects orgs outside partner', async () => {
@@ -128,9 +131,9 @@ describe('team.assignOrgs', () => {
       data: { partnerId, userId: u.id, roleInPartner: 'manager', assignedOrgIds: [], isActive: true }
     });
 
-    await expect(
-      assignOrgs(prisma, { partnerId, userId: u.id, assignedOrgIds: ['no-such-org'] })
-    ).rejects.toThrow(/ORG_OUT_OF_SCOPE/);
+    expect(
+      await assignOrgs(prisma, { partnerId, userId: u.id, assignedOrgIds: ['no-such-org'] })
+    ).toEqual({ ok: false, error: 'org_out_of_scope' });
   });
 });
 
@@ -144,7 +147,8 @@ describe('team.deactivateMember', () => {
     });
 
     const r = await deactivateMember(prisma, { partnerId, userId: u.id });
-    expect(r.isActive).toBe(false);
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.partnerUser.isActive).toBe(false);
   });
 
   it('refuses to deactivate the last admin', async () => {
@@ -155,8 +159,8 @@ describe('team.deactivateMember', () => {
       data: { partnerId, userId: u.id, roleInPartner: 'admin', assignedOrgIds: [], isActive: true }
     });
 
-    await expect(
-      deactivateMember(prisma, { partnerId, userId: u.id })
-    ).rejects.toThrow(/LAST_ADMIN/);
+    expect(
+      await deactivateMember(prisma, { partnerId, userId: u.id })
+    ).toEqual({ ok: false, error: 'last_admin_protected' });
   });
 });

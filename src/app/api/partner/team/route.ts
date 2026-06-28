@@ -36,34 +36,31 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid payload', details: parsed.error.flatten() }, { status: 400 });
   }
 
-  try {
-    const result = await inviteMember(prisma, {
-      partnerId: admin.value.partnerId,
-      ...parsed.data
-    });
-
-    await recordAudit(prisma, {
-      action: 'partner_member_invited',
-      entity: 'partner_user',
-      entityId: result.partnerUser.id,
-      userId: session.sub,
-      after: {
-        partnerId: admin.value.partnerId,
-        invitedUserId: result.user.id,
-        email: parsed.data.email,
-        roleInPartner: parsed.data.roleInPartner,
-        assignedOrgIds: parsed.data.assignedOrgIds,
-      },
-    });
-
-    return NextResponse.json(
-      { userId: result.user.id, partnerUserId: result.partnerUser.id },
-      { status: 201 }
-    );
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'unknown';
-    if (msg.startsWith('EMAIL_TAKEN')) return NextResponse.json({ error: 'EMAIL_TAKEN' }, { status: 409 });
-    if (msg.startsWith('ORG_OUT_OF_SCOPE')) return NextResponse.json({ error: 'ORG_OUT_OF_SCOPE' }, { status: 422 });
-    throw err;
+  const result = await inviteMember(prisma, {
+    partnerId: admin.value.partnerId,
+    ...parsed.data
+  });
+  if (!result.ok) {
+    const status = result.error === 'email_taken' ? 409 : 422;
+    return NextResponse.json({ error: result.error }, { status });
   }
+
+  await recordAudit(prisma, {
+    action: 'partner_member_invited',
+    entity: 'partner_user',
+    entityId: result.partnerUser.id,
+    userId: session.sub,
+    after: {
+      partnerId: admin.value.partnerId,
+      invitedUserId: result.user.id,
+      email: parsed.data.email,
+      roleInPartner: parsed.data.roleInPartner,
+      assignedOrgIds: parsed.data.assignedOrgIds,
+    },
+  });
+
+  return NextResponse.json(
+    { userId: result.user.id, partnerUserId: result.partnerUser.id },
+    { status: 201 }
+  );
 }
