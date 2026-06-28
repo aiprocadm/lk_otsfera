@@ -86,21 +86,24 @@ describe('enrollment lifecycle', () => {
   }
   it('approve: pending → approved', async () => {
     const r = await approveEnrollment(db('pending'), { id: 'E1', reviewerId: 'm1' });
-    expect(r.status).toBe('approved');
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.request.status).toBe('approved');
   });
   it('approve forbidden from non-pending', async () => {
-    await expect(approveEnrollment(db('approved'), { id: 'E1', reviewerId: 'm1' })).rejects.toThrow(/LIFECYCLE_VIOLATION/);
+    expect(await approveEnrollment(db('approved'), { id: 'E1', reviewerId: 'm1' })).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
   it('markProvisioned requires externalStudentId and approved status', async () => {
-    await expect(markProvisioned(db('approved'), { id: 'E1', reviewerId: 'm1', externalStudentId: '' })).rejects.toThrow(/VALIDATION/);
-    await expect(markProvisioned(db('pending'), { id: 'E1', reviewerId: 'm1', externalStudentId: 'LMS-9' })).rejects.toThrow(/LIFECYCLE_VIOLATION/);
+    expect(await markProvisioned(db('approved'), { id: 'E1', reviewerId: 'm1', externalStudentId: '' })).toEqual({ ok: false, error: 'validation' });
+    expect(await markProvisioned(db('pending'), { id: 'E1', reviewerId: 'm1', externalStudentId: 'LMS-9' })).toEqual({ ok: false, error: 'lifecycle_violation' });
     const r = await markProvisioned(db('approved'), { id: 'E1', reviewerId: 'm1', externalStudentId: 'LMS-9' });
-    expect(r.status).toBe('provisioned');
-    expect(r.externalStudentId).toBe('LMS-9');
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.request.status).toBe('provisioned');
+    expect(r.request.externalStudentId).toBe('LMS-9');
   });
   it('reject sets reason; cannot reject a provisioned request', async () => {
     const r = await rejectEnrollment(db('pending'), { id: 'E1', reviewerId: 'm1', reason: 'нет мест' });
-    expect(r.status).toBe('rejected');
-    await expect(rejectEnrollment(db('provisioned'), { id: 'E1', reviewerId: 'm1', reason: 'x' })).rejects.toThrow(/LIFECYCLE_VIOLATION/);
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.request.status).toBe('rejected');
+    expect(await rejectEnrollment(db('provisioned'), { id: 'E1', reviewerId: 'm1', reason: 'x' })).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 });

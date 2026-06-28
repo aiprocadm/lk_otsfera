@@ -6,7 +6,6 @@ import { prisma } from '@/lib/db/prisma';
 import { requireManager } from '@/lib/auth/requireRole';
 import {
   transitionOrderStatus,
-  ManagerStatusError,
   type ManagerSettableStatus
 } from '@/lib/services/manager/status';
 
@@ -30,19 +29,14 @@ export async function transitionOrderStatusAction(input: {
 
   const session = await requireManager();
 
-  let result: { changed: boolean };
-  try {
-    result = await transitionOrderStatus(
-      prisma,
-      session,
-      parsed.data.orderId,
-      parsed.data.newStatus as ManagerSettableStatus
-    );
-  } catch (e) {
-    if (e instanceof ManagerStatusError) {
-      return { ok: false, error: e.code };
-    }
-    throw e;
+  const result = await transitionOrderStatus(
+    prisma,
+    session,
+    parsed.data.orderId,
+    parsed.data.newStatus as ManagerSettableStatus
+  );
+  if (!result.ok) {
+    return { ok: false, error: result.error };
   }
 
   revalidatePath(`/manager/orders/${parsed.data.orderId}`);

@@ -3,8 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import {
   createAndAssignManager,
   deactivateAssignment,
-  reactivateAssignment,
-  ManagerInviteError
+  reactivateAssignment
 } from '@/lib/services/manager/invite';
 
 let prisma: PrismaClient;
@@ -110,33 +109,33 @@ beforeEach(async () => {
 
 describe('createAndAssignManager — mode=existing', () => {
   it('user_not_found when the email is unknown', async () => {
-    await expect(
-      createAndAssignManager(
+    expect(
+      await createAndAssignManager(
         prisma,
         { mode: 'existing', organizationId: orgId, email: `does-not-exist-${STAMP}@t.local` },
         adminActorUserId
       )
-    ).rejects.toMatchObject({ code: 'user_not_found' });
+    ).toEqual({ ok: false, error: 'user_not_found' });
   });
 
   it('role_conflict when the user exists but is not a manager', async () => {
-    await expect(
-      createAndAssignManager(
+    expect(
+      await createAndAssignManager(
         prisma,
         { mode: 'existing', organizationId: orgId, email: existingNonManagerEmail },
         adminActorUserId
       )
-    ).rejects.toMatchObject({ code: 'role_conflict' });
+    ).toEqual({ ok: false, error: 'role_conflict' });
   });
 
   it('org_not_found when organizationId does not exist', async () => {
-    await expect(
-      createAndAssignManager(
+    expect(
+      await createAndAssignManager(
         prisma,
         { mode: 'existing', organizationId: 'nope', email: existingManagerEmail },
         adminActorUserId
       )
-    ).rejects.toMatchObject({ code: 'org_not_found' });
+    ).toEqual({ ok: false, error: 'org_not_found' });
   });
 
   it('assigns when the manager has no prior assignment', async () => {
@@ -145,6 +144,7 @@ describe('createAndAssignManager — mode=existing', () => {
       { mode: 'existing', organizationId: orgId, email: existingManagerEmail },
       adminActorUserId
     );
+    if (!result.ok) throw new Error('expected ok');
     expect(result.user.id).toBe(existingManagerUserId);
     expect(result.inviteUrl).toBeNull(); // existing user has a passwordHash
     expect(result.alreadyHasPassword).toBe(true);
@@ -164,13 +164,13 @@ describe('createAndAssignManager — mode=existing', () => {
     await prisma.organizationManager.create({
       data: { organizationId: orgId, userId: existingManagerUserId, isActive: true }
     });
-    await expect(
-      createAndAssignManager(
+    expect(
+      await createAndAssignManager(
         prisma,
         { mode: 'existing', organizationId: orgId, email: existingManagerEmail },
         adminActorUserId
       )
-    ).rejects.toMatchObject({ code: 'already_assigned' });
+    ).toEqual({ ok: false, error: 'already_assigned' });
   });
 
   it('reactivates an inactive assignment instead of throwing', async () => {
@@ -188,6 +188,7 @@ describe('createAndAssignManager — mode=existing', () => {
       { mode: 'existing', organizationId: orgId, email: existingManagerEmail },
       adminActorUserId
     );
+    if (!result.ok) throw new Error('expected ok');
     expect(result.reactivated).toBe(true);
 
     const row = await prisma.organizationManager.findUnique({
@@ -209,6 +210,7 @@ describe('createAndAssignManager — mode=new', () => {
       { mode: 'new', organizationId: orgId, email: newEmail, name: 'Fresh Mgr' },
       adminActorUserId
     );
+    if (!result.ok) throw new Error('expected ok');
 
     expect(result.alreadyHasPassword).toBe(false);
     expect(result.inviteUrl).toMatch(/^https?:\/\/.+\/reset-password\?token=/);
@@ -225,19 +227,20 @@ describe('createAndAssignManager — mode=new', () => {
       { mode: 'new', organizationId: orgId, email: existingManagerEmail },
       adminActorUserId
     );
+    if (!result.ok) throw new Error('expected ok');
     expect(result.user.id).toBe(existingManagerUserId);
     expect(result.alreadyHasPassword).toBe(true);
     expect(result.inviteUrl).toBeNull();
   });
 
   it('role_conflict when the email belongs to a non-manager', async () => {
-    await expect(
-      createAndAssignManager(
+    expect(
+      await createAndAssignManager(
         prisma,
         { mode: 'new', organizationId: orgId, email: existingNonManagerEmail },
         adminActorUserId
       )
-    ).rejects.toMatchObject({ code: 'role_conflict' });
+    ).toEqual({ ok: false, error: 'role_conflict' });
   });
 });
 
@@ -303,18 +306,13 @@ describe('deactivateAssignment / reactivateAssignment', () => {
   });
 });
 
-describe('error type guard', () => {
-  it('ManagerInviteError is a real Error subclass with code', async () => {
-    try {
-      await createAndAssignManager(
-        prisma,
-        { mode: 'existing', organizationId: 'nope', email: existingManagerEmail },
-        adminActorUserId
-      );
-      expect.unreachable();
-    } catch (err) {
-      expect(err).toBeInstanceOf(ManagerInviteError);
-      expect((err as ManagerInviteError).code).toBe('org_not_found');
-    }
+describe('boundary-catch contract', () => {
+  it('returns a §3 Result (not a throw) for a domain error', async () => {
+    const result = await createAndAssignManager(
+      prisma,
+      { mode: 'existing', organizationId: 'nope', email: existingManagerEmail },
+      adminActorUserId
+    );
+    expect(result).toEqual({ ok: false, error: 'org_not_found' });
   });
 });

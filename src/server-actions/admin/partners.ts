@@ -9,7 +9,6 @@ import {
   updatePartner,
   deactivatePartner,
   reactivatePartner,
-  AdminPartnerError,
   type AdminPartnerErrorCode
 } from '@/lib/services/admin/partners';
 import { sendAdminUserInviteEmail } from '@/lib/email/send';
@@ -49,11 +48,6 @@ function readField(fd: FormData, key: string): string {
   return typeof v === 'string' ? v : '';
 }
 
-function mapErr(e: unknown): Failure {
-  if (e instanceof AdminPartnerError) return { ok: false, error: e.code };
-  throw e;
-}
-
 function appBaseUrl(): string {
   return process.env.APP_URL?.trim() || 'https://lk.otsfera.ru';
 }
@@ -71,31 +65,28 @@ export async function createPartnerWithAdminAction(
   if (!parsed.success) return { ok: false, error: 'validation', details: parsed.error.flatten() };
 
   const session = await requireAdmin();
+  const serviceArgs = {
+    ...parsed.data,
+    commissionRate: parsed.data.commissionRate != null ? parsed.data.commissionRate / 100 : undefined
+  };
+  const result = await createPartnerWithAdmin(prisma, session.sub, serviceArgs);
+  if (!result.ok) return { ok: false, error: result.error };
+  const inviteUrl = `${appBaseUrl()}/reset-password?token=${result.inviteToken}`;
+
   try {
-    const serviceArgs = {
-      ...parsed.data,
-      commissionRate: parsed.data.commissionRate != null ? parsed.data.commissionRate / 100 : undefined
-    };
-    const result = await createPartnerWithAdmin(prisma, session.sub, serviceArgs);
-    const inviteUrl = `${appBaseUrl()}/reset-password?token=${result.inviteToken}`;
-
-    try {
-      await sendAdminUserInviteEmail({
-        to: parsed.data.adminEmail,
-        name: parsed.data.adminName,
-        role: 'partner',
-        inviteUrl,
-        invitedByName: session.name ?? undefined
-      });
-    } catch (e) {
-      console.warn('[admin/partners] send invite email failed', e);
-    }
-
-    revalidatePath('/admin/partners');
-    return { ok: true, partner: result.partner, user: result.user, inviteUrl };
+    await sendAdminUserInviteEmail({
+      to: parsed.data.adminEmail,
+      name: parsed.data.adminName,
+      role: 'partner',
+      inviteUrl,
+      invitedByName: session.name ?? undefined
+    });
   } catch (e) {
-    return mapErr(e);
+    console.warn('[admin/partners] send invite email failed', e);
   }
+
+  revalidatePath('/admin/partners');
+  return { ok: true, partner: result.partner, user: result.user, inviteUrl };
 }
 
 export async function updatePartnerAction(fd: FormData): Promise<ActionResult> {
@@ -109,20 +100,17 @@ export async function updatePartnerAction(fd: FormData): Promise<ActionResult> {
   if (!parsed.success) return { ok: false, error: 'validation', details: parsed.error.flatten() };
 
   const session = await requireAdmin();
-  try {
-    const { id, ...raw } = parsed.data;
-    const args = {
-      ...raw,
-      commissionRate: raw.commissionRate != null ? raw.commissionRate / 100 : raw.commissionRate,
-      effectiveFrom: raw.effectiveFrom ? new Date(raw.effectiveFrom) : undefined
-    };
-    await updatePartner(prisma, session.sub, id, args);
-    revalidatePath('/admin/partners');
-    revalidatePath(`/admin/partners/${id}`);
-    return { ok: true };
-  } catch (e) {
-    return mapErr(e);
-  }
+  const { id, ...raw } = parsed.data;
+  const args = {
+    ...raw,
+    commissionRate: raw.commissionRate != null ? raw.commissionRate / 100 : raw.commissionRate,
+    effectiveFrom: raw.effectiveFrom ? new Date(raw.effectiveFrom) : undefined
+  };
+  const res = await updatePartner(prisma, session.sub, id, args);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/admin/partners');
+  revalidatePath(`/admin/partners/${id}`);
+  return { ok: true };
 }
 
 export async function deactivatePartnerAction(fd: FormData): Promise<ActionResult> {
@@ -130,14 +118,11 @@ export async function deactivatePartnerAction(fd: FormData): Promise<ActionResul
   if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireAdmin();
-  try {
-    await deactivatePartner(prisma, session.sub, parsed.data.id);
-    revalidatePath('/admin/partners');
-    revalidatePath(`/admin/partners/${parsed.data.id}`);
-    return { ok: true };
-  } catch (e) {
-    return mapErr(e);
-  }
+  const res = await deactivatePartner(prisma, session.sub, parsed.data.id);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/admin/partners');
+  revalidatePath(`/admin/partners/${parsed.data.id}`);
+  return { ok: true };
 }
 
 export async function reactivatePartnerAction(fd: FormData): Promise<ActionResult> {
@@ -145,14 +130,11 @@ export async function reactivatePartnerAction(fd: FormData): Promise<ActionResul
   if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireAdmin();
-  try {
-    await reactivatePartner(prisma, session.sub, parsed.data.id);
-    revalidatePath('/admin/partners');
-    revalidatePath(`/admin/partners/${parsed.data.id}`);
-    return { ok: true };
-  } catch (e) {
-    return mapErr(e);
-  }
+  const res = await reactivatePartner(prisma, session.sub, parsed.data.id);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/admin/partners');
+  revalidatePath(`/admin/partners/${parsed.data.id}`);
+  return { ok: true };
 }
 
 // <form action> wrappers must return void, so the Result is discarded — log

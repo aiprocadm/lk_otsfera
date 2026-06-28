@@ -46,23 +46,26 @@ export type InviteInput = {
 export async function inviteMember(
   prisma: PrismaClient,
   input: InviteInput
-): Promise<{ user: User; partnerUser: PartnerUser }> {
+): Promise<
+  | { ok: true; user: User; partnerUser: PartnerUser }
+  | { ok: false; error: 'org_out_of_scope' | 'email_taken' }
+> {
   if (input.assignedOrgIds.length > 0) {
     const inScope = await prisma.organization.count({
       where: { partnerId: input.partnerId, id: { in: input.assignedOrgIds } }
     });
     if (inScope !== input.assignedOrgIds.length) {
-      throw new Error('ORG_OUT_OF_SCOPE');
+      return { ok: false, error: 'org_out_of_scope' };
     }
   }
 
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
-  if (existing) throw new Error('EMAIL_TAKEN: user with this email already exists');
+  if (existing) return { ok: false, error: 'email_taken' };
 
   const tempPasswordPlain = randomBytes(12).toString('base64url');
   const passwordHash = await bcrypt.hash(tempPasswordPlain, 10);
 
-  return prisma.$transaction(async (tx) => {
+  const { user, partnerUser } = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
       data: {
         email: input.email,
@@ -85,45 +88,52 @@ export async function inviteMember(
 
     return { user, partnerUser };
   });
+
+  return { ok: true, user, partnerUser };
 }
 
 export async function assignOrgs(
   prisma: PrismaClient,
   args: { partnerId: string; userId: string; assignedOrgIds: string[] }
-): Promise<PartnerUser> {
+): Promise<{ ok: true; partnerUser: PartnerUser } | { ok: false; error: 'org_out_of_scope' }> {
   if (args.assignedOrgIds.length > 0) {
     const inScope = await prisma.organization.count({
       where: { partnerId: args.partnerId, id: { in: args.assignedOrgIds } }
     });
     if (inScope !== args.assignedOrgIds.length) {
-      throw new Error('ORG_OUT_OF_SCOPE');
+      return { ok: false, error: 'org_out_of_scope' };
     }
   }
 
-  return prisma.partnerUser.update({
+  const partnerUser = await prisma.partnerUser.update({
     where: { partnerId_userId: { partnerId: args.partnerId, userId: args.userId } },
     data: { assignedOrgIds: args.assignedOrgIds }
   });
+  return { ok: true, partnerUser };
 }
 
 export async function deactivateMember(
   prisma: PrismaClient,
   args: { partnerId: string; userId: string }
-): Promise<PartnerUser> {
+): Promise<
+  | { ok: true; partnerUser: PartnerUser }
+  | { ok: false; error: 'not_found' | 'last_admin_protected' }
+> {
   const target = await prisma.partnerUser.findUnique({
     where: { partnerId_userId: { partnerId: args.partnerId, userId: args.userId } }
   });
-  if (!target) throw new Error('NOT_FOUND');
+  if (!target) return { ok: false, error: 'not_found' };
 
   if (target.roleInPartner === 'admin' && target.isActive) {
     const activeAdmins = await prisma.partnerUser.count({
       where: { partnerId: args.partnerId, roleInPartner: 'admin', isActive: true }
     });
-    if (activeAdmins <= 1) throw new Error('LAST_ADMIN: cannot deactivate the last active admin');
+    if (activeAdmins <= 1) return { ok: false, error: 'last_admin_protected' };
   }
 
-  return prisma.partnerUser.update({
+  const partnerUser = await prisma.partnerUser.update({
     where: { id: target.id },
     data: { isActive: false }
   });
+  return { ok: true, partnerUser };
 }

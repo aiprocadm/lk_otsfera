@@ -84,7 +84,7 @@ describe('POST /api/partner/team', () => {
 
   it('201 on success', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(inviteMember).mockResolvedValue({ user: { id: 'u1' }, partnerUser: { id: 'pu1' } } as any);
+    vi.mocked(inviteMember).mockResolvedValue({ ok: true, user: { id: 'u1' }, partnerUser: { id: 'pu1' } } as any);
 
     const res = await POST(jsonReq({ email: 'x@x.local', name: 'Имя', roleInPartner: 'manager', assignedOrgIds: ['oA'] }));
     expect(res.status).toBe(201);
@@ -93,28 +93,26 @@ describe('POST /api/partner/team', () => {
     });
   });
 
-  it('409 on EMAIL_TAKEN', async () => {
+  it('409 on email_taken', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(inviteMember).mockRejectedValue(new Error('EMAIL_TAKEN: ...'));
-    expect((await POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] }))).status).toBe(409);
+    vi.mocked(inviteMember).mockResolvedValue({ ok: false, error: 'email_taken' } as any);
+    const res = await POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] }));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'email_taken' });
   });
 
-  it('422 on ORG_OUT_OF_SCOPE', async () => {
+  it('422 on org_out_of_scope', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(inviteMember).mockRejectedValue(new Error('ORG_OUT_OF_SCOPE'));
-    expect((await POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: ['bad'] }))).status).toBe(422);
+    vi.mocked(inviteMember).mockResolvedValue({ ok: false, error: 'org_out_of_scope' } as any);
+    const res = await POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: ['bad'] }));
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ error: 'org_out_of_scope' });
   });
 
-  it('rethrows unknown errors from inviteMember (not EMAIL_TAKEN/ORG_OUT_OF_SCOPE)', async () => {
+  it('propagates unexpected errors from inviteMember', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
     vi.mocked(inviteMember).mockRejectedValue(new Error('DB_DEADLOCK: timeout'));
     await expect(POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] }))).rejects.toThrow('DB_DEADLOCK');
-  });
-
-  it('non-Error throw in inviteMember → msg="unknown" → rethrows (covers String(err) branch)', async () => {
-    vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(inviteMember).mockRejectedValue('plain string rejection');
-    await expect(POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] }))).rejects.toBe('plain string rejection');
   });
 });
 
@@ -145,7 +143,7 @@ describe('PUT /api/partner/team/[userId]', () => {
 
   it('200 on successful assignOrgs', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(assignOrgs).mockResolvedValue({} as any);
+    vi.mocked(assignOrgs).mockResolvedValue({ ok: true, partnerUser: { id: 'pu1' } } as any);
 
     const res = await PUT(jsonReq({ assignedOrgIds: ['oA', 'oB'] }), userCtx('user-1'));
     expect(res.status).toBe(200);
@@ -154,28 +152,18 @@ describe('PUT /api/partner/team/[userId]', () => {
     });
   });
 
-  it('422 on ORG_OUT_OF_SCOPE from assignOrgs', async () => {
+  it('422 on org_out_of_scope from assignOrgs', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(assignOrgs).mockRejectedValue(new Error('ORG_OUT_OF_SCOPE'));
-    expect((await PUT(jsonReq({ assignedOrgIds: ['bad'] }), userCtx('u'))).status).toBe(422);
+    vi.mocked(assignOrgs).mockResolvedValue({ ok: false, error: 'org_out_of_scope' } as any);
+    const res = await PUT(jsonReq({ assignedOrgIds: ['bad'] }), userCtx('u'));
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ error: 'org_out_of_scope' });
   });
 
-  it('404 when user not found in assignOrgs', async () => {
-    vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(assignOrgs).mockRejectedValue(new Error('NOT_FOUND: user'));
-    expect((await PUT(jsonReq({ assignedOrgIds: [] }), userCtx('u'))).status).toBe(404);
-  });
-
-  it('re-throws unknown errors from assignOrgs (not ORG_OUT_OF_SCOPE, not NOT_FOUND)', async () => {
+  it('propagates unexpected errors from assignOrgs', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
     vi.mocked(assignOrgs).mockRejectedValue(new Error('DB_DEADLOCK: timeout'));
     await expect(PUT(jsonReq({ assignedOrgIds: [] }), userCtx('u'))).rejects.toThrow('DB_DEADLOCK');
-  });
-
-  it('re-throws non-Error from assignOrgs (branch[0]: not instanceof Error → msg=unknown)', async () => {
-    vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(assignOrgs).mockRejectedValue('plain string rejection');
-    await expect(PUT(jsonReq({ assignedOrgIds: [] }), userCtx('u'))).rejects.toBe('plain string rejection');
   });
 });
 
@@ -194,32 +182,30 @@ describe('DELETE /api/partner/team/[userId]', () => {
 
   it('204 on deactivate', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(deactivateMember).mockResolvedValue({ id: 'pu1' } as any);
+    vi.mocked(deactivateMember).mockResolvedValue({ ok: true, partnerUser: { id: 'pu1' } } as any);
 
     expect((await DELETE(new Request('http://x/'), userCtx('user-1'))).status).toBe(204);
   });
 
-  it('409 on LAST_ADMIN', async () => {
+  it('409 on last_admin_protected', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(deactivateMember).mockRejectedValue(new Error('LAST_ADMIN'));
-    expect((await DELETE(new Request('http://x/'), userCtx('user-1'))).status).toBe(409);
+    vi.mocked(deactivateMember).mockResolvedValue({ ok: false, error: 'last_admin_protected' } as any);
+    const res = await DELETE(new Request('http://x/'), userCtx('user-1'));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'last_admin_protected' });
   });
 
   it('404 when user not found in deactivate', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(deactivateMember).mockRejectedValue(new Error('NOT_FOUND: user'));
-    expect((await DELETE(new Request('http://x/'), userCtx('u'))).status).toBe(404);
+    vi.mocked(deactivateMember).mockResolvedValue({ ok: false, error: 'not_found' } as any);
+    const res = await DELETE(new Request('http://x/'), userCtx('u'));
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'not_found' });
   });
 
-  it('re-throws unknown errors from deactivateMember (not LAST_ADMIN, not NOT_FOUND)', async () => {
+  it('propagates unexpected errors from deactivateMember', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
     vi.mocked(deactivateMember).mockRejectedValue(new Error('DB_DEADLOCK: timeout'));
     await expect(DELETE(new Request('http://x/'), userCtx('u'))).rejects.toThrow('DB_DEADLOCK');
-  });
-
-  it('re-throws non-Error from deactivateMember (branch[0]: not instanceof Error → msg=unknown)', async () => {
-    vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(deactivateMember).mockRejectedValue('plain string rejection');
-    await expect(DELETE(new Request('http://x/'), userCtx('u'))).rejects.toBe('plain string rejection');
   });
 });

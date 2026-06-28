@@ -61,7 +61,6 @@ import {
   deactivateManagerAssignmentFormAction,
   reactivateManagerAssignmentFormAction
 } from '@/server-actions/admin/manager';
-import { ManagerInviteError } from '@/lib/services/manager/invite';
 
 function fd(data: Record<string, string>): FormData {
   const f = new FormData();
@@ -91,6 +90,7 @@ describe('assignOrInviteManagerAction', () => {
   it('happy path mode=new — calls service, sends invite email, revalidates', async () => {
     organizationFindUnique.mockResolvedValue({ name: 'ACME' });
     createAndAssignManager.mockResolvedValue({
+      ok: true,
       user: { id: 'u-2', email: 'new@t.local' },
       inviteUrl: 'https://app/reset-password?token=xyz',
       alreadyHasPassword: false,
@@ -130,6 +130,7 @@ describe('assignOrInviteManagerAction', () => {
 
   it('happy path mode=existing — when service returns null inviteUrl, no email sent', async () => {
     createAndAssignManager.mockResolvedValue({
+      ok: true,
       user: { id: 'u-3', email: 'has@t.local' },
       inviteUrl: null,
       alreadyHasPassword: true,
@@ -145,16 +146,16 @@ describe('assignOrInviteManagerAction', () => {
     expect(organizationFindUnique).not.toHaveBeenCalled(); // skipped when no inviteUrl
   });
 
-  it('maps ManagerInviteError(role_conflict) to {ok:false, error:"role_conflict"}', async () => {
-    createAndAssignManager.mockRejectedValue(new ManagerInviteError('role_conflict'));
+  it('maps role_conflict Result to {ok:false, error:"role_conflict"}', async () => {
+    createAndAssignManager.mockResolvedValue({ ok: false, error: 'role_conflict' });
     const res = await assignOrInviteManagerAction(
       fd({ mode: 'existing', organizationId: 'org-1', email: 'org@t.local' })
     );
     expect(res).toEqual({ ok: false, error: 'role_conflict' });
   });
 
-  it('maps ManagerInviteError(already_assigned)', async () => {
-    createAndAssignManager.mockRejectedValue(new ManagerInviteError('already_assigned'));
+  it('maps already_assigned Result', async () => {
+    createAndAssignManager.mockResolvedValue({ ok: false, error: 'already_assigned' });
     const res = await assignOrInviteManagerAction(
       fd({ mode: 'existing', organizationId: 'org-1', email: 'has@t.local' })
     );
@@ -368,6 +369,7 @@ describe('assignOrInviteManagerAction — email failure (graceful degradation)',
   it('still returns ok:true when sendManagerInviteEmail throws', async () => {
     organizationFindUnique.mockResolvedValue({ name: 'ACME' });
     createAndAssignManager.mockResolvedValue({
+      ok: true,
       user: { id: 'u-5', email: 'invite@t.local' },
       inviteUrl: 'https://app/reset-password?token=tok',
       alreadyHasPassword: false,
@@ -387,6 +389,7 @@ describe('assignOrInviteManagerAction — email failure (graceful degradation)',
   it('uses fallback "организация" when org lookup returns null during email send', async () => {
     organizationFindUnique.mockResolvedValue(null);
     createAndAssignManager.mockResolvedValue({
+      ok: true,
       user: { id: 'u-6', email: 'inv2@t.local' },
       inviteUrl: 'https://app/reset-password?token=tok2',
       alreadyHasPassword: false,
@@ -407,6 +410,7 @@ describe('assignOrInviteManagerAction — email failure (graceful degradation)',
     requireAdmin.mockResolvedValue({ sub: 'admin-1', name: null });
     organizationFindUnique.mockResolvedValue({ name: 'ACME' });
     createAndAssignManager.mockResolvedValue({
+      ok: true,
       user: { id: 'u-7', email: 'inv3@t.local' },
       inviteUrl: 'https://app/reset-password?token=tok3',
       alreadyHasPassword: false,

@@ -7,7 +7,6 @@ import { requireManagerLeader } from '@/lib/auth/requireRole';
 import {
   createAndAssignManager,
   deactivateAssignment,
-  ManagerInviteError,
   type ManagerInviteErrorCode
 } from '@/lib/services/manager/invite';
 
@@ -46,14 +45,10 @@ export async function leaderAssignManagerAction(formData: FormData): Promise<Lea
     return { ok: false, error: 'forbidden_org' };
   }
 
-  try {
-    const result = await createAndAssignManager(prisma, parsed.data, session.sub);
-    revalidatePath('/manager/team');
-    return { ok: true, inviteUrl: result.inviteUrl, reactivated: result.reactivated };
-  } catch (e) {
-    if (e instanceof ManagerInviteError) return { ok: false, error: e.code };
-    throw e;
-  }
+  const result = await createAndAssignManager(prisma, parsed.data, session.sub);
+  if (!result.ok) return { ok: false, error: result.error };
+  revalidatePath('/manager/team');
+  return { ok: true, inviteUrl: result.inviteUrl, reactivated: result.reactivated };
 }
 
 const deactivateSchema = z.object({ assignmentId: z.string().min(1) });

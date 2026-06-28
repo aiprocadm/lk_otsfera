@@ -458,37 +458,39 @@ describe('enrollment lifecycle — additional branches', () => {
     } as never;
   }
 
-  it('approveEnrollment: throws NOT_FOUND when request not found', async () => {
-    await expect(
-      approveEnrollment(dbNull(), { id: 'E-missing', reviewerId: 'm1' })
-    ).rejects.toThrow(/NOT_FOUND/);
+  it('approveEnrollment: returns not_found when request not found', async () => {
+    expect(
+      await approveEnrollment(dbNull(), { id: 'E-missing', reviewerId: 'm1' })
+    ).toEqual({ ok: false, error: 'not_found' });
   });
 
-  it('rejectEnrollment: throws NOT_FOUND when request not found', async () => {
-    await expect(
-      rejectEnrollment(dbNull(), { id: 'E-missing', reviewerId: 'm1', reason: 'нет' })
-    ).rejects.toThrow(/NOT_FOUND/);
+  it('rejectEnrollment: returns not_found when request not found', async () => {
+    expect(
+      await rejectEnrollment(dbNull(), { id: 'E-missing', reviewerId: 'm1', reason: 'нет' })
+    ).toEqual({ ok: false, error: 'not_found' });
   });
 
-  it('markProvisioned: throws NOT_FOUND when request not found', async () => {
-    await expect(
-      markProvisioned(dbNull(), { id: 'E-missing', reviewerId: 'm1', externalStudentId: 'LMS-1' })
-    ).rejects.toThrow(/NOT_FOUND/);
+  it('markProvisioned: returns not_found when request not found', async () => {
+    expect(
+      await markProvisioned(dbNull(), { id: 'E-missing', reviewerId: 'm1', externalStudentId: 'LMS-1' })
+    ).toEqual({ ok: false, error: 'not_found' });
   });
 
-  it('rejectEnrollment: throws LIFECYCLE_VIOLATION from rejected status', async () => {
-    await expect(
-      rejectEnrollment(db('rejected'), { id: 'E1', reviewerId: 'm1', reason: 'нет' })
-    ).rejects.toThrow(/LIFECYCLE_VIOLATION/);
+  it('rejectEnrollment: returns lifecycle_violation from rejected status', async () => {
+    expect(
+      await rejectEnrollment(db('rejected'), { id: 'E1', reviewerId: 'm1', reason: 'нет' })
+    ).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 
   it('rejectEnrollment: defaults reason to "Отклонено" when reason is whitespace', async () => {
     const r = await rejectEnrollment(db('pending'), { id: 'E1', reviewerId: 'm1', reason: '   ' });
-    expect(r.rejectedReason).toBe('Отклонено');
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.request.rejectedReason).toBe('Отклонено');
   });
 
   it('rejectEnrollment: can reject from approved status', async () => {
     const r = await rejectEnrollment(db('approved'), { id: 'E1', reviewerId: 'm1', reason: 'изменились условия' });
-    expect(r.status).toBe('rejected');
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.request.status).toBe('rejected');
   });
 });

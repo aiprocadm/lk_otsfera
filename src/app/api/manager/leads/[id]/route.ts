@@ -8,12 +8,8 @@ import type { LeadStatus } from '@prisma/client';
 
 type Params = { params: Promise<{ id: string }> };
 
-function mapError(err: unknown): NextResponse {
-  const msg = err instanceof Error ? err.message : 'Unknown error';
-  if (msg.startsWith('NOT_FOUND')) return NextResponse.json({ error: msg }, { status: 404 });
-  if (msg.startsWith('LIFECYCLE_VIOLATION')) return NextResponse.json({ error: msg }, { status: 409 });
-  throw err;
-}
+const statusFor = (error: 'not_found' | 'lifecycle_violation'): number =>
+  error === 'not_found' ? 404 : 409;
 
 export async function GET(_req: Request, { params }: Params) {
   const disabled = notFoundIfDisabled('manager_cabinet');
@@ -34,25 +30,25 @@ export async function PATCH(req: Request, { params }: Params) {
   const action = body?.action;
   const managerId = session.sub;
 
-  try {
-    if (action === 'assign') {
-      const lead = await assignLead(prisma, { leadId: id, managerId, assignToUserId: body?.assignToUserId });
-      return NextResponse.json({ lead });
-    }
-    if (action === 'setStatus') {
-      const lead = await setLeadStatus(prisma, { leadId: id, managerId, status: body?.status as LeadStatus });
-      return NextResponse.json({ lead });
-    }
-    if (action === 'promote') {
-      const { order, lead } = await promoteLead(prisma, { leadId: id, managerId });
-      return NextResponse.json({ lead, orderId: order.id }, { status: 201 });
-    }
-    if (action === 'reject') {
-      const lead = await rejectLead(prisma, { leadId: id, managerId, reason: String(body?.reason ?? '') });
-      return NextResponse.json({ lead });
-    }
-    return NextResponse.json({ error: 'Invalid action. Use assign|setStatus|promote|reject' }, { status: 400 });
-  } catch (err) {
-    return mapError(err);
+  if (action === 'assign') {
+    const res = await assignLead(prisma, { leadId: id, managerId, assignToUserId: body?.assignToUserId });
+    if (!res.ok) return NextResponse.json({ error: res.error }, { status: statusFor(res.error) });
+    return NextResponse.json({ lead: res.lead });
   }
+  if (action === 'setStatus') {
+    const res = await setLeadStatus(prisma, { leadId: id, managerId, status: body?.status as LeadStatus });
+    if (!res.ok) return NextResponse.json({ error: res.error }, { status: statusFor(res.error) });
+    return NextResponse.json({ lead: res.lead });
+  }
+  if (action === 'promote') {
+    const res = await promoteLead(prisma, { leadId: id, managerId });
+    if (!res.ok) return NextResponse.json({ error: res.error }, { status: statusFor(res.error) });
+    return NextResponse.json({ lead: res.lead, orderId: res.order.id }, { status: 201 });
+  }
+  if (action === 'reject') {
+    const res = await rejectLead(prisma, { leadId: id, managerId, reason: String(body?.reason ?? '') });
+    if (!res.ok) return NextResponse.json({ error: res.error }, { status: statusFor(res.error) });
+    return NextResponse.json({ lead: res.lead });
+  }
+  return NextResponse.json({ error: 'Invalid action. Use assign|setStatus|promote|reject' }, { status: 400 });
 }

@@ -119,6 +119,7 @@ describe('leaderAssignManagerAction — happy path (same company)', () => {
   it('calls createAndAssignManager and revalidates when org is in the same company', async () => {
     organizationFindUnique.mockResolvedValue({ companyId: 'co-A' });
     createAndAssignManager.mockResolvedValue({
+      ok: true,
       user: { id: 'u-10', email: 'new@t.local' },
       inviteUrl: 'https://app/reset?token=abc',
       alreadyHasPassword: false,
@@ -138,10 +139,9 @@ describe('leaderAssignManagerAction — happy path (same company)', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/manager/team');
   });
 
-  it('maps ManagerInviteError(already_assigned) to {ok:false, error:"already_assigned"}', async () => {
-    const { ManagerInviteError } = await import('@/lib/services/manager/invite');
+  it('maps already_assigned Result to {ok:false, error:"already_assigned"}', async () => {
     organizationFindUnique.mockResolvedValue({ companyId: 'co-A' });
-    createAndAssignManager.mockRejectedValue(new ManagerInviteError('already_assigned'));
+    createAndAssignManager.mockResolvedValue({ ok: false, error: 'already_assigned' });
 
     const res = await leaderAssignManagerAction(
       fd({ mode: 'existing', organizationId: 'org-1', email: 'dup@t.local' })

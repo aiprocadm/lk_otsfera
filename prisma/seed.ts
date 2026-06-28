@@ -169,14 +169,15 @@ async function main() {
 
   let demoStatementId: string;
   if (!existingStatement) {
-    const { statement, itemCount } = await calculateStatementForPartner(prisma, {
+    const result = await calculateStatementForPartner(prisma, {
       partnerId: partner.id,
       periodFrom: prevMonthFrom,
       periodTo: prevMonthTo,
       calculatedByUserId: null
     });
-    demoStatementId = statement.id;
-    console.log(`[seed] created commission statement ${statement.id} with ${itemCount} items`);
+    if (!result.ok) throw new Error(`[seed] commission statement calc failed: ${result.error}`);
+    demoStatementId = result.statement.id;
+    console.log(`[seed] created commission statement ${result.statement.id} with ${result.itemCount} items`);
   } else {
     demoStatementId = existingStatement.id;
     console.log(`[seed] commission statement already exists: ${existingStatement.id}`);
