@@ -15,7 +15,7 @@ describe('setTeamVisibility', () => {
   it('flips OFF→ON, writes audit, reports changed', async () => {
     const prisma = makePrisma(false);
     const res = await setTeamVisibility(prisma, 'actor-1', 'co-1', true);
-    expect(res).toEqual({ changed: true });
+    expect(res).toEqual({ ok: true, changed: true });
     expect((prisma.company.update as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith({
       where: { id: 'co-1' },
       data: { managerTeamVisibility: true }
@@ -26,7 +26,7 @@ describe('setTeamVisibility', () => {
   it('is a no-op when already in target state (no audit, changed=false)', async () => {
     const prisma = makePrisma(true);
     const res = await setTeamVisibility(prisma, 'actor-1', 'co-1', true);
-    expect(res).toEqual({ changed: false });
+    expect(res).toEqual({ ok: true, changed: false });
     expect((prisma.company.update as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
     expect((prisma.auditLog.create as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
   });
