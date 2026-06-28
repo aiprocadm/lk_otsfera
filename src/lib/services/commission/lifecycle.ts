@@ -22,7 +22,7 @@ export type MarkPaidInput = {
 export async function approveStatement(
   prisma: PrismaClient,
   input: ApproveInput
-): Promise<CommissionStatement> {
+): Promise<{ ok: true; statement: CommissionStatement } | { ok: false; error: 'not_found' | 'lifecycle_violation' }> {
   const statement = await prisma.commissionStatement.findFirst({
     where: { id: input.statementId, partnerId: input.partnerId },
     select: {
@@ -34,12 +34,12 @@ export async function approveStatement(
       periodTo: true,
     }
   });
-  if (!statement) throw new Error('NOT_FOUND: commission statement not under given partner');
+  if (!statement) return { ok: false, error: 'not_found' };
   if (statement.supersededBy) {
-    throw new Error('LIFECYCLE_VIOLATION: cannot approve superseded statement');
+    return { ok: false, error: 'lifecycle_violation' };
   }
   if (statement.status !== 'draft') {
-    throw new Error(`LIFECYCLE_VIOLATION: cannot approve from status=${statement.status}`);
+    return { ok: false, error: 'lifecycle_violation' };
   }
 
   const now = new Date();
@@ -92,7 +92,7 @@ export async function approveStatement(
     return result;
   });
 
-  return updated;
+  return { ok: true, statement: updated };
 }
 
 /**
@@ -103,14 +103,14 @@ export async function approveStatement(
 export async function markStatementPaid(
   prisma: PrismaClient,
   input: MarkPaidInput
-): Promise<CommissionStatement> {
+): Promise<{ ok: true; statement: CommissionStatement } | { ok: false; error: 'forbidden' | 'not_found' | 'lifecycle_violation' }> {
   const payer = await prisma.user.findUnique({
     where: { id: input.paidByUserId },
     select: { role: true }
   });
-  if (!payer) throw new Error('FORBIDDEN: paying user not found');
+  if (!payer) return { ok: false, error: 'forbidden' };
   if (payer.role !== 'admin') {
-    throw new Error('FORBIDDEN: only platform admin can mark commission as paid');
+    return { ok: false, error: 'forbidden' };
   }
 
   const statement = await prisma.commissionStatement.findUnique({
@@ -122,12 +122,12 @@ export async function markStatementPaid(
       partnerId: true
     }
   });
-  if (!statement) throw new Error('NOT_FOUND: commission statement');
+  if (!statement) return { ok: false, error: 'not_found' };
   if (statement.supersededBy) {
-    throw new Error('LIFECYCLE_VIOLATION: cannot mark superseded statement as paid');
+    return { ok: false, error: 'lifecycle_violation' };
   }
   if (statement.status !== 'approved') {
-    throw new Error(`LIFECYCLE_VIOLATION: cannot pay from status=${statement.status}`);
+    return { ok: false, error: 'lifecycle_violation' };
   }
 
   const paidAt = input.paidAt ?? new Date();
@@ -152,5 +152,5 @@ export async function markStatementPaid(
     return result;
   });
 
-  return updated;
+  return { ok: true, statement: updated };
 }

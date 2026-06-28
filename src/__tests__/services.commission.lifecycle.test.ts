@@ -70,14 +70,16 @@ describe('approveStatement', () => {
     const before = await prisma.auditLog.count({
       where: { action: 'commission_statement_approved' }
     });
-    const updated = await approveStatement(prisma, {
+    const res = await approveStatement(prisma, {
       statementId: draft.id,
       partnerId,
       approvedByUserId: partnerUserId
     });
-    expect(updated.status).toBe('approved');
-    expect(updated.approvedAt).not.toBeNull();
-    expect(updated.approvedByUserId).toBe(partnerUserId);
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.statement.status).toBe('approved');
+    expect(res.statement.approvedAt).not.toBeNull();
+    expect(res.statement.approvedByUserId).toBe(partnerUserId);
     const after = await prisma.auditLog.count({
       where: { action: 'commission_statement_approved' }
     });
@@ -97,13 +99,13 @@ describe('approveStatement', () => {
         status: 'draft'
       }
     });
-    await expect(
-      approveStatement(prisma, {
+    expect(
+      await approveStatement(prisma, {
         statementId: draft.id,
         partnerId,
         approvedByUserId: partnerUserId
       })
-    ).rejects.toThrow(/NOT_FOUND/);
+    ).toEqual({ ok: false, error: 'not_found' });
     await prisma.commissionStatement.deleteMany({ where: { partnerId: otherP.id } });
     await prisma.partner.deleteMany({ where: { id: otherP.id } });
   });
@@ -115,13 +117,13 @@ describe('approveStatement', () => {
       partnerId,
       approvedByUserId: partnerUserId
     });
-    await expect(
-      approveStatement(prisma, {
+    expect(
+      await approveStatement(prisma, {
         statementId: draft.id,
         partnerId,
         approvedByUserId: partnerUserId
       })
-    ).rejects.toThrow(/LIFECYCLE_VIOLATION/);
+    ).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 
   it('rejects approve on superseded statement', async () => {
@@ -130,13 +132,13 @@ describe('approveStatement', () => {
       where: { id: draft.id },
       data: { supersededBy: 'fake-id' }
     });
-    await expect(
-      approveStatement(prisma, {
+    expect(
+      await approveStatement(prisma, {
         statementId: draft.id,
         partnerId,
         approvedByUserId: partnerUserId
       })
-    ).rejects.toThrow(/LIFECYCLE_VIOLATION/);
+    ).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 });
 
@@ -148,22 +150,24 @@ describe('markStatementPaid', () => {
       partnerId,
       approvedByUserId: partnerUserId
     });
-    const updated = await markStatementPaid(prisma, {
+    const res = await markStatementPaid(prisma, {
       statementId: draft.id,
       paidByUserId: platformAdminUserId
     });
-    expect(updated.status).toBe('paid');
-    expect(updated.paidAt).not.toBeNull();
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.statement.status).toBe('paid');
+    expect(res.statement.paidAt).not.toBeNull();
   });
 
   it('rejects markPaid on draft (must approve first)', async () => {
     const draft = await createDraft();
-    await expect(
-      markStatementPaid(prisma, {
+    expect(
+      await markStatementPaid(prisma, {
         statementId: draft.id,
         paidByUserId: platformAdminUserId
       })
-    ).rejects.toThrow(/LIFECYCLE_VIOLATION/);
+    ).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 
   it('rejects markPaid by non-admin user', async () => {
@@ -173,12 +177,12 @@ describe('markStatementPaid', () => {
       partnerId,
       approvedByUserId: partnerUserId
     });
-    await expect(
-      markStatementPaid(prisma, {
+    expect(
+      await markStatementPaid(prisma, {
         statementId: draft.id,
         paidByUserId: partnerUserId
       })
-    ).rejects.toThrow(/FORBIDDEN/);
+    ).toEqual({ ok: false, error: 'forbidden' });
   });
 
   it('rejects double markPaid (LIFECYCLE_VIOLATION)', async () => {
@@ -192,12 +196,12 @@ describe('markStatementPaid', () => {
       statementId: draft.id,
       paidByUserId: platformAdminUserId
     });
-    await expect(
-      markStatementPaid(prisma, {
+    expect(
+      await markStatementPaid(prisma, {
         statementId: draft.id,
         paidByUserId: platformAdminUserId
       })
-    ).rejects.toThrow(/LIFECYCLE_VIOLATION/);
+    ).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 
   it('writes audit log on successful payment', async () => {
