@@ -21,4 +21,13 @@ describe('errorMessageRu', () => {
       expect(errorMessageRu(code)).not.toBe('Произошла ошибка.');
     }
   });
+  it('maps the throw→Result wave-2 codes to Russian', () => {
+    for (const code of [
+      'email_taken', 'org_not_found', 'user_not_found', 'role_conflict', 'already_assigned',
+      'invalid_status', 'partner_not_found', 'period_overlap', 'duplicate_slug',
+      'duplicate_email', 'admin_role_via_ui', 'role_transition_forbidden'
+    ]) {
+      expect(errorMessageRu(code)).not.toBe('Произошла ошибка.');
+    }
+  });
 });

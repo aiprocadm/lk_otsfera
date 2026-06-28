@@ -32,7 +32,20 @@ const RU: Record<string, string> = {
   already_member: 'Пользователь уже состоит в организации.',
   last_admin_protected: 'Нельзя удалить последнего администратора организации.',
   self_action_forbidden: 'Нельзя выполнить это действие над собой.',
-  lifecycle_violation: 'Недопустимый переход статуса.'
+  lifecycle_violation: 'Недопустимый переход статуса.',
+  // throw→Result волна 2 (§3)
+  email_taken: 'Пользователь с такой почтой уже зарегистрирован.',
+  org_not_found: 'Организация не найдена.',
+  user_not_found: 'Пользователь не найден.',
+  role_conflict: 'Роль пользователя конфликтует с этим действием.',
+  already_assigned: 'Пользователь уже назначен на эту организацию.',
+  invalid_status: 'Недопустимый статус.',
+  partner_not_found: 'Партнёр не найден.',
+  period_overlap: 'Период пересекается с существующей ведомостью.',
+  duplicate_slug: 'Партнёр с таким URL-идентификатором уже существует.',
+  duplicate_email: 'Пользователь с такой почтой уже существует.',
+  admin_role_via_ui: 'Роль администратора не выдаётся через интерфейс.',
+  role_transition_forbidden: 'Такой переход роли запрещён.'
 };
 
 export function errorMessageRu(code: string, fallback = 'Произошла ошибка.'): string {
