@@ -91,7 +91,10 @@ async function updateDraftInPlace(
 export async function calculateStatementForPartner(
   prisma: PrismaClient,
   input: CalculateStatementInput
-): Promise<CalculateStatementResult> {
+): Promise<
+  | ({ ok: true } & CalculateStatementResult)
+  | { ok: false; error: 'partner_not_found' | 'period_overlap' }
+> {
   const { partnerId, periodFrom, periodTo, calculatedByUserId, rejectOverlap } = input;
 
   const partner = await prisma.partner.findUnique({
@@ -99,7 +102,7 @@ export async function calculateStatementForPartner(
     select: { commissionRate: true }
   });
   if (!partner) {
-    throw new Error('PARTNER_NOT_FOUND');
+    return { ok: false, error: 'partner_not_found' };
   }
   const partnerDefaultRate = partner.commissionRate;
 
@@ -118,7 +121,7 @@ export async function calculateStatementForPartner(
       select: { id: true }
     });
     if (overlap) {
-      throw new Error(`PERIOD_OVERLAP: overlaps statement ${overlap.id}`);
+      return { ok: false, error: 'period_overlap' };
     }
   }
 
@@ -302,6 +305,7 @@ export async function calculateStatementForPartner(
   }
 
   return {
+    ok: true,
     statement,
     itemCount: calc.items.length,
     isNew

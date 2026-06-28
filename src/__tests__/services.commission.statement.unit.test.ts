@@ -81,11 +81,11 @@ afterEach(() => {
 });
 
 describe('calculateStatementForPartner — unit (payment model)', () => {
-  it('throws PARTNER_NOT_FOUND when partner missing', async () => {
+  it('returns partner_not_found when partner missing', async () => {
     const db = makeDb({ partner: null });
-    await expect(calculateStatementForPartner(db as never, {
+    expect(await calculateStatementForPartner(db as never, {
       partnerId: 'x', periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null,
-    })).rejects.toThrow('PARTNER_NOT_FOUND');
+    })).toEqual({ ok: false, error: 'partner_not_found' });
   });
 
   it('creates new draft with 0 items when no payments', async () => {
@@ -93,6 +93,7 @@ describe('calculateStatementForPartner — unit (payment model)', () => {
     const r = await calculateStatementForPartner(db as never, {
       partnerId: 'p1', periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null,
     });
+    if (!r.ok) throw new Error('expected ok');
     expect(r.isNew).toBe(true);
     expect(r.itemCount).toBe(0);
     expect(recordAudit).not.toHaveBeenCalled();
@@ -103,6 +104,7 @@ describe('calculateStatementForPartner — unit (payment model)', () => {
     const r = await calculateStatementForPartner(db as never, {
       partnerId: 'p1', periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null,
     });
+    if (!r.ok) throw new Error('expected ok');
     expect(r.itemCount).toBe(1);
     const data = db._tx.commissionStatementItem.createMany.mock.calls[0][0].data[0];
     expect(data.paymentId).toBe('pay1');
@@ -116,6 +118,7 @@ describe('calculateStatementForPartner — unit (payment model)', () => {
     const r = await calculateStatementForPartner(db as never, {
       partnerId: 'p1', periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null,
     });
+    if (!r.ok) throw new Error('expected ok');
     const data = db._tx.commissionStatementItem.createMany.mock.calls[0][0].data[0];
     expect(data.orderId).toBeNull();
     expect(data.orderNumber).toBeNull();
@@ -178,6 +181,7 @@ describe('calculateStatementForPartner — unit (payment model)', () => {
     const r = await calculateStatementForPartner(db as never, {
       partnerId: 'p1', periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null,
     });
+    if (!r.ok) throw new Error('expected ok');
     expect(r.isNew).toBe(false);
     expect(r.statement.id).toBe('stmt-draft');
   });
@@ -190,16 +194,17 @@ describe('calculateStatementForPartner — unit (payment model)', () => {
     const r = await calculateStatementForPartner(db as never, {
       partnerId: 'p1', periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null,
     });
+    if (!r.ok) throw new Error('expected ok');
     expect(r.isNew).toBe(true);
     expect(r.statement.id).toBe('stmt-new');
     expect(tx.commissionStatement.update).toHaveBeenCalledTimes(2);
   });
 
-  it('throws PERIOD_OVERLAP when rejectOverlap and a different range overlaps', async () => {
+  it('returns period_overlap when rejectOverlap and a different range overlaps', async () => {
     const db = makeDb({ findFirstQueue: [{ id: 'stmt-other' }] });
-    await expect(calculateStatementForPartner(db as never, {
+    expect(await calculateStatementForPartner(db as never, {
       partnerId: 'p1', periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null, rejectOverlap: true,
-    })).rejects.toThrow(/PERIOD_OVERLAP/);
+    })).toEqual({ ok: false, error: 'period_overlap' });
   });
 
   it('C-01 race: falls back to updateDraftInPlace on P2002', async () => {
@@ -216,6 +221,7 @@ describe('calculateStatementForPartner — unit (payment model)', () => {
     const r = await calculateStatementForPartner(db as never, {
       partnerId: 'p1', periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null,
     });
+    if (!r.ok) throw new Error('expected ok');
     expect(r.isNew).toBe(false);
     expect(r.statement.id).toBe('stmt-winner');
   });

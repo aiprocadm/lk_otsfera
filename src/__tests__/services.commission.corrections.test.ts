@@ -102,6 +102,7 @@ describe('A6/§9.5 — late refund correction end-to-end', () => {
       periodTo: aprTo,
       calculatedByUserId: null,
     });
+    if (!apr.ok) throw new Error('expected ok');
     await approveStatement(prisma, {
       statementId: apr.statement.id,
       partnerId,
@@ -152,6 +153,7 @@ describe('A6/§9.5 — late refund correction end-to-end', () => {
       periodTo: mayTo,
       calculatedByUserId: null,
     });
+    if (!may.ok) throw new Error('expected ok');
 
     const mayItems = await prisma.commissionStatementItem.findMany({
       where: { statementId: may.statement.id },

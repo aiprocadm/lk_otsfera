@@ -60,10 +60,16 @@ async function createOrder(amount: number) {
 async function pay(orderId: string | null, amount: number, paidAt: Date, isRefund = false) {
   return prisma.payment.create({ data: { organizationId: orgId, orderId, amount, paidAt, isRefund } });
 }
+// Happy-path tests expect a successful Result; narrow once here so callers read fields directly.
+async function calcOk(input: Parameters<typeof calculateStatementForPartner>[1]) {
+  const r = await calculateStatementForPartner(prisma, input);
+  if (!r.ok) throw new Error(`unexpected calc failure: ${r.error}`);
+  return r;
+}
 
 describe('calculateStatementForPartner', () => {
   it('returns isNew=true with 0 items when no payments match period', async () => {
-    const res = await calculateStatementForPartner(prisma, {
+    const res = await calcOk({
       partnerId,
       periodFrom: PERIOD_FROM,
       periodTo: PERIOD_TO,
@@ -79,7 +85,7 @@ describe('calculateStatementForPartner', () => {
   it('A1: base from actual payments, not order total', async () => {
     const o = await createOrder(100000);
     await pay(o.id, 40000, new Date('2026-04-10'));
-    const r = await calculateStatementForPartner(prisma, { partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null });
+    const r = await calcOk({ partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null });
     expect(r.itemCount).toBe(1);
     expect(Number(r.statement.totalBaseAmount)).toBe(40000);
     expect(Number(r.statement.totalCommissionAmount)).toBe(4000);
@@ -90,13 +96,13 @@ describe('calculateStatementForPartner', () => {
     await pay(o.id, 100000, new Date('2026-04-02'));
     const o2 = await createOrder(50000);
     await pay(o2.id, 50000, new Date('2026-03-31'));
-    const r = await calculateStatementForPartner(prisma, { partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null });
+    const r = await calcOk({ partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null });
     expect(Number(r.statement.totalBaseAmount)).toBe(100000);
   });
 
   it('A1: order-less org-level payment attributed via organization.partnerId', async () => {
     await pay(null, 25000, new Date('2026-04-12'));
-    const r = await calculateStatementForPartner(prisma, { partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null });
+    const r = await calcOk({ partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null });
     expect(r.itemCount).toBe(1);
     expect(Number(r.statement.totalBaseAmount)).toBe(25000);
   });
@@ -105,7 +111,7 @@ describe('calculateStatementForPartner', () => {
     const o = await createOrder(100000);
     await pay(o.id, 100000, new Date('2026-04-05'));
     await pay(o.id, 30000, new Date('2026-04-20'), true);
-    const r = await calculateStatementForPartner(prisma, { partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null });
+    const r = await calcOk({ partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null });
     expect(Number(r.statement.totalBaseAmount)).toBe(70000);
     expect(Number(r.statement.totalCommissionAmount)).toBe(7000);
   });
@@ -113,7 +119,7 @@ describe('calculateStatementForPartner', () => {
   it('re-calc on existing draft updates totals in place (isNew=false)', async () => {
     const o = await createOrder(100000);
     await pay(o.id, 100000, new Date('2026-04-10'));
-    const first = await calculateStatementForPartner(prisma, {
+    const first = await calcOk({
       partnerId,
       periodFrom: PERIOD_FROM,
       periodTo: PERIOD_TO,
@@ -124,7 +130,7 @@ describe('calculateStatementForPartner', () => {
 
     const o2 = await createOrder(50000);
     await pay(o2.id, 50000, new Date('2026-04-12'));
-    const second = await calculateStatementForPartner(prisma, {
+    const second = await calcOk({
       partnerId,
       periodFrom: PERIOD_FROM,
       periodTo: PERIOD_TO,
@@ -139,7 +145,7 @@ describe('calculateStatementForPartner', () => {
   it('re-calc on approved statement creates new with supersededBy on the old one', async () => {
     const o = await createOrder(100000);
     await pay(o.id, 100000, new Date('2026-04-10'));
-    const first = await calculateStatementForPartner(prisma, {
+    const first = await calcOk({
       partnerId,
       periodFrom: PERIOD_FROM,
       periodTo: PERIOD_TO,
@@ -151,7 +157,7 @@ describe('calculateStatementForPartner', () => {
       data: { status: 'approved', approvedByUserId: userId, approvedAt: new Date() }
     });
 
-    const second = await calculateStatementForPartner(prisma, {
+    const second = await calcOk({
       partnerId,
       periodFrom: PERIOD_FROM,
       periodTo: PERIOD_TO,
@@ -201,22 +207,22 @@ describe('calculateStatementForPartner — overlap guard (C-05)', () => {
     });
   }
 
-  it('throws PERIOD_OVERLAP for a different range overlapping an existing statement', async () => {
+  it('returns period_overlap for a different range overlapping an existing statement', async () => {
     await seedApril();
-    await expect(
-      calculateStatementForPartner(prisma, {
+    expect(
+      await calculateStatementForPartner(prisma, {
         partnerId,
         periodFrom: STRADDLE_FROM,
         periodTo: STRADDLE_TO,
         calculatedByUserId: userId,
         rejectOverlap: true
       })
-    ).rejects.toThrow(/PERIOD_OVERLAP/);
+    ).toEqual({ ok: false, error: 'period_overlap' });
   });
 
   it('allows the exact same period (in-place recalc, not an overlap)', async () => {
     await seedApril();
-    const res = await calculateStatementForPartner(prisma, {
+    const res = await calcOk({
       partnerId,
       periodFrom: PERIOD_FROM,
       periodTo: PERIOD_TO,
@@ -228,7 +234,7 @@ describe('calculateStatementForPartner — overlap guard (C-05)', () => {
 
   it('allows an adjacent, non-overlapping month', async () => {
     await seedApril();
-    const res = await calculateStatementForPartner(prisma, {
+    const res = await calcOk({
       partnerId,
       periodFrom: MAY_FROM,
       periodTo: MAY_TO,
@@ -240,7 +246,7 @@ describe('calculateStatementForPartner — overlap guard (C-05)', () => {
 
   it('does not guard when rejectOverlap is omitted (cron path stays unblocked)', async () => {
     await seedApril();
-    const res = await calculateStatementForPartner(prisma, {
+    const res = await calcOk({
       partnerId,
       periodFrom: STRADDLE_FROM,
       periodTo: STRADDLE_TO,

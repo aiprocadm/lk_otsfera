@@ -103,7 +103,7 @@ describe('POST /api/partner/finance/statements', () => {
 
   it('201 created new statement', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
-    vi.mocked(calculateStatementForPartner).mockResolvedValue({ statement: stubStatement as any, itemCount: 3, isNew: true });
+    vi.mocked(calculateStatementForPartner).mockResolvedValue({ ok: true, statement: stubStatement as any, itemCount: 3, isNew: true });
     const res = await POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }));
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -112,22 +112,31 @@ describe('POST /api/partner/finance/statements', () => {
 
   it('200 updated existing draft statement', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
-    vi.mocked(calculateStatementForPartner).mockResolvedValue({ statement: stubStatement as any, itemCount: 3, isNew: false });
+    vi.mocked(calculateStatementForPartner).mockResolvedValue({ ok: true, statement: stubStatement as any, itemCount: 3, isNew: false });
     const res = await POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }));
     expect(res.status).toBe(200);
   });
 
   // C-05: manual path must reject a period overlapping an existing statement.
-  it('409 when the period overlaps an existing statement (PERIOD_OVERLAP)', async () => {
+  it('409 when the period overlaps an existing statement (period_overlap)', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
-    vi.mocked(calculateStatementForPartner).mockRejectedValue(new Error('PERIOD_OVERLAP: overlaps statement s9'));
+    vi.mocked(calculateStatementForPartner).mockResolvedValue({ ok: false, error: 'period_overlap' });
     const res = await POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-06-30' }));
     expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'period_overlap' });
+  });
+
+  it('404 when the partner is not found (partner_not_found)', async () => {
+    vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
+    vi.mocked(calculateStatementForPartner).mockResolvedValue({ ok: false, error: 'partner_not_found' });
+    const res = await POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }));
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'partner_not_found' });
   });
 
   it('asks the service to reject overlaps on the manual path (rejectOverlap=true)', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
-    vi.mocked(calculateStatementForPartner).mockResolvedValue({ statement: stubStatement as any, itemCount: 1, isNew: true });
+    vi.mocked(calculateStatementForPartner).mockResolvedValue({ ok: true, statement: stubStatement as any, itemCount: 1, isNew: true });
     await POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }));
     expect(calculateStatementForPartner).toHaveBeenCalledWith(
       expect.anything(),
@@ -151,16 +160,10 @@ describe('POST /api/partner/finance/statements', () => {
     expect(body.error).toMatch(/before/i);
   });
 
-  it('re-throws unknown errors (not PERIOD_OVERLAP)', async () => {
+  it('propagates unexpected errors from the service', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
     vi.mocked(calculateStatementForPartner).mockRejectedValue(new Error('DB_CONSTRAINT_VIOLATION'));
     await expect(POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }))).rejects.toThrow('DB_CONSTRAINT_VIOLATION');
-  });
-
-  it('re-throws non-Error (string) from service (branch[0]: not instanceof Error)', async () => {
-    vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
-    vi.mocked(calculateStatementForPartner).mockRejectedValue('plain string rejection');
-    await expect(POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }))).rejects.toBe('plain string rejection');
   });
 });
 
