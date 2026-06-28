@@ -17,22 +17,23 @@ function activeOrgIds(session: SessionPayload): string[] {
 
 /**
  * Submit an enrollment request. Allowed for partner/organization/manager/admin
- * (leader = manager). Throw-based (mapped to HTTP by the route): VALIDATION → 400,
- * FORBIDDEN → 403. Organization linkage is scoped for partner (own orgs) and
- * organization (own memberships); manager/admin may target any org or none.
+ * (leader = manager). Result-based (§3): returns `{ ok: false, error }` with a
+ * stable code (`'forbidden'` → 403, `'validation'` → 400) which the route maps to
+ * HTTP. Organization linkage is scoped for partner (own orgs) and organization
+ * (own memberships); manager/admin may target any org or none.
  */
 export async function submitEnrollmentRequest(
   prisma: PrismaClient,
   session: SessionPayload,
   input: SubmitEnrollmentInput
-): Promise<EnrollmentRequest> {
-  if (!canSubmitEnrollments(session)) throw new Error('FORBIDDEN: role cannot submit enrollment requests');
+): Promise<{ ok: true; request: EnrollmentRequest } | { ok: false; error: 'forbidden' | 'validation' }> {
+  if (!canSubmitEnrollments(session)) return { ok: false, error: 'forbidden' };
 
   const studentName = input.studentName?.trim();
   const studentEmail = input.studentEmail?.trim();
   const courseTitle = input.courseTitle?.trim();
   if (!studentName || !studentEmail || !courseTitle) {
-    throw new Error('VALIDATION: studentName, studentEmail and courseTitle are required');
+    return { ok: false, error: 'validation' };
   }
 
   let organizationId = input.organizationId?.trim() || null;
@@ -45,12 +46,12 @@ export async function submitEnrollmentRequest(
         where: { id: organizationId, partnerId: partnerId ?? undefined },
         select: { id: true }
       });
-      if (!org) throw new Error('FORBIDDEN: organization not in partner scope');
+      if (!org) return { ok: false, error: 'forbidden' };
     }
   } else if (session.role === 'organization') {
     const ids = activeOrgIds(session);
     if (organizationId) {
-      if (!ids.includes(organizationId)) throw new Error('FORBIDDEN: organization not in your memberships');
+      if (!ids.includes(organizationId)) return { ok: false, error: 'forbidden' };
     } else {
       organizationId = session.organizationId ?? ids[0] ?? null;
     }
@@ -77,5 +78,5 @@ export async function submitEnrollmentRequest(
     after: { organizationId, studentEmail, courseTitle, submitterRole: created.submitterRole }
   });
 
-  return created;
+  return { ok: true, request: created };
 }
