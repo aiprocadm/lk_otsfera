@@ -434,8 +434,8 @@ describe('updatePartner()', () => {
   it('throws not_found when partner does not exist', async () => {
     const tx = makeTx(null);
     const prisma = makePrismaWithTx(tx);
-    await expect(updatePartner(prisma, 'actor1', 'missing', { name: 'New' }))
-      .rejects.toMatchObject({ code: 'not_found' });
+    expect(await updatePartner(prisma, 'actor1', 'missing', { name: 'New' }))
+      .toEqual({ ok: false, error: 'not_found' });
   });
 
   it('happy path: updates name and records audit', async () => {
@@ -597,8 +597,8 @@ describe('deactivatePartner()', () => {
   it('throws not_found when partner does not exist', async () => {
     const tx = makeTx(null);
     const prisma = makePrismaWithTx(tx);
-    await expect(deactivatePartner(prisma, 'actor1', 'missing'))
-      .rejects.toMatchObject({ code: 'not_found' });
+    expect(await deactivatePartner(prisma, 'actor1', 'missing'))
+      .toEqual({ ok: false, error: 'not_found' });
   });
 
   it('is idempotent: does not update or audit when already inactive', async () => {
@@ -659,8 +659,8 @@ describe('reactivatePartner()', () => {
   it('throws not_found when partner does not exist', async () => {
     const tx = makeTx(null);
     const prisma = makePrismaWithTx(tx);
-    await expect(reactivatePartner(prisma, 'actor1', 'missing'))
-      .rejects.toMatchObject({ code: 'not_found' });
+    expect(await reactivatePartner(prisma, 'actor1', 'missing'))
+      .toEqual({ ok: false, error: 'not_found' });
   });
 
   it('is idempotent: does not update or audit when already active', async () => {
@@ -756,8 +756,8 @@ describe('createPartnerWithAdmin()', () => {
     const tx = makeTxForCreate({ slugExists: { id: 'existing', slug: 'new-partner' } });
     const prisma = makePrismaWithTx(tx);
 
-    await expect(createPartnerWithAdmin(prisma, 'actor1', baseArgs))
-      .rejects.toMatchObject({ code: 'duplicate_slug' });
+    expect(await createPartnerWithAdmin(prisma, 'actor1', baseArgs))
+      .toEqual({ ok: false, error: 'duplicate_slug' });
 
     expect(tx.partner.create).toHaveBeenCalledTimes(0);
   });
@@ -766,8 +766,8 @@ describe('createPartnerWithAdmin()', () => {
     const tx = makeTxForCreate({ emailExists: { id: 'u-existing', email: 'admin@new.com' } });
     const prisma = makePrismaWithTx(tx);
 
-    await expect(createPartnerWithAdmin(prisma, 'actor1', baseArgs))
-      .rejects.toMatchObject({ code: 'duplicate_email' });
+    expect(await createPartnerWithAdmin(prisma, 'actor1', baseArgs))
+      .toEqual({ ok: false, error: 'duplicate_email' });
 
     expect(tx.partner.create).toHaveBeenCalledTimes(0);
   });
@@ -817,6 +817,7 @@ describe('createPartnerWithAdmin()', () => {
 
     // Return shape
     expect(result).toEqual({
+      ok: true,
       partner: { id: 'p2', name: 'New Partner', slug: 'new-partner' },
       user: { id: 'u2', email: 'admin@new.com' },
       inviteToken: 'invite-token-abc'

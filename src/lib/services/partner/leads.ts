@@ -183,16 +183,16 @@ export type CreateLeadInput = {
 export async function createLead(
   prisma: PrismaClient,
   input: CreateLeadInput
-): Promise<Lead> {
+): Promise<{ ok: true; lead: Lead } | { ok: false; error: 'org_out_of_scope' }> {
   if (input.organizationId) {
     const org = await prisma.organization.findFirst({
       where: { id: input.organizationId, partnerId: input.partnerId },
       select: { id: true }
     });
-    if (!org) throw new Error('ORG_OUT_OF_SCOPE');
+    if (!org) return { ok: false, error: 'org_out_of_scope' };
   }
 
-  return prisma.lead.create({
+  const lead = await prisma.lead.create({
     data: {
       partnerId: input.partnerId,
       createdByUserId: input.createdByUserId,
@@ -209,6 +209,7 @@ export async function createLead(
       status: 'new'
     }
   });
+  return { ok: true, lead };
 }
 
 export type WithdrawLeadArgs = {
@@ -221,7 +222,10 @@ export type WithdrawLeadArgs = {
 export async function withdrawLead(
   prisma: PrismaClient,
   args: WithdrawLeadArgs
-): Promise<Lead> {
+): Promise<
+  | { ok: true; lead: Lead }
+  | { ok: false; error: 'not_found' | 'already_rejected' | 'already_promoted' }
+> {
   const lead = await prisma.lead.findFirst({
     where: {
       id: args.leadId,
@@ -233,15 +237,16 @@ export async function withdrawLead(
     select: { id: true, status: true }
   });
 
-  if (!lead) throw new Error('NOT_FOUND');
-  if (lead.status === 'rejected') throw new Error('ALREADY_REJECTED');
-  if (lead.status === 'promoted_to_order') throw new Error('ALREADY_PROMOTED');
+  if (!lead) return { ok: false, error: 'not_found' };
+  if (lead.status === 'rejected') return { ok: false, error: 'already_rejected' };
+  if (lead.status === 'promoted_to_order') return { ok: false, error: 'already_promoted' };
 
-  return prisma.lead.update({
+  const updated = await prisma.lead.update({
     where: { id: lead.id },
     data: {
       status: 'rejected',
       rejectedReason: args.reason.trim() || 'Отозван партнёром'
     }
   });
+  return { ok: true, lead: updated };
 }

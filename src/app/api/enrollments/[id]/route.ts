@@ -7,13 +7,8 @@ import { approveEnrollment, rejectEnrollment, markProvisioned } from '@/lib/serv
 
 type Params = { params: Promise<{ id: string }> };
 
-function mapError(err: unknown): NextResponse {
-  const msg = err instanceof Error ? err.message : 'Unknown error';
-  if (msg.startsWith('VALIDATION')) return NextResponse.json({ error: msg }, { status: 400 });
-  if (msg.startsWith('NOT_FOUND')) return NextResponse.json({ error: msg }, { status: 404 });
-  if (msg.startsWith('LIFECYCLE_VIOLATION')) return NextResponse.json({ error: msg }, { status: 409 });
-  throw err;
-}
+const statusFor = (error: 'not_found' | 'lifecycle_violation' | 'validation'): number =>
+  error === 'validation' ? 400 : error === 'not_found' ? 404 : 409;
 
 export async function PATCH(req: Request, { params }: Params) {
   const disabled = notFoundIfDisabled('enrollment_requests');
@@ -27,21 +22,20 @@ export async function PATCH(req: Request, { params }: Params) {
   const action = body?.action;
   const reviewerId = session.sub;
 
-  try {
-    if (action === 'approve') {
-      const r = await approveEnrollment(prisma, { id, reviewerId });
-      return NextResponse.json({ request: r });
-    }
-    if (action === 'reject') {
-      const r = await rejectEnrollment(prisma, { id, reviewerId, reason: String(body?.reason ?? '') });
-      return NextResponse.json({ request: r });
-    }
-    if (action === 'markProvisioned') {
-      const r = await markProvisioned(prisma, { id, reviewerId, externalStudentId: String(body?.externalStudentId ?? '') });
-      return NextResponse.json({ request: r });
-    }
-    return NextResponse.json({ error: 'Invalid action. Use approve|reject|markProvisioned' }, { status: 400 });
-  } catch (err) {
-    return mapError(err);
+  if (action === 'approve') {
+    const r = await approveEnrollment(prisma, { id, reviewerId });
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: statusFor(r.error) });
+    return NextResponse.json({ request: r.request });
   }
+  if (action === 'reject') {
+    const r = await rejectEnrollment(prisma, { id, reviewerId, reason: String(body?.reason ?? '') });
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: statusFor(r.error) });
+    return NextResponse.json({ request: r.request });
+  }
+  if (action === 'markProvisioned') {
+    const r = await markProvisioned(prisma, { id, reviewerId, externalStudentId: String(body?.externalStudentId ?? '') });
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: statusFor(r.error) });
+    return NextResponse.json({ request: r.request });
+  }
+  return NextResponse.json({ error: 'Invalid action. Use approve|reject|markProvisioned' }, { status: 400 });
 }

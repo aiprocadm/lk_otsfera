@@ -62,8 +62,12 @@ export async function createAndAssignManager(
   prisma: PrismaClient,
   args: CreateAndAssignManagerInput,
   actorUserId: string
-): Promise<CreateAndAssignManagerResult> {
-  return prisma.$transaction(async (tx) => {
+): Promise<
+  | ({ ok: true } & CreateAndAssignManagerResult)
+  | { ok: false; error: ManagerInviteErrorCode }
+> {
+  try {
+    const result = await prisma.$transaction(async (tx) => {
     const org = await tx.organization.findUnique({
       where: { id: args.organizationId },
       select: { id: true }
@@ -165,7 +169,12 @@ export async function createAndAssignManager(
       alreadyHasPassword,
       reactivated
     };
-  });
+    });
+    return { ok: true, ...result };
+  } catch (e) {
+    if (e instanceof ManagerInviteError) return { ok: false, error: e.code };
+    throw e;
+  }
 }
 
 /**

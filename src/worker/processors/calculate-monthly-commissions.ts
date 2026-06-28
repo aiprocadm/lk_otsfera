@@ -81,6 +81,11 @@ export async function calculateMonthlyCommissionsProcessor(
         periodTo,
         calculatedByUserId: null
       });
+      if (!result.ok) {
+        // partner_not_found only — the partner vanished mid-batch; record and move on.
+        errors.push({ partnerId, error: result.error });
+        continue;
+      }
       if (result.itemCount === 0) {
         partnersSkipped++;
       } else {

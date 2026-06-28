@@ -30,8 +30,8 @@ async function notifyPartnerLeadStatus(
 /**
  * Manager-side lead lifecycle (T3). Leads are a shared team queue (any manager may
  * claim/process — owner decision 2026-06-14), so these mutations are not org-scoped;
- * RBAC is `requireManager` at the route. Throw-based with prefixed messages mapped
- * to HTTP by the route, matching commission/lifecycle.ts and partner/leads.ts.
+ * RBAC is `requireManager` at the route. Return the §3 Result contract; the route
+ * maps error codes to HTTP, matching commission/lifecycle.ts and partner/leads.ts.
  *
  * Transitions: new → in_review → qualified (and one step back), then a dedicated
  * promote (→ promoted_to_order, creates the order) or reject (→ rejected). `promote`
@@ -46,22 +46,23 @@ const ALLOWED_STATUS: Record<string, LeadStatus[]> = {
 };
 
 async function loadLead(prisma: PrismaClient, leadId: string) {
-  const lead = await prisma.lead.findUnique({
+  return prisma.lead.findUnique({
     where: { id: leadId },
     select: { id: true, status: true, partnerId: true, organizationId: true, clientCompanyName: true, subject: true, estimatedAmount: true, promotedOrderId: true }
   });
-  if (!lead) throw new Error('NOT_FOUND: lead');
-  return lead;
 }
+
+type LeadResult = { ok: true; lead: Lead } | { ok: false; error: 'not_found' | 'lifecycle_violation' };
 
 /** Claim/assign a lead to a manager. From `new`, also advances to `in_review`. */
 export async function assignLead(
   prisma: PrismaClient,
   args: { leadId: string; managerId: string; assignToUserId?: string }
-): Promise<Lead> {
+): Promise<LeadResult> {
   const lead = await loadLead(prisma, args.leadId);
+  if (!lead) return { ok: false, error: 'not_found' };
   if (lead.status === 'promoted_to_order' || lead.status === 'rejected') {
-    throw new Error(`LIFECYCLE_VIOLATION: cannot assign a ${lead.status} lead`);
+    return { ok: false, error: 'lifecycle_violation' };
   }
   const assignee = args.assignToUserId ?? args.managerId;
   const updated = await prisma.lead.update({
@@ -73,18 +74,19 @@ export async function assignLead(
     after: { assignedManagerId: assignee, status: updated.status }
   });
   if (updated.status !== lead.status) await notifyPartnerLeadStatus(prisma, lead, updated.status);
-  return updated;
+  return { ok: true, lead: updated };
 }
 
 /** Move a lead between non-terminal statuses (new/in_review/qualified). */
 export async function setLeadStatus(
   prisma: PrismaClient,
   args: { leadId: string; managerId: string; status: LeadStatus }
-): Promise<Lead> {
+): Promise<LeadResult> {
   const lead = await loadLead(prisma, args.leadId);
+  if (!lead) return { ok: false, error: 'not_found' };
   const allowed = ALLOWED_STATUS[lead.status] ?? [];
   if (!allowed.includes(args.status)) {
-    throw new Error(`LIFECYCLE_VIOLATION: cannot move lead from ${lead.status} to ${args.status}`);
+    return { ok: false, error: 'lifecycle_violation' };
   }
   const updated = await prisma.lead.update({ where: { id: lead.id }, data: { status: args.status } });
   await recordAudit(prisma, {
@@ -92,7 +94,7 @@ export async function setLeadStatus(
     after: { from: lead.status, to: args.status }
   });
   await notifyPartnerLeadStatus(prisma, lead, args.status);
-  return updated;
+  return { ok: true, lead: updated };
 }
 
 /**
@@ -105,21 +107,25 @@ export async function setLeadStatus(
 export async function promoteLead(
   prisma: PrismaClient,
   args: { leadId: string; managerId: string }
-): Promise<{ order: Order; lead: Lead }> {
+): Promise<
+  | { ok: true; order: Order; lead: Lead }
+  | { ok: false; error: 'not_found' | 'lifecycle_violation' }
+> {
   const lead = await loadLead(prisma, args.leadId);
+  if (!lead) return { ok: false, error: 'not_found' };
   if (lead.status === 'promoted_to_order' || lead.promotedOrderId) {
-    throw new Error('LIFECYCLE_VIOLATION: lead already promoted');
+    return { ok: false, error: 'lifecycle_violation' };
   }
   if (lead.status === 'rejected') {
-    throw new Error('LIFECYCLE_VIOLATION: cannot promote a rejected lead');
+    return { ok: false, error: 'lifecycle_violation' };
   }
   if (!lead.organizationId) {
-    throw new Error('LIFECYCLE_VIOLATION: lead has no organization — link one before promotion');
+    return { ok: false, error: 'lifecycle_violation' };
   }
   const org = await prisma.organization.findUnique({ where: { id: lead.organizationId }, select: { companyId: true } });
   const companyId = org?.companyId;
   if (!companyId) {
-    throw new Error('LIFECYCLE_VIOLATION: lead organization has no company');
+    return { ok: false, error: 'lifecycle_violation' };
   }
   const organizationId = lead.organizationId;
 
@@ -148,16 +154,17 @@ export async function promoteLead(
     after: { orderId: order.id, organizationId: lead.organizationId }
   });
   await notifyPartnerLeadStatus(prisma, lead, 'promoted_to_order');
-  return { order, lead: updatedLead };
+  return { ok: true, order, lead: updatedLead };
 }
 
 /** Reject a lead (manager-side). Not allowed once promoted. */
 export async function rejectLead(
   prisma: PrismaClient,
   args: { leadId: string; managerId: string; reason: string }
-): Promise<Lead> {
+): Promise<LeadResult> {
   const lead = await loadLead(prisma, args.leadId);
-  if (lead.status === 'promoted_to_order') throw new Error('LIFECYCLE_VIOLATION: cannot reject a promoted lead');
+  if (!lead) return { ok: false, error: 'not_found' };
+  if (lead.status === 'promoted_to_order') return { ok: false, error: 'lifecycle_violation' };
   const updated = await prisma.lead.update({
     where: { id: lead.id },
     data: { status: 'rejected', rejectedReason: args.reason.trim() || 'Отклонён менеджером' }
@@ -167,5 +174,5 @@ export async function rejectLead(
     after: { reason: updated.rejectedReason }
   });
   await notifyPartnerLeadStatus(prisma, lead, 'rejected');
-  return updated;
+  return { ok: true, lead: updated };
 }

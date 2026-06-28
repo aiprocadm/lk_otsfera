@@ -47,50 +47,48 @@ function makePrismaForPaid({
 }
 
 describe('approveStatement — unit', () => {
-  it('throws NOT_FOUND when statement not found (wrong partnerId)', async () => {
+  it('returns not_found when statement not found (wrong partnerId)', async () => {
     const db = makePrismaForApprove({ statement: null });
-    await expect(
-      approveStatement(db as never, { statementId: 's-missing', partnerId: 'p1', approvedByUserId: 'u1' })
-    ).rejects.toThrow(/NOT_FOUND/);
+    const res = await approveStatement(db as never, { statementId: 's-missing', partnerId: 'p1', approvedByUserId: 'u1' });
+    expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
-  it('throws LIFECYCLE_VIOLATION when statement is superseded', async () => {
+  it('returns lifecycle_violation when statement is superseded', async () => {
     const db = makePrismaForApprove({
       statement: { id: 's1', status: 'draft', supersededBy: 's2', partnerId: 'p1', periodFrom: new Date('2026-05-01'), periodTo: new Date('2026-05-31') },
     });
-    await expect(
-      approveStatement(db as never, { statementId: 's1', partnerId: 'p1', approvedByUserId: 'u1' })
-    ).rejects.toThrow(/LIFECYCLE_VIOLATION.*superseded/);
+    const res = await approveStatement(db as never, { statementId: 's1', partnerId: 'p1', approvedByUserId: 'u1' });
+    expect(res).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 
-  it('throws LIFECYCLE_VIOLATION when status is not draft (e.g. approved)', async () => {
+  it('returns lifecycle_violation when status is not draft (e.g. approved)', async () => {
     const db = makePrismaForApprove({
       statement: { id: 's1', status: 'approved', supersededBy: null, partnerId: 'p1', periodFrom: new Date('2026-05-01'), periodTo: new Date('2026-05-31') },
     });
-    await expect(
-      approveStatement(db as never, { statementId: 's1', partnerId: 'p1', approvedByUserId: 'u1' })
-    ).rejects.toThrow(/LIFECYCLE_VIOLATION.*status=approved/);
+    const res = await approveStatement(db as never, { statementId: 's1', partnerId: 'p1', approvedByUserId: 'u1' });
+    expect(res).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 
-  it('throws LIFECYCLE_VIOLATION when status is paid', async () => {
+  it('returns lifecycle_violation when status is paid', async () => {
     const db = makePrismaForApprove({
       statement: { id: 's1', status: 'paid', supersededBy: null, partnerId: 'p1', periodFrom: new Date('2026-05-01'), periodTo: new Date('2026-05-31') },
     });
-    await expect(
-      approveStatement(db as never, { statementId: 's1', partnerId: 'p1', approvedByUserId: 'u1' })
-    ).rejects.toThrow(/LIFECYCLE_VIOLATION/);
+    const res = await approveStatement(db as never, { statementId: 's1', partnerId: 'p1', approvedByUserId: 'u1' });
+    expect(res).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 
   it('transitions draft → approved and records audit', async () => {
     const db = makePrismaForApprove({
       statement: { id: 's1', status: 'draft', supersededBy: null, partnerId: 'p1', periodFrom: new Date('2026-05-01'), periodTo: new Date('2026-05-31') },
     });
-    const result = await approveStatement(db as never, {
+    const res = await approveStatement(db as never, {
       statementId: 's1',
       partnerId: 'p1',
       approvedByUserId: 'u-partner',
     });
-    expect(result.status).toBe('approved');
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.statement.status).toBe('approved');
     expect(recordAudit).toHaveBeenCalledOnce();
     expect(recordAudit.mock.calls[0][1]).toMatchObject({
       action: 'commission_statement_approved',
@@ -161,45 +159,40 @@ describe('approveStatement — unit', () => {
 });
 
 describe('markStatementPaid — unit', () => {
-  it('throws FORBIDDEN when payer user not found', async () => {
+  it('returns forbidden when payer user not found', async () => {
     const db = makePrismaForPaid({ payer: null, statement: null });
-    await expect(
-      markStatementPaid(db as never, { statementId: 's1', paidByUserId: 'u-missing' })
-    ).rejects.toThrow(/FORBIDDEN.*not found/);
+    const res = await markStatementPaid(db as never, { statementId: 's1', paidByUserId: 'u-missing' });
+    expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 
-  it('throws FORBIDDEN when payer is not an admin (e.g. partner)', async () => {
+  it('returns forbidden when payer is not an admin (e.g. partner)', async () => {
     const db = makePrismaForPaid({ payer: { role: 'partner' }, statement: null });
-    await expect(
-      markStatementPaid(db as never, { statementId: 's1', paidByUserId: 'u-partner' })
-    ).rejects.toThrow(/FORBIDDEN.*admin/);
+    const res = await markStatementPaid(db as never, { statementId: 's1', paidByUserId: 'u-partner' });
+    expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 
-  it('throws NOT_FOUND when statement not found', async () => {
+  it('returns not_found when statement not found', async () => {
     const db = makePrismaForPaid({ payer: { role: 'admin' }, statement: null });
-    await expect(
-      markStatementPaid(db as never, { statementId: 's-missing', paidByUserId: 'u-admin' })
-    ).rejects.toThrow(/NOT_FOUND/);
+    const res = await markStatementPaid(db as never, { statementId: 's-missing', paidByUserId: 'u-admin' });
+    expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
-  it('throws LIFECYCLE_VIOLATION when statement is superseded', async () => {
+  it('returns lifecycle_violation when statement is superseded', async () => {
     const db = makePrismaForPaid({
       payer: { role: 'admin' },
       statement: { id: 's1', status: 'approved', supersededBy: 's2', partnerId: 'p1' },
     });
-    await expect(
-      markStatementPaid(db as never, { statementId: 's1', paidByUserId: 'u-admin' })
-    ).rejects.toThrow(/LIFECYCLE_VIOLATION.*superseded/);
+    const res = await markStatementPaid(db as never, { statementId: 's1', paidByUserId: 'u-admin' });
+    expect(res).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 
-  it('throws LIFECYCLE_VIOLATION when status is not approved (e.g. draft)', async () => {
+  it('returns lifecycle_violation when status is not approved (e.g. draft)', async () => {
     const db = makePrismaForPaid({
       payer: { role: 'admin' },
       statement: { id: 's1', status: 'draft', supersededBy: null, partnerId: 'p1' },
     });
-    await expect(
-      markStatementPaid(db as never, { statementId: 's1', paidByUserId: 'u-admin' })
-    ).rejects.toThrow(/LIFECYCLE_VIOLATION.*draft/);
+    const res = await markStatementPaid(db as never, { statementId: 's1', paidByUserId: 'u-admin' });
+    expect(res).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 
   it('transitions approved → paid and records audit', async () => {
@@ -207,11 +200,13 @@ describe('markStatementPaid — unit', () => {
       payer: { role: 'admin' },
       statement: { id: 's1', status: 'approved', supersededBy: null, partnerId: 'p1' },
     });
-    const result = await markStatementPaid(db as never, {
+    const res = await markStatementPaid(db as never, {
       statementId: 's1',
       paidByUserId: 'u-admin',
     });
-    expect(result.status).toBe('paid');
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.statement.status).toBe('paid');
     expect(recordAudit).toHaveBeenCalledOnce();
     expect(recordAudit.mock.calls[0][1]).toMatchObject({
       action: 'commission_statement_paid',

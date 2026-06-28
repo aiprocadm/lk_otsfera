@@ -38,7 +38,7 @@
 
 | Кабинет | Поле сессии | Значение «старшего» | Гард | Enforcement |
 |---|---|---|---|---|
-| partner | `partnerRole` | `'manager'` | `requirePartnerAdmin` / `isPartnerAdmin` | middleware + page |
+| partner | `partnerRole` | `'admin'` | `requirePartnerAdmin` / `isPartnerAdmin` | middleware + page |
 | organization | `roleInOrg` | `'leader'` (+`admin`) | `requireOrganizationAdminOrLeader` | page (+ nav) |
 | manager | `managerRole` | `'leader'` | `requireManagerLeader` | page (+ nav) |
 
@@ -84,7 +84,7 @@
 **Вердикт:** 🟡 частичный дрейф.
 **Рекомендация:**
 1. Единый redirect-контракт при нехватке прав внутри кабинета. Рекомендую `/forbidden` везде (явный сигнал «нет прав»), либо явно задокументировать, почему manager-leader мягкий. **S · low.**
-2. Зафиксировать **словарь под-ролей** в `jwt.ts` (комментарий/тип-алиас): `partnerRole='manager'` = «партнёрский администратор». Значение не мигрировать (дорого), но снять двусмысленность в типах и доке. **S · low.**
+2. Зафиксировать **словарь под-ролей** в `jwt.ts` (комментарий/тип-алиас): партнёрский админ = `partnerRole='admin'` (гард requirePartnerAdmin), а `partnerRole='manager'` — обычный scoped-партнёр (НЕ путать со строкой top-level Role 'manager'). Значение не мигрировать (дорого), но снять двусмысленность в типах и доке. **S · low.**
 3. НЕ добавлять middleware-enforcement для org/manager elevation (page+nav достаточно) — описать как осознанный выбор, выровняв формулировку с partner. **S · low.**
 
 ### Ось 2 — навигация

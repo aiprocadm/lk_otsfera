@@ -71,34 +71,34 @@ function makePrisma(tx: Record<string, unknown>) {
 // ─── createAndAssignManager ────────────────────────────────────────────────────
 
 describe('createAndAssignManager — org_not_found', () => {
-  it('throws ManagerInviteError org_not_found when org does not exist', async () => {
+  it('returns org_not_found when org does not exist', async () => {
     const { tx } = makeTx();
     tx.organization.findUnique = vi.fn().mockResolvedValue(null);
     const p = makePrisma(tx);
-    await expect(
-      createAndAssignManager(p, { mode: 'existing', organizationId: 'nonexistent', email: 'x@t.local' }, 'admin-1')
-    ).rejects.toMatchObject({ code: 'org_not_found' });
+    expect(
+      await createAndAssignManager(p, { mode: 'existing', organizationId: 'nonexistent', email: 'x@t.local' }, 'admin-1')
+    ).toEqual({ ok: false, error: 'org_not_found' });
     expect(tx.user.findUnique).not.toHaveBeenCalled();
   });
 });
 
 describe('createAndAssignManager — mode=existing', () => {
-  it('throws user_not_found when email is unknown', async () => {
+  it('returns user_not_found when email is unknown', async () => {
     const { tx } = makeTx();
     tx.user.findUnique = vi.fn().mockResolvedValue(null);
     const p = makePrisma(tx);
-    await expect(
-      createAndAssignManager(p, { mode: 'existing', organizationId: 'org-1', email: 'ghost@t.local' }, 'admin-1')
-    ).rejects.toMatchObject({ code: 'user_not_found' });
+    expect(
+      await createAndAssignManager(p, { mode: 'existing', organizationId: 'org-1', email: 'ghost@t.local' }, 'admin-1')
+    ).toEqual({ ok: false, error: 'user_not_found' });
   });
 
-  it('throws role_conflict when user exists but is not a manager', async () => {
+  it('returns role_conflict when user exists but is not a manager', async () => {
     const { tx, existingNonMgr } = makeTx();
     tx.user.findUnique = vi.fn().mockResolvedValue(existingNonMgr);
     const p = makePrisma(tx);
-    await expect(
-      createAndAssignManager(p, { mode: 'existing', organizationId: 'org-1', email: existingNonMgr.email }, 'admin-1')
-    ).rejects.toMatchObject({ code: 'role_conflict' });
+    expect(
+      await createAndAssignManager(p, { mode: 'existing', organizationId: 'org-1', email: existingNonMgr.email }, 'admin-1')
+    ).toEqual({ ok: false, error: 'role_conflict' });
   });
 
   it('succeeds for existing manager with password (no invite URL, alreadyHasPassword=true)', async () => {
@@ -110,6 +110,7 @@ describe('createAndAssignManager — mode=existing', () => {
     const result = await createAndAssignManager(
       p, { mode: 'existing', organizationId: 'org-1', email: existingMgr.email }, 'admin-1'
     );
+    if (!result.ok) throw new Error('expected ok');
     expect(result.inviteUrl).toBeNull();
     expect(result.alreadyHasPassword).toBe(true);
     expect(result.reactivated).toBe(false);
@@ -131,6 +132,7 @@ describe('createAndAssignManager — APP_URL env branch', () => {
       const result = await createAndAssignManager(
         p, { mode: 'new', organizationId: 'org-1', email: newUser.email, name: 'Env test' }, 'admin-1'
       );
+      if (!result.ok) throw new Error('expected ok');
       expect(result.inviteUrl).toContain('https://custom.example.com');
     } finally {
       if (originalAppUrl === undefined) {
@@ -153,6 +155,7 @@ describe('createAndAssignManager — mode=new', () => {
     const result = await createAndAssignManager(
       p, { mode: 'new', organizationId: 'org-1', email: newUser.email, name: 'Новый менеджер' }, 'admin-1'
     );
+    if (!result.ok) throw new Error('expected ok');
     expect(result.inviteUrl).toContain('tok-123');
     expect(result.alreadyHasPassword).toBe(false);
     expect(result.reactivated).toBe(false);
@@ -176,13 +179,13 @@ describe('createAndAssignManager — mode=new', () => {
     });
   });
 
-  it('throws role_conflict for mode=new when existing user is not a manager', async () => {
+  it('returns role_conflict for mode=new when existing user is not a manager', async () => {
     const { tx, existingNonMgr } = makeTx();
     tx.user.findUnique = vi.fn().mockResolvedValue(existingNonMgr);
     const p = makePrisma(tx);
-    await expect(
-      createAndAssignManager(p, { mode: 'new', organizationId: 'org-1', email: existingNonMgr.email }, 'admin-1')
-    ).rejects.toMatchObject({ code: 'role_conflict' });
+    expect(
+      await createAndAssignManager(p, { mode: 'new', organizationId: 'org-1', email: existingNonMgr.email }, 'admin-1')
+    ).toEqual({ ok: false, error: 'role_conflict' });
   });
 
   it('reuses existing manager account for mode=new (passwordHash set)', async () => {
@@ -194,6 +197,7 @@ describe('createAndAssignManager — mode=new', () => {
     const result = await createAndAssignManager(
       p, { mode: 'new', organizationId: 'org-1', email: existingMgr.email }, 'admin-1'
     );
+    if (!result.ok) throw new Error('expected ok');
     expect(tx.user.create).not.toHaveBeenCalled();
     expect(result.alreadyHasPassword).toBe(true);
     expect(result.inviteUrl).toBeNull();
@@ -211,6 +215,7 @@ describe('createAndAssignManager — assignment reactivation', () => {
     const result = await createAndAssignManager(
       p, { mode: 'existing', organizationId: 'org-1', email: existingMgr.email }, 'admin-1'
     );
+    if (!result.ok) throw new Error('expected ok');
     expect(result.reactivated).toBe(true);
     expect(tx.organizationManager.create).not.toHaveBeenCalled();
     expect(tx.organizationManager.update).toHaveBeenCalledWith(
@@ -218,15 +223,15 @@ describe('createAndAssignManager — assignment reactivation', () => {
     );
   });
 
-  it('throws already_assigned when existing assignment is active', async () => {
+  it('returns already_assigned when existing assignment is active', async () => {
     const { tx, existingMgr } = makeTx();
     const activeAssignment = { id: 'assign-active', organizationId: 'org-1', isActive: true };
     tx.user.findUnique = vi.fn().mockResolvedValue(existingMgr);
     tx.organizationManager.findUnique = vi.fn().mockResolvedValue(activeAssignment);
     const p = makePrisma(tx);
-    await expect(
-      createAndAssignManager(p, { mode: 'existing', organizationId: 'org-1', email: existingMgr.email }, 'admin-1')
-    ).rejects.toMatchObject({ code: 'already_assigned' });
+    expect(
+      await createAndAssignManager(p, { mode: 'existing', organizationId: 'org-1', email: existingMgr.email }, 'admin-1')
+    ).toEqual({ ok: false, error: 'already_assigned' });
   });
 });
 

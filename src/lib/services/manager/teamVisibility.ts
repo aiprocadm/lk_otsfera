@@ -10,13 +10,13 @@ export async function setTeamVisibility(
   actorUserId: string,
   companyId: string,
   enabled: boolean
-): Promise<{ changed: boolean }> {
+): Promise<{ ok: true; changed: boolean } | { ok: false; error: 'company_not_found' }> {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
     select: { managerTeamVisibility: true }
   });
-  if (!company) throw new Error('company_not_found');
-  if (company.managerTeamVisibility === enabled) return { changed: false };
+  if (!company) return { ok: false, error: 'company_not_found' };
+  if (company.managerTeamVisibility === enabled) return { ok: true, changed: false };
 
   await prisma.company.update({
     where: { id: companyId },
@@ -30,5 +30,5 @@ export async function setTeamVisibility(
     before: { managerTeamVisibility: company.managerTeamVisibility },
     after: { managerTeamVisibility: enabled }
   });
-  return { changed: true };
+  return { ok: true, changed: true };
 }

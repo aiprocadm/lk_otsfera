@@ -41,7 +41,6 @@ import {
   updateOrgFormAction,
   setOrgRateOverrideFormAction
 } from '@/server-actions/admin/organizations';
-import { AdminOrgError } from '@/lib/services/admin/organizations';
 
 function fd(data: Record<string, string>): FormData {
   const f = new FormData();
@@ -62,7 +61,7 @@ describe('updateOrganizationAction', () => {
   });
 
   it('happy path calls updateOrganization and revalidates both paths', async () => {
-    updateOrganization.mockResolvedValue(undefined);
+    updateOrganization.mockResolvedValue({ ok: true });
 
     const res = await updateOrganizationAction(
       fd({ id: 'org-1', name: 'Updated Name', inn: '1234567890', kpp: '123456789' })
@@ -79,8 +78,8 @@ describe('updateOrganizationAction', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/admin/organizations/org-1');
   });
 
-  it('maps AdminOrgError(not_found) to Failure', async () => {
-    updateOrganization.mockRejectedValue(new AdminOrgError('not_found'));
+  it('maps not_found Result to Failure', async () => {
+    updateOrganization.mockResolvedValue({ ok: false, error: 'not_found' });
     const res = await updateOrganizationAction(fd({ id: 'gone-1', name: 'X' }));
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
@@ -88,7 +87,7 @@ describe('updateOrganizationAction', () => {
   it('omits name/inn/kpp when form fields are empty (|| undefined fallback)', async () => {
     // When name/inn/kpp fields are empty strings: readField returns '' → '' || undefined → undefined
     // This covers the || fallback branches for optional fields
-    updateOrganization.mockResolvedValue(undefined);
+    updateOrganization.mockResolvedValue({ ok: true });
     const formWithId = new FormData();
     formWithId.append('id', 'org-1');
     // No 'name', 'inn', 'kpp' keys — readField returns '' → || undefined
@@ -126,7 +125,7 @@ describe('setOrgRateOverrideAction', () => {
 
   it('set happy path: calls setOrgCommissionRate with newRate as fraction and partnerId from lookup', async () => {
     organizationFindUnique.mockResolvedValue({ partnerId: 'partner-42' });
-    setOrgCommissionRate.mockResolvedValue(undefined);
+    setOrgCommissionRate.mockResolvedValue({ ok: true });
 
     const res = await setOrgRateOverrideAction(
       fd({ organizationId: 'org-1', ratePercent: '8', reason: 'vip client' })
@@ -148,7 +147,7 @@ describe('setOrgRateOverrideAction', () => {
 
   it('clear happy path: calls clearOrgCommissionRate when clear=true', async () => {
     organizationFindUnique.mockResolvedValue({ partnerId: 'partner-42' });
-    clearOrgCommissionRate.mockResolvedValue(undefined);
+    clearOrgCommissionRate.mockResolvedValue({ ok: true });
 
     const res = await setOrgRateOverrideAction(
       fd({ organizationId: 'org-1', reason: 'reverting override', clear: 'true' })
@@ -168,9 +167,9 @@ describe('setOrgRateOverrideAction', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/admin/organizations/org-1');
   });
 
-  it('maps RATE_OUT_OF_RANGE error to rate_out_of_range failure', async () => {
+  it('maps service rate_out_of_range Result to rate_out_of_range failure', async () => {
     organizationFindUnique.mockResolvedValue({ partnerId: 'partner-42' });
-    setOrgCommissionRate.mockRejectedValue(new Error('RATE_OUT_OF_RANGE: rate must be in (0, 1)'));
+    setOrgCommissionRate.mockResolvedValue({ ok: false, error: 'rate_out_of_range' });
 
     const res = await setOrgRateOverrideAction(
       fd({ organizationId: 'org-1', ratePercent: '8', reason: 'bad rate' })
@@ -202,9 +201,9 @@ describe('setOrgRateOverrideAction', () => {
     expect(setOrgCommissionRate).not.toHaveBeenCalled();
   });
 
-  it('maps NOT_FOUND error message to not_found', async () => {
+  it('maps service not_found Result to not_found', async () => {
     organizationFindUnique.mockResolvedValue({ partnerId: 'p-42' });
-    setOrgCommissionRate.mockRejectedValue(new Error('NOT_FOUND: org missing'));
+    setOrgCommissionRate.mockResolvedValue({ ok: false, error: 'not_found' });
 
     const res = await setOrgRateOverrideAction(
       fd({ organizationId: 'org-1', ratePercent: '8', reason: 'test' })
@@ -212,27 +211,18 @@ describe('setOrgRateOverrideAction', () => {
 
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
-
-  it('re-throws unrecognised errors that are not AdminOrgError or NOT_FOUND/RATE_OUT_OF_RANGE messages', async () => {
-    organizationFindUnique.mockResolvedValue({ partnerId: 'p-42' });
-    setOrgCommissionRate.mockRejectedValue(new Error('DB connection reset'));
-
-    await expect(
-      setOrgRateOverrideAction(fd({ organizationId: 'org-1', ratePercent: '8', reason: 'test' }))
-    ).rejects.toThrow('DB connection reset');
-  });
 });
 
 describe('form-action wrappers (discard result, log on failure)', () => {
   it('updateOrgFormAction returns void on success', async () => {
-    updateOrganization.mockResolvedValue(undefined);
+    updateOrganization.mockResolvedValue({ ok: true });
     const result = await updateOrgFormAction(fd({ id: 'org-1', name: 'New' }));
     expect(result).toBeUndefined();
     expect(updateOrganization).toHaveBeenCalled();
   });
 
   it('updateOrgFormAction logs and swallows failure', async () => {
-    updateOrganization.mockRejectedValue(new AdminOrgError('not_found'));
+    updateOrganization.mockResolvedValue({ ok: false, error: 'not_found' });
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const result = await updateOrgFormAction(fd({ id: 'gone', name: 'X' }));
     expect(result).toBeUndefined();
@@ -242,7 +232,7 @@ describe('form-action wrappers (discard result, log on failure)', () => {
 
   it('setOrgRateOverrideFormAction returns void on success', async () => {
     organizationFindUnique.mockResolvedValue({ partnerId: 'p-1' });
-    setOrgCommissionRate.mockResolvedValue(undefined);
+    setOrgCommissionRate.mockResolvedValue({ ok: true });
     const result = await setOrgRateOverrideFormAction(
       fd({ organizationId: 'org-1', ratePercent: '5', reason: 'test' })
     );

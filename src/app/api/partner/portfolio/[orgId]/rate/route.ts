@@ -36,15 +36,12 @@ export async function PUT(
   const { rate, reason } = parseResult.data;
   const partnerId = admin.value.partnerId;
 
-  if (rate === null) {
-    await clearOrgCommissionRate(prisma, {
-      organizationId: orgId, partnerId, reason, changedByUserId: session.sub
-    });
-  } else {
-    await setOrgCommissionRate(prisma, {
-      organizationId: orgId, partnerId, newRate: rate, reason, changedByUserId: session.sub
-    });
+  const res = rate === null
+    ? await clearOrgCommissionRate(prisma, { organizationId: orgId, partnerId, reason, changedByUserId: session.sub })
+    : await setOrgCommissionRate(prisma, { organizationId: orgId, partnerId, newRate: rate, reason, changedByUserId: session.sub });
+  if (!res.ok) {
+    const status = res.error === 'not_found' ? 404 : 422;
+    return NextResponse.json({ error: res.error }, { status });
   }
-
   return new NextResponse(null, { status: 204 });
 }

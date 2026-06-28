@@ -8,7 +8,6 @@ import {
   createAndAssignManager,
   deactivateAssignment,
   reactivateAssignment,
-  ManagerInviteError,
   type ManagerInviteErrorCode
 } from '@/lib/services/manager/invite';
 import { sendManagerInviteEmail } from '@/lib/email/send';
@@ -64,42 +63,38 @@ export async function assignOrInviteManagerAction(
 
   const session = await requireAdmin();
 
-  try {
-    const result = await createAndAssignManager(prisma, parsed.data, session.sub);
+  const result = await createAndAssignManager(prisma, parsed.data, session.sub);
+  if (!result.ok) return { ok: false, error: result.error };
 
-    if (result.inviteUrl !== null) {
-      // Email is best-effort; the inviteUrl is also returned to the admin UI
-      // for a "Copy link" fallback when the SMTP pipeline is disabled. A
-      // transport failure must not bubble out of the action: the invite is
-      // already created and would look failed while the token is live.
-      try {
-        const org = await prisma.organization.findUnique({
-          where: { id: parsed.data.organizationId },
-          select: { name: true }
-        });
-        await sendManagerInviteEmail({
-          to: parsed.data.email,
-          organizationName: org?.name ?? 'организация',
-          inviteUrl: result.inviteUrl,
-          invitedByName: session.name ?? undefined
-        });
-      } catch (e) {
-        console.warn('[admin/manager] send invite email failed', e);
-      }
+  if (result.inviteUrl !== null) {
+    // Email is best-effort; the inviteUrl is also returned to the admin UI
+    // for a "Copy link" fallback when the SMTP pipeline is disabled. A
+    // transport failure must not bubble out of the action: the invite is
+    // already created and would look failed while the token is live.
+    try {
+      const org = await prisma.organization.findUnique({
+        where: { id: parsed.data.organizationId },
+        select: { name: true }
+      });
+      await sendManagerInviteEmail({
+        to: parsed.data.email,
+        organizationName: org?.name ?? 'организация',
+        inviteUrl: result.inviteUrl,
+        invitedByName: session.name ?? undefined
+      });
+    } catch (e) {
+      console.warn('[admin/manager] send invite email failed', e);
     }
-
-    revalidatePath(`/admin/organizations/${parsed.data.organizationId}`);
-    return {
-      ok: true,
-      user: result.user,
-      inviteUrl: result.inviteUrl,
-      alreadyHasPassword: result.alreadyHasPassword,
-      reactivated: result.reactivated
-    };
-  } catch (e) {
-    if (e instanceof ManagerInviteError) return { ok: false, error: e.code };
-    throw e;
   }
+
+  revalidatePath(`/admin/organizations/${parsed.data.organizationId}`);
+  return {
+    ok: true,
+    user: result.user,
+    inviteUrl: result.inviteUrl,
+    alreadyHasPassword: result.alreadyHasPassword,
+    reactivated: result.reactivated
+  };
 }
 
 const assignmentIdSchema = z.object({ assignmentId: z.string().min(1) });

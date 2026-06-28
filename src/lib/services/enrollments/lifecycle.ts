@@ -2,23 +2,22 @@ import type { PrismaClient, EnrollmentRequest } from '@prisma/client';
 import { recordAudit } from '@/lib/auth/audit';
 
 /**
- * Reviewer-side enrollment lifecycle (T5). Throw-based + audit, mapped to HTTP by
- * the route. Transitions: pending → approved → provisioned; pending → rejected.
- * Provisioning is MANUAL into the external LMS — markProvisioned only records the
- * externalStudentId the operator obtained there.
+ * Reviewer-side enrollment lifecycle (T5). Return the §3 Result contract + audit;
+ * the route maps error codes to HTTP. Transitions: pending → approved →
+ * provisioned; pending → rejected. Provisioning is MANUAL into the external LMS —
+ * markProvisioned only records the externalStudentId the operator obtained there.
  */
 async function loadRequest(prisma: PrismaClient, id: string) {
-  const r = await prisma.enrollmentRequest.findUnique({ where: { id }, select: { id: true, status: true } });
-  if (!r) throw new Error('NOT_FOUND: enrollment request');
-  return r;
+  return prisma.enrollmentRequest.findUnique({ where: { id }, select: { id: true, status: true } });
 }
 
 export async function approveEnrollment(
   prisma: PrismaClient,
   args: { id: string; reviewerId: string }
-): Promise<EnrollmentRequest> {
+): Promise<{ ok: true; request: EnrollmentRequest } | { ok: false; error: 'not_found' | 'lifecycle_violation' }> {
   const r = await loadRequest(prisma, args.id);
-  if (r.status !== 'pending') throw new Error(`LIFECYCLE_VIOLATION: cannot approve from ${r.status}`);
+  if (!r) return { ok: false, error: 'not_found' };
+  if (r.status !== 'pending') return { ok: false, error: 'lifecycle_violation' };
   const updated = await prisma.enrollmentRequest.update({
     where: { id: r.id },
     data: { status: 'approved', reviewedByUserId: args.reviewerId, reviewedAt: new Date() }
@@ -26,16 +25,17 @@ export async function approveEnrollment(
   await recordAudit(prisma, {
     userId: args.reviewerId, action: 'enrollment_approved', entity: 'enrollment_request', entityId: r.id, after: { status: 'approved' }
   });
-  return updated;
+  return { ok: true, request: updated };
 }
 
 export async function rejectEnrollment(
   prisma: PrismaClient,
   args: { id: string; reviewerId: string; reason: string }
-): Promise<EnrollmentRequest> {
+): Promise<{ ok: true; request: EnrollmentRequest } | { ok: false; error: 'not_found' | 'lifecycle_violation' }> {
   const r = await loadRequest(prisma, args.id);
+  if (!r) return { ok: false, error: 'not_found' };
   if (r.status === 'provisioned' || r.status === 'rejected') {
-    throw new Error(`LIFECYCLE_VIOLATION: cannot reject from ${r.status}`);
+    return { ok: false, error: 'lifecycle_violation' };
   }
   const updated = await prisma.enrollmentRequest.update({
     where: { id: r.id },
@@ -44,17 +44,21 @@ export async function rejectEnrollment(
   await recordAudit(prisma, {
     userId: args.reviewerId, action: 'enrollment_rejected', entity: 'enrollment_request', entityId: r.id, after: { reason: updated.rejectedReason }
   });
-  return updated;
+  return { ok: true, request: updated };
 }
 
 export async function markProvisioned(
   prisma: PrismaClient,
   args: { id: string; reviewerId: string; externalStudentId: string }
-): Promise<EnrollmentRequest> {
+): Promise<
+  | { ok: true; request: EnrollmentRequest }
+  | { ok: false; error: 'not_found' | 'lifecycle_violation' | 'validation' }
+> {
   const r = await loadRequest(prisma, args.id);
-  if (r.status !== 'approved') throw new Error(`LIFECYCLE_VIOLATION: cannot provision from ${r.status}`);
+  if (!r) return { ok: false, error: 'not_found' };
+  if (r.status !== 'approved') return { ok: false, error: 'lifecycle_violation' };
   const sid = args.externalStudentId?.trim();
-  if (!sid) throw new Error('VALIDATION: externalStudentId is required to mark provisioned');
+  if (!sid) return { ok: false, error: 'validation' };
   const updated = await prisma.enrollmentRequest.update({
     where: { id: r.id },
     data: { status: 'provisioned', externalStudentId: sid, provisionedAt: new Date() }
@@ -62,5 +66,5 @@ export async function markProvisioned(
   await recordAudit(prisma, {
     userId: args.reviewerId, action: 'enrollment_provisioned', entity: 'enrollment_request', entityId: r.id, after: { externalStudentId: sid }
   });
-  return updated;
+  return { ok: true, request: updated };
 }

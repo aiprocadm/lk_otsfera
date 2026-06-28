@@ -36,15 +36,16 @@ beforeEach(async () => {
 
 describe('leads.createLead', () => {
   it('creates a Lead with status=new', async () => {
-    const lead = await createLead(prisma, {
+    const res = await createLead(prisma, {
       partnerId,
       createdByUserId: userId,
       clientCompanyName: 'ООО Ромашка',
       clientContactName: 'Иван',
       subject: 'Обучение'
     });
-    expect(lead.status).toBe('new');
-    expect(lead.clientCompanyName).toBe('ООО Ромашка');
+    expect(res.ok).toBe(true);
+    expect(res.ok && res.lead.status).toBe('new');
+    expect(res.ok && res.lead.clientCompanyName).toBe('ООО Ромашка');
   });
 
   it('rejects organizationId outside partner', async () => {
@@ -54,13 +55,12 @@ describe('leads.createLead', () => {
       data: { name: 'F', partnerId: otherPartner.id, companyId: c.id }
     });
 
-    await expect(
-      createLead(prisma, {
-        partnerId, createdByUserId: userId,
-        organizationId: foreign.id,
-        clientCompanyName: 'X', clientContactName: 'Y', subject: 'Z'
-      })
-    ).rejects.toThrow(/ORG_OUT_OF_SCOPE/);
+    const res = await createLead(prisma, {
+      partnerId, createdByUserId: userId,
+      organizationId: foreign.id,
+      clientCompanyName: 'X', clientContactName: 'Y', subject: 'Z'
+    });
+    expect(res).toEqual({ ok: false, error: 'org_out_of_scope' });
 
     await prisma.organization.delete({ where: { id: foreign.id } });
     await prisma.company.deleteMany({ where: { name: { startsWith: 'OthC-' } } });
@@ -68,7 +68,7 @@ describe('leads.createLead', () => {
   });
 
   it('trims whitespace and treats empty strings as null', async () => {
-    const lead = await createLead(prisma, {
+    const res = await createLead(prisma, {
       partnerId, createdByUserId: userId,
       clientCompanyName: '  ООО Чистый  ',
       clientContactName: 'Анна',
@@ -77,10 +77,12 @@ describe('leads.createLead', () => {
       subject: 'Запрос',
       notes: ''
     });
-    expect(lead.clientCompanyName).toBe('ООО Чистый');
-    expect(lead.clientContactPhone).toBeNull();
-    expect(lead.clientContactEmail).toBeNull();
-    expect(lead.notes).toBeNull();
+    expect(res.ok).toBe(true);
+    const lead = res.ok ? res.lead : null;
+    expect(lead!.clientCompanyName).toBe('ООО Чистый');
+    expect(lead!.clientContactPhone).toBeNull();
+    expect(lead!.clientContactEmail).toBeNull();
+    expect(lead!.notes).toBeNull();
   });
 });
 
@@ -103,7 +105,8 @@ describe('leads.listLeads', () => {
       partnerId, createdByUserId: userId,
       clientCompanyName: 'B', clientContactName: 'b', subject: 's'
     });
-    await withdrawLead(prisma, { leadId: lead2.id, partnerId, reason: 'нет' });
+    if (!lead2.ok) throw new Error('setup: createLead failed');
+    await withdrawLead(prisma, { leadId: lead2.lead.id, partnerId, reason: 'нет' });
 
     const all = await listLeads(prisma, { partnerId, take: 10, skip: 0 });
     expect(all.total).toBe(2);
@@ -165,7 +168,8 @@ describe('leads.getLead', () => {
       partnerId, createdByUserId: userId,
       clientCompanyName: 'X', clientContactName: 'y', subject: 'z'
     });
-    const other = await getLead(prisma, { leadId: lead.id, partnerId: 'fake-id' });
+    if (!lead.ok) throw new Error('setup: createLead failed');
+    const other = await getLead(prisma, { leadId: lead.lead.id, partnerId: 'fake-id' });
     expect(other).toBeNull();
   });
 
@@ -175,8 +179,9 @@ describe('leads.getLead', () => {
       organizationId: orgIds[0],
       clientCompanyName: 'X', clientContactName: 'y', subject: 'z'
     });
-    const got = await getLead(prisma, { leadId: lead.id, partnerId });
-    expect(got?.id).toBe(lead.id);
+    if (!lead.ok) throw new Error('setup: createLead failed');
+    const got = await getLead(prisma, { leadId: lead.lead.id, partnerId });
+    expect(got?.id).toBe(lead.lead.id);
     expect(got?.createdByUserName).toBe('U');
     expect(got?.organizationId).toBe(orgIds[0]);
   });
@@ -188,9 +193,11 @@ describe('leads.withdrawLead', () => {
       partnerId, createdByUserId: userId,
       clientCompanyName: 'X', clientContactName: 'y', subject: 'z'
     });
-    const r = await withdrawLead(prisma, { leadId: lead.id, partnerId, reason: 'Клиент передумал' });
-    expect(r.status).toBe('rejected');
-    expect(r.rejectedReason).toBe('Клиент передумал');
+    if (!lead.ok) throw new Error('setup: createLead failed');
+    const r = await withdrawLead(prisma, { leadId: lead.lead.id, partnerId, reason: 'Клиент передумал' });
+    expect(r.ok).toBe(true);
+    expect(r.ok && r.lead.status).toBe('rejected');
+    expect(r.ok && r.lead.rejectedReason).toBe('Клиент передумал');
   });
 
   it('default reason when empty', async () => {
@@ -198,24 +205,24 @@ describe('leads.withdrawLead', () => {
       partnerId, createdByUserId: userId,
       clientCompanyName: 'X', clientContactName: 'y', subject: 'z'
     });
-    const r = await withdrawLead(prisma, { leadId: lead.id, partnerId, reason: '' });
-    expect(r.rejectedReason).toBe('Отозван партнёром');
+    if (!lead.ok) throw new Error('setup: createLead failed');
+    const r = await withdrawLead(prisma, { leadId: lead.lead.id, partnerId, reason: '' });
+    expect(r.ok && r.lead.rejectedReason).toBe('Отозван партнёром');
   });
 
-  it('refuses NOT_FOUND for foreign id', async () => {
-    await expect(
-      withdrawLead(prisma, { leadId: 'no-such-id', partnerId, reason: 'x' })
-    ).rejects.toThrow(/NOT_FOUND/);
+  it('refuses not_found for foreign id', async () => {
+    const r = await withdrawLead(prisma, { leadId: 'no-such-id', partnerId, reason: 'x' });
+    expect(r).toEqual({ ok: false, error: 'not_found' });
   });
 
-  it('refuses ALREADY_REJECTED', async () => {
+  it('refuses already_rejected', async () => {
     const lead = await createLead(prisma, {
       partnerId, createdByUserId: userId,
       clientCompanyName: 'X', clientContactName: 'y', subject: 'z'
     });
-    await withdrawLead(prisma, { leadId: lead.id, partnerId, reason: 'r' });
-    await expect(
-      withdrawLead(prisma, { leadId: lead.id, partnerId, reason: 'r2' })
-    ).rejects.toThrow(/ALREADY_REJECTED/);
+    if (!lead.ok) throw new Error('setup: createLead failed');
+    await withdrawLead(prisma, { leadId: lead.lead.id, partnerId, reason: 'r' });
+    const r = await withdrawLead(prisma, { leadId: lead.lead.id, partnerId, reason: 'r2' });
+    expect(r).toEqual({ ok: false, error: 'already_rejected' });
   });
 });
