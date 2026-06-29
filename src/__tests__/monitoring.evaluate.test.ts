@@ -1,18 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import { evaluate, type AlertMetrics } from '@/lib/monitoring/evaluate';
+import { getThresholds } from '@/lib/monitoring/thresholds';
 import type { Thresholds } from '@/lib/monitoring/thresholds';
 
 const T: Thresholds = {
   queueWaitingMax: 100,
   dlqMax: 0,
   syncLagMaxMs: 24 * 3600_000,
-  renotifyCooldownMs: 6 * 3600_000
+  renotifyCooldownMs: 6 * 3600_000,
+  oneCDeadLetterMax: 0
 };
 
 const noCounts = { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 };
 
 function metrics(over: Partial<AlertMetrics>): AlertMetrics {
-  return { queues: [], syncLag: [], ...over };
+  return { queues: [], syncLag: [], pendingDeadLetters: 0, ...over };
 }
 
 describe('evaluate', () => {
@@ -50,5 +52,21 @@ describe('evaluate', () => {
       T
     );
     expect(r.map((b) => b.key)).toEqual(['sync_lag:order']);
+  });
+
+  it('flags dead-lettered 1C pending records as critical when above threshold', () => {
+    const r = evaluate(
+      metrics({ pendingDeadLetters: 1 }),
+      getThresholds({})
+    );
+    const breach = r.find((b) => b.key === 'onec_dead_letters');
+    expect(breach).toBeDefined();
+    expect(breach?.severity).toBe('critical');
+    expect(breach?.value).toBe(1);
+  });
+
+  it('does not flag dead-lettered records when count is at or below threshold', () => {
+    const r = evaluate(metrics({ pendingDeadLetters: 0 }), getThresholds({}));
+    expect(r.find((b) => b.key === 'onec_dead_letters')).toBeUndefined();
   });
 });

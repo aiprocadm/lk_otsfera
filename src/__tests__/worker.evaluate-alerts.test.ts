@@ -15,8 +15,16 @@ vi.mock('@/lib/monitoring/deliver', () => ({ deliverAlert: deliverAlertMock }));
 import { evaluateAlertsProcessor } from '@/worker/processors/evaluate-alerts';
 
 const KEY = 'dlq:emails.send';
+const DEAD_KEY = 'onec_dead_letters';
 const noCounts = { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 };
 let prisma: PrismaClient;
+
+/** Wrap the real prisma with a stub for oneCPendingRecord (table may not exist locally yet) */
+function makeDb(base: PrismaClient): PrismaClient {
+  return Object.assign(Object.create(Object.getPrototypeOf(base)), base, {
+    oneCPendingRecord: { count: vi.fn().mockResolvedValue(0) }
+  }) as unknown as PrismaClient;
+}
 
 function job(): Job<SyncJobPayload> {
   return { id: 'alert-test', data: { triggeredAt: new Date().toISOString(), reason: 'manual' } } as Job<SyncJobPayload>;
@@ -32,7 +40,7 @@ function healthy() {
 
 beforeEach(async () => {
   if (!prisma) prisma = new PrismaClient();
-  await prisma.alertState.deleteMany({ where: { key: KEY } });
+  await prisma.alertState.deleteMany({ where: { key: { in: [KEY, DEAD_KEY] } } });
   getQueueStatsMock.mockReset();
   getSyncLagMock.mockReset();
   deliverAlertMock.mockReset().mockResolvedValue(undefined);
@@ -40,14 +48,14 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-  await prisma.alertState.deleteMany({ where: { key: KEY } });
+  await prisma.alertState.deleteMany({ where: { key: { in: [KEY, DEAD_KEY] } } });
   await prisma.$disconnect();
 });
 
 describe('evaluateAlertsProcessor', () => {
   it('fires a new breach and persists firing AlertState', async () => {
     withFailure();
-    const r = await evaluateAlertsProcessor(job(), prisma);
+    const r = await evaluateAlertsProcessor(job(), makeDb(prisma));
     expect(r.fired).toBe(1);
     expect(deliverAlertMock).toHaveBeenCalledTimes(1);
     const row = await prisma.alertState.findUnique({ where: { key: KEY } });
@@ -56,20 +64,20 @@ describe('evaluateAlertsProcessor', () => {
 
   it('stays silent on the next run within cooldown', async () => {
     withFailure();
-    await evaluateAlertsProcessor(job(), prisma); // fire
+    await evaluateAlertsProcessor(job(), makeDb(prisma)); // fire
     deliverAlertMock.mockClear();
     withFailure();
-    const r = await evaluateAlertsProcessor(job(), prisma); // within cooldown
+    const r = await evaluateAlertsProcessor(job(), makeDb(prisma)); // within cooldown
     expect(r.fired + r.renotified).toBe(0);
     expect(deliverAlertMock).not.toHaveBeenCalled();
   });
 
   it('resolves when the breach clears', async () => {
     withFailure();
-    await evaluateAlertsProcessor(job(), prisma); // fire
+    await evaluateAlertsProcessor(job(), makeDb(prisma)); // fire
     deliverAlertMock.mockClear();
     healthy();
-    const r = await evaluateAlertsProcessor(job(), prisma); // resolve
+    const r = await evaluateAlertsProcessor(job(), makeDb(prisma)); // resolve
     expect(r.resolved).toBe(1);
     expect(deliverAlertMock).toHaveBeenCalledWith(
       expect.anything(),
@@ -77,5 +85,26 @@ describe('evaluateAlertsProcessor', () => {
     );
     const row = await prisma.alertState.findUnique({ where: { key: KEY } });
     expect(row?.status).toBe('resolved');
+  });
+
+  it('fires onec_dead_letters alert when dead-lettered pending records exist', async () => {
+    healthy();
+    const mockDb = {
+      oneCPendingRecord: { count: vi.fn().mockResolvedValue(2) },
+      alertState: {
+        findMany: vi.fn().mockResolvedValue([]),
+        upsert: vi.fn().mockResolvedValue(undefined),
+        update: vi.fn().mockResolvedValue(undefined)
+      }
+    };
+    const r = await evaluateAlertsProcessor(job(), mockDb as unknown as PrismaClient);
+    expect(r.fired).toBe(1);
+    expect(deliverAlertMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ kind: 'fire' })
+    );
+    expect(mockDb.alertState.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { key: DEAD_KEY } })
+    );
   });
 });

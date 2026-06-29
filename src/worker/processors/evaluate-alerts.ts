@@ -18,8 +18,12 @@ export async function evaluateAlertsProcessor(
   db: PrismaClient = prisma
 ): Promise<EvaluateAlertsResult> {
   const t = getThresholds();
-  const [queues, syncLag] = await Promise.all([getQueueStats(), getSyncLag(db)]);
-  const breaches = evaluate({ queues, syncLag }, t);
+  const [queues, syncLag, pendingDeadLetters] = await Promise.all([
+    getQueueStats(),
+    getSyncLag(db),
+    db.oneCPendingRecord.count({ where: { status: 'dead' } })
+  ]);
+  const breaches = evaluate({ queues, syncLag, pendingDeadLetters }, t);
 
   const active = await db.alertState.findMany({
     where: { status: 'firing' },
