@@ -41,9 +41,9 @@ export async function capturePendingSkips<T>(
 
 type ReplayResult = { resolved: number; deadLettered: number; stillPending: number };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- bridges the 4 heterogeneous per-entity writer DTO types; each dto is schema-validated before write
 type AnyWriter = (db: PrismaClient, dto: any, sum: BatchSummary, ctx: WriteCtx) => Promise<void>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- minimal structural shape over the 4 entity Zod schemas (heterogeneous output types)
 type AnySchema = { safeParse: (data: unknown) => { success: boolean; data?: any } };
 
 const MS_PER_DAY = 86_400_000;
