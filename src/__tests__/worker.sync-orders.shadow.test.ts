@@ -5,6 +5,12 @@ import { syncOrdersProcessor } from '@/worker/processors/sync-orders';
 import { resetOneCAdapter } from '@/lib/services/oneCSync';
 import type { SyncJobPayload } from '@/lib/jobs/types';
 
+const { capturePendingSkips, replayPendingRecords } = vi.hoisted(() => ({
+  capturePendingSkips: vi.fn().mockResolvedValue(undefined),
+  replayPendingRecords: vi.fn().mockResolvedValue({ resolved: 0, deadLettered: 0, stillPending: 0 }),
+}));
+vi.mock('@/lib/services/oneCSync/pending', () => ({ capturePendingSkips, replayPendingRecords, isTransientSkip: () => true }));
+
 const job = { id: 'shadow-1', data: { triggeredAt: '2026-05-01T00:00:00Z', reason: 'manual' as const } } as Job<SyncJobPayload>;
 
 function dbMock() {
@@ -172,5 +178,41 @@ describe('syncOrdersProcessor error path', () => {
     // writeSyncLog still runs after markCursorError failure
     expect(syncLogCreate).toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+});
+
+describe('syncOrdersProcessor pending capture+replay (live mode)', () => {
+  beforeEach(() => {
+    process.env.ONE_C_ADAPTER = 'fake';
+    process.env.ONE_C_MODE = 'live';
+    resetOneCAdapter();
+    vi.clearAllMocks();
+  });
+  afterEach(() => { delete process.env.ONE_C_MODE; resetOneCAdapter(); });
+
+  it('calls capturePendingSkips and replayPendingRecords in live mode', async () => {
+    const { db } = dbMock();
+    await syncOrdersProcessor(job, db);
+
+    expect(capturePendingSkips).toHaveBeenCalledWith(db, 'order', expect.any(Array), expect.any(Function), expect.any(Object));
+    expect(replayPendingRecords).toHaveBeenCalledWith(db, 'order', expect.objectContaining({ now: expect.any(Date) }));
+  });
+});
+
+describe('syncOrdersProcessor pending capture+replay (shadow mode)', () => {
+  beforeEach(() => {
+    process.env.ONE_C_ADAPTER = 'fake';
+    process.env.ONE_C_MODE = 'shadow';
+    resetOneCAdapter();
+    vi.clearAllMocks();
+  });
+  afterEach(() => { delete process.env.ONE_C_MODE; resetOneCAdapter(); });
+
+  it('does NOT call capturePendingSkips or replayPendingRecords in shadow mode', async () => {
+    const { db } = dbMock();
+    await syncOrdersProcessor(job, db);
+
+    expect(capturePendingSkips).not.toHaveBeenCalled();
+    expect(replayPendingRecords).not.toHaveBeenCalled();
   });
 });

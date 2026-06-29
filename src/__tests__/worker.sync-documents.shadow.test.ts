@@ -16,6 +16,12 @@ vi.mock('@/lib/jobs/queues', () => ({
   getQueue: vi.fn().mockReturnValue({ add: vi.fn().mockResolvedValue({}) })
 }));
 
+const { capturePendingSkips, replayPendingRecords } = vi.hoisted(() => ({
+  capturePendingSkips: vi.fn().mockResolvedValue(undefined),
+  replayPendingRecords: vi.fn().mockResolvedValue({ resolved: 0, deadLettered: 0, stillPending: 0 }),
+}));
+vi.mock('@/lib/services/oneCSync/pending', () => ({ capturePendingSkips, replayPendingRecords, isTransientSkip: () => true }));
+
 const job = { id: 'shadow-doc', data: { triggeredAt: '2026-05-01T00:00:00Z', reason: 'manual' as const } } as Job<SyncJobPayload>;
 
 // All three fixture documents reference order 1c-order-1001; a single order stub covers them.
@@ -177,5 +183,41 @@ describe('syncDocumentsProcessor error path', () => {
     );
     expect(syncLogCreate).toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+});
+
+describe('syncDocumentsProcessor pending capture+replay (live mode)', () => {
+  beforeEach(() => {
+    process.env.ONE_C_ADAPTER = 'fake';
+    process.env.ONE_C_MODE = 'live';
+    resetOneCAdapter();
+    vi.clearAllMocks();
+  });
+  afterEach(() => { delete process.env.ONE_C_MODE; resetOneCAdapter(); });
+
+  it('calls capturePendingSkips and replayPendingRecords in live mode', async () => {
+    const { db } = makeExistingDocDb();
+    await syncDocumentsProcessor(job, db);
+
+    expect(capturePendingSkips).toHaveBeenCalledWith(db, 'document', expect.any(Array), expect.any(Function), expect.any(Object));
+    expect(replayPendingRecords).toHaveBeenCalledWith(db, 'document', expect.objectContaining({ now: expect.any(Date) }));
+  });
+});
+
+describe('syncDocumentsProcessor pending capture+replay (shadow mode)', () => {
+  beforeEach(() => {
+    process.env.ONE_C_ADAPTER = 'fake';
+    process.env.ONE_C_MODE = 'shadow';
+    resetOneCAdapter();
+    vi.clearAllMocks();
+  });
+  afterEach(() => { delete process.env.ONE_C_MODE; resetOneCAdapter(); });
+
+  it('does NOT call capturePendingSkips or replayPendingRecords in shadow mode', async () => {
+    const { db } = makeExistingDocDb();
+    await syncDocumentsProcessor(job, db);
+
+    expect(capturePendingSkips).not.toHaveBeenCalled();
+    expect(replayPendingRecords).not.toHaveBeenCalled();
   });
 });

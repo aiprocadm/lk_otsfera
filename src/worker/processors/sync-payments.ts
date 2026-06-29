@@ -10,6 +10,7 @@ import { getCursor, advanceCursor, markCursorError } from '@/lib/services/oneCSy
 import { runRecordBatch, batchStatus, type BatchSummary } from '@/lib/services/oneCSync/record-batch';
 import { oneCMode } from '@/lib/services/oneCSync/config';
 import { upsertPaymentRecord } from '@/lib/services/oneCSync/writers';
+import { capturePendingSkips, replayPendingRecords } from '@/lib/services/oneCSync/pending';
 
 export type SyncPaymentsResult = BatchSummary;
 
@@ -40,6 +41,17 @@ export async function syncPaymentsProcessor(
     );
 
     if (mode === 'live') await advanceCursor(db, 'payment', maxUpdatedAt);
+
+    if (mode === 'live') {
+      // Capture out-of-order skips and replay the backlog so nothing is lost when a
+      // dependency (org/order) appears later. Best-effort: never fail the pull on this.
+      try {
+        await capturePendingSkips(db, 'payment', raw, (dto) => (dto as OneCPaymentDto).externalId, summary);
+        await replayPendingRecords(db, 'payment', { now: new Date() });
+      } catch (e) {
+        console.warn('[sync-payment] pending capture/replay failed', e);
+      }
+    }
 
     await writeSyncLog(
       {

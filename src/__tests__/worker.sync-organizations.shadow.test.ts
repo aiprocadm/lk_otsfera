@@ -5,6 +5,12 @@ import { syncOrganizationsProcessor } from '@/worker/processors/sync-organizatio
 import { resetOneCAdapter } from '@/lib/services/oneCSync';
 import type { SyncJobPayload } from '@/lib/jobs/types';
 
+const { capturePendingSkips, replayPendingRecords } = vi.hoisted(() => ({
+  capturePendingSkips: vi.fn().mockResolvedValue(undefined),
+  replayPendingRecords: vi.fn().mockResolvedValue({ resolved: 0, deadLettered: 0, stillPending: 0 }),
+}));
+vi.mock('@/lib/services/oneCSync/pending', () => ({ capturePendingSkips, replayPendingRecords, isTransientSkip: () => true }));
+
 const job = { id: 'shadow-org', data: { triggeredAt: '2026-05-01T00:00:00Z', reason: 'manual' as const } } as Job<SyncJobPayload>;
 
 describe('syncOrganizationsProcessor shadow mode', () => {
@@ -170,5 +176,61 @@ describe('syncOrganizationsProcessor error path', () => {
     );
     expect(syncLogCreate).toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+});
+
+describe('syncOrganizationsProcessor pending capture+replay (live mode)', () => {
+  beforeEach(() => {
+    process.env.ONE_C_ADAPTER = 'fake';
+    process.env.ONE_C_MODE = 'live';
+    resetOneCAdapter();
+    vi.clearAllMocks();
+  });
+  afterEach(() => { delete process.env.ONE_C_MODE; resetOneCAdapter(); });
+
+  it('calls capturePendingSkips and replayPendingRecords in live mode', async () => {
+    const update = vi.fn().mockResolvedValue({});
+    const upsert = vi.fn().mockResolvedValue({});
+    const db = {
+      syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert },
+      partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p1' }) },
+      organization: {
+        findUnique: vi.fn().mockResolvedValue({ id: 'org-existing', companyId: 'co1' }),
+        update
+      },
+      syncLog: { create: vi.fn().mockResolvedValue({}) }
+    } as unknown as PrismaClient;
+
+    await syncOrganizationsProcessor(job, db);
+
+    expect(capturePendingSkips).toHaveBeenCalledWith(db, 'organization', expect.any(Array), expect.any(Function), expect.any(Object));
+    expect(replayPendingRecords).toHaveBeenCalledWith(db, 'organization', expect.objectContaining({ now: expect.any(Date) }));
+  });
+});
+
+describe('syncOrganizationsProcessor pending capture+replay (shadow mode)', () => {
+  beforeEach(() => {
+    process.env.ONE_C_ADAPTER = 'fake';
+    process.env.ONE_C_MODE = 'shadow';
+    resetOneCAdapter();
+    vi.clearAllMocks();
+  });
+  afterEach(() => { delete process.env.ONE_C_MODE; resetOneCAdapter(); });
+
+  it('does NOT call capturePendingSkips or replayPendingRecords in shadow mode', async () => {
+    const db = {
+      syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert: vi.fn().mockResolvedValue({}) },
+      partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p1' }) },
+      organization: {
+        findUnique: vi.fn().mockResolvedValue({ id: 'org-existing', companyId: 'co1' }),
+        update: vi.fn().mockResolvedValue({})
+      },
+      syncLog: { create: vi.fn().mockResolvedValue({}) }
+    } as unknown as PrismaClient;
+
+    await syncOrganizationsProcessor(job, db);
+
+    expect(capturePendingSkips).not.toHaveBeenCalled();
+    expect(replayPendingRecords).not.toHaveBeenCalled();
   });
 });
