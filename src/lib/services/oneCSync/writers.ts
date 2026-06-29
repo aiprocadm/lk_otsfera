@@ -120,9 +120,22 @@ export async function upsertOrgRecord(db: PrismaClient, dto: OneCOrgDto, sum: Ba
     sum.skips.push({ externalId: input.externalId, reason: input.partnerExternalId ? 'partner_not_found' : 'no_partner_external_id' });
     return;
   }
-  const existing = await db.organization.findUnique({ where: { externalId: input.externalId }, select: { id: true, companyId: true } });
+  // Resolve by externalId OR inn (Organization.inn is @unique). Matching only by
+  // externalId would push an org that already exists under its INN (xlsx import or
+  // order-backfill) into the create branch and throw P2002 on inn every run. Mirrors
+  // resolveOrganizationRef's externalId→inn fallback used by the order/payment writers.
+  let existing = await db.organization.findUnique({ where: { externalId: input.externalId }, select: { id: true, companyId: true, externalId: true } });
+  if (!existing && input.inn) {
+    existing = await db.organization.findFirst({ where: { inn: input.inn }, select: { id: true, companyId: true, externalId: true } });
+  }
   if (existing) {
-    if (isLive(ctx)) await db.organization.update({ where: { id: existing.id }, data: { name: input.name, inn: input.inn, kpp: input.kpp } });
+    if (isLive(ctx)) {
+      // Backfill the 1C externalId only when the matched org has none — never clobber a different identity.
+      const data = input.externalId && !existing.externalId
+        ? { name: input.name, inn: input.inn, kpp: input.kpp, externalId: input.externalId }
+        : { name: input.name, inn: input.inn, kpp: input.kpp };
+      await db.organization.update({ where: { id: existing.id }, data });
+    }
     sum.updated += 1; ctx.bump?.(dto.updatedAt);
   } else {
     if (isLive(ctx)) {

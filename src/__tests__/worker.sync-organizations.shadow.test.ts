@@ -18,7 +18,7 @@ describe('syncOrganizationsProcessor shadow mode', () => {
     const db = {
       syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert },
       partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p1' }) },
-      organization: { count: vi.fn().mockResolvedValue(0), findUnique: vi.fn().mockResolvedValue(null), update },
+      organization: { count: vi.fn().mockResolvedValue(0), findUnique: vi.fn().mockResolvedValue(null), findFirst: vi.fn().mockResolvedValue(null), update },
       $transaction: tx,
       syncLog: { create: vi.fn().mockResolvedValue({}) }
     } as unknown as PrismaClient;
@@ -71,8 +71,9 @@ describe('syncOrganizationsProcessor live mode', () => {
     const db = {
       syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert },
       partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p1' }) },
-      // Return null → upsertOrgRecord takes the CREATE path → $transaction called
-      organization: { findUnique: vi.fn().mockResolvedValue(null) },
+      // Return null for both externalId (findUnique) and inn (findFirst) lookups →
+      // upsertOrgRecord takes the CREATE path → $transaction called
+      organization: { findUnique: vi.fn().mockResolvedValue(null), findFirst: vi.fn().mockResolvedValue(null) },
       $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
         await fn({
           company: { create: companyCreate },

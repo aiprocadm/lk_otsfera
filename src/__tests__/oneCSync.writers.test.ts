@@ -82,7 +82,7 @@ describe('upsertOrgRecord', () => {
   function odb(over = {}) {
     return {
       partner: { findUnique: vi.fn().mockResolvedValue({ id:'p1' }) },
-      organization: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
+      organization: { findUnique: vi.fn().mockResolvedValue(null), findFirst: vi.fn().mockResolvedValue(null), update: vi.fn() },
       $transaction: vi.fn(async (cb:any) => cb({ company:{ create: vi.fn().mockResolvedValue({ id:'co1' }) }, organization:{ create: vi.fn() } })),
       ...over,
     } as any;
@@ -109,6 +109,42 @@ describe('upsertOrgRecord', () => {
     const sum2 = emptySummary();
     await upsertOrgRecord(d2, orgDto, sum2, { mode:'shadow', notify:false });
     expect(d2.organization.update).not.toHaveBeenCalled(); expect(sum2.updated).toBe(1);
+  });
+
+  // Data-integrity: an org may already exist by INN (created via xlsx import or
+  // backfilled from an order) with no/other externalId. Resolving by externalId
+  // ONLY would miss it and the create branch would throw P2002 on inn @unique every
+  // run. upsertOrgRecord must resolve by externalId OR inn, mirroring the order/payment
+  // writers, and update-in-place (backfilling externalId only when absent).
+  it('resolves an existing org by INN when externalId misses — updates in place, backfills externalId, no create', async () => {
+    const d = odb({ organization:{
+      findUnique: vi.fn().mockResolvedValue(null),                                       // no externalId match
+      findFirst: vi.fn().mockResolvedValue({ id:'o-inn', companyId:'co1', externalId:null }), // INN match, no externalId yet
+      update: vi.fn(),
+    } });
+    const sum = emptySummary();
+    await upsertOrgRecord(d, orgDto, sum, { mode:'live', notify:false });
+    expect(d.$transaction).not.toHaveBeenCalled();
+    expect(d.organization.update).toHaveBeenCalledWith({
+      where: { id:'o-inn' },
+      data: expect.objectContaining({ externalId:'ORG-1', inn:'77', name:'Acme' }),
+    });
+    expect(sum.updated).toBe(1); expect(sum.created).toBe(0);
+  });
+
+  it('does not overwrite an existing different externalId on an INN match (preserves 1C identity)', async () => {
+    const d = odb({ organization:{
+      findUnique: vi.fn().mockResolvedValue(null),
+      findFirst: vi.fn().mockResolvedValue({ id:'o-inn', companyId:'co1', externalId:'E-OLD' }), // already has an externalId
+      update: vi.fn(),
+    } });
+    const sum = emptySummary();
+    await upsertOrgRecord(d, orgDto, sum, { mode:'live', notify:false });
+    expect(d.$transaction).not.toHaveBeenCalled();
+    const data = d.organization.update.mock.calls[0][0].data;
+    expect('externalId' in data).toBe(false); // preserve E-OLD, never clobber
+    expect(data).toMatchObject({ inn:'77', name:'Acme' });
+    expect(sum.updated).toBe(1);
   });
 });
 
@@ -540,7 +576,7 @@ describe('upsertOrgRecord — additional branch coverage', () => {
     const orgDtoWithPartner = { ...orgDto, partnerExternalId:'p-slug' } as any;
     const d = {
       partner: { findUnique: vi.fn().mockResolvedValue({ id:'p1' }) },
-      organization: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
+      organization: { findUnique: vi.fn().mockResolvedValue(null), findFirst: vi.fn().mockResolvedValue(null), update: vi.fn() },
       $transaction: vi.fn(),
     } as any;
     const sum = emptySummary();
@@ -566,7 +602,7 @@ describe('upsertOrgRecord — additional branch coverage', () => {
     const orgDtoWithPartner = { ...orgDto, partnerExternalId:'p-slug' } as any;
     const d = {
       partner: { findUnique: vi.fn().mockResolvedValue({ id:'p1' }) },
-      organization: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
+      organization: { findUnique: vi.fn().mockResolvedValue(null), findFirst: vi.fn().mockResolvedValue(null), update: vi.fn() },
       $transaction: vi.fn(async (cb: any) => cb({ company:{ create: vi.fn().mockResolvedValue({ id:'co1' }) }, organization:{ create: vi.fn() } })),
     } as any;
     const sum = emptySummary();
