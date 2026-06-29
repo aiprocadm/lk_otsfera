@@ -67,6 +67,25 @@ function pendingRow(over = {}) {
   };
 }
 
+describe('capturePendingSkips — thrown failures', () => {
+  const rawByExt = (ext: string) => ({ externalId: ext, updatedAt: '2026-06-01T00:00:00Z' });
+
+  it('upserts a pending row for each thrown failure with reason prefixed "threw:"', async () => {
+    const upsert = vi.fn().mockResolvedValue({});
+    const db = { oneCPendingRecord: { upsert } } as never;
+    const raw = [rawByExt('P9')];
+    const summary = emptySummary();
+    summary.failures = [{ externalId: 'P9', error: 'deadlock' }];
+
+    await capturePendingSkips(db, 'payment' as CursorEntity, raw, (r) => (r as { externalId: string }).externalId, summary);
+
+    expect(upsert).toHaveBeenCalledTimes(1);
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ reason: 'threw: deadlock' }),
+    }));
+  });
+});
+
 describe('replayPendingRecords', () => {
   beforeEach(() => { upsertPaymentRecord.mockReset(); });
 
@@ -111,6 +130,29 @@ describe('replayPendingRecords', () => {
     const db = { oneCPendingRecord: { findMany, delete: vi.fn(), update } } as never;
     const res = await replayPendingRecords(db, 'payment', { now: new Date('2026-06-21T00:00:00Z'), maxAttempts: 50, maxAgeDays: 7 });
     expect(update).toHaveBeenCalledWith({ where: { id: 'pr1' }, data: { attempts: 2, status: 'dead', reason: 'organization_not_found' } });
+    expect(res).toMatchObject({ deadLettered: 1 });
+  });
+
+  it('keeps a thrown-writer record pending (retryable, not instant dead-letter) when below the attempt cap', async () => {
+    upsertPaymentRecord.mockImplementation(async () => { throw new Error('deadlock'); });
+    const findMany = vi.fn().mockResolvedValue([pendingRow({ attempts: 2 })]);
+    const del = vi.fn();
+    const update = vi.fn().mockResolvedValue({});
+    const db = { oneCPendingRecord: { findMany, delete: del, update } } as never;
+    const res = await replayPendingRecords(db, 'payment', { now: new Date('2026-06-21T00:00:00Z'), maxAttempts: 50, maxAgeDays: 7 });
+    // Must NOT contain status: 'dead'
+    expect(update).toHaveBeenCalledWith({ where: { id: 'pr1' }, data: { attempts: 3, reason: expect.stringContaining('deadlock') } });
+    expect(del).not.toHaveBeenCalled();
+    expect(res).toMatchObject({ resolved: 0, deadLettered: 0, stillPending: 1 });
+  });
+
+  it('dead-letters a thrown-writer record when attempts reach the cap', async () => {
+    upsertPaymentRecord.mockImplementation(async () => { throw new Error('deadlock'); });
+    const findMany = vi.fn().mockResolvedValue([pendingRow({ attempts: 49 })]);
+    const update = vi.fn().mockResolvedValue({});
+    const db = { oneCPendingRecord: { findMany, delete: vi.fn(), update } } as never;
+    const res = await replayPendingRecords(db, 'payment', { now: new Date('2026-06-21T00:00:00Z'), maxAttempts: 50, maxAgeDays: 7 });
+    expect(update).toHaveBeenCalledWith({ where: { id: 'pr1' }, data: { attempts: 50, status: 'dead', reason: expect.stringContaining('deadlock') } });
     expect(res).toMatchObject({ deadLettered: 1 });
   });
 });

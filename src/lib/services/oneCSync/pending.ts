@@ -25,16 +25,19 @@ export async function capturePendingSkips<T>(
   getExternalId: (r: T) => string,
   summary: BatchSummary
 ): Promise<void> {
-  const transient = summary.skips.filter((s) => isTransientSkip(s.reason));
-  if (transient.length === 0) return;
+  const items = [
+    ...summary.skips.filter((s) => isTransientSkip(s.reason)).map((s) => ({ externalId: s.externalId, reason: s.reason })),
+    ...summary.failures.map((f) => ({ externalId: f.externalId, reason: `threw: ${f.error}`.slice(0, 200) })),
+  ];
+  if (items.length === 0) return;
   const byExt = new Map(raw.map((r) => [getExternalId(r), r]));
-  for (const skip of transient) {
-    const dto = byExt.get(skip.externalId);
-    if (dto === undefined) continue; // defensive: skip referenced a record not in this batch
+  for (const item of items) {
+    const dto = byExt.get(item.externalId);
+    if (dto === undefined) continue; // defensive: item referenced a record not in this batch
     await db.oneCPendingRecord.upsert({
-      where: { entity_externalId: { entity, externalId: skip.externalId } },
-      create: { entity, externalId: skip.externalId, dto: dto as object, reason: skip.reason },
-      update: { reason: skip.reason, status: 'pending' },
+      where: { entity_externalId: { entity, externalId: item.externalId } },
+      create: { entity, externalId: item.externalId, dto: dto as object, reason: item.reason },
+      update: { reason: item.reason, status: 'pending' },
     });
   }
 }
@@ -72,6 +75,9 @@ export async function replayPendingRecords(
     orderBy: { firstSeenAt: 'asc' },
     take: 500,
   });
+  if (rows.length === 500) {
+    console.warn('[1c-pending] replay batch hit the 500-row cap for entity %s — backlog may be truncated this run', entity);
+  }
 
   let resolved = 0, deadLettered = 0, stillPending = 0;
   for (const row of rows) {
@@ -87,9 +93,11 @@ export async function replayPendingRecords(
 
     const summary = emptySummary();
     let reason = row.reason;
+    let threw = false;
     try {
       await write(db, parsed.data, summary, { mode: 'live' as const, notify: true });
     } catch (err) {
+      threw = true;
       reason = err instanceof Error ? err.message.slice(0, 200) : 'replay_threw';
     }
 
@@ -100,7 +108,8 @@ export async function replayPendingRecords(
 
     const lastSkip = summary.skips.at(-1);
     if (lastSkip) reason = lastSkip.reason;
-    const permanent = lastSkip ? !isTransientSkip(lastSkip.reason) : true;
+    // skip → permanent iff its reason isn't transient; throw → retryable with cap; neither → defensive permanent
+    const permanent = lastSkip ? !isTransientSkip(lastSkip.reason) : !threw;
     const dead = permanent || attempts >= maxAttempts || overAge;
     await db.oneCPendingRecord.update({
       where: { id: row.id },
