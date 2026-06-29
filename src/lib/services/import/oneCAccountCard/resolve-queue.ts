@@ -9,6 +9,15 @@ const EPOCH = new Date(0).toISOString();
 type Err = 'forbidden' | 'not_found' | 'org_required' | 'write_skipped';
 function isStaff(s: SessionPayload) { return s.role === 'admin' || s.role === 'manager'; }
 
+/** C8: a non-admin may act on a queue row only when its batch belongs to their company.
+ *  Mirrors listQueue's `batch.companyId === session.companyId` read scope so the write
+ *  path cannot mutate another company's rows (admin is unscoped — Model A). A session
+ *  without a companyId is denied (fail-safe, §4) — never matched against a null-company
+ *  batch via `null === null`, matching listQueue's `'__none__'` sentinel. */
+function rowInCompanyScope(s: SessionPayload, row: { batch: { companyId: string | null } }): boolean {
+  return s.role === 'admin' || (!!s.companyId && row.batch.companyId === s.companyId);
+}
+
 /** Список строк, требующих ручного разбора (scoped по компании для не-админа). */
 export async function listQueue(prisma: PrismaClient, session: SessionPayload) {
   if (!isStaff(session)) return [];
@@ -27,8 +36,8 @@ export async function resolveQueueRow(
   args: { rowId: string; organizationId: string; orderId: string | null }
 ): Promise<{ ok: true; paymentId: string | null } | { ok: false; error: Err }> {
   if (!isStaff(session)) return { ok: false, error: 'forbidden' };
-  const row = await prisma.paymentImportRow.findUnique({ where: { id: args.rowId } });
-  if (!row || row.status !== 'needs_review') return { ok: false, error: 'not_found' };
+  const row = await prisma.paymentImportRow.findUnique({ where: { id: args.rowId }, include: { batch: { select: { companyId: true } } } });
+  if (!row || row.status !== 'needs_review' || !rowInCompanyScope(session, row)) return { ok: false, error: 'not_found' };
   if (!args.organizationId) return { ok: false, error: 'org_required' };
 
   const org = await prisma.organization.findUnique({ where: { id: args.organizationId }, select: { id: true, inn: true, externalId: true } });
@@ -60,8 +69,8 @@ export async function dismissQueueRow(
   prisma: PrismaClient, session: SessionPayload, args: { rowId: string }
 ): Promise<{ ok: true } | { ok: false; error: Err }> {
   if (!isStaff(session)) return { ok: false, error: 'forbidden' };
-  const row = await prisma.paymentImportRow.findUnique({ where: { id: args.rowId }, select: { id: true } });
-  if (!row) return { ok: false, error: 'not_found' };
+  const row = await prisma.paymentImportRow.findUnique({ where: { id: args.rowId }, select: { id: true, batch: { select: { companyId: true } } } });
+  if (!row || !rowInCompanyScope(session, row)) return { ok: false, error: 'not_found' };
   await prisma.paymentImportRow.update({ where: { id: args.rowId }, data: { status: 'dismissed' } });
   return { ok: true };
 }
