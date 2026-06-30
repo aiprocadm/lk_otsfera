@@ -10,6 +10,7 @@ import { getCursor, advanceCursor, markCursorError } from '@/lib/services/oneCSy
 import { runRecordBatch, batchStatus, type BatchSummary } from '@/lib/services/oneCSync/record-batch';
 import { oneCMode } from '@/lib/services/oneCSync/config';
 import { upsertOrderRecord } from '@/lib/services/oneCSync/writers';
+import { capturePendingSkips, replayPendingRecords } from '@/lib/services/oneCSync/pending';
 
 export type SyncOrdersResult = BatchSummary;
 
@@ -36,6 +37,17 @@ export async function syncOrdersProcessor(
       (dto, sum) => upsertOrderRecord(db, dto, sum, { mode, notify: true, bump }));
 
     if (mode === 'live') await advanceCursor(db, 'order', maxUpdatedAt);
+
+    if (mode === 'live') {
+      // Capture out-of-order skips and replay the backlog so nothing is lost when a
+      // dependency (org/order) appears later. Best-effort: never fail the pull on this.
+      try {
+        await capturePendingSkips(db, 'order', raw, (dto) => (dto as OneCOrderDto).externalId, summary);
+        await replayPendingRecords(db, 'order', { now: new Date() });
+      } catch (e) {
+        console.warn('[sync-order] pending capture/replay failed', e);
+      }
+    }
 
     await writeSyncLog(
       {

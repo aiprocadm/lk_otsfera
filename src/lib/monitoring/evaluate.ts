@@ -4,7 +4,7 @@ import type { SyncLagRow } from '@/lib/services/admin/syncHealth';
 
 export type Severity = 'warning' | 'critical';
 export type Breach = { key: string; severity: Severity; message: string; value: number };
-export type AlertMetrics = { queues: QueueStatsRow[]; syncLag: SyncLagRow[] };
+export type AlertMetrics = { queues: QueueStatsRow[]; syncLag: SyncLagRow[]; pendingDeadLetters: number };
 
 export function evaluate(metrics: AlertMetrics, t: Thresholds): Breach[] {
   const breaches: Breach[] = [];
@@ -39,6 +39,15 @@ export function evaluate(metrics: AlertMetrics, t: Thresholds): Breach[] {
         value: row.lagMs
       });
     }
+  }
+
+  if (metrics.pendingDeadLetters > t.oneCDeadLetterMax) {
+    breaches.push({
+      key: 'onec_dead_letters',
+      severity: 'critical',
+      message: `1С: ${metrics.pendingDeadLetters} записей не удалось применить (dead-letter, порог ${t.oneCDeadLetterMax})`,
+      value: metrics.pendingDeadLetters,
+    });
   }
 
   return breaches;

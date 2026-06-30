@@ -360,6 +360,21 @@ model SyncState {
   updatedAt     DateTime  @updatedAt
 }
 
+model OneCPendingRecord {
+  id          String   @id @default(cuid())
+  entity      String   // 'organization' | 'order' | 'payment' | 'document'
+  externalId  String
+  dto         Json     // raw 1C DTO, replayed verbatim through the idempotent writer
+  reason      String   // last transient skip reason
+  attempts    Int      @default(0)
+  status      String   @default("pending") // 'pending' | 'dead'
+  firstSeenAt DateTime @default(now())
+  lastTriedAt DateTime @updatedAt
+
+  @@unique([entity, externalId])
+  @@index([status, entity])
+}
+
 model SyncSchedulePause {
   schedulerId String   @id
   pausedAt    DateTime @default(now())

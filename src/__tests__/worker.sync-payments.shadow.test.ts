@@ -5,6 +5,12 @@ import { syncPaymentsProcessor } from '@/worker/processors/sync-payments';
 import { resetOneCAdapter } from '@/lib/services/oneCSync';
 import type { SyncJobPayload } from '@/lib/jobs/types';
 
+const { capturePendingSkips, replayPendingRecords } = vi.hoisted(() => ({
+  capturePendingSkips: vi.fn().mockResolvedValue(undefined),
+  replayPendingRecords: vi.fn().mockResolvedValue({ resolved: 0, deadLettered: 0, stillPending: 0 }),
+}));
+vi.mock('@/lib/services/oneCSync/pending', () => ({ capturePendingSkips, replayPendingRecords, isTransientSkip: () => true }));
+
 const job = { id: 'shadow-pay', data: { triggeredAt: '2026-05-01T00:00:00Z', reason: 'manual' as const } } as Job<SyncJobPayload>;
 
 describe('syncPaymentsProcessor shadow mode', () => {
@@ -105,5 +111,54 @@ describe('syncPaymentsProcessor error path', () => {
     );
     expect(syncLogCreate).toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+});
+
+describe('syncPaymentsProcessor pending capture+replay (live mode)', () => {
+  beforeEach(() => {
+    process.env.ONE_C_ADAPTER = 'fake';
+    process.env.ONE_C_MODE = 'live';
+    resetOneCAdapter();
+    vi.clearAllMocks();
+  });
+  afterEach(() => { delete process.env.ONE_C_MODE; resetOneCAdapter(); });
+
+  it('calls capturePendingSkips and replayPendingRecords in live mode', async () => {
+    const db = {
+      syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert: vi.fn().mockResolvedValue({}) },
+      order: { findUnique: vi.fn().mockResolvedValue({ id: 'o1', organizationId: 'org1', orderNumber: 'N', title: 'T' }) },
+      payment: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({}), update: vi.fn().mockResolvedValue({}) },
+      syncLog: { create: vi.fn().mockResolvedValue({}) },
+      oneCPendingRecord: { findMany: vi.fn().mockResolvedValue([]), createMany: vi.fn().mockResolvedValue({ count: 0 }), updateMany: vi.fn().mockResolvedValue({ count: 0 }) }
+    } as unknown as PrismaClient;
+
+    await syncPaymentsProcessor(job, db);
+
+    expect(capturePendingSkips).toHaveBeenCalledWith(db, 'payment', expect.any(Array), expect.any(Function), expect.any(Object));
+    expect(replayPendingRecords).toHaveBeenCalledWith(db, 'payment', expect.objectContaining({ now: expect.any(Date) }));
+  });
+});
+
+describe('syncPaymentsProcessor pending capture+replay (shadow mode)', () => {
+  beforeEach(() => {
+    process.env.ONE_C_ADAPTER = 'fake';
+    process.env.ONE_C_MODE = 'shadow';
+    resetOneCAdapter();
+    vi.clearAllMocks();
+  });
+  afterEach(() => { delete process.env.ONE_C_MODE; resetOneCAdapter(); });
+
+  it('does NOT call capturePendingSkips or replayPendingRecords in shadow mode', async () => {
+    const db = {
+      syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert: vi.fn().mockResolvedValue({}) },
+      order: { findUnique: vi.fn().mockResolvedValue({ id: 'o1', organizationId: 'org1', orderNumber: 'N', title: 'T' }) },
+      payment: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({}), update: vi.fn().mockResolvedValue({}) },
+      syncLog: { create: vi.fn().mockResolvedValue({}) }
+    } as unknown as PrismaClient;
+
+    await syncPaymentsProcessor(job, db);
+
+    expect(capturePendingSkips).not.toHaveBeenCalled();
+    expect(replayPendingRecords).not.toHaveBeenCalled();
   });
 });
