@@ -8,6 +8,7 @@ describe('getThresholds', () => {
     expect(t.dlqMax).toBe(0);
     expect(t.syncLagMaxMs).toBe(24 * 3600_000);
     expect(t.renotifyCooldownMs).toBe(6 * 3600_000);
+    expect(t.oneCDeadLetterMax).toBe(0);
   });
 
   it('reads overrides from env', () => {
@@ -15,12 +16,14 @@ describe('getThresholds', () => {
       ALERT_QUEUE_WAITING_MAX: '5',
       ALERT_DLQ_MAX: '2',
       ALERT_SYNC_LAG_MAX_HOURS: '1',
-      ALERT_RENOTIFY_COOLDOWN_HOURS: '2'
+      ALERT_RENOTIFY_COOLDOWN_HOURS: '2',
+      ALERT_ONEC_DEADLETTER_MAX: '3'
     });
     expect(t.queueWaitingMax).toBe(5);
     expect(t.dlqMax).toBe(2);
     expect(t.syncLagMaxMs).toBe(3600_000);
     expect(t.renotifyCooldownMs).toBe(2 * 3600_000);
+    expect(t.oneCDeadLetterMax).toBe(3);
   });
 
   it('falls back to default on non-numeric env', () => {

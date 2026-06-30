@@ -102,6 +102,22 @@ Increase overlap. Rejected: cannot cover arbitrary `updatedAt` gaps; just hides 
 scope must be minimized for a near-term release, Option B converts silent loss into an
 alerted, bounded loss as a stopgap.
 
+### Chosen approach — Option A′ (store-and-replay), supersedes A/B
+
+Planning (2026-06-29) found the `OneCAdapter` interface is **bulk-pull only**
+(`pullOrders/pullPayments/pullDocuments/pullOrganizations(cursor)`) — there is **no
+fetch-by-externalId**. So Option A's per-record re-pull is infeasible without extending the
+adapter + a 1C REST endpoint that may not exist (open question #1, now resolved: **not
+supported**).
+
+**Option A′** keeps Option A's "no loss, no stall" guarantee without any adapter/1C change:
+on a *transient* skip, persist the record's **raw DTO** into a `OneCPendingRecord` table; a
+replay pass re-runs the **idempotent** writer against stored DTOs until the dependency
+appears (delete the row) or an attempt/age cap is hit (dead-letter + alert). Replaying the
+stored DTO is equivalent to re-pulling it, but uses data we already hold. The cursor
+advances normally. Plan:
+[2026-06-29-1c-cursor-skipped-record-loss.md](../plans/2026-06-29-1c-cursor-skipped-record-loss.md).
+
 ## 5. Test strategy
 
 - Integration: org-after-payment ordering — payment skipped on pull 1, org synced on pull 2,
@@ -114,8 +130,9 @@ alerted, bounded loss as a stopgap.
 
 ## 6. Open questions
 
-1. Does the 1C adapter support fetch-by-externalId for a single record (needed for Option A
-   re-pull)? If not, Option B is the fallback.
+1. ~~Does the 1C adapter support fetch-by-externalId for a single record?~~ **Resolved: no**
+   — the adapter is bulk-pull only, so Option A′ (store-and-replay of the stored DTO) is used
+   instead of re-pull. No adapter or 1C-side change needed.
 2. What is the acceptable max-lag / attempt cap before dead-lettering?
 3. Should dead-lettered records raise an admin alert (sync control center) — yes, almost
    certainly, so loss is never silent.
