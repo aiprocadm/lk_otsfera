@@ -67,6 +67,13 @@ export default defineConfig(({ mode }) => ({
     environment: 'node',
     globals: true,
     include: includeFor(mode),
+    // Timeout: unit stays at vitest's tight 5s (fast pre-commit/pre-push feedback);
+    // integration hits a live Postgres with many sequential round-trips and
+    // fileParallelism:false, where 5s is marginal under DB/machine load (heavy
+    // end-to-end cases run ~2-3.5s warm but can overshoot 5s cold on a loaded box).
+    // 20s gives realistic headroom while still tripping a genuine hang/deadlock.
+    // Non-unit (integration + the default all-mode `npm test`) gets the higher bound.
+    testTimeout: mode === 'unit' ? 5000 : 20000,
     // Multiple test files share a single live Postgres and use overlapping
     // 1C fixture externalIds; running them in parallel forks causes
     // cross-file cleanup races. Keep file execution sequential.

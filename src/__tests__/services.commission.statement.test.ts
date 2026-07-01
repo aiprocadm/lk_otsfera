@@ -35,6 +35,7 @@ afterAll(async () => {
     where: { statement: { partnerId } }
   });
   await prisma.commissionStatement.deleteMany({ where: { partnerId } });
+  await prisma.commissionRateChange.deleteMany({ where: { partnerId } });
   await prisma.payment.deleteMany({ where: { order: { partnerId } } });
   await prisma.order.deleteMany({ where: { partnerId } });
   await prisma.organization.deleteMany({ where: { partnerId } });
@@ -50,6 +51,9 @@ beforeEach(async () => {
   await prisma.commissionStatementItem.deleteMany({ where: { statement: { partnerId } } });
   await prisma.commissionStatement.deleteMany({ where: { partnerId } });
   await prisma.order.deleteMany({ where: { partnerId } });
+  // A2 isolation: reset the per-org override and partner rate history between cases.
+  await prisma.commissionRateChange.deleteMany({ where: { partnerId } });
+  await prisma.organization.update({ where: { id: orgId }, data: { partnerCommissionRate: null } });
 });
 
 async function createOrder(amount: number) {
@@ -188,6 +192,67 @@ describe('calculateStatementForPartner', () => {
       where: { action: 'commission_statement_calculated' }
     });
     expect(after).toBe(before + 1);
+  });
+});
+
+// A2/§6.2: эффективная ставка платежа — приоритет
+//   1) индивидуальная ставка организации → 2) история партнёра → 3) дефолт партнёра.
+describe('calculateStatementForPartner — per-org commission override (A2)', () => {
+  async function setOrgOverride(rate: number | null) {
+    await prisma.organization.update({ where: { id: orgId }, data: { partnerCommissionRate: rate } });
+  }
+  async function addRateChange(effectiveFrom: Date, oldRate: number | null, newRate: number) {
+    await prisma.commissionRateChange.create({
+      data: { partnerId, effectiveFrom, oldRate, newRate, changedById: userId }
+    });
+  }
+
+  it('priority 1: org override beats the partner default rate (0.25, not 0.1)', async () => {
+    await setOrgOverride(0.25);
+    const o = await createOrder(100000);
+    await pay(o.id, 100000, new Date('2026-04-10'));
+    const r = await calcOk({ partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null });
+    expect(Number(r.statement.totalCommissionAmount)).toBe(25000);
+    expect(Number(r.statement.averageRate)).toBe(0.25);
+    // The applied rate is frozen on the statement line (reproducibility — A5 note).
+    const items = await prisma.commissionStatementItem.findMany({ where: { statementId: r.statement.id } });
+    expect(Number(items[0]!.rate)).toBe(0.25);
+  });
+
+  it('priority 1 wins even when partner rate history exists (override 0.3 vs history 0.2)', async () => {
+    await setOrgOverride(0.3);
+    await addRateChange(new Date('2026-04-05'), 0.1, 0.2);
+    const o = await createOrder(100000);
+    await pay(o.id, 100000, new Date('2026-04-10'));
+    const r = await calcOk({ partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null });
+    expect(Number(r.statement.totalCommissionAmount)).toBe(30000);
+  });
+
+  it('priority 2: no override → historical partner rate at paidAt (0.2)', async () => {
+    await addRateChange(new Date('2026-04-05'), 0.1, 0.2);
+    const o = await createOrder(100000);
+    await pay(o.id, 100000, new Date('2026-04-10')); // dated after the change → 0.2
+    const r = await calcOk({ partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null });
+    expect(Number(r.statement.totalCommissionAmount)).toBe(20000);
+  });
+
+  it('priority 3: no override and no history → partner default rate (0.1)', async () => {
+    const o = await createOrder(100000);
+    await pay(o.id, 100000, new Date('2026-04-10'));
+    const r = await calcOk({ partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null });
+    expect(Number(r.statement.totalCommissionAmount)).toBe(10000);
+  });
+
+  it('A3: VAT is never subtracted — base = full payment amount even with vatAmount set', async () => {
+    await setOrgOverride(0.2);
+    const o = await createOrder(120000);
+    // A payment carrying an explicit VAT component must still be based on its FULL amount.
+    await prisma.payment.create({
+      data: { organizationId: orgId, orderId: o.id, amount: 120000, vatAmount: 20000, paidAt: new Date('2026-04-10') }
+    });
+    const r = await calcOk({ partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null });
+    expect(Number(r.statement.totalBaseAmount)).toBe(120000); // not 100000 (net-of-VAT)
+    expect(Number(r.statement.totalCommissionAmount)).toBe(24000); // 120000 × 0.2
   });
 });
 

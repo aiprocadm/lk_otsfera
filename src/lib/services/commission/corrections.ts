@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
-import { resolveRateAt, type RateChange } from './rateResolve';
+import { resolveEffectiveRate, type RateChange } from './rateResolve';
 
 const HALF_UP = Prisma.Decimal.ROUND_HALF_UP;
 
@@ -18,7 +18,13 @@ export async function detectLateRefundCorrections(prisma: PrismaClient): Promise
     select: {
       id: true, amount: true, paidAt: true, orderId: true,
       order: { select: { partnerId: true } },
-      organization: { select: { partnerId: true } },
+      // A2 (§6.2): сторно возврата считаем по эффективной ставке. Override
+      // организации date-independent → совпадает с исходным платежом точно.
+      // Для исторической ставки партнёра у возврата нет ссылки на исходный платёж
+      // (в схеме нет refund→original), поэтому берём ставку на дату ВОЗВРАТА как
+      // прокси: в общем случае (смена ставки на границе месяца) она совпадает с
+      // исходной, т.к. период — календарный месяц.
+      organization: { select: { partnerId: true, partnerCommissionRate: true } },
     },
   });
 
@@ -43,7 +49,15 @@ export async function detectLateRefundCorrections(prisma: PrismaClient): Promise
     const changes: RateChange[] = await prisma.commissionRateChange.findMany({
       where: { partnerId }, select: { effectiveFrom: true, oldRate: true, newRate: true }, orderBy: { effectiveFrom: 'asc' },
     });
-    const rate = resolveRateAt(changes, r.paidAt, partner?.commissionRate ?? new Prisma.Decimal(0));
+    const rate = resolveEffectiveRate({
+      // Honor the org override only when the org belongs to the resolved partner
+      // (mirror statement.ts: a payment can be attributed via order.partnerId to a
+      // different partner than the org's own).
+      orgOverride: r.organization?.partnerId === partnerId ? (r.organization?.partnerCommissionRate ?? null) : null,
+      changes,
+      paidAt: r.paidAt,
+      partnerDefault: partner?.commissionRate ?? new Prisma.Decimal(0),
+    });
     const commissionAmount = r.amount.mul(rate).toDecimalPlaces(2, HALF_UP);
 
     try {
