@@ -1871,6 +1871,7 @@ describe('organization/invite — createOrgAdminInvite (unit)', () => {
       organizationUser: {
         findUnique: vi.fn().mockResolvedValue(null),
         create: vi.fn().mockResolvedValue({}),
+        count: vi.fn().mockResolvedValue(0), // §14 org-user limit check in inviteMember
       },
       ...txOverrides,
     };

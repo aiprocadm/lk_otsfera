@@ -6,6 +6,7 @@ import type { BatchSummary } from './record-batch';
 import type { OneCMode } from './config';
 import type { ImportScope } from './scope';
 import { notifyOrgUsers, notifyManagers } from '@/lib/notifications';
+import { resolveAutoManager } from '@/lib/services/manager/distribution';
 import { fetchAndStore1CDocument } from './document-fetch';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
@@ -54,8 +55,17 @@ export async function upsertOrderRecord(db: PrismaClient, dto: OneCOrderDto, sum
     }
   } else {
     if (isLive(ctx)) {
+      // B4 (§5.3): auto-assign the org's (or partner's) single attached manager at
+      // creation. Best-effort — a resolver failure must not block the order import (§3).
+      let managerId: string | null = null;
+      try {
+        managerId = await resolveAutoManager(db, { organizationId: org.id, partnerId: org.partnerId });
+      } catch (err) {
+        console.warn('[1c] auto-assign manager failed', err);
+      }
       await db.order.create({ data: { ...ownedBy1C, externalId: input.externalId,
-        executionStatus: input.executionStatus, companyId: org.companyId, partnerId: org.partnerId, organizationId: org.id } });
+        executionStatus: input.executionStatus, companyId: org.companyId, partnerId: org.partnerId, organizationId: org.id,
+        ...(managerId ? { managerId } : {}) } });
     }
     sum.created += 1; ctx.bump?.(dto.updatedAt);
   }

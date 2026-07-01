@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { listUsers, getUser, createUser, updateUser, deactivateUser, reactivateUser } from '@/lib/services/admin/users';
+import { MAX_PARTNER_USERS } from '@/lib/config/teamLimits';
 
 describe('listUsers', () => {
   it('фильтрует по role и active', async () => {
@@ -403,7 +404,7 @@ describe('createUser', () => {
         findUnique: vi.fn().mockResolvedValue(null),
         create: vi.fn().mockResolvedValue(created)
       },
-      partnerUser: { create: vi.fn() },
+      partnerUser: { count: vi.fn().mockResolvedValue(0), create: vi.fn() },
       passwordResetToken: { create: vi.fn().mockResolvedValue({}) },
       auditLog: { create: vi.fn() }
     };
@@ -420,6 +421,28 @@ describe('createUser', () => {
         assignedOrgIds: []
       }
     });
+  });
+
+  it('отклоняет создание partner-пользователя при достижении лимита (§14)', async () => {
+    const created = { id: 'u9', email: 'p9@x', name: 'P9', role: 'partner' as const };
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue(created)
+      },
+      partnerUser: { count: vi.fn().mockResolvedValue(MAX_PARTNER_USERS), create: vi.fn() },
+      passwordResetToken: { create: vi.fn().mockResolvedValue({}) },
+      auditLog: { create: vi.fn() }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof createUser>[0];
+
+    const result = await createUser(prisma, 'actor', {
+      email: 'p9@x', name: 'P9', role: 'partner', partnerId: 'partner1'
+    });
+    expect(result).toEqual({ ok: false, error: 'member_limit_reached' });
+    expect(txMock.partnerUser.create).not.toHaveBeenCalled();
   });
 
   it('не создаёт partnerUser для role=organization', async () => {

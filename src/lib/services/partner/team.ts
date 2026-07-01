@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto';
 import bcrypt from 'bcryptjs';
 import type { PrismaClient, PartnerUser, User } from '@prisma/client';
+import { MAX_PARTNER_USERS } from '@/lib/config/teamLimits';
 
 export type TeamRow = {
   userId: string;
@@ -48,7 +49,7 @@ export async function inviteMember(
   input: InviteInput
 ): Promise<
   | { ok: true; user: User; partnerUser: PartnerUser }
-  | { ok: false; error: 'org_out_of_scope' | 'email_taken' }
+  | { ok: false; error: 'org_out_of_scope' | 'email_taken' | 'member_limit_reached' }
 > {
   if (input.assignedOrgIds.length > 0) {
     const inScope = await prisma.organization.count({
@@ -57,6 +58,18 @@ export async function inviteMember(
     if (inScope !== input.assignedOrgIds.length) {
       return { ok: false, error: 'org_out_of_scope' };
     }
+  }
+
+  // §14 ТЗ: не более MAX_PARTNER_USERS активных пользователей на партнёра.
+  // Soft seat-cap: под READ COMMITTED count-then-create допускает редкий +1
+  // overshoot при строго одновременных приглашениях. Осознанно принято (не
+  // граница безопасности); истинная атомарность потребовала бы Serializable +
+  // retry-обработки, чего в проекте нет ни для одного пути.
+  const activeCount = await prisma.partnerUser.count({
+    where: { partnerId: input.partnerId, isActive: true }
+  });
+  if (activeCount >= MAX_PARTNER_USERS) {
+    return { ok: false, error: 'member_limit_reached' };
   }
 
   const existing = await prisma.user.findUnique({ where: { email: input.email } });

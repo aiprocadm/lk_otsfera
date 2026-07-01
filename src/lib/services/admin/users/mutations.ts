@@ -1,6 +1,7 @@
 import type { PrismaClient, Prisma, Role } from '@prisma/client';
 import { createInviteToken } from '@/lib/auth/passwordReset';
 import { recordAudit } from '@/lib/auth/audit';
+import { MAX_PARTNER_USERS } from '@/lib/config/teamLimits';
 import { AdminUserError, type AdminUserFailure } from './errors';
 import { getUser, type UserDetail } from './queries';
 
@@ -45,6 +46,13 @@ export async function createUser(
       });
 
       if (args.role === 'partner' && args.partnerId) {
+        // §14 ТЗ: лимит активных пользователей партнёра форсируется и здесь.
+        const activePartnerUsers = await tx.partnerUser.count({
+          where: { partnerId: args.partnerId, isActive: true }
+        });
+        if (activePartnerUsers >= MAX_PARTNER_USERS) {
+          throw new AdminUserError('member_limit_reached');
+        }
         await tx.partnerUser.create({
           data: {
             userId: user.id,

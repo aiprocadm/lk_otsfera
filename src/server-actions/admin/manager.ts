@@ -11,8 +11,8 @@ import {
   type ManagerInviteErrorCode
 } from '@/lib/services/manager/invite';
 import { sendManagerInviteEmail } from '@/lib/email/send';
-import { recordAudit } from '@/lib/auth/audit';
 import { setManagerRole } from '@/lib/services/admin/managerRole';
+import { assignOrderManager } from '@/lib/services/manager/distribution';
 
 export type AssignOrInviteManagerActionError =
   | 'validation'
@@ -198,42 +198,16 @@ export async function assignOrderManagerAction(
 
   const session = await requireAdmin();
 
-  if (parsed.data.managerUserId !== null) {
-    const candidate = await prisma.user.findUnique({
-      where: { id: parsed.data.managerUserId },
-      select: { role: true, isActive: true }
-    });
-    if (!candidate || candidate.role !== 'manager' || !candidate.isActive) {
-      return { ok: false, error: 'invalid_manager' };
-    }
-  }
-
-  const order = await prisma.order.findUnique({
-    where: { id: parsed.data.orderId },
-    select: { managerId: true }
+  // Shared manual-assign service (also used by the leader action) — §5.3.
+  const result = await assignOrderManager(prisma, session, {
+    orderId: parsed.data.orderId,
+    managerUserId: parsed.data.managerUserId
   });
-  if (!order) return { ok: false, error: 'order_not_found' };
+  if (!result.ok) return { ok: false, error: result.error };
 
-  if (order.managerId === parsed.data.managerUserId) {
-    return { ok: true, changed: false };
-  }
-
-  await prisma.order.update({
-    where: { id: parsed.data.orderId },
-    data: { managerId: parsed.data.managerUserId }
-  });
-
-  await recordAudit(prisma, {
-    userId: session.sub,
-    action: 'order_manager_changed',
-    entity: 'order',
-    entityId: parsed.data.orderId,
-    before: { managerId: order.managerId },
-    after: { managerId: parsed.data.managerUserId }
-  });
-
-  revalidatePath(`/admin/orders/${parsed.data.orderId}`);
-  return { ok: true, changed: true };
+  // No-op (manager unchanged) skips revalidation — preserves prior behaviour.
+  if (result.changed) revalidatePath(`/admin/orders/${parsed.data.orderId}`);
+  return { ok: true, changed: result.changed };
 }
 
 const setManagerRoleSchema = z.object({
