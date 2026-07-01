@@ -378,6 +378,14 @@ async function main() {
 main()
   .catch((err) => {
     console.error('[seed] error', err);
-    process.exit(1);
+    process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+    // Seed is a one-shot batch script. It transitively imports production app code
+    // (1С adapter, notification/transport clients) that leaves fire-and-forget
+    // sockets open, so the event loop never drains on its own — the process would
+    // hang after a SUCCESSFUL run (only the error path exited before). Terminate
+    // explicitly, after Prisma is disconnected, mirroring the error path.
+    process.exit(process.exitCode ?? 0);
+  });
