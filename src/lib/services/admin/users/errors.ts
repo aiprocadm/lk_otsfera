@@ -5,6 +5,7 @@ export type AdminUserErrorCode =
   | 'self_action_forbidden'
   | 'last_admin_protected'
   | 'duplicate_email'
+  | 'member_limit_reached'
   | 'role_transition_forbidden';
 
 export class AdminUserError extends Error {

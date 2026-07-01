@@ -39,6 +39,15 @@ enum FinancialStatus {
   refunded
 }
 
+/// §5/§7 ТЗ: универсальная заявка — тип услуги как параметр заявки, а не отдельная
+/// сущность. Расширяемо (Postgres ALTER TYPE ADD VALUE). Дефолт `training`, чтобы
+/// существующие заявки (все — обучение) не сломались; учебная специфика (удостоверения)
+/// применяется только для `training` (см. lib/orders/completion.ts).
+enum ServiceType {
+  training
+  document_development
+}
+
 enum DocumentType {
   contract
   extra_agreement
@@ -531,6 +540,11 @@ model Order {
   vatIncluded      Boolean                   @default(true)
   vatRate          Decimal?                  @db.Decimal(5, 4)
   productMix       String[]
+  serviceType      ServiceType               @default(training)
+  // §5.6/§21: «галочка» менеджера «бухгалтерия подписана» — условие завершения (B2).
+  accountingSignedAt DateTime?
+  // §5.4: причина возврата на доработку, пока status=waiting_client (B3). Чистится при возврате в работу.
+  returnReason     String?
   deadline         DateTime?
   companyId        String
   company          Company                   @relation(fields: [companyId], references: [id])

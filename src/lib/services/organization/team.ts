@@ -2,12 +2,14 @@ import type { PrismaClient, Prisma } from '@prisma/client';
 import type { OrgRoleInOrg } from '@/lib/auth/jwt';
 import { createInviteToken } from '@/lib/auth/passwordReset';
 import { recordAudit } from '@/lib/auth/audit';
+import { MAX_ORGANIZATION_USERS } from '@/lib/config/teamLimits';
 
 export type OrgMemberErrorCode =
   | 'already_member'
   | 'last_admin_protected'
   | 'self_action_forbidden'
   | 'requires_admin'
+  | 'member_limit_reached'
   | 'not_found';
 
 export class OrgMemberError extends Error {
@@ -51,6 +53,19 @@ function normaliseRole(value: string | null | undefined): 'admin' | 'leader' | '
 
 function getAppBaseUrl(): string {
   return process.env.APP_URL?.trim() || 'https://lk.otsfera.ru';
+}
+
+/** §14 ТЗ: не более MAX_ORGANIZATION_USERS активных контактных лиц на организацию. */
+async function assertOrgUserLimit(
+  tx: Prisma.TransactionClient,
+  organizationId: string
+): Promise<void> {
+  const activeCount = await tx.organizationUser.count({
+    where: { organizationId, isActive: true }
+  });
+  if (activeCount >= MAX_ORGANIZATION_USERS) {
+    throw new OrgMemberError('member_limit_reached');
+  }
 }
 
 export async function listMembers(
@@ -128,6 +143,8 @@ export async function inviteMember(
       if (actorRole === 'leader' && normaliseRole(existing.roleInOrg) === 'admin') {
         throw new OrgMemberError('requires_admin');
       }
+      // Reactivation adds an active member — enforce the cap (deactivated rows are free).
+      await assertOrgUserLimit(tx, args.organizationId);
       const updated = await tx.organizationUser.update({
         where: { id: existing.id },
         data: { isActive: true, roleInOrg: args.roleInOrg }
@@ -135,6 +152,7 @@ export async function inviteMember(
       orgUserId = updated.id;
       reactivated = true;
     } else {
+      await assertOrgUserLimit(tx, args.organizationId);
       const created = await tx.organizationUser.create({
         data: {
           organizationId: args.organizationId,

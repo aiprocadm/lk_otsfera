@@ -4,6 +4,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { listTeam, inviteMember, assignOrgs, deactivateMember } from '@/lib/services/partner/team';
+import { MAX_PARTNER_USERS } from '@/lib/config/teamLimits';
 
 vi.mock('bcryptjs', () => ({ default: { hash: vi.fn().mockResolvedValue('hashed') } }));
 vi.mock('crypto', () => ({ randomBytes: vi.fn(() => Buffer.from('randombytes', 'utf8')) }));
@@ -75,6 +76,7 @@ describe('inviteMember — unit', () => {
   it('returns email_taken when user already exists', async () => {
     const prisma = {
       organization: { count: vi.fn().mockResolvedValue(0) },
+      partnerUser: { count: vi.fn().mockResolvedValue(0) },
       user: { findUnique: vi.fn().mockResolvedValue({ id: 'existing' }) },
       $transaction: vi.fn()
     } as any;
@@ -86,6 +88,23 @@ describe('inviteMember — unit', () => {
     ).toEqual({ ok: false, error: 'email_taken' });
   });
 
+  it('returns member_limit_reached when the partner is at the user cap', async () => {
+    const prisma = {
+      organization: { count: vi.fn() },
+      partnerUser: { count: vi.fn().mockResolvedValue(MAX_PARTNER_USERS) },
+      user: { findUnique: vi.fn() },
+      $transaction: vi.fn()
+    } as any;
+    expect(
+      await inviteMember(prisma, {
+        partnerId: 'p1', email: 'over@x.com', name: 'Over',
+        roleInPartner: 'manager', assignedOrgIds: []
+      })
+    ).toEqual({ ok: false, error: 'member_limit_reached' });
+    // Short-circuits before the email lookup / user creation.
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
   it('successfully creates user and partnerUser via transaction when no conflicts', async () => {
     const newUser = { id: 'u-new', email: 'new@x.com', role: 'partner', partnerId: 'p1' };
     const newPartnerUser = { id: 'pu-new', partnerId: 'p1', userId: 'u-new', roleInPartner: 'manager' };
@@ -95,6 +114,7 @@ describe('inviteMember — unit', () => {
     };
     const prisma = {
       organization: { count: vi.fn().mockResolvedValue(1) }, // 1 org in scope
+      partnerUser: { count: vi.fn().mockResolvedValue(0) },
       user: { findUnique: vi.fn().mockResolvedValue(null) }, // no existing user
       $transaction: vi.fn().mockImplementation((cb: (arg: unknown) => unknown) => cb(tx))
     } as any;
@@ -119,6 +139,7 @@ describe('inviteMember — unit', () => {
     };
     const prisma = {
       organization: { count: vi.fn() },
+      partnerUser: { count: vi.fn().mockResolvedValue(0) },
       user: { findUnique: vi.fn().mockResolvedValue(null) },
       $transaction: vi.fn().mockImplementation((cb: (arg: unknown) => unknown) => cb(tx))
     } as any;

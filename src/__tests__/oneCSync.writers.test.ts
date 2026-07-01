@@ -18,7 +18,11 @@ const baseDto = {
 } as any;
 
 function db() {
-  return { order: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(), update: vi.fn() } } as any;
+  return {
+    order: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(), update: vi.fn() },
+    // B4: resolveAutoManager runs for real; default = no attachment → managerId stays null.
+    organizationManager: { findMany: vi.fn().mockResolvedValue([]) },
+  } as any;
 }
 beforeEach(() => {
   resolveOrganizationRef.mockReset(); notifyOrgUsers.mockReset(); notifyManagers.mockReset();
@@ -40,6 +44,25 @@ describe('upsertOrderRecord', () => {
     const d = db(); const sum = emptySummary();
     await upsertOrderRecord(d, baseDto, sum, { mode: 'shadow', notify: true });
     expect(d.order.create).not.toHaveBeenCalled();
+    expect(sum.created).toBe(1);
+  });
+  it('B4: auto-assigns the org’s single attached manager on create', async () => {
+    resolveOrganizationRef.mockResolvedValue({ id: 'o', companyId: 'c', partnerId: null, externalId: 'E-ORG' });
+    const d = db();
+    d.organizationManager.findMany.mockResolvedValue([{ userId: 'mgr-auto' }]);
+    const sum = emptySummary();
+    await upsertOrderRecord(d, baseDto, sum, { mode: 'live', notify: false });
+    expect(d.order.create).toHaveBeenCalledWith({ data: expect.objectContaining({ managerId: 'mgr-auto' }) });
+    expect(sum.created).toBe(1);
+  });
+  it('B4: swallows a resolver failure on create (best-effort, order still created)', async () => {
+    resolveOrganizationRef.mockResolvedValue({ id: 'o', companyId: 'c', partnerId: null, externalId: 'E-ORG' });
+    const d = db();
+    d.organizationManager.findMany.mockRejectedValue(new Error('db blip'));
+    const sum = emptySummary();
+    await expect(upsertOrderRecord(d, baseDto, sum, { mode: 'live', notify: false })).resolves.not.toThrow();
+    const data = d.order.create.mock.calls[0][0].data;
+    expect('managerId' in data).toBe(false);
     expect(sum.created).toBe(1);
   });
   it('skips out-of-scope org for scoped manager', async () => {
@@ -410,7 +433,7 @@ describe('upsertOrderRecord — additional branch coverage', () => {
 
   it('bump callback is called on create', async () => {
     resolveOrganizationRef.mockResolvedValue({ id:'o', companyId:'c', partnerId:null, externalId:'E-ORG' });
-    const d = { order:{ findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(), update: vi.fn() } } as any;
+    const d = { order:{ findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(), update: vi.fn() }, organizationManager: { findMany: vi.fn().mockResolvedValue([]) } } as any;
     const sum = emptySummary();
     const bump = vi.fn();
     await upsertOrderRecord(d, baseDto, sum, { mode:'live', notify:false, bump });
