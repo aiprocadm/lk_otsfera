@@ -147,6 +147,30 @@ describe('calculateStatementForPartner — unit (payment model)', () => {
     expect(Number(after.commissionAmount)).toBe(20000);  // 0.2
   });
 
+  it('A2: org override applied when the org belongs to the statement partner', async () => {
+    const db = makeDb({
+      payments: [paymentRow({ organization: { name: 'Org A', partnerId: 'p1', partnerCommissionRate: new Prisma.Decimal('0.3') } })],
+    });
+    await calculateStatementForPartner(db as never, {
+      partnerId: 'p1', periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null,
+    });
+    const data = db._tx.commissionStatementItem.createMany.mock.calls[0][0].data[0];
+    expect(Number(data.commissionAmount)).toBe(30000); // 100000 × 0.3
+  });
+
+  it('A2: org override IGNORED when the org belongs to a different partner than the statement', async () => {
+    // Payment attributed to p1 via order.partnerId, but its organization belongs to
+    // pOther (whose negotiated discount must not bleed onto p1).
+    const db = makeDb({
+      payments: [paymentRow({ organization: { name: 'Org A', partnerId: 'pOther', partnerCommissionRate: new Prisma.Decimal('0.3') } })],
+    });
+    await calculateStatementForPartner(db as never, {
+      partnerId: 'p1', periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null,
+    });
+    const data = db._tx.commissionStatementItem.createMany.mock.calls[0][0].data[0];
+    expect(Number(data.commissionAmount)).toBe(10000); // falls back to partner default 0.1
+  });
+
   it('writes audit when calculatedByUserId provided', async () => {
     const db = makeDb({ payments: [paymentRow()] });
     await calculateStatementForPartner(db as never, {

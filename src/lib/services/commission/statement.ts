@@ -10,7 +10,7 @@
  */
 import type { PrismaClient, CommissionStatement } from '@prisma/client';
 import { calculateCommission, type PaymentForCalc, type CorrectionForCalc } from './calculator';
-import { resolveRateAt, type RateChange } from './rateResolve';
+import { resolveEffectiveRate, type RateChange } from './rateResolve';
 import { getQueue } from '@/lib/jobs/queues';
 import { recordAudit } from '@/lib/auth/audit';
 
@@ -149,7 +149,9 @@ export async function calculateStatementForPartner(
       isRefund: true,
       orderId: true,
       order: { select: { orderNumber: true, partnerId: true } },
-      organization: { select: { name: true, partnerId: true } },
+      // A2 (§6.2): partnerCommissionRate — индивидуальная ставка организации
+      // (договорная скидка под клиента), высший приоритет в resolveEffectiveRate.
+      organization: { select: { name: true, partnerId: true, partnerCommissionRate: true } },
     },
     orderBy: { paidAt: 'asc' },
   });
@@ -161,7 +163,16 @@ export async function calculateStatementForPartner(
     organizationName: p.organization.name,
     amount: p.amount,
     isRefund: p.isRefund,
-    rate: resolveRateAt(rateChanges, p.paidAt, partnerDefaultRate),
+    rate: resolveEffectiveRate({
+      // The override is THIS org's договорная скидка with ITS OWN partner. A payment
+      // can be attributed to `partnerId` via order.partnerId even when its organization
+      // belongs to a different partner — honor the override only when the org's partner
+      // is the statement's partner, so partner Y's discount never bleeds onto partner X.
+      orgOverride: p.organization.partnerId === partnerId ? p.organization.partnerCommissionRate : null,
+      changes: rateChanges,
+      paidAt: p.paidAt,
+      partnerDefault: partnerDefaultRate,
+    }),
   }));
 
   // A6/§9.5: applied-корректировки, ещё не перенесённые в живую approved/paid
