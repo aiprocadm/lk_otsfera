@@ -208,6 +208,10 @@ model Lead {
   estimatedAmount    Decimal?         @db.Decimal(14, 2)
   productType        String[]
   status             LeadStatus       @default(new)
+  // Трек G2: тонкая стадия воронки (словарь FunnelStage) поверх якоря status.
+  // null = дефолтная стадия для текущего status-якоря. onDelete: SetNull.
+  funnelStageId      String?
+  funnelStage        FunnelStage?     @relation("LeadFunnelStage", fields: [funnelStageId], references: [id], onDelete: SetNull)
   assignedManagerId  String?
   assignedManager    User?            @relation("LeadManager", fields: [assignedManagerId], references: [id])
   promotedOrderId    String?          @unique
@@ -567,6 +571,7 @@ model Company {
   organizations         Organization[]
   documents             Document[]
   accessProfiles        AccessProfile[]
+  funnelStages          FunnelStage[]
 }
 
 // Трек G1 (§3.2 ТЗ): роль-профиль как данные. Матрица охватов по типам объектов
@@ -590,6 +595,28 @@ model AccessProfile {
   users              User[]
 
   @@unique([companyId, name])
+  @@index([companyId])
+}
+
+// Трек G2 (§24.3 ТЗ): настраиваемые стадии воронки продаж — словарь поверх
+// enum-якорей LeadStatus. Company-scoped (руководитель конфигурирует). Пустой
+// набор у компании → используются DEFAULT_FUNNEL_STAGES (код). statusAnchor
+// связывает стадию с lifecycle-переходом лида; несколько стадий могут делить
+// один якорь (напр. «Предложение» и «Оплата» под qualified).
+model FunnelStage {
+  id           String     @id @default(cuid())
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  companyId    String
+  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name         String
+  position     Int
+  statusAnchor LeadStatus
+  color        String?
+  isTerminal   Boolean    @default(false)
+  leads        Lead[]     @relation("LeadFunnelStage")
+
+  @@unique([companyId, position])
   @@index([companyId])
 }
 

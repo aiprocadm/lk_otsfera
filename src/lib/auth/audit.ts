@@ -26,7 +26,8 @@ export type AuditEntity =
   | 'custom_field_definition'
   | 'custom_field_value'
   | 'commission_correction'
-  | 'access_profile';
+  | 'access_profile'
+  | 'funnel_stage';
 
 export type AuditRecord = {
   userId: string;
