@@ -1,14 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { userFindUnique, userUpdate, recordAudit } = vi.hoisted(() => ({
-  userFindUnique: vi.fn(),
-  userUpdate: vi.fn(),
-  recordAudit: vi.fn(),
-}));
+const { userFindUnique, userUpdate, recordAudit, isTelegramEnabled, isMaxEnabled, isWhatsAppEnabled } =
+  vi.hoisted(() => ({
+    userFindUnique: vi.fn(),
+    userUpdate: vi.fn(),
+    recordAudit: vi.fn(),
+    isTelegramEnabled: vi.fn(),
+    isMaxEnabled: vi.fn(),
+    isWhatsAppEnabled: vi.fn(),
+  }));
 
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
+vi.mock('@/lib/telegram/client', () => ({ isTelegramEnabled }));
+vi.mock('@/lib/max/client', () => ({ isMaxEnabled }));
+vi.mock('@/lib/whatsapp/aggregator', () => ({ isWhatsAppEnabled }));
 
 import {
+  getNotificationSettings,
   normalizePhone,
   saveWhatsappPhone,
   updateChannelPreference,
@@ -31,6 +39,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   userUpdate.mockResolvedValue({});
   recordAudit.mockResolvedValue(undefined);
+  isTelegramEnabled.mockReturnValue(false);
+  isMaxEnabled.mockReturnValue(false);
+  isWhatsAppEnabled.mockReturnValue(false);
 });
 
 describe('parseChannelPrefs / channelPrefEnabled', () => {
@@ -103,6 +114,34 @@ describe('updateChannelPreference', () => {
       enabled: false,
     });
     expect(result).toEqual({ ok: true, channels: { whatsapp: false } });
+  });
+});
+
+describe('getNotificationSettings', () => {
+  it('email всегда включён; каналы отражают available/linked/enabled', async () => {
+    isTelegramEnabled.mockReturnValue(true);
+    isMaxEnabled.mockReturnValue(false);
+    isWhatsAppEnabled.mockReturnValue(true);
+    userFindUnique.mockResolvedValue({
+      telegramChatId: 'tg-1',
+      maxChatId: null,
+      whatsappPhone: '+79991234567',
+      notificationChannels: { telegram: false, whatsapp: true },
+    });
+
+    const { view } = await getNotificationSettings(prisma, session);
+    expect(view.emailAlwaysOn).toBe(true);
+    expect(view.telegram).toEqual({ available: true, linked: true, enabled: false });
+    expect(view.max).toEqual({ available: false, linked: false, enabled: true });
+    expect(view.whatsapp).toEqual({ available: true, phone: '+79991234567', enabled: true });
+  });
+
+  it('пользователь без строки → все каналы unlinked, enabled=true (нет мьюта)', async () => {
+    userFindUnique.mockResolvedValue(null);
+    const { view } = await getNotificationSettings(prisma, session);
+    expect(view.telegram.linked).toBe(false);
+    expect(view.telegram.enabled).toBe(true);
+    expect(view.whatsapp.phone).toBeNull();
   });
 });
 

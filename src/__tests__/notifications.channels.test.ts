@@ -1,12 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { sendNotificationEmail, sendOrgPaymentReceivedEmail, isTelegramEnabled, sendTelegramMessage } =
-  vi.hoisted(() => ({
-    sendNotificationEmail: vi.fn(),
-    sendOrgPaymentReceivedEmail: vi.fn(),
-    isTelegramEnabled: vi.fn(),
-    sendTelegramMessage: vi.fn(),
-  }));
+const {
+  sendNotificationEmail,
+  sendOrgPaymentReceivedEmail,
+  isTelegramEnabled,
+  sendTelegramMessage,
+  isMaxEnabled,
+  sendMaxMessage,
+  isWhatsAppEnabled,
+  sendWhatsAppMessage,
+} = vi.hoisted(() => ({
+  sendNotificationEmail: vi.fn(),
+  sendOrgPaymentReceivedEmail: vi.fn(),
+  isTelegramEnabled: vi.fn(),
+  sendTelegramMessage: vi.fn(),
+  isMaxEnabled: vi.fn(),
+  sendMaxMessage: vi.fn(),
+  isWhatsAppEnabled: vi.fn(),
+  sendWhatsAppMessage: vi.fn(),
+}));
 
 vi.mock('@/lib/email/send', () => ({
   sendNotificationEmail,
@@ -18,8 +30,13 @@ vi.mock('@/lib/telegram/client', () => ({
   sendTelegramMessage,
 }));
 
+vi.mock('@/lib/max/client', () => ({ isMaxEnabled, sendMaxMessage }));
+vi.mock('@/lib/whatsapp/aggregator', () => ({ isWhatsAppEnabled, sendWhatsAppMessage }));
+
 import { emailChannel } from '@/lib/notifications/channels/email';
 import { telegramChannel } from '@/lib/notifications/channels/telegram';
+import { maxChannel } from '@/lib/notifications/channels/max';
+import { whatsappChannel } from '@/lib/notifications/channels/whatsapp';
 import { getChannels } from '@/lib/notifications/channels/registry';
 import { deliverToRecipient } from '@/lib/notifications/channels/deliver';
 import type { ChannelPayload, ChannelRecipient } from '@/lib/notifications/channels/types';
@@ -47,6 +64,8 @@ const basePayload: ChannelPayload = {
 beforeEach(() => {
   vi.clearAllMocks();
   isTelegramEnabled.mockReturnValue(false);
+  isMaxEnabled.mockReturnValue(false);
+  isWhatsAppEnabled.mockReturnValue(false);
 });
 
 describe('emailChannel', () => {
@@ -160,9 +179,89 @@ describe('telegramChannel', () => {
   });
 });
 
+describe('maxChannel (D3)', () => {
+  it('key = max', () => {
+    expect(maxChannel.key).toBe('max');
+  });
+
+  it('isEnabledFor: флаг+привязка+настройка', () => {
+    isMaxEnabled.mockReturnValue(true);
+    expect(maxChannel.isEnabledFor(makeUser({ maxChatId: 'm1' }))).toBe(true);
+    expect(maxChannel.isEnabledFor(makeUser({ maxChatId: null }))).toBe(false);
+    expect(
+      maxChannel.isEnabledFor(makeUser({ maxChatId: 'm1', notificationChannels: { max: false } }))
+    ).toBe(false);
+    isMaxEnabled.mockReturnValue(false);
+    expect(maxChannel.isEnabledFor(makeUser({ maxChatId: 'm1' }))).toBe(false);
+  });
+
+  it('send → sendMaxMessage; ok→sent, !ok→failed', async () => {
+    sendMaxMessage.mockResolvedValue({ ok: true });
+    expect(await maxChannel.send(makeUser({ maxChatId: 'm1' }), basePayload)).toEqual({
+      status: 'sent',
+    });
+    expect(sendMaxMessage).toHaveBeenCalledWith('m1', 'Оплата по заказу № 42\n\nПолучена оплата 100 ₽.');
+
+    sendMaxMessage.mockResolvedValue({ ok: false });
+    expect(await maxChannel.send(makeUser({ maxChatId: 'm1' }), basePayload)).toEqual({
+      status: 'failed',
+      reason: 'transport',
+    });
+  });
+
+  it('send без привязки → skipped/not_linked', async () => {
+    expect(await maxChannel.send(makeUser(), basePayload)).toEqual({
+      status: 'skipped',
+      reason: 'not_linked',
+    });
+  });
+});
+
+describe('whatsappChannel (D4)', () => {
+  it('key = whatsapp', () => {
+    expect(whatsappChannel.key).toBe('whatsapp');
+  });
+
+  it('isEnabledFor: флаг+номер+настройка', () => {
+    isWhatsAppEnabled.mockReturnValue(true);
+    expect(whatsappChannel.isEnabledFor(makeUser({ whatsappPhone: '+79991234567' }))).toBe(true);
+    expect(whatsappChannel.isEnabledFor(makeUser({ whatsappPhone: null }))).toBe(false);
+    expect(
+      whatsappChannel.isEnabledFor(
+        makeUser({ whatsappPhone: '+79991234567', notificationChannels: { whatsapp: false } })
+      )
+    ).toBe(false);
+    isWhatsAppEnabled.mockReturnValue(false);
+    expect(whatsappChannel.isEnabledFor(makeUser({ whatsappPhone: '+79991234567' }))).toBe(false);
+  });
+
+  it('send → sendWhatsAppMessage по номеру; ok→sent, !ok→failed', async () => {
+    sendWhatsAppMessage.mockResolvedValue({ ok: true });
+    expect(
+      await whatsappChannel.send(makeUser({ whatsappPhone: '+79991234567' }), basePayload)
+    ).toEqual({ status: 'sent' });
+    expect(sendWhatsAppMessage).toHaveBeenCalledWith(
+      '+79991234567',
+      'Оплата по заказу № 42\n\nПолучена оплата 100 ₽.'
+    );
+
+    sendWhatsAppMessage.mockResolvedValue({ ok: false });
+    expect(
+      await whatsappChannel.send(makeUser({ whatsappPhone: '+79991234567' }), basePayload)
+    ).toEqual({ status: 'failed', reason: 'transport' });
+  });
+
+  it('send без номера → skipped/not_linked', async () => {
+    expect(await whatsappChannel.send(makeUser(), basePayload)).toEqual({
+      status: 'skipped',
+      reason: 'not_linked',
+    });
+  });
+});
+
 describe('registry', () => {
-  it('D1: email и telegram зарегистрированы (в этом порядке)', () => {
-    expect(getChannels().map((c) => c.key)).toEqual(['email', 'telegram']);
+  it('D1–D4: email, telegram, max, whatsapp зарегистрированы (в этом порядке)', () => {
+    expect(getChannels().map((c) => c.key)).toEqual(['email', 'telegram', 'max', 'whatsapp']);
   });
 });
 

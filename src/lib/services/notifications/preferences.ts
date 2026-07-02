@@ -8,11 +8,66 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import {
+  channelPrefEnabled,
   isOptionalChannelKey,
   parseChannelPrefs,
   type ChannelPrefs,
 } from '@/lib/notifications/channels/preferences';
+import { isTelegramEnabled } from '@/lib/telegram/client';
+import { isMaxEnabled } from '@/lib/max/client';
+import { isWhatsAppEnabled } from '@/lib/whatsapp/aggregator';
 import { recordAudit } from '@/lib/auth/audit';
+
+/**
+ * Полное представление настроек каналов для UI (D2). Собирает привязки,
+ * пользовательские toggle-и и env/flag-доступность каждого канала. Email —
+ * всегда включён, отдельным полем `emailAlwaysOn` (в UI показывается как
+ * «всегда включён, не отключается»).
+ */
+export type NotificationSettingsView = {
+  emailAlwaysOn: true;
+  telegram: { available: boolean; linked: boolean; enabled: boolean };
+  max: { available: boolean; linked: boolean; enabled: boolean };
+  whatsapp: { available: boolean; phone: string | null; enabled: boolean };
+};
+
+export async function getNotificationSettings(
+  prisma: PrismaClient,
+  session: SessionPayload
+): Promise<{ ok: true; view: NotificationSettingsView }> {
+  const user = await prisma.user.findUnique({
+    where: { id: session.sub },
+    select: {
+      telegramChatId: true,
+      maxChatId: true,
+      whatsappPhone: true,
+      notificationChannels: true,
+    },
+  });
+  const prefs = parseChannelPrefs(user?.notificationChannels);
+
+  return {
+    ok: true,
+    view: {
+      emailAlwaysOn: true,
+      telegram: {
+        available: isTelegramEnabled(),
+        linked: !!user?.telegramChatId,
+        enabled: channelPrefEnabled(prefs, 'telegram'),
+      },
+      max: {
+        available: isMaxEnabled(),
+        linked: !!user?.maxChatId,
+        enabled: channelPrefEnabled(prefs, 'max'),
+      },
+      whatsapp: {
+        available: isWhatsAppEnabled(),
+        phone: user?.whatsappPhone ?? null,
+        enabled: channelPrefEnabled(prefs, 'whatsapp'),
+      },
+    },
+  };
+}
 
 export async function updateChannelPreference(
   prisma: PrismaClient,

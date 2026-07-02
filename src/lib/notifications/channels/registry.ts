@@ -6,7 +6,9 @@
 import type { NotificationChannel } from './types';
 import { emailChannel } from './email';
 import { telegramChannel } from './telegram';
+import { maxChannel } from './max';
+import { whatsappChannel } from './whatsapp';
 
 export function getChannels(): NotificationChannel[] {
-  return [emailChannel, telegramChannel];
+  return [emailChannel, telegramChannel, maxChannel, whatsappChannel];
 }
