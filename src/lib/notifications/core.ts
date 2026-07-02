@@ -1,8 +1,8 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
-import { sendNotificationEmail } from '@/lib/email/send';
-import { isEmailEnabled } from '@/lib/email/transport';
-import { isTelegramEnabled, sendTelegramMessage } from '@/lib/telegram/client';
+import { deliverToRecipient, type DeliveryResults } from './channels/deliver';
+import { dispatchToRecipient } from './channels/dispatch';
+import { CHANNEL_RECIPIENT_SELECT, type ChannelKey, type ChannelPayload } from './channels/types';
 
 type NotificationInput = {
   userId: string;
@@ -36,56 +36,57 @@ export async function notifyMessageCreated(params: Omit<NotificationInput, "type
 }
 
 /**
- * Fan-out hook called after in-app notifications. Looks up the recipient's
- * email and dispatches a generic notification email via Resend (when
- * configured). Silent no-op when EMAIL_ENABLED!=true or the API key is
- * missing — callers never need to gate this themselves.
+ * Доставка одиночного уведомления по каналам пользователя (трек D).
+ * Заменяет пару triggerNotificationEmail/triggerNotificationTelegram: один
+ * вызов = все включённые каналы получателя, email — с generic-шаблоном
+ * `notification`. Гейты каналов (EMAIL_ENABLED, привязки, настройки) живут
+ * в самих каналах — вызывающим не нужно ничего проверять.
+ *
+ * `channels` сужает веер (например, monitoring/deliver.ts шлёт ops-алерты
+ * только email — персональный Telegram дублировал бы общий алерт-чат).
+ *
+ * `dedupKey` (id соответствующей Notification-строки) включает D5-очередь
+ * при флаге notif_queue; без него доставка всегда inline.
  */
-export async function triggerNotificationEmail(payload: {
+export async function deliverNotificationToUser(payload: {
   userId: string;
   title: string;
   body: string;
   type: string;
   url?: string;
-}) {
-  if (!isEmailEnabled()) return;
-
+  channels?: ChannelKey[];
+  dedupKey?: string;
+}): Promise<DeliveryResults> {
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
-    select: { email: true, name: true },
+    select: CHANNEL_RECIPIENT_SELECT,
   });
-  if (!user?.email) return;
+  if (!user) return {};
 
-  await sendNotificationEmail({
-    to: user.email,
-    recipientName: user.name || 'партнёр',
+  const channelPayload: ChannelPayload = {
+    type: payload.type,
     title: payload.title,
     body: payload.body,
     url: payload.url,
-  });
-}
+    email: {
+      template: 'notification',
+      props: {
+        recipientName: user.name || 'партнёр',
+        title: payload.title,
+        body: payload.body,
+        url: payload.url,
+      },
+    },
+  };
+  const opts = payload.channels ? { channels: payload.channels } : {};
 
-/**
- * Best-effort Telegram notification hook. Mirrors `triggerNotificationEmail` —
- * called at the same sites with the same payload. Silent no-op when Telegram is
- * not configured (`TELEGRAM_BOT_TOKEN` / `TELEGRAM_BOT_USERNAME` unset) or the
- * user has no `telegramChatId`. A transport-level failure must never propagate
- * to callers — they treat Telegram as a side channel, not the source of truth.
- */
-export async function triggerNotificationTelegram(payload: {
-  userId: string;
-  title: string;
-  body: string;
-  type: string;
-  url?: string;
-}): Promise<void> {
-  if (!isTelegramEnabled()) return;
+  if (payload.dedupKey) {
+    const outcome = await dispatchToRecipient(user, channelPayload, {
+      ...opts,
+      dedupKey: payload.dedupKey,
+    });
+    return outcome.mode === 'inline' ? outcome.results : {};
+  }
 
-  const user = await prisma.user.findUnique({
-    where: { id: payload.userId },
-    select: { telegramChatId: true },
-  });
-  if (!user?.telegramChatId) return;
-
-  await sendTelegramMessage(user.telegramChatId, `${payload.title}\n\n${payload.body}`);
+  return deliverToRecipient(user, channelPayload, payload.channels ? opts : undefined);
 }

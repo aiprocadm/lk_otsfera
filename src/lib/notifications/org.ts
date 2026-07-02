@@ -1,13 +1,6 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
-import {
-  sendNotificationEmail,
-  sendOrgDocumentPublishedEmail,
-  sendOrgManagerRepliedEmail,
-  sendOrgOrderStatusChangedEmail,
-  sendOrgPaymentReceivedEmail,
-  type SendResult,
-} from '@/lib/email/send';
-import { isTelegramEnabled, sendTelegramMessage } from '@/lib/telegram/client';
+import { dispatchToRecipient } from './channels/dispatch';
+import { CHANNEL_RECIPIENT_SELECT, type ChannelPayload, type EmailContentRef } from './channels/types';
 import { getAppBaseUrl, orderLabel } from './shared';
 
 type OrgNotifyInput =
@@ -70,6 +63,8 @@ export type NotifyOrgUsersSummary = {
   recipientsNotified: number;
   emailsSent: number;
   emailsSkipped: number;
+  /** D5: email-каналы, поставленные в очередь (только при notif_queue). */
+  emailsQueued?: number;
 };
 
 function buildOrgNotification(
@@ -156,75 +151,89 @@ function buildOrgNotification(
   };
 }
 
-async function dispatchOrgEmail(
-  to: string,
+/**
+ * Сериализуемая ссылка на email-шаблон события (D1). Раньше здесь была
+ * функция-отправитель (`dispatchOrgEmail`) — теперь только выбор шаблона и
+ * props, а отправку делает email-канал (те же sender-функции send.tsx).
+ */
+function buildOrgEmailRef(
   input: OrgNotifyInput,
   organizationName: string,
   orderUrl: string
-): Promise<SendResult> {
+): EmailContentRef {
   if (input.type === 'document_published') {
-    return sendOrgDocumentPublishedEmail({
-      to,
-      organizationName,
-      orderNumber: input.payload.orderNumber,
-      orderTitle: input.payload.orderTitle,
-      documentName: input.payload.documentName,
-      documentType: input.payload.documentType,
-      orderUrl
-    });
+    return {
+      template: 'orgDocumentPublished',
+      props: {
+        organizationName,
+        orderNumber: input.payload.orderNumber,
+        orderTitle: input.payload.orderTitle,
+        documentName: input.payload.documentName,
+        documentType: input.payload.documentType,
+        orderUrl
+      }
+    };
   }
   if (input.type === 'payment_received') {
-    return sendOrgPaymentReceivedEmail({
-      to,
-      organizationName,
-      orderNumber: input.payload.orderNumber,
-      orderTitle: input.payload.orderTitle,
-      amount: input.payload.amount,
-      paidAt: input.payload.paidAt,
-      orderUrl
-    });
+    return {
+      template: 'orgPaymentReceived',
+      props: {
+        organizationName,
+        orderNumber: input.payload.orderNumber,
+        orderTitle: input.payload.orderTitle,
+        amount: input.payload.amount,
+        paidAt: input.payload.paidAt,
+        orderUrl
+      }
+    };
   }
   if (input.type === 'manager_replied') {
-    return sendOrgManagerRepliedEmail({
-      to,
-      organizationName,
-      orderNumber: input.payload.orderNumber,
-      orderTitle: input.payload.orderTitle,
-      commentExcerpt: input.payload.commentExcerpt,
-      orderUrl
-    });
+    return {
+      template: 'orgManagerReplied',
+      props: {
+        organizationName,
+        orderNumber: input.payload.orderNumber,
+        orderTitle: input.payload.orderTitle,
+        commentExcerpt: input.payload.commentExcerpt,
+        orderUrl
+      }
+    };
   }
   if (input.type === 'chat_message') {
     const { orderNumber, orderTitle, excerpt } = input.payload;
     const label = orderLabel(orderNumber, orderTitle);
-    return sendNotificationEmail({
-      to,
-      title: `Новое сообщение по заказу ${label}`,
-      body: excerpt,
-      recipientName: organizationName,
-      url: orderUrl
-    });
+    return {
+      template: 'notification',
+      props: {
+        title: `Новое сообщение по заказу ${label}`,
+        body: excerpt,
+        recipientName: organizationName,
+        url: orderUrl
+      }
+    };
   }
-  return sendOrgOrderStatusChangedEmail({
-    to,
-    organizationName,
-    orderNumber: input.payload.orderNumber,
-    orderTitle: input.payload.orderTitle,
-    dimension: input.payload.dimension,
-    oldStatus: input.payload.oldStatus,
-    newStatus: input.payload.newStatus,
-    orderUrl
-  });
+  return {
+    template: 'orgOrderStatusChanged',
+    props: {
+      organizationName,
+      orderNumber: input.payload.orderNumber,
+      orderTitle: input.payload.orderTitle,
+      dimension: input.payload.dimension,
+      oldStatus: input.payload.oldStatus,
+      newStatus: input.payload.newStatus,
+      orderUrl
+    }
+  };
 }
 
 /**
  * Fan-out notification to all active members of an organization.
  *
- * Always creates in-app Notification rows. Email is best-effort — when the
- * Resend pipeline is disabled (no EMAIL_ENABLED=true or no RESEND_API_KEY),
- * `send()` returns `{status:'skipped'}` and the function still reports
- * recipients as notified (the bell counter is the source of truth, not the
- * inbox).
+ * Always creates in-app Notification rows. Доставка по внешним каналам —
+ * через канальный слой (`deliverToRecipient`, D1): email best-effort (когда
+ * Resend-пайплайн выключен, канал возвращает `skipped`), Telegram — при
+ * привязке. Функция по-прежнему считает recipients notified по in-app
+ * строкам (bell counter — источник истины, не inbox).
  */
 export async function notifyOrgUsers(
   db: PrismaClient,
@@ -238,7 +247,7 @@ export async function notifyOrgUsers(
       organizationUsers: {
         where: { isActive: true, user: { isActive: true } },
         select: {
-          user: { select: { id: true, email: true, telegramChatId: true } }
+          user: { select: CHANNEL_RECIPIENT_SELECT }
         }
       }
     }
@@ -252,13 +261,21 @@ export async function notifyOrgUsers(
     ? `${getAppBaseUrl()}/organization/documents?tab=general`
     : `${getAppBaseUrl()}/organization/orders/${input.payload.orderId}`;
   const { title, body, meta } = buildOrgNotification(input, org.name, orderUrl);
+  const channelPayload: ChannelPayload = {
+    type: input.type,
+    title,
+    body,
+    url: orderUrl,
+    email: buildOrgEmailRef(input, org.name, orderUrl)
+  };
 
   let emailsSent = 0;
   let emailsSkipped = 0;
+  let emailsQueued = 0;
   let recipientsNotified = 0;
 
   for (const member of org.organizationUsers) {
-    await db.notification.create({
+    const row = await db.notification.create({
       data: {
         userId: member.user.id,
         organizationId: org.id,
@@ -270,29 +287,31 @@ export async function notifyOrgUsers(
     });
     recipientsNotified += 1;
 
-    if (member.user.email) {
-      // Best-effort: a transport-level throw for one recipient must not abort
-      // the fan-out (in-app rows are the source of truth) nor propagate to
-      // callers that treat email as a side effect.
-      try {
-        const result = await dispatchOrgEmail(member.user.email, input, org.name, orderUrl);
-        if (result.status === 'sent') emailsSent += 1;
-        else emailsSkipped += 1;
-      } catch (err) {
-        emailsSkipped += 1;
-        console.warn('[notifyOrgUsers] email dispatch failed', {
-          organizationId: org.id,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
+    // Best-effort: канальный слой изолирует ошибки per-channel — сбой одного
+    // получателя/канала не прерывает fan-out (in-app строки — источник истины).
+    const outcome = await dispatchToRecipient(member.user, channelPayload, { dedupKey: row.id });
+    if (outcome.mode === 'queued') {
+      if (outcome.channels.includes('email')) emailsQueued += 1;
+      else emailsSkipped += 1;
+      continue;
+    }
+    if (outcome.results.email?.status === 'sent') {
+      emailsSent += 1;
     } else {
       emailsSkipped += 1;
     }
-
-    if (member.user.telegramChatId && isTelegramEnabled()) {
-      await sendTelegramMessage(member.user.telegramChatId, `${title}\n\n${body}`).catch(() => {});
+    if (outcome.results.email?.status === 'failed') {
+      console.warn('[notifyOrgUsers] email dispatch failed', {
+        organizationId: org.id,
+        error: outcome.results.email.reason,
+      });
     }
   }
 
-  return { recipientsNotified, emailsSent, emailsSkipped };
+  return {
+    recipientsNotified,
+    emailsSent,
+    emailsSkipped,
+    ...(emailsQueued > 0 ? { emailsQueued } : {})
+  };
 }

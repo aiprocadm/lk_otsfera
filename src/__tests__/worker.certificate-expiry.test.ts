@@ -2,9 +2,8 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 
 const { createNotification } = vi.hoisted(() => ({ createNotification: vi.fn().mockResolvedValue({}) }));
-const { triggerNotificationEmail } = vi.hoisted(() => ({ triggerNotificationEmail: vi.fn().mockResolvedValue(undefined) }));
-const { triggerNotificationTelegram } = vi.hoisted(() => ({ triggerNotificationTelegram: vi.fn().mockResolvedValue(undefined) }));
-vi.mock('@/lib/notifications', () => ({ createNotification, triggerNotificationEmail, triggerNotificationTelegram }));
+const { deliverNotificationToUser } = vi.hoisted(() => ({ deliverNotificationToUser: vi.fn().mockResolvedValue({}) }));
+vi.mock('@/lib/notifications', () => ({ createNotification, deliverNotificationToUser }));
 
 import { runCertificateExpiry } from '@/worker/processors/certificate-expiry';
 
@@ -42,6 +41,9 @@ describe('certificate-expiry processor', () => {
     const first = await runCertificateExpiry(prisma, new Date());
     expect(first.remindersSent).toBeGreaterThanOrEqual(1);
     expect(createNotification).toHaveBeenCalled();
+    expect(deliverNotificationToUser).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'certificate_expiring' })
+    );
 
     const reminders = await prisma.certificateReminder.findMany({ where: { certificateId: ids.cert } });
     expect(reminders).toHaveLength(1);

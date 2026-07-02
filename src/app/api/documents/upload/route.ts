@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { requireOrderAccess, requireRole, requireSession } from '@/lib/auth/guard';
-import { notifyDocumentCreated, triggerNotificationEmail, triggerNotificationTelegram } from '@/lib/notifications';
+import { deliverNotificationToUser, notifyDocumentCreated } from '@/lib/notifications';
 import { getPrimaryOrganizationId } from '@/lib/auth/organization';
 import { getObjectStorage } from '@/lib/storage';
 import { getQueue } from '@/lib/jobs/queues';
@@ -149,7 +149,7 @@ export async function POST(req: Request) {
   // would retry and create a duplicate).
   try {
     const organizationId = await getPrimaryOrganizationId(s);
-    await notifyDocumentCreated({
+    const row = await notifyDocumentCreated({
       userId: s.sub,
       organizationId,
       partnerId: s.partnerId,
@@ -157,8 +157,13 @@ export async function POST(req: Request) {
       body: `Загружен документ ${file.name}`,
       meta: { orderId, documentId: doc.id }
     });
-    await triggerNotificationEmail({ userId: s.sub, title: 'Новый документ', body: `Загружен документ ${file.name}`, type: 'document_created' });
-    await triggerNotificationTelegram({ userId: s.sub, title: 'Новый документ', body: `Загружен документ ${file.name}`, type: 'document_created' });
+    await deliverNotificationToUser({
+      userId: s.sub,
+      title: 'Новый документ',
+      body: `Загружен документ ${file.name}`,
+      type: 'document_created',
+      dedupKey: row.id
+    });
   } catch (err) {
     console.warn('[documents/upload] notification fan-out failed', {
       correlationId,

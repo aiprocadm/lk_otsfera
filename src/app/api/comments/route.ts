@@ -9,11 +9,10 @@ import {
   getCompanyTeamVisibility,
 } from '@/lib/auth/managerPolicy';
 import {
+  deliverNotificationToUser,
   notifyManagers,
   notifyMessageCreated,
   notifyOrgUsers,
-  triggerNotificationEmail,
-  triggerNotificationTelegram,
 } from '@/lib/notifications';
 import { getPrimaryOrganizationId } from '@/lib/auth/organization';
 import { recordAudit } from '@/lib/auth/audit';
@@ -185,7 +184,7 @@ export async function POST(req: Request) {
   // transport failures must not turn into a 500 for an already-posted comment.
   try {
     const organizationId = await getPrimaryOrganizationId(s);
-    await notifyMessageCreated({
+    const row = await notifyMessageCreated({
       userId: s.sub,
       organizationId,
       partnerId: s.partnerId,
@@ -193,8 +192,13 @@ export async function POST(req: Request) {
       body,
       meta: { orderId, commentId: comment.id }
     });
-    await triggerNotificationEmail({ userId: s.sub, title: 'Новое сообщение', body, type: 'message_created' });
-    await triggerNotificationTelegram({ userId: s.sub, title: 'Новое сообщение', body, type: 'message_created' });
+    await deliverNotificationToUser({
+      userId: s.sub,
+      title: 'Новое сообщение',
+      body,
+      type: 'message_created',
+      dedupKey: row.id
+    });
   } catch (err) {
     console.warn('[api/comments] notification fan-out failed', {
       commentId: comment.id,

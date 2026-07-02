@@ -22,6 +22,14 @@ export const FEATURE_FLAGS = [
   'leader_cabinet',
   'chat',
   'enrollment_requests',
+  // Трек D: каналы уведомлений. Не route-флаги — точки чтения: транспорт
+  // (isMaxEnabled/isWhatsAppEnabled → канал+диспетчер), settings-UI (карточка),
+  // webhook/binding-роуты (notFoundIfDisabled). Middleware/nav неприменимы.
+  'max_channel',
+  'whatsapp_channel',
+  // Трек D5: доставка уведомлений через воркер (BullMQ) вместо inline.
+  // Точка чтения одна — диспетчер (dispatchToRecipient). Требует REDIS_URL.
+  'notif_queue',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -36,7 +44,10 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'manager_cabinet',
   'leader_cabinet',
   'chat',
-  'enrollment_requests'
+  'enrollment_requests',
+  'max_channel',
+  'whatsapp_channel',
+  'notif_queue'
 ]);
 
 export class FeatureDisabledError extends Error {
