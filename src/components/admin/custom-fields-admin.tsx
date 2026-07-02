@@ -128,14 +128,12 @@ export function CustomFieldsAdmin({ definitions }: Props) {
 
       <TableShell>
         <THead>
-          <tr>
-            <Th>Название</Th>
-            <Th>Ключ</Th>
-            <Th>Тип</Th>
-            <Th>Обязательное</Th>
-            <Th>Активно</Th>
-            <Th>Действия</Th>
-          </tr>
+          <Th>Название</Th>
+          <Th>Ключ</Th>
+          <Th>Тип</Th>
+          <Th>Обязательное</Th>
+          <Th>Активно</Th>
+          <Th>Действия</Th>
         </THead>
         <tbody>
           {definitions.length === 0 && (
