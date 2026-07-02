@@ -92,12 +92,10 @@ export function DirectionsAdmin({ directions }: Props) {
 
       <TableShell>
         <THead>
-          <tr>
-            <Th>Название</Th>
-            <Th>Порядок</Th>
-            <Th>Активно</Th>
-            <Th>Действия</Th>
-          </tr>
+          <Th>Название</Th>
+          <Th>Порядок</Th>
+          <Th>Активно</Th>
+          <Th>Действия</Th>
         </THead>
         <tbody>
           {directions.length === 0 && (
