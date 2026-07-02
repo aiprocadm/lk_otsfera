@@ -54,6 +54,8 @@ function makeDb(o: DbOpts = {}) {
   return {
     partner: { findUnique: vi.fn().mockResolvedValue('partner' in o ? o.partner : { commissionRate: new Prisma.Decimal('0.1') }) },
     commissionRateChange: { findMany: vi.fn().mockResolvedValue(o.rateChanges ?? []) },
+    // F4: история org-override; пустая по умолчанию (fallback на текущее значение).
+    organizationCommissionRateChange: { findMany: vi.fn().mockResolvedValue((o as any).orgRateChanges ?? []) },
     payment: { findMany: vi.fn().mockResolvedValue(o.payments ?? []) },
     commissionCorrection: { findMany: vi.fn().mockResolvedValue((o as any).corrections ?? []) },
     commissionStatement: { findFirst, create: tx.commissionStatement.create, update: tx.commissionStatement.update },

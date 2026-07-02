@@ -33,6 +33,15 @@ export async function setOrgCommissionRate(
         partnerCommissionRateChangedBy: input.changedByUserId
       }
     });
+    // F4 (A5): append-only история — расчёт ведомости берёт override на paidAt.
+    await tx.organizationCommissionRateChange.create({
+      data: {
+        organizationId: input.organizationId,
+        oldRate: org.partnerCommissionRate,
+        newRate: input.newRate,
+        changedById: input.changedByUserId
+      }
+    });
     await recordAudit(tx, {
       userId: input.changedByUserId,
       action: 'partner_commission_rate_changed',
@@ -65,6 +74,15 @@ export async function clearOrgCommissionRate(
         partnerCommissionRateNote: null,
         partnerCommissionRateChangedAt: new Date(),
         partnerCommissionRateChangedBy: input.changedByUserId
+      }
+    });
+    // F4 (A5): событие «очистка» — newRate null (возврат к наследованию).
+    await tx.organizationCommissionRateChange.create({
+      data: {
+        organizationId: input.organizationId,
+        oldRate: org.partnerCommissionRate,
+        newRate: null,
+        changedById: input.changedByUserId
       }
     });
     await recordAudit(tx, {

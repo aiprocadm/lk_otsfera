@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
-import { resolveEffectiveRate, type RateChange } from './rateResolve';
+import { resolveEffectiveRate, type RateChange, type OrgRateChange } from './rateResolve';
 
 const HALF_UP = Prisma.Decimal.ROUND_HALF_UP;
 
@@ -16,10 +16,11 @@ export async function detectLateRefundCorrections(prisma: PrismaClient): Promise
   const refunds = await prisma.payment.findMany({
     where: { isRefund: true, commissionCorrection: { is: null } },
     select: {
-      id: true, amount: true, paidAt: true, orderId: true,
+      id: true, amount: true, paidAt: true, orderId: true, organizationId: true,
       order: { select: { partnerId: true } },
       // A2 (§6.2): сторно возврата считаем по эффективной ставке. Override
-      // организации date-independent → совпадает с исходным платежом точно.
+      // организации резолвится по истории на paidAt (F4) → совпадает с исходным
+      // платежом того же периода.
       // Для исторической ставки партнёра у возврата нет ссылки на исходный платёж
       // (в схеме нет refund→original), поэтому берём ставку на дату ВОЗВРАТА как
       // прокси: в общем случае (смена ставки на границе месяца) она совпадает с
@@ -49,11 +50,19 @@ export async function detectLateRefundCorrections(prisma: PrismaClient): Promise
     const changes: RateChange[] = await prisma.commissionRateChange.findMany({
       where: { partnerId }, select: { effectiveFrom: true, oldRate: true, newRate: true }, orderBy: { effectiveFrom: 'asc' },
     });
+    // F4 (A5): org-override на дату возврата — из истории (зеркало statement.ts).
+    const orgChanges: OrgRateChange[] = await prisma.organizationCommissionRateChange.findMany({
+      where: { organizationId: r.organizationId },
+      select: { effectiveFrom: true, oldRate: true, newRate: true },
+      orderBy: { effectiveFrom: 'asc' },
+    });
     const rate = resolveEffectiveRate({
       // Honor the org override only when the org belongs to the resolved partner
       // (mirror statement.ts: a payment can be attributed via order.partnerId to a
-      // different partner than the org's own).
+      // different partner than the org's own). F4: the same gate zeroes the history
+      // (empty list, not undefined) so a foreign org's timeline never applies.
       orgOverride: r.organization?.partnerId === partnerId ? (r.organization?.partnerCommissionRate ?? null) : null,
+      orgChanges: r.organization?.partnerId === partnerId ? orgChanges : [],
       changes,
       paidAt: r.paidAt,
       partnerDefault: partner?.commissionRate ?? new Prisma.Decimal(0),

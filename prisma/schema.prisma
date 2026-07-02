@@ -428,6 +428,26 @@ model CommissionRateChange {
   @@index([partnerId, effectiveFrom])
 }
 
+/// F4 (§16, A5): история индивидуальной ставки организации. Append-only, по
+/// образцу CommissionRateChange. resolveEffectiveRate резолвит по ней
+/// org-override, действовавший на дату платежа (воспроизводимость расчёта при
+/// изменении договорной ставки задним числом). Отличие от партнёрской истории:
+/// newRate nullable — null = событие «очистка» (возврат к наследованию уровня
+/// партнёра); oldRate null = до этой смены ставка не была задана.
+model OrganizationCommissionRateChange {
+  id             String       @id @default(cuid())
+  createdAt      DateTime     @default(now())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  oldRate        Decimal?     @db.Decimal(6, 4)
+  newRate        Decimal?     @db.Decimal(6, 4)
+  effectiveFrom  DateTime     @default(now())
+  changedById    String?
+
+  // Явное map: дефолтное имя превысило бы 63-байтовый лимит идентификатора PG.
+  @@index([organizationId, effectiveFrom], map: "OrgCommissionRateChange_organizationId_effectiveFrom_idx")
+}
+
 model Organization {
   id                             String                @id @default(cuid())
   createdAt                      DateTime              @default(now())
@@ -455,9 +475,14 @@ model Organization {
   payments                       Payment[]
   enrollmentRequests             EnrollmentRequest[]
   certificates                   Certificate[]
+  commissionRateChanges          OrganizationCommissionRateChange[]
 
   @@index([partnerId])
   @@index([externalId])
+  // F2 (§16): C8 company-wide org scope filters `where { companyId }`
+  // (managerPolicy.managerOrgScope → manager/organizations listOrganizations,
+  // manager/finance overview). companyId had no index at all.
+  @@index([companyId])
 }
 
 model OrganizationUser {
@@ -570,6 +595,12 @@ model Order {
   @@index([externalId])
   @@index([closedAt])
   @@index([managerId, executionStatus])
+  // F2 (§16): C8 company-wide manager scope filters `where { companyId, … }`
+  // (managerPolicy.companyWideOrderFilter → manager/orders listOrders,
+  // leader/dashboard groupBy activeWhere, manager/dashboard KPIs). No index
+  // led with companyId existed — every company-wide list was a seq scan.
+  @@index([companyId, executionStatus])
+  @@index([companyId, financialStatus])
 }
 
 model Document {
@@ -644,6 +675,15 @@ model AuditLog {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   meta      Json?
+
+  // F1 (§16): AuditLog had zero indexes → full seq scan on every filtered read.
+  // Patterns from services: per-entity trail (manager/orderDetail.ts,
+  // admin/commissionStatements.ts) → [entity, entityId]; actor filter + recency
+  // sort (admin/auditLog.ts listAudit) → [userId, createdAt]; global recency feed
+  // (admin/dashboard.ts recentEvents, listAudit default) → [createdAt].
+  @@index([entity, entityId])
+  @@index([userId, createdAt])
+  @@index([createdAt])
 }
 
 model Notification {
@@ -662,7 +702,13 @@ model Notification {
   isRead         Boolean       @default(false)
   meta           Json?
 
-  @@index([userId])
+  // F2 (§16): the notification feed reads `where userId orderBy createdAt desc`
+  // (api/notifications GET) and the unread badge counts `where userId, isRead`
+  // (manager/dashboard/kpis). [userId, createdAt] serves the feed and subsumes
+  // the old single-column [userId] (leading-prefix), which is dropped as
+  // redundant; [userId, isRead] serves the unread count.
+  @@index([userId, createdAt])
+  @@index([userId, isRead])
   @@index([organizationId])
   @@index([partnerId])
   @@index([createdAt])
