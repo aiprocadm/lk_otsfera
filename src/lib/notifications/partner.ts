@@ -1,5 +1,5 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
-import { deliverToRecipient } from './channels/deliver';
+import { dispatchToRecipient } from './channels/dispatch';
 import {
   CHANNEL_RECIPIENT_SELECT,
   type ChannelPayload,
@@ -133,6 +133,8 @@ export type NotifyPartnerSummary = {
   recipientsNotified: number;
   emailsSent: number;
   emailsSkipped: number;
+  /** D5: email-каналы, поставленные в очередь (только при notif_queue). */
+  emailsQueued?: number;
 };
 
 export async function notifyPartnerUsers(
@@ -163,11 +165,12 @@ export async function notifyPartnerUsers(
 
   let emailsSent = 0;
   let emailsSkipped = 0;
+  let emailsQueued = 0;
   let recipientsNotified = 0;
 
   for (const pu of partner.partnerUsers) {
     const u = pu.user;
-    await db.notification.create({
+    const row = await db.notification.create({
       data: {
         userId: u.id,
         partnerId: partner.id,
@@ -179,19 +182,29 @@ export async function notifyPartnerUsers(
     });
     recipientsNotified += 1;
 
-    const results = await deliverToRecipient(u, channelPayload);
-    if (results.email?.status === 'sent') {
+    const outcome = await dispatchToRecipient(u, channelPayload, { dedupKey: row.id });
+    if (outcome.mode === 'queued') {
+      if (outcome.channels.includes('email')) emailsQueued += 1;
+      else emailsSkipped += 1;
+      continue;
+    }
+    if (outcome.results.email?.status === 'sent') {
       emailsSent += 1;
     } else {
       emailsSkipped += 1;
     }
-    if (results.email?.status === 'failed') {
+    if (outcome.results.email?.status === 'failed') {
       console.warn('[notifyPartnerUsers] email dispatch failed', {
         partnerId: partner.id,
-        error: results.email.reason
+        error: outcome.results.email.reason
       });
     }
   }
 
-  return { recipientsNotified, emailsSent, emailsSkipped };
+  return {
+    recipientsNotified,
+    emailsSent,
+    emailsSkipped,
+    ...(emailsQueued > 0 ? { emailsQueued } : {})
+  };
 }

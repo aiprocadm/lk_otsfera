@@ -16,6 +16,7 @@ import { calculateMonthlyCommissionsProcessor } from './processors/calculate-mon
 import { scanDocumentProcessor } from './processors/scan-document';
 import { evaluateAlertsProcessor } from './processors/evaluate-alerts';
 import { certificateExpiryProcessor } from './processors/certificate-expiry';
+import { dispatchNotificationProcessor } from './processors/dispatch-notification';
 import type { PushLeadJobPayload } from '@/lib/jobs/types';
 
 const workers: Worker[] = [];
@@ -68,6 +69,7 @@ async function main() {
   startWorker('docs.scanDocument', scanDocumentProcessor as Processor);
   startWorker('monitoring.evaluateAlerts', evaluateAlertsProcessor as Processor);
   startWorker('notifications.certificateExpiry', certificateExpiryProcessor as Processor);
+  startWorker('notifications.dispatch', dispatchNotificationProcessor as Processor);
 
   if (process.env.ENABLE_SYNC_CRON === '1') {
     const pausedIds = await loadPausedSchedulerIds(prisma);

@@ -184,7 +184,7 @@ export async function POST(req: Request) {
   // transport failures must not turn into a 500 for an already-posted comment.
   try {
     const organizationId = await getPrimaryOrganizationId(s);
-    await notifyMessageCreated({
+    const row = await notifyMessageCreated({
       userId: s.sub,
       organizationId,
       partnerId: s.partnerId,
@@ -192,7 +192,13 @@ export async function POST(req: Request) {
       body,
       meta: { orderId, commentId: comment.id }
     });
-    await deliverNotificationToUser({ userId: s.sub, title: 'Новое сообщение', body, type: 'message_created' });
+    await deliverNotificationToUser({
+      userId: s.sub,
+      title: 'Новое сообщение',
+      body,
+      type: 'message_created',
+      dedupKey: row.id
+    });
   } catch (err) {
     console.warn('[api/comments] notification fan-out failed', {
       commentId: comment.id,

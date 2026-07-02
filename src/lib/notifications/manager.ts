@@ -11,7 +11,7 @@ import {
   managerOrderStatusChangedSubject,
   managerOrderStatusChangedText
 } from '@/lib/email/templates';
-import { deliverToRecipient } from './channels/deliver';
+import { dispatchToRecipient } from './channels/dispatch';
 import {
   CHANNEL_RECIPIENT_SELECT,
   type ChannelPayload,
@@ -87,6 +87,8 @@ export type NotifyManagersSummary = {
   recipientsNotified: number;
   emailsSent: number;
   emailsSkipped: number;
+  /** D5: email-каналы, поставленные в очередь (только при notif_queue). */
+  emailsQueued?: number;
 };
 
 /** Получатель фан-аута — узкий select канального слоя (D1). */
@@ -324,18 +326,28 @@ export async function notifyManagersOrderLess(
     email: { template: 'managerDocumentUploadedByOrg', props }
   };
 
-  let emailsSent = 0, emailsSkipped = 0, recipientsNotified = 0;
+  let emailsSent = 0, emailsSkipped = 0, emailsQueued = 0, recipientsNotified = 0;
   for (const r of recipients) {
-    await db.notification.create({
+    const row = await db.notification.create({
       data: { userId: r.id, type: 'document_uploaded_by_org', title: subject, body: shortBody, meta }
     });
     recipientsNotified += 1;
 
-    const results = await deliverToRecipient(r, channelPayload);
-    if (results.email?.status === 'sent') emailsSent += 1;
+    const outcome = await dispatchToRecipient(r, channelPayload, { dedupKey: row.id });
+    if (outcome.mode === 'queued') {
+      if (outcome.channels.includes('email')) emailsQueued += 1;
+      else emailsSkipped += 1;
+      continue;
+    }
+    if (outcome.results.email?.status === 'sent') emailsSent += 1;
     else emailsSkipped += 1;
   }
-  return { recipientsNotified, emailsSent, emailsSkipped };
+  return {
+    recipientsNotified,
+    emailsSent,
+    emailsSkipped,
+    ...(emailsQueued > 0 ? { emailsQueued } : {})
+  };
 }
 
 function getManagerOrderUrl(orderId: string): string {
@@ -404,10 +416,11 @@ export async function notifyManagers(
 
   let emailsSent = 0;
   let emailsSkipped = 0;
+  let emailsQueued = 0;
   let recipientsNotified = 0;
 
   for (const r of recipients) {
-    await db.notification.create({
+    const row = await db.notification.create({
       data: {
         userId: r.id,
         type: input.type,
@@ -420,19 +433,29 @@ export async function notifyManagers(
 
     // Best-effort: канальный слой изолирует ошибки per-channel — сбой одного
     // получателя/канала не прерывает fan-out.
-    const results = await deliverToRecipient(r, channelPayload);
-    if (results.email?.status === 'sent') {
+    const outcome = await dispatchToRecipient(r, channelPayload, { dedupKey: row.id });
+    if (outcome.mode === 'queued') {
+      if (outcome.channels.includes('email')) emailsQueued += 1;
+      else emailsSkipped += 1;
+      continue;
+    }
+    if (outcome.results.email?.status === 'sent') {
       emailsSent += 1;
     } else {
       emailsSkipped += 1;
     }
-    if (results.email?.status === 'failed') {
+    if (outcome.results.email?.status === 'failed') {
       console.warn('[notifyManagers] email dispatch failed', {
         orderId: input.orderId,
-        error: results.email.reason,
+        error: outcome.results.email.reason,
       });
     }
   }
 
-  return { recipientsNotified, emailsSent, emailsSkipped };
+  return {
+    recipientsNotified,
+    emailsSent,
+    emailsSkipped,
+    ...(emailsQueued > 0 ? { emailsQueued } : {})
+  };
 }

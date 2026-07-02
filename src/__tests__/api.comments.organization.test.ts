@@ -153,6 +153,10 @@ describe('POST /api/comments — partner/admin flow unchanged', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getPrimaryOrganizationId.mockResolvedValue('org-x');
+    // notifyMessageCreated возвращает созданную Notification-строку; её id идёт
+    // в deliverNotificationToUser как dedupKey (D5).
+    notifyMessageCreated.mockResolvedValue({ id: 'notif-1' });
+    deliverNotificationToUser.mockResolvedValue({});
     commentCreate.mockResolvedValue({
       id: 'c1',
       orderId: 'ord-1',

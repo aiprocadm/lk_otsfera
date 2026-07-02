@@ -86,14 +86,20 @@ export async function runCertificateExpiry(
     const body = `Удостоверение № ${cert.number} (${cert.student.name}) истекает через ${d.thresholdDays} дн.`;
 
     for (const userId of recipients) {
-      await createNotification({
+      const row = await createNotification({
         userId,
         type: 'certificate_expiring',
         title,
         body,
         meta: { certificateId: cert.id, thresholdDays: d.thresholdDays }
       });
-      await deliverNotificationToUser({ userId, title, body, type: 'certificate_expiring' });
+      await deliverNotificationToUser({
+        userId,
+        title,
+        body,
+        type: 'certificate_expiring',
+        dedupKey: row.id
+      });
     }
 
     remindersSent += 1;

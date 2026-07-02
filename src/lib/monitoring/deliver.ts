@@ -35,15 +35,24 @@ export async function deliverAlert(prisma: PrismaClient, d: AlertDelivery): Prom
   });
 
   for (const a of admins) {
+    let rowId: string | undefined;
     try {
-      await createNotification({ userId: a.id, type, title, body: text });
+      const row = await createNotification({ userId: a.id, type, title, body: text });
+      rowId = row.id;
     } catch (err) {
       console.error('[alerts] in-app notification failed', { userId: a.id, err });
     }
     try {
       // Только email: персональный Telegram дублировал бы общий алерт-чат
       // (deliverTelegram ниже шлёт в ALERT_TELEGRAM_CHAT_ID).
-      await deliverNotificationToUser({ userId: a.id, title, body: text, type, channels: ['email'] });
+      await deliverNotificationToUser({
+        userId: a.id,
+        title,
+        body: text,
+        type,
+        channels: ['email'],
+        dedupKey: rowId
+      });
     } catch (err) {
       console.error('[alerts] email failed', { userId: a.id, err });
     }

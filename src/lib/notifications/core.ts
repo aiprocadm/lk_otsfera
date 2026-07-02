@@ -1,7 +1,8 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { deliverToRecipient, type DeliveryResults } from './channels/deliver';
-import { CHANNEL_RECIPIENT_SELECT, type ChannelKey } from './channels/types';
+import { dispatchToRecipient } from './channels/dispatch';
+import { CHANNEL_RECIPIENT_SELECT, type ChannelKey, type ChannelPayload } from './channels/types';
 
 type NotificationInput = {
   userId: string;
@@ -43,6 +44,9 @@ export async function notifyMessageCreated(params: Omit<NotificationInput, "type
  *
  * `channels` сужает веер (например, monitoring/deliver.ts шлёт ops-алерты
  * только email — персональный Telegram дублировал бы общий алерт-чат).
+ *
+ * `dedupKey` (id соответствующей Notification-строки) включает D5-очередь
+ * при флаге notif_queue; без него доставка всегда inline.
  */
 export async function deliverNotificationToUser(payload: {
   userId: string;
@@ -51,6 +55,7 @@ export async function deliverNotificationToUser(payload: {
   type: string;
   url?: string;
   channels?: ChannelKey[];
+  dedupKey?: string;
 }): Promise<DeliveryResults> {
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
@@ -58,23 +63,30 @@ export async function deliverNotificationToUser(payload: {
   });
   if (!user) return {};
 
-  return deliverToRecipient(
-    user,
-    {
-      type: payload.type,
-      title: payload.title,
-      body: payload.body,
-      url: payload.url,
-      email: {
-        template: 'notification',
-        props: {
-          recipientName: user.name || 'партнёр',
-          title: payload.title,
-          body: payload.body,
-          url: payload.url,
-        },
+  const channelPayload: ChannelPayload = {
+    type: payload.type,
+    title: payload.title,
+    body: payload.body,
+    url: payload.url,
+    email: {
+      template: 'notification',
+      props: {
+        recipientName: user.name || 'партнёр',
+        title: payload.title,
+        body: payload.body,
+        url: payload.url,
       },
     },
-    payload.channels ? { channels: payload.channels } : undefined
-  );
+  };
+  const opts = payload.channels ? { channels: payload.channels } : {};
+
+  if (payload.dedupKey) {
+    const outcome = await dispatchToRecipient(user, channelPayload, {
+      ...opts,
+      dedupKey: payload.dedupKey,
+    });
+    return outcome.mode === 'inline' ? outcome.results : {};
+  }
+
+  return deliverToRecipient(user, channelPayload, payload.channels ? opts : undefined);
 }

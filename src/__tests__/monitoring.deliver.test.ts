@@ -18,7 +18,7 @@ function fakePrisma(adminIds: string[]) {
 }
 
 beforeEach(() => {
-  createNotificationMock.mockReset().mockResolvedValue(undefined);
+  createNotificationMock.mockReset().mockResolvedValue({ id: 'alert-notif' });
   deliverToUserMock.mockReset().mockResolvedValue(undefined);
   delete process.env.ALERT_TELEGRAM_BOT_TOKEN;
   delete process.env.ALERT_TELEGRAM_CHAT_ID;

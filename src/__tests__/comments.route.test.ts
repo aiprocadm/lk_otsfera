@@ -49,7 +49,7 @@ describe('POST /api/comments', () => {
     requireOrderAccess.mockResolvedValue({ ok: true });
     createComment.mockResolvedValue({ id: 'cm1', orderId: 'ord1', body: 'hello', authorId: 'u1' });
     getPrimaryOrganizationId.mockResolvedValue('org1');
-    notifyMessageCreated.mockResolvedValue(undefined);
+    notifyMessageCreated.mockResolvedValue({ id: 'notif-1' });
     deliverNotificationToUser.mockResolvedValue({});
   });
 
