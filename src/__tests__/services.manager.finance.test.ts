@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import type { SessionAccessProfile } from '@/lib/auth/accessProfile';
 
 const orgFinance = vi.hoisted(() => ({
   getOrgFinanceKpis: vi.fn(),
@@ -12,6 +13,19 @@ import { getManagerFinanceOverview } from '@/lib/services/manager/finance';
 
 const session = (over: Partial<SessionPayload>): SessionPayload =>
   ({ sub: 'm1', role: 'manager', email: 'm@x', ...over } as unknown as SessionPayload);
+
+const profile = (over: Partial<SessionAccessProfile> = {}): SessionAccessProfile => ({
+  id: 'p1',
+  name: 'Роль',
+  orders: 'all',
+  organizations: 'all',
+  threads: 'all',
+  documents: 'all',
+  finance: 'all',
+  leads: 'all',
+  capabilities: [],
+  ...over
+});
 
 function fakePrisma(orgs: Array<{ id: string; name: string }>) {
   return { organization: { findMany: vi.fn().mockResolvedValue(orgs) } } as any;
@@ -62,6 +76,29 @@ describe('getManagerFinanceOverview', () => {
     );
     expect(res.canSeeCommission).toBe(true);
     expect(orgFinance.getOrgIntermediaryCommission).toHaveBeenCalledTimes(1);
+  });
+
+  it('profiled leader WITHOUT see_commission: commission hidden (flag overrides leader)', async () => {
+    const prisma = fakePrisma([{ id: 'o1', name: 'A' }]);
+    const res = await getManagerFinanceOverview(
+      prisma,
+      session({ managerRole: 'leader', companyId: 'c1', accessProfile: profile({ capabilities: [] }) }),
+      { teamMode: true }
+    );
+    expect(res.canSeeCommission).toBe(false);
+    expect(orgFinance.getOrgIntermediaryCommission).not.toHaveBeenCalled();
+    expect(res.sections.every((s) => s.commission === null)).toBe(true);
+  });
+
+  it('profiled non-leader WITH see_commission: commission granted', async () => {
+    const prisma = fakePrisma([{ id: 'o1', name: 'A' }]);
+    const res = await getManagerFinanceOverview(
+      prisma,
+      session({ companyId: 'c1', accessProfile: profile({ capabilities: ['see_commission'] }) }),
+      { teamMode: false }
+    );
+    expect(res.canSeeCommission).toBe(true);
+    expect(orgFinance.getOrgIntermediaryCommission).toHaveBeenCalledWith(prisma, 'o1');
   });
 
   it('empty scope → no sections, zero summary', async () => {

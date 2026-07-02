@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { managerOrgScope, isManagerLeader } from '@/lib/auth/managerPolicy';
+import { managerOrgScope } from '@/lib/auth/managerPolicy';
+import { can } from '@/lib/auth/accessProfile';
 import {
   getOrgFinanceKpis,
   listOrgPayments,
@@ -36,7 +37,10 @@ export async function getManagerFinanceOverview(
   opts: { teamMode: boolean }
 ): Promise<ManagerFinanceOverview> {
   const unscoped = session.role === 'admin';
-  const canSeeCommission = unscoped || isManagerLeader(session);
+  // G1: единый capability-gate. Для no-profile сессий тождественно старому
+  // `unscoped || isManagerLeader` (admin/leader видят, рядовой — нет); профиль →
+  // default-deny (флаг обязателен, перекрывает даже leader).
+  const canSeeCommission = can(session, 'see_commission');
 
   const orgs = await prisma.organization.findMany({
     where: unscoped ? undefined : managerOrgScope(session, opts.teamMode),
