@@ -35,6 +35,7 @@ const OPT_IN_FLAGS = new Set([
   'whatsapp_channel',
   'notif_queue',
   'role_constructor',
+  'sales_funnel',
 ]);
 
 describe('isFeatureEnabled', () => {

@@ -88,6 +88,38 @@ export function orderWhereForLevel(session: SessionPayload, level: ScopeLevel): 
 }
 
 /**
+ * Lead-where по уровню охвата профиля (Трек G2). Лиды — single-tenant team-queue
+ * (см. services/manager/leads.ts): у лида нет `companyId`, company-floor не
+ * применяется → `all` == team-wide (тождественно legacy-поведению без профиля).
+ *  - own      → только назначенные на себя (`assignedManagerId == sub`);
+ *  - assigned → свои назначенные ∪ лиды закреплённых орг (`managedOrgIds`);
+ *  - all      → без фильтра (вся командная очередь).
+ */
+export function leadWhereForLevel(session: SessionPayload, level: ScopeLevel): Prisma.LeadWhereInput {
+  if (level === 'all') return {};
+  if (level === 'own') return { assignedManagerId: session.sub };
+  return { OR: [{ assignedManagerId: session.sub }, { organizationId: { in: session.managedOrgIds ?? [] } }] };
+}
+
+/**
+ * In-memory зеркало `leadWhereForLevel` для точечного guard'а (move/detail).
+ * Нет профиля или `all` → team-wide (true). Не leak-аем — deny → not_found у caller.
+ */
+export function canSeeLead(
+  session: SessionPayload,
+  lead: { assignedManagerId: string | null; organizationId: string | null }
+): boolean {
+  const level = session.accessProfile?.leads;
+  if (!level || level === 'all') return true;
+  if (level === 'own') return lead.assignedManagerId === session.sub;
+  // assigned
+  return (
+    lead.assignedManagerId === session.sub ||
+    (!!lead.organizationId && (session.managedOrgIds ?? []).includes(lead.organizationId))
+  );
+}
+
+/**
  * Проверка capability-флага.
  *  - admin       → всегда true (Model A);
  *  - есть профиль → default-deny: флаг должен присутствовать явно;

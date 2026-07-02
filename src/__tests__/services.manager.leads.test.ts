@@ -28,9 +28,12 @@ describe('listManagerLeads (team queue)', () => {
     const { db, findMany } = dbWith([]);
     await listManagerLeads(db, { status: 'qualified', search: 'acme', assignedToUserId: 'm1' });
     const where = findMany.mock.calls[0][0].where;
-    expect(where.status).toBe('qualified');
-    expect(where.assignedManagerId).toBe('m1');
-    expect(where.OR).toBeTruthy();
+    // G2: фильтры компонуются через AND (scope-OR и search-OR не затирают друг друга).
+    expect(where.AND).toBeTruthy();
+    const flat = Object.assign({}, ...where.AND);
+    expect(flat.status).toBe('qualified');
+    expect(flat.assignedManagerId).toBe('m1');
+    expect(flat.OR).toBeTruthy();
   });
 
   it('paginates with a cursor when more rows than the page size', async () => {

@@ -3,6 +3,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import {
   can,
   orderWhereForLevel,
+  leadWhereForLevel,
   toSessionAccessProfile,
   scopeLevelSchema,
   capabilitySchema,
@@ -83,6 +84,20 @@ describe('orderWhereForLevel()', () => {
 
   it('null companyId falls back to the no-company sentinel (fail-safe deny)', () => {
     expect(orderWhereForLevel(mgr({ companyId: null }), 'all')).toEqual({ companyId: NO_COMPANY_SENTINEL });
+  });
+});
+
+describe('leadWhereForLevel() — leads single-tenant (no company floor)', () => {
+  it('all → team-wide (empty filter, ≡ legacy)', () => {
+    expect(leadWhereForLevel(mgr(), 'all')).toEqual({});
+  });
+  it('own → assignedManagerId == sub', () => {
+    expect(leadWhereForLevel(mgr({ sub: 'u7' }), 'own')).toEqual({ assignedManagerId: 'u7' });
+  });
+  it('assigned → own OR managed orgs', () => {
+    expect(leadWhereForLevel(mgr({ sub: 'u7', managedOrgIds: ['o1', 'o2'] }), 'assigned')).toEqual({
+      OR: [{ assignedManagerId: 'u7' }, { organizationId: { in: ['o1', 'o2'] } }]
+    });
   });
 });
 

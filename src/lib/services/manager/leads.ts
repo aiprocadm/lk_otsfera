@@ -1,11 +1,15 @@
 import type { PrismaClient, LeadStatus, Prisma } from '@prisma/client';
+import type { SessionPayload } from '@/lib/auth/jwt';
+import { leadWhereForLevel } from '@/lib/auth/accessProfile';
 
 /**
- * Manager-side lead reads (T3). Leads are a shared TEAM QUEUE (owner decision):
- * every manager sees every lead — they are inbound to the company's manager team,
- * not org-scoped like orders. RBAC is `requireManager` at the route; there is no
- * per-manager visibility filter here by design (cross-company isolation does not
- * apply: leads have no companyId and the cabinet is a single company-tenant).
+ * Manager-side lead reads (T3). Leads are a shared TEAM QUEUE by default (owner
+ * decision): inbound to the company's manager team, not org-scoped like orders.
+ * Cross-company isolation does not apply — leads have no companyId, single-tenant.
+ *
+ * G2 (наслоение): при наличии профиля доступа (`session.accessProfile`)
+ * применяется leads-охват (own/assigned/all) через `leadWhereForLevel`; без
+ * профиля — legacy team-wide (без фильтра), поведение байт-в-байт.
  */
 
 export type ManagerLeadRow = {
@@ -25,6 +29,7 @@ export type ManagerLeadRow = {
 };
 
 export type ListManagerLeadsOptions = {
+  session?: SessionPayload; // G2: источник leads-охвата (профиль). Без него — legacy.
   status?: LeadStatus;
   search?: string;
   assignedToUserId?: string; // filter to leads assigned to this manager ("мои")
@@ -42,19 +47,23 @@ export async function listManagerLeads(
   opts: ListManagerLeadsOptions
 ): Promise<ListManagerLeadsResult> {
   const take = opts.take ?? 20;
-  const where: Prisma.LeadWhereInput = {
-    ...(opts.status ? { status: opts.status } : {}),
-    ...(opts.assignedToUserId ? { assignedManagerId: opts.assignedToUserId } : {}),
-    ...(opts.search
-      ? {
-          OR: [
-            { clientCompanyName: { contains: opts.search, mode: 'insensitive' } },
-            { subject: { contains: opts.search, mode: 'insensitive' } },
-            { clientInn: { contains: opts.search } }
-          ]
-        }
-      : {})
-  };
+  // AND-компоновка: scope-OR (assigned) и search-OR не должны затирать друг друга.
+  const filters: Prisma.LeadWhereInput[] = [];
+  if (opts.session?.accessProfile) {
+    filters.push(leadWhereForLevel(opts.session, opts.session.accessProfile.leads));
+  }
+  if (opts.status) filters.push({ status: opts.status });
+  if (opts.assignedToUserId) filters.push({ assignedManagerId: opts.assignedToUserId });
+  if (opts.search) {
+    filters.push({
+      OR: [
+        { clientCompanyName: { contains: opts.search, mode: 'insensitive' } },
+        { subject: { contains: opts.search, mode: 'insensitive' } },
+        { clientInn: { contains: opts.search } }
+      ]
+    });
+  }
+  const where: Prisma.LeadWhereInput = filters.length ? { AND: filters } : {};
 
   const rows = await prisma.lead.findMany({
     where,
