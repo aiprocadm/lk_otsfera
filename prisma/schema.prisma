@@ -16,6 +16,17 @@ enum Role {
   student
 }
 
+// Трек G1: уровень охвата кастомного профиля доступа по типу объекта.
+// own = только свои (managerId==sub), assigned = закреплённые (managedOrgIds),
+// all = все в рамках компании (C8-пол). Дефолт колонок AccessProfile = all
+// применяется только к ЯВНО созданным профилям; существующие менеджеры без
+// профиля сохраняют legacy teamMode-поведение.
+enum ScopeLevel {
+  own
+  assigned
+  all
+}
+
 enum OrderStatus {
   new
   in_progress
@@ -118,6 +129,9 @@ model User {
   managerRole                  String? // null = regular manager, 'leader' = руководитель
   companyId                    String?
   company                      Company?              @relation(fields: [companyId], references: [id])
+  // Трек G1: кастомный профиль доступа (nullable; null = legacy teamMode-поведение).
+  accessProfileId              String?
+  accessProfile                AccessProfile?        @relation(fields: [accessProfileId], references: [id])
   partnerId                    String?
   partner                      Partner?              @relation(fields: [partnerId], references: [id])
   organizationId               String?
@@ -552,6 +566,31 @@ model Company {
   orders                Order[]
   organizations         Organization[]
   documents             Document[]
+  accessProfiles        AccessProfile[]
+}
+
+// Трек G1 (§3.2 ТЗ): роль-профиль как данные. Матрица охватов по типам объектов
+// + capability-флаги (default-deny, open-ended String[]). Привязан к компании
+// (граница изоляции C8). Действует поверх системного enum Role, внутри
+// менеджерского контура; @@unique([companyId, name]) — имя уникально в компании.
+model AccessProfile {
+  id                 String     @id @default(cuid())
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  companyId          String
+  company            Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name               String
+  ordersScope        ScopeLevel @default(all)
+  organizationsScope ScopeLevel @default(all)
+  threadsScope       ScopeLevel @default(all)
+  documentsScope     ScopeLevel @default(all)
+  financeScope       ScopeLevel @default(all)
+  leadsScope         ScopeLevel @default(all)
+  capabilities       String[]
+  users              User[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
 }
 
 model Order {
