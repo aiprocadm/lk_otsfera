@@ -10,6 +10,8 @@ function makeDb(opts: { refunds: any[]; liveStatement?: any; rateChanges?: any[]
     payment: { findMany: vi.fn().mockResolvedValue(opts.refunds) },
     commissionStatement: { findFirst: vi.fn().mockResolvedValue(opts.liveStatement ?? null) },
     commissionRateChange: { findMany: vi.fn().mockResolvedValue(opts.rateChanges ?? []) },
+    // F4: история org-override; пустая по умолчанию (fallback на текущее значение).
+    organizationCommissionRateChange: { findMany: vi.fn().mockResolvedValue([]) },
     commissionCorrection: {
       create: vi.fn().mockImplementation(({ data }) => { created.push(data); return { id: 'new', ...data }; }),
     },

@@ -11,6 +11,8 @@ vi.mock('@/lib/auth/audit', () => ({ recordAudit: (...args: any[]) => recordAudi
 function makeTx() {
   return {
     organization: { update: vi.fn().mockResolvedValue({}) },
+    // F4: обе мутации пишут append-only историю ставки внутри транзакции.
+    organizationCommissionRateChange: { create: vi.fn().mockResolvedValue({}) },
     auditLog: { create: vi.fn() }
   } as any;
 }
@@ -70,6 +72,17 @@ describe('setOrgCommissionRate — unit', () => {
     expect(auditArgs.before.rate).toBe('0.05');
     expect(auditArgs.after.rate).toBe('0.08');
   });
+
+  it('F4: appends a history row with oldRate=previous and newRate=set value', async () => {
+    const existingRate = { toString: () => '0.05' };
+    const prisma = makePrisma({ id: 'o1', partnerCommissionRate: existingRate });
+    await setOrgCommissionRate(prisma, {
+      organizationId: 'o1', partnerId: 'p1', newRate: 0.08, reason: 'Upgrade', changedByUserId: 'u1'
+    });
+    expect(prisma._tx.organizationCommissionRateChange.create).toHaveBeenCalledWith({
+      data: { organizationId: 'o1', oldRate: existingRate, newRate: 0.08, changedById: 'u1' }
+    });
+  });
 });
 
 describe('clearOrgCommissionRate — unit', () => {
@@ -102,5 +115,16 @@ describe('clearOrgCommissionRate — unit', () => {
     expect(res.ok).toBe(true);
     const [, auditArgs] = recordAuditMock.mock.calls[0];
     expect(auditArgs.before.rate).toBe('0.10');
+  });
+
+  it('F4: appends a clear-event history row (newRate=null)', async () => {
+    const existingRate = { toString: () => '0.10' };
+    const prisma = makePrisma({ id: 'o1', partnerCommissionRate: existingRate });
+    await clearOrgCommissionRate(prisma, {
+      organizationId: 'o1', partnerId: 'p1', reason: 'clean', changedByUserId: 'u1'
+    });
+    expect(prisma._tx.organizationCommissionRateChange.create).toHaveBeenCalledWith({
+      data: { organizationId: 'o1', oldRate: existingRate, newRate: null, changedById: 'u1' }
+    });
   });
 });

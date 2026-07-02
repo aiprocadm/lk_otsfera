@@ -10,7 +10,7 @@
  */
 import type { PrismaClient, CommissionStatement } from '@prisma/client';
 import { calculateCommission, type PaymentForCalc, type CorrectionForCalc } from './calculator';
-import { resolveEffectiveRate, type RateChange } from './rateResolve';
+import { resolveEffectiveRate, type RateChange, type OrgRateChange } from './rateResolve';
 import { getQueue } from '@/lib/jobs/queues';
 import { recordAudit } from '@/lib/auth/audit';
 
@@ -148,6 +148,7 @@ export async function calculateStatementForPartner(
       paidAt: true,
       isRefund: true,
       orderId: true,
+      organizationId: true,
       order: { select: { orderNumber: true, partnerId: true } },
       // A2 (§6.2): partnerCommissionRate — индивидуальная ставка организации
       // (договорная скидка под клиента), высший приоритет в resolveEffectiveRate.
@@ -155,6 +156,24 @@ export async function calculateStatementForPartner(
     },
     orderBy: { paidAt: 'asc' },
   });
+
+  // F4 (A5): история org-override для всех организаций периода — override
+  // берётся на дату платежа, а не текущим значением (воспроизводимость при
+  // изменении договорной ставки задним числом).
+  const orgIds = [...new Set(payments.map((p) => p.organizationId))];
+  const orgRateChangeRows = orgIds.length
+    ? await prisma.organizationCommissionRateChange.findMany({
+        where: { organizationId: { in: orgIds } },
+        select: { organizationId: true, effectiveFrom: true, oldRate: true, newRate: true },
+        orderBy: { effectiveFrom: 'asc' },
+      })
+    : [];
+  const orgChangesByOrg = new Map<string, OrgRateChange[]>();
+  for (const c of orgRateChangeRows) {
+    const list = orgChangesByOrg.get(c.organizationId) ?? [];
+    list.push({ effectiveFrom: c.effectiveFrom, oldRate: c.oldRate, newRate: c.newRate });
+    orgChangesByOrg.set(c.organizationId, list);
+  }
 
   const paymentInputs: PaymentForCalc[] = payments.map((p) => ({
     paymentId: p.id,
@@ -168,7 +187,11 @@ export async function calculateStatementForPartner(
       // can be attributed to `partnerId` via order.partnerId even when its organization
       // belongs to a different partner — honor the override only when the org's partner
       // is the statement's partner, so partner Y's discount never bleeds onto partner X.
+      // F4: the same gate guards the history — a foreign org's timeline gets an empty
+      // list (not undefined!) so its current override can never resurface via fallback.
       orgOverride: p.organization.partnerId === partnerId ? p.organization.partnerCommissionRate : null,
+      orgChanges:
+        p.organization.partnerId === partnerId ? (orgChangesByOrg.get(p.organizationId) ?? []) : [],
       changes: rateChanges,
       paidAt: p.paidAt,
       partnerDefault: partnerDefaultRate,
