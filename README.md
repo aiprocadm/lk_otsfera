@@ -60,6 +60,23 @@ curl "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
 Пользователь привязывает Telegram в кабинете → «Настройки»: получает deep-link, открывает его и
 жмёт «Старт» у бота. После привязки уведомления зеркалятся в Telegram наравне с ЛК и e-mail.
 
+Каналы Max и WhatsApp (Трек D, §25.3 — единый слой интеграций; opt-in feature-флаги):
+
+- **Max** (нативно, по образцу Telegram). Включить: `FEATURE_MAX_CHANNEL=1` + `MAX_BOT_TOKEN` +
+  `MAX_BOT_USERNAME` (+ опц. `MAX_API_BASE_URL`, `MAX_WEBHOOK_SECRET`). Webhook —
+  `POST /api/integrations/max/webhook` (секрет-заголовок `x-max-webhook-secret`). Привязка в
+  «Настройках» аналогична Telegram (deep-link + `/start`).
+- **WhatsApp через агрегатор** (Wazzup-подобный сервис; **не** прямая интеграция с Meta). Включить:
+  `FEATURE_WHATSAPP_CHANNEL=1` + `WHATSAPP_AGGREGATOR_API_KEY` + `WHATSAPP_AGGREGATOR_CHANNEL_ID`
+  (+ опц. `WHATSAPP_AGGREGATOR_BASE_URL`). Номер отправителя подключается в самом сервисе-агрегаторе;
+  пользователь указывает свой номер в «Настройках». Боевые креды подключаются позже — до этого
+  канал спит.
+
+Email всегда включён (базовые события уходят на почту без возможности отключить); Telegram/Max/
+WhatsApp — по выбору пользователя в «Настройках». Доставка может идти через воркер (BullMQ):
+`FEATURE_NOTIF_QUEUE=1` + `REDIS_URL` включают очередь `notifications.dispatch` с ретраями и
+идемпотентностью (одно событие не задваивается в канале); без флага/Redis — доставка inline.
+
 ## Локальный запуск
 
 ```bash

@@ -301,4 +301,19 @@ describe('deliverNotificationToUser', () => {
     expect(sendTelegramMessageMock).not.toHaveBeenCalled();
     expect(results.telegram).toBeUndefined();
   });
+
+  it('dedupKey задан, но notif_queue выключен → inline через диспетчер (D5-путь)', async () => {
+    // Без FEATURE_NOTIF_QUEUE/REDIS_URL диспетчер деградирует в inline —
+    // проверяем, что dedupKey-ветка core.ts возвращает inline-результаты.
+    delete process.env.FEATURE_NOTIF_QUEUE;
+    delete process.env.REDIS_URL;
+    isTelegramEnabledMock.mockReturnValue(false);
+    mockUser();
+    sendNotificationEmailMock.mockResolvedValue({ status: 'sent', id: 'e-7' });
+
+    const results = await deliverNotificationToUser({ ...PAYLOAD, dedupKey: 'notif-xyz' });
+
+    expect(results.email).toEqual({ status: 'sent' });
+    expect(sendNotificationEmailMock).toHaveBeenCalledOnce();
+  });
 });

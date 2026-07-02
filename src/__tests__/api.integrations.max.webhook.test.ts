@@ -64,13 +64,45 @@ describe('POST /api/integrations/max/webhook', () => {
     expect(sendMaxMessage).toHaveBeenCalledWith('42', expect.stringContaining('привязаны'));
   });
 
-  it('200 на bot_started-форму апдейта', async () => {
+  it('200 на bot_started-форму апдейта (chatId из user_id)', async () => {
     linkMaxByCode.mockResolvedValue({ ok: true });
     const res = await POST(
       req({ bot_started: { payload: 'CODE9', user_id: 7 } }, { 'x-max-webhook-secret': SECRET })
     );
     expect(res.status).toBe(200);
     expect(linkMaxByCode).toHaveBeenCalledWith({}, { code: 'CODE9', chatId: '7' });
+  });
+
+  it('chatId из message.recipient.chat_id (альтернативная форма адресации)', async () => {
+    linkMaxByCode.mockResolvedValue({ ok: true });
+    const res = await POST(
+      req(
+        { message: { text: '/start CODE-R', recipient: { chat_id: 555 } } },
+        { 'x-max-webhook-secret': SECRET }
+      )
+    );
+    expect(res.status).toBe(200);
+    expect(linkMaxByCode).toHaveBeenCalledWith({}, { code: 'CODE-R', chatId: '555' });
+  });
+
+  it('chatId из bot_started.chat_id (приоритет над user_id)', async () => {
+    linkMaxByCode.mockResolvedValue({ ok: true });
+    const res = await POST(
+      req(
+        { bot_started: { payload: 'CODE-C', chat_id: 111, user_id: 222 } },
+        { 'x-max-webhook-secret': SECRET }
+      )
+    );
+    expect(res.status).toBe(200);
+    expect(linkMaxByCode).toHaveBeenCalledWith({}, { code: 'CODE-C', chatId: '111' });
+  });
+
+  it('200 no-op когда нет распознаваемого chatId (только текст)', async () => {
+    const res = await POST(
+      req({ message: { text: '/start X' } }, { 'x-max-webhook-secret': SECRET })
+    );
+    expect(res.status).toBe(200);
+    expect(linkMaxByCode).not.toHaveBeenCalled();
   });
 
   it('невалидный код → ответ бота об ошибке, всё равно 200', async () => {

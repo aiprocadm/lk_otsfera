@@ -16,7 +16,9 @@ vi.mock('@/lib/email/send', () => ({ sendNotificationEmail }));
 import {
   runDispatchNotification,
   reviveChannelPayload,
+  dispatchNotificationProcessor,
 } from '@/worker/processors/dispatch-notification';
+import type { Job } from 'bullmq';
 import type { NotificationDispatchPayload } from '@/lib/jobs/types';
 
 const prisma = new PrismaClient();
@@ -109,6 +111,51 @@ describe('runDispatchNotification', () => {
     );
     const log = await prisma.syncLog.findFirst({ where: { externalId: jobId } });
     expect(log?.errorMessage).toBe('tg exploded');
+  });
+
+  it('сбой записи SyncLog не маскирует исходную ошибку канала (best-effort лог)', async () => {
+    sendTelegramMessage.mockResolvedValue({ ok: false });
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // Фейковый db: user есть, но syncLog.create падает.
+    const fakeDb = {
+      user: {
+        findUnique: async () => ({
+          id: ids.user,
+          email: 'x@test.ru',
+          name: 'X',
+          telegramChatId: `tg-dispatch-${STAMP}`,
+          maxChatId: null,
+          whatsappPhone: null,
+          notificationChannels: null,
+        }),
+      },
+      syncLog: { create: async () => { throw new Error('log db down'); } },
+    } as unknown as PrismaClient;
+
+    await expect(runDispatchNotification(fakeDb, jobData(), 'job-nolog')).rejects.toThrow(
+      'notification channel telegram failed: transport'
+    );
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[dispatch-notification] SyncLog write failed',
+      expect.anything()
+    );
+    errorSpy.mockRestore();
+  });
+});
+
+describe('dispatchNotificationProcessor (BullMQ wrapper)', () => {
+  it('с инжектированным db делегирует runDispatchNotification', async () => {
+    sendTelegramMessage.mockResolvedValue({ ok: true });
+    const job = { id: 'wrap-1', data: jobData() } as Job<NotificationDispatchPayload>;
+    const result = await dispatchNotificationProcessor(job, prisma);
+    expect(result).toEqual({ status: 'sent' });
+  });
+
+  it('без db падает обратно на дефолтный prisma-инстанс', async () => {
+    sendTelegramMessage.mockResolvedValue({ ok: true });
+    const job = { id: 'wrap-2', data: jobData() } as Job<NotificationDispatchPayload>;
+    const result = await dispatchNotificationProcessor(job);
+    expect(result).toEqual({ status: 'sent' });
   });
 });
 

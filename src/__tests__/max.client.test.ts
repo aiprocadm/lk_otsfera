@@ -54,6 +54,11 @@ describe('maxDeepLink / maxApiBaseUrl', () => {
     expect(maxDeepLink('abc123')).toBe('https://max.ru/lk_max_bot?start=abc123');
   });
 
+  it('deep-link с пустым username (env не задан) — не падает', () => {
+    delete process.env.MAX_BOT_USERNAME;
+    expect(maxDeepLink('abc123')).toBe('https://max.ru/?start=abc123');
+  });
+
   it('base URL из env или дефолт', () => {
     delete process.env.MAX_API_BASE_URL;
     expect(maxApiBaseUrl()).toBe('https://botapi.max.ru');
