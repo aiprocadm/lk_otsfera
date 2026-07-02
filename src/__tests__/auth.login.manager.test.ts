@@ -1,19 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { findUniqueUser, findManyManagedOrgs, findManyMemberships, compare, signToken } = vi.hoisted(() => ({
-  findUniqueUser: vi.fn(),
-  findManyManagedOrgs: vi.fn(),
-  findManyMemberships: vi.fn(),
-  compare: vi.fn(),
-  signToken: vi.fn()
-}));
+const { findUniqueUser, findManyManagedOrgs, findManyMemberships, findUniqueAccessProfile, compare, signToken } =
+  vi.hoisted(() => ({
+    findUniqueUser: vi.fn(),
+    findManyManagedOrgs: vi.fn(),
+    findManyMemberships: vi.fn(),
+    findUniqueAccessProfile: vi.fn(),
+    compare: vi.fn(),
+    signToken: vi.fn()
+  }));
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     user: { findUnique: findUniqueUser },
     partnerUser: { findUnique: vi.fn().mockResolvedValue(null) },
     organizationUser: { findMany: findManyMemberships },
-    organizationManager: { findMany: findManyManagedOrgs }
+    organizationManager: { findMany: findManyManagedOrgs },
+    accessProfile: { findUnique: findUniqueAccessProfile }
   }
 }));
 vi.mock('bcryptjs', () => ({ default: { compare } }));
@@ -26,6 +29,7 @@ describe('auth login route — manager managedOrgIds', () => {
     vi.resetAllMocks();
     compare.mockResolvedValue(true);
     signToken.mockResolvedValue('signed-token');
+    findUniqueAccessProfile.mockResolvedValue(null);
   });
 
   function managerUser(overrides?: Partial<Record<string, unknown>>) {
@@ -158,5 +162,54 @@ describe('auth login route — manager managedOrgIds', () => {
     expect(callArg).toHaveProperty('managedOrgIds', ['org-B']);
     // managerRole: null is passed through (spreading conditional keeps it)
     expect(callArg).toHaveProperty('managerRole', null);
+  });
+
+  // G1: денормализация AccessProfile в токен при логине менеджера.
+  it('denormalizes AccessProfile into the token when user.accessProfileId is set', async () => {
+    findUniqueUser.mockResolvedValue(managerUser({ accessProfileId: 'ap-1' }));
+    findManyManagedOrgs.mockResolvedValue([{ organizationId: 'org-A' }]);
+    findUniqueAccessProfile.mockResolvedValue({
+      id: 'ap-1',
+      name: 'Оператор',
+      ordersScope: 'assigned',
+      organizationsScope: 'assigned',
+      threadsScope: 'assigned',
+      documentsScope: 'assigned',
+      financeScope: 'own',
+      leadsScope: 'own',
+      capabilities: ['see_commission', 'garbage'] // 'garbage' отбрасывается схемой
+    });
+
+    const res = await POST(loginRequest());
+
+    expect(res.status).toBe(200);
+    expect(findUniqueAccessProfile).toHaveBeenCalledWith({ where: { id: 'ap-1' } });
+    expect(signToken).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accessProfile: {
+          id: 'ap-1',
+          name: 'Оператор',
+          orders: 'assigned',
+          organizations: 'assigned',
+          threads: 'assigned',
+          documents: 'assigned',
+          finance: 'own',
+          leads: 'own',
+          capabilities: ['see_commission']
+        }
+      })
+    );
+  });
+
+  it('omits accessProfile from token when user has no accessProfileId (legacy manager)', async () => {
+    findUniqueUser.mockResolvedValue(managerUser({ accessProfileId: null }));
+    findManyManagedOrgs.mockResolvedValue([]);
+
+    await POST(loginRequest());
+
+    expect(findUniqueAccessProfile).not.toHaveBeenCalled();
+    const callArg = signToken.mock.calls[0]?.[0] as Record<string, unknown> | undefined;
+    expect(callArg).toBeDefined();
+    expect(callArg).not.toHaveProperty('accessProfile');
   });
 });

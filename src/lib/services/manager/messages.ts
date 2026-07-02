@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { managerOrderScope, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import { orderWhereForLevel } from '@/lib/auth/accessProfile';
 
 /**
  * Manager-facing messages inbox service. Lists `Comment` rows whose `order`
@@ -51,13 +52,18 @@ export async function listIncomingComments(
   const since = opts.since ?? new Date(Date.now() - DEFAULT_WINDOW_MS);
   const teamMode = await getCompanyTeamVisibility(prisma, opts.session.companyId);
 
+  // G1: тред-охват берётся из профиля (threads-уровень), иначе legacy order-scope.
+  const orderWhere = opts.session.accessProfile
+    ? orderWhereForLevel(opts.session, opts.session.accessProfile.threads)
+    : managerOrderScope(opts.session, teamMode);
+
   const authorWhere: Prisma.UserWhereInput = opts.withOutgoing
     ? { role: { in: ['organization', 'manager'] } }
     : { role: 'organization' };
 
   const rows = await prisma.comment.findMany({
     where: {
-      order: managerOrderScope(opts.session, teamMode),
+      order: orderWhere,
       author: authorWhere,
       createdAt: { gte: since }
     },

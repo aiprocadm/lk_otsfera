@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { orderWhereForLevel, NO_COMPANY_SENTINEL } from '@/lib/auth/accessProfile';
 
 /**
  * Manager RBAC primitives — three-way visibility OR:
@@ -46,6 +47,17 @@ export function canSeeOrder(
   },
   teamMode = false
 ): boolean {
+  // G1: профиль имеет приоритет над teamMode. Company-floor (C8) — первым:
+  // профиль не пускает за пределы своей компании (companyId отсутствует/чужой → deny).
+  const level = session.accessProfile?.orders;
+  if (level) {
+    if (!session.companyId || order.companyId !== session.companyId) return false;
+    if (level === 'all') return true;
+    if (level === 'own') return order.managerId === session.sub;
+    // assigned
+    return !!order.organizationId && managedOrgIds(session).includes(order.organizationId);
+  }
+  // Legacy (нет профиля) — без изменений.
   if (teamMode) return !!session.companyId && order.companyId === session.companyId;
   if (order.managerId === session.sub) return true;
   if (order.organizationId && managedOrgIds(session).includes(order.organizationId)) return true;
@@ -67,9 +79,8 @@ export function canSeeOrganization(session: SessionPayload, orgId: string): bool
 
 export const isOrgInScope = canSeeOrganization;
 
-// ----- C8: company-wide mode -------------------------------------------------
-
-const NO_COMPANY_SENTINEL = '__no_company__';
+// ----- C8: company-wide mode + G1: profile-first ----------------------------
+// NO_COMPANY_SENTINEL импортируется из accessProfile.ts (единый источник).
 
 /** Company-wide order filter: every order in the manager's own company. */
 export function companyWideOrderFilter(session: SessionPayload): Prisma.OrderWhereInput {
@@ -77,16 +88,31 @@ export function companyWideOrderFilter(session: SessionPayload): Prisma.OrderWhe
   return { companyId: session.companyId ?? NO_COMPANY_SENTINEL };
 }
 
-/** Resolver: pick the order filter by the live team-visibility flag. */
+/**
+ * Resolver: профиль-первым, teamMode-fallback. Сигнатура не меняется — все
+ * существующие call-site'ы работают без правок; сессия без профиля даёт
+ * legacy-поведение байт-в-байт (регресс C/F зелёный).
+ */
 export function managerOrderScope(session: SessionPayload, teamMode: boolean): Prisma.OrderWhereInput {
+  const level = session.accessProfile?.orders;
+  if (level) return orderWhereForLevel(session, level);
   return teamMode ? companyWideOrderFilter(session) : managerOrderScopeFilter(session);
 }
 
 export function managerDocumentScope(session: SessionPayload, teamMode: boolean): Prisma.DocumentWhereInput {
-  return { order: managerOrderScope(session, teamMode), scanStatus: { not: 'infected' } };
+  const level = session.accessProfile?.documents;
+  const orderWhere = level ? orderWhereForLevel(session, level) : managerOrderScope(session, teamMode);
+  return { order: orderWhere, scanStatus: { not: 'infected' } };
 }
 
 export function managerOrgScope(session: SessionPayload, teamMode: boolean): Prisma.OrganizationWhereInput {
+  const level = session.accessProfile?.organizations;
+  if (level) {
+    const companyOnly = { companyId: session.companyId ?? NO_COMPANY_SENTINEL };
+    if (level === 'all') return companyOnly;
+    // assigned/own → закреплённые орги, всё равно ограниченные компанией (C8-пол).
+    return { AND: [companyOnly, managerOrgScopeFilter(session)] };
+  }
   return teamMode ? { companyId: session.companyId ?? NO_COMPANY_SENTINEL } : managerOrgScopeFilter(session);
 }
 
