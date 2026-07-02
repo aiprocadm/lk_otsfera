@@ -47,11 +47,15 @@
    переиспользуется всеми фан-аутами). `ChannelSendResult` =
    `{ status: 'sent' | 'skipped' | 'failed'; reason?: string }` — стабильные коды по §3 CLAUDE.md.
 
-2. **Email-контент сериализуем**: React-шаблоны рендерятся **один раз на событие** в фан-ауте
-   (контент событийный, не per-recipient) и кладутся в payload как готовые
-   `{ subject, html, text }`. Это (а) сохраняет существующие письма байт-в-байт,
-   (б) делает payload JSON-сериализуемым для очереди. Мессенджер-каналы шлют `title\n\nbody`
-   (как сейчас Telegram).
+2. **Email-контент — сериализуемая ссылка на шаблон** (`EmailContentRef =
+   { template: EmailTemplateKey, props }`): payload несёт ключ шаблона + props, а email-канал
+   резолвит ключ в **те же самые** типизированные sender-функции `send.tsx`
+   (`sendManagerCommentFromOrgEmail` и т.д.) через реестр с ленивым доступом к биндингам
+   (partial-моки Vitest продолжают работать). Это (а) сохраняет письма байт-в-байт и
+   регресс-тесты, ассертящие вызовы sender-функций, (б) JSON-сериализуемо для очереди
+   (Date-props типа `paidAt` восстанавливаются в процессоре по whitelist-у ключей).
+   `payload.email` отсутствует → email-канал `skipped` (партнёрский `lead_status_changed` —
+   in-app only, как сейчас). Мессенджер-каналы шлют `title\n\nbody` (как сейчас Telegram).
 
 3. **Настройки каналов — `User.notificationChannels Json?`**, не отдельная таблица.
    Обоснование: (а) три булевых значения фиксированного набора — таблица

@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const { createNotificationMock, triggerEmailMock } = vi.hoisted(() => ({
+const { createNotificationMock, deliverToUserMock } = vi.hoisted(() => ({
   createNotificationMock: vi.fn(),
-  triggerEmailMock: vi.fn()
+  deliverToUserMock: vi.fn()
 }));
 vi.mock('@/lib/notifications', () => ({
   createNotification: createNotificationMock,
-  triggerNotificationEmail: triggerEmailMock
+  deliverNotificationToUser: deliverToUserMock
 }));
 
 import { deliverAlert } from '@/lib/monitoring/deliver';
@@ -19,7 +19,7 @@ function fakePrisma(adminIds: string[]) {
 
 beforeEach(() => {
   createNotificationMock.mockReset().mockResolvedValue(undefined);
-  triggerEmailMock.mockReset().mockResolvedValue(undefined);
+  deliverToUserMock.mockReset().mockResolvedValue(undefined);
   delete process.env.ALERT_TELEGRAM_BOT_TOKEN;
   delete process.env.ALERT_TELEGRAM_CHAT_ID;
   vi.unstubAllGlobals();
@@ -29,7 +29,11 @@ describe('deliverAlert', () => {
   it('writes in-app + email for every admin', async () => {
     await deliverAlert(fakePrisma(['a1', 'a2']), { kind: 'fire', message: 'boom' });
     expect(createNotificationMock).toHaveBeenCalledTimes(2);
-    expect(triggerEmailMock).toHaveBeenCalledTimes(2);
+    expect(deliverToUserMock).toHaveBeenCalledTimes(2);
+    // Ops-алерты — только email: персональный Telegram дублировал бы общий алерт-чат.
+    expect(deliverToUserMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'a1', channels: ['email'] })
+    );
     expect(createNotificationMock.mock.calls[0][0]).toMatchObject({ userId: 'a1', type: 'ops_alert' });
   });
 
@@ -87,12 +91,12 @@ describe('deliverAlert', () => {
       expect.anything()
     );
     // Email should still be called despite in-app failure
-    expect(triggerEmailMock).toHaveBeenCalledTimes(1);
+    expect(deliverToUserMock).toHaveBeenCalledTimes(1);
     errorSpy.mockRestore();
   });
 
-  it('logs and continues when triggerNotificationEmail throws', async () => {
-    triggerEmailMock.mockRejectedValue(new Error('smtp error'));
+  it('logs and continues when deliverNotificationToUser throws', async () => {
+    deliverToUserMock.mockRejectedValue(new Error('smtp error'));
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await expect(
       deliverAlert(fakePrisma(['a1']), { kind: 'fire', message: 'boom' })
@@ -109,6 +113,6 @@ describe('deliverAlert', () => {
       deliverAlert(fakePrisma([]), { kind: 'fire', message: 'boom' })
     ).resolves.toBeUndefined();
     expect(createNotificationMock).not.toHaveBeenCalled();
-    expect(triggerEmailMock).not.toHaveBeenCalled();
+    expect(deliverToUserMock).not.toHaveBeenCalled();
   });
 });

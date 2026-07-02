@@ -4,7 +4,7 @@
 
 **Goal:** ТЗ v0.5 §9/§12.1/§25.3 — email/Telegram/Max/WhatsApp за единым `NotificationChannel`; настройки каналов на пользователе (email всегда включён); доставка через воркер (BullMQ) с ретраями и идемпотентностью; Max нативно + WhatsApp через Wazzup-подобный агрегатор — за адаптерами, под флагами, с моками в тестах.
 
-**Architecture:** канальный слой `src/lib/notifications/channels/` (types/email/telegram/max/whatsapp/registry/dispatch); email-контент рендерится один раз на событие и кладётся в payload (`{subject,html,text}`) — JSON-сериализуем для очереди; opt-in = привязка + `notificationChannels[key] !== false` (нулевая миграция данных); очередь `notifications.dispatch` (объявлена, не использовалась) получает продюсера (диспетчер, jobId-дедуп) и процессор (SyncLog при ошибке + throw→retry); inline-fallback без Redis сохраняет текущее поведение и тесты.
+**Architecture:** канальный слой `src/lib/notifications/channels/` (types/email/telegram/max/whatsapp/registry/dispatch); email-контент в payload — сериализуемая ссылка на шаблон `{template, props}`, резолвится email-каналом в существующие sender-функции `send.tsx` (письма и регресс-ассерты сохраняются байт-в-байт; Date-props восстанавливаются в процессоре по whitelist); opt-in = привязка + `notificationChannels[key] !== false` (нулевая миграция данных); очередь `notifications.dispatch` (объявлена, не использовалась) получает продюсера (диспетчер, jobId-дедуп) и процессор (SyncLog при ошибке + throw→retry); inline-fallback без Redis сохраняет текущее поведение и тесты.
 
 **Tech Stack:** Next.js 15 / Prisma 5 / BullMQ / Vitest. Spec: [2026-07-02-track-d-notification-channels-design.md](../specs/2026-07-02-track-d-notification-channels-design.md). Порядок: D1→D2→D5→D3→D4.
 
@@ -14,8 +14,8 @@
 
 **Files:** create `src/lib/notifications/channels/{types.ts,email.ts,telegram.ts,registry.ts,deliver.ts}`; test `src/__tests__/notifications.channels.test.ts`
 
-- [ ] `types.ts`: `ChannelKey`, `ChannelRecipient` (id/email/name/telegramChatId; max/whatsapp/prefs добавит Task 3), `ChannelPayload` (`type,title,body,url?,email?:{subject,html,text}`), `ChannelSendResult` (`{status:'sent'|'skipped'|'failed';reason?}`), `CHANNEL_RECIPIENT_SELECT`.
-- [ ] `email.ts`: `isEnabledFor` = `!!user.email`; `send` → низкоуровневый `send()` из `email/send.tsx` с pre-rendered контентом; без контента → generic `sendNotificationEmail`; map `SendResult`→`ChannelSendResult`.
+- [ ] `types.ts`: `ChannelKey`, `ChannelRecipient` (id/email/name/telegramChatId; max/whatsapp/prefs добавит Task 3), `ChannelPayload` (`type,title,body,url?,email?:EmailContentRef`), `ChannelSendResult` (`{status:'sent'|'skipped'|'failed';reason?}`), `CHANNEL_RECIPIENT_SELECT`.
+- [ ] `email.ts`: `EmailContentRef = {template: EmailTemplateKey, props}` + реестр шаблонов с **ленивым** доступом к биндингам send.tsx (partial-моки Vitest живы); `isEnabledFor` = `!!user.email`; `send` → резолв шаблона → существующая sender-функция `{to,...props}`; без `payload.email` → `skipped`; map `SendResult`→`ChannelSendResult`.
 - [ ] `telegram.ts`: `isEnabledFor` = `isTelegramEnabled() && !!telegramChatId` (prefs добавит Task 3); `send` → `sendTelegramMessage(chatId, "title\n\nbody")`, `{ok:false}`→`failed`.
 - [ ] `registry.ts`: `getChannels(): NotificationChannel[]` (пока email+telegram); `deliver.ts`: `deliverToRecipient(user,payload)` — перебор, per-channel try/catch, `Record<ChannelKey,ChannelSendResult>`.
 - [ ] TDD-матрица: enabled/disabled × привязка × результат; изоляция ошибки (telegram бросает → email sent). Commit `feat(notifications): D1 channel layer (email+telegram)`.

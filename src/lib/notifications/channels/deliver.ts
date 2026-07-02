@@ -10,12 +10,19 @@ import type { ChannelKey, ChannelPayload, ChannelRecipient, ChannelSendResult } 
 
 export type DeliveryResults = Partial<Record<ChannelKey, ChannelSendResult>>;
 
+export type DeliverOptions = {
+  /** Сузить веер до перечисленных каналов (например, ops-алерты — только email). */
+  channels?: ChannelKey[];
+};
+
 export async function deliverToRecipient(
   user: ChannelRecipient,
-  payload: ChannelPayload
+  payload: ChannelPayload,
+  opts?: DeliverOptions
 ): Promise<DeliveryResults> {
   const results: DeliveryResults = {};
   for (const channel of getChannels()) {
+    if (opts?.channels && !opts.channels.includes(channel.key)) continue;
     if (!channel.isEnabledFor(user)) continue;
     try {
       results[channel.key] = await channel.send(user, payload);

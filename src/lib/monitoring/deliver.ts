@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { createNotification, triggerNotificationEmail } from '@/lib/notifications';
+import { createNotification, deliverNotificationToUser } from '@/lib/notifications';
 
 const TELEGRAM_TIMEOUT_MS = 5000;
 
@@ -41,7 +41,9 @@ export async function deliverAlert(prisma: PrismaClient, d: AlertDelivery): Prom
       console.error('[alerts] in-app notification failed', { userId: a.id, err });
     }
     try {
-      await triggerNotificationEmail({ userId: a.id, title, body: text, type });
+      // Только email: персональный Telegram дублировал бы общий алерт-чат
+      // (deliverTelegram ниже шлёт в ALERT_TELEGRAM_CHAT_ID).
+      await deliverNotificationToUser({ userId: a.id, title, body: text, type, channels: ['email'] });
     } catch (err) {
       console.error('[alerts] email failed', { userId: a.id, err });
     }

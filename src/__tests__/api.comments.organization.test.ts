@@ -7,8 +7,7 @@ const {
   auditCreate,
   notifyManagers,
   notifyMessageCreated,
-  triggerNotificationEmail,
-  triggerNotificationTelegram,
+  deliverNotificationToUser,
   getPrimaryOrganizationId
 } = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -17,8 +16,7 @@ const {
   auditCreate: vi.fn(),
   notifyManagers: vi.fn(),
   notifyMessageCreated: vi.fn(),
-  triggerNotificationEmail: vi.fn(),
-  triggerNotificationTelegram: vi.fn(),
+  deliverNotificationToUser: vi.fn(),
   getPrimaryOrganizationId: vi.fn()
 }));
 
@@ -33,8 +31,7 @@ vi.mock('@/lib/db/prisma', () => ({
 vi.mock('@/lib/notifications', () => ({
   notifyManagers,
   notifyMessageCreated,
-  triggerNotificationEmail,
-  triggerNotificationTelegram,
+  deliverNotificationToUser,
 }));
 vi.mock('@/lib/auth/organization', () => ({
   getPrimaryOrganizationId
@@ -92,7 +89,7 @@ describe('POST /api/comments — organization role', () => {
     expect(auditCreate).toHaveBeenCalled();
     // Org branch does NOT touch the partner-side notification helpers.
     expect(notifyMessageCreated).not.toHaveBeenCalled();
-    expect(triggerNotificationEmail).not.toHaveBeenCalled();
+    expect(deliverNotificationToUser).not.toHaveBeenCalled();
   });
 
   it('rejects with 403 when org-user posts to foreign-org order', async () => {
@@ -176,7 +173,7 @@ describe('POST /api/comments — partner/admin flow unchanged', () => {
     const res = await commentsPost(commentReq('ord-1', 'partner comment'));
     expect(res.status).toBe(200);
     expect(notifyMessageCreated).toHaveBeenCalled();
-    expect(triggerNotificationEmail).toHaveBeenCalled();
+    expect(deliverNotificationToUser).toHaveBeenCalled();
   });
 
   it('401 when unauthenticated (getSession returns null → requireSession returns !ok)', async () => {
@@ -292,7 +289,7 @@ describe('POST /api/comments — parse & partner-role branches', () => {
     getSession.mockResolvedValue({ sub: 'u-p', role: 'partner', partnerId: 'p1' });
     orderFindUnique.mockResolvedValue({ id: 'ord-1', partnerId: 'p1' });
     notifyMessageCreated.mockResolvedValue(undefined);
-    triggerNotificationEmail.mockResolvedValue(undefined);
+    deliverNotificationToUser.mockResolvedValue({});
     const res = await commentsPost(commentReq('ord-1'));
     expect(res.status).toBe(200);
     expect(commentCreate).toHaveBeenCalled();

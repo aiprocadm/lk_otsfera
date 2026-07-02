@@ -1,16 +1,21 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
+import { deliverToRecipient } from './channels/deliver';
 import {
-  sendPartnerDocumentPublishedEmail,
-  sendCommissionReadyEmail,
-  type SendResult
-} from '@/lib/email/send';
+  CHANNEL_RECIPIENT_SELECT,
+  type ChannelPayload,
+  type EmailContentRef
+} from './channels/types';
 import { getAppBaseUrl, orderLabel } from './shared';
 
 /**
- * Fan-out to all active users of a partner (in-app + best-effort email).
- * Mirrors notifyOrgUsers; the Notification row carries `partnerId` (the
- * Partner.notifications relation already exists). Partner has no per-order
- * route, so the deep link targets the portfolio.
+ * Fan-out to all active users of a partner (in-app + каналы через единый
+ * слой D1). Mirrors notifyOrgUsers; the Notification row carries `partnerId`
+ * (the Partner.notifications relation already exists). Partner has no
+ * per-order route, so the deep link targets the portfolio.
+ *
+ * С переходом на канальный слой партнёры с привязанным Telegram получают и
+ * Telegram-зеркало — сознательное выравнивание (spec трека D §2.8): карточка
+ * привязки в /partner/settings существовала, но канал в фан-ауте отсутствовал.
  */
 
 export type PartnerNotifyInput =
@@ -47,8 +52,8 @@ export type PartnerNotifyInput =
 
 /**
  * Per-type presentation: in-app title/body, deep link, persisted meta, and an
- * optional email dispatcher. Keeps the fan-out loop type-agnostic; adding a new
- * partner notification type means adding a branch here only. `sendEmail` is
+ * optional email template ref. Keeps the fan-out loop type-agnostic; adding a
+ * new partner notification type means adding a branch here only. `email` is
  * optional — some types are in-app only (no email template).
  */
 type PartnerNotificationView = {
@@ -56,7 +61,7 @@ type PartnerNotificationView = {
   body: string;
   url: string;
   meta: Prisma.InputJsonValue;
-  sendEmail?: (to: string, partnerName: string) => Promise<SendResult>;
+  email?: EmailContentRef;
 };
 
 function partnerNotificationView(
@@ -81,14 +86,15 @@ function partnerNotificationView(
       body: `Ваш отчёт по комиссии за ${input.payload.period} готов к просмотру. Итог: ${input.payload.amount}.`,
       url,
       meta: { ...input.payload, partnerName, url },
-      sendEmail: (to) =>
-        sendCommissionReadyEmail({
-          to,
+      email: {
+        template: 'commissionReady',
+        props: {
           partnerName,
           period: input.payload.period,
           amount: input.payload.amount,
           url
-        })
+        }
+      }
     };
   }
 
@@ -109,16 +115,17 @@ function partnerNotificationView(
     body,
     url,
     meta: { ...input.payload, partnerName, url },
-    sendEmail: (to) =>
-      sendPartnerDocumentPublishedEmail({
-        to,
+    email: {
+      template: 'partnerDocumentPublished',
+      props: {
         partnerName,
         orderNumber: docPayload.orderNumber,
         orderTitle: docPayload.orderTitle,
         documentName: docPayload.documentName,
         documentType: docPayload.documentType,
         orderUrl: url
-      })
+      }
+    }
   };
 }
 
@@ -139,13 +146,20 @@ export async function notifyPartnerUsers(
       name: true,
       partnerUsers: {
         where: { isActive: true, user: { isActive: true } },
-        select: { user: { select: { id: true, email: true } } }
+        select: { user: { select: CHANNEL_RECIPIENT_SELECT } }
       }
     }
   });
   if (!partner) return { recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 };
 
   const view = partnerNotificationView(input, partner.name);
+  const channelPayload: ChannelPayload = {
+    type: input.type,
+    title: view.title,
+    body: view.body,
+    url: view.url,
+    email: view.email
+  };
 
   let emailsSent = 0;
   let emailsSkipped = 0;
@@ -165,20 +179,17 @@ export async function notifyPartnerUsers(
     });
     recipientsNotified += 1;
 
-    if (u.email && view.sendEmail) {
-      try {
-        const r = await view.sendEmail(u.email, partner.name);
-        if (r.status === 'sent') emailsSent += 1;
-        else emailsSkipped += 1;
-      } catch (err) {
-        emailsSkipped += 1;
-        console.warn('[notifyPartnerUsers] email dispatch failed', {
-          partnerId: partner.id,
-          error: err instanceof Error ? err.message : String(err)
-        });
-      }
+    const results = await deliverToRecipient(u, channelPayload);
+    if (results.email?.status === 'sent') {
+      emailsSent += 1;
     } else {
       emailsSkipped += 1;
+    }
+    if (results.email?.status === 'failed') {
+      console.warn('[notifyPartnerUsers] email dispatch failed', {
+        partnerId: partner.id,
+        error: results.email.reason
+      });
     }
   }
 

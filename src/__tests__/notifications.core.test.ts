@@ -1,7 +1,7 @@
 /**
  * Unit tests for src/lib/notifications/core.ts
  *
- * Mocks: prisma (db) + email/send + email/transport
+ * Mocks: prisma (db) + email/send + telegram/client
  * None of these tests need a live Postgres — purely unit.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -14,14 +14,12 @@ const {
   notificationCreate,
   userFindUnique,
   sendNotificationEmailMock,
-  isEmailEnabledMock,
   isTelegramEnabledMock,
   sendTelegramMessageMock,
 } = vi.hoisted(() => ({
   notificationCreate: vi.fn(),
   userFindUnique: vi.fn(),
   sendNotificationEmailMock: vi.fn(),
-  isEmailEnabledMock: vi.fn(),
   isTelegramEnabledMock: vi.fn(),
   sendTelegramMessageMock: vi.fn(),
 }));
@@ -35,10 +33,6 @@ vi.mock('@/lib/db/prisma', () => ({
 
 vi.mock('@/lib/email/send', () => ({
   sendNotificationEmail: sendNotificationEmailMock,
-}));
-
-vi.mock('@/lib/email/transport', () => ({
-  isEmailEnabled: isEmailEnabledMock,
 }));
 
 vi.mock('@/lib/telegram/client', () => ({
@@ -55,8 +49,7 @@ import {
   notifyDocumentCreated,
   notifyStatusChanged,
   notifyMessageCreated,
-  triggerNotificationEmail,
-  triggerNotificationTelegram,
+  deliverNotificationToUser,
 } from '@/lib/notifications/core';
 // Import via barrel (src/lib/notifications/index.ts) to ensure coverage instruments it.
 // The barrel is a pure re-export module; importing it is sufficient to hit its branch.
@@ -161,10 +154,10 @@ describe('notifyMessageCreated', () => {
 });
 
 // ---------------------------------------------------------------------------
-// triggerNotificationEmail
+// deliverNotificationToUser (D1 — замена triggerNotificationEmail/Telegram)
 // ---------------------------------------------------------------------------
 
-describe('triggerNotificationEmail', () => {
+describe('deliverNotificationToUser', () => {
   const PAYLOAD = {
     userId: 'u-1',
     title: 'Уведомление',
@@ -173,39 +166,45 @@ describe('triggerNotificationEmail', () => {
     url: 'https://lk.example.ru/orders/42',
   };
 
-  it('is a no-op when email is disabled (isEmailEnabled returns false)', async () => {
-    isEmailEnabledMock.mockReturnValue(false);
+  function mockUser(overrides: Record<string, unknown> = {}) {
+    userFindUnique.mockResolvedValue({
+      id: 'u-1',
+      email: 'partner@test.ru',
+      name: 'Тест Пользователь',
+      telegramChatId: null,
+      ...overrides,
+    });
+  }
 
-    await triggerNotificationEmail(PAYLOAD);
-
-    expect(userFindUnique).not.toHaveBeenCalled();
-    expect(sendNotificationEmailMock).not.toHaveBeenCalled();
-  });
-
-  it('is a no-op when user has no email address', async () => {
-    isEmailEnabledMock.mockReturnValue(true);
-    userFindUnique.mockResolvedValue({ email: null, name: 'Партнёр' });
-
-    await triggerNotificationEmail(PAYLOAD);
-
-    expect(sendNotificationEmailMock).not.toHaveBeenCalled();
-  });
-
-  it('is a no-op when user is not found (findUnique returns null)', async () => {
-    isEmailEnabledMock.mockReturnValue(true);
-    userFindUnique.mockResolvedValue(null);
-
-    await triggerNotificationEmail(PAYLOAD);
-
-    expect(sendNotificationEmailMock).not.toHaveBeenCalled();
-  });
-
-  it('dispatches the notification email when user has an email address', async () => {
-    isEmailEnabledMock.mockReturnValue(true);
-    userFindUnique.mockResolvedValue({ email: 'partner@test.ru', name: 'Тест Пользователь' });
+  it('загружает получателя узким канальным select-ом', async () => {
+    isTelegramEnabledMock.mockReturnValue(false);
+    mockUser();
     sendNotificationEmailMock.mockResolvedValue({ status: 'sent', id: 'e-1' });
 
-    await triggerNotificationEmail(PAYLOAD);
+    await deliverNotificationToUser(PAYLOAD);
+
+    expect(userFindUnique).toHaveBeenCalledWith({
+      where: { id: PAYLOAD.userId },
+      select: { id: true, email: true, name: true, telegramChatId: true },
+    });
+  });
+
+  it('пользователь не найден → пустой результат, каналы не вызываются', async () => {
+    userFindUnique.mockResolvedValue(null);
+
+    const results = await deliverNotificationToUser(PAYLOAD);
+
+    expect(results).toEqual({});
+    expect(sendNotificationEmailMock).not.toHaveBeenCalled();
+    expect(sendTelegramMessageMock).not.toHaveBeenCalled();
+  });
+
+  it('шлёт generic-email с recipientName из user.name', async () => {
+    isTelegramEnabledMock.mockReturnValue(false);
+    mockUser();
+    sendNotificationEmailMock.mockResolvedValue({ status: 'sent', id: 'e-1' });
+
+    const results = await deliverNotificationToUser(PAYLOAD);
 
     expect(sendNotificationEmailMock).toHaveBeenCalledOnce();
     expect(sendNotificationEmailMock).toHaveBeenCalledWith(
@@ -217,84 +216,78 @@ describe('triggerNotificationEmail', () => {
         url: PAYLOAD.url,
       })
     );
+    expect(results.email).toEqual({ status: 'sent' });
   });
 
-  it('uses «партнёр» as fallback recipientName when user.name is null', async () => {
-    isEmailEnabledMock.mockReturnValue(true);
-    userFindUnique.mockResolvedValue({ email: 'anon@test.ru', name: null });
+  it('fallback recipientName «партнёр», когда user.name пуст', async () => {
+    isTelegramEnabledMock.mockReturnValue(false);
+    mockUser({ name: null, email: 'anon@test.ru' });
     sendNotificationEmailMock.mockResolvedValue({ status: 'sent', id: 'e-2' });
 
-    await triggerNotificationEmail({ ...PAYLOAD, url: undefined });
+    await deliverNotificationToUser({ ...PAYLOAD, url: undefined });
 
     expect(sendNotificationEmailMock).toHaveBeenCalledWith(
       expect.objectContaining({ recipientName: 'партнёр' })
     );
   });
-});
 
-// ---------------------------------------------------------------------------
-// triggerNotificationTelegram
-// ---------------------------------------------------------------------------
-
-describe('triggerNotificationTelegram', () => {
-  const PAYLOAD = {
-    userId: 'u-1',
-    title: 'Уведомление',
-    body: 'Тело',
-    type: 'document_created',
-  };
-
-  it('is a no-op when Telegram is disabled (isTelegramEnabled returns false)', async () => {
+  it('выключенный email-пайплайн → канал возвращает skipped (гейт внутри send())', async () => {
     isTelegramEnabledMock.mockReturnValue(false);
+    mockUser();
+    sendNotificationEmailMock.mockResolvedValue({ status: 'skipped', reason: 'disabled' });
 
-    await triggerNotificationTelegram(PAYLOAD);
+    const results = await deliverNotificationToUser(PAYLOAD);
 
-    expect(userFindUnique).not.toHaveBeenCalled();
-    expect(sendTelegramMessageMock).not.toHaveBeenCalled();
+    expect(results.email).toEqual({ status: 'skipped', reason: 'disabled' });
   });
 
-  it('is a no-op when user has no telegramChatId (null)', async () => {
-    isTelegramEnabledMock.mockReturnValue(true);
-    userFindUnique.mockResolvedValue({ telegramChatId: null });
+  it('Telegram выключен (env) → sendTelegramMessage не вызывается', async () => {
+    isTelegramEnabledMock.mockReturnValue(false);
+    mockUser({ telegramChatId: '123456789' });
+    sendNotificationEmailMock.mockResolvedValue({ status: 'sent', id: 'e-3' });
 
-    await triggerNotificationTelegram(PAYLOAD);
-
-    expect(sendTelegramMessageMock).not.toHaveBeenCalled();
-  });
-
-  it('is a no-op when user is not found (findUnique returns null)', async () => {
-    isTelegramEnabledMock.mockReturnValue(true);
-    userFindUnique.mockResolvedValue(null);
-
-    await triggerNotificationTelegram(PAYLOAD);
+    const results = await deliverNotificationToUser(PAYLOAD);
 
     expect(sendTelegramMessageMock).not.toHaveBeenCalled();
+    expect(results.telegram).toBeUndefined();
   });
 
-  it('calls sendTelegramMessage with chatId and "title\\n\\nbody" when enabled and chatId set', async () => {
+  it('Telegram включён, чата нет → канал пропущен', async () => {
     isTelegramEnabledMock.mockReturnValue(true);
-    userFindUnique.mockResolvedValue({ telegramChatId: '123456789' });
+    mockUser({ telegramChatId: null });
+    sendNotificationEmailMock.mockResolvedValue({ status: 'sent', id: 'e-4' });
+
+    const results = await deliverNotificationToUser(PAYLOAD);
+
+    expect(sendTelegramMessageMock).not.toHaveBeenCalled();
+    expect(results.telegram).toBeUndefined();
+  });
+
+  it('Telegram включён и привязан → шлёт "title\\n\\nbody" в чат', async () => {
+    isTelegramEnabledMock.mockReturnValue(true);
+    mockUser({ telegramChatId: '123456789' });
+    sendNotificationEmailMock.mockResolvedValue({ status: 'sent', id: 'e-5' });
     sendTelegramMessageMock.mockResolvedValue({ ok: true });
 
-    await triggerNotificationTelegram(PAYLOAD);
+    const results = await deliverNotificationToUser(PAYLOAD);
 
     expect(sendTelegramMessageMock).toHaveBeenCalledOnce();
     expect(sendTelegramMessageMock).toHaveBeenCalledWith(
       '123456789',
       `${PAYLOAD.title}\n\n${PAYLOAD.body}`
     );
+    expect(results.telegram).toEqual({ status: 'sent' });
   });
 
-  it('selects only telegramChatId from the user record', async () => {
+  it('channels: ["email"] сужает веер — Telegram не трогается даже при привязке', async () => {
     isTelegramEnabledMock.mockReturnValue(true);
-    userFindUnique.mockResolvedValue({ telegramChatId: '987654321' });
-    sendTelegramMessageMock.mockResolvedValue({ ok: true });
+    mockUser({ telegramChatId: '123456789' });
+    sendNotificationEmailMock.mockResolvedValue({ status: 'sent', id: 'e-6' });
 
-    await triggerNotificationTelegram(PAYLOAD);
+    const results = await deliverNotificationToUser({ ...PAYLOAD, channels: ['email'] });
 
-    expect(userFindUnique).toHaveBeenCalledWith({
-      where: { id: PAYLOAD.userId },
-      select: { telegramChatId: true },
-    });
+    expect(sendNotificationEmailMock).toHaveBeenCalledOnce();
+    expect(sendTelegramMessageMock).not.toHaveBeenCalled();
+    expect(results.telegram).toBeUndefined();
   });
 });

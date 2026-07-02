@@ -1,15 +1,5 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import {
-  sendManagerCommentFromOrgEmail,
-  sendManagerDocumentUploadedByOrgEmail,
-  sendManagerDocumentUploadedByPartnerEmail,
-  sendManagerOrderMarkedPaidBy1CEmail,
-  sendManagerOrderStatusChangedEmail,
-  sendNotificationEmail,
-  type SendResult,
-} from '@/lib/email/send';
-import { isTelegramEnabled, sendTelegramMessage } from '@/lib/telegram/client';
-import {
   managerCommentFromOrgSubject,
   managerCommentFromOrgText,
   managerDocumentUploadedByOrgSubject,
@@ -21,6 +11,13 @@ import {
   managerOrderStatusChangedSubject,
   managerOrderStatusChangedText
 } from '@/lib/email/templates';
+import { deliverToRecipient } from './channels/deliver';
+import {
+  CHANNEL_RECIPIENT_SELECT,
+  type ChannelPayload,
+  type ChannelRecipient,
+  type EmailContentRef
+} from './channels/types';
 import { getAppBaseUrl, orderLabel } from './shared';
 
 export type NotifyManagersType =
@@ -92,12 +89,8 @@ export type NotifyManagersSummary = {
   emailsSkipped: number;
 };
 
-export type ManagerRecipient = {
-  id: string;
-  email: string;
-  name: string | null;
-  telegramChatId?: string | null;
-};
+/** Получатель фан-аута — узкий select канального слоя (D1). */
+export type ManagerRecipient = ChannelRecipient;
 
 /**
  * Resolve the set of manager users who should be notified about activity on
@@ -152,7 +145,7 @@ export async function resolveManagerRecipients(
   // even if they were left on OrganizationManager.
   return db.user.findMany({
     where: { id: { in: Array.from(ids) }, isActive: true },
-    select: { id: true, email: true, name: true, telegramChatId: true }
+    select: CHANNEL_RECIPIENT_SELECT
   });
 }
 
@@ -166,14 +159,15 @@ type OrderContext = {
 type ManagerNotificationOutput = {
   subject: string;
   shortBody: string;
-  dispatch: (to: string) => Promise<SendResult>;
+  email: EmailContentRef;
 };
 
 /**
  * MANAGER_TEMPLATES — keyed by notification type. Each builder receives
  * the structured input and the resolved order context and returns the
- * `{ subject, shortBody, dispatch }` triple used to (a) fill in the
- * in-app Notification row and (b) dispatch the matching Resend email.
+ * `{ subject, shortBody, email }` triple used to (a) fill in the in-app
+ * Notification row and (b) reference the matching Resend email template
+ * (отправку делает email-канал — D1).
  */
 const MANAGER_TEMPLATES: Record<
   NotifyManagersType,
@@ -191,7 +185,7 @@ const MANAGER_TEMPLATES: Record<
     return {
       subject: managerCommentFromOrgSubject(props),
       shortBody: managerCommentFromOrgText(props),
-      dispatch: (to) => sendManagerCommentFromOrgEmail({ to, ...props })
+      email: { template: 'managerCommentFromOrg', props }
     };
   },
   document_uploaded_by_org: (input, ctx) => {
@@ -207,7 +201,7 @@ const MANAGER_TEMPLATES: Record<
     return {
       subject: managerDocumentUploadedByOrgSubject(props),
       shortBody: managerDocumentUploadedByOrgText(props),
-      dispatch: (to) => sendManagerDocumentUploadedByOrgEmail({ to, ...props })
+      email: { template: 'managerDocumentUploadedByOrg', props }
     };
   },
   document_uploaded_by_partner: (input, ctx) => {
@@ -223,7 +217,7 @@ const MANAGER_TEMPLATES: Record<
     return {
       subject: managerDocumentUploadedByPartnerSubject(props),
       shortBody: managerDocumentUploadedByPartnerText(props),
-      dispatch: (to) => sendManagerDocumentUploadedByPartnerEmail({ to, ...props })
+      email: { template: 'managerDocumentUploadedByPartner', props }
     };
   },
   order_marked_paid_by_1c: (input, ctx) => {
@@ -238,7 +232,7 @@ const MANAGER_TEMPLATES: Record<
     return {
       subject: managerOrderMarkedPaidBy1CSubject(props),
       shortBody: managerOrderMarkedPaidBy1CText(props),
-      dispatch: (to) => sendManagerOrderMarkedPaidBy1CEmail({ to, ...props })
+      email: { template: 'managerOrderMarkedPaidBy1C', props }
     };
   },
   order_status_changed_by_manager: (input, ctx) => {
@@ -254,7 +248,7 @@ const MANAGER_TEMPLATES: Record<
     return {
       subject: managerOrderStatusChangedSubject(props),
       shortBody: managerOrderStatusChangedText(props),
-      dispatch: (to) => sendManagerOrderStatusChangedEmail({ to, ...props })
+      email: { template: 'managerOrderStatusChanged', props }
     };
   },
   chat_message: (input, ctx) => {
@@ -266,13 +260,15 @@ const MANAGER_TEMPLATES: Record<
     return {
       subject,
       shortBody,
-      dispatch: (to) => sendNotificationEmail({
-        to,
-        title: subject,
-        body: shortBody,
-        recipientName: 'менеджер',
-        url: ctx.orderUrl
-      })
+      email: {
+        template: 'notification',
+        props: {
+          title: subject,
+          body: shortBody,
+          recipientName: 'менеджер',
+          url: ctx.orderUrl
+        }
+      }
     };
   }
 };
@@ -298,7 +294,7 @@ export async function resolveOrgManagerRecipients(
   if (ids.size === 0) return [];
   return db.user.findMany({
     where: { id: { in: Array.from(ids) }, role: 'manager', isActive: true },
-    select: { id: true, email: true, name: true, telegramChatId: true }
+    select: CHANNEL_RECIPIENT_SELECT
   });
 }
 
@@ -320,6 +316,13 @@ export async function notifyManagersOrderLess(
   const subject = managerDocumentUploadedByOrgSubject(props);
   const shortBody = managerDocumentUploadedByOrgText(props);
   const meta = { ...input, orderId: null } as Prisma.InputJsonValue;
+  const channelPayload: ChannelPayload = {
+    type: 'document_uploaded_by_org',
+    title: subject,
+    body: shortBody,
+    url: props.orderUrl,
+    email: { template: 'managerDocumentUploadedByOrg', props }
+  };
 
   let emailsSent = 0, emailsSkipped = 0, recipientsNotified = 0;
   for (const r of recipients) {
@@ -327,16 +330,10 @@ export async function notifyManagersOrderLess(
       data: { userId: r.id, type: 'document_uploaded_by_org', title: subject, body: shortBody, meta }
     });
     recipientsNotified += 1;
-    if (r.email) {
-      try {
-        const result = await sendManagerDocumentUploadedByOrgEmail({ to: r.email, ...props });
-        if (result.status === 'sent') emailsSent += 1; else emailsSkipped += 1;
-      } catch { emailsSkipped += 1; }
-    } else emailsSkipped += 1;
 
-    if (r.telegramChatId && isTelegramEnabled()) {
-      await sendTelegramMessage(r.telegramChatId, `${subject}\n\n${shortBody}`).catch(() => {});
-    }
+    const results = await deliverToRecipient(r, channelPayload);
+    if (results.email?.status === 'sent') emailsSent += 1;
+    else emailsSkipped += 1;
   }
   return { recipientsNotified, emailsSent, emailsSkipped };
 }
@@ -360,10 +357,10 @@ function metaFromInput(input: NotifyManagersInput): Record<string, unknown> {
  *
  * Resolves recipients via `resolveManagerRecipients` (three-way OR matching
  * `managerOrderScopeFilter`), then creates an in-app Notification row per
- * recipient and best-effort dispatches an email via Resend. When the email
- * pipeline is disabled, `send()` returns `{status:'skipped'}` and the
- * Notification rows are still created — the bell counter is the source of
- * truth, not the inbox (matching `notifyOrgUsers` semantics).
+ * recipient and best-effort dispatches the enabled channels via the channel
+ * layer (D1). When the email pipeline is disabled, the email channel returns
+ * `skipped` and the Notification rows are still created — the bell counter is
+ * the source of truth, not the inbox (matching `notifyOrgUsers` semantics).
  *
  * Invariant: the set of users notified for an order equals
  * `{ m : managerOrderScopeFilter(session(m)) sees order }`. Covered by
@@ -395,8 +392,15 @@ export async function notifyManagers(
   };
 
   const build = MANAGER_TEMPLATES[input.type];
-  const { subject, shortBody, dispatch } = build(input, ctx);
+  const { subject, shortBody, email } = build(input, ctx);
   const meta = metaFromInput(input);
+  const channelPayload: ChannelPayload = {
+    type: input.type,
+    title: subject,
+    body: shortBody,
+    url: ctx.orderUrl,
+    email
+  };
 
   let emailsSent = 0;
   let emailsSkipped = 0;
@@ -414,26 +418,19 @@ export async function notifyManagers(
     });
     recipientsNotified += 1;
 
-    if (r.email) {
-      // Best-effort: a transport-level throw for one recipient must not abort
-      // the fan-out nor propagate to callers that treat email as a side effect.
-      try {
-        const result = await dispatch(r.email);
-        if (result.status === 'sent') emailsSent += 1;
-        else emailsSkipped += 1;
-      } catch (err) {
-        emailsSkipped += 1;
-        console.warn('[notifyManagers] email dispatch failed', {
-          orderId: input.orderId,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
+    // Best-effort: канальный слой изолирует ошибки per-channel — сбой одного
+    // получателя/канала не прерывает fan-out.
+    const results = await deliverToRecipient(r, channelPayload);
+    if (results.email?.status === 'sent') {
+      emailsSent += 1;
     } else {
       emailsSkipped += 1;
     }
-
-    if (r.telegramChatId && isTelegramEnabled()) {
-      await sendTelegramMessage(r.telegramChatId, `${subject}\n\n${shortBody}`).catch(() => {});
+    if (results.email?.status === 'failed') {
+      console.warn('[notifyManagers] email dispatch failed', {
+        orderId: input.orderId,
+        error: results.email.reason,
+      });
     }
   }
 

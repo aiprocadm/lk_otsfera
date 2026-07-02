@@ -17,8 +17,7 @@ const {
   notifyManagers,
   notifyMessageCreated,
   notifyOrgUsers,
-  triggerNotificationEmail,
-  triggerNotificationTelegram,
+  deliverNotificationToUser,
   getPrimaryOrganizationId
 } = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -28,8 +27,7 @@ const {
   notifyManagers: vi.fn(),
   notifyMessageCreated: vi.fn(),
   notifyOrgUsers: vi.fn(),
-  triggerNotificationEmail: vi.fn(),
-  triggerNotificationTelegram: vi.fn(),
+  deliverNotificationToUser: vi.fn(),
   getPrimaryOrganizationId: vi.fn()
 }));
 
@@ -45,8 +43,7 @@ vi.mock('@/lib/notifications', () => ({
   notifyManagers,
   notifyMessageCreated,
   notifyOrgUsers,
-  triggerNotificationEmail,
-  triggerNotificationTelegram,
+  deliverNotificationToUser,
 }));
 vi.mock('@/lib/auth/organization', () => ({
   getPrimaryOrganizationId
@@ -117,7 +114,7 @@ describe('POST /api/comments — org branch fires notifyManagers (comment_from_o
     );
     // Org branch must NOT touch partner-side helpers.
     expect(notifyMessageCreated).not.toHaveBeenCalled();
-    expect(triggerNotificationEmail).not.toHaveBeenCalled();
+    expect(deliverNotificationToUser).not.toHaveBeenCalled();
   });
 
   it('still calls notifyManagers when no manager is in scope (resolver returns empty)', async () => {

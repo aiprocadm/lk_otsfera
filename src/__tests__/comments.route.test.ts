@@ -6,8 +6,7 @@ const {
   findOrder,
   createComment,
   notifyMessageCreated,
-  triggerNotificationEmail,
-  triggerNotificationTelegram,
+  deliverNotificationToUser,
   getPrimaryOrganizationId
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
@@ -15,8 +14,7 @@ const {
   findOrder: vi.fn(),
   createComment: vi.fn(),
   notifyMessageCreated: vi.fn(),
-  triggerNotificationEmail: vi.fn(),
-  triggerNotificationTelegram: vi.fn(),
+  deliverNotificationToUser: vi.fn(),
   getPrimaryOrganizationId: vi.fn()
 }));
 
@@ -31,7 +29,7 @@ vi.mock('@/lib/db/prisma', () => ({
     comment: { create: createComment }
   }
 }));
-vi.mock('@/lib/notifications', () => ({ notifyMessageCreated, triggerNotificationEmail, triggerNotificationTelegram }));
+vi.mock('@/lib/notifications', () => ({ notifyMessageCreated, deliverNotificationToUser }));
 vi.mock('@/lib/auth/organization', () => ({ getPrimaryOrganizationId }));
 
 import { POST } from '@/app/api/comments/route';
@@ -52,7 +50,7 @@ describe('POST /api/comments', () => {
     createComment.mockResolvedValue({ id: 'cm1', orderId: 'ord1', body: 'hello', authorId: 'u1' });
     getPrimaryOrganizationId.mockResolvedValue('org1');
     notifyMessageCreated.mockResolvedValue(undefined);
-    triggerNotificationEmail.mockResolvedValue(undefined);
+    deliverNotificationToUser.mockResolvedValue({});
   });
 
   it('returns 401 when session is missing', async () => {
@@ -94,7 +92,7 @@ describe('POST /api/comments', () => {
     expect(notifyMessageCreated).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'u1', organizationId: 'org1' })
     );
-    expect(triggerNotificationEmail).toHaveBeenCalledWith(
+    expect(deliverNotificationToUser).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'u1', type: 'message_created' })
     );
   });
