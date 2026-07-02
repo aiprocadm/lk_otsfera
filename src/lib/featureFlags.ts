@@ -30,6 +30,8 @@ export const FEATURE_FLAGS = [
   // Трек D5: доставка уведомлений через воркер (BullMQ) вместо inline.
   // Точка чтения одна — диспетчер (dispatchToRecipient). Требует REDIS_URL.
   'notif_queue',
+  // Трек G1: конструктор ролей (UI). Гейтит /leader/roles + /admin/roles.
+  'role_constructor',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -47,7 +49,8 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'enrollment_requests',
   'max_channel',
   'whatsapp_channel',
-  'notif_queue'
+  'notif_queue',
+  'role_constructor'
 ]);
 
 export class FeatureDisabledError extends Error {

@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 describe('канон leader', () => {
-  it('10 пунктов: сводка/команда/финансы/корректировки/заказы/организации/обучение/сообщения/мои заказы/настройки', () => {
+  it('11 пунктов: сводка/команда/финансы/корректировки/заказы/организации/роли/обучение/сообщения/мои заказы/настройки', () => {
     expect(navByRole.leader.map((i) => i.href)).toEqual([
       '/leader/dashboard',
       '/leader/team',
@@ -21,6 +21,7 @@ describe('канон leader', () => {
       '/leader/commission-corrections',
       '/leader/orders',
       '/leader/organizations',
+      '/leader/roles',
       '/leader/enrollments',
       '/manager/messages',
       '/manager/dashboard',
@@ -28,10 +29,12 @@ describe('канон leader', () => {
     ]);
   });
 
-  it('пункты leader-меню без flag, кроме «Заявок на обучение» (свой opt-in флаг)', () => {
+  it('пункты leader-меню без flag, кроме «Заявок на обучение» и «Ролей» (свои opt-in флаги)', () => {
     for (const item of navByRole.leader) {
       if (item.href === '/leader/enrollments') {
         expect(item.flag).toBe('enrollment_requests');
+      } else if (item.href === '/leader/roles') {
+        expect(item.flag).toBe('role_constructor');
       } else {
         expect(item.flag).toBeUndefined();
       }
@@ -53,15 +56,19 @@ describe('канон leader', () => {
     }
   });
 
-  it('navItemsFor("leader") без флага enrollment скрывает «Заявки на обучение» (opt-in off)', () => {
+  it('navItemsFor("leader") без opt-in флагов скрывает «Заявки на обучение» и «Роли»', () => {
     const hrefs = navItemsFor('leader').map((i) => i.href);
     expect(hrefs).not.toContain('/leader/enrollments');
-    expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length - 1);
+    expect(hrefs).not.toContain('/leader/roles');
+    expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length - 2);
   });
 
-  it('navItemsFor("leader") показывает «Заявки на обучение» при включённом флаге', () => {
+  it('navItemsFor("leader") показывает opt-in пункты при включённых флагах', () => {
     process.env.FEATURE_ENROLLMENT_REQUESTS = '1';
-    expect(navItemsFor('leader').map((i) => i.href)).toContain('/leader/enrollments');
+    process.env.FEATURE_ROLE_CONSTRUCTOR = '1';
+    const hrefs = navItemsFor('leader').map((i) => i.href);
+    expect(hrefs).toContain('/leader/enrollments');
+    expect(hrefs).toContain('/leader/roles');
     expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length);
   });
 });

@@ -34,6 +34,7 @@ const OPT_IN_FLAGS = new Set([
   'max_channel',
   'whatsapp_channel',
   'notif_queue',
+  'role_constructor',
 ]);
 
 describe('isFeatureEnabled', () => {

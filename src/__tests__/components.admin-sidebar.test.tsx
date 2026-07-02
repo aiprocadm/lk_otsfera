@@ -50,6 +50,7 @@ const EXPECTED_HREFS = [
   '/admin/partners',
   '/admin/organizations',
   '/admin/custom-fields',
+  '/admin/roles',
   '/admin/settings',
 ];
 
@@ -64,13 +65,13 @@ describe('AdminSidebar', () => {
     }
   });
 
-  it('renders exactly 18 nav links', () => {
+  it('renders exactly 19 nav links', () => {
     vi.mocked(usePathname).mockReturnValue('/admin/dashboard');
 
     const html = renderToString(React.createElement(AdminSidebar, { items: navByRole.admin }));
 
     const matches = html.match(/data-testid="admin-nav-/g);
-    expect(matches).toHaveLength(18);
+    expect(matches).toHaveLength(19);
   });
 
   it('marks exactly one link as active when on /admin/dashboard', () => {
