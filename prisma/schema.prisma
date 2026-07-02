@@ -147,6 +147,15 @@ model User {
   telegramChatId               String?               @unique // null = Telegram не привязан (§18)
   telegramLinkCode             String? // одноразовый код привязки (deep-link start param)
   telegramLinkCodeExpiresAt    DateTime?
+  // Трек D: привязки каналов Max/WhatsApp (зеркало telegram-полей) +
+  // пользовательские настройки каналов. Семантика opt-in: канал включён ⟺
+  // привязка есть И notificationChannels[key] !== false (email всегда включён,
+  // в Json не хранится). null/мусор в Json → дефолты (см. parseChannelPrefs).
+  maxChatId                    String?               @unique // null = Max не привязан
+  maxLinkCode                  String? // одноразовый код привязки Max (deep-link)
+  maxLinkCodeExpiresAt         DateTime?
+  whatsappPhone                String?               @unique // E.164; адресация в агрегаторе по номеру
+  notificationChannels         Json? // { telegram?: bool, max?: bool, whatsapp?: bool }
 }
 
 model PartnerUser {

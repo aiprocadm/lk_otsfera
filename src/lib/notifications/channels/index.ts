@@ -1,4 +1,5 @@
 export * from './types';
+export * from './preferences';
 export { emailChannel } from './email';
 export { telegramChannel } from './telegram';
 export { getChannels } from './registry';

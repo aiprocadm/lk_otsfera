@@ -79,14 +79,16 @@ export type ChannelSendResult = {
 
 /**
  * Узкий select получателя — переиспользуется всеми фан-аутами, чтобы канал
- * гарантированно получил свои поля привязки. Трек D2 добавляет max/whatsapp
- * привязки и notificationChannels.
+ * гарантированно получил свои поля привязки и настройки (D2).
  */
 export const CHANNEL_RECIPIENT_SELECT = {
   id: true,
   email: true,
   name: true,
   telegramChatId: true,
+  maxChatId: true,
+  whatsappPhone: true,
+  notificationChannels: true,
 } as const;
 
 export type ChannelRecipient = {
@@ -94,6 +96,10 @@ export type ChannelRecipient = {
   email: string;
   name: string | null;
   telegramChatId: string | null;
+  maxChatId: string | null;
+  whatsappPhone: string | null;
+  /** Json-колонка настроек; парсится терпимо (см. channels/preferences.ts). */
+  notificationChannels: unknown;
 };
 
 export interface NotificationChannel {

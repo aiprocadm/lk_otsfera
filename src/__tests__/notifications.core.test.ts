@@ -172,6 +172,9 @@ describe('deliverNotificationToUser', () => {
       email: 'partner@test.ru',
       name: 'Тест Пользователь',
       telegramChatId: null,
+      maxChatId: null,
+      whatsappPhone: null,
+      notificationChannels: null,
       ...overrides,
     });
   }
@@ -185,7 +188,15 @@ describe('deliverNotificationToUser', () => {
 
     expect(userFindUnique).toHaveBeenCalledWith({
       where: { id: PAYLOAD.userId },
-      select: { id: true, email: true, name: true, telegramChatId: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        telegramChatId: true,
+        maxChatId: true,
+        whatsappPhone: true,
+        notificationChannels: true,
+      },
     });
   });
 

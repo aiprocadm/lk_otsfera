@@ -6,12 +6,17 @@
  * воркер (D5) использует для SyncLog + retry.
  */
 import { isTelegramEnabled, sendTelegramMessage } from '@/lib/telegram/client';
+import { channelPrefEnabled } from './preferences';
 import type { NotificationChannel } from './types';
 
 export const telegramChannel: NotificationChannel = {
   key: 'telegram',
   isEnabledFor(user) {
-    return isTelegramEnabled() && !!user.telegramChatId;
+    return (
+      isTelegramEnabled() &&
+      !!user.telegramChatId &&
+      channelPrefEnabled(user.notificationChannels, 'telegram')
+    );
   },
   async send(user, payload) {
     if (!user.telegramChatId) {

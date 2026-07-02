@@ -30,6 +30,9 @@ function makeUser(overrides: Partial<ChannelRecipient> = {}): ChannelRecipient {
     email: 'user@example.ru',
     name: 'Иван',
     telegramChatId: null,
+    maxChatId: null,
+    whatsappPhone: null,
+    notificationChannels: null,
     ...overrides,
   };
 }
@@ -115,6 +118,23 @@ describe('telegramChannel', () => {
     expect(telegramChannel.isEnabledFor(makeUser({ telegramChatId: null }))).toBe(false);
     isTelegramEnabled.mockReturnValue(false);
     expect(telegramChannel.isEnabledFor(makeUser({ telegramChatId: '123' }))).toBe(false);
+  });
+
+  it('isEnabledFor: пользовательская настройка (D2) — false выключает, отсутствие/мусор = включено', () => {
+    isTelegramEnabled.mockReturnValue(true);
+    const bound = { telegramChatId: '123' };
+    expect(
+      telegramChannel.isEnabledFor(makeUser({ ...bound, notificationChannels: { telegram: false } }))
+    ).toBe(false);
+    expect(
+      telegramChannel.isEnabledFor(makeUser({ ...bound, notificationChannels: { telegram: true } }))
+    ).toBe(true);
+    expect(
+      telegramChannel.isEnabledFor(makeUser({ ...bound, notificationChannels: { max: false } }))
+    ).toBe(true);
+    expect(
+      telegramChannel.isEnabledFor(makeUser({ ...bound, notificationChannels: 'garbage' }))
+    ).toBe(true);
   });
 
   it('send шлёт "title\\n\\nbody" в привязанный чат', async () => {
