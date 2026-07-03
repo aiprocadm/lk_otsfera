@@ -39,12 +39,14 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/admin/organizations', label: 'Организации', icon: '🏛', group: 'Справочники' },
     { href: '/admin/training-directions', label: 'Направления обучения', icon: '🎯', group: 'Справочники' },
     { href: '/admin/custom-fields', label: 'Доп-поля', icon: '🧩', group: 'Справочники' },
+    { href: '/admin/roles', label: 'Роли', icon: '🎭', group: 'Справочники', flag: 'role_constructor' },
     { href: '/admin/settings', label: 'Настройки', icon: '⚙', group: 'Платформа' }
   ],
   manager: [
     { href: '/manager/dashboard', label: 'Главная', icon: '⌂', flag: 'manager_cabinet' },
     { href: '/manager/orders', label: 'Заказы', icon: '📋', flag: 'manager_cabinet' },
     { href: '/manager/leads', label: 'Заявки', icon: '📬', flag: 'manager_cabinet' },
+    { href: '/manager/funnel', label: 'Воронка', icon: '📈', flag: 'sales_funnel' },
     { href: '/manager/organizations', label: 'Организации', icon: '🏢', flag: 'manager_cabinet' },
     { href: '/manager/finance', label: 'Финансы', icon: '₽', flag: 'manager_cabinet' },
     { href: '/manager/import', label: 'Загрузка из 1С', icon: '📥', flag: 'manager_cabinet' },
@@ -69,6 +71,10 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/leader/commission-corrections', label: 'Корректировки', icon: '🔁' },
     { href: '/leader/orders', label: 'Заказы', icon: '📋' },
     { href: '/leader/organizations', label: 'Организации', icon: '🏢' },
+    // role_constructor — отдельный feature-флаг (НЕ leader_cabinet): гейтит только
+    // этот пункт, не опустошает сайдбар при выключении.
+    { href: '/leader/roles', label: 'Роли', icon: '🎭', flag: 'role_constructor' },
+    { href: '/leader/funnel', label: 'Воронка', icon: '📈', flag: 'sales_funnel' },
     { href: '/leader/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests' },
     // Личный inbox (комментарии+чат) живёт в кабинете менеджера — см. план, «Отклонение от спеки».
     { href: '/manager/messages', label: 'Сообщения', icon: '💬' },

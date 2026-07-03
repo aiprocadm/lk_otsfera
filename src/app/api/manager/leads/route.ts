@@ -17,6 +17,7 @@ export async function GET(req: Request) {
   const status = statusRaw && STATUSES.includes(statusRaw) ? (statusRaw as LeadStatus) : undefined;
 
   const result = await listManagerLeads(prisma, {
+    session,
     status,
     search: sp.get('q') ?? undefined,
     assignedToUserId: sp.get('assignedToMe') === '1' ? session.sub : undefined,

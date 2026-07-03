@@ -3,6 +3,7 @@ import { JWTPayload, SignJWT, jwtVerify } from 'jose';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
+import { sessionAccessProfileSchema, type SessionAccessProfile } from '@/lib/auth/accessProfile';
 
 const MIN_JWT_SECRET_LENGTH = 32;
 
@@ -51,6 +52,9 @@ export type SessionPayload = {
   email?: string;
   name?: string;
   externalStudentId?: string | null;
+  // Трек G1: кастомный профиль доступа, денормализованный в JWT при логине
+  // (только для менеджеров). null/undefined = legacy teamMode-поведение.
+  accessProfile?: SessionAccessProfile | null;
 };
 
 export type StudentBridgePayload = Pick<SessionPayload, 'sub' | 'role' | 'organizationId' | 'email' | 'name' | 'externalStudentId'>;
@@ -81,7 +85,8 @@ const sessionPayloadSchema = z.object({
   organizationMemberships: z.array(organizationMembershipSchema).optional(),
   email: z.string().optional(),
   name: z.string().optional(),
-  externalStudentId: z.string().nullish()
+  externalStudentId: z.string().nullish(),
+  accessProfile: sessionAccessProfileSchema.nullish()
 });
 
 const studentBridgePayloadSchema = z.object({

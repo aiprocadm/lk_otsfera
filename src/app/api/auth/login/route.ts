@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import bcrypt from 'bcryptjs';
 import { signToken, type OrganizationMembership } from '@/lib/auth/jwt';
+import { toSessionAccessProfile, type SessionAccessProfile } from '@/lib/auth/accessProfile';
 
 const DUMMY_BCRYPT_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
 
@@ -120,6 +121,7 @@ export async function POST(req: Request) {
 
   let managedOrgIds: string[] | undefined;
   let managerRole: 'leader' | null | undefined;
+  let accessProfile: SessionAccessProfile | undefined;
 
   if (user.role === 'manager') {
     const assigned = await prisma.organizationManager.findMany({
@@ -131,6 +133,12 @@ export async function POST(req: Request) {
     // above: collapsing this to null silently kills the leader feature for the
     // whole 7d token lifetime.
     managerRole = user.managerRole === 'leader' ? 'leader' : null;
+    // G1: денормализуем кастомный профиль доступа в токен (single indexed lookup,
+    // как managedOrgIds). null accessProfileId → профиля нет → legacy-поведение.
+    if (user.accessProfileId) {
+      const row = await prisma.accessProfile.findUnique({ where: { id: user.accessProfileId } });
+      if (row) accessProfile = toSessionAccessProfile(row);
+    }
   }
 
   const token = await signToken({
@@ -146,7 +154,8 @@ export async function POST(req: Request) {
     ...(assignedOrgIds !== undefined ? { assignedOrgIds } : {}),
     ...(organizationMemberships !== undefined ? { organizationMemberships } : {}),
     ...(managedOrgIds !== undefined ? { managedOrgIds } : {}),
-    ...(managerRole !== undefined ? { managerRole } : {})
+    ...(managerRole !== undefined ? { managerRole } : {}),
+    ...(accessProfile !== undefined ? { accessProfile } : {})
   });
 
   const res = NextResponse.json({ ok: true });

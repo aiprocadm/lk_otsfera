@@ -19,6 +19,12 @@ const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   { prefix: '/organization', flag: 'organization_cabinet' },
   { prefix: '/manager', flag: 'manager_cabinet' },
   { prefix: '/leader', flag: 'leader_cabinet' },
+  // G1: конструктор ролей — отдельный флаг поверх кабинетных префиксов (additive).
+  { prefix: '/leader/roles', flag: 'role_constructor' },
+  { prefix: '/admin/roles', flag: 'role_constructor' },
+  // G2: воронка продаж / канбан.
+  { prefix: '/leader/funnel', flag: 'sales_funnel' },
+  { prefix: '/manager/funnel', flag: 'sales_funnel' },
 ];
 
 const MIN_JWT_SECRET_LENGTH = 32;

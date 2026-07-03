@@ -16,6 +16,17 @@ enum Role {
   student
 }
 
+// Трек G1: уровень охвата кастомного профиля доступа по типу объекта.
+// own = только свои (managerId==sub), assigned = закреплённые (managedOrgIds),
+// all = все в рамках компании (C8-пол). Дефолт колонок AccessProfile = all
+// применяется только к ЯВНО созданным профилям; существующие менеджеры без
+// профиля сохраняют legacy teamMode-поведение.
+enum ScopeLevel {
+  own
+  assigned
+  all
+}
+
 enum OrderStatus {
   new
   in_progress
@@ -118,6 +129,9 @@ model User {
   managerRole                  String? // null = regular manager, 'leader' = руководитель
   companyId                    String?
   company                      Company?              @relation(fields: [companyId], references: [id])
+  // Трек G1: кастомный профиль доступа (nullable; null = legacy teamMode-поведение).
+  accessProfileId              String?
+  accessProfile                AccessProfile?        @relation(fields: [accessProfileId], references: [id])
   partnerId                    String?
   partner                      Partner?              @relation(fields: [partnerId], references: [id])
   organizationId               String?
@@ -194,6 +208,10 @@ model Lead {
   estimatedAmount    Decimal?         @db.Decimal(14, 2)
   productType        String[]
   status             LeadStatus       @default(new)
+  // Трек G2: тонкая стадия воронки (словарь FunnelStage) поверх якоря status.
+  // null = дефолтная стадия для текущего status-якоря. onDelete: SetNull.
+  funnelStageId      String?
+  funnelStage        FunnelStage?     @relation("LeadFunnelStage", fields: [funnelStageId], references: [id], onDelete: SetNull)
   assignedManagerId  String?
   assignedManager    User?            @relation("LeadManager", fields: [assignedManagerId], references: [id])
   promotedOrderId    String?          @unique
@@ -552,6 +570,54 @@ model Company {
   orders                Order[]
   organizations         Organization[]
   documents             Document[]
+  accessProfiles        AccessProfile[]
+  funnelStages          FunnelStage[]
+}
+
+// Трек G1 (§3.2 ТЗ): роль-профиль как данные. Матрица охватов по типам объектов
+// + capability-флаги (default-deny, open-ended String[]). Привязан к компании
+// (граница изоляции C8). Действует поверх системного enum Role, внутри
+// менеджерского контура; @@unique([companyId, name]) — имя уникально в компании.
+model AccessProfile {
+  id                 String     @id @default(cuid())
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  companyId          String
+  company            Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name               String
+  ordersScope        ScopeLevel @default(all)
+  organizationsScope ScopeLevel @default(all)
+  threadsScope       ScopeLevel @default(all)
+  documentsScope     ScopeLevel @default(all)
+  financeScope       ScopeLevel @default(all)
+  leadsScope         ScopeLevel @default(all)
+  capabilities       String[]
+  users              User[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+// Трек G2 (§24.3 ТЗ): настраиваемые стадии воронки продаж — словарь поверх
+// enum-якорей LeadStatus. Company-scoped (руководитель конфигурирует). Пустой
+// набор у компании → используются DEFAULT_FUNNEL_STAGES (код). statusAnchor
+// связывает стадию с lifecycle-переходом лида; несколько стадий могут делить
+// один якорь (напр. «Предложение» и «Оплата» под qualified).
+model FunnelStage {
+  id           String     @id @default(cuid())
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  companyId    String
+  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name         String
+  position     Int
+  statusAnchor LeadStatus
+  color        String?
+  isTerminal   Boolean    @default(false)
+  leads        Lead[]     @relation("LeadFunnelStage")
+
+  @@unique([companyId, position])
+  @@index([companyId])
 }
 
 model Order {
