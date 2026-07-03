@@ -32,7 +32,8 @@ beforeAll(async () => {
   orgA = (await prisma.organization.create({ data: { name: `g4orgA-${STAMP}`, companyId: companyA, inn: `77${STAMP}`.slice(0, 12), kpp: '770201001', partnerCommissionRate: new Prisma.Decimal('0.1500') } })).id;
   orgB = (await prisma.organization.create({ data: { name: `g4orgB-${STAMP}`, companyId: companyB } })).id;
   orderA = (await prisma.order.create({ data: { title: `g4ordA-${STAMP}`, companyId: companyA, organizationId: orgA } })).id;
-  await prisma.document.create({ data: { name: `g4doc-${STAMP}`, path: `p/${STAMP}`, mimeType: 'application/pdf', counterpartyType: 'organization', counterpartyId: orgA, orderId: orderA, companyId: companyA } });
+  // Document XOR CHECK: заполняем ЛИБО orderId, ЛИБО companyId (не оба) — документ привязан к заявке.
+  await prisma.document.create({ data: { name: `g4doc-${STAMP}`, path: `p/${STAMP}`, mimeType: 'application/pdf', counterpartyType: 'organization', counterpartyId: orgA, orderId: orderA } });
   await prisma.payment.create({ data: { organizationId: orgA, orderId: orderA, amount: new Prisma.Decimal('1000.00'), paidAt: new Date() } });
   await prisma.payment.create({ data: { organizationId: orgA, orderId: orderA, amount: new Prisma.Decimal('200.00'), paidAt: new Date(), isRefund: true } });
   await prisma.comment.create({ data: { body: 'Комментарий по заявке', orderId: orderA, authorId: leaderA } });
