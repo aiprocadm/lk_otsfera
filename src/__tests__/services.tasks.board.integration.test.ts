@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import { listTaskBoard, moveTask } from '@/lib/services/tasks/board';
+import { listTaskBoard, moveTask, getTaskFormOptions } from '@/lib/services/tasks/board';
 import { createTask, updateTask, deleteTask, assignTask } from '@/lib/services/tasks/tasks';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import type { SessionAccessProfile } from '@/lib/auth/accessProfile';
@@ -134,6 +134,18 @@ describe('update / delete / assign', () => {
     expect(await deleteTask(prisma, sA(), c.id)).toEqual({ ok: true });
     expect(await prisma.task.findUnique({ where: { id: c.id } })).toBeNull();
     expect(await prisma.taskAssignee.count({ where: { taskId: c.id } })).toBe(0);
+  });
+});
+
+describe('getTaskFormOptions', () => {
+  it('возвращает исполнителей/организации/заявки своей компании; чужие не попадают', async () => {
+    const opt = await getTaskFormOptions(prisma, sA());
+    expect(opt.users.some((u) => u.id === m1)).toBe(true);
+    expect(opt.users.some((u) => u.id === mB)).toBe(false);
+    expect(opt.organizations.some((o) => o.id === orgA)).toBe(true);
+    expect(opt.organizations.some((o) => o.id === orgB)).toBe(false);
+    expect(opt.orders.some((o) => o.id === orderA)).toBe(true);
+    expect(opt.orders.some((o) => o.id === orderB)).toBe(false);
   });
 });
 

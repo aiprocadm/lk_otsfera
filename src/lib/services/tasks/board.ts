@@ -1,6 +1,6 @@
 import type { PrismaClient, TaskPriority } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { taskWhereForLevel, canSeeTask } from '@/lib/auth/accessProfile';
+import { taskWhereForLevel, canSeeTask, NO_COMPANY_SENTINEL } from '@/lib/auth/accessProfile';
 import { resolveTaskColumns, columnForTask, type TaskColumnView } from '@/lib/tasks/columns';
 import { recordAudit } from '@/lib/auth/audit';
 
@@ -15,13 +15,18 @@ import { recordAudit } from '@/lib/auth/audit';
 export type TaskCard = {
   id: string;
   title: string;
+  description: string | null;
   priority: TaskPriority | null;
   dueDate: Date | null;
   completedAt: Date | null;
   createdAt: Date;
   createdByName: string;
+  columnId: string;
+  assigneeIds: string[];
   assigneeNames: string[];
+  linkedOrderId: string | null;
   linkedOrderTitle: string | null;
+  linkedOrganizationId: string | null;
   linkedOrganizationName: string | null;
 };
 
@@ -30,7 +35,7 @@ export type TaskBoard = { columns: TaskColumnView[]; board: TaskBoardColumn[] };
 
 const CARD_INCLUDE = {
   createdBy: { select: { name: true } },
-  assignees: { select: { user: { select: { name: true } } } },
+  assignees: { select: { userId: true, user: { select: { name: true } } } },
   linkedOrder: { select: { title: true } },
   linkedOrganization: { select: { name: true } }
 } as const;
@@ -44,8 +49,9 @@ export async function listTaskBoard(prisma: PrismaClient, session: SessionPayloa
     orderBy: { createdAt: 'desc' },
     take: 500,
     select: {
-      id: true, title: true, priority: true, dueDate: true, completedAt: true,
-      status: true, columnId: true, createdAt: true, ...CARD_INCLUDE
+      id: true, title: true, description: true, priority: true, dueDate: true, completedAt: true,
+      status: true, columnId: true, createdAt: true,
+      linkedOrderId: true, linkedOrganizationId: true, ...CARD_INCLUDE
     }
   });
 
@@ -58,18 +64,40 @@ export async function listTaskBoard(prisma: PrismaClient, session: SessionPayloa
     byColumnId.get(column.id)?.cards.push({
       id: t.id,
       title: t.title,
+      description: t.description,
       priority: t.priority,
       dueDate: t.dueDate,
       completedAt: t.completedAt,
       createdAt: t.createdAt,
       createdByName: t.createdBy.name,
+      columnId: column.id,
+      assigneeIds: t.assignees.map((a) => a.userId),
       assigneeNames: t.assignees.map((a) => a.user.name),
+      linkedOrderId: t.linkedOrderId,
       linkedOrderTitle: t.linkedOrder?.title ?? null,
+      linkedOrganizationId: t.linkedOrganizationId,
       linkedOrganizationName: t.linkedOrganization?.name ?? null
     });
   }
 
   return { columns, board };
+}
+
+/** Данные для селектов диалога задачи (исполнители/организации/заявки), company-scoped. */
+export type TaskFormOptions = {
+  users: { id: string; name: string }[];
+  organizations: { id: string; name: string }[];
+  orders: { id: string; title: string }[];
+};
+
+export async function getTaskFormOptions(prisma: PrismaClient, session: SessionPayload): Promise<TaskFormOptions> {
+  const companyId = session.companyId ?? NO_COMPANY_SENTINEL; // нет компании → пустые списки (fail-safe)
+  const [users, organizations, orders] = await Promise.all([
+    prisma.user.findMany({ where: { companyId, role: 'manager', isActive: true }, select: { id: true, name: true }, orderBy: { name: 'asc' }, take: 200 }),
+    prisma.organization.findMany({ where: { companyId }, select: { id: true, name: true }, orderBy: { name: 'asc' }, take: 200 }),
+    prisma.order.findMany({ where: { companyId }, select: { id: true, title: true }, orderBy: { createdAt: 'desc' }, take: 100 })
+  ]);
+  return { users, organizations, orders };
 }
 
 export type MoveTaskError = 'not_found' | 'forbidden' | 'invalid_column';
