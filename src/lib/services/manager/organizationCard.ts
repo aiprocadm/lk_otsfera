@@ -1,0 +1,135 @@
+import { Prisma, type PrismaClient } from '@prisma/client';
+import type { SessionPayload } from '@/lib/auth/jwt';
+import { canSeeOrganization, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import { can } from '@/lib/auth/accessProfile';
+
+/**
+ * G4 — CRM-карточка организации: центральный накопитель истории (заявки,
+ * документы, оплаты, переписка, реквизиты). Видна только внутри компании
+ * (admin/leader/manager по scope). Company-scope + существующие guard'ы
+ * (`canSeeOrganization`, teamMode C8): чужая орг → null (не leak-аем).
+ * Комиссия скрыта в менеджерском контуре (§3.4): `commission` = null без
+ * capability `see_commission`. Деньги — строки (Decimal не уходит в RSC-payload).
+ */
+
+const CARD_SELECT = {
+  id: true,
+  name: true,
+  inn: true,
+  kpp: true,
+  companyId: true,
+  partnerCommissionRate: true,
+  partner: { select: { id: true, name: true } },
+  _count: { select: { orders: true, students: true, users: true } }
+} satisfies Prisma.OrganizationSelect;
+
+export type OrgCardOrder = {
+  id: string;
+  orderNumber: string | null;
+  title: string;
+  executionStatus: string;
+  financialStatus: string;
+  totalAmount: string;
+  paidAmount: string;
+  createdAt: Date;
+};
+export type OrgCardDocument = { id: string; name: string; type: string; direction: string; createdAt: Date };
+export type OrgCardPayment = { id: string; amount: string; paidAt: Date; isRefund: boolean; orderId: string | null };
+export type OrgCardComment = { id: string; body: string; createdAt: Date; authorName: string; orderId: string };
+
+export type OrganizationCard = {
+  id: string;
+  name: string;
+  inn: string | null;
+  kpp: string | null;
+  partner: { id: string; name: string } | null;
+  counts: { orders: number; students: number; users: number };
+  kpis: { activeOrders: number; totalPaid: string; totalRefunded: string };
+  orders: OrgCardOrder[];
+  documents: OrgCardDocument[];
+  payments: OrgCardPayment[];
+  activity: OrgCardComment[];
+  // null в менеджерском контуре (нет capability see_commission).
+  commission: { partnerCommissionRate: string | null } | null;
+};
+
+export async function getOrganizationCard(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  orgId: string
+): Promise<OrganizationCard | null> {
+  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+  const org = await prisma.organization.findUnique({ where: { id: orgId }, select: CARD_SELECT });
+  if (!org) return null;
+  // Scope-guard (не leak-аем существование чужой орг).
+  const visible = teamMode
+    ? !!session.companyId && org.companyId === session.companyId
+    : canSeeOrganization(session, orgId);
+  if (!visible) return null;
+
+  const [orders, activeOrders, documents, payments, paidAgg, refundAgg, activity] = await Promise.all([
+    prisma.order.findMany({
+      where: { organizationId: orgId },
+      select: {
+        id: true, orderNumber: true, title: true, executionStatus: true,
+        financialStatus: true, totalAmount: true, paidAmount: true, createdAt: true
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    }),
+    prisma.order.count({ where: { organizationId: orgId, executionStatus: { in: ['pending', 'in_progress', 'on_hold'] } } }),
+    prisma.document.findMany({
+      where: { order: { organizationId: orgId }, scanStatus: { not: 'infected' } },
+      select: { id: true, name: true, type: true, direction: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    }),
+    prisma.payment.findMany({
+      where: { organizationId: orgId },
+      select: { id: true, amount: true, paidAt: true, isRefund: true, orderId: true },
+      orderBy: { paidAt: 'desc' },
+      take: 20
+    }),
+    prisma.payment.aggregate({ where: { organizationId: orgId, isRefund: false }, _sum: { amount: true } }),
+    prisma.payment.aggregate({ where: { organizationId: orgId, isRefund: true }, _sum: { amount: true } }),
+    prisma.comment.findMany({
+      where: { order: { organizationId: orgId } },
+      select: { id: true, body: true, createdAt: true, orderId: true, author: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    })
+  ]);
+
+  const paid = paidAgg._sum.amount ?? new Prisma.Decimal(0);
+  const refunded = refundAgg._sum.amount ?? new Prisma.Decimal(0);
+
+  return {
+    id: org.id,
+    name: org.name,
+    inn: org.inn,
+    kpp: org.kpp,
+    partner: org.partner,
+    counts: { orders: org._count.orders, students: org._count.students, users: org._count.users },
+    kpis: {
+      activeOrders,
+      totalPaid: paid.minus(refunded).toFixed(2),
+      totalRefunded: refunded.toFixed(2)
+    },
+    orders: orders.map((o) => ({
+      id: o.id,
+      orderNumber: o.orderNumber,
+      title: o.title,
+      executionStatus: o.executionStatus,
+      financialStatus: o.financialStatus,
+      totalAmount: o.totalAmount.toFixed(2),
+      paidAmount: o.paidAmount.toFixed(2),
+      createdAt: o.createdAt
+    })),
+    documents: documents.map((d) => ({ id: d.id, name: d.name, type: d.type, direction: d.direction, createdAt: d.createdAt })),
+    payments: payments.map((p) => ({ id: p.id, amount: p.amount.toFixed(2), paidAt: p.paidAt, isRefund: p.isRefund, orderId: p.orderId })),
+    activity: activity.map((c) => ({ id: c.id, body: c.body, createdAt: c.createdAt, authorName: c.author.name, orderId: c.orderId })),
+    commission: can(session, 'see_commission')
+      ? { partnerCommissionRate: org.partnerCommissionRate ? org.partnerCommissionRate.toFixed(4) : null }
+      : null
+  };
+}
