@@ -98,21 +98,27 @@ export function useClientResource<T>(
   useEffect(() => {
     if (!enabled || !intervalMs) return;
     const id = setInterval(() => {
+      // Effects run client-side only, so `typeof document === 'undefined'` (SSR) is
+      // dead; the visibility logic itself is tested.
+      /* v8 ignore next */
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
       void load();
     }, intervalMs);
 
     function onVisible() {
+      /* v8 ignore next -- SSR guard (dead client-side) */
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         void load();
       }
     }
+    /* v8 ignore next -- SSR guard (dead client-side) */
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', onVisible);
     }
 
     return () => {
       clearInterval(id);
+      /* v8 ignore next -- SSR guard (dead client-side) */
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', onVisible);
       }
