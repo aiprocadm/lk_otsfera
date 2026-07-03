@@ -18,7 +18,7 @@ let leadOwnM1: string, leadOwnM2: string, leadManagedOrg: string, leadUnassigned
 
 const profile = (leads: SessionAccessProfile['leads']): SessionAccessProfile => ({
   id: 'p', name: 'Продажи', orders: 'own', organizations: 'own', threads: 'own',
-  documents: 'own', finance: 'own', leads, capabilities: []
+  documents: 'own', finance: 'own', leads, tasks: 'all', capabilities: []
 });
 
 const m1Session = (leads?: SessionAccessProfile['leads']): SessionPayload =>

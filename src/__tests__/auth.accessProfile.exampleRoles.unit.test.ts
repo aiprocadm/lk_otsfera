@@ -19,6 +19,7 @@ const OPERATOR: SessionAccessProfile = {
   documents: 'assigned',
   finance: 'own',
   leads: 'own',
+  tasks: 'assigned',
   capabilities: []
 };
 
@@ -31,6 +32,7 @@ const OHS_SPECIALIST: SessionAccessProfile = {
   documents: 'assigned',
   finance: 'own',
   leads: 'own',
+  tasks: 'assigned',
   capabilities: []
 };
 
@@ -43,6 +45,7 @@ const SALES: SessionAccessProfile = {
   documents: 'own',
   finance: 'own',
   leads: 'all',
+  tasks: 'all',
   capabilities: []
 };
 

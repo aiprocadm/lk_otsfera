@@ -36,6 +36,7 @@ const OPT_IN_FLAGS = new Set([
   'notif_queue',
   'role_constructor',
   'sales_funnel',
+  'internal_tasks',
 ]);
 
 describe('isFeatureEnabled', () => {

@@ -177,6 +177,7 @@ describe('auth login route — manager managedOrgIds', () => {
       documentsScope: 'assigned',
       financeScope: 'own',
       leadsScope: 'own',
+      tasksScope: 'own',
       capabilities: ['see_commission', 'garbage'] // 'garbage' отбрасывается схемой
     });
 
@@ -195,6 +196,7 @@ describe('auth login route — manager managedOrgIds', () => {
           documents: 'assigned',
           finance: 'own',
           leads: 'own',
+          tasks: 'own',
           capabilities: ['see_commission']
         }
       })

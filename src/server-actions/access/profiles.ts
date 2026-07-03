@@ -36,6 +36,7 @@ function readInput(fd: FormData): AccessProfileInput {
     documents: readStr(fd, 'documents') as ScopeLevel,
     finance: readStr(fd, 'finance') as ScopeLevel,
     leads: readStr(fd, 'leads') as ScopeLevel,
+    tasks: readStr(fd, 'tasks') as ScopeLevel,
     capabilities: fd.getAll('capabilities').filter((v): v is string => typeof v === 'string') as Capability[]
   };
 }

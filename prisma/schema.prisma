@@ -117,6 +117,22 @@ enum ThreadSide {
   partner
 }
 
+// Трек G3 (§21): enum-якорь колонок канбана задач. Дефолтные колонки
+// (DEFAULT_TASK_COLUMNS) привязаны к этим значениям; кастомные TaskColumn несут
+// statusAnchor. Task.status re-derive колонку при columnId=null (как Lead.status).
+enum TaskStatus {
+  todo
+  in_progress
+  review
+  done
+}
+
+enum TaskPriority {
+  low
+  medium
+  high
+}
+
 model User {
   id                           String                @id @default(cuid())
   createdAt                    DateTime              @default(now())
@@ -170,6 +186,8 @@ model User {
   maxLinkCodeExpiresAt         DateTime?
   whatsappPhone                String?               @unique // E.164; адресация в агрегаторе по номеру
   notificationChannels         Json? // { telegram?: bool, max?: bool, whatsapp?: bool }
+  tasksCreated                 Task[]                @relation("TaskCreatedBy")
+  taskAssignments              TaskAssignee[]        @relation("TaskAssignee")
 }
 
 model PartnerUser {
@@ -503,6 +521,7 @@ model Organization {
   enrollmentRequests             EnrollmentRequest[]
   certificates                   Certificate[]
   commissionRateChanges          OrganizationCommissionRateChange[]
+  tasks                          Task[]                @relation("TaskLinkedOrganization")
 
   @@index([partnerId])
   @@index([externalId])
@@ -572,6 +591,8 @@ model Company {
   documents             Document[]
   accessProfiles        AccessProfile[]
   funnelStages          FunnelStage[]
+  taskColumns           TaskColumn[]
+  tasks                 Task[]
 }
 
 // Трек G1 (§3.2 ТЗ): роль-профиль как данные. Матрица охватов по типам объектов
@@ -591,6 +612,7 @@ model AccessProfile {
   documentsScope     ScopeLevel @default(all)
   financeScope       ScopeLevel @default(all)
   leadsScope         ScopeLevel @default(all)
+  tasksScope         ScopeLevel @default(all)
   capabilities       String[]
   users              User[]
 
@@ -618,6 +640,72 @@ model FunnelStage {
 
   @@unique([companyId, position])
   @@index([companyId])
+}
+
+// Трек G3 (§21): настраиваемые колонки канбана задач — словарь поверх enum-якорей
+// TaskStatus. Company-scoped (руководитель конфигурирует). Пустой набор у компании →
+// используются DEFAULT_TASK_COLUMNS (код). statusAnchor связывает колонку со статусом
+// задачи; isDoneColumn → moveTask проставляет completedAt. Зеркало FunnelStage.
+model TaskColumn {
+  id           String     @id @default(cuid())
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  companyId    String
+  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name         String
+  position     Int
+  statusAnchor TaskStatus
+  color        String?
+  isDoneColumn Boolean    @default(false)
+  tasks        Task[]     @relation("TaskColumnTasks")
+
+  @@unique([companyId, position])
+  @@index([companyId])
+}
+
+// Трек G3 (§21, §13.3): внутренняя задача (сотрудники: admin/leader/manager).
+// Company-scoped (hard FK, граница изоляции C8). columnId — soft-link (SetNull:
+// удаление колонки не удаляет задачу — колонка re-derive из status-якоря).
+// Привязки к заявке/организации — nullable SetNull. Клиентский контур задач не видит.
+model Task {
+  id                   String         @id @default(cuid())
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  companyId            String
+  company              Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title                String
+  description          String?
+  status               TaskStatus     @default(todo)
+  priority             TaskPriority?
+  columnId             String?
+  column               TaskColumn?    @relation("TaskColumnTasks", fields: [columnId], references: [id], onDelete: SetNull)
+  dueDate              DateTime?
+  completedAt          DateTime?
+  createdById          String
+  createdBy            User           @relation("TaskCreatedBy", fields: [createdById], references: [id])
+  linkedOrderId        String?
+  linkedOrder          Order?         @relation("TaskLinkedOrder", fields: [linkedOrderId], references: [id], onDelete: SetNull)
+  linkedOrganizationId String?
+  linkedOrganization   Organization?  @relation("TaskLinkedOrganization", fields: [linkedOrganizationId], references: [id], onDelete: SetNull)
+  assignees            TaskAssignee[]
+
+  @@index([companyId, status])
+  @@index([companyId, createdAt])
+  @@index([linkedOrderId])
+  @@index([linkedOrganizationId])
+}
+
+// M:N исполнители задачи (идиома репозитория — OrganizationUser/PartnerUser).
+model TaskAssignee {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation("TaskAssignee", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([userId])
 }
 
 model Order {
@@ -662,6 +750,7 @@ model Order {
   commissionItems  CommissionStatementItem[]
   threads          OrderThread[]
   items            OrderItem[]
+  tasks            Task[]                    @relation("TaskLinkedOrder")
 
   @@index([partnerId, executionStatus])
   @@index([partnerId, financialStatus])

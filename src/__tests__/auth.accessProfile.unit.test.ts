@@ -29,6 +29,7 @@ const fullProfile = (over: Partial<SessionAccessProfile> = {}): SessionAccessPro
   documents: 'all',
   finance: 'all',
   leads: 'all',
+  tasks: 'all',
   capabilities: [],
   ...over
 });
@@ -112,6 +113,7 @@ describe('toSessionAccessProfile()', () => {
       documentsScope: 'own' as const,
       financeScope: 'own' as const,
       leadsScope: 'all' as const,
+      tasksScope: 'assigned' as const,
       capabilities: ['see_commission', 'garbage', 'export']
     };
     expect(toSessionAccessProfile(row)).toEqual({
@@ -123,6 +125,7 @@ describe('toSessionAccessProfile()', () => {
       documents: 'own',
       finance: 'own',
       leads: 'all',
+      tasks: 'assigned',
       capabilities: ['see_commission', 'export']
     });
   });

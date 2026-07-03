@@ -36,7 +36,8 @@ export type AccessObjectType =
   | 'threads'
   | 'documents'
   | 'finance'
-  | 'leads';
+  | 'leads'
+  | 'tasks';
 
 /** Денормализованное в JWT представление профиля (short enums + флаги). */
 export type SessionAccessProfile = {
@@ -48,6 +49,7 @@ export type SessionAccessProfile = {
   documents: ScopeLevel;
   finance: ScopeLevel;
   leads: ScopeLevel;
+  tasks: ScopeLevel;
   capabilities: Capability[];
 };
 
@@ -60,6 +62,7 @@ export const sessionAccessProfileSchema = z.object({
   documents: scopeLevelSchema,
   finance: scopeLevelSchema,
   leads: scopeLevelSchema,
+  tasks: scopeLevelSchema,
   capabilities: z.array(capabilitySchema)
 });
 
@@ -120,6 +123,52 @@ export function canSeeLead(
 }
 
 /**
+ * Task-where по уровню охвата профиля (Трек G3). Задачи — company-scoped (в
+ * отличие от лидов), поэтому company-floor (C8) применяется как у orders:
+ *  - all      → только компания;
+ *  - own      → компания И (создатель ∨ исполнитель);
+ *  - assigned → компания И (создатель ∨ исполнитель ∨ задача закреплённой орг).
+ * Сервис берёт уровень как `session.accessProfile?.tasks ?? 'all'` → нет профиля
+ * тождественно company-wide (legacy-командное поведение внутри компании).
+ */
+export function taskWhereForLevel(session: SessionPayload, level: ScopeLevel): Prisma.TaskWhereInput {
+  const floor = companyFloor(session);
+  if (level === 'all') return floor;
+  const mine: Prisma.TaskWhereInput['OR'] = [
+    { createdById: session.sub },
+    { assignees: { some: { userId: session.sub } } }
+  ];
+  if (level === 'own') return { AND: [floor, { OR: mine }] };
+  // assigned
+  return {
+    AND: [floor, { OR: [...mine, { linkedOrganizationId: { in: session.managedOrgIds ?? [] } }] }]
+  };
+}
+
+/**
+ * In-memory зеркало `taskWhereForLevel` для точечного guard'а (move/detail/CRUD).
+ * Задачи строго внутренние (§4): клиентские роли (partner/organization/student) не
+ * видят их НИКОГДА — это отличает `canSeeTask` от `canSeeLead` (лиды авторят
+ * партнёры). admin → всё (Model A). Менеджер: company-floor затем уровень охвата.
+ * Deny не leak-аем — caller превращает false в not_found.
+ */
+export function canSeeTask(
+  session: SessionPayload,
+  task: { companyId: string; createdById: string; assigneeUserIds: string[]; linkedOrganizationId: string | null }
+): boolean {
+  if (session.role === 'admin') return true;
+  if (session.role !== 'manager') return false;
+  // company-floor (C8): чужая компания или сессия без компании — deny.
+  if (!session.companyId || task.companyId !== session.companyId) return false;
+  const level = session.accessProfile?.tasks;
+  if (!level || level === 'all') return true;
+  const mine = task.createdById === session.sub || task.assigneeUserIds.includes(session.sub);
+  if (level === 'own') return mine;
+  // assigned
+  return mine || (!!task.linkedOrganizationId && (session.managedOrgIds ?? []).includes(task.linkedOrganizationId));
+}
+
+/**
  * Проверка capability-флага.
  *  - admin       → всегда true (Model A);
  *  - есть профиль → default-deny: флаг должен присутствовать явно;
@@ -146,6 +195,7 @@ export type AccessProfileRow = {
   documentsScope: ScopeLevel;
   financeScope: ScopeLevel;
   leadsScope: ScopeLevel;
+  tasksScope: ScopeLevel;
   capabilities: string[];
 };
 
@@ -167,6 +217,7 @@ export function toSessionAccessProfile(row: AccessProfileRow): SessionAccessProf
     documents: row.documentsScope,
     finance: row.financeScope,
     leads: row.leadsScope,
+    tasks: row.tasksScope,
     capabilities
   };
 }
