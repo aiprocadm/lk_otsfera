@@ -14,7 +14,7 @@ let companyId: string, partnerId: string, m1: string, m2: string, orgId: string;
 
 const profile = (leads: SessionAccessProfile['leads']): SessionAccessProfile => ({
   id: 'p', name: 'Продажи', orders: 'own', organizations: 'own', threads: 'own',
-  documents: 'own', finance: 'own', leads, capabilities: []
+  documents: 'own', finance: 'own', leads, tasks: 'all', capabilities: []
 });
 const s1 = (leads?: SessionAccessProfile['leads']): SessionPayload =>
   ({ sub: m1, role: 'manager', companyId, managedOrgIds: [], ...(leads ? { accessProfile: profile(leads) } : {}) } as unknown as SessionPayload);

@@ -47,6 +47,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/manager/orders', label: 'Заказы', icon: '📋', flag: 'manager_cabinet' },
     { href: '/manager/leads', label: 'Заявки', icon: '📬', flag: 'manager_cabinet' },
     { href: '/manager/funnel', label: 'Воронка', icon: '📈', flag: 'sales_funnel' },
+    { href: '/manager/tasks', label: 'Задачи', icon: '✅', flag: 'internal_tasks' },
     { href: '/manager/organizations', label: 'Организации', icon: '🏢', flag: 'manager_cabinet' },
     { href: '/manager/finance', label: 'Финансы', icon: '₽', flag: 'manager_cabinet' },
     { href: '/manager/import', label: 'Загрузка из 1С', icon: '📥', flag: 'manager_cabinet' },
@@ -75,6 +76,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     // этот пункт, не опустошает сайдбар при выключении.
     { href: '/leader/roles', label: 'Роли', icon: '🎭', flag: 'role_constructor' },
     { href: '/leader/funnel', label: 'Воронка', icon: '📈', flag: 'sales_funnel' },
+    { href: '/leader/tasks', label: 'Задачи', icon: '✅', flag: 'internal_tasks' },
     { href: '/leader/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests' },
     // Личный inbox (комментарии+чат) живёт в кабинете менеджера — см. план, «Отклонение от спеки».
     { href: '/manager/messages', label: 'Сообщения', icon: '💬' },

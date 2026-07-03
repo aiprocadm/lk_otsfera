@@ -71,6 +71,7 @@ beforeAll(async () => {
       documentsScope: 'assigned',
       financeScope: 'own',
       leadsScope: 'own',
+      tasksScope: 'own',
       capabilities: []
     }
   });
@@ -86,6 +87,7 @@ beforeAll(async () => {
       documentsScope: 'all',
       financeScope: 'all',
       leadsScope: 'all',
+      tasksScope: 'all',
       capabilities: ['see_commission']
     }
   });

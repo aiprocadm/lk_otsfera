@@ -34,6 +34,8 @@ export const FEATURE_FLAGS = [
   'role_constructor',
   // Трек G2: воронка продаж / канбан. Гейтит /leader/funnel + /manager/funnel.
   'sales_funnel',
+  // Трек G3: внутренние задачи / канбан. Гейтит /manager/tasks + /leader/tasks.
+  'internal_tasks',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -53,7 +55,8 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'whatsapp_channel',
   'notif_queue',
   'role_constructor',
-  'sales_funnel'
+  'sales_funnel',
+  'internal_tasks'
 ]);
 
 export class FeatureDisabledError extends Error {

@@ -31,6 +31,7 @@ export type AccessProfileInput = {
   documents: ScopeLevel;
   finance: ScopeLevel;
   leads: ScopeLevel;
+  tasks: ScopeLevel;
   capabilities: Capability[];
 };
 
@@ -44,6 +45,7 @@ const inputSchema = z.object({
   documents: scopeLevelSchema,
   finance: scopeLevelSchema,
   leads: scopeLevelSchema,
+  tasks: scopeLevelSchema,
   capabilities: z.array(capabilitySchema)
 });
 
@@ -67,6 +69,7 @@ function toColumns(input: z.infer<typeof inputSchema>) {
     documentsScope: input.documents,
     financeScope: input.finance,
     leadsScope: input.leads,
+    tasksScope: input.tasks,
     capabilities: [...new Set(input.capabilities)]
   };
 }
@@ -99,6 +102,7 @@ export async function listAccessProfiles(
       documents: p.documentsScope,
       finance: p.financeScope,
       leads: p.leadsScope,
+      tasks: p.tasksScope,
       capabilities: p.capabilities as Capability[],
       usersCount: p._count.users
     }))
@@ -170,7 +174,7 @@ export async function updateAccessProfile(
         where: { id },
         select: {
           companyId: true, name: true, ordersScope: true, organizationsScope: true,
-          threadsScope: true, documentsScope: true, financeScope: true, leadsScope: true, capabilities: true
+          threadsScope: true, documentsScope: true, financeScope: true, leadsScope: true, tasksScope: true, capabilities: true
         }
       });
       if (!before || before.companyId !== gate.companyId) throw new AccessProfileError('not_found');

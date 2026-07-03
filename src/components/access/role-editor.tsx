@@ -26,7 +26,8 @@ const OBJECT_TYPES: { key: AccessObjectType; label: string }[] = [
   { key: 'threads', label: 'Переписка' },
   { key: 'documents', label: 'Документы' },
   { key: 'finance', label: 'Финансы' },
-  { key: 'leads', label: 'Воронка' }
+  { key: 'leads', label: 'Воронка' },
+  { key: 'tasks', label: 'Задачи' }
 ];
 
 const CAPABILITY_OPTIONS: { value: Capability; label: string }[] = [

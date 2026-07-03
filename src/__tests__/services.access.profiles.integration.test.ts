@@ -37,6 +37,7 @@ const input = (over: Partial<AccessProfileInput> = {}): AccessProfileInput => ({
   documents: 'assigned',
   finance: 'own',
   leads: 'own',
+  tasks: 'own',
   capabilities: [],
   ...over
 });

@@ -25,6 +25,9 @@ const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   // G2: воронка продаж / канбан.
   { prefix: '/leader/funnel', flag: 'sales_funnel' },
   { prefix: '/manager/funnel', flag: 'sales_funnel' },
+  // G3: внутренние задачи / канбан.
+  { prefix: '/manager/tasks', flag: 'internal_tasks' },
+  { prefix: '/leader/tasks', flag: 'internal_tasks' },
 ];
 
 const MIN_JWT_SECRET_LENGTH = 32;

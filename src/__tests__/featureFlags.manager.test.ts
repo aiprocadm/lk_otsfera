@@ -67,12 +67,13 @@ describe('manager_cabinet (opt-in flag)', () => {
 });
 
 describe('navByRole.manager — feature-flag gated', () => {
-  it('lists all fifteen manager cabinet items in the raw nav (including leader-only Команда + вход в /leader + Воронка + Настройки)', () => {
+  it('lists all sixteen manager cabinet items in the raw nav (including leader-only Команда + вход в /leader + Воронка + Задачи + Настройки)', () => {
     expect(navByRole.manager.map((i) => i.href)).toEqual([
       '/manager/dashboard',
       '/manager/orders',
       '/manager/leads',
       '/manager/funnel',
+      '/manager/tasks',
       '/manager/organizations',
       '/manager/finance',
       '/manager/import',
@@ -87,15 +88,21 @@ describe('navByRole.manager — feature-flag gated', () => {
     ]);
   });
 
-  it('every manager item carries flag=manager_cabinet (so they hide together), кроме enrollments/funnel (свои флаги) и входа в /leader (leader_cabinet)', () => {
+  it('every manager item carries flag=manager_cabinet (so they hide together), кроме enrollments/funnel/tasks (свои флаги) и входа в /leader (leader_cabinet)', () => {
     const ownItems = navByRole.manager.filter(
-      (i) => i.href.startsWith('/manager/') && i.href !== '/manager/enrollments' && i.href !== '/manager/funnel'
+      (i) =>
+        i.href.startsWith('/manager/') &&
+        i.href !== '/manager/enrollments' &&
+        i.href !== '/manager/funnel' &&
+        i.href !== '/manager/tasks'
     );
     expect(ownItems.every((i) => i.flag === 'manager_cabinet')).toBe(true);
     const enrollment = navByRole.manager.find((i) => i.href === '/manager/enrollments');
     expect(enrollment?.flag).toBe('enrollment_requests');
     const funnel = navByRole.manager.find((i) => i.href === '/manager/funnel');
     expect(funnel?.flag).toBe('sales_funnel');
+    const tasks = navByRole.manager.find((i) => i.href === '/manager/tasks');
+    expect(tasks?.flag).toBe('internal_tasks');
     const leaderEntry = navByRole.manager.find((i) => i.href === '/leader/dashboard');
     expect(leaderEntry?.flag).toBe('leader_cabinet');
   });
