@@ -20,7 +20,7 @@ export type OrgCommentRow = {
  */
 export async function listOrgOrderComments(
   prisma: PrismaClient,
-  args: { orgId: string; take?: number }
+  args: { orgId: string }
 ): Promise<OrgCommentRow[]> {
   const rows = await prisma.comment.findMany({
     where: { order: { organizationId: args.orgId } },
@@ -29,7 +29,7 @@ export async function listOrgOrderComments(
       order: { select: { id: true, title: true } }
     },
     orderBy: { createdAt: 'desc' },
-    take: args.take ?? 50
+    take: 50
   });
 
   return rows.map((c) => ({

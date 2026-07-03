@@ -105,6 +105,12 @@ export default defineConfig(({ mode }) => ({
         // вычистить случайно файл с рантайм-логикой.)
         'src/lib/jobs/types.ts',
         'src/lib/services/oneCSync/adapter.ts',
+        'src/lib/services/import/oneCAccountCard/types.ts',
+        // Barrel-реэкспорты (только `export … from`, без исполняемых ветвлений):
+        // конкретные модули импортируются напрямую, баррель в покрытом пути не
+        // участвует → v8 c all:true рапортует 0%. Исполняемой логики нет (E1/трек E).
+        'src/lib/services/customFields/index.ts',
+        'src/lib/services/import/oneCAccountCard/index.ts',
         // PHASE-2 (отложено планом coverage-phase1): React-хук формы. Покрывается
         // в фазе 2 вместе с компонентами (нужен render-харнесс). До тех пор —
         // вне denominator логического гейта, чтобы порог фазы 1 не падал на нём.

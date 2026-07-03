@@ -104,14 +104,19 @@ export async function moveFunnelLead(
   if (anchor === 'promoted_to_order') {
     if (!lead.organizationId) return { ok: false, error: 'org_required' };
     const r = await promoteLead(prisma, { leadId: lead.id, managerId: session.sub });
+    // lead was pre-checked to exist (L85-90), so the inner `not_found` mapping is an
+    // unreachable race guard here — only lifecycle_violation is reachable.
+    /* v8 ignore next */
     if (!r.ok) return { ok: false, error: r.error === 'not_found' ? 'not_found' : 'lifecycle_violation' };
   } else if (anchor === 'rejected') {
     const reason = (args.reason ?? '').trim();
     if (!reason) return { ok: false, error: 'reason_required' };
     const r = await rejectLead(prisma, { leadId: lead.id, managerId: session.sub, reason });
+    /* v8 ignore next -- pre-checked lead → inner not_found unreachable (see above) */
     if (!r.ok) return { ok: false, error: r.error === 'not_found' ? 'not_found' : 'lifecycle_violation' };
   } else {
     const r = await setLeadStatus(prisma, { leadId: lead.id, managerId: session.sub, status: anchor });
+    /* v8 ignore next -- pre-checked lead → inner not_found unreachable (see above) */
     if (!r.ok) return { ok: false, error: r.error === 'not_found' ? 'not_found' : 'lifecycle_violation' };
   }
 

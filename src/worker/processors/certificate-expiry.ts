@@ -70,6 +70,7 @@ export async function runCertificateExpiry(
   let remindersSent = 0;
   for (const d of due) {
     const cert = certs.find((c) => c.id === d.certificateId);
+    /* v8 ignore next -- defensive: certs are fetched by these certificateIds, so always found */
     if (!cert) continue;
 
     try {
