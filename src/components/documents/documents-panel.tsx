@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import React, { useState, type FormEvent } from 'react';
 import { fmtDateTime } from '@/lib/format';
 import { useClientResource } from '@/hooks/useClientResource';
 

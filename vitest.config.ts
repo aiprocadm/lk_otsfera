@@ -149,7 +149,8 @@ export default defineConfig(({ mode }) => ({
               // async-server-component харнессом (await + renderToString).
               'src/components/dashboard/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
               'src/components/leader/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/components/commission/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
+              'src/components/commission/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              'src/components/documents/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
             }
           }
         : {})
