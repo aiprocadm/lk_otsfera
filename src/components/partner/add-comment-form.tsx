@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useFetchSubmit } from '@/lib/ui/useFetchSubmit';
 
 const MAX_LEN = 5000;
