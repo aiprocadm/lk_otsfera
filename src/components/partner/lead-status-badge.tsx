@@ -1,3 +1,4 @@
+import React from 'react';
 import type { LeadStatus } from '@prisma/client';
 
 const STATUS_LABEL: Record<LeadStatus, string> = {

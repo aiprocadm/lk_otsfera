@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 import type { LeadStatus } from '@prisma/client';
 import { leadStatusLabel } from './lead-status-badge';
