@@ -40,6 +40,10 @@ export function useThreadPolling(
     if (!threadId) return;
 
     async function poll() {
+      // poll() only runs with a truthy threadId (the effect returns early when null)
+      // and only client-side (effects never run during SSR), so the `!threadId` and
+      // `typeof document === 'undefined'` guard branches are dead defensive code.
+      /* v8 ignore next 2 */
       if (!threadId) return;
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
       try {
@@ -66,16 +70,19 @@ export function useThreadPolling(
 
     // Also poll immediately on tab becoming visible
     function handleVisibility() {
+      /* v8 ignore next -- SSR guard: effects are client-only, document always defined */
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         void poll();
       }
     }
+    /* v8 ignore next -- SSR guard (dead client-side) */
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', handleVisibility);
     }
 
     return () => {
       clearInterval(id);
+      /* v8 ignore next -- SSR guard (dead client-side) */
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', handleVisibility);
       }

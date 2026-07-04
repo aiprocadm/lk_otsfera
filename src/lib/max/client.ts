@@ -55,6 +55,7 @@ export async function sendMaxMessage(
     return { ok: res.ok };
   } catch {
     return { ok: false };
+  /* v8 ignore next 2 -- V8 marks the finally as a branch; the exceptional-completion edge is unreachable (bare catch catches all, clearTimeout cannot throw) */
   } finally {
     clearTimeout(timer);
   }

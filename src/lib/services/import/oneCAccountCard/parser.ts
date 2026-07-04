@@ -11,6 +11,9 @@ const END_MARKER = /Обороты\s+за\s+период/i;
 // Индексы колонок карточки счёта 51.
 const COL = { date: 0, document: 1, analyticsCr: 3, debit: 5, corr: 7, credit: 8 } as const;
 
+// Callers always pass a guaranteed string (`document ?? ''`), so the `?? ''`
+// nullish fallbacks are unreachable defensive guards.
+/* v8 ignore next 2 */
 function firstLine(s: string): string { return (s ?? '').split('\n')[0].trim(); }
 function restLines(s: string): string { return (s ?? '').split('\n').slice(1).join('\n').trim(); }
 

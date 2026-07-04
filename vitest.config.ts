@@ -105,10 +105,12 @@ export default defineConfig(({ mode }) => ({
         // вычистить случайно файл с рантайм-логикой.)
         'src/lib/jobs/types.ts',
         'src/lib/services/oneCSync/adapter.ts',
-        // PHASE-2 (отложено планом coverage-phase1): React-хук формы. Покрывается
-        // в фазе 2 вместе с компонентами (нужен render-харнесс). До тех пор —
-        // вне denominator логического гейта, чтобы порог фазы 1 не падал на нём.
-        'src/lib/ui/useFormAction.ts'
+        'src/lib/services/import/oneCAccountCard/types.ts',
+        // Barrel-реэкспорты (только `export … from`, без исполняемых ветвлений):
+        // конкретные модули импортируются напрямую, баррель в покрытом пути не
+        // участвует → v8 c all:true рапортует 0%. Исполняемой логики нет (E1/трек E).
+        'src/lib/services/customFields/index.ts',
+        'src/lib/services/import/oneCAccountCard/index.ts'
       ],
       reporter: ['text-summary', 'json-summary', 'html'],
       // Per-glob 100%-гейт на логические слои (план Task 11). Применяется ТОЛЬКО к
@@ -127,7 +129,13 @@ export default defineConfig(({ mode }) => ({
               'src/server-actions/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
               'src/app/api/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
               'src/worker/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/middleware.ts': { lines: 100, branches: 100, functions: 100, statements: 100 }
+              'src/middleware.ts': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              // PHASE-2 (трек E): render-хуки + email-шаблоны под render-харнессом
+              // (jsdom + @testing-library, per-file `// @vitest-environment jsdom` для
+              // хуков; email — renderToStaticMarkup, node). SSR-гарды `typeof document`
+              // внутри client-effect'ов — мёртвый код (эффекты только на клиенте) → v8-ignore.
+              'src/hooks/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              'src/lib/email/**/*.tsx': { lines: 100, branches: 100, functions: 100, statements: 100 }
             }
           }
         : {})

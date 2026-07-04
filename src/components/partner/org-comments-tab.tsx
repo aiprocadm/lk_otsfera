@@ -1,24 +1,11 @@
 import { prisma } from '@/lib/db/prisma';
 import { fmtDateTime } from '@/lib/format';
+import { listOrgOrderComments } from '@/lib/services/partner/orgComments';
 
 export async function CommentsTab({ orgId }: { orgId: string }) {
-  const org = await prisma.organization.findUnique({
-    where: { id: orgId },
-    select: { companyId: true }
-  });
-  if (!org?.companyId) {
-    return <div className='bg-white border border-gray-200 rounded-xl p-6 text-sm text-gray-500'>Нет данных.</div>;
-  }
-
-  const comments = await prisma.comment.findMany({
-    where: { order: { companyId: org.companyId } },
-    include: {
-      author: { select: { name: true } },
-      order: { select: { id: true, title: true } }
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 50
-  });
+  // SECURITY (Track E / E2-C): comments are scoped to the CLIENT organization,
+  // not the seller company. See listOrgOrderComments.
+  const comments = await listOrgOrderComments(prisma, { orgId });
 
   if (comments.length === 0) {
     return <div className='bg-white border border-gray-200 rounded-xl p-6 text-sm text-gray-500'>Комментариев нет.</div>;
@@ -29,7 +16,7 @@ export async function CommentsTab({ orgId }: { orgId: string }) {
       {comments.map((c) => (
         <li key={c.id} className='bg-white border border-gray-200 rounded-xl p-4'>
           <div className='flex justify-between text-xs text-gray-500 mb-1'>
-            <span>{c.author.name} · «{c.order.title}»</span>
+            <span>{c.authorName} · «{c.orderTitle}»</span>
             <span>{fmtDateTime(c.createdAt)}</span>
           </div>
           <div className='text-sm text-[#111111] whitespace-pre-wrap'>{c.body}</div>

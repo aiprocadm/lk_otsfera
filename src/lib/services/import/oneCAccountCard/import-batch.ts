@@ -33,6 +33,9 @@ async function plan(prisma: PrismaClient, buffer: Buffer, fileName: string): Pro
   for (const row of rows) {
     if (row.kind === 'excluded') {
       counts.excluded += 1;
+      // classifyRow always sets excludeReason for kind:'excluded' rows, so the
+      // `?? 'corr_other'` fallback is an unreachable defensive default.
+      /* v8 ignore next */
       const reason = row.excludeReason ?? 'corr_other';
       counts.excludedByReason[reason] = (counts.excludedByReason[reason] ?? 0) + 1;
       continue;

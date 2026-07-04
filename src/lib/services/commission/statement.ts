@@ -299,6 +299,10 @@ export async function calculateStatementForPartner(
         where: { partnerId, periodFrom, periodTo, supersededBy: null },
         orderBy: { calculatedAt: 'desc' }
       });
+      // A P2002 means a concurrent writer WON the live (partner, period) slot, so this
+      // re-read always finds it; `!winner` is an unreachable defensive guard (a winner
+      // vanishing between the P2002 and this read cannot happen in one connection).
+      /* v8 ignore next */
       if (!winner) throw err;
       statement = await updateDraftInPlace(prisma, winner.id, calc, calculatedByUserId);
       isNew = false;

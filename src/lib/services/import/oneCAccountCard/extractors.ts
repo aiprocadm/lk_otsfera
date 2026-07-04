@@ -44,6 +44,9 @@ export function extractAccountCandidates(text: string | null | undefined): strin
   for (const re of ACCOUNT_PATTERNS) {
     for (const m of text.matchAll(re)) {
       const cand = m[1].replace(/[.,;]+$/, '');
+      // The capture group requires ≥4 chars and trailing punctuation is not in its
+      // class, so `cand.length < 4` (the false side) is unreachable.
+      /* v8 ignore next */
       if (cand.length >= 4) hits.push({ cand, idx: m.index ?? 0 });
     }
   }

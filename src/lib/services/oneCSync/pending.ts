@@ -33,7 +33,8 @@ export async function capturePendingSkips<T>(
   const byExt = new Map(raw.map((r) => [getExternalId(r), r]));
   for (const item of items) {
     const dto = byExt.get(item.externalId);
-    if (dto === undefined) continue; // defensive: item referenced a record not in this batch
+    /* v8 ignore next -- defensive: every item's externalId is present in the batch map */
+    if (dto === undefined) continue; // item referenced a record not in this batch
     await db.oneCPendingRecord.upsert({
       where: { entity_externalId: { entity, externalId: item.externalId } },
       create: { entity, externalId: item.externalId, dto: dto as object, reason: item.reason },
