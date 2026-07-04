@@ -1,3 +1,4 @@
+import React from 'react';
 import type { EnrollmentRow } from '@/lib/services/enrollments/list';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { EnrollmentStatusBadge } from './enrollment-status-badge';

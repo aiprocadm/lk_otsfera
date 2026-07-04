@@ -1,3 +1,4 @@
+import React from 'react';
 import type { EnrollmentStatus } from '@prisma/client';
 
 const LABEL: Record<EnrollmentStatus, string> = {

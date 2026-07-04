@@ -160,7 +160,10 @@ export default defineConfig(({ mode }) => ({
               'src/components/pwa-installer.tsx': { lines: 100, branches: 100, functions: 100, statements: 100 },
               // PHASE-3 W1: chat domain — order-thread inbox (interactive, jsdom) +
               // chat-composer/thread-view/unread-badge (Pattern P + I mixes).
-              'src/components/chat/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
+              'src/components/chat/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              // PHASE-3 W1: enrollment domain — list/badge (Pattern P) + queue/request-form
+              // (Pattern I: fetch/toast/router/window.prompt interactions).
+              'src/components/enrollment/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
             }
           }
         : {})
