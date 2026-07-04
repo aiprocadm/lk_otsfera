@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import React, { type ReactNode } from 'react';
 import { AdminSidebar } from './admin-sidebar';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { LogoutButton } from '@/components/ui';

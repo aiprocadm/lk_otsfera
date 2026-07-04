@@ -1,3 +1,4 @@
+import React from 'react';
 import type { QueueStatsRow } from '@/lib/services/admin/queueStats';
 
 function badgeClass(value: number, kind: 'failed' | 'active' | 'neutral'): string {
