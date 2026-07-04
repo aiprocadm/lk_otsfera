@@ -1,3 +1,4 @@
+import React from 'react';
 import { LoginForm, type DemoLogin } from '@/components/auth/login-form';
 
 // Демо-доступ читается из server-only env на каждый запрос (не на build-time),
