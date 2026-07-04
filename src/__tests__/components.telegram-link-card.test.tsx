@@ -1,6 +1,7 @@
+import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
-import React from 'react';
+import { TelegramLinkCard } from '@/components/settings/telegram-link-card';
 
 // Classic JSX transform: must import React explicitly (vitest.config has no react plugin)
 // Mock next/navigation so useRouter() doesn't crash in SSR
@@ -8,20 +9,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn() }),
 }));
 
-// Mock server actions
-const { generateTelegramLinkAction, unlinkTelegramAction } = vi.hoisted(() => ({
-  generateTelegramLinkAction: vi.fn(),
-  unlinkTelegramAction: vi.fn(),
-}));
-
-vi.mock('@/server-actions/telegram', () => ({
-  generateTelegramLinkAction,
-  unlinkTelegramAction,
-}));
-
-import { TelegramLinkCard } from '@/components/settings/telegram-link-card';
-
-describe('TelegramLinkCard', () => {
+describe('TelegramLinkCard (SSR structural, Pattern P)', () => {
   it('disabled: показывает мутное сообщение об отсутствии настройки', () => {
     const html = renderToString(
       React.createElement(TelegramLinkCard, { status: { linked: false, enabled: false } })

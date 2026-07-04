@@ -152,7 +152,8 @@ export default defineConfig(({ mode }) => ({
               'src/components/commission/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
               'src/components/documents/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
               'src/components/access/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/components/auth/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
+              'src/components/auth/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              'src/components/settings/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
             }
           }
         : {})
