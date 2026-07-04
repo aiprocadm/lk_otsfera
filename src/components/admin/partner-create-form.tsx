@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createPartnerWithAdminAction } from '@/server-actions/admin/partners';
 import { useFormAction } from '@/lib/ui/useFormAction';
