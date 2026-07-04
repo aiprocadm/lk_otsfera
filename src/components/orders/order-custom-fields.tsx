@@ -92,6 +92,10 @@ function EditForm({ fields, orderId }: { fields: FieldWithValue[]; orderId: stri
     <form onSubmit={handleSubmit} className='space-y-3'>
       {fields.map((fwv) => {
         const { definition: def } = fwv;
+        // defense-in-depth: `values` is initialised from this same `fields` array (see
+        // useState initializer above), so `values[def.id]` is always defined here; the
+        // `?? ''` fallback guards a state shape that can't occur in practice.
+        /* v8 ignore next */
         const val = values[def.id] ?? '';
 
         if (def.fieldType === 'select') {
