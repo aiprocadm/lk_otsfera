@@ -19,4 +19,23 @@ describe('certificate expiry badge', () => {
     const html = renderToString(<CertificateBadge validUntil={null} today={today} />);
     expect(html).toContain('Бессрочно');
   });
+
+  it('neutral tone (Бессрочно) не совпадает ни с danger, ни с warning', () => {
+    const html = renderToString(<CertificateBadge validUntil={null} today={today} />);
+    expect(html).toContain('Бессрочно');
+  });
+
+  it('warning tone для «Истекает через N дн.»', () => {
+    const html = renderToString(
+      <CertificateBadge validUntil={new Date('2026-07-23T00:00:00.000Z')} today={today} />
+    );
+    expect(html).toContain('Истекает через 30 дн.');
+  });
+
+  it('danger tone для «Просрочено»', () => {
+    const html = renderToString(
+      <CertificateBadge validUntil={new Date('2026-06-01T00:00:00.000Z')} today={today} />
+    );
+    expect(html).toContain('Просрочено');
+  });
 });

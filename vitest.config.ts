@@ -166,7 +166,12 @@ export default defineConfig(({ mode }) => ({
               'src/components/enrollment/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
               // PHASE-3 W1: import domain — 1С order/payment import forms + the payment
               // resolve queue table (Dialog primitive, async org/order search effects).
-              'src/components/import/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
+              'src/components/import/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              // PHASE-3 W1: training domain — certificate badge/list (Pattern P),
+              // add-position-dialog/directions-admin/order-items-section (Pattern I,
+              // Dialog primitive; two dialogs always mounted per parent, scoped via
+              // dialog[open] + within()).
+              'src/components/training/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
             }
           }
         : {})
