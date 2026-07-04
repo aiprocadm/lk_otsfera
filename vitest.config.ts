@@ -148,7 +148,8 @@ export default defineConfig(({ mode }) => ({
               // PHASE-3 W1 Task 2: async server shells (dashboard/leader) под Pattern P /
               // async-server-component харнессом (await + renderToString).
               'src/components/dashboard/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/components/leader/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
+              'src/components/leader/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              'src/components/commission/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
             }
           }
         : {})
