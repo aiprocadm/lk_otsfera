@@ -1,3 +1,4 @@
+import React from 'react';
 import type { ManagerOrderDetail } from '@/lib/services/manager/orders';
 import { orderStage, orderWorkingStage, WORKING_STAGE_LABELS } from '@/lib/orders/humanStage';
 import { DealStatusBadge } from '@/components/partner/deal-status-badge';

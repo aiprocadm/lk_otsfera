@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 import type { ManagerLeadRow } from '@/lib/services/manager/leads';
 import { LeadStatusBadge } from '@/components/partner/lead-status-badge';

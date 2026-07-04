@@ -1,3 +1,4 @@
+import React from 'react';
 import type { Payment } from '@prisma/client';
 
 function fmtMoney(n: number): string {

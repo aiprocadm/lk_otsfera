@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 import type { ManagerOrderRow } from '@/lib/services/manager/orders';
 import { DealStatusBadge } from '@/components/partner/deal-status-badge';
