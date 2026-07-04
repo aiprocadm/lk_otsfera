@@ -1,3 +1,4 @@
+import React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartnerAdmin } from '@/lib/auth/requireRole';
 import { listTeam } from '@/lib/services/partner/team';
