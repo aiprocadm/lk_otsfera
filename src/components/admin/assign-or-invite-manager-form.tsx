@@ -35,6 +35,7 @@ export function AssignOrInviteManagerForm({ organizationId }: { organizationId: 
   // и кладём в state, чтобы success-UI показал адрес.
   const action = useCallback(
     (formData: FormData): Promise<AssignOrInviteManagerActionResult> => {
+      /* v8 ignore next -- email input has `required`; formData.get always returns a non-null string via the form */
       setSubmittedEmail(String(formData.get('email') ?? ''));
       return assignOrInviteManagerAction(formData);
     },
