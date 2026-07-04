@@ -163,7 +163,10 @@ export default defineConfig(({ mode }) => ({
               'src/components/chat/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
               // PHASE-3 W1: enrollment domain — list/badge (Pattern P) + queue/request-form
               // (Pattern I: fetch/toast/router/window.prompt interactions).
-              'src/components/enrollment/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
+              'src/components/enrollment/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              // PHASE-3 W1: import domain — 1С order/payment import forms + the payment
+              // resolve queue table (Dialog primitive, async org/order search effects).
+              'src/components/import/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
             }
           }
         : {})
