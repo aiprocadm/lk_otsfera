@@ -53,6 +53,11 @@ export function TaskDialog({
   }
 
   async function handleDelete() {
+    // defense-in-depth: the delete Button that calls handleDelete only renders
+    // when `target` is truthy (see `{target && <Button onClick={handleDelete}>}`
+    // below), so this guard is unreachable via UI; kept in case handleDelete is
+    // ever wired to a trigger that doesn't share that condition.
+    /* v8 ignore next */
     if (!target) return;
     const fd = new FormData();
     fd.set('id', target.id);

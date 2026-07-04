@@ -155,7 +155,8 @@ export default defineConfig(({ mode }) => ({
               'src/components/auth/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
               'src/components/settings/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
               'src/components/orders/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/components/funnel/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
+              'src/components/funnel/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              'src/components/tasks/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
             }
           }
         : {})
