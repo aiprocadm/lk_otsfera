@@ -80,6 +80,14 @@ describe('AdminCommissionStatementDetailPage', () => {
           baseAmount: '500',
           rate: '0.1',
           commissionAmount: '50'
+        },
+        {
+          id: 'i2',
+          orderNumber: null,
+          organizationName: 'Org 2',
+          baseAmount: '300',
+          rate: '0.05',
+          commissionAmount: '15'
         }
       ]
     });
@@ -130,5 +138,21 @@ describe('AdminCommissionStatementDetailPage', () => {
     );
 
     expect(container.textContent).toContain('Записей пока нет');
+  });
+
+  it('renders a cross-month period label (fmtPeriod fallback branch) when periodFrom/periodTo span different months', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getAdminStatement.mockResolvedValue({
+      ...BASE_STATEMENT,
+      periodFrom: new Date('2024-01-15'),
+      periodTo: new Date('2024-02-15')
+    });
+    getStatementAuditLog.mockResolvedValue([]);
+
+    const { container } = await renderServerComponent(
+      AdminCommissionStatementDetailPage({ params: Promise.resolve({ id: 'st1' }) })
+    );
+
+    expect(container.textContent).toMatch(/\d{2}\.\d{2}\.\d{4}\s*—\s*\d{2}\.\d{2}\.\d{4}/);
   });
 });

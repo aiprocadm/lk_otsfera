@@ -57,13 +57,13 @@ describe('AdminCommissionStatementsPage', () => {
     expect(link).not.toBeNull();
   });
 
-  it('ignores an invalid status and renders a cross-month period + EmptyState when no rows', async () => {
+  it('ignores an invalid status and an invalid "from" date string, renders EmptyState when no rows', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     listAdminStatements.mockResolvedValue([]);
     listPartnersForFilter.mockResolvedValue([]);
 
     const { container } = await renderServerComponent(
-      AdminCommissionStatementsPage({ searchParams: Promise.resolve({ status: 'bogus' }) })
+      AdminCommissionStatementsPage({ searchParams: Promise.resolve({ status: 'bogus', from: 'not-a-date' }) })
     );
 
     expect(listAdminStatements).toHaveBeenCalledWith(
