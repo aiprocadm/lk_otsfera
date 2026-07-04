@@ -1,0 +1,80 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import React from 'react';
+import { renderServerComponent } from './helpers/renderServerComponent';
+
+const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
+vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
+
+const { documentFindMany } = vi.hoisted(() => ({ documentFindMany: vi.fn() }));
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: { document: { findMany: documentFindMany } }
+}));
+
+vi.mock('@/components/partner/documents-list', () => ({
+  DocumentsList: (props: { rows: unknown[]; downloadEndpointBase?: string }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'documents-list' },
+      props.downloadEndpointBase,
+      JSON.stringify(props.rows)
+    )
+}));
+
+vi.mock('@/components/documents/documents-panel', () => ({
+  DocumentsPanel: () => React.createElement('div', { 'data-testid': 'documents-panel' })
+}));
+
+import AdminDocumentsPage from '@/app/admin/documents/page';
+
+const SESSION = { sub: 'admin1', role: 'admin' as const };
+
+describe('AdminDocumentsPage', () => {
+  beforeEach(() => {
+    requireAdmin.mockReset();
+    documentFindMany.mockReset();
+  });
+
+  it('renders the orders tab (default) with DocumentsPanel and the "orders" chip active', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+
+    const { container } = await renderServerComponent(
+      AdminDocumentsPage({ searchParams: Promise.resolve({}) })
+    );
+
+    expect(requireAdmin).toHaveBeenCalled();
+    expect(documentFindMany).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Admin · Documents');
+    expect(container.querySelector('[data-testid="documents-panel"]')).not.toBeNull();
+    const ordersChip = Array.from(container.querySelectorAll('a')).find((a) =>
+      a.textContent?.includes('По заказам')
+    );
+    expect(ordersChip?.className).toContain('bg-[#F97316]');
+  });
+
+  it('renders the general tab (?tab=general) with order-less documents mapped to OrgDocumentRow', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    documentFindMany.mockResolvedValue([
+      {
+        id: 'd1',
+        name: 'Общий.pdf',
+        type: 'report',
+        direction: 'incoming',
+        signedAt: null,
+        createdAt: new Date('2024-01-01'),
+        size: 100
+      }
+    ]);
+
+    const { container } = await renderServerComponent(
+      AdminDocumentsPage({ searchParams: Promise.resolve({ tab: 'general' }) })
+    );
+
+    expect(documentFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { orderId: null }, take: 200 })
+    );
+    expect(container.textContent).toContain('Документы');
+    expect(container.textContent).toContain('Общий.pdf');
+    expect(container.textContent).toContain('/api/documents');
+  });
+});
