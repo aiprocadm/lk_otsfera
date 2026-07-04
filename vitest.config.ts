@@ -110,7 +110,11 @@ export default defineConfig(({ mode }) => ({
         // конкретные модули импортируются напрямую, баррель в покрытом пути не
         // участвует → v8 c all:true рапортует 0%. Исполняемой логики нет (E1/трек E).
         'src/lib/services/customFields/index.ts',
-        'src/lib/services/import/oneCAccountCard/index.ts'
+        'src/lib/services/import/oneCAccountCard/index.ts',
+        // Тот же barrel-паттерн для components/ui (Phase 3): только `export { X } from
+        // './x'`, тесты импортируют конкретные компоненты напрямую, баррель нигде не
+        // исполняется как модуль → 0% без исполняемой логики.
+        'src/components/ui/index.ts'
       ],
       reporter: ['text-summary', 'json-summary', 'html'],
       // Per-glob 100%-гейт на логические слои (план Task 11). Применяется ТОЛЬКО к
@@ -135,7 +139,12 @@ export default defineConfig(({ mode }) => ({
               // хуков; email — renderToStaticMarkup, node). SSR-гарды `typeof document`
               // внутри client-effect'ов — мёртвый код (эффекты только на клиенте) → v8-ignore.
               'src/hooks/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/lib/email/**/*.tsx': { lines: 100, branches: 100, functions: 100, statements: 100 }
+              'src/lib/email/**/*.tsx': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              // PHASE-3 (UI-слои, первый срез): components/ui — презентационные примитивы
+              // + LogoutButton/Dialog под Pattern P (renderToString) / Pattern I (jsdom +
+              // @testing-library) харнессами. Барреля index.ts — в exclude выше (0% без
+              // исполняемой логики, тот же паттерн что и lib-barrel'и).
+              'src/components/ui/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
             }
           }
         : {})
