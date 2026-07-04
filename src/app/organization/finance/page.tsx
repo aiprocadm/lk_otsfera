@@ -1,3 +1,4 @@
+import React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
 import { OrgAppShell } from '@/components/organization/org-app-shell';

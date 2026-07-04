@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 import type { DocumentType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
@@ -187,6 +188,7 @@ function TypeFilter({
           href={href(t)}
           active={active === t}
           label={TYPE_LABELS[t]}
+          /* v8 ignore next -- `t` comes from `present`, already filtered to (countsByType[t] ?? 0) > 0, so the ?? 0 fallback here is structurally unreachable */
           count={countsByType[t] ?? 0}
         />
       ))}
