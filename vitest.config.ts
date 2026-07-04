@@ -200,7 +200,15 @@ export default defineConfig(({ mode }) => ({
               // mark-paid-form, organization/partner/user edit forms, partner/user invite
               // forms — Pattern I: useFormAction/useTransition + router mocks, always-mounted
               // sibling dialogs scoped via dialog[open] + within()).
-              'src/components/admin/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
+              'src/components/admin/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              // PHASE-3 W1: partner cabinet — leads/portfolio/team tables+cards (Pattern P),
+              // search/status-tabs/org-tabs (Pattern P + jsdom router mocks), org-card
+              // async server tabs (comments/employees/history — awaited directly + prisma
+              // mocks, matching customer-access-section), lead/rate/calc/withdraw forms and
+              // member-row-actions (Dialog primitive, Pattern I), and the document-upload
+              // form (Pattern I; file-input coverage via the jsdom FileList-impl helper —
+              // see components.organization-document-upload-form.test.tsx for the rationale).
+              'src/components/partner/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
             }
           }
         : {})
