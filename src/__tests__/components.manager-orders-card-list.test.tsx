@@ -16,7 +16,7 @@ const row = {
   totalAmount: '1000', paidAmount: '0',
   executionStatus: 'in_progress', financialStatus: 'not_billed',
   organization: { id: 'g1', name: 'Орг' }, manager: { id: 'm1', name: 'Иван', email: 'i@x' }
-} as never;
+};
 
 describe('ManagerOrdersCardList', () => {
   it('пусто → ничего не рендерит', () => {
@@ -24,9 +24,15 @@ describe('ManagerOrdersCardList', () => {
     expect(html).toBe('');
   });
   it('карточка ведёт на {basePath}/orders/{id} и показывает заголовок/орг', () => {
-    const html = renderToString(React.createElement(ManagerOrdersCardList, { rows: [row], basePath: '/leader' }));
+    const html = renderToString(React.createElement(ManagerOrdersCardList, { rows: [row as never], basePath: '/leader' }));
     expect(html).toContain('href="/leader/orders/o1"');
     expect(html).toContain('Заказ X');
     expect(html).toContain('Орг');
+  });
+
+  it('orderNumber отсутствует — рендерит placeholder —', () => {
+    const rowNoNumber = { ...row, orderNumber: null };
+    const html = renderToString(React.createElement(ManagerOrdersCardList, { rows: [rowNoNumber as never], basePath: '/manager' }));
+    expect(html).toContain('—');
   });
 });
