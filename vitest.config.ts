@@ -189,7 +189,18 @@ export default defineConfig(({ mode }) => ({
               // Pattern I), and the doc-upload / order-less-upload forms (Pattern I; file-input
               // coverage via the jsdom FileList-impl helper — see
               // components.organization-document-upload-form.test.tsx for the rationale).
-              'src/components/manager/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
+              'src/components/manager/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              // PHASE-3 W1: admin cabinet — tables/filters/sidebar/app-shell (Pattern P +
+              // jsdom+router mocks), audit log (table/filters/detail-button/diff-dialog —
+              // Dialog primitive, sensitive-key masking incl. nested object/array recursion),
+              // dlq/queue-stats/retry(-all) buttons, sync control (trigger-button/
+              // schedule-toggle/cursor-dialog — Dialog primitive, typed-confirm arming),
+              // and the form/dialog batch (rate-override, assign-order-manager,
+              // assign-or-invite-manager, custom-fields-admin, manager-role-control,
+              // mark-paid-form, organization/partner/user edit forms, partner/user invite
+              // forms — Pattern I: useFormAction/useTransition + router mocks, always-mounted
+              // sibling dialogs scoped via dialog[open] + within()).
+              'src/components/admin/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
             }
           }
         : {})
