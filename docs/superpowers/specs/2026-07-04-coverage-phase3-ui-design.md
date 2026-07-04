@@ -38,7 +38,11 @@
 
 - **Компоненты:** 167 `.tsx`; 41 тест-файл `components.*.test.tsx` уже есть. По доменам: partner 42, admin 29, manager 28, organization 19, ui 13, + мелкие (training 5, enrollment/chat 4, tasks/leader/import 3, settings/orders/funnel/dashboard/auth 2, pwa-installer/documents/commission/access 1).
 - **Страницы:** 90 `page.tsx`; тестов на серверные компоненты страниц — **0** (все 54 теста, импортирующие `@/app/`, бьют в `app/api/**` роуты).
-- **Точная карта дыр** снимается прогоном `npm run test:coverage` (json-summary), результат — вход для плана (какие из 167+90 уже на 100%, где провалы). См. §8.
+**Baseline (прогон `npm run test:coverage`, 2026-07-04, 4665 тестов):** overall statements/lines **56.56%**, branches 95.45%, functions 78%. Пофайлово по целевым слоям:
+
+- **Компоненты:** 14/167 на 100%, **153 с дырами**. Существующие 41 тест-файл покрыли целиком лишь 14 → W1 это в основном «дотянуть существующие тесты до 100% веток» + новые файлы. Дыры по доменам: partner 42, admin 29, manager 26, organization 18, training 5, ui 5, chat 4, enrollment 4, import 3, tasks 3, auth/funnel/orders/settings по 2, singletons (pwa-installer, access, commission, dashboard, documents, leader).
+- **Страницы:** 0/90 на 100%, **90 с дырами** (все). По кабинетам: admin 27, manager 19, partner 16, leader 12, organization 10, auth 2, student 2, root/forbidden по 1.
+- **Итого целевых файлов с дырами: 243.** Полный пофайловый список (json) — вход для плана (writing-plans).
 
 ## 3. Denominator / exclude
 
