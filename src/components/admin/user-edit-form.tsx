@@ -66,7 +66,13 @@ export function UserEditForm({ user, partners, isSelf }: { user: UserDetail; par
         <select name="role" value={role} onChange={(e) => setRole(e.target.value)}
           disabled={roleOptions.length === 1 || isSelf}
           className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-[#F97316] disabled:bg-gray-50">
-          {roleOptions.map((r) => (<option key={r} value={r}>{ROLE_LABELS_RU[r] ?? r}</option>))}
+          {roleOptions.map((r) => (
+            // Defensive fallback: `r` is always a key of ROLE_LABELS_RU today (allowedRoles()
+            // only returns values from the Role enum, which the map fully covers), so the
+            // `?? r` side is unreachable unless the enum gains a role without a matching label.
+            /* v8 ignore next */
+            <option key={r} value={r}>{ROLE_LABELS_RU[r] ?? r}</option>
+          ))}
         </select>
         {roleOptions.length === 1 && (
           <p className="text-xs text-gray-500 mt-1">
