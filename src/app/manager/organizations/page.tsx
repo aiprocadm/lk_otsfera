@@ -1,3 +1,4 @@
+import React from 'react';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { listOrganizations } from '@/lib/services/manager/organizations';
