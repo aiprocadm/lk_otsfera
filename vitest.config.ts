@@ -140,75 +140,19 @@ export default defineConfig(({ mode }) => ({
               // внутри client-effect'ов — мёртвый код (эффекты только на клиенте) → v8-ignore.
               'src/hooks/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
               'src/lib/email/**/*.tsx': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              // PHASE-3 (UI-слои, первый срез): components/ui — презентационные примитивы
-              // + LogoutButton/Dialog под Pattern P (renderToString) / Pattern I (jsdom +
-              // @testing-library) харнессами. Барреля index.ts — в exclude выше (0% без
-              // исполняемой логики, тот же паттерн что и lib-barrel'и).
-              'src/components/ui/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              // PHASE-3 W1 Task 2: async server shells (dashboard/leader) под Pattern P /
-              // async-server-component харнессом (await + renderToString).
-              'src/components/dashboard/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/components/leader/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/components/commission/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/components/documents/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/components/access/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/components/auth/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/components/settings/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/components/orders/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/components/funnel/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/components/tasks/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/components/pwa-installer.tsx': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              // PHASE-3 W1: chat domain — order-thread inbox (interactive, jsdom) +
-              // chat-composer/thread-view/unread-badge (Pattern P + I mixes).
-              'src/components/chat/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              // PHASE-3 W1: enrollment domain — list/badge (Pattern P) + queue/request-form
-              // (Pattern I: fetch/toast/router/window.prompt interactions).
-              'src/components/enrollment/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              // PHASE-3 W1: import domain — 1С order/payment import forms + the payment
-              // resolve queue table (Dialog primitive, async org/order search effects).
-              'src/components/import/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              // PHASE-3 W1: training domain — certificate badge/list (Pattern P),
-              // add-position-dialog/directions-admin/order-items-section (Pattern I,
-              // Dialog primitive; two dialogs always mounted per parent, scoped via
-              // dialog[open] + within()).
-              'src/components/training/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              // PHASE-3 W1: organization cabinet — dashboard/order/finance/team widgets
-              // (Pattern P), sidebar/filters/documents-search (Pattern I: jsdom + router
-              // mocks), invite-form + app-shell (Dialog primitive / mocked sidebar shell),
-              // and the two upload forms (Pattern I; file-input coverage via a jsdom
-              // FileList-impl helper — see components.organization-document-upload-form
-              // .test.tsx — since jsdom's own FormData construction, which React 19's
-              // <form action> submits through, reads a file input's FileList impl
-              // directly rather than the public `files` property).
-              'src/components/organization/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              // PHASE-3 W1: manager cabinet — dashboard/order/finance/roster widgets and
-              // tables (Pattern P), sidebar/filters (Pattern I: jsdom + router mocks),
-              // app-shell (sync server component; sidebar + LogoutButton wired through
-              // next/navigation mocks), org-card-tabs (six query-param tabs, Pattern P),
-              // status-change-form/team-visibility-toggle (Dialog primitive / useTransition,
-              // Pattern I), and the doc-upload / order-less-upload forms (Pattern I; file-input
-              // coverage via the jsdom FileList-impl helper — see
-              // components.organization-document-upload-form.test.tsx for the rationale).
-              'src/components/manager/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              // PHASE-3 W1: admin cabinet — tables/filters/sidebar/app-shell (Pattern P +
-              // jsdom+router mocks), audit log (table/filters/detail-button/diff-dialog —
-              // Dialog primitive, sensitive-key masking incl. nested object/array recursion),
-              // dlq/queue-stats/retry(-all) buttons, sync control (trigger-button/
-              // schedule-toggle/cursor-dialog — Dialog primitive, typed-confirm arming),
-              // and the form/dialog batch (rate-override, assign-order-manager,
-              // assign-or-invite-manager, custom-fields-admin, manager-role-control,
-              // mark-paid-form, organization/partner/user edit forms, partner/user invite
-              // forms — Pattern I: useFormAction/useTransition + router mocks, always-mounted
-              // sibling dialogs scoped via dialog[open] + within()).
-              'src/components/admin/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              // PHASE-3 W1: partner cabinet — leads/portfolio/team tables+cards (Pattern P),
-              // search/status-tabs/org-tabs (Pattern P + jsdom router mocks), org-card
-              // async server tabs (comments/employees/history — awaited directly + prisma
-              // mocks, matching customer-access-section), lead/rate/calc/withdraw forms and
-              // member-row-actions (Dialog primitive, Pattern I), and the document-upload
-              // form (Pattern I; file-input coverage via the jsdom FileList-impl helper —
-              // see components.organization-document-upload-form.test.tsx for the rationale).
-              'src/components/partner/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
+              // PHASE-3 W1 (UI-компоненты) — весь `src/components/**` под порогом 100%,
+              // консолидировано из 20 подоменных записей после закрытия всех доменов/кабинетов.
+              // Гибрид-harness: Pattern P (`renderToString`/node) для презентационных веток +
+              // Pattern I (jsdom + `@testing-library/react`) для интерактива/эффектов/диалогов
+              // (mock `HTMLDialogElement.prototype.showModal`/`close`; всегда-смонтированные
+              // диалоги скоупятся `dialog[open]` + `within()`). Async server-компоненты
+              // (`*-app-shell`, org-card async-табы, customer-access-section) — `await` + затем
+              // `renderToString`. File-input формы — jsdom FileList-impl helper (React 19
+              // `<form action>` строит FormData через jsdom, читая FileList impl, а не публичный
+              // `files`). Барель `ui/index.ts` — в exclude выше. Каждый `/* v8 ignore */` —
+              // structurally-unreachable defensive guard с причиной-комментарием. Широкий glob
+              // (а не подоменный) ловит и будущие компоненты в новых подкаталогах.
+              'src/components/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
             }
           }
         : {})
