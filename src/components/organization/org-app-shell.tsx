@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import React, { type ReactNode } from 'react';
 import { OrgSidebar, type OrgSidebarMembership } from './org-sidebar';
 import { navItemsFor } from '@/lib/navigation/cabinet';
 import { LogoutButton } from '@/components/ui';
