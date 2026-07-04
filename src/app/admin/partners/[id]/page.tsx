@@ -1,3 +1,4 @@
+import React from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { BackLink, TableShell, THead, Th, Tr, Td } from '@/components/ui';

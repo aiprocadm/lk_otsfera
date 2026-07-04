@@ -1,3 +1,4 @@
+import React from 'react';
 import { BackLink } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { PartnerCreateForm } from '@/components/admin/partner-create-form';

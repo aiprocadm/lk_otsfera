@@ -1,3 +1,4 @@
+import React from 'react';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { listDefinitions } from '@/lib/services/customFields';
