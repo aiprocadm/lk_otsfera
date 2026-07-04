@@ -171,7 +171,16 @@ export default defineConfig(({ mode }) => ({
               // add-position-dialog/directions-admin/order-items-section (Pattern I,
               // Dialog primitive; two dialogs always mounted per parent, scoped via
               // dialog[open] + within()).
-              'src/components/training/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
+              'src/components/training/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              // PHASE-3 W1: organization cabinet — dashboard/order/finance/team widgets
+              // (Pattern P), sidebar/filters/documents-search (Pattern I: jsdom + router
+              // mocks), invite-form + app-shell (Dialog primitive / mocked sidebar shell),
+              // and the two upload forms (Pattern I; file-input coverage via a jsdom
+              // FileList-impl helper — see components.organization-document-upload-form
+              // .test.tsx — since jsdom's own FormData construction, which React 19's
+              // <form action> submits through, reads a file input's FileList impl
+              // directly rather than the public `files` property).
+              'src/components/organization/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
             }
           }
         : {})
