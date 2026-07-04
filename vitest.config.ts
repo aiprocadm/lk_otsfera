@@ -180,7 +180,16 @@ export default defineConfig(({ mode }) => ({
               // .test.tsx — since jsdom's own FormData construction, which React 19's
               // <form action> submits through, reads a file input's FileList impl
               // directly rather than the public `files` property).
-              'src/components/organization/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
+              'src/components/organization/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              // PHASE-3 W1: manager cabinet — dashboard/order/finance/roster widgets and
+              // tables (Pattern P), sidebar/filters (Pattern I: jsdom + router mocks),
+              // app-shell (sync server component; sidebar + LogoutButton wired through
+              // next/navigation mocks), org-card-tabs (six query-param tabs, Pattern P),
+              // status-change-form/team-visibility-toggle (Dialog primitive / useTransition,
+              // Pattern I), and the doc-upload / order-less-upload forms (Pattern I; file-input
+              // coverage via the jsdom FileList-impl helper — see
+              // components.organization-document-upload-form.test.tsx for the rationale).
+              'src/components/manager/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
             }
           }
         : {})
