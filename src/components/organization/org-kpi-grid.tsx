@@ -1,3 +1,4 @@
+import React from 'react';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { fmtMoney } from '@/lib/format';
 import type { OrgDashboardKpis } from '@/lib/services/organization/dashboard';

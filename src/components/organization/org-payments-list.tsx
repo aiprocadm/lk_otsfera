@@ -1,3 +1,4 @@
+import React from 'react';
 import type { OrgOrderPayment } from '@/lib/services/organization/orders';
 
 function fmtMoney(s: string): string {

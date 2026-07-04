@@ -1,3 +1,4 @@
+import React from 'react';
 import type { Stage } from '@/lib/orders/humanStage';
 
 const TONE_CLASSES: Record<Stage['tone'], string> = {
