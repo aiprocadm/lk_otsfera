@@ -110,7 +110,11 @@ export default defineConfig(({ mode }) => ({
         // конкретные модули импортируются напрямую, баррель в покрытом пути не
         // участвует → v8 c all:true рапортует 0%. Исполняемой логики нет (E1/трек E).
         'src/lib/services/customFields/index.ts',
-        'src/lib/services/import/oneCAccountCard/index.ts'
+        'src/lib/services/import/oneCAccountCard/index.ts',
+        // Тот же barrel-паттерн для components/ui (Phase 3): только `export { X } from
+        // './x'`, тесты импортируют конкретные компоненты напрямую, баррель нигде не
+        // исполняется как модуль → 0% без исполняемой логики.
+        'src/components/ui/index.ts'
       ],
       reporter: ['text-summary', 'json-summary', 'html'],
       // Per-glob 100%-гейт на логические слои (план Task 11). Применяется ТОЛЬКО к
@@ -135,7 +139,20 @@ export default defineConfig(({ mode }) => ({
               // хуков; email — renderToStaticMarkup, node). SSR-гарды `typeof document`
               // внутри client-effect'ов — мёртвый код (эффекты только на клиенте) → v8-ignore.
               'src/hooks/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/lib/email/**/*.tsx': { lines: 100, branches: 100, functions: 100, statements: 100 }
+              'src/lib/email/**/*.tsx': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              // PHASE-3 W1 (UI-компоненты) — весь `src/components/**` под порогом 100%,
+              // консолидировано из 20 подоменных записей после закрытия всех доменов/кабинетов.
+              // Гибрид-harness: Pattern P (`renderToString`/node) для презентационных веток +
+              // Pattern I (jsdom + `@testing-library/react`) для интерактива/эффектов/диалогов
+              // (mock `HTMLDialogElement.prototype.showModal`/`close`; всегда-смонтированные
+              // диалоги скоупятся `dialog[open]` + `within()`). Async server-компоненты
+              // (`*-app-shell`, org-card async-табы, customer-access-section) — `await` + затем
+              // `renderToString`. File-input формы — jsdom FileList-impl helper (React 19
+              // `<form action>` строит FormData через jsdom, читая FileList impl, а не публичный
+              // `files`). Барель `ui/index.ts` — в exclude выше. Каждый `/* v8 ignore */` —
+              // structurally-unreachable defensive guard с причиной-комментарием. Широкий glob
+              // (а не подоменный) ловит и будущие компоненты в новых подкаталогах.
+              'src/components/**': { lines: 100, branches: 100, functions: 100, statements: 100 }
             }
           }
         : {})

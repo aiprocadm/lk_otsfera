@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 import type { ManagerOrgListRow } from '@/lib/services/manager/organizations';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';

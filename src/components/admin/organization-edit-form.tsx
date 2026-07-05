@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { updateOrganizationAction } from '@/server-actions/admin/organizations';
 import { useFormAction } from '@/lib/ui/useFormAction';
 import type { OrgDetail } from '@/lib/services/admin/organizations';

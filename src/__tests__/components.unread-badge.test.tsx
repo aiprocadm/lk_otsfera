@@ -1,33 +1,52 @@
-/**
- * Minimal smoke-test for UnreadBadge.
- *
- * We use renderToString (server-side render) as the existing component tests do.
- * useEffect does NOT run in renderToString, so the initial count is 0 and the
- * component renders null — that's the expected initial state (renders nothing
- * until the first poll resolves in the browser). The test verifies:
- *   1. The component renders without throwing.
- *   2. Its initial output contains no count badge (count=0 → null).
- */
-import { describe, it, expect } from 'vitest';
-import { renderToString } from 'react-dom/server';
-import React from 'react'; // needed for vitest classic JSX transform (CLAUDE.md §11)
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+
+const { useClientResource } = vi.hoisted(() => ({ useClientResource: vi.fn() }));
+vi.mock('@/hooks/useClientResource', () => ({ useClientResource }));
+
 import { UnreadBadge } from '@/components/chat/unread-badge';
 
 describe('UnreadBadge', () => {
-  it('renders without throwing', () => {
-    expect(() => {
-      renderToString(React.createElement(UnreadBadge));
-    }).not.toThrow();
+  beforeEach(() => {
+    useClientResource.mockReset();
   });
 
-  it('produces no visible badge content in its initial (count=0) state', () => {
-    const html = renderToString(React.createElement(UnreadBadge));
-    // count starts at 0, so the component returns null and renders nothing
-    expect(html).toBe('');
+  it('renders nothing when count is 0', () => {
+    useClientResource.mockReturnValue({ data: 0 });
+    const { container } = render(React.createElement(UnreadBadge));
+    expect(container.innerHTML).toBe('');
   });
 
-  it('is exported as a function (component)', async () => {
-    const mod = await import('@/components/chat/unread-badge');
-    expect(typeof mod.UnreadBadge).toBe('function');
+  it('renders nothing when count is undefined/null', () => {
+    useClientResource.mockReturnValue({ data: null });
+    const { container } = render(React.createElement(UnreadBadge));
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('renders nothing when count is negative', () => {
+    useClientResource.mockReturnValue({ data: -1 });
+    const { container } = render(React.createElement(UnreadBadge));
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('renders the badge with the count when positive', () => {
+    useClientResource.mockReturnValue({ data: 5 });
+    render(React.createElement(UnreadBadge));
+    const badge = screen.getByLabelText('Непрочитанные сообщения');
+    expect(badge.textContent).toBe('5');
+  });
+
+  it('passes select() that defaults count to 0 when the API payload omits it', () => {
+    let capturedSelect: ((d: unknown) => number) | undefined;
+    useClientResource.mockImplementation((_url: string, opts: { select: (d: unknown) => number }) => {
+      capturedSelect = opts.select;
+      return { data: 0 };
+    });
+    render(React.createElement(UnreadBadge));
+    expect(capturedSelect).toBeDefined();
+    expect(capturedSelect!({})).toBe(0);
+    expect(capturedSelect!({ count: 3 })).toBe(3);
   });
 });

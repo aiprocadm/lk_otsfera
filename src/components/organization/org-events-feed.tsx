@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 import type { OrgEvent } from '@/lib/services/organization/dashboard';
 import { fmtDateTime } from '@/lib/format';

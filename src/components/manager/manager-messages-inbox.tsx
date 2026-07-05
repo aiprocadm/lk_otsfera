@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 import type { ManagerInboxItem } from '@/lib/services/manager/messages';
 import { fmtDateTime } from '@/lib/format';

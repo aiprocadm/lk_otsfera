@@ -20,4 +20,30 @@ describe('ManagerOrdersFilter', () => {
     const html = renderToString(React.createElement(ManagerOrdersFilter, { orgs: [], initial: {} }));
     expect(html).toContain('action="/manager/orders"');
   });
+
+  it('без активных фильтров ссылка "Сбросить" не рендерится', () => {
+    const html = renderToString(React.createElement(ManagerOrdersFilter, { orgs: [], initial: {} }));
+    expect(html).not.toContain('Сбросить');
+  });
+
+  it('с активным фильтром (search) рендерится ссылка "Сбросить" на {basePath}/orders', () => {
+    const html = renderToString(
+      React.createElement(ManagerOrdersFilter, { orgs: [], initial: { search: 'abc' }, basePath: '/leader' })
+    );
+    expect(html).toContain('Сбросить');
+    expect(html).toContain('href="/leader/orders"');
+  });
+
+  it('рендерит опции организаций и статусов исполнения/финансов', () => {
+    const html = renderToString(
+      React.createElement(ManagerOrdersFilter, {
+        orgs: [{ id: 'g1', name: 'Орг 1' }],
+        initial: { executionStatus: 'pending', financialStatus: 'billed', organizationId: 'g1' }
+      })
+    );
+    expect(html).toContain('Орг 1');
+    expect(html).toContain('value="pending" selected');
+    expect(html).toContain('value="billed" selected');
+    expect(html).toContain('value="g1" selected');
+  });
 });

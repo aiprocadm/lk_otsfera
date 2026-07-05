@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   invitePartnerOrgAdminAction,
   type InvitePartnerActionResult
@@ -59,6 +59,11 @@ export function InviteCustomerAdminForm({
   // которая заодно выбирает экшен по source.
   const action = useCallback(
     (formData: FormData): Promise<ActionResult<SuccessData>> => {
+      // The only <form> below always renders a required `email` input, so
+      // formData.get('email') is always at least '' when submitted through
+      // the UI; the ?? '' branch guards a FormData built without that key,
+      // which this component never produces.
+      /* v8 ignore next -- see comment above */
       setSubmittedEmail(String(formData.get('email') ?? ''));
       return runInvite(source, formData) as Promise<ActionResult<SuccessData>>;
     },

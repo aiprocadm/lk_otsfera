@@ -1,3 +1,4 @@
+import React from 'react';
 import type { OrgCard } from '@/lib/services/partner/orgCard';
 
 function fmtMoney(s: string): string {

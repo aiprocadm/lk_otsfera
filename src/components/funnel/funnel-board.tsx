@@ -89,6 +89,10 @@ export function FunnelBoard({ board }: { board: FunnelBoardData }) {
         <form
           onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
             e.preventDefault();
+            // defense-in-depth: the `reason` input is always present (static JSX) and
+            // `required`, so `FormData.get('reason')` is always a non-null string once
+            // the form can submit; the `?? ''` fallback guards a shape that can't occur.
+            /* v8 ignore next */
             const reason = String(new FormData(e.currentTarget).get('reason') ?? '');
             const target = reasonFor;
             setReasonFor(null);

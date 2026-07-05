@@ -1,3 +1,4 @@
+import React from 'react';
 import type { TeamRow } from '@/lib/services/partner/team';
 import { MemberRowActions } from './member-row-actions';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';

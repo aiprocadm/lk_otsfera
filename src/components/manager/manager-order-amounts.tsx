@@ -1,3 +1,4 @@
+import React from 'react';
 import type { ManagerOrderDetail } from '@/lib/services/manager/orders';
 
 function fmtMoney(n: number): string {

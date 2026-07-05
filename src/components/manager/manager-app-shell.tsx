@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import React, { type ReactNode } from 'react';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { ManagerSidebar } from './manager-sidebar';
 import { LogoutButton } from '@/components/ui';

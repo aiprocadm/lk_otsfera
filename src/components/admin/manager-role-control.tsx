@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import React, { useTransition } from 'react';
 import { setManagerRoleAction } from '@/server-actions/admin/manager';
 
 export function ManagerRoleControl({ userId, current }: { userId: string; current: string | null }) {

@@ -92,6 +92,13 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
 
   // Derive polling inputs from current state
   const rawLatest = messages.length > 0 ? messages[messages.length - 1].createdAt : null;
+  // `messages` is only ever populated via `toVM`, which always assigns a string
+  // `createdAt` (API JSON never carries a Date instance) — the Date branch below
+  // is unreachable through this component's public surface. ChatMessageVM's
+  // `createdAt: string | Date` union is shared with ChatThreadView (which DOES
+  // receive real Date values from other callers), so the type can't be narrowed
+  // here without diverging the shared VM type.
+  /* v8 ignore next -- unreachable: `messages` state here is always populated via toVM(), which assigns a string createdAt */
   const latestCreatedAt: string | null = rawLatest instanceof Date ? rawLatest.toISOString() : rawLatest;
 
   // appendNew: called by useThreadPolling with rows newer than cursor; dedup by id

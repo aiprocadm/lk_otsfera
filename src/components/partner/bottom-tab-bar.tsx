@@ -1,8 +1,9 @@
 'use client';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-type Tab = { href: string; label: string; icon: string; disabled?: boolean };
+type Tab = { href: string; label: string; icon: string };
 
 const TABS: Tab[] = [
   { href: '/partner/dashboard', label: 'Главная', icon: '⌂' },
@@ -22,21 +23,12 @@ export function BottomTabBar() {
       {TABS.map((tab) => {
         const active = pathname.startsWith(tab.href);
         const className = `flex flex-col items-center justify-center gap-0.5 h-14 text-xs font-medium ${
-          tab.disabled
-            ? 'text-gray-300 cursor-not-allowed'
-            : active
-            ? 'text-[#F97316]'
-            : 'text-gray-600 active:bg-[#FFF7ED]'
+          active ? 'text-[#F97316]' : 'text-gray-600 active:bg-[#FFF7ED]'
         }`;
 
-        if (tab.disabled) {
-          return (
-            <div key={tab.href} className={className} aria-disabled='true'>
-              <span className='text-lg leading-none'>{tab.icon}</span>
-              {tab.label}
-            </div>
-          );
-        }
+        // No entry in TABS has ever set `disabled` (module-private, no other
+        // callers) — the previous disabled-tab render path was unreachable
+        // dead code and has been removed.
         return (
           <Link key={tab.href} href={tab.href} className={className}>
             <span className='text-lg leading-none'>{tab.icon}</span>

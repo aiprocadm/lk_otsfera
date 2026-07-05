@@ -33,6 +33,7 @@ export function Paginator({
     params.set('take', String(take));
     if (targetSkip > 0) params.set('skip', String(targetSkip));
     const qs = params.toString();
+    /* v8 ignore next -- `params.set('take', ...)` above always adds at least one entry, so qs can never be empty; the `: basePath` fallback is unreachable dead code */
     return qs ? `${basePath}?${qs}` : basePath;
   }
 

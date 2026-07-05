@@ -1,3 +1,4 @@
+import React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { listManagersForOrg } from '@/lib/services/manager/team';
 import { AssignOrInviteManagerForm } from './assign-or-invite-manager-form';

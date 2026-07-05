@@ -62,6 +62,9 @@ export function ManagerStatusChangeForm({ orderId, currentStatus }: Props) {
     action: (formData) =>
       transitionOrderStatusAction({
         orderId,
+        // v8 ignore next -- defensive fallback: the rendered <select name="newStatus"> always
+        // supplies a value, so formData.get() returning null is unreachable through the real UI.
+        /* v8 ignore next */
         newStatus: String(formData.get('newStatus') ?? '')
       }),
     errorMap: ACTION_ERROR_LABEL

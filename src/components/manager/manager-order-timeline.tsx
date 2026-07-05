@@ -1,3 +1,4 @@
+import React from 'react';
 import type { AuditLog } from '@prisma/client';
 import type { ManagerOrderDetail } from '@/lib/services/manager/orders';
 

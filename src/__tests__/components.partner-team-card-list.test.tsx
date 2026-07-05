@@ -1,0 +1,128 @@
+import { describe, it, expect, vi } from 'vitest';
+import { renderToString } from 'react-dom/server';
+import React from 'react';
+
+vi.mock('@/components/partner/member-row-actions', () => ({
+  MemberRowActions: ({ userId }: { userId: string }) =>
+    React.createElement('button', { 'data-testid': `actions-${userId}` }, 'actions')
+}));
+
+import { TeamCardList } from '@/components/partner/team-card-list';
+import type { TeamRow } from '@/lib/services/partner/team';
+
+const orgs = [
+  { id: 'org1', name: 'ООО Ромашка' },
+  { id: 'org2', name: 'ООО Вторая' },
+  { id: 'org3', name: 'ООО Третья' },
+  { id: 'org4', name: 'ООО Четвёртая' },
+  { id: 'org5', name: 'ООО Пятая' },
+  { id: 'org6', name: 'ООО Шестая' }
+];
+
+function makeRow(overrides: Partial<TeamRow> = {}): TeamRow {
+  return {
+    userId: 'u1',
+    partnerUserId: 'pu1',
+    email: 'ivan@x.com',
+    name: 'Иван Петров',
+    roleInPartner: 'manager',
+    assignedOrgIds: [],
+    isActive: true,
+    createdAt: new Date('2026-01-01'),
+    ...overrides
+  };
+}
+
+describe('TeamCardList', () => {
+  it('renders null (nothing) when rows is empty', () => {
+    const html = renderToString(React.createElement(TeamCardList, { rows: [], orgs, currentUserId: 'me' }));
+    expect(html).toBe('');
+  });
+
+  it('renders active member with manager badge and scope summary ("все организации")', () => {
+    const html = renderToString(
+      React.createElement(TeamCardList, { rows: [makeRow()], orgs, currentUserId: 'me' })
+    );
+    expect(html).toContain('Иван Петров');
+    expect(html).toContain('ivan@x.com');
+    expect(html).toContain('Менеджер');
+    expect(html).toContain('Доступ: все организации');
+  });
+
+  it('renders admin role badge for roleInPartner=admin', () => {
+    const html = renderToString(
+      React.createElement(TeamCardList, { rows: [makeRow({ roleInPartner: 'admin' })], orgs, currentUserId: 'me' })
+    );
+    expect(html).toContain('Админ');
+  });
+
+  it('marks the current user with "(вы)" and omits the actions button for self', () => {
+    const html = renderToString(
+      React.createElement(TeamCardList, { rows: [makeRow({ userId: 'me' })], orgs, currentUserId: 'me' })
+    );
+    expect(html).toContain('(вы)');
+    expect(html).not.toContain('data-testid="actions-me"');
+  });
+
+  it('renders the deactivated label and dims the row for inactive members, omitting the actions button', () => {
+    const html = renderToString(
+      React.createElement(TeamCardList, { rows: [makeRow({ isActive: false })], orgs, currentUserId: 'me' })
+    );
+    expect(html).toContain('opacity-60');
+    expect(html).toContain('деактивирован');
+    expect(html).not.toContain('data-testid="actions-u1"');
+  });
+
+  it('renders MemberRowActions for an active non-self member', () => {
+    const html = renderToString(
+      React.createElement(TeamCardList, { rows: [makeRow({ userId: 'other' })], orgs, currentUserId: 'me' })
+    );
+    expect(html).toContain('data-testid="actions-other"');
+  });
+
+  it('scope summary lists up to 2 org names when 1-2 orgs assigned', () => {
+    const html = renderToString(
+      React.createElement(TeamCardList, {
+        rows: [makeRow({ assignedOrgIds: ['org1', 'org2'] })],
+        orgs,
+        currentUserId: 'me'
+      })
+    );
+    expect(html).toContain('ООО Ромашка, ООО Вторая');
+  });
+
+  it('scope summary falls back to em-dash when assigned org ids do not resolve to known orgs', () => {
+    const html = renderToString(
+      React.createElement(TeamCardList, {
+        rows: [makeRow({ assignedOrgIds: ['unknown1', 'unknown2'] })],
+        orgs,
+        currentUserId: 'me'
+      })
+    );
+    expect(html).toContain('Доступ: <!-- -->—');
+  });
+
+  it('scope summary shows a count with "организации" for 3-4 assigned orgs', () => {
+    const html = renderToString(
+      React.createElement(TeamCardList, {
+        rows: [makeRow({ assignedOrgIds: ['org1', 'org2', 'org3'] })],
+        orgs,
+        currentUserId: 'me'
+      })
+    );
+    expect(html).toContain('3');
+    expect(html).toContain('организации');
+  });
+
+  it('scope summary shows a count with "организаций" for 5+ assigned orgs', () => {
+    const html = renderToString(
+      React.createElement(TeamCardList, {
+        rows: [makeRow({ assignedOrgIds: ['org1', 'org2', 'org3', 'org4', 'org5'] })],
+        orgs,
+        currentUserId: 'me'
+      })
+    );
+    expect(html).toContain('5');
+    expect(html).toContain('организаций');
+  });
+});

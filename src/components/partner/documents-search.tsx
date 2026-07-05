@@ -1,6 +1,6 @@
 'use client';
+import React, { useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState, useTransition } from 'react';
 
 export function DocumentsSearch() {
   const router = useRouter();

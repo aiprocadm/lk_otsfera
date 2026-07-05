@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { inviteOrgMemberAction } from '@/server-actions/organization/team';
 import { useFormAction } from '@/lib/ui/useFormAction';
 import { Dialog } from '@/components/ui/dialog';
@@ -36,6 +36,9 @@ export function InviteOrgUserForm({
 
   // Email не входит в Result-payload экшена — снимаем его из FormData в обёртке.
   const action = useCallback((formData: FormData) => {
+    // The input always has name="email", so FormData.get returns at worst '' — the ?? '' fallback
+    // is unreachable via the rendered <form> (only null if the field were absent entirely).
+    /* v8 ignore next -- structurally unreachable defensive fallback, see comment above */
     setSubmittedEmail(String(formData.get('email') ?? ''));
     return inviteOrgMemberAction(formData);
   }, []);

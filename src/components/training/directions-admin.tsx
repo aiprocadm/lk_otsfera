@@ -46,6 +46,9 @@ export function DirectionsAdmin({ directions }: Props) {
 
   async function handleEdit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // Defensive guard: unreachable via the UI — the edit <form> (the only
+    // caller of handleEdit) is rendered conditionally as `{editTarget && (...)}`.
+    /* v8 ignore next -- unreachable: handleEdit's only caller is the edit form, itself gated on `editTarget` truthy */
     if (!editTarget) return;
     const fd = new FormData(e.currentTarget);
     const name = (fd.get('name') as string).trim();
