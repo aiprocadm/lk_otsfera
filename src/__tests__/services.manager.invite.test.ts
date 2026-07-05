@@ -8,6 +8,7 @@ import {
 
 let prisma: PrismaClient;
 let companyId: string;
+let otherCompanyId: string;
 let partnerId: string;
 let orgId: string;
 let adminActorUserId: string;
@@ -15,6 +16,8 @@ let existingManagerUserId: string;
 let existingManagerEmail: string;
 let existingNonManagerEmail: string;
 let existingNonManagerUserId: string;
+let foreignManagerEmail: string;
+let foreignManagerUserId: string;
 
 const STAMP = Date.now();
 
@@ -22,6 +25,8 @@ beforeAll(async () => {
   prisma = new PrismaClient();
   const company = await prisma.company.create({ data: { name: `MgrInvC-${STAMP}` } });
   companyId = company.id;
+  const otherCompany = await prisma.company.create({ data: { name: `MgrInvOtherC-${STAMP}` } });
+  otherCompanyId = otherCompany.id;
   const partner = await prisma.partner.create({
     data: { name: `MgrInvP-${STAMP}`, commissionRate: 0.1 }
   });
@@ -48,10 +53,27 @@ beforeAll(async () => {
       email: existingManagerEmail,
       passwordHash: 'has-pw',
       name: 'Existing Mgr',
-      role: 'manager'
+      role: 'manager',
+      // Same company as orgId — the C8 company floor requires manager and org
+      // to share a company for the assignment to be valid.
+      companyId
     }
   });
   existingManagerUserId = existing.id;
+
+  // A manager belonging to a *different* company — used to prove the company
+  // floor rejects cross-company assignment.
+  foreignManagerEmail = `mgr-inv-foreign-${STAMP}@t.local`;
+  const foreign = await prisma.user.create({
+    data: {
+      email: foreignManagerEmail,
+      passwordHash: 'has-pw',
+      name: 'Foreign Mgr',
+      role: 'manager',
+      companyId: otherCompanyId
+    }
+  });
+  foreignManagerUserId = foreign.id;
 
   existingNonManagerEmail = `mgr-inv-nonmgr-${STAMP}@t.local`;
   const nonMgr = await prisma.user.create({
@@ -78,7 +100,7 @@ afterAll(async () => {
   await prisma.user.deleteMany({
     where: {
       OR: [
-        { id: { in: [adminActorUserId, existingManagerUserId, existingNonManagerUserId] } },
+        { id: { in: [adminActorUserId, existingManagerUserId, existingNonManagerUserId, foreignManagerUserId] } },
         { email: { contains: `mgr-inv-new-${STAMP}` } }
       ]
     }
@@ -86,6 +108,7 @@ afterAll(async () => {
   await prisma.organization.delete({ where: { id: orgId } });
   await prisma.partner.delete({ where: { id: partnerId } });
   await prisma.company.delete({ where: { id: companyId } });
+  await prisma.company.delete({ where: { id: otherCompanyId } });
   await prisma.$disconnect();
 });
 
@@ -241,6 +264,38 @@ describe('createAndAssignManager — mode=new', () => {
         adminActorUserId
       )
     ).toEqual({ ok: false, error: 'role_conflict' });
+  });
+});
+
+describe('createAndAssignManager — C8 company floor', () => {
+  it('rejects assigning a manager from a different company (company_mismatch)', async () => {
+    const result = await createAndAssignManager(
+      prisma,
+      { mode: 'existing', organizationId: orgId, email: foreignManagerEmail },
+      adminActorUserId
+    );
+    expect(result).toEqual({ ok: false, error: 'company_mismatch' });
+
+    // The cross-company assignment must not have been persisted.
+    const row = await prisma.organizationManager.findUnique({
+      where: {
+        organizationId_userId: { organizationId: orgId, userId: foreignManagerUserId }
+      }
+    });
+    expect(row).toBeNull();
+  });
+
+  it('stamps a newly-invited manager with the organization company (mode=new)', async () => {
+    const newEmail = `mgr-inv-new-${STAMP}-company@t.local`;
+    const result = await createAndAssignManager(
+      prisma,
+      { mode: 'new', organizationId: orgId, email: newEmail, name: 'Co Mgr' },
+      adminActorUserId
+    );
+    if (!result.ok) throw new Error('expected ok');
+
+    const u = await prisma.user.findUnique({ where: { email: newEmail } });
+    expect(u?.companyId).toBe(companyId);
   });
 });
 

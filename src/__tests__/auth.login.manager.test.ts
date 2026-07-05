@@ -36,7 +36,7 @@ describe('auth login route — manager managedOrgIds', () => {
     return {
       id: 'u-mgr-1',
       role: 'manager',
-      companyId: null,
+      companyId: 'co-1',
       partnerId: null,
       organizationId: null,
       email: 'mgr@example.com',
@@ -82,8 +82,9 @@ describe('auth login route — manager managedOrgIds', () => {
     const res = await POST(loginRequest());
 
     expect(res.status).toBe(200);
+    // C8 company floor: only orgs in the manager's own company are counted.
     expect(findManyManagedOrgs).toHaveBeenCalledWith({
-      where: { userId: 'u-mgr-1', isActive: true },
+      where: { userId: 'u-mgr-1', isActive: true, organization: { companyId: 'co-1' } },
       select: { organizationId: true }
     });
     expect(signToken).toHaveBeenCalledWith(
@@ -105,13 +106,48 @@ describe('auth login route — manager managedOrgIds', () => {
 
     expect(findManyManagedOrgs).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { userId: 'u-mgr-1', isActive: true }
+        where: { userId: 'u-mgr-1', isActive: true, organization: { companyId: 'co-1' } }
       })
     );
     expect(signToken).toHaveBeenCalledWith(
       expect.objectContaining({
         managedOrgIds: ['org-active']
       })
+    );
+  });
+
+  it('applies the company floor: excludes orgs outside the manager company', async () => {
+    // Regression (C8): a stale/legacy cross-company OrganizationManager row must
+    // not widen scope. The query itself carries the company filter, so a foreign
+    // org row is never returned. We assert the filter is present AND that only
+    // the in-company rows the query returns end up in managedOrgIds.
+    findUniqueUser.mockResolvedValue(managerUser({ companyId: 'co-1' }));
+    findManyManagedOrgs.mockResolvedValue([{ organizationId: 'org-in-company' }]);
+
+    const res = await POST(loginRequest());
+
+    expect(res.status).toBe(200);
+    expect(findManyManagedOrgs).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ organization: { companyId: 'co-1' } })
+      })
+    );
+    expect(signToken).toHaveBeenCalledWith(
+      expect.objectContaining({ managedOrgIds: ['org-in-company'] })
+    );
+  });
+
+  it('a manager with no companyId gets an empty managedOrgIds (deny-null) without querying', async () => {
+    // C8 deny-null: companyId=null is the "no company" sentinel; such a manager
+    // must not resolve ANY managed orgs, so we skip the query entirely.
+    findUniqueUser.mockResolvedValue(managerUser({ companyId: null }));
+
+    const res = await POST(loginRequest());
+
+    expect(res.status).toBe(200);
+    expect(findManyManagedOrgs).not.toHaveBeenCalled();
+    expect(signToken).toHaveBeenCalledWith(
+      expect.objectContaining({ role: 'manager', managedOrgIds: [] })
     );
   });
 

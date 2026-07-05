@@ -235,6 +235,60 @@ describe('createAndAssignManager — assignment reactivation', () => {
   });
 });
 
+// ─── createAndAssignManager — C8 company floor ─────────────────────────────────
+
+describe('createAndAssignManager — C8 company floor', () => {
+  it('rejects an existing manager whose companyId differs from the org (company_mismatch)', async () => {
+    const { tx } = makeTx();
+    tx.organization.findUnique = vi.fn().mockResolvedValue({ id: 'org-1', companyId: 'co-A' });
+    const foreignMgr = { id: 'u-foreign', email: 'foreign@t.local', role: 'manager', passwordHash: 'hash', companyId: 'co-B' };
+    tx.user.findUnique = vi.fn().mockResolvedValue(foreignMgr);
+    const p = makePrisma(tx);
+
+    expect(
+      await createAndAssignManager(p, { mode: 'existing', organizationId: 'org-1', email: foreignMgr.email }, 'admin-1')
+    ).toEqual({ ok: false, error: 'company_mismatch' });
+    // No assignment row must be created on a cross-company reject.
+    expect(tx.organizationManager.create).not.toHaveBeenCalled();
+    expect(tx.organizationManager.update).not.toHaveBeenCalled();
+  });
+
+  it('allows an existing manager in the same company as the org', async () => {
+    const { tx } = makeTx();
+    tx.organization.findUnique = vi.fn().mockResolvedValue({ id: 'org-1', companyId: 'co-A' });
+    const sameCompanyMgr = { id: 'u-same', email: 'same@t.local', role: 'manager', passwordHash: 'hash', companyId: 'co-A' };
+    tx.user.findUnique = vi.fn().mockResolvedValue(sameCompanyMgr);
+    tx.organizationManager.findUnique = vi.fn().mockResolvedValue(null);
+    tx.organizationManager.create = vi.fn().mockResolvedValue({ id: 'assign-1', organizationId: 'org-1' });
+    const p = makePrisma(tx);
+
+    const result = await createAndAssignManager(
+      p, { mode: 'existing', organizationId: 'org-1', email: sameCompanyMgr.email }, 'admin-1'
+    );
+    if (!result.ok) throw new Error('expected ok');
+    expect(tx.organizationManager.create).toHaveBeenCalled();
+  });
+
+  it('stamps a newly-created manager with the org companyId (mode=new)', async () => {
+    const { tx } = makeTx();
+    tx.organization.findUnique = vi.fn().mockResolvedValue({ id: 'org-1', companyId: 'co-A' });
+    tx.user.findUnique = vi.fn().mockResolvedValue(null);
+    const created = { id: 'u-new', email: 'new@t.local', role: 'manager', passwordHash: null, companyId: 'co-A' };
+    tx.user.create = vi.fn().mockResolvedValue(created);
+    tx.organizationManager.findUnique = vi.fn().mockResolvedValue(null);
+    tx.organizationManager.create = vi.fn().mockResolvedValue({ id: 'assign-1', organizationId: 'org-1' });
+    const p = makePrisma(tx);
+
+    const result = await createAndAssignManager(
+      p, { mode: 'new', organizationId: 'org-1', email: created.email, name: 'Fresh' }, 'admin-1'
+    );
+    if (!result.ok) throw new Error('expected ok');
+    expect(tx.user.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ companyId: 'co-A' })
+    });
+  });
+});
+
 // ─── deactivateAssignment ──────────────────────────────────────────────────────
 
 describe('deactivateAssignment', () => {
