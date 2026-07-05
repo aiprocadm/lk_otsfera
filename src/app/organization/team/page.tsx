@@ -1,3 +1,4 @@
+import React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { redirect } from 'next/navigation';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';

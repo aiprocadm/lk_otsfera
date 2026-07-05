@@ -1,0 +1,145 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import React from 'react';
+import { renderServerComponent } from './helpers/renderServerComponent';
+
+const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
+vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
+
+const { organizationFindUnique } = vi.hoisted(() => ({ organizationFindUnique: vi.fn() }));
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: { organization: { findUnique: organizationFindUnique } }
+}));
+
+const { getOrganization } = vi.hoisted(() => ({ getOrganization: vi.fn() }));
+vi.mock('@/lib/services/admin/organizations', () => ({ getOrganization }));
+
+const nav = vi.hoisted(() => ({
+  notFound: vi.fn(() => {
+    throw new Error('NOT_FOUND');
+  }),
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+}));
+vi.mock('next/navigation', () => nav);
+
+vi.mock('@/components/partner/customer-access-section', () => ({
+  CustomerAccessSection: (props: { organizationId: string; canInvite: boolean; source: string }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'customer-access' },
+      props.organizationId,
+      String(props.canInvite),
+      props.source
+    )
+}));
+
+vi.mock('@/components/admin/managers-block', () => ({
+  ManagersBlock: (props: { orgId: string }) =>
+    React.createElement('div', { 'data-testid': 'managers-block' }, props.orgId)
+}));
+
+vi.mock('@/components/admin/organization-edit-form', () => ({
+  OrganizationEditForm: (props: { org: unknown }) =>
+    React.createElement('div', { 'data-testid': 'org-edit-form' }, JSON.stringify(props.org))
+}));
+
+vi.mock('@/components/admin/admin-rate-override-form', () => ({
+  AdminRateOverrideForm: (props: { organizationId: string; initialRate: unknown; initialNote: unknown }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'rate-override-form' },
+      props.organizationId,
+      String(props.initialRate),
+      String(props.initialNote)
+    )
+}));
+
+import AdminOrganizationDetailPage from '@/app/admin/organizations/[id]/page';
+
+const SESSION = { sub: 'admin1', role: 'admin' as const };
+
+const ORG = {
+  id: 'org-1',
+  name: 'Организация 1',
+  inn: '1234567890',
+  kpp: '123456789',
+  externalId: 'ext-1',
+  partner: { name: 'Партнёр 1' },
+  partnerCommissionRate: 0.1,
+  partnerCommissionRateNote: 'note'
+};
+
+const META = {
+  company: { id: 'c1', name: 'Компания' },
+  _count: { orders: 5, students: 10, organizationUsers: 2 }
+};
+
+describe('AdminOrganizationDetailPage', () => {
+  beforeEach(() => {
+    requireAdmin.mockReset();
+    organizationFindUnique.mockReset();
+    getOrganization.mockReset();
+    nav.notFound.mockClear();
+  });
+
+  it('calls notFound() when org is missing', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getOrganization.mockResolvedValue(null);
+    organizationFindUnique.mockResolvedValue(META);
+
+    await expect(
+      renderServerComponent(AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'missing' }) }))
+    ).rejects.toThrow('NOT_FOUND');
+  });
+
+  it('calls notFound() when meta is missing', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getOrganization.mockResolvedValue(ORG);
+    organizationFindUnique.mockResolvedValue(null);
+
+    await expect(
+      renderServerComponent(AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) }))
+    ).rejects.toThrow('NOT_FOUND');
+  });
+
+  it('renders org details with company name, inn/kpp, external id, and volumes', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getOrganization.mockResolvedValue(ORG);
+    organizationFindUnique.mockResolvedValue(META);
+
+    const { container } = await renderServerComponent(
+      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
+    );
+
+    expect(getOrganization).toHaveBeenCalledWith(expect.anything(), 'org-1');
+    expect(container.textContent).toContain('Организация 1');
+    expect(container.textContent).toContain('Партнёр 1');
+    expect(container.textContent).toContain('Компания');
+    expect(container.textContent).toContain('1234567890');
+    expect(container.textContent).toContain('123456789');
+    expect(container.textContent).toContain('ext-1');
+    expect(container.textContent).toContain('5 заказов');
+    expect(container.querySelector('[data-testid="rate-override-form"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="customer-access"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="managers-block"]')).not.toBeNull();
+  });
+
+  it('falls back partner/company/kpp/externalId/inn to defaults when absent', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getOrganization.mockResolvedValue({
+      ...ORG,
+      partner: null,
+      kpp: null,
+      externalId: null,
+      inn: null
+    });
+    organizationFindUnique.mockResolvedValue({ ...META, company: null });
+
+    const { container } = await renderServerComponent(
+      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
+    );
+
+    expect(container.textContent).toContain('Без партнёра');
+    expect(container.textContent).not.toContain('Компания:');
+  });
+});

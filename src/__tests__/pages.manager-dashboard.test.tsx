@@ -1,0 +1,73 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import React from 'react';
+import { renderServerComponent } from './helpers/renderServerComponent';
+
+const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
+vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
+
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+
+const { kpis, attention, recentEvents } = vi.hoisted(() => ({
+  kpis: vi.fn(),
+  attention: vi.fn(),
+  recentEvents: vi.fn()
+}));
+vi.mock('@/lib/services/manager/dashboard', () => ({ kpis, attention, recentEvents }));
+
+vi.mock('@/components/manager/manager-kpi-grid', () => ({
+  ManagerKpiGrid: (props: { data: unknown }) =>
+    React.createElement('div', { 'data-testid': 'kpi-grid' }, JSON.stringify(props.data))
+}));
+
+vi.mock('@/components/manager/manager-attention-list', () => ({
+  ManagerAttentionList: (props: { items: unknown[] }) =>
+    React.createElement('div', { 'data-testid': 'attention-list' }, JSON.stringify(props.items))
+}));
+
+vi.mock('@/components/manager/manager-events-feed', () => ({
+  ManagerEventsFeed: (props: { events: unknown[] }) =>
+    React.createElement('div', { 'data-testid': 'events-feed' }, JSON.stringify(props.events))
+}));
+
+import ManagerDashboard from '@/app/manager/dashboard/page';
+
+const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+
+describe('ManagerDashboard', () => {
+  beforeEach(() => {
+    requireManager.mockReset();
+    kpis.mockReset();
+    attention.mockReset();
+    recentEvents.mockReset();
+  });
+
+  it('fetches kpis/attention/events in parallel and renders them', async () => {
+    requireManager.mockResolvedValue(SESSION);
+    kpis.mockResolvedValue({ activeOrders: 1 });
+    attention.mockResolvedValue([{ id: 'a1' }]);
+    recentEvents.mockResolvedValue([{ id: 'e1' }]);
+
+    const { container } = await renderServerComponent(ManagerDashboard());
+
+    expect(requireManager).toHaveBeenCalled();
+    expect(kpis).toHaveBeenCalledWith({}, SESSION);
+    expect(attention).toHaveBeenCalledWith({}, SESSION);
+    expect(recentEvents).toHaveBeenCalledWith({}, SESSION);
+    expect(container.textContent).toContain('Главная');
+    expect(container.textContent).toContain('activeOrders');
+    expect(container.textContent).toContain('a1');
+    expect(container.textContent).toContain('e1');
+  });
+
+  it('renders with empty attention/events arrays', async () => {
+    requireManager.mockResolvedValue(SESSION);
+    kpis.mockResolvedValue({});
+    attention.mockResolvedValue([]);
+    recentEvents.mockResolvedValue([]);
+
+    const { container } = await renderServerComponent(ManagerDashboard());
+
+    expect(container.textContent).toContain('Главная');
+  });
+});

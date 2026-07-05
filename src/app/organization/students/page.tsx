@@ -1,3 +1,4 @@
+import React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
@@ -169,6 +170,7 @@ function Paginator({
     if (searchParams.search) params.set('search', searchParams.search);
     params.set('take', String(take));
     if (targetSkip > 0) params.set('skip', String(targetSkip));
+    /* v8 ignore next -- `take` is always set above, so params.toString() is never empty; the `? ... : ''` false branch is structurally unreachable */
     return `/organization/students${params.toString() ? '?' + params.toString() : ''}`;
   }
   const prev = Math.max(0, skip - take);

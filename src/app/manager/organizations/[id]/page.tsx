@@ -1,3 +1,4 @@
+import React from 'react';
 import { notFound } from 'next/navigation';
 import { requireManagerForOrg } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';

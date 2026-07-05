@@ -1,3 +1,4 @@
+import React from 'react';
 import type { ExecutionStatus, FinancialStatus } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartner } from '@/lib/auth/requireRole';

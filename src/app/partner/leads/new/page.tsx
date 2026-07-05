@@ -1,3 +1,4 @@
+import React from 'react';
 import { BackLink } from '@/components/ui';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartner } from '@/lib/auth/requireRole';

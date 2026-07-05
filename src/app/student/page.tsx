@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/dashboard/app-shell';
 import { OrgAppShell } from '@/components/organization/org-app-shell';

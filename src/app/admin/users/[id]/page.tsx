@@ -1,3 +1,4 @@
+import React from 'react';
 import { notFound } from 'next/navigation';
 import { BackLink } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';

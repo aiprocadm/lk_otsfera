@@ -1,3 +1,4 @@
+import React from 'react';
 import { notFound, redirect } from 'next/navigation';
 import { BackLink } from '@/components/ui';
 import { prisma } from '@/lib/db/prisma';

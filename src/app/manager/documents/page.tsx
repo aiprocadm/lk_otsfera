@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
