@@ -1,15 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const { linkMaxByCode, sendMaxMessage, notFoundIfDisabled } = vi.hoisted(() => ({
+const { linkMaxByCode, sendMaxMessage, notFoundIfDisabled, isFeatureEnabled } = vi.hoisted(() => ({
   linkMaxByCode: vi.fn(),
   sendMaxMessage: vi.fn(),
   notFoundIfDisabled: vi.fn(),
+  isFeatureEnabled: vi.fn(),
 }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/services/max/link', () => ({ linkMaxByCode }));
 vi.mock('@/lib/max/client', () => ({ sendMaxMessage }));
-vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled }));
+vi.mock('@/lib/services/inbound/ingest', () => ({ ingestInboundMessage: vi.fn() }));
+vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled, isFeatureEnabled }));
 
 import { POST } from '@/app/api/integrations/max/webhook/route';
 
@@ -25,7 +27,8 @@ function req(body: unknown, headers: Record<string, string> = {}): Request {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  notFoundIfDisabled.mockReturnValue(null); // флаг включён по умолчанию
+  notFoundIfDisabled.mockReturnValue(null); // флаг max_channel включён по умолчанию
+  isFeatureEnabled.mockReturnValue(false); // inbound_messaging — opt-in, по умолчанию выключен
   sendMaxMessage.mockResolvedValue({ ok: true });
   process.env.MAX_WEBHOOK_SECRET = SECRET;
 });
