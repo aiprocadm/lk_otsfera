@@ -48,6 +48,19 @@ export type OrgCardInboundMessage = {
   scanStatus: string;
   attachmentName: string | null;
 };
+export type OrgCardCall = {
+  id: string;
+  direction: string;
+  callerNumber: string;
+  internalNumber: string | null;
+  status: string;
+  durationSec: number | null;
+  startedAt: Date | null;
+  createdAt: Date;
+  resolvedOrgId: string | null;
+  recordingScanStatus: string;
+  hasRecording: boolean;
+};
 
 export type OrganizationCard = {
   id: string;
@@ -62,6 +75,7 @@ export type OrganizationCard = {
   payments: OrgCardPayment[];
   activity: OrgCardComment[];
   inboundMessages: OrgCardInboundMessage[];
+  calls: OrgCardCall[];
   // null в менеджерском контуре (нет capability see_commission).
   commission: { partnerCommissionRate: string | null } | null;
 };
@@ -80,7 +94,7 @@ export async function getOrganizationCard(
     : canSeeOrganization(session, orgId);
   if (!visible) return null;
 
-  const [orders, activeOrders, documents, payments, paidAgg, refundAgg, activity, inboundMessages] = await Promise.all([
+  const [orders, activeOrders, documents, payments, paidAgg, refundAgg, activity, inboundMessages, calls] = await Promise.all([
     prisma.order.findMany({
       where: { organizationId: orgId },
       select: {
@@ -116,6 +130,18 @@ export async function getOrganizationCard(
       select: {
         id: true, channel: true, senderRef: true, senderDisplay: true, subject: true,
         body: true, createdAt: true, status: true, scanStatus: true, attachmentName: true
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    }),
+    // Не селектим `recordingPath` — карточке нужен только boolean hasRecording,
+    // сырой object-storage путь не должен уходить в RSC-payload (mirrors listCalls.ts).
+    prisma.call.findMany({
+      where: { resolvedOrgId: orgId },
+      select: {
+        id: true, direction: true, callerNumber: true, internalNumber: true, status: true,
+        durationSec: true, startedAt: true, createdAt: true, resolvedOrgId: true,
+        recordingScanStatus: true, recordingPath: true
       },
       orderBy: { createdAt: 'desc' },
       take: 20
@@ -161,6 +187,10 @@ export async function getOrganizationCard(
       status: m.status,
       scanStatus: m.scanStatus,
       attachmentName: m.attachmentName
+    })),
+    calls: calls.map(({ recordingPath, ...c }) => ({
+      ...c,
+      hasRecording: recordingPath != null
     })),
     commission: can(session, 'see_commission')
       ? { partnerCommissionRate: org.partnerCommissionRate ? org.partnerCommissionRate.toFixed(4) : null }

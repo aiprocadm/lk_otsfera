@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Badge, EmptyState, TableShell, THead, Th, Tr, Td } from '@/components/ui';
+import { CallsList } from '@/components/manager/calls-list';
 import type { OrganizationCard } from '@/lib/services/manager/organizationCard';
 
 /**
@@ -10,7 +11,15 @@ import type { OrganizationCard } from '@/lib/services/manager/organizationCard';
  * cross-role общим (§4 sibling-rule).
  */
 
-export type OrgCardTab = 'history' | 'orders' | 'documents' | 'payments' | 'threads' | 'inbound_messages' | 'details';
+export type OrgCardTab =
+  | 'history'
+  | 'orders'
+  | 'documents'
+  | 'payments'
+  | 'threads'
+  | 'inbound_messages'
+  | 'calls'
+  | 'details';
 
 export const ORG_CARD_TABS: { key: OrgCardTab; label: string }[] = [
   { key: 'history', label: 'История' },
@@ -19,6 +28,7 @@ export const ORG_CARD_TABS: { key: OrgCardTab; label: string }[] = [
   { key: 'payments', label: 'Оплаты' },
   { key: 'threads', label: 'Переписка' },
   { key: 'inbound_messages', label: 'Обращения' },
+  { key: 'calls', label: 'Звонки' },
   { key: 'details', label: 'Реквизиты' }
 ];
 
@@ -94,6 +104,8 @@ function renderSection(card: OrganizationCard, tab: OrgCardTab): React.ReactNode
       return <ThreadsSection activity={card.activity} />;
     case 'inbound_messages':
       return <InboundMessagesSection inboundMessages={card.inboundMessages} />;
+    case 'calls':
+      return <CallsList items={card.calls} />;
     case 'details':
       return <DetailsSection card={card} />;
     case 'history':
