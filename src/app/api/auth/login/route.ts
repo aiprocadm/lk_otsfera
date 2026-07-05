@@ -124,10 +124,17 @@ export async function POST(req: Request) {
   let accessProfile: SessionAccessProfile | undefined;
 
   if (user.role === 'manager') {
-    const assigned = await prisma.organizationManager.findMany({
-      where: { userId: user.id, isActive: true },
-      select: { organizationId: true }
-    });
+    // C8 company floor: a manager's scope is bounded by their own company.
+    // Without the `organization.companyId === user.companyId` filter, a stale or
+    // legacy cross-company OrganizationManager row would widen managedOrgIds
+    // beyond the isolation boundary (see CLAUDE.md §4). A manager with no
+    // companyId is the deny-null sentinel — resolve zero orgs and skip the query.
+    const assigned = user.companyId
+      ? await prisma.organizationManager.findMany({
+          where: { userId: user.id, isActive: true, organization: { companyId: user.companyId } },
+          select: { organizationId: true }
+        })
+      : [];
     managedOrgIds = assigned.map((a) => a.organizationId);
     // Preserve 'leader' explicitly. Mirrors the org-membership narrowing warning
     // above: collapsing this to null silently kills the leader feature for the
