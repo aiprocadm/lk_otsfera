@@ -15,7 +15,8 @@ export const QUEUE_NAMES = [
   'notifications.dispatch',
   'emails.send',
   'monitoring.evaluateAlerts',
-  'notifications.certificateExpiry'
+  'notifications.certificateExpiry',
+  'inbound.email.poll'
 ] as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[number];
