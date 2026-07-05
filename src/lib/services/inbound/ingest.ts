@@ -1,6 +1,8 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { resolveInboundSender } from './resolve';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
+import { getQueue } from '@/lib/jobs/queues';
+import type { ScanDocumentPayload } from '@/lib/jobs/types';
 
 export type InboundDto = {
   channel: 'telegram' | 'max' | 'whatsapp' | 'email';
@@ -66,6 +68,21 @@ export async function ingestInboundMessage(prisma: PrismaClient, dto: InboundDto
     status: resolved.matchType === 'exact' ? 'success' : 'warn',
     errorMessage: resolved.matchType === 'exact' ? undefined : 'unresolved',
   }, prisma);
+
+  // Best-effort: enqueue ClamAV scan for the attachment. Failure leaves
+  // scanStatus='pending', where the backfill sweep will pick it up later
+  // (CLAUDE.md §3 — queue enqueue is logged and swallowed, never blocks ingest).
+  if (dto.attachmentPath) {
+    try {
+      const payload: ScanDocumentPayload = { kind: 'inbound_attachment', id: row.id };
+      await getQueue('docs.scanDocument').add('scan', payload);
+    } catch (err) {
+      console.warn('[inbound/ingest] enqueue scan failed', {
+        inboundMessageId: row.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 
   return { ok: true, id: row.id, deduped: false };
 }
