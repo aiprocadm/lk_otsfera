@@ -46,7 +46,7 @@ export default defineConfig({
         storageState: 'playwright-report/.auth/partner.json',
       },
       dependencies: ['setup'],
-      testMatch: /snapshots\/(?!organization-|manager-|admin-).*\.spec\.ts/,
+      testMatch: /snapshots\/(?!organization-|manager-|admin-|leader-|student-).*\.spec\.ts/,
     },
     {
       name: 'mobile',
@@ -56,7 +56,7 @@ export default defineConfig({
         storageState: 'playwright-report/.auth/partner.json',
       },
       dependencies: ['setup'],
-      testMatch: /snapshots\/(?!organization-|manager-|admin-).*\.spec\.ts/,
+      testMatch: /snapshots\/(?!organization-|manager-|admin-|leader-|student-).*\.spec\.ts/,
     },
     // Organization cabinet snapshots — only files prefixed with `organization-`.
     // Uses the organization storageState.
@@ -124,6 +124,51 @@ export default defineConfig({
       dependencies: ['setup'],
       testMatch: /snapshots\/admin-.*\.spec\.ts/,
     },
+    // Leader cabinet snapshots — only files prefixed with `leader-`. Uses the
+    // leader storageState seeded by `leader@demo.local` (manager-leader).
+    {
+      name: 'leader-desktop',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1280, height: 800 },
+        storageState: 'playwright-report/.auth/leader.json',
+      },
+      dependencies: ['setup'],
+      testMatch: /snapshots\/leader-.*\.spec\.ts/,
+    },
+    {
+      name: 'leader-mobile',
+      use: {
+        ...devices['iPhone 13'],
+        viewport: { width: 375, height: 667 },
+        storageState: 'playwright-report/.auth/leader.json',
+      },
+      dependencies: ['setup'],
+      testMatch: /snapshots\/leader-.*\.spec\.ts/,
+    },
+    // Student cabinet snapshots — only files prefixed with `student-`. Uses the
+    // student storageState seeded by `student@demo.local`. Target is the static
+    // /student bridge landing (not /student/redirect, which navigates off-app).
+    {
+      name: 'student-desktop',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1280, height: 800 },
+        storageState: 'playwright-report/.auth/student.json',
+      },
+      dependencies: ['setup'],
+      testMatch: /snapshots\/student-.*\.spec\.ts/,
+    },
+    {
+      name: 'student-mobile',
+      use: {
+        ...devices['iPhone 13'],
+        viewport: { width: 375, height: 667 },
+        storageState: 'playwright-report/.auth/student.json',
+      },
+      dependencies: ['setup'],
+      testMatch: /snapshots\/student-.*\.spec\.ts/,
+    },
   ],
   webServer: process.env.PLAYWRIGHT_BASE_URL
     ? undefined
@@ -140,6 +185,10 @@ export default defineConfig({
         env: {
           FEATURE_ORGANIZATION_CABINET: '1',
           FEATURE_MANAGER_CABINET: '1',
+          // leader_cabinet is opt-in too. The leader-* specs need
+          // /leader/dashboard live, and middleware only routes a leader's
+          // role-home there when this flag is on (src/middleware.ts).
+          FEATURE_LEADER_CABINET: '1',
         },
       },
 });
