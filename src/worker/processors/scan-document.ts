@@ -77,6 +77,11 @@ async function loadTarget(
   if (kind === 'document') {
     return db.document.findUnique({ where: { id }, select: { id: true, path: true } });
   }
+  if (kind === 'inbound_attachment') {
+    const row = await db.inboundMessage.findUnique({ where: { id }, select: { id: true, attachmentPath: true } });
+    if (!row || !row.attachmentPath) return null;
+    return { id: row.id, path: row.attachmentPath };
+  }
   return db.leadAttachment.findUnique({ where: { id }, select: { id: true, path: true } });
 }
 
@@ -87,11 +92,13 @@ async function persistResult(
   scanStatus: ScanStatus,
   scanReason: string | null,
 ): Promise<void> {
-  const data = { scanStatus, scanReason, scannedAt: new Date() };
   if (kind === 'document') {
-    await db.document.update({ where: { id }, data });
+    await db.document.update({ where: { id }, data: { scanStatus, scanReason, scannedAt: new Date() } });
+  } else if (kind === 'inbound_attachment') {
+    // InboundMessage has no `scannedAt` column (unlike Document) — do not add it here.
+    await db.inboundMessage.update({ where: { id }, data: { scanStatus, scanReason } });
   } else {
-    await db.leadAttachment.update({ where: { id }, data });
+    await db.leadAttachment.update({ where: { id }, data: { scanStatus, scanReason, scannedAt: new Date() } });
   }
 }
 
