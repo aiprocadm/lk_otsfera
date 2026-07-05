@@ -56,6 +56,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/manager/students', label: 'Сотрудники', icon: '👥', flag: 'manager_cabinet' },
     { href: '/manager/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests' },
     { href: '/manager/messages', label: 'Сообщения', icon: '💬', flag: 'manager_cabinet' },
+    { href: '/manager/inbox', label: 'Обращения', icon: '📨', flag: 'inbound_messaging' },
     { href: '/manager/team', label: 'Команда', icon: '⚙', flag: 'manager_cabinet', leaderOnly: true, hiddenWhenFlag: 'leader_cabinet' },
     { href: '/leader/dashboard', label: 'Кабинет руководителя', icon: '⚙', flag: 'leader_cabinet', leaderOnly: true },
     { href: '/manager/settings', label: 'Настройки', icon: '⚙', flag: 'manager_cabinet' }

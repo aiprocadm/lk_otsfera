@@ -28,6 +28,8 @@ const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   // G3: внутренние задачи / канбан.
   { prefix: '/manager/tasks', flag: 'internal_tasks' },
   { prefix: '/leader/tasks', flag: 'internal_tasks' },
+  // PR-A: омниканальный инбокс (экран придёт отдельной задачей).
+  { prefix: '/manager/inbox', flag: 'inbound_messaging' },
 ];
 
 const MIN_JWT_SECRET_LENGTH = 32;
