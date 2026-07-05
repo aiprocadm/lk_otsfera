@@ -10,7 +10,7 @@ import type { OrganizationCard } from '@/lib/services/manager/organizationCard';
  * cross-role общим (§4 sibling-rule).
  */
 
-export type OrgCardTab = 'history' | 'orders' | 'documents' | 'payments' | 'threads' | 'details';
+export type OrgCardTab = 'history' | 'orders' | 'documents' | 'payments' | 'threads' | 'inbound_messages' | 'details';
 
 export const ORG_CARD_TABS: { key: OrgCardTab; label: string }[] = [
   { key: 'history', label: 'История' },
@@ -18,6 +18,7 @@ export const ORG_CARD_TABS: { key: OrgCardTab; label: string }[] = [
   { key: 'documents', label: 'Документы' },
   { key: 'payments', label: 'Оплаты' },
   { key: 'threads', label: 'Переписка' },
+  { key: 'inbound_messages', label: 'Обращения' },
   { key: 'details', label: 'Реквизиты' }
 ];
 
@@ -33,7 +34,16 @@ function Tile({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function OrgCardTabs({ card, activeTab }: { card: OrganizationCard; activeTab: OrgCardTab }) {
+export function OrgCardTabs({
+  card,
+  activeTab,
+  tabs = ORG_CARD_TABS
+}: {
+  card: OrganizationCard;
+  activeTab: OrgCardTab;
+  /** Отфильтрованный список табов (напр. без `inbound_messages` при выключенном флаге `inbound_messaging`). */
+  tabs?: { key: OrgCardTab; label: string }[];
+}) {
   return (
     <div className="space-y-6">
       <div>
@@ -50,7 +60,7 @@ export function OrgCardTabs({ card, activeTab }: { card: OrganizationCard; activ
       </div>
 
       <nav className="flex flex-wrap gap-1 border-b border-gray-200">
-        {ORG_CARD_TABS.map((t) => (
+        {tabs.map((t) => (
           <Link
             key={t.key}
             href={`?tab=${t.key}`}
@@ -82,6 +92,8 @@ function renderSection(card: OrganizationCard, tab: OrgCardTab): React.ReactNode
       return <PaymentsSection payments={card.payments} kpis={card.kpis} />;
     case 'threads':
       return <ThreadsSection activity={card.activity} />;
+    case 'inbound_messages':
+      return <InboundMessagesSection inboundMessages={card.inboundMessages} />;
     case 'details':
       return <DetailsSection card={card} />;
     case 'history':
@@ -187,6 +199,69 @@ function ThreadsSection({ activity }: { activity: OrganizationCard['activity'] }
         </li>
       ))}
     </ul>
+  );
+}
+
+const INBOUND_CHANNEL_LABEL: Record<string, string> = {
+  telegram: 'Telegram',
+  max: 'MAX',
+  whatsapp: 'WhatsApp',
+  email: 'Email'
+};
+
+const INBOUND_STATUS_TONE: Record<string, 'warning' | 'success' | 'neutral'> = {
+  unresolved: 'warning',
+  bound: 'success',
+  archived: 'neutral'
+};
+
+const INBOUND_STATUS_LABEL: Record<string, string> = {
+  unresolved: 'Не распознано',
+  bound: 'Привязано',
+  archived: 'В архиве'
+};
+
+function inboundExcerpt(body: string, max = 140): string {
+  const trimmed = body.trim();
+  return trimmed.length > max ? `${trimmed.slice(0, max)}…` : trimmed;
+}
+
+/** Read-only история обращений (Task 12/G4) — привязка/ответ живут только в /manager/inbox. */
+function InboundMessagesSection({ inboundMessages }: { inboundMessages: OrganizationCard['inboundMessages'] }) {
+  if (inboundMessages.length === 0) return <EmptyState message="Обращений нет" />;
+  return (
+    <TableShell>
+      <THead>
+        <Th>Канал</Th>
+        <Th>Отправитель</Th>
+        <Th>Сообщение</Th>
+        <Th>Статус</Th>
+        <Th>Дата</Th>
+      </THead>
+      <tbody>
+        {inboundMessages.map((m) => (
+          <Tr key={m.id}>
+            <Td>
+              <Badge tone="neutral">{INBOUND_CHANNEL_LABEL[m.channel] ?? m.channel}</Badge>
+            </Td>
+            <Td className="text-gray-700">{m.senderDisplay || m.senderRef}</Td>
+            <Td className="max-w-md text-gray-600">
+              {m.subject && <p className="font-medium text-[#111111]">{m.subject}</p>}
+              <p>{inboundExcerpt(m.body)}</p>
+              {m.attachmentName && (
+                <p className="mt-1 text-xs text-gray-500">📎 {m.attachmentName}</p>
+              )}
+            </Td>
+            <Td>
+              <Badge tone={INBOUND_STATUS_TONE[m.status] ?? 'neutral'}>
+                {INBOUND_STATUS_LABEL[m.status] ?? m.status}
+              </Badge>
+            </Td>
+            <Td className="whitespace-nowrap text-gray-500">{dateRu(m.createdAt)}</Td>
+          </Tr>
+        ))}
+      </tbody>
+    </TableShell>
   );
 }
 
