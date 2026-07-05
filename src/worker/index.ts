@@ -19,6 +19,7 @@ import { certificateExpiryProcessor } from './processors/certificate-expiry';
 import { dispatchNotificationProcessor } from './processors/dispatch-notification';
 import { pollInboundEmailProcessor } from './processors/poll-inbound-email';
 import { mangoRecordingProcessor } from './processors/mango-recording';
+import { mangoBackfillProcessor } from './processors/mango-backfill';
 import type { PushLeadJobPayload } from '@/lib/jobs/types';
 
 const workers: Worker[] = [];
@@ -74,6 +75,7 @@ async function main() {
   startWorker('notifications.dispatch', dispatchNotificationProcessor as Processor);
   startWorker('inbound.email.poll', pollInboundEmailProcessor as Processor);
   startWorker('telephony.mango.recording', mangoRecordingProcessor as Processor);
+  startWorker('telephony.mango.backfill', mangoBackfillProcessor as Processor);
 
   if (process.env.ENABLE_SYNC_CRON === '1') {
     const pausedIds = await loadPausedSchedulerIds(prisma);
