@@ -38,7 +38,7 @@ export type SendEmailPayload = {
   variables: Record<string, unknown>;
 };
 
-export type ScanDocumentTarget = 'document' | 'leadAttachment';
+export type ScanDocumentTarget = 'document' | 'leadAttachment' | 'inbound_attachment';
 
 export type ScanDocumentPayload = {
   kind: ScanDocumentTarget;

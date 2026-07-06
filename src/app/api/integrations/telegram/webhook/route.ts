@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/db/prisma';
 import { linkByCode } from '@/lib/services/telegram/link';
 import { sendTelegramMessage } from '@/lib/telegram/client';
+import { ingestInboundMessage } from '@/lib/services/inbound/ingest';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 
 export async function POST(req: Request): Promise<Response> {
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
@@ -46,6 +48,27 @@ export async function POST(req: Request): Promise<Response> {
       } catch {
         // Swallow — always 200 below so Telegram doesn't retry.
       }
+    } else if (
+      !/^\/start\b/.test(text) &&
+      message?.message_id != null &&
+      isFeatureEnabled('inbound_messaging')
+    ) {
+      // Non-/start inbound text — best-effort ingest into the omnichannel
+      // inbox (PR-A). `text` is untrusted user data: never interpret or
+      // execute it, only store as the message body. Failures never block
+      // the webhook (§3 — degrade gracefully). A bare `/start` (Start button)
+      // matches neither branch and stays a no-op (pre-Task-6 behavior). Without
+      // a message_id the externalId can't guarantee idempotency, so drop it.
+      await ingestInboundMessage(prisma, {
+        channel: 'telegram',
+        externalId: `tg:${chatId}:${message.message_id}`,
+        senderRef: chatId,
+        senderDisplay:
+          typeof (message?.from as Record<string, unknown> | undefined)?.username === 'string'
+            ? ((message!.from as Record<string, unknown>).username as string)
+            : undefined,
+        body: text,
+      }).catch(() => {});
     }
   }
 

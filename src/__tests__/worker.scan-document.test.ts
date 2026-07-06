@@ -17,9 +17,16 @@ import { scanDocumentProcessor } from '@/worker/processors/scan-document';
 
 type StubDb = ReturnType<typeof makeDb>;
 
-function makeDb(opts: { documentPath?: string | null; attachmentPath?: string | null } = {}) {
+function makeDb(
+  opts: {
+    documentPath?: string | null;
+    attachmentPath?: string | null;
+    inboundAttachmentPath?: string | null;
+  } = {},
+) {
   const documentUpdate = vi.fn().mockResolvedValue({});
   const attachmentUpdate = vi.fn().mockResolvedValue({});
+  const inboundMessageUpdate = vi.fn().mockResolvedValue({});
   const syncLogCreate = vi.fn().mockResolvedValue({});
   return {
     document: {
@@ -41,6 +48,16 @@ function makeDb(opts: { documentPath?: string | null; attachmentPath?: string | 
             : { id: 'att-1', path: opts.attachmentPath },
       ),
       update: attachmentUpdate,
+    },
+    inboundMessage: {
+      findUnique: vi.fn().mockResolvedValue(
+        opts.inboundAttachmentPath === undefined
+          ? { id: 'inbound-1', attachmentPath: 'inbound/msg-1/file.pdf' }
+          : opts.inboundAttachmentPath === null
+            ? null
+            : { id: 'inbound-1', attachmentPath: opts.inboundAttachmentPath },
+      ),
+      update: inboundMessageUpdate,
     },
     syncLog: { create: syncLogCreate },
   } as any;
@@ -204,6 +221,59 @@ describe('scanDocumentProcessor', () => {
       data: expect.objectContaining({ scanStatus: 'infected', scanReason: 'Eicar-Test-Signature' }),
     });
     expect(db.document.update).not.toHaveBeenCalled();
+  });
+
+  it('updates InboundMessage row when kind=inbound_attachment (no scannedAt column)', async () => {
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    const deps = makeDeps({ scan: vi.fn().mockResolvedValue('stream: OK') });
+
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'inbound_attachment', id: 'inbound-1' }),
+      db,
+      deps,
+    );
+
+    expect(result).toEqual({
+      kind: 'inbound_attachment',
+      id: 'inbound-1',
+      scanStatus: 'clean',
+      scanReason: null,
+    });
+    expect(db.inboundMessage.update).toHaveBeenCalledWith({
+      where: { id: 'inbound-1' },
+      data: { scanStatus: 'clean', scanReason: null },
+    });
+    expect(db.document.update).not.toHaveBeenCalled();
+    expect(db.leadAttachment.update).not.toHaveBeenCalled();
+  });
+
+  it('marks InboundMessage infected and captures virus name from "FOUND" response', async () => {
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    const deps = makeDeps({ scan: vi.fn().mockResolvedValue('stream: Eicar-Test-Signature FOUND') });
+
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'inbound_attachment', id: 'inbound-1' }),
+      db,
+      deps,
+    );
+
+    expect(result.scanStatus).toBe('infected');
+    expect(db.inboundMessage.update).toHaveBeenCalledWith({
+      where: { id: 'inbound-1' },
+      data: { scanStatus: 'infected', scanReason: 'Eicar-Test-Signature' },
+    });
+  });
+
+  it('throws NOT_FOUND when the InboundMessage has no attachmentPath', async () => {
+    const db = makeDb({ inboundAttachmentPath: null });
+    const deps = makeDeps();
+
+    await expect(
+      scanDocumentProcessor(makeJob({ kind: 'inbound_attachment', id: 'inbound-1' }), db, deps),
+    ).rejects.toThrow(/NOT_FOUND/);
+    expect(db.inboundMessage.update).not.toHaveBeenCalled();
   });
 
   it('throws NOT_FOUND when the target entity does not exist', async () => {

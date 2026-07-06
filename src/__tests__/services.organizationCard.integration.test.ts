@@ -12,7 +12,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 let prisma: PrismaClient;
 const STAMP = Date.now();
 let companyA: string, companyB: string, leaderA: string, plainA: string, mB: string;
-let orgA: string, orgB: string, orderA: string;
+let orgA: string, orgB: string, orderA: string, inboundA: string;
 
 // companyA — teamMode ON (граница изоляции = компания); companyB — OFF (по умолчанию).
 const leaderSession = (): SessionPayload =>
@@ -37,9 +37,22 @@ beforeAll(async () => {
   await prisma.payment.create({ data: { organizationId: orgA, orderId: orderA, amount: new Prisma.Decimal('1000.00'), paidAt: new Date() } });
   await prisma.payment.create({ data: { organizationId: orgA, orderId: orderA, amount: new Prisma.Decimal('200.00'), paidAt: new Date(), isRefund: true } });
   await prisma.comment.create({ data: { body: 'Комментарий по заявке', orderId: orderA, authorId: leaderA } });
+  inboundA = (await prisma.inboundMessage.create({
+    data: {
+      channel: 'telegram',
+      externalId: `g4inbound-${STAMP}`,
+      senderRef: `g4sender-${STAMP}`,
+      senderDisplay: 'Иван Иванов',
+      body: 'Здравствуйте, вопрос по заявке',
+      resolvedOrgId: orgA,
+      companyId: companyA,
+      status: 'bound'
+    }
+  })).id;
 });
 
 afterAll(async () => {
+  await prisma.inboundMessage.deleteMany({ where: { id: inboundA } });
   await prisma.comment.deleteMany({ where: { orderId: orderA } });
   await prisma.document.deleteMany({ where: { orderId: orderA } });
   await prisma.payment.deleteMany({ where: { organizationId: { in: [orgA, orgB] } } });
@@ -64,6 +77,13 @@ describe('getOrganizationCard — агрегация', () => {
     // 1000 оплата − 200 возврат = 800.00
     expect(card.kpis.totalPaid).toBe('800.00');
     expect(card.kpis.totalRefunded).toBe('200.00');
+  });
+
+  it('лидер: карточка агрегирует обращения (inboundMessages)', async () => {
+    const card = await getOrganizationCard(prisma, leaderSession(), orgA);
+    expect(card).not.toBeNull();
+    if (!card) return;
+    expect(card.inboundMessages.some((m) => m.id === inboundA)).toBe(true);
   });
 
   it('лидер видит комиссию (partnerCommissionRate)', async () => {

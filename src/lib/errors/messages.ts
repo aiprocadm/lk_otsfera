@@ -51,7 +51,11 @@ const RU: Record<string, string> = {
   duplicate_slug: 'Партнёр с таким URL-идентификатором уже существует.',
   duplicate_email: 'Пользователь с такой почтой уже существует.',
   admin_role_via_ui: 'Роль администратора не выдаётся через интерфейс.',
-  role_transition_forbidden: 'Такой переход роли запрещён.'
+  role_transition_forbidden: 'Такой переход роли запрещён.',
+  // Task 11 — омниканальный инбокс (bindInboundMessageAction/replyInboundAction)
+  invalid: 'Введите текст ответа.',
+  reply_failed: 'Не удалось отправить ответ. Попробуйте ещё раз.',
+  email_unsupported: 'Ответ по email пока не поддерживается — свяжитесь с клиентом другим каналом.'
 };
 
 export function errorMessageRu(code: string, fallback = 'Произошла ошибка.'): string {
