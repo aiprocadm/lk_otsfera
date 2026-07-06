@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 import type { DealRow } from '@/lib/services/partner/deals';
 import { DealStatusBadge } from './deal-status-badge';
@@ -6,8 +7,9 @@ function fmtMoney(s: string): string {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Number(s)) + ' ₽';
 }
 
-function fmtDate(d: Date | null): string {
-  if (!d) return null as unknown as string;
+// The only call site guards with `d.deadline && (...)`, so `d` is always
+// non-null here — the null-guard branch was unreachable dead code.
+function fmtDate(d: Date): string {
   return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(d);
 }
 

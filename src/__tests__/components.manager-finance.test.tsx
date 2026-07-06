@@ -39,6 +39,26 @@ describe('ManagerFinancePayments', () => {
     const html = renderToString(<ManagerFinancePayments payments={rows} basePath='/leader' />);
     expect(html).toContain('/leader/orders/ord-1');
   });
+
+  it('order-linked row with a null orderNumber renders the — fallback inside the link', () => {
+    const withNullNumber: OrgPaymentRow[] = [{ ...rows[0]!, orderNumber: null }];
+    const html = renderToString(<ManagerFinancePayments payments={withNullNumber} />);
+    expect(html).toContain('/manager/orders/ord-1');
+    expect(html).toContain('—');
+  });
+
+  it('refund row: red "Возврат" label (not the payment method) and a minus-prefixed red amount', () => {
+    const refundRow: OrgPaymentRow[] = [{ ...rows[0]!, isRefund: true }];
+    const html = renderToString(<ManagerFinancePayments payments={refundRow} />);
+    expect(html).toContain('text-red-600">Возврат');
+    expect(html).toContain('text-red-600');
+    expect(html).toContain('−');
+  });
+
+  it('non-refund row: renders the payment method label, not "Возврат"', () => {
+    const html = renderToString(<ManagerFinancePayments payments={rows} />);
+    expect(html).not.toContain('>Возврат<');
+  });
 });
 
 describe('OrgFinancePayments', () => {

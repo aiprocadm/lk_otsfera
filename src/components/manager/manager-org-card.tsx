@@ -1,3 +1,4 @@
+import React from 'react';
 import type { ManagerOrgDetail } from '@/lib/services/manager/organizations';
 
 /**

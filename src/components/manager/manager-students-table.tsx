@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 import type { ManagerStudentRow } from '@/lib/services/manager/students';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';

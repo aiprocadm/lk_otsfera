@@ -127,6 +127,12 @@ function BindRowDialog({ row, onClose, onResolved }: { row: QueueRow; onClose: (
     listResolveOrdersAction({ organizationId: orgId }).then((res) => {
       if (!alive) return;
       setOrders(res as OrderOption[]);
+      // Defensive: this effect only (re-)runs when orgId changes, and the sole
+      // setter (changeOrg) always resets orderId to '' synchronously before the
+      // async fetch resolves — so `cur` is always '' here and the "found" branch
+      // (returning `cur` unchanged) is unreachable via the current call sites.
+      // Kept as a safety net against a future caller that pre-seeds orderId.
+      /* v8 ignore next -- unreachable: changeOrg always resets orderId to '' before this resolves, so `cur` is never a matching id */
       setOrderId((cur) => ((res as OrderOption[]).some((o) => o.id === cur) ? cur : ''));
     });
     return () => { alive = false; };
@@ -139,6 +145,10 @@ function BindRowDialog({ row, onClose, onResolved }: { row: QueueRow; onClose: (
   }
 
   async function submit() {
+    // Defensive guard: unreachable via the UI since the only caller is the
+    // submit Button, which is `disabled={!orgId}` — the click that would
+    // invoke submit() never fires while orgId is falsy.
+    /* v8 ignore next -- unreachable: submit Button is disabled={!orgId}, so this branch never runs from a real click */
     if (!orgId) { setError(errorMessage('org_required')); return; }
     setSubmitting(true); setError(null);
     try {

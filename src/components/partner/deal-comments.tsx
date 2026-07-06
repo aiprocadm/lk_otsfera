@@ -1,3 +1,4 @@
+import React from 'react';
 import type { DealCommentRow } from '@/lib/services/partner/dealDetail';
 import { AddCommentForm } from './add-comment-form';
 

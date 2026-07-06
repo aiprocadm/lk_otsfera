@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DEFAULT_MAX_FILE_SIZE_MB } from '@/lib/config/upload';
 

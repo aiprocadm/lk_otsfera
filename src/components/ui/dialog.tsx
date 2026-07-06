@@ -76,6 +76,7 @@ export function Dialog({
   // throws if already open, and React 19 StrictMode double-invokes dev effects.
   useEffect(() => {
     const el = dialogRef.current;
+    /* v8 ignore next -- defensive: the ref is unconditionally attached to the always-rendered <dialog>, so el is never null once this effect runs post-commit */
     if (!el) return;
     if (open && !el.open) {
       el.showModal();

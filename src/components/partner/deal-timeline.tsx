@@ -1,3 +1,4 @@
+import React from 'react';
 import type { DealDetail } from '@/lib/services/partner/dealDetail';
 
 function fmtDate(d: Date | null): string {

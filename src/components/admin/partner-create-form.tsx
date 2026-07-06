@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createPartnerWithAdminAction } from '@/server-actions/admin/partners';
 import { useFormAction } from '@/lib/ui/useFormAction';
@@ -23,6 +23,9 @@ export function PartnerCreateForm() {
   const [copied, setCopied] = useState(false);
 
   function copyInviteUrl() {
+    // Defensive fallback: the "Скопировать" button only renders once inviteUrl is truthy
+    // (see the `{inviteUrl && ...}` success block below), so this guard is unreachable via the UI.
+    /* v8 ignore next */
     if (!inviteUrl) return;
     navigator.clipboard.writeText(inviteUrl).then(() => {
       setCopied(true);

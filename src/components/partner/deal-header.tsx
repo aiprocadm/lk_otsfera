@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 import type { DealDetail } from '@/lib/services/partner/dealDetail';
 import { DealStatusBadge } from './deal-status-badge';

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { EnrollmentRow } from '@/lib/services/enrollments/list';
 import { TableShell, THead, Th, Tr, Td, EmptyState, Button } from '@/components/ui';

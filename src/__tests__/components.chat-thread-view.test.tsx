@@ -69,6 +69,82 @@ describe('ChatThreadView', () => {
     // Assert the actual link href, not just body text (which also contains "вложение")
     expect(html).toContain('href="/files/doc.pdf"');
   });
+
+  it('renders attachment affordance with the "mine" color branch when the message is my own', () => {
+    const messages: ChatMessageVM[] = [
+      {
+        id: 'm3b',
+        authorId: 'u1',
+        authorName: 'Я',
+        body: 'моё вложение',
+        attachmentUrl: '/files/mine.pdf',
+        createdAt: new Date('2024-01-15T10:02:00Z')
+      }
+    ];
+
+    const html = renderToString(
+      React.createElement(ChatThreadView, { messages, currentUserId: 'u1' })
+    );
+
+    expect(html).toContain('href="/files/mine.pdf"');
+    expect(html).toContain('rgba(255,255,255,0.85)');
+  });
+
+  it('accepts a string createdAt and formats it (Date-branch not taken)', () => {
+    const messages: ChatMessageVM[] = [
+      {
+        id: 'm4',
+        authorId: 'u1',
+        authorName: 'Я',
+        body: 'строка даты',
+        createdAt: '2024-01-15T10:00:00Z'
+      }
+    ];
+    const html = renderToString(
+      React.createElement(ChatThreadView, { messages, currentUserId: 'u1' })
+    );
+    expect(html).toContain('строка даты');
+  });
+
+  it('renders empty time text when createdAt is an invalid date string', () => {
+    const messages: ChatMessageVM[] = [
+      {
+        id: 'm5',
+        authorId: 'u1',
+        authorName: 'Я',
+        body: 'битая дата',
+        createdAt: 'not-a-date'
+      }
+    ];
+    const html = renderToString(
+      React.createElement(ChatThreadView, { messages, currentUserId: 'u1' })
+    );
+    expect(html).toContain('битая дата');
+  });
+
+  it('renders empty time text when fmtDateTime throws (catch branch)', async () => {
+    // Force the catch branch: pass a value whose `instanceof Date` check passes
+    // but whose getTime() throws, since fmtDateTime itself never throws for
+    // valid Date instances. A Date subclass with a poisoned getTime achieves this.
+    class ThrowingDate extends Date {
+      getTime(): number {
+        throw new Error('boom');
+      }
+    }
+    const messages: ChatMessageVM[] = [
+      {
+        id: 'm6',
+        authorId: 'u1',
+        authorName: 'Я',
+        body: 'исключение форматирования',
+        createdAt: new ThrowingDate('2024-01-15T10:00:00Z')
+      }
+    ];
+    const html = renderToString(
+      React.createElement(ChatThreadView, { messages, currentUserId: 'u1' })
+    );
+    expect(html).toContain('исключение форматирования');
+  });
 });
 
 describe('ChatComposer', () => {

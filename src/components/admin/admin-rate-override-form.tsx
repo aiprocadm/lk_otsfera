@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { setOrgRateOverrideAction } from '@/server-actions/admin/organizations';
 
@@ -35,6 +35,9 @@ export function AdminRateOverrideForm({
     startTransition(async () => {
       const fd = new FormData();
       fd.set('organizationId', organizationId);
+      // Defensive fallback: `: ''` only fires for action='set' with an empty reason, which the
+      // disabled attr on "Сохранить" (disabled={... || !reason.trim()}) makes unreachable via the UI.
+      /* v8 ignore next */
       fd.set('reason', reason || (action === 'clear' ? 'Возврат к базовой ставке' : ''));
       if (action === 'set') fd.set('ratePercent', ratePercent);
       if (action === 'clear') fd.set('clear', 'true');

@@ -77,6 +77,9 @@ export function CustomFieldsAdmin({ definitions }: Props) {
 
   async function handleEdit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // Defensive fallback: the only caller is the edit form, itself gated on `editTarget` truthy
+    // (EditFieldDialog returns null when target is null), so this guard is structurally unreachable.
+    /* v8 ignore next */
     if (!editTarget) return;
     const fd = new FormData(e.currentTarget);
     const label = (fd.get('label') as string).trim();

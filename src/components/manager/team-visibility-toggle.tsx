@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import React, { useState, useTransition } from 'react';
 import { setTeamVisibilityAction } from '@/server-actions/manager/teamVisibility';
 
 export function TeamVisibilityToggle({ initial }: { initial: boolean }) {

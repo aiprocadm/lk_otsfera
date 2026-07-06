@@ -122,4 +122,17 @@ describe('AdminSidebar', () => {
     const activeMatches = html.match(/data-active="true"/g);
     expect(activeMatches).toBeNull();
   });
+
+  it('groups an item without a `group` under an untitled ("") group instead of throwing', () => {
+    vi.mocked(usePathname).mockReturnValue('/admin/ungrouped');
+
+    const html = renderToString(
+      React.createElement(AdminSidebar, {
+        items: [{ href: '/admin/ungrouped', label: 'Без группы', icon: '?' }],
+      }),
+    );
+
+    expect(html).toContain('Без группы');
+    expect(html).toContain('data-testid="admin-nav--admin-ungrouped"');
+  });
 });

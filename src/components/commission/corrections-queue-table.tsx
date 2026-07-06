@@ -95,6 +95,10 @@ function ResolveDialog({
   const reasonMissing = isWaive && !reason.trim();
 
   async function submit() {
+    // defense-in-depth: the submit Button is `disabled={reasonMissing}`, so this
+    // branch is unreachable via UI click (native `disabled` blocks the DOM click
+    // event); kept in case submit() is ever wired to a non-click trigger (e.g. Enter key).
+    /* v8 ignore next */
     if (reasonMissing) return;
     setSubmitting(true);
     setError(null);

@@ -45,6 +45,16 @@ const THREAD_ORG_UNREAD = {
   unread: true
 };
 
+const THREAD_NO_NUMBER = {
+  id: 'thread-no-number',
+  orderId: 'order-no-number',
+  side: 'partner' as const,
+  orderNumber: null,
+  orderTitle: 'Заказ без номера',
+  lastMessageAt: new Date('2024-03-05T10:00:00Z'),
+  unread: false
+};
+
 describe('OrderThreadInbox variant=role (partner/org)', () => {
   it('shows "Нет переписок" when threads array is empty', () => {
     const html = renderToString(
@@ -103,6 +113,18 @@ describe('OrderThreadInbox variant=role (partner/org)', () => {
     );
     expect(html).not.toContain('Заказчик');
     expect(html).not.toContain('Партнёр');
+  });
+
+  it('renders an em dash placeholder when a thread has no orderNumber', () => {
+    const html = renderToString(
+      React.createElement(OrderThreadInbox, {
+        threads: [THREAD_NO_NUMBER],
+        currentUserId: CURRENT_USER,
+        variant: 'role'
+      })
+    );
+    expect(html).toContain('Заказ без номера');
+    expect(html).toContain('—');
   });
 });
 

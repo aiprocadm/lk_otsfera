@@ -39,6 +39,10 @@ export function OrganizationOrderLessUploadForm({ organizationId }: { organizati
     // no orderId → order-less branch
     formData.set('docType', docType);
     const file = formData.get('file');
+    // A <form>'s FormData always yields a File for a file input — the spec (and jsdom) synthesize
+    // an empty-name placeholder File when nothing is selected, never null/string — so the ': ''"
+    // branch is structurally unreachable via the rendered form (defensive fallback only).
+    /* v8 ignore next */
     lastFileNameRef.current = file instanceof File ? file.name : '';
     return formAction(formData);
   }

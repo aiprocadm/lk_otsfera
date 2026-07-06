@@ -69,4 +69,25 @@ describe('OrderStageStepper — терминальный статус', () => {
     expect(html).toContain('На паузе');
     expect(html).not.toContain('Договор');
   });
+
+  it('terminal tone=neutral → маппится в neutral-бейдж (toneToBadge)', () => {
+    const stage: WorkingStage = { index: 0, total: 6, label: 'Черновик', tone: 'neutral', terminal: true };
+    const html = render(stage);
+    expect(html).toContain('Черновик');
+    expect(html).toContain('bg-gray-100');
+  });
+
+  it('terminal tone=success → маппится в success-бейдж (toneToBadge)', () => {
+    const stage: WorkingStage = { index: 0, total: 6, label: 'Завершён', tone: 'success', terminal: true };
+    const html = render(stage);
+    expect(html).toContain('Завершён');
+    expect(html).toContain('bg-green-50');
+  });
+
+  it('terminal tone=danger (fallback branch of toneToBadge) → danger-бейдж', () => {
+    const stage: WorkingStage = { index: 0, total: 6, label: 'Прочее', tone: 'danger', terminal: true };
+    const html = render(stage);
+    expect(html).toContain('Прочее');
+    expect(html).toContain('bg-red-50');
+  });
 });

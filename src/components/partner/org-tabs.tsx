@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 
 export type TabKey = 'employees' | 'comments' | 'history' | 'documents' | 'settings';

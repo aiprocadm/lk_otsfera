@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 import type { EventItem } from '@/lib/services/manager/dashboard';
 import { fmtDateTime } from '@/lib/format';

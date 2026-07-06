@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import React, { useTransition } from 'react';
 import type { CompanyManagerRow } from '@/lib/services/manager/team';
 import { leaderDeactivateAssignmentAction } from '@/server-actions/manager/team';
 

@@ -101,6 +101,14 @@ describe('UsersTable', () => {
     expect(html).not.toContain('Восстановить');
   });
 
+  it('falls back to the raw role string for an unknown role not in ROLE_LABELS', () => {
+    const rows = [makeRow({ id: 'u-unknown', role: 'superadmin' as never })];
+    const html = renderToString(
+      React.createElement(UsersTable, { rows, currentUserId: 'other' })
+    );
+    expect(html).toContain('superadmin');
+  });
+
   it('применяет ROLE_LABELS для всех ролей', () => {
     const roles: Array<[string, string]> = [
       ['admin', 'Админ'],
