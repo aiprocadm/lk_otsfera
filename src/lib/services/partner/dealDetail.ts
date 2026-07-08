@@ -87,7 +87,7 @@ export async function getPartnerDealDetail(
 
   const org = order.organization;
 
-  const debt = (Number(order.totalAmount) - Number(order.paidAmount)).toFixed(2);
+  const debt = order.totalAmount.minus(order.paidAmount).toFixed(2);
 
   return {
     id: order.id,

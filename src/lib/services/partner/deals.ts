@@ -82,7 +82,7 @@ export async function listPartnerDeals(
   ]);
 
   const rows: DealRow[] = orders.map((o) => {
-    const debt = (Number(o.totalAmount) - Number(o.paidAmount)).toFixed(2);
+    const debt = o.totalAmount.minus(o.paidAmount).toFixed(2);
 
     return {
       id: o.id,

@@ -3,11 +3,11 @@
  * Covers branches missed by the integration-only f2f8 test.
  */
 import { describe, it, expect, vi } from 'vitest';
+import { Prisma } from '@prisma/client';
 import { listPartnerDeals } from '@/lib/services/partner/deals';
 
-// Minimal Decimal-like with toFixed
 function dec(n: number) {
-  return { toFixed: (d: number) => n.toFixed(d), toString: () => String(n) };
+  return new Prisma.Decimal(n);
 }
 
 function makePrisma(orders: object[], total = orders.length) {

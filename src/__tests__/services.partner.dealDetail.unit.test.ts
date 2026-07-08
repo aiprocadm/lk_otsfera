@@ -3,6 +3,7 @@
  * Covers branches missed by any integration test.
  */
 import { describe, it, expect, vi } from 'vitest';
+import { Prisma } from '@prisma/client';
 import { getPartnerDealDetail } from '@/lib/services/partner/dealDetail';
 
 vi.mock('@/lib/auth/documentChannelPolicy', () => ({
@@ -10,7 +11,7 @@ vi.mock('@/lib/auth/documentChannelPolicy', () => ({
 }));
 
 function dec(n: number) {
-  return { toFixed: (d: number) => n.toFixed(d), toString: () => String(n) };
+  return new Prisma.Decimal(n);
 }
 
 const baseOrder = {

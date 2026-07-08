@@ -110,7 +110,7 @@ export async function listOrgOrders(
     title: o.title,
     totalAmount: o.totalAmount.toFixed(2),
     paidAmount: o.paidAmount.toFixed(2),
-    debt: (Number(o.totalAmount) - Number(o.paidAmount)).toFixed(2),
+    debt: o.totalAmount.minus(o.paidAmount).toFixed(2),
     executionStatus: o.executionStatus,
     financialStatus: o.financialStatus,
     stage: orderStage({
@@ -236,7 +236,7 @@ export async function getOrgOrder(
     financialStatus: order.financialStatus,
     totalAmount: order.totalAmount.toFixed(2),
     paidAmount: order.paidAmount.toFixed(2),
-    debt: (Number(order.totalAmount) - Number(order.paidAmount)).toFixed(2),
+    debt: order.totalAmount.minus(order.paidAmount).toFixed(2),
     vatIncluded: order.vatIncluded,
     vatRate: order.vatRate ? order.vatRate.toString() : null,
     productMix: order.productMix,
