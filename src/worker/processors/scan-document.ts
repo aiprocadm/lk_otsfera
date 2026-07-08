@@ -82,6 +82,11 @@ async function loadTarget(
     if (!row || !row.attachmentPath) return null;
     return { id: row.id, path: row.attachmentPath };
   }
+  if (kind === 'call_recording') {
+    const row = await db.call.findUnique({ where: { id }, select: { id: true, recordingPath: true } });
+    if (!row || !row.recordingPath) return null;
+    return { id: row.id, path: row.recordingPath };
+  }
   return db.leadAttachment.findUnique({ where: { id }, select: { id: true, path: true } });
 }
 
@@ -97,6 +102,10 @@ async function persistResult(
   } else if (kind === 'inbound_attachment') {
     // InboundMessage has no `scannedAt` column (unlike Document) — do not add it here.
     await db.inboundMessage.update({ where: { id }, data: { scanStatus, scanReason } });
+  } else if (kind === 'call_recording') {
+    // Call has neither a scan-reason column nor `scannedAt` (unlike Document) —
+    // only `recordingScanStatus` is persisted here.
+    await db.call.update({ where: { id }, data: { recordingScanStatus: scanStatus } });
   } else {
     await db.leadAttachment.update({ where: { id }, data: { scanStatus, scanReason, scannedAt: new Date() } });
   }

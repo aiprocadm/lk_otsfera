@@ -30,6 +30,8 @@ const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   { prefix: '/leader/tasks', flag: 'internal_tasks' },
   // PR-A: омниканальный инбокс (экран придёт отдельной задачей).
   { prefix: '/manager/inbox', flag: 'inbound_messaging' },
+  // PR-B: телефония Mango (экран придёт отдельной задачей).
+  { prefix: '/manager/calls', flag: 'telephony_mango' },
 ];
 
 const MIN_JWT_SECRET_LENGTH = 32;

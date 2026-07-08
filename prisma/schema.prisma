@@ -189,6 +189,7 @@ model User {
   tasksCreated                 Task[]                @relation("TaskCreatedBy")
   taskAssignments              TaskAssignee[]        @relation("TaskAssignee")
   inboundMessages              InboundMessage[]      @relation("UserInbound")
+  calls                        Call[]                @relation("UserCalls")
 }
 
 model PartnerUser {
@@ -524,6 +525,7 @@ model Organization {
   commissionRateChanges          OrganizationCommissionRateChange[]
   tasks                          Task[]                             @relation("TaskLinkedOrganization")
   inboundMessages                InboundMessage[]                   @relation("OrgInbound")
+  calls                          Call[]                             @relation("OrgCalls")
 
   @@index([partnerId])
   @@index([externalId])
@@ -596,6 +598,7 @@ model Company {
   taskColumns           TaskColumn[]
   tasks                 Task[]
   inboundMessages       InboundMessage[]
+  calls                 Call[]
 }
 
 // Трек G1 (§3.2 ТЗ): роль-профиль как данные. Матрица охватов по типам объектов
@@ -1205,4 +1208,36 @@ model InboundMessage {
   @@index([companyId, createdAt])
   @@index([resolvedOrgId, createdAt])
   @@index([channel, createdAt])
+}
+
+// PR-B: телефония Mango — журнал звонков (входящих/исходящих).
+model Call {
+  id                  String   @id @default(cuid())
+  createdAt           DateTime @default(now())
+  provider            String   @default("mango")
+  externalId          String
+  direction           String
+  callerNumber        String
+  internalNumber      String?
+  startedAt           DateTime?
+  answeredAt          DateTime?
+  finishedAt          DateTime?
+  durationSec         Int?
+  status              String
+  recordingId         String?
+  recordingPath       String?
+  recordingScanStatus String   @default("none")
+  resolvedOrgId       String?
+  resolvedUserId      String?
+  threadId            String?
+  companyId           String?
+
+  resolvedOrg  Organization? @relation("OrgCalls", fields: [resolvedOrgId], references: [id])
+  resolvedUser User?         @relation("UserCalls", fields: [resolvedUserId], references: [id])
+  company      Company?      @relation(fields: [companyId], references: [id])
+
+  @@unique([provider, externalId])
+  @@index([companyId, createdAt])
+  @@index([resolvedOrgId, createdAt])
+  @@index([callerNumber, createdAt])
 }

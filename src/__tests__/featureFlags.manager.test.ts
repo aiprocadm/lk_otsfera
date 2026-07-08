@@ -67,7 +67,7 @@ describe('manager_cabinet (opt-in flag)', () => {
 });
 
 describe('navByRole.manager — feature-flag gated', () => {
-  it('lists all seventeen manager cabinet items in the raw nav (including leader-only Команда + вход в /leader + Воронка + Задачи + Обращения + Настройки)', () => {
+  it('lists all eighteen manager cabinet items in the raw nav (including leader-only Команда + вход в /leader + Воронка + Задачи + Обращения + Звонки + Настройки)', () => {
     expect(navByRole.manager.map((i) => i.href)).toEqual([
       '/manager/dashboard',
       '/manager/orders',
@@ -83,20 +83,22 @@ describe('navByRole.manager — feature-flag gated', () => {
       '/manager/enrollments',
       '/manager/messages',
       '/manager/inbox',
+      '/manager/calls',
       '/manager/team',
       '/leader/dashboard',
       '/manager/settings'
     ]);
   });
 
-  it('every manager item carries flag=manager_cabinet (so they hide together), кроме enrollments/funnel/tasks/inbox (свои флаги) и входа в /leader (leader_cabinet)', () => {
+  it('every manager item carries flag=manager_cabinet (so they hide together), кроме enrollments/funnel/tasks/inbox/calls (свои флаги) и входа в /leader (leader_cabinet)', () => {
     const ownItems = navByRole.manager.filter(
       (i) =>
         i.href.startsWith('/manager/') &&
         i.href !== '/manager/enrollments' &&
         i.href !== '/manager/funnel' &&
         i.href !== '/manager/tasks' &&
-        i.href !== '/manager/inbox'
+        i.href !== '/manager/inbox' &&
+        i.href !== '/manager/calls'
     );
     expect(ownItems.every((i) => i.flag === 'manager_cabinet')).toBe(true);
     const enrollment = navByRole.manager.find((i) => i.href === '/manager/enrollments');
@@ -107,6 +109,8 @@ describe('navByRole.manager — feature-flag gated', () => {
     expect(tasks?.flag).toBe('internal_tasks');
     const inbox = navByRole.manager.find((i) => i.href === '/manager/inbox');
     expect(inbox?.flag).toBe('inbound_messaging');
+    const calls = navByRole.manager.find((i) => i.href === '/manager/calls');
+    expect(calls?.flag).toBe('telephony_mango');
     const leaderEntry = navByRole.manager.find((i) => i.href === '/leader/dashboard');
     expect(leaderEntry?.flag).toBe('leader_cabinet');
   });

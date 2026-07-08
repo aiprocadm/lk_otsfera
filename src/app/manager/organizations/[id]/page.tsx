@@ -17,9 +17,13 @@ export default async function ManagerOrgDetailPage({
   const { id } = await params;
   const sp = await searchParams;
 
-  // Таб «Обращения» условен на флаге inbound_messaging (Task 12/G4) — фильтруем
-  // видимый список табов здесь же, чтобы и nav, и ?tab=-валидация были согласованы.
-  const visibleTabs = ORG_CARD_TABS.filter((t) => t.key !== 'inbound_messages' || isFeatureEnabled('inbound_messaging'));
+  // Табы «Обращения»/«Звонки» условны на своих флагах (Task 12/G4, Task 9b/B4) —
+  // фильтруем видимый список табов здесь же, чтобы и nav, и ?tab=-валидация были согласованы.
+  const visibleTabs = ORG_CARD_TABS.filter(
+    (t) =>
+      (t.key !== 'inbound_messages' || isFeatureEnabled('inbound_messaging')) &&
+      (t.key !== 'calls' || isFeatureEnabled('telephony_mango'))
+  );
 
   const rawTab = typeof sp.tab === 'string' ? sp.tab : undefined;
   const activeTab: OrgCardTab = visibleTabs.some((t) => t.key === rawTab) ? (rawTab as OrgCardTab) : 'history';

@@ -12,7 +12,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 let prisma: PrismaClient;
 const STAMP = Date.now();
 let companyA: string, companyB: string, leaderA: string, plainA: string, mB: string;
-let orgA: string, orgB: string, orderA: string, inboundA: string;
+let orgA: string, orgB: string, orderA: string, inboundA: string, callA: string;
 
 // companyA — teamMode ON (граница изоляции = компания); companyB — OFF (по умолчанию).
 const leaderSession = (): SessionPayload =>
@@ -49,9 +49,24 @@ beforeAll(async () => {
       status: 'bound'
     }
   })).id;
+  callA = (await prisma.call.create({
+    data: {
+      provider: 'mango',
+      externalId: `g4call-${STAMP}`,
+      direction: 'inbound',
+      callerNumber: '+79991234567',
+      status: 'completed',
+      durationSec: 42,
+      resolvedOrgId: orgA,
+      companyId: companyA,
+      recordingPath: `recordings/g4call-${STAMP}.mp3`,
+      recordingScanStatus: 'clean'
+    }
+  })).id;
 });
 
 afterAll(async () => {
+  await prisma.call.deleteMany({ where: { id: callA } });
   await prisma.inboundMessage.deleteMany({ where: { id: inboundA } });
   await prisma.comment.deleteMany({ where: { orderId: orderA } });
   await prisma.document.deleteMany({ where: { orderId: orderA } });
@@ -84,6 +99,17 @@ describe('getOrganizationCard — агрегация', () => {
     expect(card).not.toBeNull();
     if (!card) return;
     expect(card.inboundMessages.some((m) => m.id === inboundA)).toBe(true);
+  });
+
+  it('лидер: карточка агрегирует звонки (calls) без утечки recordingPath', async () => {
+    const card = await getOrganizationCard(prisma, leaderSession(), orgA);
+    expect(card).not.toBeNull();
+    if (!card) return;
+    const call = card.calls.find((c) => c.id === callA);
+    expect(call).toBeDefined();
+    expect(call?.hasRecording).toBe(true);
+    expect(call?.recordingScanStatus).toBe('clean');
+    expect(call).not.toHaveProperty('recordingPath');
   });
 
   it('лидер видит комиссию (partnerCommissionRate)', async () => {

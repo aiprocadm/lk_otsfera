@@ -16,7 +16,9 @@ export const QUEUE_NAMES = [
   'emails.send',
   'monitoring.evaluateAlerts',
   'notifications.certificateExpiry',
-  'inbound.email.poll'
+  'inbound.email.poll',
+  'telephony.mango.recording',
+  'telephony.mango.backfill'
 ] as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[number];

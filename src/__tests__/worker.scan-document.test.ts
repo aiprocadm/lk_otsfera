@@ -22,11 +22,13 @@ function makeDb(
     documentPath?: string | null;
     attachmentPath?: string | null;
     inboundAttachmentPath?: string | null;
+    callRecordingPath?: string | null;
   } = {},
 ) {
   const documentUpdate = vi.fn().mockResolvedValue({});
   const attachmentUpdate = vi.fn().mockResolvedValue({});
   const inboundMessageUpdate = vi.fn().mockResolvedValue({});
+  const callUpdate = vi.fn().mockResolvedValue({});
   const syncLogCreate = vi.fn().mockResolvedValue({});
   return {
     document: {
@@ -58,6 +60,16 @@ function makeDb(
             : { id: 'inbound-1', attachmentPath: opts.inboundAttachmentPath },
       ),
       update: inboundMessageUpdate,
+    },
+    call: {
+      findUnique: vi.fn().mockResolvedValue(
+        opts.callRecordingPath === undefined
+          ? { id: 'call-1', recordingPath: 'calls/c1/recording.mp3' }
+          : opts.callRecordingPath === null
+            ? null
+            : { id: 'call-1', recordingPath: opts.callRecordingPath },
+      ),
+      update: callUpdate,
     },
     syncLog: { create: syncLogCreate },
   } as any;
@@ -264,6 +276,60 @@ describe('scanDocumentProcessor', () => {
       where: { id: 'inbound-1' },
       data: { scanStatus: 'infected', scanReason: 'Eicar-Test-Signature' },
     });
+  });
+
+  it('updates Call.recordingScanStatus only when kind=call_recording (no scanReason/scannedAt columns)', async () => {
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    const deps = makeDeps({ scan: vi.fn().mockResolvedValue('stream: OK') });
+
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'call_recording', id: 'call-1' }),
+      db,
+      deps,
+    );
+
+    expect(result).toEqual({
+      kind: 'call_recording',
+      id: 'call-1',
+      scanStatus: 'clean',
+      scanReason: null,
+    });
+    expect(db.call.update).toHaveBeenCalledWith({
+      where: { id: 'call-1' },
+      data: { recordingScanStatus: 'clean' },
+    });
+    expect(db.document.update).not.toHaveBeenCalled();
+    expect(db.leadAttachment.update).not.toHaveBeenCalled();
+    expect(db.inboundMessage.update).not.toHaveBeenCalled();
+  });
+
+  it('marks Call recording infected and captures virus name from "FOUND" response', async () => {
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    const deps = makeDeps({ scan: vi.fn().mockResolvedValue('stream: Eicar-Test-Signature FOUND') });
+
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'call_recording', id: 'call-1' }),
+      db,
+      deps,
+    );
+
+    expect(result.scanStatus).toBe('infected');
+    expect(db.call.update).toHaveBeenCalledWith({
+      where: { id: 'call-1' },
+      data: { recordingScanStatus: 'infected' },
+    });
+  });
+
+  it('throws NOT_FOUND when the Call has no recordingPath', async () => {
+    const db = makeDb({ callRecordingPath: null });
+    const deps = makeDeps();
+
+    await expect(
+      scanDocumentProcessor(makeJob({ kind: 'call_recording', id: 'call-1' }), db, deps),
+    ).rejects.toThrow(/NOT_FOUND/);
+    expect(db.call.update).not.toHaveBeenCalled();
   });
 
   it('throws NOT_FOUND when the InboundMessage has no attachmentPath', async () => {
