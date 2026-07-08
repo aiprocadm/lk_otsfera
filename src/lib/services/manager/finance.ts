@@ -1,11 +1,12 @@
+import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { managerOrgScope } from '@/lib/auth/managerPolicy';
 import { can } from '@/lib/auth/accessProfile';
 import {
-  getOrgFinanceKpis,
+  getOrgFinanceKpisForOrgs,
   listOrgPayments,
-  getOrgIntermediaryCommission,
+  getOrgIntermediaryCommissionForOrgs,
   type OrgFinanceKpis,
   type OrgPaymentRow,
   type OrgIntermediaryCommission
@@ -48,27 +49,36 @@ export async function getManagerFinanceOverview(
     orderBy: { name: 'asc' }
   });
 
-  const sections = await Promise.all(
-    orgs.map(async (org): Promise<ManagerOrgFinanceSection> => {
-      const [kpis, payments, commission] = await Promise.all([
-        getOrgFinanceKpis(prisma, org.id),
-        listOrgPayments(prisma, { organizationId: org.id }),
-        canSeeCommission ? getOrgIntermediaryCommission(prisma, org.id) : Promise.resolve(null)
-      ]);
-      return { orgId: org.id, orgName: org.name, kpis, payments, commission };
-    })
-  );
+  // Батч: KPI и комиссия считаются 1-2 запросами на весь scope вместо 2×N.
+  // Платежи остаются per-org (top-50 на организацию — оконная семантика; батч
+  // через ROW_NUMBER — отдельный трек, см. отчёт полировки 2026-07-09).
+  const orgIdList = orgs.map((org) => org.id);
+  const [kpisByOrg, paymentsList, commissionByOrg] = await Promise.all([
+    getOrgFinanceKpisForOrgs(prisma, orgIdList),
+    Promise.all(orgIdList.map((orgId) => listOrgPayments(prisma, { organizationId: orgId }))),
+    canSeeCommission
+      ? getOrgIntermediaryCommissionForOrgs(prisma, orgIdList)
+      : Promise.resolve(null)
+  ]);
 
-  let billed = 0;
-  let paid = 0;
+  const sections = orgs.map((org, i): ManagerOrgFinanceSection => ({
+    orgId: org.id,
+    orgName: org.name,
+    kpis: kpisByOrg.get(org.id)!,
+    payments: paymentsList[i],
+    commission: commissionByOrg?.get(org.id) ?? null
+  }));
+
+  let billed = new Prisma.Decimal(0);
+  let paid = new Prisma.Decimal(0);
   for (const s of sections) {
-    billed += Number(s.kpis.billed);
-    paid += Number(s.kpis.paid);
+    billed = billed.plus(s.kpis.billed);
+    paid = paid.plus(s.kpis.paid);
   }
   const summary: OrgFinanceKpis = {
     billed: billed.toFixed(2),
     paid: paid.toFixed(2),
-    outstanding: (billed - paid).toFixed(2)
+    outstanding: billed.minus(paid).toFixed(2)
   };
 
   return { summary, sections, canSeeCommission };

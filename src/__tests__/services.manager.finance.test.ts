@@ -3,9 +3,9 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import type { SessionAccessProfile } from '@/lib/auth/accessProfile';
 
 const orgFinance = vi.hoisted(() => ({
-  getOrgFinanceKpis: vi.fn(),
+  getOrgFinanceKpisForOrgs: vi.fn(),
   listOrgPayments: vi.fn(),
-  getOrgIntermediaryCommission: vi.fn()
+  getOrgIntermediaryCommissionForOrgs: vi.fn()
 }));
 vi.mock('@/lib/services/organization/finance', () => orgFinance);
 
@@ -34,11 +34,16 @@ function fakePrisma(orgs: Array<{ id: string; name: string }>) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  orgFinance.getOrgFinanceKpis.mockResolvedValue({ billed: '100.00', paid: '40.00', outstanding: '60.00' });
+  // Батч-моки: каждому запрошенному id — одна и та же секция (как раньше per-org).
+  orgFinance.getOrgFinanceKpisForOrgs.mockImplementation(async (_prisma: unknown, ids: string[]) =>
+    new Map(ids.map((id) => [id, { billed: '100.00', paid: '40.00', outstanding: '60.00' }]))
+  );
   orgFinance.listOrgPayments.mockResolvedValue([
     { id: 'p1', amount: '40.00', paidAt: new Date('2026-04-01'), method: null, isRefund: false, note: null, orderId: null, orderNumber: null }
   ]);
-  orgFinance.getOrgIntermediaryCommission.mockResolvedValue({ effectiveRate: '0.1', totalCommission: '10.00', perOrder: [] });
+  orgFinance.getOrgIntermediaryCommissionForOrgs.mockImplementation(async (_prisma: unknown, ids: string[]) =>
+    new Map(ids.map((id) => [id, { effectiveRate: '0.1', totalCommission: '10.00', perOrder: [] }]))
+  );
 });
 
 describe('getManagerFinanceOverview', () => {
@@ -49,7 +54,7 @@ describe('getManagerFinanceOverview', () => {
     expect(prisma.organization.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: { in: ['o1', 'o2'] } } })
     );
-    expect(orgFinance.getOrgIntermediaryCommission).not.toHaveBeenCalled();
+    expect(orgFinance.getOrgIntermediaryCommissionForOrgs).not.toHaveBeenCalled();
     expect(res.canSeeCommission).toBe(false);
     expect(res.sections).toHaveLength(2);
     expect(res.sections.every((s) => s.commission === null)).toBe(true);
@@ -63,7 +68,7 @@ describe('getManagerFinanceOverview', () => {
     expect(prisma.organization.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { companyId: 'c1' } })
     );
-    expect(orgFinance.getOrgIntermediaryCommission).toHaveBeenCalledWith(prisma, 'o1');
+    expect(orgFinance.getOrgIntermediaryCommissionForOrgs).toHaveBeenCalledWith(prisma, ['o1']);
     expect(res.canSeeCommission).toBe(true);
     expect(res.sections[0].commission).toEqual({ effectiveRate: '0.1', totalCommission: '10.00', perOrder: [] });
   });
@@ -76,7 +81,7 @@ describe('getManagerFinanceOverview', () => {
       expect.objectContaining({ where: undefined })
     );
     expect(res.canSeeCommission).toBe(true);
-    expect(orgFinance.getOrgIntermediaryCommission).toHaveBeenCalledTimes(1);
+    expect(orgFinance.getOrgIntermediaryCommissionForOrgs).toHaveBeenCalledTimes(1);
   });
 
   it('profiled leader WITHOUT see_commission: commission hidden (flag overrides leader)', async () => {
@@ -87,7 +92,7 @@ describe('getManagerFinanceOverview', () => {
       { teamMode: true }
     );
     expect(res.canSeeCommission).toBe(false);
-    expect(orgFinance.getOrgIntermediaryCommission).not.toHaveBeenCalled();
+    expect(orgFinance.getOrgIntermediaryCommissionForOrgs).not.toHaveBeenCalled();
     expect(res.sections.every((s) => s.commission === null)).toBe(true);
   });
 
@@ -99,7 +104,7 @@ describe('getManagerFinanceOverview', () => {
       { teamMode: false }
     );
     expect(res.canSeeCommission).toBe(true);
-    expect(orgFinance.getOrgIntermediaryCommission).toHaveBeenCalledWith(prisma, 'o1');
+    expect(orgFinance.getOrgIntermediaryCommissionForOrgs).toHaveBeenCalledWith(prisma, ['o1']);
   });
 
   it('empty scope → no sections, zero summary', async () => {

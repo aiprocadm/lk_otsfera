@@ -369,8 +369,8 @@ describe('organization/finance (unit)', () => {
     const prisma = {
       order: {
         findMany: vi.fn().mockResolvedValue([
-          { totalAmount: new Prisma.Decimal('100000'), paidAmount: new Prisma.Decimal('40000') },
-          { totalAmount: new Prisma.Decimal('50000'), paidAmount: new Prisma.Decimal('50000') },
+          { organizationId: 'org-1', totalAmount: new Prisma.Decimal('100000'), paidAmount: new Prisma.Decimal('40000') },
+          { organizationId: 'org-1', totalAmount: new Prisma.Decimal('50000'), paidAmount: new Prisma.Decimal('50000') },
         ]),
       },
     } as unknown as PrismaClient;
@@ -430,7 +430,7 @@ describe('organization/finance (unit)', () => {
 
   it('getOrgIntermediaryCommission: org not found → zero result', async () => {
     const prisma = {
-      organization: { findUnique: vi.fn().mockResolvedValue(null) },
+      organization: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
 
     const result = await getOrgIntermediaryCommission(prisma, 'org-1');
@@ -440,11 +440,9 @@ describe('organization/finance (unit)', () => {
   it('getOrgIntermediaryCommission: no rate (no override, no partner) → zero result', async () => {
     const prisma = {
       organization: {
-        findUnique: vi.fn().mockResolvedValue({
-          name: 'ОргБезПартнёра',
-          partnerCommissionRate: null,
-          partner: null,
-        }),
+        findMany: vi.fn().mockResolvedValue([
+          { id: 'org-1', partnerCommissionRate: null, partner: null },
+        ]),
       },
     } as unknown as PrismaClient;
 
@@ -461,15 +459,17 @@ describe('organization/finance (unit)', () => {
     });
     const prisma = {
       organization: {
-        findUnique: vi.fn().mockResolvedValue({
-          name: 'ОргСПереопределением',
-          partnerCommissionRate: new Prisma.Decimal('0.15'),
-          partner: { commissionRate: new Prisma.Decimal('0.1') },
-        }),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'org-1',
+            partnerCommissionRate: new Prisma.Decimal('0.15'),
+            partner: { commissionRate: new Prisma.Decimal('0.1') },
+          },
+        ]),
       },
       order: {
         findMany: vi.fn().mockResolvedValue([
-          { id: 'o1', orderNumber: 'ЗАК-001', totalAmount: new Prisma.Decimal('100000'), vatIncluded: true, vatRate: null },
+          { id: 'o1', orderNumber: 'ЗАК-001', organizationId: 'org-1', totalAmount: new Prisma.Decimal('100000'), vatIncluded: true, vatRate: null },
         ]),
       },
     } as unknown as PrismaClient;
@@ -489,15 +489,17 @@ describe('organization/finance (unit)', () => {
     });
     const prisma = {
       organization: {
-        findUnique: vi.fn().mockResolvedValue({
-          name: 'ОргСПартнёром',
-          partnerCommissionRate: null,
-          partner: { commissionRate: new Prisma.Decimal('0.1') },
-        }),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'org-1',
+            partnerCommissionRate: null,
+            partner: { commissionRate: new Prisma.Decimal('0.1') },
+          },
+        ]),
       },
       order: {
         findMany: vi.fn().mockResolvedValue([
-          { id: 'o1', orderNumber: null, totalAmount: new Prisma.Decimal('10000'), vatIncluded: true, vatRate: null },
+          { id: 'o1', orderNumber: null, organizationId: 'org-1', totalAmount: new Prisma.Decimal('10000'), vatIncluded: true, vatRate: null },
         ]),
       },
     } as unknown as PrismaClient;
