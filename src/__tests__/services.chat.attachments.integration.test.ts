@@ -27,6 +27,7 @@ vi.mock('@/lib/storage', () => ({
 const prisma = new PrismaClient();
 
 import { uploadChatAttachment, getChatAttachmentSignedUrl } from '@/lib/services/chat/attachments';
+import { maxFileSizeBytes } from '@/lib/config/upload';
 
 // ---------------------------------------------------------------------------
 // Seed / cleanup
@@ -242,13 +243,15 @@ describe('uploadChatAttachment integration', () => {
   });
 
   it('file too large → too_large', async () => {
-    const TWENTY_ONE_MB = 21 * 1024 * 1024;
+    // Стало протухать после 1507eda (лимит 20MB → конфиг §11, дефолт 200MB):
+    // размер берём от самого конфига, чтобы тест не зависел от env-оверрайда.
+    const OVER_CAP = maxFileSizeBytes() + 1;
     const result = await uploadChatAttachment(prisma, teamSession, {
       orderId,
       side: 'org',
       file: {
         name: 'big.pdf',
-        size: TWENTY_ONE_MB,
+        size: OVER_CAP,
         mimeType: 'application/pdf',
         buffer: PDF_MAGIC, // actual buffer irrelevant — size check is first
       },
