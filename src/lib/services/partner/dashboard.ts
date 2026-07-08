@@ -83,7 +83,7 @@ export async function kpis(
         financialStatus: 'paid',
         paidAt: { gte: startOfThisMonth(), lt: startOfNextMonth() }
       },
-      select: { totalAmount: true }
+      select: { totalAmount: true, organization: { select: { partnerCommissionRate: true } } }
     })
   ]);
 
@@ -93,8 +93,12 @@ export async function kpis(
     (sum, o) => sum.plus(o.totalAmount).minus(o.paidAmount),
     new Prisma.Decimal(0)
   );
+  // §6.2 ТЗ: приоритет ставки — индивидуальная ставка организации (договорная
+  // скидка) → дефолт партнёра. Историческая ставка по дате платежа тут
+  // сознательно не применяется: это live-оценка по заказам (та же семантика,
+  // что у getOrgIntermediaryCommission), а не канонический стейтмент.
   const commission = paidThisMonth.reduce(
-    (sum, o) => sum.plus(o.totalAmount.mul(rate)),
+    (sum, o) => sum.plus(o.totalAmount.mul(o.organization.partnerCommissionRate ?? rate)),
     new Prisma.Decimal(0)
   );
 

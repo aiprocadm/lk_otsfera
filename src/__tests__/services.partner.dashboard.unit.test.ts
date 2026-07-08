@@ -43,7 +43,7 @@ describe('kpis — unit', () => {
         count: vi.fn().mockResolvedValue(2),
         findMany: vi.fn()
           .mockResolvedValueOnce([{ totalAmount: dec(1000), paidAmount: dec(200) }]) // outstandingOrders
-          .mockResolvedValueOnce([{ totalAmount: dec(500) }]) // paidThisMonth
+          .mockResolvedValueOnce([{ totalAmount: dec(500), organization: { partnerCommissionRate: null } }]) // paidThisMonth
       },
       lead: { count: vi.fn().mockResolvedValue(3) }
     });
@@ -77,12 +77,34 @@ describe('kpis — unit', () => {
         count: vi.fn().mockResolvedValue(0),
         findMany: vi.fn()
           .mockResolvedValueOnce([]) // outstandingOrders
-          .mockResolvedValueOnce([{ totalAmount: dec(10000) }, { totalAmount: dec(5000) }]) // paidThisMonth
+          .mockResolvedValueOnce([
+            { totalAmount: dec(10000), organization: { partnerCommissionRate: null } },
+            { totalAmount: dec(5000), organization: { partnerCommissionRate: null } }
+          ]) // paidThisMonth
       },
       lead: { count: vi.fn().mockResolvedValue(0) }
     });
     const result = await kpis(prisma, { partnerId: 'p1', scopeOrgIds: [] });
     expect(result.commissionThisMonth).toBe('1500.00');
+  });
+
+  it('applies the per-org override rate over the partner default (§6.2 priority)', async () => {
+    const prisma = makePrisma({
+      partner: { findUnique: vi.fn().mockResolvedValue({ commissionRate: dec(0.1) }) },
+      order: {
+        count: vi.fn().mockResolvedValue(0),
+        findMany: vi.fn()
+          .mockResolvedValueOnce([]) // outstandingOrders
+          .mockResolvedValueOnce([
+            { totalAmount: dec(10000), organization: { partnerCommissionRate: dec(0.2) } }, // договорная скидка
+            { totalAmount: dec(5000), organization: { partnerCommissionRate: null } } // дефолт партнёра
+          ]) // paidThisMonth
+      },
+      lead: { count: vi.fn().mockResolvedValue(0) }
+    });
+    const result = await kpis(prisma, { partnerId: 'p1', scopeOrgIds: [] });
+    // 10000×0.2 + 5000×0.1 = 2500
+    expect(result.commissionThisMonth).toBe('2500.00');
   });
 });
 
