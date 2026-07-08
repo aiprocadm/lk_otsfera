@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient, Prisma } from '@prisma/client';
-import ExcelJS from 'exceljs';
+import { loadXlsxWorkbook } from '@/lib/services/import/load-xlsx';
 import { calculateStatementForPartner } from '@/lib/services/commission/statement';
 import { approveStatement, markStatementPaid } from '@/lib/services/commission/lifecycle';
 import { detectLateRefundCorrections } from '@/lib/services/commission/corrections';
@@ -259,9 +259,6 @@ describe('E2E commission lifecycle: calc → rate priority → approve → XLSX 
       include: { items: true, partner: true }
     });
 
-    // renderStatementXlsx returns an ExcelJS buffer (typed `any`); pass it straight
-    // to load() as services.commission.xlsx.test.ts does — wrapping in Buffer.from
-    // trips the @types/node Buffer<ArrayBufferLike> vs ExcelJS Buffer type mismatch.
     const buf = await renderStatementXlsx({
       statement,
       items: statement.items,
@@ -269,8 +266,7 @@ describe('E2E commission lifecycle: calc → rate priority → approve → XLSX 
     });
     expect(buf.length).toBeGreaterThan(1000);
 
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buf);
+    const wb = await loadXlsxWorkbook(buf);
 
     // Items sheet: header row + one row per payment line (4).
     const itemsSheet = wb.getWorksheet('Items');
