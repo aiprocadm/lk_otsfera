@@ -4,7 +4,7 @@ import type { SessionAccessProfile } from '@/lib/auth/accessProfile';
 
 const orgFinance = vi.hoisted(() => ({
   getOrgFinanceKpisForOrgs: vi.fn(),
-  listOrgPayments: vi.fn(),
+  listOrgPaymentsForOrgs: vi.fn(),
   getOrgIntermediaryCommissionForOrgs: vi.fn()
 }));
 vi.mock('@/lib/services/organization/finance', () => orgFinance);
@@ -38,9 +38,11 @@ beforeEach(() => {
   orgFinance.getOrgFinanceKpisForOrgs.mockImplementation(async (_prisma: unknown, ids: string[]) =>
     new Map(ids.map((id) => [id, { billed: '100.00', paid: '40.00', outstanding: '60.00' }]))
   );
-  orgFinance.listOrgPayments.mockResolvedValue([
-    { id: 'p1', amount: '40.00', paidAt: new Date('2026-04-01'), method: null, isRefund: false, note: null, orderId: null, orderNumber: null }
-  ]);
+  orgFinance.listOrgPaymentsForOrgs.mockImplementation(async (_prisma: unknown, ids: string[]) =>
+    new Map(ids.map((id) => [id, [
+      { id: 'p1', amount: '40.00', paidAt: new Date('2026-04-01'), method: null, isRefund: false, note: null, orderId: null, orderNumber: null }
+    ]]))
+  );
   orgFinance.getOrgIntermediaryCommissionForOrgs.mockImplementation(async (_prisma: unknown, ids: string[]) =>
     new Map(ids.map((id) => [id, { effectiveRate: '0.1', totalCommission: '10.00', perOrder: [] }]))
   );

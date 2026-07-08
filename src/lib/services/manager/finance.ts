@@ -5,7 +5,7 @@ import { managerOrgScope } from '@/lib/auth/managerPolicy';
 import { can } from '@/lib/auth/accessProfile';
 import {
   getOrgFinanceKpisForOrgs,
-  listOrgPayments,
+  listOrgPaymentsForOrgs,
   getOrgIntermediaryCommissionForOrgs,
   type OrgFinanceKpis,
   type OrgPaymentRow,
@@ -49,23 +49,22 @@ export async function getManagerFinanceOverview(
     orderBy: { name: 'asc' }
   });
 
-  // Батч: KPI и комиссия считаются 1-2 запросами на весь scope вместо 2×N.
-  // Платежи остаются per-org (top-50 на организацию — оконная семантика; батч
-  // через ROW_NUMBER — отдельный трек, см. отчёт полировки 2026-07-09).
+  // Батч: KPI, платежи (top-50 per-org оконным ROW_NUMBER) и комиссия
+  // считаются 3-4 запросами на весь scope вместо 3×N.
   const orgIdList = orgs.map((org) => org.id);
-  const [kpisByOrg, paymentsList, commissionByOrg] = await Promise.all([
+  const [kpisByOrg, paymentsByOrg, commissionByOrg] = await Promise.all([
     getOrgFinanceKpisForOrgs(prisma, orgIdList),
-    Promise.all(orgIdList.map((orgId) => listOrgPayments(prisma, { organizationId: orgId }))),
+    listOrgPaymentsForOrgs(prisma, orgIdList),
     canSeeCommission
       ? getOrgIntermediaryCommissionForOrgs(prisma, orgIdList)
       : Promise.resolve(null)
   ]);
 
-  const sections = orgs.map((org, i): ManagerOrgFinanceSection => ({
+  const sections = orgs.map((org): ManagerOrgFinanceSection => ({
     orgId: org.id,
     orgName: org.name,
     kpis: kpisByOrg.get(org.id)!,
-    payments: paymentsList[i],
+    payments: paymentsByOrg.get(org.id)!,
     commission: commissionByOrg?.get(org.id) ?? null
   }));
 

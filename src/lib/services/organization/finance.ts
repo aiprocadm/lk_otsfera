@@ -107,6 +107,72 @@ export async function listOrgPayments(
   }));
 }
 
+type RawOrgPaymentRow = {
+  id: string;
+  organizationId: string;
+  amount: Prisma.Decimal;
+  paidAt: Date;
+  method: string | null;
+  isRefund: boolean;
+  note: string | null;
+  vatAmount: Prisma.Decimal | null;
+  purpose: string | null;
+  paymentOrderNumber: string | null;
+  orderId: string | null;
+  orderNumber: string | null;
+  enteredByName: string | null;
+};
+
+/**
+ * Батч-вариант леджера платежей: top-`perOrgTake` на КАЖДУЮ организацию одним
+ * оконным запросом (ROW_NUMBER) вместо N запросов. Каждому запрошенному id
+ * соответствует запись (пустой массив при отсутствии платежей). Формат строк
+ * идентичен listOrgPayments.
+ */
+export async function listOrgPaymentsForOrgs(
+  prisma: PrismaClient,
+  organizationIds: string[],
+  perOrgTake = 50
+): Promise<Map<string, OrgPaymentRow[]>> {
+  const result = new Map<string, OrgPaymentRow[]>(organizationIds.map((id) => [id, []]));
+  if (!organizationIds.length) return result;
+
+  const rows = await prisma.$queryRaw<RawOrgPaymentRow[]>`
+    SELECT
+      p."id", p."organizationId", p."amount", p."paidAt", p."method", p."isRefund",
+      p."note", p."vatAmount", p."purpose", p."paymentOrderNumber",
+      o."id" AS "orderId", o."orderNumber",
+      u."name" AS "enteredByName"
+    FROM (
+      SELECT *, ROW_NUMBER() OVER (PARTITION BY "organizationId" ORDER BY "paidAt" DESC) AS rn
+      FROM "Payment"
+      WHERE "organizationId" IN (${Prisma.join(organizationIds)})
+    ) p
+    LEFT JOIN "Order" o ON o."id" = p."orderId"
+    LEFT JOIN "User" u ON u."id" = p."enteredById"
+    WHERE p.rn <= ${perOrgTake}
+    ORDER BY p."organizationId", p."paidAt" DESC
+  `;
+
+  for (const r of rows) {
+    result.get(r.organizationId)!.push({
+      id: r.id,
+      amount: r.amount.toFixed(2),
+      paidAt: r.paidAt,
+      method: r.method,
+      isRefund: r.isRefund,
+      note: r.note,
+      orderId: r.orderId,
+      orderNumber: r.orderNumber,
+      vatAmount: r.vatAmount != null ? r.vatAmount.toFixed(2) : null,
+      purpose: r.purpose,
+      paymentOrderNumber: r.paymentOrderNumber,
+      enteredByName: r.enteredByName
+    });
+  }
+  return result;
+}
+
 export type OrgCommissionOrderRow = {
   orderId: string;
   orderNumber: string | null;

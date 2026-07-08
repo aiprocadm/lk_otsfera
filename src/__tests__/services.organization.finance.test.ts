@@ -4,6 +4,7 @@ import {
   getOrgFinanceKpis,
   getOrgFinanceKpisForOrgs,
   listOrgPayments,
+  listOrgPaymentsForOrgs,
   getOrgIntermediaryCommission,
   getOrgIntermediaryCommissionForOrgs
 } from '@/lib/services/organization/finance';
@@ -234,6 +235,64 @@ describe('batch variants (менеджерская витрина: N орган�
   it('empty id list → empty maps without touching the DB', async () => {
     expect((await getOrgFinanceKpisForOrgs(prisma, [])).size).toBe(0);
     expect((await getOrgIntermediaryCommissionForOrgs(prisma, [])).size).toBe(0);
+    expect((await listOrgPaymentsForOrgs(prisma, [])).size).toBe(0);
+  });
+
+  it('listOrgPaymentsForOrgs: rows match the singular ledger; unknown org → []', async () => {
+    const [batch, singular] = await Promise.all([
+      listOrgPaymentsForOrgs(prisma, [orgId, 'no-such-org']),
+      listOrgPayments(prisma, { organizationId: orgId })
+    ]);
+    expect(batch.get(orgId)).toEqual(singular);
+    expect(batch.get(orgId)).toHaveLength(3);
+    expect(batch.get('no-such-org')).toEqual([]);
+  });
+
+  it('listOrgPaymentsForOrgs: perOrgTake обрезает до новейших внутри КАЖДОЙ организации', async () => {
+    const batch = await listOrgPaymentsForOrgs(prisma, [orgId], 1);
+    expect(batch.get(orgId)).toHaveLength(1);
+    expect(batch.get(orgId)![0].isRefund).toBe(true); // 2026-05-11 — новейший платёж
+  });
+
+  it('listOrgPaymentsForOrgs: vatAmount/purpose/enteredByName маппятся из джойнов', async () => {
+    const user = await prisma.user.create({
+      data: {
+        email: `fin-batch-${STAMP}@test.local`,
+        name: 'Финансист',
+        role: 'manager',
+        passwordHash: null,
+        isActive: true
+      }
+    });
+    const rich = await prisma.payment.create({
+      data: {
+        organizationId: orgId,
+        orderId: null,
+        amount: new Prisma.Decimal('7777'),
+        vatAmount: new Prisma.Decimal('1111'),
+        purpose: 'Батч-тест',
+        paymentOrderNumber: 'ПП-777',
+        paidAt: new Date('2026-05-30'),
+        method: 'bank',
+        enteredById: user.id
+      }
+    });
+    try {
+      const batch = await listOrgPaymentsForOrgs(prisma, [orgId]);
+      const row = batch.get(orgId)!.find((r) => r.id === rich.id);
+      expect(row).toMatchObject({
+        amount: '7777.00',
+        vatAmount: '1111.00',
+        purpose: 'Батч-тест',
+        paymentOrderNumber: 'ПП-777',
+        enteredByName: 'Финансист',
+        orderId: null,
+        orderNumber: null
+      });
+    } finally {
+      await prisma.payment.delete({ where: { id: rich.id } });
+      await prisma.user.delete({ where: { id: user.id } });
+    }
   });
 
   it('unknown org id still yields a (zero) entry — consumers can `get()!` safely', async () => {
