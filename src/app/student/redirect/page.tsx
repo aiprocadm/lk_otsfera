@@ -1,3 +1,4 @@
+import React from 'react';
 import { randomUUID } from 'crypto';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth/session';

@@ -1,3 +1,4 @@
+import React from 'react';
 import { notFound, redirect } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartnerAdmin } from '@/lib/auth/requireRole';

@@ -1,3 +1,4 @@
+import React from 'react';
 import { redirect } from 'next/navigation';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { requireManagerLeader } from '@/lib/auth/requireRole';

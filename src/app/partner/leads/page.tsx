@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 import type { LeadStatus } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
@@ -121,6 +122,7 @@ function Paginator({
     if (searchParams.status) params.set('status', searchParams.status);
     params.set('take', String(take));
     if (targetSkip > 0) params.set('skip', String(targetSkip));
+    /* v8 ignore next -- `take` is always set above, so params.toString() is never '' here; the ternary's else-branch is unreachable defensive code */
     return `/partner/leads${params.toString() ? '?' + params.toString() : ''}`;
   }
 

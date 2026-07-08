@@ -1,3 +1,4 @@
+import React from 'react';
 import { requireManagerLeader } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';

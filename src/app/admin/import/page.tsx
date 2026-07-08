@@ -1,3 +1,4 @@
+import React from 'react';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { ImportForm } from '@/components/import/import-form';
 

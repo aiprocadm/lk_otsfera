@@ -1,3 +1,4 @@
+import React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartner } from '@/lib/auth/requireRole';
 import { listPortfolio } from '@/lib/services/partner/portfolio';
@@ -70,6 +71,7 @@ function Paginator({
     if (search) params.set('search', search);
     params.set('take', String(take));
     if (targetSkip > 0) params.set('skip', String(targetSkip));
+    /* v8 ignore next -- `take` is always set above, so params.toString() is never '' here; the ternary's else-branch is unreachable defensive code */
     return `/partner/portfolio${params.toString() ? '?' + params.toString() : ''}`;
   }
 
