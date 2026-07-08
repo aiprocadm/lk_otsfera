@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import { fmtMoney } from '@/lib/format';
 
@@ -60,7 +61,7 @@ export async function kpis(
     where: { id: scope.partnerId },
     select: { commissionRate: true }
   });
-  const rate = Number(partner?.commissionRate ?? 0);
+  const rate = partner?.commissionRate ?? new Prisma.Decimal(0);
 
   const [openOrders, outstandingOrders, activeLeads, paidThisMonth] = await Promise.all([
     prisma.order.count({
@@ -86,13 +87,15 @@ export async function kpis(
     })
   ]);
 
+  // Деньги — на Decimal (канон §1 ТЗ): накопление сумм и умножение на ставку
+  // не должны проходить через JS number.
   const outstanding = outstandingOrders.reduce(
-    (sum, o) => sum + Number(o.totalAmount) - Number(o.paidAmount),
-    0
+    (sum, o) => sum.plus(o.totalAmount).minus(o.paidAmount),
+    new Prisma.Decimal(0)
   );
   const commission = paidThisMonth.reduce(
-    (sum, o) => sum + Number(o.totalAmount) * rate,
-    0
+    (sum, o) => sum.plus(o.totalAmount.mul(rate)),
+    new Prisma.Decimal(0)
   );
 
   return {

@@ -3,6 +3,7 @@
  * Covers branches missed by the integration tests (which require live PG).
  */
 import { describe, it, expect, vi } from 'vitest';
+import { Prisma } from '@prisma/client';
 import { kpis, attention, recentEvents } from '@/lib/services/partner/dashboard';
 
 vi.mock('@/lib/format', () => ({
@@ -10,7 +11,7 @@ vi.mock('@/lib/format', () => ({
 }));
 
 function dec(n: number) {
-  return { toFixed: (d: number) => n.toFixed(d), valueOf: () => n };
+  return new Prisma.Decimal(n);
 }
 
 // Helper to build a prisma mock with configurable results
