@@ -69,16 +69,19 @@ describe('backfillTable', () => {
 describe('runBackfill', () => {
   let documentFindMany: ReturnType<typeof vi.fn>;
   let leadFindMany: ReturnType<typeof vi.fn>;
+  let inboundFindMany: ReturnType<typeof vi.fn>;
   let queueAdd: ReturnType<typeof vi.fn>;
   let db: Parameters<typeof runBackfill>[0];
 
   beforeEach(() => {
     documentFindMany = vi.fn();
     leadFindMany = vi.fn();
+    inboundFindMany = vi.fn().mockResolvedValue([]);
     queueAdd = vi.fn().mockResolvedValue({});
     db = {
       document: { findMany: documentFindMany },
       leadAttachment: { findMany: leadFindMany },
+      inboundMessage: { findMany: inboundFindMany },
     } as any;
   });
 
@@ -88,7 +91,7 @@ describe('runBackfill', () => {
 
     const result = await runBackfill(db, { add: queueAdd }, 100);
 
-    expect(result).toEqual({ enqueued: 3, documents: 2, leadAttachments: 1 });
+    expect(result).toEqual({ enqueued: 3, documents: 2, leadAttachments: 1, inboundAttachments: 0 });
     expect(queueAdd).toHaveBeenCalledTimes(3);
     expect(queueAdd).toHaveBeenCalledWith('scan', { kind: 'document', id: 'd1' });
     expect(queueAdd).toHaveBeenCalledWith('scan', { kind: 'leadAttachment', id: 'l1' });
@@ -105,7 +108,7 @@ describe('runBackfill', () => {
     documentFindMany.mockResolvedValueOnce([]);
     leadFindMany.mockResolvedValueOnce([]);
     const second = await runBackfill(db, { add: queueAdd }, 100);
-    expect(second).toEqual({ enqueued: 0, documents: 0, leadAttachments: 0 });
+    expect(second).toEqual({ enqueued: 0, documents: 0, leadAttachments: 0, inboundAttachments: 0 });
   });
 
   it('passes the configured batch size into the findMany take param', async () => {
@@ -163,5 +166,36 @@ describe('runBackfill', () => {
     await runBackfill(db, { add: queueAdd });
     // Default batchSize = Number('500') = 500
     expect(documentFindMany.mock.calls[0][0]).toMatchObject({ take: 500 });
+  });
+
+  it('enqueues pending inbound-attachment rows with kind:inbound_attachment', async () => {
+    documentFindMany.mockResolvedValueOnce([]);
+    leadFindMany.mockResolvedValueOnce([]);
+    inboundFindMany.mockReset();
+    inboundFindMany.mockResolvedValueOnce([{ id: 'im1' }]).mockResolvedValueOnce([]);
+
+    const result = await runBackfill(db, { add: queueAdd }, 100);
+
+    expect(result).toEqual({ enqueued: 1, documents: 0, leadAttachments: 0, inboundAttachments: 1 });
+    expect(queueAdd).toHaveBeenCalledWith('scan', { kind: 'inbound_attachment', id: 'im1' });
+    expect(inboundFindMany.mock.calls[0][0]).toMatchObject({
+      where: { scanStatus: 'pending', attachmentPath: { not: null } },
+      take: 100,
+    });
+  });
+
+  it('inboundMessage table also uses cursor on subsequent pages', async () => {
+    documentFindMany.mockResolvedValueOnce([]);
+    leadFindMany.mockResolvedValueOnce([]);
+    inboundFindMany.mockReset();
+    inboundFindMany
+      .mockResolvedValueOnce([{ id: 'im1' }, { id: 'im2' }])
+      .mockResolvedValueOnce([]);
+    await runBackfill(db, { add: queueAdd }, 2);
+    expect(inboundFindMany.mock.calls[0][0]).not.toHaveProperty('cursor');
+    expect(inboundFindMany.mock.calls[1][0]).toMatchObject({
+      cursor: { id: 'im2' },
+      skip: 1,
+    });
   });
 });

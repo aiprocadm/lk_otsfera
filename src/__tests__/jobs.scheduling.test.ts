@@ -16,7 +16,7 @@ function makeFakeQueue() {
 }
 
 describe('registerSyncSchedules', () => {
-  it('registers all 5 scheduled jobs (4 pulls + reconcile)', async () => {
+  it('registers all 7 scheduled jobs (4 pulls + reconcile + inbound email poll + mango backfill)', async () => {
     const queues = new Map<string, Queue>();
     const getQueue = (name: string) => {
       const existing = queues.get(name);
@@ -28,15 +28,17 @@ describe('registerSyncSchedules', () => {
 
     const result = await registerSyncSchedules(getQueue as never);
     expect(result).toHaveLength(SYNC_SCHEDULES.length);
-    expect(result).toHaveLength(5);
+    expect(result).toHaveLength(7);
     const queueNames = result.map((r) => r.queueName).sort();
     expect(queueNames).toEqual(
       [
+        'inbound.email.poll',
         'oneCSync.pullDocuments',
         'oneCSync.pullOrders',
         'oneCSync.pullOrganizations',
         'oneCSync.pullPayments',
-        'oneCSync.reconcile'
+        'oneCSync.reconcile',
+        'telephony.mango.backfill'
       ].sort()
     );
   });
@@ -51,7 +53,7 @@ describe('registerSyncSchedules', () => {
         })
       } as unknown as Queue);
     await registerSyncSchedules(getQueue as never);
-    expect(calls.length).toBe(5);
+    expect(calls.length).toBe(7);
     for (const c of calls) {
       expect(c.opts.tz).toBe('Europe/Moscow');
       expect(c.opts.pattern).toBeTruthy();
@@ -72,8 +74,8 @@ describe('registerSyncSchedules', () => {
     await registerSyncSchedules(getQueue as never);
 
     const unique = new Set(observedSchedulerIds);
-    expect(observedSchedulerIds.length).toBe(10);
-    expect(unique.size).toBe(5);
+    expect(observedSchedulerIds.length).toBe(14);
+    expect(unique.size).toBe(7);
   });
 
   it('passes reason=cron in job data so SyncLog can distinguish triggered source', async () => {
@@ -97,7 +99,7 @@ describe('registerSyncSchedules — paused skipping', () => {
   it('skips schedules whose schedulerId is paused', async () => {
     const getQueue = () => ({ upsertJobScheduler: vi.fn(async (id: string) => ({ id })) } as unknown as Queue);
     const result = await registerSyncSchedules(getQueue as never, new Set(['oneCSync.pullOrders.cron']));
-    expect(result).toHaveLength(4);
+    expect(result).toHaveLength(6);
     expect(result.map((r) => r.schedulerId)).not.toContain('oneCSync.pullOrders.cron');
   });
 });

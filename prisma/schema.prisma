@@ -188,6 +188,8 @@ model User {
   notificationChannels         Json? // { telegram?: bool, max?: bool, whatsapp?: bool }
   tasksCreated                 Task[]                @relation("TaskCreatedBy")
   taskAssignments              TaskAssignee[]        @relation("TaskAssignee")
+  inboundMessages              InboundMessage[]      @relation("UserInbound")
+  calls                        Call[]                @relation("UserCalls")
 }
 
 model PartnerUser {
@@ -298,20 +300,20 @@ model CommissionStatement {
 }
 
 model CommissionStatementItem {
-  id               String               @id @default(cuid())
+  id               String                @id @default(cuid())
   statementId      String
-  statement        CommissionStatement  @relation(fields: [statementId], references: [id])
+  statement        CommissionStatement   @relation(fields: [statementId], references: [id])
   orderId          String?
-  order            Order?               @relation(fields: [orderId], references: [id])
+  order            Order?                @relation(fields: [orderId], references: [id])
   paymentId        String?
-  payment          Payment?             @relation(fields: [paymentId], references: [id])
+  payment          Payment?              @relation(fields: [paymentId], references: [id])
   correctionId     String?
   correction       CommissionCorrection? @relation(fields: [correctionId], references: [id])
   orderNumber      String?
   organizationName String
-  baseAmount       Decimal              @db.Decimal(14, 2)
-  rate             Decimal              @db.Decimal(6, 4)
-  commissionAmount Decimal              @db.Decimal(14, 2)
+  baseAmount       Decimal               @db.Decimal(14, 2)
+  rate             Decimal               @db.Decimal(6, 4)
+  commissionAmount Decimal               @db.Decimal(14, 2)
 
   @@index([statementId])
   @@index([orderId])
@@ -347,26 +349,26 @@ model CommissionCorrection {
 }
 
 model Payment {
-  id                 String       @id @default(cuid())
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
-  organizationId     String
-  organization       Organization @relation(fields: [organizationId], references: [id])
-  orderId            String?
-  order              Order?       @relation(fields: [orderId], references: [id])
-  externalId         String?      @unique
-  amount             Decimal      @db.Decimal(14, 2)
-  paidAt             DateTime
-  method             String?
-  isRefund           Boolean      @default(false)
-  note               String?
-  vatAmount          Decimal?     @db.Decimal(14, 2) // НДС (§7.1); null = не выделен
-  purpose            String? // назначение платежа (§7.1; дублирует семантику note)
-  paymentOrderNumber String? // № платёжного поручения (§7.1)
-  enteredById           String? // кто внёс платёж (§7.1)
-  enteredBy             User?        @relation("PaymentEnteredBy", fields: [enteredById], references: [id])
-  commissionItems       CommissionStatementItem[]
-  commissionCorrection  CommissionCorrection?
+  id                   String                    @id @default(cuid())
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  organizationId       String
+  organization         Organization              @relation(fields: [organizationId], references: [id])
+  orderId              String?
+  order                Order?                    @relation(fields: [orderId], references: [id])
+  externalId           String?                   @unique
+  amount               Decimal                   @db.Decimal(14, 2)
+  paidAt               DateTime
+  method               String?
+  isRefund             Boolean                   @default(false)
+  note                 String?
+  vatAmount            Decimal?                  @db.Decimal(14, 2) // НДС (§7.1); null = не выделен
+  purpose              String? // назначение платежа (§7.1; дублирует семантику note)
+  paymentOrderNumber   String? // № платёжного поручения (§7.1)
+  enteredById          String? // кто внёс платёж (§7.1)
+  enteredBy            User?                     @relation("PaymentEnteredBy", fields: [enteredById], references: [id])
+  commissionItems      CommissionStatementItem[]
+  commissionCorrection CommissionCorrection?
 
   @@index([orderId])
   @@index([organizationId])
@@ -416,10 +418,10 @@ model SyncState {
 
 model OneCPendingRecord {
   id          String   @id @default(cuid())
-  entity      String   // 'organization' | 'order' | 'payment' | 'document'
+  entity      String // 'organization' | 'order' | 'payment' | 'document'
   externalId  String
-  dto         Json     // raw 1C DTO, replayed verbatim through the idempotent writer
-  reason      String   // last transient skip reason
+  dto         Json // raw 1C DTO, replayed verbatim through the idempotent writer
+  reason      String // last transient skip reason
   attempts    Int      @default(0)
   status      String   @default("pending") // 'pending' | 'dead'
   firstSeenAt DateTime @default(now())
@@ -494,34 +496,36 @@ model OrganizationCommissionRateChange {
 }
 
 model Organization {
-  id                             String                @id @default(cuid())
-  createdAt                      DateTime              @default(now())
-  updatedAt                      DateTime              @updatedAt
+  id                             String                             @id @default(cuid())
+  createdAt                      DateTime                           @default(now())
+  updatedAt                      DateTime                           @updatedAt
   name                           String
-  externalId                     String?               @unique
-  inn                            String?               @unique
+  externalId                     String?                            @unique
+  inn                            String?                            @unique
   kpp                            String?
   partnerId                      String?
-  partner                        Partner?              @relation(fields: [partnerId], references: [id])
+  partner                        Partner?                           @relation(fields: [partnerId], references: [id])
   companyId                      String?
-  company                        Company?              @relation(fields: [companyId], references: [id])
+  company                        Company?                           @relation(fields: [companyId], references: [id])
   assignedManagerUserId          String?
-  partnerCommissionRate          Decimal?              @db.Decimal(6, 4)
+  partnerCommissionRate          Decimal?                           @db.Decimal(6, 4)
   partnerCommissionRateNote      String?
   partnerCommissionRateChangedAt DateTime?
   partnerCommissionRateChangedBy String?
   students                       Student[]
-  users                          User[]                @relation("UserOrganization")
+  users                          User[]                             @relation("UserOrganization")
   organizationUsers              OrganizationUser[]
-  managers                       OrganizationManager[] @relation("OrganizationManagers")
+  managers                       OrganizationManager[]              @relation("OrganizationManagers")
   notifications                  Notification[]
   leads                          Lead[]
-  orders                         Order[]               @relation("OrderOrganization")
+  orders                         Order[]                            @relation("OrderOrganization")
   payments                       Payment[]
   enrollmentRequests             EnrollmentRequest[]
   certificates                   Certificate[]
   commissionRateChanges          OrganizationCommissionRateChange[]
-  tasks                          Task[]                @relation("TaskLinkedOrganization")
+  tasks                          Task[]                             @relation("TaskLinkedOrganization")
+  inboundMessages                InboundMessage[]                   @relation("OrgInbound")
+  calls                          Call[]                             @relation("OrgCalls")
 
   @@index([partnerId])
   @@index([externalId])
@@ -580,11 +584,11 @@ model Student {
 }
 
 model Company {
-  id                    String         @id @default(cuid())
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
+  id                    String           @id @default(cuid())
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
   name                  String
-  managerTeamVisibility Boolean        @default(false)
+  managerTeamVisibility Boolean          @default(false)
   users                 User[]
   orders                Order[]
   organizations         Organization[]
@@ -593,6 +597,8 @@ model Company {
   funnelStages          FunnelStage[]
   taskColumns           TaskColumn[]
   tasks                 Task[]
+  inboundMessages       InboundMessage[]
+  calls                 Call[]
 }
 
 // Трек G1 (§3.2 ТЗ): роль-профиль как данные. Матрица охватов по типам объектов
@@ -709,48 +715,48 @@ model TaskAssignee {
 }
 
 model Order {
-  id               String                    @id @default(cuid())
-  createdAt        DateTime                  @default(now())
-  updatedAt        DateTime                  @updatedAt
-  externalId       String?                   @unique
-  orderNumber      String?
-  title            String
-  status           OrderStatus               @default(new)
-  executionStatus  ExecutionStatus           @default(pending)
-  financialStatus  FinancialStatus           @default(not_billed)
-  totalAmount      Decimal                   @default(0) @db.Decimal(14, 2)
-  paidAmount       Decimal                   @default(0) @db.Decimal(14, 2)
-  paidAt           DateTime?
-  contractSignedAt DateTime?
-  completedAt      DateTime?
-  closedAt         DateTime?
-  lastSyncedAt     DateTime?
-  vatIncluded      Boolean                   @default(true)
-  vatRate          Decimal?                  @db.Decimal(5, 4)
-  productMix       String[]
-  serviceType      ServiceType               @default(training)
+  id                 String                    @id @default(cuid())
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  externalId         String?                   @unique
+  orderNumber        String?
+  title              String
+  status             OrderStatus               @default(new)
+  executionStatus    ExecutionStatus           @default(pending)
+  financialStatus    FinancialStatus           @default(not_billed)
+  totalAmount        Decimal                   @default(0) @db.Decimal(14, 2)
+  paidAmount         Decimal                   @default(0) @db.Decimal(14, 2)
+  paidAt             DateTime?
+  contractSignedAt   DateTime?
+  completedAt        DateTime?
+  closedAt           DateTime?
+  lastSyncedAt       DateTime?
+  vatIncluded        Boolean                   @default(true)
+  vatRate            Decimal?                  @db.Decimal(5, 4)
+  productMix         String[]
+  serviceType        ServiceType               @default(training)
   // §5.6/§21: «галочка» менеджера «бухгалтерия подписана» — условие завершения (B2).
   accountingSignedAt DateTime?
   // §5.4: причина возврата на доработку, пока status=waiting_client (B3). Чистится при возврате в работу.
-  returnReason     String?
-  deadline         DateTime?
-  companyId        String
-  company          Company                   @relation(fields: [companyId], references: [id])
-  partnerId        String?
-  partner          Partner?                  @relation(fields: [partnerId], references: [id])
-  organizationId   String
-  organization     Organization              @relation("OrderOrganization", fields: [organizationId], references: [id])
-  managerId        String?
-  manager          User?                     @relation("OrderManager", fields: [managerId], references: [id])
-  documents        Document[]
-  comments         Comment[]
-  uploads          Upload[]
-  payments         Payment[]
-  promotedFromLead Lead?                     @relation("LeadPromoted")
-  commissionItems  CommissionStatementItem[]
-  threads          OrderThread[]
-  items            OrderItem[]
-  tasks            Task[]                    @relation("TaskLinkedOrder")
+  returnReason       String?
+  deadline           DateTime?
+  companyId          String
+  company            Company                   @relation(fields: [companyId], references: [id])
+  partnerId          String?
+  partner            Partner?                  @relation(fields: [partnerId], references: [id])
+  organizationId     String
+  organization       Organization              @relation("OrderOrganization", fields: [organizationId], references: [id])
+  managerId          String?
+  manager            User?                     @relation("OrderManager", fields: [managerId], references: [id])
+  documents          Document[]
+  comments           Comment[]
+  uploads            Upload[]
+  payments           Payment[]
+  promotedFromLead   Lead?                     @relation("LeadPromoted")
+  commissionItems    CommissionStatementItem[]
+  threads            OrderThread[]
+  items              OrderItem[]
+  tasks              Task[]                    @relation("TaskLinkedOrder")
 
   @@index([partnerId, executionStatus])
   @@index([partnerId, financialStatus])
@@ -933,14 +939,15 @@ model AlertState {
 }
 
 model OrderThread {
-  id            String            @id @default(cuid())
-  orderId       String
-  order         Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  side          ThreadSide
-  createdAt     DateTime          @default(now())
-  lastMessageAt DateTime          @default(now())
-  messages      Message[]
-  readStates    ThreadReadState[]
+  id              String            @id @default(cuid())
+  orderId         String
+  order           Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  side            ThreadSide
+  createdAt       DateTime          @default(now())
+  lastMessageAt   DateTime          @default(now())
+  messages        Message[]
+  readStates      ThreadReadState[]
+  inboundMessages InboundMessage[]
 
   @@unique([orderId, side])
   @@index([side, lastMessageAt])
@@ -1168,4 +1175,69 @@ model PaymentImportRow {
 
   @@index([status, createdAt])
   @@index([batchId])
+}
+
+model InboundMessage {
+  id             String    @id @default(cuid())
+  createdAt      DateTime  @default(now())
+  channel        String
+  externalId     String    @unique
+  senderRef      String
+  senderDisplay  String?
+  subject        String?
+  body           String
+  attachmentPath String?
+  attachmentName String?
+  attachmentMime String?
+  scanStatus     String    @default("none")
+  scanReason     String?
+  resolvedOrgId  String?
+  resolvedUserId String?
+  threadId       String?
+  companyId      String?
+  status         String    @default("unresolved")
+  boundAt        DateTime?
+  boundById      String?
+
+  resolvedOrg  Organization? @relation("OrgInbound", fields: [resolvedOrgId], references: [id])
+  resolvedUser User?         @relation("UserInbound", fields: [resolvedUserId], references: [id])
+  thread       OrderThread?  @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  company      Company?      @relation(fields: [companyId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([companyId, createdAt])
+  @@index([resolvedOrgId, createdAt])
+  @@index([channel, createdAt])
+}
+
+// PR-B: телефония Mango — журнал звонков (входящих/исходящих).
+model Call {
+  id                  String   @id @default(cuid())
+  createdAt           DateTime @default(now())
+  provider            String   @default("mango")
+  externalId          String
+  direction           String
+  callerNumber        String
+  internalNumber      String?
+  startedAt           DateTime?
+  answeredAt          DateTime?
+  finishedAt          DateTime?
+  durationSec         Int?
+  status              String
+  recordingId         String?
+  recordingPath       String?
+  recordingScanStatus String   @default("none")
+  resolvedOrgId       String?
+  resolvedUserId      String?
+  threadId            String?
+  companyId           String?
+
+  resolvedOrg  Organization? @relation("OrgCalls", fields: [resolvedOrgId], references: [id])
+  resolvedUser User?         @relation("UserCalls", fields: [resolvedUserId], references: [id])
+  company      Company?      @relation(fields: [companyId], references: [id])
+
+  @@unique([provider, externalId])
+  @@index([companyId, createdAt])
+  @@index([resolvedOrgId, createdAt])
+  @@index([callerNumber, createdAt])
 }

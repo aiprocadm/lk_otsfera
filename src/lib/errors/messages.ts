@@ -44,13 +44,18 @@ const RU: Record<string, string> = {
   user_not_found: 'Пользователь не найден.',
   role_conflict: 'Роль пользователя конфликтует с этим действием.',
   already_assigned: 'Пользователь уже назначен на эту организацию.',
+  company_mismatch: 'Менеджер и организация принадлежат разным компаниям.',
   invalid_status: 'Недопустимый статус.',
   partner_not_found: 'Партнёр не найден.',
   period_overlap: 'Период пересекается с существующей ведомостью.',
   duplicate_slug: 'Партнёр с таким URL-идентификатором уже существует.',
   duplicate_email: 'Пользователь с такой почтой уже существует.',
   admin_role_via_ui: 'Роль администратора не выдаётся через интерфейс.',
-  role_transition_forbidden: 'Такой переход роли запрещён.'
+  role_transition_forbidden: 'Такой переход роли запрещён.',
+  // Task 11 — омниканальный инбокс (bindInboundMessageAction/replyInboundAction)
+  invalid: 'Введите текст ответа.',
+  reply_failed: 'Не удалось отправить ответ. Попробуйте ещё раз.',
+  email_unsupported: 'Ответ по email пока не поддерживается — свяжитесь с клиентом другим каналом.'
 };
 
 export function errorMessageRu(code: string, fallback = 'Произошла ошибка.'): string {

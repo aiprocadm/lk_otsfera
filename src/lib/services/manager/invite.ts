@@ -30,7 +30,10 @@ export type ManagerInviteErrorCode =
   | 'already_assigned'
   | 'role_conflict'
   | 'user_not_found'
-  | 'org_not_found';
+  | 'org_not_found'
+  // C8: manager and organization must share a company. Assigning across the
+  // company boundary is the upstream root cause of cross-company IDOR (§4).
+  | 'company_mismatch';
 
 export class ManagerInviteError extends Error {
   readonly code: ManagerInviteErrorCode;
@@ -70,7 +73,7 @@ export async function createAndAssignManager(
     const result = await prisma.$transaction(async (tx) => {
     const org = await tx.organization.findUnique({
       where: { id: args.organizationId },
-      select: { id: true }
+      select: { id: true, companyId: true }
     });
     if (!org) throw new ManagerInviteError('org_not_found');
 
@@ -85,16 +88,32 @@ export async function createAndAssignManager(
         throw new ManagerInviteError('role_conflict');
       }
       if (!user) {
+        // A freshly-invited manager is born into the organization's company —
+        // managers derive their entire C8 scope from User.companyId, so leaving
+        // it null would make the new manager invisible to the leader roster and
+        // deny-all in company-wide reads. Stamping org.companyId here also makes
+        // the company-floor assertion below hold by construction.
         user = await tx.user.create({
           data: {
             email: args.email,
             name: args.name ?? args.email,
             role: 'manager',
             isActive: true,
-            passwordHash: null
+            passwordHash: null,
+            companyId: org.companyId
           }
         });
       }
+    }
+
+    // C8 company floor (defense-in-depth): a manager may only be assigned to an
+    // organization in their own company. Freshly-created managers inherit
+    // org.companyId above, so this only rejects an *existing* manager account
+    // being pulled across the company boundary (or a company-less org/manager
+    // mismatch). Cross-company OrganizationManager rows are the upstream cause of
+    // the inbound-message bind IDOR fixed at src/server-actions/inbound.ts.
+    if (user.companyId !== org.companyId) {
+      throw new ManagerInviteError('company_mismatch');
     }
 
     const existing = await tx.organizationManager.findUnique({

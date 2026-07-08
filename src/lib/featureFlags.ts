@@ -36,6 +36,10 @@ export const FEATURE_FLAGS = [
   'sales_funnel',
   // Трек G3: внутренние задачи / канбан. Гейтит /manager/tasks + /leader/tasks.
   'internal_tasks',
+  // PR-A: омниканальный инбокс. Гейтит /manager/inbox (экран придёт отдельной задачей).
+  'inbound_messaging',
+  // PR-B: телефония Mango. Гейтит /manager/calls (экран придёт отдельной задачей).
+  'telephony_mango',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -56,7 +60,9 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'notif_queue',
   'role_constructor',
   'sales_funnel',
-  'internal_tasks'
+  'internal_tasks',
+  'inbound_messaging',
+  'telephony_mango'
 ]);
 
 export class FeatureDisabledError extends Error {

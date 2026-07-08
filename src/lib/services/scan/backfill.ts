@@ -8,6 +8,7 @@ export type BackfillResult = {
   enqueued: number;
   documents: number;
   leadAttachments: number;
+  inboundAttachments: number;
 };
 
 type PendingRow = { id: string };
@@ -38,9 +39,10 @@ export async function backfillTable(
 }
 
 /**
- * Enqueues a `docs.scanDocument` job for every Document and LeadAttachment row
- * stuck in `scanStatus='pending'`. Idempotent by design — once the processor
- * flips a row, the WHERE clause naturally skips it on the next pass.
+ * Enqueues a `docs.scanDocument` job for every Document, LeadAttachment, and
+ * inbound-attachment (InboundMessage) row stuck in `scanStatus='pending'`.
+ * Idempotent by design — once the processor flips a row, the WHERE clause
+ * naturally skips it on the next pass.
  */
 export async function runBackfill(
   db: PrismaClient = defaultPrisma,
@@ -75,9 +77,24 @@ export async function runBackfill(
     batchSize,
   );
 
+  const inboundAttachments = await backfillTable(
+    'inbound_attachment',
+    (cursor, take) =>
+      db.inboundMessage.findMany({
+        where: { scanStatus: 'pending', attachmentPath: { not: null } },
+        select: { id: true },
+        orderBy: { id: 'asc' },
+        take,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      }),
+    queue,
+    batchSize,
+  );
+
   return {
-    enqueued: documents + leadAttachments,
+    enqueued: documents + leadAttachments + inboundAttachments,
     documents,
     leadAttachments,
+    inboundAttachments,
   };
 }

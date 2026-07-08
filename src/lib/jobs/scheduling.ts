@@ -10,6 +10,8 @@ export type SyncScheduleQueueName = Extract<
   | 'oneCSync.pullDocuments'
   | 'oneCSync.pullOrganizations'
   | 'oneCSync.reconcile'
+  | 'inbound.email.poll'
+  | 'telephony.mango.backfill'
 >;
 
 export type SyncSchedule = {
@@ -50,6 +52,18 @@ export const SYNC_SCHEDULES: ReadonlyArray<SyncSchedule> = [
     queueName: 'oneCSync.reconcile',
     schedulerId: 'oneCSync.reconcile.cron',
     pattern: '0 3 * * *',
+    tz: DEFAULT_SYNC_TZ
+  },
+  {
+    queueName: 'inbound.email.poll',
+    schedulerId: 'inbound.email.poll.cron',
+    pattern: '*/5 * * * *',
+    tz: DEFAULT_SYNC_TZ
+  },
+  {
+    queueName: 'telephony.mango.backfill',
+    schedulerId: 'telephony.mango.backfill.cron',
+    pattern: '0 * * * *',
     tz: DEFAULT_SYNC_TZ
   }
 ] as const;

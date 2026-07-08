@@ -67,3 +67,54 @@ export async function sendWhatsAppMessage(
     clearTimeout(timer);
   }
 }
+
+/** Одно входящее сообщение Wazzup после парсинга — уже готово к `ingestInboundMessage`. */
+export type WazzupInbound = { externalId: string; phone: string; text: string; name?: string };
+
+type WazzupRawMessage = {
+  messageId?: unknown;
+  chatId?: unknown;
+  text?: unknown;
+  isEcho?: unknown;
+  contact?: unknown;
+};
+
+/** Type guard: сырой элемент `messages[]` содержит достаточно полей, чтобы стать входящим сообщением. */
+function isIngestibleWazzupMessage(
+  m: unknown
+): m is WazzupRawMessage & { messageId: string; chatId: string | number; text: string } {
+  if (!m || typeof m !== 'object') return false;
+  const rec = m as WazzupRawMessage;
+  return (
+    typeof rec.messageId === 'string' &&
+    (typeof rec.chatId === 'string' || typeof rec.chatId === 'number') &&
+    typeof rec.text === 'string' &&
+    !rec.isEcho
+  );
+}
+
+/**
+ * Чистый парсер входящего вебхука Wazzup (D-inbound): достаёт из `body.messages[]`
+ * только реальные входящие сообщения (фильтрует наши же исходящие эхо-события
+ * `isEcho`, и элементы без строкового `messageId`/`text`). `phone` собирается
+ * в ТОМ ЖЕ E.164-виде, что и `normalizePhone` в `resolve.ts` (только цифры +
+ * ведущий `+`), иначе резолвинг отправителя по `User.whatsappPhone` не совпадёт.
+ * Не бросает исключений на произвольном untrusted JSON — на любую непонятную
+ * форму возвращает `[]`.
+ */
+export function parseWazzupInbound(body: unknown): WazzupInbound[] {
+  const messages = (body as { messages?: unknown } | null)?.messages;
+  if (!Array.isArray(messages)) return [];
+
+  return messages.filter(isIngestibleWazzupMessage).map((m) => {
+    const contact = m.contact as { name?: unknown } | null | undefined;
+    const name = typeof contact?.name === 'string' ? contact.name : undefined;
+    const digits = String(m.chatId).replace(/\D/g, '');
+    return {
+      externalId: `wa:${m.messageId}`,
+      phone: digits ? `+${digits}` : '',
+      text: m.text,
+      name,
+    };
+  });
+}

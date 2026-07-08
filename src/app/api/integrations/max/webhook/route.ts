@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/db/prisma';
 import { linkMaxByCode } from '@/lib/services/max/link';
 import { sendMaxMessage } from '@/lib/max/client';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
+import { notFoundIfDisabled, isFeatureEnabled } from '@/lib/featureFlags';
+import { ingestInboundMessage } from '@/lib/services/inbound/ingest';
 
 /**
  * Webhook привязки Max (D3) — зеркало telegram-webhook. Гейтится флагом
@@ -27,7 +28,7 @@ export async function POST(req: Request): Promise<Response> {
     return new Response(null, { status: 200 });
   }
 
-  const { text, chatId } = extractStart(update);
+  const { text, chatId, messageId, isStart } = extractStart(update);
   if (text && chatId) {
     const startMatch = /^\/start\s+(\S+)/.exec(text);
     if (startMatch) {
@@ -43,6 +44,24 @@ export async function POST(req: Request): Promise<Response> {
       } catch {
         // Swallow — 200 ниже.
       }
+    } else if (
+      !isStart &&
+      !/^\/start\b/.test(text) &&
+      messageId != null &&
+      isFeatureEnabled('inbound_messaging')
+    ) {
+      // Не-/start входящее текстовое сообщение — best-effort ingest в
+      // омниканальный инбокс (PR-A). `text` — недоверенные пользовательские
+      // данные: никогда не интерпретируем/не исполняем, только сохраняем как
+      // body. Ошибки никогда не блокируют вебхук (§3 — degrade gracefully).
+      // Голый `/start` (кнопка Start) не матчит ни ветку — no-op (до-Task-6).
+      // Без message_id externalId не гарантирует идемпотентность → дропаем.
+      await ingestInboundMessage(prisma, {
+        channel: 'max',
+        externalId: `max:${chatId}:${messageId}`,
+        senderRef: chatId,
+        body: text,
+      }).catch(() => {});
     }
   }
 
@@ -52,8 +71,16 @@ export async function POST(req: Request): Promise<Response> {
 /**
  * Защитно достаёт текст сообщения и id чата из апдейта Max. Форма апдейта
  * может отличаться от Telegram — принимаем `message` (как TG) и `bot_started`.
+ * `isStart` отличает synthetic `/start`-текст, сконструированный из
+ * `bot_started.payload` (у него нет реального message_id, инжестить нечего)
+ * от обычных текстовых сообщений в `message`.
  */
-function extractStart(update: unknown): { text: string | null; chatId: string | null } {
+function extractStart(update: unknown): {
+  text: string | null;
+  chatId: string | null;
+  messageId: string | null;
+  isStart: boolean;
+} {
   const root = update as Record<string, unknown> | null;
   const message = root?.message as Record<string, unknown> | undefined;
   const botStarted = root?.bot_started as Record<string, unknown> | undefined;
@@ -72,5 +99,8 @@ function extractStart(update: unknown): { text: string | null; chatId: string | 
     botStarted?.user_id;
   const chatId = chatRaw != null ? String(chatRaw) : null;
 
-  return { text, chatId };
+  const messageIdRaw = message?.message_id;
+  const messageId = messageIdRaw != null ? String(messageIdRaw) : null;
+
+  return { text, chatId, messageId, isStart: botStarted != null };
 }

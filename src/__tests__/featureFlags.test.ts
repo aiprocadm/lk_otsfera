@@ -37,6 +37,8 @@ const OPT_IN_FLAGS = new Set([
   'role_constructor',
   'sales_funnel',
   'internal_tasks',
+  'inbound_messaging',
+  'telephony_mango',
 ]);
 
 describe('isFeatureEnabled', () => {
