@@ -1,6 +1,7 @@
 import type { PrismaClient, Lead, LeadStatus, Order } from '@prisma/client';
 import { recordAudit } from '@/lib/auth/audit';
 import { notifyPartnerUsers } from '@/lib/notifications/partner';
+import { log } from '@/lib/logging';
 
 const LEAD_STATUS_RU: Record<LeadStatus, string> = {
   new: 'Новая',
@@ -23,7 +24,7 @@ async function notifyPartnerLeadStatus(
       payload: { leadId: lead.id, clientCompanyName: lead.clientCompanyName, subject: lead.subject, status: LEAD_STATUS_RU[status] }
     });
   } catch (err) {
-    console.warn('[leadLifecycle] partner notify failed', { leadId: lead.id, error: err instanceof Error ? err.message : String(err) });
+    log.warn('[leadLifecycle] partner notify failed', { leadId: lead.id, error: err instanceof Error ? err.message : String(err) });
   }
 }
 

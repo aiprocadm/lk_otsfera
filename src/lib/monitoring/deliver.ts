@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { createNotification, deliverNotificationToUser } from '@/lib/notifications';
+import { log } from '@/lib/logging';
 
 const TELEGRAM_TIMEOUT_MS = 5000;
 
@@ -40,7 +41,7 @@ export async function deliverAlert(prisma: PrismaClient, d: AlertDelivery): Prom
       const row = await createNotification({ userId: a.id, type, title, body: text });
       rowId = row.id;
     } catch (err) {
-      console.error('[alerts] in-app notification failed', { userId: a.id, err });
+      log.error('[alerts] in-app notification failed', { userId: a.id, err });
     }
     try {
       // Только email: персональный Telegram дублировал бы общий алерт-чат
@@ -54,13 +55,13 @@ export async function deliverAlert(prisma: PrismaClient, d: AlertDelivery): Prom
         dedupKey: rowId
       });
     } catch (err) {
-      console.error('[alerts] email failed', { userId: a.id, err });
+      log.error('[alerts] email failed', { userId: a.id, err });
     }
   }
 
   try {
     await deliverTelegram(text);
   } catch (err) {
-    console.error('[alerts] telegram failed', { err });
+    log.error('[alerts] telegram failed', { err });
   }
 }

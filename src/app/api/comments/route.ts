@@ -16,6 +16,7 @@ import {
 } from '@/lib/notifications';
 import { getPrimaryOrganizationId } from '@/lib/auth/organization';
 import { recordAudit } from '@/lib/auth/audit';
+import { log } from '@/lib/logging';
 
 const commentSchema = z.object({
   orderId: z.string().min(1).max(64),
@@ -83,7 +84,7 @@ export async function POST(req: Request) {
         }
       });
     } catch (err) {
-      console.warn('[api/comments] notifyManagers (comment_from_org) failed', {
+      log.warn('[api/comments] notifyManagers (comment_from_org) failed', {
         commentId: comment.id,
         orderId: order.id,
         error: err instanceof Error ? err.message : String(err)
@@ -151,7 +152,7 @@ export async function POST(req: Request) {
           }
         });
       } catch (err) {
-        console.warn('[api/comments] notifyOrgUsers (manager_replied) failed', {
+        log.warn('[api/comments] notifyOrgUsers (manager_replied) failed', {
           commentId: comment.id,
           organizationId: order.organizationId,
           error: err instanceof Error ? err.message : String(err)
@@ -200,7 +201,7 @@ export async function POST(req: Request) {
       dedupKey: row.id
     });
   } catch (err) {
-    console.warn('[api/comments] notification fan-out failed', {
+    log.warn('[api/comments] notification fan-out failed', {
       commentId: comment.id,
       orderId,
       error: err instanceof Error ? err.message : String(err)

@@ -7,6 +7,7 @@ import { importScope } from '@/lib/services/oneCSync/scope';
 import { recordAudit } from '@/lib/auth/audit';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { getObjectStorage } from '@/lib/storage';
+import { log } from '@/lib/logging';
 import { readSpreadsheet } from './read-spreadsheet';
 import { parseAccountCard } from './parser';
 import { matchRow } from './matcher';
@@ -106,15 +107,15 @@ export async function commitPaymentImport(prisma: PrismaClient, session: Session
   try {
     await getObjectStorage().upload(fileKey, args.fileBuffer, { contentType: 'application/octet-stream' });
     await prisma.paymentImportBatch.update({ where: { id: batchId }, data: { fileKey } });
-  } catch (e) { console.warn('[card51] file store failed (non-blocking):', e instanceof Error ? e.message : e); }
+  } catch (e) { log.warn('[card51] file store failed (non-blocking):', e instanceof Error ? e.message : e); }
 
   // Журнал (best-effort)
   try {
     await writeSyncLog({ entity: 'payment', direction: 'inbound', operation: 'import', status: result.counts.parseErrors > 0 ? 'warn' : 'success', payload: { fileName: args.fileName, ...result.counts } }, prisma);
-  } catch (e) { console.warn('[card51] syncLog failed (non-blocking):', e); }
+  } catch (e) { log.warn('[card51] syncLog failed (non-blocking):', e); }
   try {
     await recordAudit(prisma, { userId: session.sub, action: 'payment_import.commit', entity: 'payment', entityId: batchId, after: { fileName: args.fileName, ...result.counts } });
-  } catch (e) { console.warn('[card51] audit failed (non-blocking):', e); }
+  } catch (e) { log.warn('[card51] audit failed (non-blocking):', e); }
 
   return { ok: true as const, result: { counts: result.counts, batchId } };
 }

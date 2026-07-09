@@ -13,6 +13,7 @@ import { calculateCommission, type PaymentForCalc, type CorrectionForCalc } from
 import { resolveEffectiveRate, type RateChange, type OrgRateChange } from './rateResolve';
 import { getQueue } from '@/lib/jobs/queues';
 import { recordAudit } from '@/lib/auth/audit';
+import { log } from '@/lib/logging';
 
 export type CalculateStatementInput = {
   partnerId: string;
@@ -338,7 +339,7 @@ export async function calculateStatementForPartner(
         getQueue('docs.generateCommissionXlsx').add('generate', { statementId: statement.id })
       ]);
     } catch (err) {
-      console.warn('[commission] failed to enqueue PDF/XLSX jobs:', err);
+      log.warn('[commission] failed to enqueue PDF/XLSX jobs:', err);
     }
   }
 

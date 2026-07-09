@@ -5,6 +5,7 @@ import { getMangoAdapter } from '@/lib/telephony/mango';
 import { parseMangoEvent } from '@/lib/telephony/mango/parse';
 import { ingestCallEvent } from '@/lib/services/telephony/ingestCall';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
+import { log } from '@/lib/logging';
 
 const STATE_ENTITY = 'telephony.mango';
 const DEFAULT_LOOKBACK_MS = 24 * 60 * 60 * 1000;
@@ -53,7 +54,7 @@ export async function mangoBackfillProcessor(
     const event = parseMangoEvent('summary', row);
     if (!event) continue;
     await ingestCallEvent(db, event).catch((err) => {
-      console.warn('[mango-backfill] ingest failed', {
+      log.warn('[mango-backfill] ingest failed', {
         error: err instanceof Error ? err.message : String(err)
       });
     });

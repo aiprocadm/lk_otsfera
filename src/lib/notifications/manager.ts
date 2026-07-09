@@ -11,6 +11,7 @@ import {
   managerOrderStatusChangedSubject,
   managerOrderStatusChangedText
 } from '@/lib/email/templates';
+import { log } from '@/lib/logging';
 import { dispatchToRecipient } from './channels/dispatch';
 import {
   CHANNEL_RECIPIENT_SELECT,
@@ -445,7 +446,7 @@ export async function notifyManagers(
       emailsSkipped += 1;
     }
     if (outcome.results.email?.status === 'failed') {
-      console.warn('[notifyManagers] email dispatch failed', {
+      log.warn('[notifyManagers] email dispatch failed', {
         orderId: input.orderId,
         error: outcome.results.email.reason,
       });

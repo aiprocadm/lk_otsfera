@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
+import { log } from '@/lib/logging';
 import { dispatchToRecipient } from './channels/dispatch';
 import {
   CHANNEL_RECIPIENT_SELECT,
@@ -194,7 +195,7 @@ export async function notifyPartnerUsers(
       emailsSkipped += 1;
     }
     if (outcome.results.email?.status === 'failed') {
-      console.warn('[notifyPartnerUsers] email dispatch failed', {
+      log.warn('[notifyPartnerUsers] email dispatch failed', {
         partnerId: partner.id,
         error: outcome.results.email.reason
       });

@@ -5,6 +5,7 @@ import { getMangoAdapter } from '@/lib/telephony/mango';
 import { getObjectStorage } from '@/lib/storage';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
+import { log } from '@/lib/logging';
 
 export type MangoRecordingPayload = {
   externalId: string;
@@ -41,7 +42,7 @@ export async function mangoRecordingProcessor(
 
   const payload: ScanDocumentPayload = { kind: 'call_recording', id: call.id };
   await getQueue('docs.scanDocument').add('scan', payload).catch((err) => {
-    console.warn('[mango-recording] enqueue scan failed', {
+    log.warn('[mango-recording] enqueue scan failed', {
       callId: call.id,
       error: err instanceof Error ? err.message : String(err),
     });

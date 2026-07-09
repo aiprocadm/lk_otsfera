@@ -5,6 +5,7 @@ import { notifyOrgUsers, notifyPartnerUsers } from '@/lib/notifications';
 import { persistUploadedDocument, validateUploadFile } from '@/lib/services/documents/upload-core';
 import { canManagerUploadOrderLess } from '@/lib/auth/documentChannelPolicy';
 import { listManagerCounterparties } from '@/lib/services/manager/counterparties';
+import { log } from '@/lib/logging';
 
 /**
  * Manager-facing upload service for order documents.
@@ -126,7 +127,7 @@ export async function createCounterpartyDocument(
       });
     }
   } catch (err) {
-    console.warn('[manager/uploads] recipient notify failed', {
+    log.warn('[manager/uploads] recipient notify failed', {
       documentId: persisted.documentId,
       recipient: args.recipient,
       error: err instanceof Error ? err.message : String(err)
@@ -210,7 +211,7 @@ export async function createManagerOrderLessDocument(
       });
     }
   } catch (err) {
-    console.warn('[manager/uploads] order-less notify failed', {
+    log.warn('[manager/uploads] order-less notify failed', {
       documentId: persisted.documentId,
       error: err instanceof Error ? err.message : String(err)
     });

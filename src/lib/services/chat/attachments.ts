@@ -5,6 +5,7 @@ import { canSeeThread } from './policy';
 import { getObjectStorage } from '@/lib/storage';
 import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
 import { maxFileSizeBytes } from '@/lib/config/upload';
+import { log } from '@/lib/logging';
 
 /**
  * Chat attachment upload + signed-URL download service.
@@ -101,7 +102,7 @@ export async function uploadChatAttachment(
       contentType: args.file.mimeType,
     });
   } catch (uploadError) {
-    console.error('[chat/attachments] storage upload failed', {
+    log.error('[chat/attachments] storage upload failed', {
       orderId: args.orderId,
       storagePath,
       providerError: uploadError instanceof Error ? uploadError.message : String(uploadError),
@@ -157,7 +158,7 @@ export async function getChatAttachmentSignedUrl(
     const url = await getObjectStorage().createSignedUrl(message.attachmentPath, 600);
     return { ok: true, url };
   } catch (error) {
-    console.error('[chat/attachments] failed to create signed URL', {
+    log.error('[chat/attachments] failed to create signed URL', {
       messageId,
       attachmentPath: message.attachmentPath,
       providerError: error instanceof Error ? error.message : String(error),

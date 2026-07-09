@@ -7,6 +7,7 @@ import {
   type LeadAttachmentFailure
 } from '@/lib/services/partner/leadAttachments';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
+import { log } from '@/lib/logging';
 
 function scopeOf(session: { assignedOrgIds?: string[] }): string[] | undefined {
   const arr = session.assignedOrgIds ?? [];
@@ -48,7 +49,7 @@ export async function DELETE(
     if (!result.ok) return mapFailureToResponse(result);
     return new NextResponse(null, { status: 204 });
   } catch (err) {
-    console.error('[partner/leads/attachments] delete failed unexpectedly', { attachmentId, err });
+    log.error('[partner/leads/attachments] delete failed unexpectedly', { attachmentId, err });
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }

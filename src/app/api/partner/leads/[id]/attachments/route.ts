@@ -8,6 +8,7 @@ import {
   type LeadAttachmentFailure
 } from '@/lib/services/partner/leadAttachments';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
+import { log } from '@/lib/logging';
 
 function scopeOf(session: { assignedOrgIds?: string[] }): string[] | undefined {
   const arr = session.assignedOrgIds ?? [];
@@ -64,7 +65,7 @@ export async function GET(
     if (!result.ok) return mapFailureToResponse(result);
     return NextResponse.json({ rows: result.rows });
   } catch (err) {
-    console.error('[partner/leads/attachments] list failed unexpectedly', { leadId: id, err });
+    log.error('[partner/leads/attachments] list failed unexpectedly', { leadId: id, err });
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }
@@ -118,7 +119,7 @@ export async function POST(
       { status: 201 }
     );
   } catch (err) {
-    console.error('[partner/leads/attachments] upload failed unexpectedly', { leadId: id, err });
+    log.error('[partner/leads/attachments] upload failed unexpectedly', { leadId: id, err });
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }

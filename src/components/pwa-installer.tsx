@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { clientLog } from '@/lib/logging/client';
 
 export function PwaInstaller() {
   useEffect(() => {
@@ -11,7 +12,7 @@ export function PwaInstaller() {
     if (typeof window === 'undefined') return;
     if (!('serviceWorker' in navigator)) return;
     navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch((err) => {
-      console.warn('[pwa] service worker registration failed', err);
+      clientLog.warn('[pwa] service worker registration failed', err);
     });
   }, []);
   return null;

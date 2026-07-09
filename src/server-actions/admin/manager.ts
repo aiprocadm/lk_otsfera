@@ -13,6 +13,7 @@ import {
 import { sendManagerInviteEmail } from '@/lib/email/send';
 import { setManagerRole } from '@/lib/services/admin/managerRole';
 import { assignOrderManager } from '@/lib/services/manager/distribution';
+import { log } from '@/lib/logging';
 
 export type AssignOrInviteManagerActionError =
   | 'validation'
@@ -83,7 +84,7 @@ export async function assignOrInviteManagerAction(
         invitedByName: session.name ?? undefined
       });
     } catch (e) {
-      console.warn('[admin/manager] send invite email failed', e);
+      log.warn('[admin/manager] send invite email failed', e);
     }
   }
 
@@ -143,12 +144,12 @@ export async function reactivateManagerAssignmentAction(
  */
 export async function deactivateManagerAssignmentFormAction(formData: FormData): Promise<void> {
   const result = await deactivateManagerAssignmentAction(formData);
-  if (!result.ok) console.warn('[admin/manager] deactivateManagerAssignmentFormAction failed', result);
+  if (!result.ok) log.warn('[admin/manager] deactivateManagerAssignmentFormAction failed', result);
 }
 
 export async function reactivateManagerAssignmentFormAction(formData: FormData): Promise<void> {
   const result = await reactivateManagerAssignmentAction(formData);
-  if (!result.ok) console.warn('[admin/manager] reactivateManagerAssignmentFormAction failed', result);
+  if (!result.ok) log.warn('[admin/manager] reactivateManagerAssignmentFormAction failed', result);
 }
 
 /**

@@ -4,6 +4,7 @@ import { getQueue, type QueueName } from '@/lib/jobs/queues';
 import { recordAudit } from '@/lib/auth/audit';
 import type { SyncJobPayload } from '@/lib/jobs/types';
 import { SYNC_SCHEDULES } from '@/lib/jobs/scheduling';
+import { log } from '@/lib/logging';
 
 export type SyncControlEntity = 'organization' | 'order' | 'payment' | 'document' | 'reconcile';
 
@@ -101,7 +102,7 @@ export async function triggerSync(
     entity: 'sync_state',
     entityId: entity,
     after: { jobId, queue: queueName },
-  }).catch((e) => console.warn('[syncControl] trigger audit failed', e));
+  }).catch((e) => log.warn('[syncControl] trigger audit failed', e));
   return { ok: true, jobId };
 }
 
@@ -152,6 +153,6 @@ export async function setSchedulePaused(
     action: paused ? 'sync_schedule_paused' : 'sync_schedule_resumed',
     entity: 'sync_schedule',
     entityId: schedulerId,
-  }).catch((e) => console.warn('[syncControl] pause audit failed', e));
+  }).catch((e) => log.warn('[syncControl] pause audit failed', e));
   return { ok: true, paused };
 }

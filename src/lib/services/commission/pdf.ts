@@ -2,6 +2,7 @@ import { renderToBuffer, Document, Page, Text, View, Image, StyleSheet } from '@
 import React from 'react';
 import QRCode from 'qrcode';
 import type { CommissionStatement, CommissionStatementItem } from '@prisma/client';
+import { log } from '@/lib/logging';
 
 export type RenderStatementPdfArgs = {
   statement: CommissionStatement;
@@ -159,7 +160,7 @@ async function generateQrDataUrl(verifyUrl: string | null): Promise<string | nul
       color: { dark: '#111111', light: '#ffffff' },
     });
   } catch (err) {
-    console.warn('[commission/pdf] QR generation failed; rendering PDF without it', {
+    log.warn('[commission/pdf] QR generation failed; rendering PDF without it', {
       verifyUrl,
       error: err instanceof Error ? err.message : String(err),
     });

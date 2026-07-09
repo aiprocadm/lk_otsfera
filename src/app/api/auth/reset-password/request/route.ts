@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { createInviteToken } from '@/lib/auth/passwordReset';
 import { send } from '@/lib/email/send';
 import { PasswordResetTemplate, passwordResetSubject, passwordResetText } from '@/lib/email/templates/password-reset';
+import { log } from '@/lib/logging';
 import * as React from 'react';
 
 // Dynamic import keeps react-dom/server out of the static module graph.
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
         text: passwordResetText(props),
       });
     } catch (err) {
-      console.error('[reset-password/request] email send failed', {
+      log.error('[reset-password/request] email send failed', {
         userId: user.id,
         error: err instanceof Error ? err.message : String(err),
       });

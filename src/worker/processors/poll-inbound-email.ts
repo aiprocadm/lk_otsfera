@@ -3,6 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { getInboundEmailAdapter } from '@/lib/inbound/email';
 import { ingestInboundMessage } from '@/lib/services/inbound/ingest';
+import { log } from '@/lib/logging';
 
 export type PollInboundEmailResult = {
   processed: number;
@@ -23,7 +24,7 @@ export async function pollInboundEmailProcessor(
       subject: m.subject,
       body: m.text
     }).catch((err) => {
-      console.warn('[poll-inbound-email] ingest failed', {
+      log.warn('[poll-inbound-email] ingest failed', {
         externalId: m.externalId,
         error: err instanceof Error ? err.message : String(err)
       });

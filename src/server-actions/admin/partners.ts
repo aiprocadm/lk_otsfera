@@ -12,6 +12,7 @@ import {
   type AdminPartnerErrorCode
 } from '@/lib/services/admin/partners';
 import { sendAdminUserInviteEmail } from '@/lib/email/send';
+import { log } from '@/lib/logging';
 
 type Failure = { ok: false; error: 'validation' | AdminPartnerErrorCode; details?: unknown };
 type Success<T> = T extends void ? { ok: true } : { ok: true } & T;
@@ -82,7 +83,7 @@ export async function createPartnerWithAdminAction(
       invitedByName: session.name ?? undefined
     });
   } catch (e) {
-    console.warn('[admin/partners] send invite email failed', e);
+    log.warn('[admin/partners] send invite email failed', e);
   }
 
   revalidatePath('/admin/partners');
@@ -141,15 +142,15 @@ export async function reactivatePartnerAction(fd: FormData): Promise<ActionResul
 // failures so they're traceable until these forms migrate to useActionState.
 export async function updatePartnerFormAction(fd: FormData): Promise<void> {
   const result = await updatePartnerAction(fd);
-  if (!result.ok) console.warn('[admin/partners] updatePartnerFormAction failed', result);
+  if (!result.ok) log.warn('[admin/partners] updatePartnerFormAction failed', result);
 }
 
 export async function deactivatePartnerFormAction(fd: FormData): Promise<void> {
   const result = await deactivatePartnerAction(fd);
-  if (!result.ok) console.warn('[admin/partners] deactivatePartnerFormAction failed', result);
+  if (!result.ok) log.warn('[admin/partners] deactivatePartnerFormAction failed', result);
 }
 
 export async function reactivatePartnerFormAction(fd: FormData): Promise<void> {
   const result = await reactivatePartnerAction(fd);
-  if (!result.ok) console.warn('[admin/partners] reactivatePartnerFormAction failed', result);
+  if (!result.ok) log.warn('[admin/partners] reactivatePartnerFormAction failed', result);
 }

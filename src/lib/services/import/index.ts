@@ -7,6 +7,7 @@ import { upsertOrderRecord, upsertPaymentRecord, type WriteCtx } from '@/lib/ser
 import { importScope } from '@/lib/services/oneCSync/scope';
 import { recordAudit } from '@/lib/auth/audit';
 import type { OneCOrderDto, OneCPaymentDto } from '@/lib/services/oneCSync/dto';
+import { log } from '@/lib/logging';
 
 type Args = { fileBuffer: Buffer };
 type Err = 'forbidden' | 'parse_failed' | 'empty';
@@ -40,6 +41,6 @@ export async function commitImport(prisma: PrismaClient, session: SessionPayload
   try { report = await run(prisma, session, args.fileBuffer, 'live'); }
   catch { return { ok: false, error: 'parse_failed' }; }
   try { await recordAudit(prisma, { userId: session.sub, action: 'one_c_import.commit', entity: 'one_c_import', entityId: session.companyId ?? session.sub, after: { orders: report.orders, payments: report.payments } }); }
-  catch (e) { console.error('one_c_import audit failed (non-blocking):', e); }
+  catch (e) { log.error('one_c_import audit failed (non-blocking):', e); }
   return { ok: true, report };
 }

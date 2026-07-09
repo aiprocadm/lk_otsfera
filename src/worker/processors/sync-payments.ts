@@ -11,6 +11,7 @@ import { runRecordBatch, batchStatus, type BatchSummary } from '@/lib/services/o
 import { oneCMode } from '@/lib/services/oneCSync/config';
 import { upsertPaymentRecord } from '@/lib/services/oneCSync/writers';
 import { capturePendingSkips, replayPendingRecords } from '@/lib/services/oneCSync/pending';
+import { log } from '@/lib/logging';
 
 export type SyncPaymentsResult = BatchSummary;
 
@@ -20,7 +21,7 @@ export async function syncPaymentsProcessor(
 ): Promise<SyncPaymentsResult> {
   const startedAt = Date.now();
   const mode = oneCMode();
-  console.log('[worker] sync-payments job started', { id: job.id, mode });
+  log.info('[worker] sync-payments job started', { id: job.id, mode });
 
   try {
     const adapter = getOneCAdapter();
@@ -49,7 +50,7 @@ export async function syncPaymentsProcessor(
         await capturePendingSkips(db, 'payment', raw, (dto) => (dto as OneCPaymentDto).externalId, summary);
         await replayPendingRecords(db, 'payment', { now: new Date() });
       } catch (e) {
-        console.warn('[sync-payment] pending capture/replay failed', e);
+        log.warn('[sync-payment] pending capture/replay failed', e);
       }
     }
 
@@ -69,7 +70,7 @@ export async function syncPaymentsProcessor(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await markCursorError(db, 'payment', message).catch((e) =>
-      console.warn('[sync-payments] markCursorError failed', e)
+      log.warn('[sync-payments] markCursorError failed', e)
     );
     await writeSyncLog(
       { entity: 'payment', direction: 'inbound', operation: 'skip', status: 'error', errorMessage: message, durationMs: Date.now() - startedAt },

@@ -7,6 +7,7 @@ import { getOrgDocumentForDownload } from '@/lib/services/organization/documents
 import { getObjectStorage } from '@/lib/storage';
 import { recordAudit } from '@/lib/auth/audit';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
+import { log } from '@/lib/logging';
 
 const MIN_TTL = 60;
 const MAX_TTL = 300;
@@ -55,7 +56,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   try {
     signedUrl = await getObjectStorage().createSignedUrl(result.path, ttl);
   } catch (error) {
-    console.error('Failed to create org document signed URL', {
+    log.error('Failed to create org document signed URL', {
       correlationId,
       documentId: id,
       storagePath: result.path,

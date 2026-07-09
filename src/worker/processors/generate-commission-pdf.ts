@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getObjectStorage } from '@/lib/storage';
 import { renderStatementPdf } from '@/lib/services/commission/pdf';
 import type { GenerateCommissionPdfPayload } from '@/lib/jobs/types';
+import { log } from '@/lib/logging';
 
 export type GenerateCommissionPdfResult = {
   statementId: string;
@@ -15,7 +16,7 @@ export async function generateCommissionPdfProcessor(
   db: PrismaClient = prisma
 ): Promise<GenerateCommissionPdfResult> {
   const { statementId } = job.data;
-  console.log('[worker] generate-commission-pdf started', { id: job.id, statementId });
+  log.info('[worker] generate-commission-pdf started', { id: job.id, statementId });
 
   const statement = await db.commissionStatement.findUnique({
     where: { id: statementId },

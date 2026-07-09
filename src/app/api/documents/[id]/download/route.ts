@@ -4,6 +4,7 @@ import { requireSession } from '@/lib/auth/guard';
 import { canReadDocument, forbiddenResponse } from '@/lib/auth/policy';
 import { getObjectStorage } from '@/lib/storage';
 import { recordAudit } from '@/lib/auth/audit';
+import { log } from '@/lib/logging';
 
 const MIN_TTL = 60;
 const MAX_TTL = 300;
@@ -44,7 +45,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   try {
     signedUrl = await getObjectStorage().createSignedUrl(doc.path, ttl);
   } catch (error) {
-    console.error('Failed to create document signed URL', {
+    log.error('Failed to create document signed URL', {
       correlationId,
       documentId: doc.id,
       storagePath: doc.path,

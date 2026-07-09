@@ -3,6 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import type { SyncJobPayload } from '@/lib/jobs/types';
 import { writeSyncLog, type SyncLogEntity } from '@/lib/services/oneCSync/log';
+import { log } from '@/lib/logging';
 
 const TRACKED_ENTITIES: ReadonlyArray<Extract<SyncLogEntity, 'order' | 'payment' | 'document' | 'organization'>> = [
   'organization',
@@ -25,7 +26,7 @@ export async function syncReconcileProcessor(
   db: PrismaClient = prisma
 ): Promise<SyncReconcileResult> {
   const startedAt = Date.now();
-  console.log('[worker] sync-reconcile job started', { id: job.id });
+  log.info('[worker] sync-reconcile job started', { id: job.id });
 
   const since = new Date(Date.now() - RECONCILE_WINDOW_MS);
   const fresh: SyncLogEntity[] = [];

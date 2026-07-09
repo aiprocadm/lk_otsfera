@@ -3,6 +3,7 @@ import { resolveInboundSender } from './resolve';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
+import { log } from '@/lib/logging';
 
 export type InboundDto = {
   channel: 'telegram' | 'max' | 'whatsapp' | 'email';
@@ -77,7 +78,7 @@ export async function ingestInboundMessage(prisma: PrismaClient, dto: InboundDto
       const payload: ScanDocumentPayload = { kind: 'inbound_attachment', id: row.id };
       await getQueue('docs.scanDocument').add('scan', payload);
     } catch (err) {
-      console.warn('[inbound/ingest] enqueue scan failed', {
+      log.warn('[inbound/ingest] enqueue scan failed', {
         inboundMessageId: row.id,
         error: err instanceof Error ? err.message : String(err),
       });

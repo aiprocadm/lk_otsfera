@@ -13,6 +13,7 @@ import { recordAudit } from '@/lib/auth/audit';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { INFECTED_HIDDEN_WHERE } from '@/lib/services/scan/visibility';
+import { log } from '@/lib/logging';
 
 const DELETABLE_STATUSES: LeadStatus[] = ['new', 'in_review'];
 
@@ -174,7 +175,7 @@ export async function uploadLeadAttachment(
         const payload: ScanDocumentPayload = { kind: 'leadAttachment', id: attachment.id };
         await getQueue('docs.scanDocument').add('scan', payload);
       } catch (err) {
-        console.warn('[leadAttachments] enqueue scan failed', {
+        log.warn('[leadAttachments] enqueue scan failed', {
           attachmentId: attachment.id,
           error: err instanceof Error ? err.message : String(err)
         });
