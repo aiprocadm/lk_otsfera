@@ -27,8 +27,7 @@ function periodLabel(from: Date, to: Date): string {
   return `${f.toLocaleDateString('ru-RU')} — ${t.toLocaleDateString('ru-RU')}`;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function renderStatementXlsx(args: RenderStatementXlsxArgs): Promise<any> {
+export async function renderStatementXlsx(args: RenderStatementXlsxArgs): Promise<Buffer> {
   const { statement, items, partner } = args;
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Промтехносфера';
@@ -115,5 +114,7 @@ export async function renderStatementXlsx(args: RenderStatementXlsxArgs): Promis
     }
   });
 
-  return wb.xlsx.writeBuffer();
+  // Типы ExcelJS объявляют writeBuffer() под DOM-ArrayBuffer; в Node рантайме
+  // возвращается Node Buffer (зеркало каста в import/load-xlsx.ts).
+  return (await wb.xlsx.writeBuffer()) as unknown as Buffer;
 }

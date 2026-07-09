@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import ExcelJS from 'exceljs';
 import { renderStatementXlsx } from '@/lib/services/commission/xlsx';
+import { loadXlsxWorkbook } from '@/lib/services/import/load-xlsx';
 
 const baseStatement = {
   id: 'stmt-1',
@@ -43,8 +43,7 @@ describe('renderStatementXlsx', () => {
 
   it('Items sheet has N+1 rows (header + items)', async () => {
     const buf = await renderStatementXlsx({ statement: baseStatement as any, items: baseItems as any, partner });
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buf);
+    const wb = await loadXlsxWorkbook(buf);
     const sheet = wb.getWorksheet('Items');
     expect(sheet).toBeDefined();
     // header row + 2 items
@@ -53,8 +52,7 @@ describe('renderStatementXlsx', () => {
 
   it('Summary sheet exists with partner name', async () => {
     const buf = await renderStatementXlsx({ statement: baseStatement as any, items: baseItems as any, partner });
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buf);
+    const wb = await loadXlsxWorkbook(buf);
     const summary = wb.getWorksheet('Summary');
     expect(summary).toBeDefined();
     // First column contains field labels, second column contains values
@@ -69,8 +67,7 @@ describe('renderStatementXlsx', () => {
       items: [],
       partner,
     });
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buf);
+    const wb = await loadXlsxWorkbook(buf);
     const sheet = wb.getWorksheet('Items');
     // header row only
     expect(sheet!.rowCount).toBe(1);

@@ -3,10 +3,11 @@
  * Covers the branches missed by the integration test.
  */
 import { describe, it, expect, vi } from 'vitest';
+import { Prisma } from '@prisma/client';
 import { getOrgCard } from '@/lib/services/partner/orgCard';
 
 function dec(n: number) {
-  return { toFixed: (d: number) => n.toFixed(d), toString: () => String(n) };
+  return new Prisma.Decimal(n);
 }
 
 function makePrisma(org: object | null, orders: object[] = []) {

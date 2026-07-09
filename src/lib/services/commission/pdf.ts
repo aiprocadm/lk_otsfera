@@ -170,6 +170,6 @@ async function generateQrDataUrl(verifyUrl: string | null): Promise<string | nul
 export async function renderStatementPdf(args: RenderStatementPdfArgs): Promise<Buffer> {
   const qrDataUrl = await generateQrDataUrl(args.verifyUrl);
   const element = React.createElement(StatementDocument, { ...args, qrDataUrl });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- renderToBuffer ожидает ReactElement<DocumentProps> из типов @react-pdf; элемент StatementDocument совместим в рантайме, но не по номинальным типам React 19
   return renderToBuffer(element as any);
 }

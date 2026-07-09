@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import { fmtMoney } from '@/lib/format';
 
@@ -60,7 +61,7 @@ export async function kpis(
     where: { id: scope.partnerId },
     select: { commissionRate: true }
   });
-  const rate = Number(partner?.commissionRate ?? 0);
+  const rate = partner?.commissionRate ?? new Prisma.Decimal(0);
 
   const [openOrders, outstandingOrders, activeLeads, paidThisMonth] = await Promise.all([
     prisma.order.count({
@@ -82,17 +83,23 @@ export async function kpis(
         financialStatus: 'paid',
         paidAt: { gte: startOfThisMonth(), lt: startOfNextMonth() }
       },
-      select: { totalAmount: true }
+      select: { totalAmount: true, organization: { select: { partnerCommissionRate: true } } }
     })
   ]);
 
+  // Деньги — на Decimal (канон §1 ТЗ): накопление сумм и умножение на ставку
+  // не должны проходить через JS number.
   const outstanding = outstandingOrders.reduce(
-    (sum, o) => sum + Number(o.totalAmount) - Number(o.paidAmount),
-    0
+    (sum, o) => sum.plus(o.totalAmount).minus(o.paidAmount),
+    new Prisma.Decimal(0)
   );
+  // §6.2 ТЗ: приоритет ставки — индивидуальная ставка организации (договорная
+  // скидка) → дефолт партнёра. Историческая ставка по дате платежа тут
+  // сознательно не применяется: это live-оценка по заказам (та же семантика,
+  // что у getOrgIntermediaryCommission), а не канонический стейтмент.
   const commission = paidThisMonth.reduce(
-    (sum, o) => sum + Number(o.totalAmount) * rate,
-    0
+    (sum, o) => sum.plus(o.totalAmount.mul(o.organization.partnerCommissionRate ?? rate)),
+    new Prisma.Decimal(0)
   );
 
   return {

@@ -62,29 +62,37 @@ export async function listPartners(
     prisma.partner.count({ where })
   ]);
 
-  const rows: PartnerRow[] = await Promise.all(
-    partners.map(async (p) => {
-      const [activeOrgCount, paidAgg] = await Promise.all([
-        prisma.organization.count({
-          where: { partnerId: p.id }
+  // Batched aggregates: 2 groupBy queries for the whole page instead of 2×N.
+  const ids = partners.map((p) => p.id);
+  const [orgCounts, paidAggs] = ids.length
+    ? await Promise.all([
+        prisma.organization.groupBy({
+          by: ['partnerId'],
+          where: { partnerId: { in: ids } },
+          _count: true
         }),
-        prisma.commissionStatement.aggregate({
-          where: { partnerId: p.id, status: 'paid', paidAt: { gte: yearStart } },
+        prisma.commissionStatement.groupBy({
+          by: ['partnerId'],
+          where: { partnerId: { in: ids }, status: 'paid', paidAt: { gte: yearStart } },
           _sum: { totalCommissionAmount: true }
         })
-      ]);
-      const rate = Number(p.commissionRate);
-      return {
-        id: p.id,
-        name: p.name,
-        slug: p.slug ?? '',
-        commissionRate: rate === 0 ? null : rate,
-        isActive: p.isActive,
-        activeOrgCount,
-        paidYTD: (paidAgg._sum.totalCommissionAmount ?? new Prisma.Decimal(0)).toString()
-      };
-    })
-  );
+      ])
+    : [[], []];
+  const orgCountByPartner = new Map(orgCounts.map((r) => [r.partnerId, r._count]));
+  const paidByPartner = new Map(paidAggs.map((r) => [r.partnerId, r._sum.totalCommissionAmount]));
+
+  const rows: PartnerRow[] = partners.map((p) => {
+    const rate = Number(p.commissionRate);
+    return {
+      id: p.id,
+      name: p.name,
+      slug: p.slug ?? '',
+      commissionRate: rate === 0 ? null : rate,
+      isActive: p.isActive,
+      activeOrgCount: orgCountByPartner.get(p.id) ?? 0,
+      paidYTD: (paidByPartner.get(p.id) ?? new Prisma.Decimal(0)).toString()
+    };
+  });
 
   return { rows, total };
 }

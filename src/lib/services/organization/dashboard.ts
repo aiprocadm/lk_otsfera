@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import { organizationChannelWhere } from '@/lib/auth/documentChannelPolicy';
 import { fmtMoney } from '@/lib/format';
@@ -66,8 +67,8 @@ export async function kpis(
   ]);
 
   const outstanding = outstandingOrders.reduce(
-    (sum, o) => sum + Number(o.totalAmount) - Number(o.paidAmount),
-    0
+    (sum, o) => sum.plus(o.totalAmount).minus(o.paidAmount),
+    new Prisma.Decimal(0)
   );
 
   return {
@@ -132,7 +133,7 @@ export async function attention(
       kind: 'billed_unpaid',
       orderId: o.id,
       title: `Счёт по заказу ${o.orderNumber ?? o.title} ждёт оплаты`,
-      meta: fmtMoney(Number(o.totalAmount) - Number(o.paidAmount)),
+      meta: fmtMoney(o.totalAmount.minus(o.paidAmount).toNumber()),
       severity: 'urgent'
     })),
     ...unsignedActs.map((d): OrgAttentionItem => ({

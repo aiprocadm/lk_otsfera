@@ -40,10 +40,10 @@ function makePrisma(overrides: Record<string, unknown> = {}) {
       count: vi.fn().mockResolvedValue(0)
     },
     organization: {
-      count: vi.fn().mockResolvedValue(0)
+      groupBy: vi.fn().mockResolvedValue([])
     },
     commissionStatement: {
-      aggregate: vi.fn().mockResolvedValue({ _sum: { totalCommissionAmount: null } })
+      groupBy: vi.fn().mockResolvedValue([])
     },
     ...overrides
   } as unknown as PrismaClient;
@@ -203,17 +203,20 @@ describe('listPartners()', () => {
     const partner = makePartner();
     const partnerFindMany = vi.fn().mockResolvedValue([partner]);
     const partnerCount = vi.fn().mockResolvedValue(1);
-    const orgCount = vi.fn().mockResolvedValue(3);
+    const orgGroupBy = vi.fn().mockResolvedValue([{ partnerId: 'p1', _count: 3 }]);
     const prisma = makePrisma({
       partner: { findMany: partnerFindMany, count: partnerCount },
-      organization: { count: orgCount }
+      organization: { groupBy: orgGroupBy }
     });
 
     const result = await listPartners(prisma, {});
 
-    expect(orgCount).toHaveBeenCalledWith({
-      where: { partnerId: 'p1' }
-    });
+    expect(orgGroupBy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        by: ['partnerId'],
+        where: { partnerId: { in: ['p1'] } }
+      })
+    );
     expect(result.rows[0].activeOrgCount).toBe(3);
   });
 
@@ -221,19 +224,20 @@ describe('listPartners()', () => {
     const partner = makePartner();
     const partnerFindMany = vi.fn().mockResolvedValue([partner]);
     const partnerCount = vi.fn().mockResolvedValue(1);
-    const csAggregate = vi.fn().mockResolvedValue({
-      _sum: { totalCommissionAmount: new Prisma.Decimal('12500.00') }
-    });
+    const csGroupBy = vi.fn().mockResolvedValue([
+      { partnerId: 'p1', _sum: { totalCommissionAmount: new Prisma.Decimal('12500.00') } }
+    ]);
     const prisma = makePrisma({
       partner: { findMany: partnerFindMany, count: partnerCount },
-      commissionStatement: { aggregate: csAggregate }
+      commissionStatement: { groupBy: csGroupBy }
     });
 
     const result = await listPartners(prisma, {});
 
-    expect(csAggregate).toHaveBeenCalledWith(
+    expect(csGroupBy).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ partnerId: 'p1', status: 'paid' })
+        by: ['partnerId'],
+        where: expect.objectContaining({ partnerId: { in: ['p1'] }, status: 'paid' })
       })
     );
     // Prisma.Decimal.toString() strips trailing zeros: '12500.00' → '12500'

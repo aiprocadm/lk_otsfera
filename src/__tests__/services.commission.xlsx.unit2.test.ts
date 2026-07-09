@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import ExcelJS from 'exceljs';
 import { renderStatementXlsx } from '@/lib/services/commission/xlsx';
+import { loadXlsxWorkbook } from '@/lib/services/import/load-xlsx';
 
 const baseStatement = {
   id: 'stmt-2',
@@ -31,8 +32,7 @@ describe('renderStatementXlsx — safeText & edge branches', () => {
       },
     ];
     const buf = await renderStatementXlsx({ statement: baseStatement as never, items: items as never, partner: { name: 'П' } });
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buf);
+    const wb = await loadXlsxWorkbook(buf);
     const sheet = wb.getWorksheet('Items');
     // Data row is row 2 (row 1 = header), col 2 = orderNumber
     const orderNumberCell = sheet!.getRow(2).getCell(2).value;
@@ -52,8 +52,7 @@ describe('renderStatementXlsx — safeText & edge branches', () => {
       },
     ];
     const buf = await renderStatementXlsx({ statement: baseStatement as never, items: items as never, partner: { name: 'П' } });
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buf);
+    const wb = await loadXlsxWorkbook(buf);
     const sheet = wb.getWorksheet('Items');
     // col 2 = orderNumber
     const cell = sheet!.getRow(2).getCell(2).value;
@@ -86,8 +85,7 @@ describe('renderStatementXlsx — safeText & edge branches', () => {
       { id: 'i2', orderNumber: 'B', organizationName: 'O2', baseAmount: 200 as never, rate: 0.1 as never, commissionAmount: 20 as never },
     ];
     const buf = await renderStatementXlsx({ statement: baseStatement as never, items: items as never, partner: { name: 'П' } });
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buf);
+    const wb = await loadXlsxWorkbook(buf);
     const sheet = wb.getWorksheet('Items');
     // Row 2 = idx 0 (not shaded), Row 3 = idx 1 (shaded with FFF9FAFB)
     const fill3 = sheet!.getRow(3).getCell(2).fill as ExcelJS.FillPattern | undefined;
@@ -103,8 +101,7 @@ describe('renderStatementXlsx — safeText & edge branches', () => {
 
   it('Summary sheet: "Средняя ставка" row has percent numFmt', async () => {
     const buf = await renderStatementXlsx({ statement: baseStatement as never, items: [], partner: { name: 'TestPartner' } });
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buf);
+    const wb = await loadXlsxWorkbook(buf);
     const summary = wb.getWorksheet('Summary');
     expect(summary).toBeDefined();
 
@@ -121,8 +118,7 @@ describe('renderStatementXlsx — safeText & edge branches', () => {
 
   it('Summary sheet: "Итого база, ₽" row has currency numFmt', async () => {
     const buf = await renderStatementXlsx({ statement: baseStatement as never, items: [], partner: { name: 'TestPartner' } });
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buf);
+    const wb = await loadXlsxWorkbook(buf);
     const summary = wb.getWorksheet('Summary');
 
     let currencyNumFmt: string | undefined;
@@ -141,8 +137,7 @@ describe('renderStatementXlsx — safeText & edge branches', () => {
       items: [],
       partner: { name: '@SUM(evil)' },
     });
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buf);
+    const wb = await loadXlsxWorkbook(buf);
     const summary = wb.getWorksheet('Summary');
 
     // Find the "Партнёр" row and check its value
@@ -164,8 +159,7 @@ describe('renderStatementXlsx — safeText & edge branches', () => {
       { id: 'i1', orderNumber: 'N1', organizationName: 'Org', baseAmount: 100 as never, rate: 0.1 as never, commissionAmount: 10 as never },
     ];
     const buf = await renderStatementXlsx({ statement: baseStatement as never, items: items as never, partner: { name: 'П' } });
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buf);
+    const wb = await loadXlsxWorkbook(buf);
     const sheet = wb.getWorksheet('Items');
     // autoFilter should be set when items > 0
     expect(sheet!.autoFilter).toBeDefined();
@@ -173,8 +167,7 @@ describe('renderStatementXlsx — safeText & edge branches', () => {
 
   it('no auto-filter when items is empty', async () => {
     const buf = await renderStatementXlsx({ statement: baseStatement as never, items: [], partner: { name: 'П' } });
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buf);
+    const wb = await loadXlsxWorkbook(buf);
     const sheet = wb.getWorksheet('Items');
     // autoFilter should NOT be set when no items (undefined or null)
     expect(sheet!.autoFilter == null).toBe(true);
