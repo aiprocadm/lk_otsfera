@@ -25,6 +25,19 @@ export function orgInScope(
   return target.id != null && scope.allowedOrgIds.includes(target.id);
 }
 
+/**
+ * May this scope mint a BRAND-NEW org — which necessarily also mints a NEW Company
+ * (upsertOrgRecord's create branch)? Only the unscoped headless worker (scope
+ * undefined) or an admin (kind:'global', Model A) may. A company- or org-scoped
+ * actor (manager-leader / plain manager) creating here would attach the org to a
+ * new company that is, by construction, NOT their own — a cross-company write. This
+ * writer has no "create in my own company" path, so scoped actors are denied
+ * outright (C8). Mirrors the intent of the pre-#192 `mayCreateOrgs` flag.
+ */
+export function mayCreateOrg(scope: ImportScope | undefined): boolean {
+  return !scope || scope.kind === 'global';
+}
+
 export async function upsertOrderRecord(db: PrismaClient, dto: OneCOrderDto, sum: BatchSummary, ctx: WriteCtx) {
   const input = mapOrderDto(dto);
   const org = await resolveOrganizationRef(db, { externalId: input.organizationExternalId, inn: input.organizationInn });
@@ -147,6 +160,11 @@ export async function upsertOrgRecord(db: PrismaClient, dto: OneCOrgDto, sum: Ba
     existing = await db.organization.findFirst({ where: { inn: input.inn }, select: { id: true, companyId: true, externalId: true } });
   }
   if (existing) {
+    // C8: floor the update on the matched org's OWN company (mirrors the order/
+    // payment writers). A scoped actor may only mutate orgs inside its scope.
+    if (!orgInScope(ctx.scope, { id: existing.id, companyId: existing.companyId })) {
+      sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'out_of_scope' }); return;
+    }
     if (isLive(ctx)) {
       // Backfill the 1C externalId only when the matched org has none — never clobber a different identity.
       const data = input.externalId && !existing.externalId
@@ -156,6 +174,11 @@ export async function upsertOrgRecord(db: PrismaClient, dto: OneCOrgDto, sum: Ba
     }
     sum.updated += 1; ctx.bump?.(dto.updatedAt);
   } else {
+    // C8: creating a brand-new org mints a NEW company (cross-company by
+    // construction) — only admin/global or the unscoped worker may create.
+    if (!mayCreateOrg(ctx.scope)) {
+      sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'out_of_scope' }); return;
+    }
     if (isLive(ctx)) {
       await db.$transaction(async (tx) => {
         const company = await tx.company.create({ data: { name: input.name } });
@@ -168,8 +191,14 @@ export async function upsertOrgRecord(db: PrismaClient, dto: OneCOrgDto, sum: Ba
 
 export async function upsertDocumentRecord(db: PrismaClient, dto: OneCDocumentDto, sum: BatchSummary, ctx: WriteCtx) {
   const input = mapDocumentDto(dto);
-  const order = await db.order.findUnique({ where: { externalId: input.orderExternalId }, select: { id: true, organizationId: true, orderNumber: true, title: true } });
+  const order = await db.order.findUnique({ where: { externalId: input.orderExternalId }, select: { id: true, organizationId: true, companyId: true, orderNumber: true, title: true } });
   if (!order) { sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'order_not_found' }); return; }
+  // C8: floor the document on its order's OWN company (Order.companyId is required),
+  // so a company-scoped leader cannot attach a doc to another company's order.
+  // Mirrors upsertPaymentRecord's order-linked branch.
+  if (!orgInScope(ctx.scope, { id: order.organizationId, companyId: order.companyId })) {
+    sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'out_of_scope' }); return;
+  }
   const existing = await db.document.findUnique({ where: { externalId: input.externalId }, select: { id: true } });
   // path is NOT a 1C-owned field: it is the object-storage key set at creation
   // (DOC-03). Updates only refresh metadata and never touch path.
