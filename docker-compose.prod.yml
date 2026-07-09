@@ -3,6 +3,16 @@
 # is terminated by the `caddy` service (SP3); web stays on loopback and is reached
 # by caddy over the internal compose network.
 services:
+  # R0.3: one-shot миграции ДО старта приложений — `docker compose up` больше
+  # не полагается на ручной шаг `prisma migrate deploy` из runbook (шаг остаётся
+  # в runbook как объяснение, но забыть его теперь нельзя: web/worker ждут
+  # успешного завершения этого сервиса).
+  migrate:
+    image: lk-otsfera:prod
+    command: ["npx", "prisma", "migrate", "deploy"]
+    env_file: .env.production
+    restart: "no"
+
   web:
     image: lk-otsfera:prod
     command: ["npm", "run", "start"]
@@ -11,6 +21,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
@@ -26,6 +38,18 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # R1.1: без override воркер наследует HTTP-healthcheck образа (порт 3000),
+    # который у него никогда не отвечает → вечный unhealthy (ложный сигнал).
+    # Честный liveness — свежесть heartbeat-файла (voркер трогает его каждые
+    # 60с, см. src/worker/index.ts startHeartbeat): старше 3 мин → unhealthy.
+    healthcheck:
+      test: ["CMD", "node", "-e", "const s=require('fs').statSync('/tmp/worker-heartbeat');process.exit(Date.now()-s.mtimeMs<180000?0:1)"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
   redis:

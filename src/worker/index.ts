@@ -1,6 +1,10 @@
 import { Worker, type Processor } from 'bullmq';
 import * as Sentry from '@sentry/node';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { assertEnvOnBoot } from '@/lib/env';
+import { runBackfill } from '@/lib/services/scan/backfill';
 import { log } from '@/lib/logging';
 import { scrubSentryEvent } from '@/lib/logging/scrub';
 import { getRedisConnection, closeRedisConnection } from '@/lib/jobs/connection';
@@ -61,8 +65,59 @@ function startWorker<T = unknown>(queueName: QueueName, processor: Processor<T>)
       });
     }
   });
+  // R1.4: run-loop ошибки BullMQ (например, обрыв Redis между джобами) —
+  // EventEmitter без слушателя 'error' уронил бы процесс uncaughtException'ом.
+  worker.on('error', (err) => {
+    log.error(`[worker] ${queueName} runtime error`, { error: err.message });
+    Sentry.captureException(err, { tags: { queue: queueName, kind: 'worker-error' } });
+  });
   workers.push(worker);
   return worker;
+}
+
+/**
+ * R1.1: honest-liveness воркера. Раз в 60с трогаем heartbeat-файл; compose
+ * healthcheck воркера проверяет его свежесть (<3 мин). Ошибка записи не должна
+ * ронять воркер — только лог (протухший файл сам по себе просигналит unhealthy).
+ */
+function startHeartbeat(): void {
+  const file = process.env.WORKER_HEARTBEAT_FILE ?? join(tmpdir(), 'worker-heartbeat');
+  const touch = () => {
+    try {
+      writeFileSync(file, String(Date.now()));
+    } catch (e) {
+      log.warn('[worker] heartbeat write failed', {
+        file,
+        error: e instanceof Error ? e.message : String(e)
+      });
+    }
+  };
+  touch();
+  setInterval(touch, 60_000).unref();
+}
+
+/**
+ * R1.4: scan-backfill sweep. runBackfill — страховка, на которую ссылаются
+ * комментарии scan-document («backfill sweep подберёт»), но которую до сих пор
+ * никто не вызывал в проде: документ с упавшим enqueue навсегда застревал в
+ * scanStatus=pending. Час — компромисс между скоростью подбора и нагрузкой;
+ * сам свип идемпотентен (WHERE pending пропускает обработанные строки).
+ */
+function startScanBackfillSweep(): void {
+  const sweep = async () => {
+    try {
+      // Явный queue-аргумент: default-параметр runBackfill зовёт getQueue()
+      // синхронно и бросил бы без REDIS_URL прямо из планировщика.
+      const result = await runBackfill(prisma, getQueue('docs.scanDocument'));
+      if (result.enqueued > 0) log.info('[worker] scan-backfill sweep enqueued', result);
+    } catch (e) {
+      log.error('[worker] scan-backfill sweep failed', {
+        error: e instanceof Error ? e.message : String(e)
+      });
+    }
+  };
+  void sweep();
+  setInterval(() => void sweep(), 60 * 60 * 1000).unref();
 }
 
 async function main() {
@@ -122,6 +177,11 @@ async function main() {
     log.info('[worker] ENABLE_SYNC_CRON!=1 — cron schedules NOT registered (hot standby mode)');
   }
 
+  startHeartbeat();
+  if (process.env.ENABLE_SYNC_CRON === '1') {
+    startScanBackfillSweep();
+  }
+
   log.info('[worker] ready, listening on queues');
 }
 
@@ -135,6 +195,23 @@ async function shutdown(signal: string) {
 
 process.on('SIGINT', () => void shutdown('SIGINT'));
 process.on('SIGTERM', () => void shutdown('SIGTERM'));
+
+// R1.4: process-level страховки. unhandledRejection — лог + Sentry, процесс
+// живёт (BullMQ-воркеры независимы, а дефолт Node уронил бы процесс без
+// репорта). uncaughtException — состояние процесса неизвестно: репортим,
+// флашим и выходим 1 под restart:unless-stopped.
+process.on('unhandledRejection', (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  log.error('[worker] unhandled rejection', { error: err.message });
+  Sentry.captureException(err, { tags: { kind: 'unhandled-rejection' } });
+});
+process.on('uncaughtException', (err) => {
+  log.error('[worker] uncaught exception — exiting', { error: err.message });
+  Sentry.captureException(err, { tags: { kind: 'uncaught-exception' } });
+  void Sentry.flush(2000)
+    .catch(() => {})
+    .finally(() => process.exit(1));
+});
 
 main().catch(async (err) => {
   log.error('[worker] fatal error', err);
