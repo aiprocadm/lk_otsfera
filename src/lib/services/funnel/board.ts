@@ -9,7 +9,17 @@ import { promoteLead, rejectLead, setLeadStatus } from '@/lib/services/manager/l
  * (словарь `FunnelStage` или дефолты), в рамках leads-охвата профиля (G1).
  * `moveFunnelLead` — единая точка перемещения карточки: диспетчер поверх
  * существующего lead-lifecycle (`setLeadStatus`/`promoteLead`/`rejectLead`).
+ *
+ * §4 (внутренний контур): воронка — инструмент сотрудников. Staff-гейт
+ * (admin|manager) — на service-слое, по образцу tasks/staffGate: middleware и
+ * page-гарды режут клиентские роли раньше, но canSeeLead без accessProfile
+ * возвращает true team-wide и роль не проверяет — без этого гейта
+ * partner/organization-сессия с заполненным companyId прошла бы в мутацию.
  */
+
+function isStaff(session: SessionPayload): boolean {
+  return session.role === 'admin' || session.role === 'manager';
+}
 
 export type FunnelCard = {
   id: string;
@@ -30,6 +40,8 @@ const CARD_INCLUDE = {
 } as const;
 
 export async function getFunnelBoard(prisma: PrismaClient, session: SessionPayload): Promise<FunnelBoard> {
+  // Клиентская роль → пустая доска (не leak-аем ни лиды, ни словарь стадий).
+  if (!isStaff(session)) return { stages: [], columns: [] };
   const stages = await resolveFunnelStages(prisma, session.companyId ?? '');
   const where = session.accessProfile ? leadWhereForLevel(session, session.accessProfile.leads) : {};
 
@@ -76,7 +88,7 @@ export async function moveFunnelLead(
   session: SessionPayload,
   args: { leadId: string; toStageId: string; reason?: string }
 ): Promise<{ ok: true } | { ok: false; error: MoveFunnelLeadError }> {
-  if (!session.companyId) return { ok: false, error: 'forbidden' };
+  if (!isStaff(session) || !session.companyId) return { ok: false, error: 'forbidden' };
 
   const stages = await resolveFunnelStages(prisma, session.companyId);
   const target = stages.find((s) => s.id === args.toStageId);

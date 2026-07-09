@@ -14,9 +14,10 @@ import {
 import type { LeadStatus } from '@prisma/client';
 
 /**
- * Трек G2.5 — server-actions воронки. Move-карточки доступен любому менеджеру
- * (сервис энфорсит leads-scope через canSeeLead); стадии-CRUD — сервис гейтит
- * admin|leader. Достаточно requireSession().
+ * Трек G2.5 — server-actions воронки. Move-карточки доступен любому менеджеру:
+ * сервис энфорсит staff-гейт admin|manager (board.ts isStaff) + leads-scope
+ * через canSeeLead; стадии-CRUD — сервис гейтит admin|leader. Поэтому здесь
+ * достаточно requireSession().
  */
 
 type ActionResult<E extends string> = { ok: true } | { ok: false; error: E };
