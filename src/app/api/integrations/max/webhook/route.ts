@@ -3,6 +3,7 @@ import { linkMaxByCode } from '@/lib/services/max/link';
 import { sendMaxMessage } from '@/lib/max/client';
 import { notFoundIfDisabled, isFeatureEnabled } from '@/lib/featureFlags';
 import { ingestInboundMessage } from '@/lib/services/inbound/ingest';
+import { log } from '@/lib/logging';
 
 /**
  * Webhook привязки Max (D3) — зеркало telegram-webhook. Гейтится флагом
@@ -40,9 +41,16 @@ export async function POST(req: Request): Promise<Response> {
         const reply = result.ok
           ? '✅ Уведомления привязаны к этому чату.'
           : 'Код недействителен или истёк.';
-        await sendMaxMessage(chatId, reply).catch(() => {});
-      } catch {
-        // Swallow — 200 ниже.
+        await sendMaxMessage(chatId, reply).catch((e: unknown) => {
+          log.warn('[webhook/max] reply send failed', {
+            error: e instanceof Error ? e.message : String(e)
+          });
+        });
+      } catch (e) {
+        // Swallow — 200 ниже. Код привязки НЕ логируем (§12).
+        log.error('[webhook/max] link handling failed', {
+          error: e instanceof Error ? e.message : String(e)
+        });
       }
     } else if (
       !isStart &&
@@ -61,7 +69,12 @@ export async function POST(req: Request): Promise<Response> {
         externalId: `max:${chatId}:${messageId}`,
         senderRef: chatId,
         body: text,
-      }).catch(() => {});
+      }).catch((e: unknown) => {
+        log.error('[webhook/max] ingest failed', {
+          externalId: `max:${chatId}:${messageId}`,
+          error: e instanceof Error ? e.message : String(e)
+        });
+      });
     }
   }
 

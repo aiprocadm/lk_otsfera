@@ -135,6 +135,17 @@ describe('POST /api/integrations/telegram/webhook — /start handling', () => {
     consoleInfoSpy.mockRestore();
   });
 
+  it('ошибка отправки ответа в telegram не превращается в 500 (best-effort, warn-лог)', async () => {
+    linkByCodeMock.mockResolvedValue({ ok: true });
+    sendTelegramMessageMock.mockRejectedValue(new Error('tg api down'));
+    const update = {
+      update_id: 105,
+      message: { text: '/start okcode', chat: { id: 777 } },
+    };
+    const res = await POST(makeRequest(update, WEBHOOK_SECRET));
+    expect(res.status).toBe(200);
+  });
+
   it('не логирует секрет вебхука', async () => {
     const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
