@@ -4,13 +4,28 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db/prisma';
 import { verifyAndConsumeToken } from '@/lib/auth/passwordReset';
 import { recordAudit } from '@/lib/auth/audit';
+import { isRateLimited } from '@/lib/rateLimit';
 
 const ConfirmSchema = z.object({
   token: z.string().min(1),
   newPassword: z.string().min(8),
 });
 
+// R0.6: без лимитера маршрут позволял неограниченный перебор reset-токенов
+// (и bcrypt.hash на каждый запрос — дешёвый CPU-DoS).
+const IP_LIMIT = { windowMs: 60 * 1000, max: 10 };
+
+function clientIp(req: NextRequest): string {
+  const fwd = req.headers.get('x-forwarded-for');
+  if (fwd) return fwd.split(',')[0]!.trim();
+  return req.headers.get('x-real-ip') ?? 'unknown';
+}
+
 export async function POST(req: NextRequest) {
+  if (await isRateLimited(`reset-confirm:ip:${clientIp(req)}`, IP_LIMIT)) {
+    return NextResponse.json({ error: 'too_many_requests' }, { status: 429 });
+  }
+
   let body: unknown;
   try {
     body = await req.json();

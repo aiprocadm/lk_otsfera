@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import bcrypt from 'bcryptjs';
 import { signToken, type OrganizationMembership } from '@/lib/auth/jwt';
 import { toSessionAccessProfile, type SessionAccessProfile } from '@/lib/auth/accessProfile';
+import { isRateLimited } from '@/lib/rateLimit';
 
 const DUMMY_BCRYPT_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
 
@@ -14,29 +15,12 @@ const loginSchema = z.object({
 
 const WINDOW_MS = Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS ?? 60_000);
 const MAX_ATTEMPTS = Number(process.env.LOGIN_RATE_LIMIT_MAX ?? 10);
-const MAX_RATE_LIMIT_ENTRIES = 10_000;
-const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 
-/* v8 ignore next 7 -- cleanupAttempts body triggered only when Map reaches 10 000 entries; not unit-testable */
-function cleanupAttempts(now: number) {
-  if (loginAttempts.size < MAX_RATE_LIMIT_ENTRIES) return;
-  for (const [key, entry] of loginAttempts) {
-    if (entry.resetAt <= now) loginAttempts.delete(key);
-  }
-}
-
-function isLoginRateLimited(key: string): boolean {
-  const now = Date.now();
-  cleanupAttempts(now);
-  const current = loginAttempts.get(key);
-  if (!current || current.resetAt <= now) {
-    loginAttempts.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return false;
-  }
-  current.count += 1;
-  return current.count > MAX_ATTEMPTS;
-}
-
+// Общий Redis-backed лимитер (@/lib/rateLimit): счётчик делится между всеми
+// инстансами и переживает cold start; при недоступном Redis сам деградирует
+// в in-memory. Ключ по IP: реальность x-forwarded-for обеспечивает
+// reverse-proxy (перезапись XFF — требование release-чеклиста, как и для
+// Mango IP-allowlist).
 function clientIp(req: Request): string {
   const headers = req.headers;
   const fwd = headers.get('x-forwarded-for');
@@ -47,7 +31,7 @@ function clientIp(req: Request): string {
 export async function POST(req: Request) {
   const ip = clientIp(req);
 
-  if (isLoginRateLimited(ip)) {
+  if (await isRateLimited(`login:${ip}`, { windowMs: WINDOW_MS, max: MAX_ATTEMPTS })) {
     return NextResponse.json(
       { code: 'TOO_MANY_REQUESTS', message: 'Too many login attempts. Try again later.' },
       { status: 429 }
