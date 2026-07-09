@@ -8,6 +8,12 @@
  *
  *   npm run gate         # up → migrate → seed → integration tests (leaves DB up)
  *   npm run gate:down    # stop the db/redis containers
+ *
+ * GATE_SKIP_DOCKER=1 skips the `docker compose up` + readiness wait: for
+ * environments where Postgres is provided externally (GitHub Actions service
+ * container). Pair with GATE_DATABASE_URL when the DSN differs from the
+ * localhost:5432 default. CI runs THIS script (not a YAML copy of its steps)
+ * so the server gate can't drift from the local L2.5 gate.
  */
 import { spawn, spawnSync } from 'node:child_process';
 
@@ -60,9 +66,13 @@ async function main(): Promise<void> {
     return;
   }
 
-  console.log('[gate] starting Dockerized Postgres…');
-  await run('docker', ['compose', 'up', '-d', 'db']);
-  await waitForPostgres();
+  if (process.env.GATE_SKIP_DOCKER === '1') {
+    console.log('[gate] GATE_SKIP_DOCKER=1 — assuming an externally provided Postgres.');
+  } else {
+    console.log('[gate] starting Dockerized Postgres…');
+    await run('docker', ['compose', 'up', '-d', 'db']);
+    await waitForPostgres();
+  }
 
   console.log('[gate] applying migrations…');
   await run('npm', ['run', 'prisma:migrate:deploy']);

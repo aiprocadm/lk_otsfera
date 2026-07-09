@@ -4,6 +4,7 @@ import { jwtVerify } from 'jose';
 import { protectedPrefixes, roleHome } from '@/lib/auth/access';
 import type { Role } from '@/lib/auth/jwt';
 import { isFeatureEnabled, type FeatureFlag } from '@/lib/featureFlags';
+import { edgeLog } from '@/lib/logging/edge';
 
 const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   { prefix: '/partner/leads', flag: 'partner_leads' },
@@ -40,7 +41,7 @@ function getJwtSecret() {
   const jwtSecret = process.env.JWT_SECRET?.trim();
   if (!jwtSecret) return null;
   if (jwtSecret.length < MIN_JWT_SECRET_LENGTH) {
-    console.error('[auth] JWT_SECRET is too short; require at least', MIN_JWT_SECRET_LENGTH, 'chars');
+    edgeLog.error('[auth] JWT_SECRET is too short; require at least', MIN_JWT_SECRET_LENGTH, 'chars');
     return null;
   }
   return new TextEncoder().encode(jwtSecret);
@@ -58,7 +59,7 @@ export async function middleware(req: NextRequest) {
 
   const secret = getJwtSecret();
   if (!secret) {
-    console.error('[auth] JWT secret is not configured; redirecting to /login');
+    edgeLog.error('[auth] JWT secret is not configured; redirecting to /login');
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
