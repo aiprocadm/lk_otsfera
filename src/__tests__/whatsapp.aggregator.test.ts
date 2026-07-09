@@ -7,6 +7,7 @@ import {
   isWhatsAppEnabled,
   sendWhatsAppMessage,
   whatsappAggregatorBaseUrl,
+  parseWazzupInbound,
 } from '@/lib/whatsapp/aggregator';
 
 const ENV = [
@@ -108,5 +109,53 @@ describe('sendWhatsAppMessage', () => {
     vi.stubGlobal('fetch', fetchMock);
     await sendWhatsAppMessage('+79991234567', 'hi');
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('parseWazzupInbound — defensive parsing of untrusted JSON', () => {
+  it('nullish/малформленный body → []', () => {
+    expect(parseWazzupInbound(null)).toEqual([]);
+    expect(parseWazzupInbound(undefined)).toEqual([]);
+    expect(parseWazzupInbound({})).toEqual([]);
+    expect(parseWazzupInbound({ messages: 'not-array' })).toEqual([]);
+  });
+
+  it('фильтрует эхо, null-элементы, примитивы и элементы без строковых messageId/text', () => {
+    const out = parseWazzupInbound({
+      messages: [
+        null,
+        'garbage',
+        { messageId: 42, chatId: '79990001122', text: 'нет' },
+        { messageId: 'ok-echo', chatId: '79990001122', text: 'наше же', isEcho: true },
+        { messageId: 'no-text', chatId: '79990001122', text: 123 },
+        { messageId: 'real', chatId: 79990001122, text: 'привет' }
+      ]
+    });
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ externalId: 'wa:real', phone: '+79990001122', text: 'привет' });
+  });
+
+  it('contact.name строка → name; иначе undefined', () => {
+    const [withName] = parseWazzupInbound({
+      messages: [{ messageId: 'm1', chatId: '7999', text: 'а', contact: { name: 'Ольга' } }]
+    });
+    expect(withName.name).toBe('Ольга');
+
+    const [noContact] = parseWazzupInbound({
+      messages: [{ messageId: 'm2', chatId: '7999', text: 'б' }]
+    });
+    expect(noContact.name).toBeUndefined();
+
+    const [badName] = parseWazzupInbound({
+      messages: [{ messageId: 'm3', chatId: '7999', text: 'в', contact: { name: 7 } }]
+    });
+    expect(badName.name).toBeUndefined();
+  });
+
+  it('chatId без цифр → пустой phone (в резолвинг не совпадёт, останется unresolved)', () => {
+    const [row] = parseWazzupInbound({
+      messages: [{ messageId: 'm4', chatId: 'abc', text: 'г' }]
+    });
+    expect(row.phone).toBe('');
   });
 });

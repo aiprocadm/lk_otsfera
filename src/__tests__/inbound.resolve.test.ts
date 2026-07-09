@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { resolveInboundSender } from '@/lib/services/inbound/resolve';
+import { resolveInboundSender, normalizePhone } from '@/lib/services/inbound/resolve';
 
 function db(users: any[], leads: any[] = []) {
   return {
@@ -19,6 +19,19 @@ describe('resolveInboundSender', () => {
     const r = await resolveInboundSender(db([]), { channel: 'telegram', chatId: 'nope' });
     expect(r.matchType).toBe('unresolved');
     expect(r.orgId).toBeUndefined();
+  });
+
+  it('exact max chatId → org+company (maxChatId where-ветка)', async () => {
+    const u = { id: 'u1', organizationId: 'o1', organization: { id: 'o1', companyId: 'c1' } };
+    const d = db([u]);
+    const r = await resolveInboundSender(d, { channel: 'max', chatId: 'max-42' });
+    expect(r).toMatchObject({ matchType: 'exact', userId: 'u1', orgId: 'o1', companyId: 'c1' });
+    expect(d.user.findMany.mock.calls[0][0].where).toEqual({ maxChatId: 'max-42' });
+  });
+
+  it('normalizePhone: строка без цифр → пустая строка', () => {
+    expect(normalizePhone('---')).toBe('');
+    expect(normalizePhone('8 (999) 000-11-22')).toBe('+89990001122');
   });
 
   it('ambiguous (>1 user) → unresolved (never cross-bind)', async () => {

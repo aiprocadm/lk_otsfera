@@ -12,6 +12,11 @@ describe('isMangoIpAllowed', () => {
     expect(isMangoIpAllowed('1.2.3.4')).toBe(false);
   });
 
+  it('tolerates a nullish ip (defensive ?? — denied)', () => {
+    expect(isMangoIpAllowed(null as never)).toBe(false);
+    expect(isMangoIpAllowed(undefined as never)).toBe(false);
+  });
+
   it('restricts to an override allowlist string', () => {
     const override = '9.9.9.9';
     expect(isMangoIpAllowed('9.9.9.9', override)).toBe(true);

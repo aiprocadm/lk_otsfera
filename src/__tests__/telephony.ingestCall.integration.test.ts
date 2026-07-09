@@ -127,6 +127,96 @@ describe('ingestCallEvent', () => {
     }
   });
 
+  it('call-событие с резолвнутым звонящим тоже связывает org/company (не только summary)', async () => {
+    const company = await prisma.company.create({ data: { name: `${STAMP}-co2` } });
+    const org = await prisma.organization.create({ data: { name: `${STAMP}-org2`, companyId: company.id } });
+    const user = await prisma.user.create({
+      data: {
+        email: `${STAMP}-user2@t.local`,
+        name: 'U2',
+        role: 'organization',
+        organizationId: org.id,
+        whatsappPhone: '+79990004444',
+      },
+    });
+    const externalId = `${STAMP}:call-resolved`;
+    try {
+      const r = await ingestCallEvent(prisma, {
+        kind: 'call',
+        externalId,
+        callerNumber: '+79990004444',
+        status: 'in_progress',
+      });
+      expect(r.ok).toBe(true);
+      const row = await prisma.call.findFirst({ where: { externalId } });
+      expect(row?.companyId).toBe(company.id);
+      expect(row?.resolvedOrgId).toBe(org.id);
+      expect(row?.resolvedUserId).toBe(user.id);
+    } finally {
+      await prisma.call.deleteMany({ where: { externalId } });
+      await prisma.user.delete({ where: { id: user.id } });
+      await prisma.organization.delete({ where: { id: org.id } });
+      await prisma.company.delete({ where: { id: company.id } });
+    }
+  });
+
+  it('lead-резолв (звонящий известен только по лиду): resolvedUserId=null, status-дефолты', async () => {
+    const company = await prisma.company.create({ data: { name: `${STAMP}-co3` } });
+    const org = await prisma.organization.create({ data: { name: `${STAMP}-org3`, companyId: company.id } });
+    const partner = await prisma.partner.create({ data: { name: `${STAMP}-p3` } });
+    const creator = await prisma.user.create({
+      data: { email: `${STAMP}-creator@t.local`, name: 'C', role: 'partner', partnerId: partner.id },
+    });
+    const lead = await prisma.lead.create({
+      data: {
+        partnerId: partner.id,
+        createdByUserId: creator.id,
+        organizationId: org.id,
+        clientCompanyName: 'Клиент',
+        clientContactName: 'Контакт',
+        clientContactPhone: '+79990005555',
+        subject: 'звонок',
+      },
+    });
+    const extSummary = `${STAMP}:lead-summary`;
+    const extCall = `${STAMP}:lead-call`;
+    try {
+      // summary без status: create-путь берёт дефолт 'completed', resolvedUserId — null (лид без user)
+      const r1 = await ingestCallEvent(prisma, {
+        kind: 'summary', externalId: extSummary, direction: 'inbound', callerNumber: '+79990005555',
+      });
+      expect(r1.ok).toBe(true);
+      let row = await prisma.call.findFirst({ where: { externalId: extSummary } });
+      expect(row?.resolvedOrgId).toBe(org.id);
+      expect(row?.resolvedUserId).toBeNull();
+      expect(row?.companyId).toBe(company.id);
+      expect(row?.status).toBe('completed');
+
+      // replay того же summary — update-путь с теми же дефолтами
+      await ingestCallEvent(prisma, {
+        kind: 'summary', externalId: extSummary, direction: 'inbound', callerNumber: '+79990005555',
+      });
+      row = await prisma.call.findFirst({ where: { externalId: extSummary } });
+      expect(row?.status).toBe('completed');
+
+      // call-событие с lead-резолвом — та же ?? null-ветка в call-ветке
+      const r2 = await ingestCallEvent(prisma, {
+        kind: 'call', externalId: extCall, callerNumber: '+79990005555',
+      });
+      expect(r2.ok).toBe(true);
+      const callRow = await prisma.call.findFirst({ where: { externalId: extCall } });
+      expect(callRow?.resolvedOrgId).toBe(org.id);
+      expect(callRow?.resolvedUserId).toBeNull();
+    } finally {
+      await prisma.call.deleteMany({ where: { externalId: { in: [extSummary, extCall] } } });
+      await prisma.lead.delete({ where: { id: lead.id } });
+      await prisma.user.delete({ where: { id: creator.id } });
+      await prisma.partner.delete({ where: { id: partner.id } });
+      await prisma.organization.delete({ where: { id: org.id } });
+      await prisma.company.delete({ where: { id: company.id } });
+    }
+  });
+
   it('unresolved caller → companyId null', async () => {
     const externalId = `${STAMP}:unresolved`;
     const r = await ingestCallEvent(prisma, {

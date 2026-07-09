@@ -106,6 +106,7 @@ export default defineConfig(({ mode }) => ({
         'src/lib/jobs/types.ts',
         'src/lib/services/oneCSync/adapter.ts',
         'src/lib/services/import/oneCAccountCard/types.ts',
+        'src/lib/inbound/email/adapter.ts',
         // Barrel-реэкспорты (только `export … from`, без исполняемых ветвлений):
         // конкретные модули импортируются напрямую, баррель в покрытом пути не
         // участвует → v8 c all:true рапортует 0%. Исполняемой логики нет (E1/трек E).

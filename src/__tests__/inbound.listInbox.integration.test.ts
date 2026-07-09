@@ -111,6 +111,31 @@ describe('listInbox — company-scoped staff inbox (C8)', () => {
     expect(ids).not.toContain(msgBoundB);
   });
 
+  it('orgId filter narrows to messages resolved to that organization', async () => {
+    const org = await prisma.organization.create({
+      data: { name: `inboxOrg-${STAMP}`, companyId: companyA },
+    });
+    const mOrg = await prisma.inboundMessage.create({
+      data: {
+        channel: 'telegram',
+        externalId: `inbox:test:org:${STAMP}`,
+        senderRef: `sender-org-${STAMP}`,
+        body: 'bound to a specific org',
+        companyId: companyA,
+        resolvedOrgId: org.id,
+        status: 'bound',
+      },
+    });
+    try {
+      const result = await listInbox(prisma, managerA, { orgId: org.id });
+      const ids = result.items.map((i) => i.id);
+      expect(ids).toEqual([mOrg.id]);
+    } finally {
+      await prisma.inboundMessage.delete({ where: { id: mOrg.id } });
+      await prisma.organization.delete({ where: { id: org.id } });
+    }
+  });
+
   it('total is consistent with items and excludes the other company scope', async () => {
     const result = await listInbox(prisma, managerA);
     expect(result.total).toBeGreaterThanOrEqual(result.items.length);

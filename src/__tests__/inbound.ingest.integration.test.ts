@@ -86,4 +86,96 @@ describe('ingestInboundMessage', () => {
     expect(r.ok).toBe(true);
     expect(addMock).not.toHaveBeenCalled();
   });
+
+  it('enqueue failure is swallowed (CLAUDE.md §3): ingest stays ok, scanStatus pending', async () => {
+    addMock.mockRejectedValue(new Error('redis down'));
+    const dto = {
+      channel: 'telegram' as const,
+      externalId: 'tg:test:attach-enq-fail',
+      senderRef: '555',
+      body: 'file attached',
+      attachmentPath: 'inbound/tg/fail-1.pdf',
+    };
+    const r = await ingestInboundMessage(prisma, dto);
+    expect(r.ok).toBe(true);
+    const row = await prisma.inboundMessage.findUnique({ where: { externalId: 'tg:test:attach-enq-fail' } });
+    expect(row?.scanStatus).toBe('pending'); // backfill-sweep подберёт позже
+    await prisma.inboundMessage.deleteMany({ where: { externalId: 'tg:test:attach-enq-fail' } });
+  });
+
+  it('max/whatsapp каналы прокидывают senderRef в свой резолв-параметр', async () => {
+    const rMax = await ingestInboundMessage(prisma, {
+      channel: 'max', externalId: 'tg:test:max-ch', senderRef: 'max-1', body: 'x',
+    });
+    expect(rMax.ok).toBe(true);
+    const rWa = await ingestInboundMessage(prisma, {
+      channel: 'whatsapp', externalId: 'tg:test:wa-ch', senderRef: '+79990007777', body: 'x',
+    });
+    expect(rWa.ok).toBe(true);
+    const rEmail = await ingestInboundMessage(prisma, {
+      channel: 'email', externalId: 'tg:test:email-ch', senderRef: 'nobody@nowhere.test', body: 'x',
+    });
+    expect(rEmail.ok).toBe(true);
+    const rows = await prisma.inboundMessage.findMany({
+      where: { externalId: { in: ['tg:test:max-ch', 'tg:test:wa-ch', 'tg:test:email-ch'] } },
+    });
+    expect(rows).toHaveLength(3);
+    expect(rows.every((r) => r.status === 'unresolved')).toBe(true);
+  });
+
+  it('P2002-гонка, где racer-строка не находится повторно → id "" (защитный ??)', async () => {
+    const { Prisma } = await import('@prisma/client');
+    const p2002 = new Prisma.PrismaClientKnownRequestError('dup', {
+      code: 'P2002',
+      clientVersion: 'test',
+    } as never);
+    const poisoned = {
+      inboundMessage: {
+        findUnique: vi.fn().mockResolvedValue(null), // и предчек, и пост-гоночный поиск
+        create: vi.fn().mockRejectedValue(p2002),
+      },
+      user: { findMany: vi.fn().mockResolvedValue([]) },
+      syncLog: { create: vi.fn().mockResolvedValue({}) },
+    } as unknown as PrismaClient;
+
+    const r = await ingestInboundMessage(poisoned, {
+      channel: 'telegram', externalId: 'tg:test:ghost-race', senderRef: '333', body: 'x',
+    });
+    expect(r).toEqual({ ok: true, id: '', deduped: true });
+  });
+
+  it('enqueue-падение НЕ-Error значением стрингифицируется в warn', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    addMock.mockRejectedValue('queue unavailable');
+    const r = await ingestInboundMessage(prisma, {
+      channel: 'telegram',
+      externalId: 'tg:test:attach-enq-str',
+      senderRef: '222',
+      body: 'file',
+      attachmentPath: 'inbound/tg/fail-2.pdf',
+    });
+    expect(r.ok).toBe(true);
+    expect(warn).toHaveBeenCalledWith(
+      '[inbound/ingest] enqueue scan failed',
+      expect.objectContaining({ error: 'queue unavailable' })
+    );
+    warn.mockRestore();
+    await prisma.inboundMessage.deleteMany({ where: { externalId: 'tg:test:attach-enq-str' } });
+  });
+
+  it('non-P2002 create failure rethrows (не маскируется под дедуп)', async () => {
+    const poisoned = {
+      inboundMessage: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockRejectedValue(new Error('db exploded')),
+      },
+      user: { findMany: vi.fn().mockResolvedValue([]) },
+    } as unknown as PrismaClient;
+
+    await expect(
+      ingestInboundMessage(poisoned, {
+        channel: 'telegram', externalId: 'tg:test:boom', senderRef: '444', body: 'x',
+      })
+    ).rejects.toThrow('db exploded');
+  });
 });
