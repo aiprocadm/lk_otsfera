@@ -74,6 +74,20 @@ describe('FakeInboundEmailAdapter', () => {
     expect(second.cursor).toBe('2');
   });
 
+  it('returns [] on malformed FAKE_INBOUND_EMAIL JSON (defensive catch)', async () => {
+    process.env.FAKE_INBOUND_EMAIL = 'not-a-json';
+    const adapter = new FakeInboundEmailAdapter();
+    const result = await adapter.fetchNewMessages(null);
+    expect(result).toEqual({ messages: [], cursor: '0' });
+  });
+
+  it('returns [] when FAKE_INBOUND_EMAIL is valid JSON but not an array', async () => {
+    process.env.FAKE_INBOUND_EMAIL = '{"nope":1}';
+    const adapter = new FakeInboundEmailAdapter();
+    const result = await adapter.fetchNewMessages(null);
+    expect(result).toEqual({ messages: [], cursor: '0' });
+  });
+
   it('only returns messages past the given cursor offset', async () => {
     const fixture = [
       { externalId: 'm1', from: 'a@example.com', text: 'body1' },

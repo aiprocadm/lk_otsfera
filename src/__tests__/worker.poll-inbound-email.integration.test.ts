@@ -92,4 +92,22 @@ describe('pollInboundEmailProcessor', () => {
     const state = await prisma.syncState.findUnique({ where: { entity: 'inbound.email' } });
     expect(state?.cursor).toBe('2');
   });
+
+  it('non-Error ingest rejection is stringified in the warn log', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    fetchNewMessages.mockResolvedValue({
+      messages: [{ externalId: 'bad2', from: 'c@example.com', text: 'body' }],
+      cursor: '3'
+    });
+    ingestInboundMessage.mockRejectedValueOnce('smtp gone');
+
+    const result = await pollInboundEmailProcessor(job, prisma);
+
+    expect(result.processed).toBe(1);
+    expect(warn).toHaveBeenCalledWith(
+      '[poll-inbound-email] ingest failed',
+      expect.objectContaining({ externalId: 'bad2', error: 'smtp gone' })
+    );
+    warn.mockRestore();
+  });
 });

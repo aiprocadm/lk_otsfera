@@ -39,6 +39,11 @@ describe('parseMangoEvent — summary', () => {
     expect(parseMangoEvent('summary', json)).toBeNull();
   });
 
+  it('caller number without digits normalizes to empty → null', () => {
+    const json = { entry_id: 'e12', from: { number: '---' } };
+    expect(parseMangoEvent('summary', json)).toBeNull();
+  });
+
   it('missing caller number → null', () => {
     const json = { entry_id: 'e4' };
     expect(parseMangoEvent('summary', json)).toBeNull();
@@ -72,6 +77,20 @@ describe('parseMangoEvent — call', () => {
 
   it('missing entry_id → null', () => {
     expect(parseMangoEvent('call', { from: { number: '+79990001122' } })).toBeNull();
+  });
+
+  it('call_direction present → direction resolved (2 → outbound)', () => {
+    const json = { entry_id: 'e10', call_direction: 2, from: { number: '+79990001122' } };
+    const ev = parseMangoEvent('call', json);
+    expect(ev).toMatchObject({ kind: 'call', direction: 'outbound' });
+  });
+
+  it('no caller number → callerNumber undefined; call_state missing → falls back to status', () => {
+    const json = { entry_id: 'e11', status: 'Connected' };
+    const ev = parseMangoEvent('call', json);
+    expect(ev).toMatchObject({ kind: 'call', status: 'Connected' });
+    expect(ev && 'callerNumber' in ev ? ev.callerNumber : 'x').toBeUndefined();
+    expect(ev && 'direction' in ev ? ev.direction : 'x').toBeUndefined();
   });
 });
 

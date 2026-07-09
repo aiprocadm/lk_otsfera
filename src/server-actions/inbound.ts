@@ -70,7 +70,8 @@ export async function bindInboundMessageAction(
     const orderInScope =
       !!order &&
       order.organizationId === args.organizationId &&
-      (teamMode ? !!session.companyId && order.companyId === session.companyId : true);
+      // C8-гейт выше уже гарантирует session.companyId non-null.
+      (teamMode ? order.companyId === session.companyId : true);
     if (orderInScope) {
       const thread = await prisma.orderThread.findUnique({
         where: { orderId_side: { orderId: args.orderId, side: 'org' } },

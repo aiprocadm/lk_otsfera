@@ -82,6 +82,20 @@ describe('FakeMangoAdapter', () => {
     expect(result).toEqual({ ready: true, rows: [] });
   });
 
+  it('fetchStatsResult returns [] on malformed FAKE_MANGO_STATS JSON (defensive catch)', async () => {
+    process.env.FAKE_MANGO_STATS = '{broken';
+    const adapter = new FakeMangoAdapter();
+    const result = await adapter.fetchStatsResult('some-key');
+    expect(result).toEqual({ ready: true, rows: [] });
+  });
+
+  it('fetchStatsResult returns [] when FAKE_MANGO_STATS is valid JSON but not an array', async () => {
+    process.env.FAKE_MANGO_STATS = '{"rows":1}';
+    const adapter = new FakeMangoAdapter();
+    const result = await adapter.fetchStatsResult('some-key');
+    expect(result).toEqual({ ready: true, rows: [] });
+  });
+
   it('fetchStatsResult returns rows parsed from FAKE_MANGO_STATS', async () => {
     const rows = [{ ext: '101', calls: 5 }, { ext: '102', calls: 3 }];
     process.env.FAKE_MANGO_STATS = JSON.stringify(rows);
