@@ -68,7 +68,7 @@ describe('upsertOrderRecord', () => {
   it('skips out-of-scope org for scoped manager', async () => {
     resolveOrganizationRef.mockResolvedValue({ id: 'o', companyId: 'c', partnerId: null, externalId: 'E-ORG' });
     const d = db(); const sum = emptySummary();
-    await upsertOrderRecord(d, baseDto, sum, { mode: 'live', notify: false, scope: { unscoped: false, mayCreateOrgs: false, allowedOrgIds: ['other'] } });
+    await upsertOrderRecord(d, baseDto, sum, { mode: 'live', notify: false, scope: { kind: 'orgs', allowedOrgIds: ['other'] } });
     expect(d.order.create).not.toHaveBeenCalled();
     expect(sum.skipped).toBe(1);
     expect(sum.skips[0]).toMatchObject({ reason: 'out_of_scope' });
@@ -315,9 +315,9 @@ describe('upsertPaymentRecord', () => {
 
   it('skips order-linked payment that is out_of_scope', async () => {
     const d = pdb();
-    d.order.findUnique.mockResolvedValue({ id:'ord', organizationId:'o', orderNumber:'O1', title:'t' });
+    d.order.findUnique.mockResolvedValue({ id:'ord', organizationId:'o', companyId:'c', orderNumber:'O1', title:'t' });
     const sum = emptySummary();
-    await upsertPaymentRecord(d, payOrderDto, sum, { mode:'live', notify:false, scope: { unscoped:false, mayCreateOrgs:false, allowedOrgIds:['other'] } });
+    await upsertPaymentRecord(d, payOrderDto, sum, { mode:'live', notify:false, scope: { kind:'orgs', allowedOrgIds:['other'] } });
     expect(sum.skipped).toBe(1); expect(sum.skips[0]).toMatchObject({ reason:'out_of_scope' });
   });
 
@@ -332,7 +332,7 @@ describe('upsertPaymentRecord', () => {
     const d = pdb();
     resolveOrganizationRef.mockResolvedValue({ id:'o-other', companyId:'c', partnerId:null, externalId:'E-ORG' });
     const sum = emptySummary();
-    await upsertPaymentRecord(d, payOrgDto, sum, { mode:'live', notify:false, scope: { unscoped:false, mayCreateOrgs:false, allowedOrgIds:['different'] } });
+    await upsertPaymentRecord(d, payOrgDto, sum, { mode:'live', notify:false, scope: { kind:'orgs', allowedOrgIds:['different'] } });
     expect(sum.skipped).toBe(1); expect(sum.skips[0]).toMatchObject({ reason:'out_of_scope' });
   });
 

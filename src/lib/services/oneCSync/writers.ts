@@ -14,9 +14,15 @@ import type { ScanDocumentPayload } from '@/lib/jobs/types';
 export type WriteCtx = { mode: OneCMode; notify: boolean; scope?: ImportScope; bump?: (iso: string) => void };
 const isLive = (c: WriteCtx) => c.mode === 'live';
 
-export function orgInScope(scope: ImportScope | undefined, orgId: string): boolean {
-  if (!scope || scope.unscoped) return true;
-  return scope.allowedOrgIds.includes(orgId);
+export function orgInScope(
+  scope: ImportScope | undefined,
+  target: { id: string | null; companyId: string | null }
+): boolean {
+  if (!scope || scope.kind === 'global') return true;
+  // manager-leader: the target's company must be the leader's own company (C8).
+  if (scope.kind === 'company') return target.companyId != null && target.companyId === scope.companyId;
+  // plain manager: the target org must be one of the assigned orgs.
+  return target.id != null && scope.allowedOrgIds.includes(target.id);
 }
 
 export async function upsertOrderRecord(db: PrismaClient, dto: OneCOrderDto, sum: BatchSummary, ctx: WriteCtx) {
@@ -25,7 +31,7 @@ export async function upsertOrderRecord(db: PrismaClient, dto: OneCOrderDto, sum
   if (!org || !org.companyId) {
     sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'organization_not_found' }); return;
   }
-  if (!orgInScope(ctx.scope, org.id)) {
+  if (!orgInScope(ctx.scope, { id: org.id, companyId: org.companyId })) {
     sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'out_of_scope' }); return;
   }
   const existing = await db.order.findUnique({
@@ -75,20 +81,22 @@ export async function upsertPaymentRecord(db: PrismaClient, dto: OneCPaymentDto,
   const input = mapPaymentDto(dto);
   let orderId: string | null = null;
   let organizationId: string | null = null;
-  let order: { id: string; organizationId: string | null; orderNumber: string | null; title: string } | null = null;
+  let order: { id: string; organizationId: string | null; companyId: string; orderNumber: string | null; title: string } | null = null;
 
   if (input.orderExternalId) {
     order = await db.order.findUnique({ where: { externalId: input.orderExternalId },
-      select: { id: true, organizationId: true, orderNumber: true, title: true } });
+      select: { id: true, organizationId: true, companyId: true, orderNumber: true, title: true } });
     if (!order) { sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'order_not_found' }); return; }
-    if (order.organizationId && !orgInScope(ctx.scope, order.organizationId)) {
+    // C8: enforce the tenant floor on the order's own company (required field), so a
+    // company-scoped leader cannot attach a payment to another company's order.
+    if (!orgInScope(ctx.scope, { id: order.organizationId, companyId: order.companyId })) {
       sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'out_of_scope' }); return;
     }
     orderId = order.id; organizationId = order.organizationId;
   } else {
     const org = await resolveOrganizationRef(db, { externalId: input.organizationExternalId, inn: input.organizationInn });
     if (!org) { sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'organization_not_found' }); return; }
-    if (!orgInScope(ctx.scope, org.id)) { sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'out_of_scope' }); return; }
+    if (!orgInScope(ctx.scope, { id: org.id, companyId: org.companyId })) { sum.skipped += 1; sum.skips.push({ externalId: input.externalId, reason: 'out_of_scope' }); return; }
     organizationId = org.id;
   }
 

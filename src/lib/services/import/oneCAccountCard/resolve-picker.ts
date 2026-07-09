@@ -6,10 +6,11 @@ import { importScope } from '@/lib/services/oneCSync/scope';
  * Read-side helpers backing the queue "Привязать" dialog: search organizations
  * and list their orders for the operator to bind a `needs_review` row to.
  *
- * Visibility mirrors `importScope` (the same scope the writer enforces): admin
- * and manager-leader are unscoped; a plain manager only sees orgs in
- * `managedOrgIds`. This is defense-in-depth + UX — the hard write boundary
- * still lives in `resolveQueueRow` (out-of-scope binds return `write_skipped`).
+ * Visibility mirrors `importScope` (the same scope the writer enforces): admin is
+ * global (Model A); a manager-leader is bounded to their own company (C8); a plain
+ * manager only sees orgs in `managedOrgIds`. This is defense-in-depth + UX — the
+ * hard write boundary still lives in the writer / `resolveQueueRow` (out-of-scope
+ * binds return `write_skipped`).
  */
 
 const MAX_TAKE = 50;
@@ -32,9 +33,11 @@ export async function searchResolveOrgs(
   const q = args.q?.trim();
 
   const and: Prisma.OrganizationWhereInput[] = [];
-  if (!scope.unscoped) {
+  if (scope.kind === 'orgs') {
     if (scope.allowedOrgIds.length === 0) return [];
     and.push({ id: { in: scope.allowedOrgIds } });
+  } else if (scope.kind === 'company') {
+    and.push({ companyId: scope.companyId });
   }
   if (q) {
     and.push({
@@ -61,9 +64,15 @@ export async function listResolveOrders(
 ): Promise<ResolveOrderOption[]> {
   if (!isStaff(session)) return [];
   const scope = importScope(session);
-  if (!scope.unscoped && !scope.allowedOrgIds.includes(args.organizationId)) return [];
+  if (scope.kind === 'orgs' && !scope.allowedOrgIds.includes(args.organizationId)) return [];
+  // manager-leader: constrain to the leader's company, so an org from another
+  // company yields no orders (C8) instead of leaking order numbers/titles.
+  const where: Prisma.OrderWhereInput =
+    scope.kind === 'company'
+      ? { organizationId: args.organizationId, organization: { companyId: scope.companyId } }
+      : { organizationId: args.organizationId };
   return prisma.order.findMany({
-    where: { organizationId: args.organizationId },
+    where,
     select: { id: true, orderNumber: true, title: true },
     orderBy: { id: 'desc' },
     take: MAX_TAKE

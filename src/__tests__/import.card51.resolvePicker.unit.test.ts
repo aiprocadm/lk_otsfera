@@ -4,6 +4,7 @@ import { searchResolveOrgs, listResolveOrders } from '@/lib/services/import/oneC
 const admin = { sub: 'a1', role: 'admin', companyId: 'c1' } as never;
 const manager = { sub: 'm1', role: 'manager', companyId: 'c1', managedOrgIds: ['orgA'] } as never;
 const managerNoOrgs = { sub: 'm2', role: 'manager', companyId: 'c1', managedOrgIds: [] } as never;
+const leader = { sub: 'l1', role: 'manager', managerRole: 'leader', companyId: 'c1' } as never;
 const partner = { sub: 'p1', role: 'partner' } as never;
 
 describe('searchResolveOrgs', () => {
@@ -43,6 +44,14 @@ describe('searchResolveOrgs', () => {
     expect(where.AND[0]).toEqual({ id: { in: ['orgA'] } });
   });
 
+  it('manager-leader restricts to their own company (C8), not all companies', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const prisma = { organization: { findMany } } as never;
+    await searchResolveOrgs(prisma, leader, {});
+    const where = findMany.mock.calls[0][0].where;
+    expect(where.AND[0]).toEqual({ companyId: 'c1' });
+  });
+
   it('manager with no managed orgs returns [] without querying', async () => {
     const findMany = vi.fn();
     const prisma = { organization: { findMany } } as never;
@@ -70,6 +79,15 @@ describe('listResolveOrders', () => {
     const prisma = { order: { findMany } } as never;
     await listResolveOrders(prisma, manager, { organizationId: 'orgA' });
     expect(findMany).toHaveBeenCalledOnce();
+  });
+
+  it('manager-leader lists orders constrained to their own company (C8)', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const prisma = { order: { findMany } } as never;
+    await listResolveOrders(prisma, leader, { organizationId: 'orgZ' });
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { organizationId: 'orgZ', organization: { companyId: 'c1' } },
+    }));
   });
 
   it('scoped manager gets [] for an out-of-scope org without querying', async () => {
