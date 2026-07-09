@@ -138,7 +138,14 @@ export async function uploadLeadAttachment(
     try {
       await storage.upload(path, Buffer.from(input.file.buffer), { contentType: validation.mime });
     } catch (e) {
-      throw new LeadAttachmentError('STORAGE_FAILURE', e instanceof Error ? e.message : String(e));
+      // R1.5: сырое сообщение провайдера — только в серверный лог; клиенту —
+      // статичная строка (раньше S3-ошибка уходила в JSON 500-ответа партнёру).
+      log.error('[lead-attachments] storage upload failed', {
+        leadId: input.leadId,
+        storagePath: path,
+        providerError: e instanceof Error ? e.message : String(e)
+      });
+      throw new LeadAttachmentError('STORAGE_FAILURE', 'Не удалось загрузить файл');
     }
 
     try {
@@ -292,10 +299,12 @@ export async function getLeadAttachmentDownloadUrl(
         download: attachment.name
       });
     } catch (e) {
-      throw new LeadAttachmentError(
-        'STORAGE_FAILURE',
-        e instanceof Error ? e.message : 'Не удалось создать ссылку'
-      );
+      // R1.5: как и в upload — провайдерские детали в лог, клиенту статично.
+      log.error('[lead-attachments] createSignedUrl failed', {
+        attachmentId: attachment.id,
+        providerError: e instanceof Error ? e.message : String(e)
+      });
+      throw new LeadAttachmentError('STORAGE_FAILURE', 'Не удалось создать ссылку');
     }
 
     return { ok: true, url, name: attachment.name, mimeType: attachment.mimeType };
