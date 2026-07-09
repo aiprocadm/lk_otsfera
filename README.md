@@ -118,7 +118,7 @@ npm run prisma:seed
 
 ## Тесты
 
-Тестовая дисциплина — трёхслойная (см. [CLAUDE.md §6](CLAUDE.md)). GH Actions отключены, гейтинг локальный через Husky.
+Тестовая дисциплина — трёхслойная (см. [CLAUDE.md §6](CLAUDE.md)). Гейтинг локальный через Husky + серверное зеркало на GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)).
 
 | Команда | Слой | Когда |
 |---|---|---|

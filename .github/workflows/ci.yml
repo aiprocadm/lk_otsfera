@@ -1,0 +1,87 @@
+# Серверное зеркало локальной лестницы хуков (CLAUDE.md §6).
+# Husky-хуки обходятся `--no-verify`; этот workflow — обязательный гейт,
+# который обойти нельзя (после включения branch protection на main).
+#
+#   checks — L1/L2: typecheck + lint (max-warnings=0) + весь unit-слой
+#   gate   — L2.5/L3: scripts/gate.ts (migrate deploy → seed → test:integration)
+#            против Postgres service-контейнера + prisma migrate status
+#
+# CI вызывает те же npm-скрипты, что и хуки, — не дублируй их шаги в YAML,
+# иначе серверный и локальный гейты разъедутся.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# На PR-ветках новый push отменяет устаревший прогон; на main НЕ отменяем —
+# иначе back-to-back мержи оставляют промежуточный коммит без CI-вердикта.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  checks:
+    name: typecheck · lint · unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Та же мажорная версия, что в package.json engines.node.
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run prisma:generate
+      - run: npm run typecheck
+      - run: npm run lint -- --max-warnings 0
+      - run: npm run test:unit
+
+  gate:
+    name: integration gate · migrate status
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        # Тот же образ и креды, что db-сервис в docker-compose.yml.
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cabinet
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cabinet"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cabinet
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/cabinet
+      # Явно, а не через совпадение с дефолтом gate.ts: gate подменяет
+      # DATABASE_URL/DIRECT_URL на GATE_DATABASE_URL ?? <localhost:5432-дефолт>.
+      GATE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cabinet
+      # Postgres предоставлен service-контейнером — gate не поднимает compose.
+      GATE_SKIP_DOCKER: '1'
+      # CI-only заглушки (не секреты): без .env модули читают env напрямую.
+      # S3_ENDPOINT намеренно НЕ задан — S3 round-trip suite сам скипается
+      # (describe.skipIf), ровно как в локальном gate без MinIO.
+      JWT_SECRET: ci-only-jwt-secret-not-a-real-secret-32
+      APP_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      ONE_C_ADAPTER: fake
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run prisma:generate
+      # gate = prisma migrate deploy → prisma:seed → test:integration.
+      # Отдельный шаг test:integration не нужен — он внутри gate.
+      - run: npm run gate
+      # История миграций консистентна: все применены, нет failed/missing.
+      # (Дрейф schema.prisma от каталога миграций этот шаг НЕ ловит.)
+      - run: npx prisma migrate status

@@ -99,7 +99,7 @@ function doX(
 
 ## 6. Тесты — четырёхслойная дисциплина
 
-**GitHub Actions отключены**. Замена — локальные хуки + ручная команда. Слои:
+Первая линия — локальные хуки + ручная команда; серверное зеркало — CI на GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)): на каждый PR и push в `main` гоняет `typecheck → lint (max-warnings=0) → test:unit` и `npm run gate` (с `GATE_SKIP_DOCKER=1` против Postgres service-контейнера) + `prisma migrate status`. CI вызывает те же npm-скрипты, что и хуки — не дублируй шаги в YAML. Слои:
 
 | Слой | Триггер | Команда | Покрытие | Время |
 |---|---|---|---|---|
@@ -176,7 +176,7 @@ removeOnComplete: { count: 1000 }, removeOnFail: false
 ## 11. Известные подводные камни
 
 - **`src/app/api/manager/documents/`**: внутри только один сегмент `[id]`. Не создавай рядом `[orderId]`/`[documentId]` — Next.js упадёт со startup-ошибкой. Это исправленный ранее блокер.
-- **`.github/workflows/` отсутствует намеренно**: GH Actions отключены, гейтинг перенесён в Husky pre-commit/pre-push. Не «возвращай» CI без обсуждения.
+- **`.github/workflows/ci.yml` — единственный workflow** (добавлен PR-серией укрепления, 2026-07): серверное зеркало лестницы хуков. Локальный гейтинг Husky остаётся первой линией; CI страхует от `--no-verify`. Новые workflow не добавляй без обсуждения; шаги CI не должны дрейфовать от npm-скриптов хуков.
 - **Sibling-pages для документов**: org-кабинет не имеет API-роута upload (использует server-action), у manager-кабинета — есть API-роут. При синхронизации UX между ролями учти это асимметричное расхождение.
 - **Vitest на холодном кэше**: первый запуск pre-commit может занять ~30-60 сек из-за `transform`/`prepare`. На втором коммите подряд — 5-10 сек. Не паникуй при первом долгом запуске.
 
