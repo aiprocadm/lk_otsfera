@@ -115,7 +115,9 @@ export default defineConfig(({ mode }) => ({
         // Тот же barrel-паттерн для components/ui (Phase 3): только `export { X } from
         // './x'`, тесты импортируют конкретные компоненты напрямую, баррель нигде не
         // исполняется как модуль → 0% без исполняемой логики.
-        'src/components/ui/index.ts'
+        'src/components/ui/index.ts',
+        // Barrel домена logging (PR-2): только реэкспорты logger/scrub.
+        'src/lib/logging/index.ts'
       ],
       reporter: ['text-summary', 'json-summary', 'html'],
       // Per-glob 100%-гейт на логические слои (план Task 11). Применяется ТОЛЬКО к

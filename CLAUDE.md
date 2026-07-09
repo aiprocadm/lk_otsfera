@@ -35,6 +35,7 @@ src/lib/auth/           ← jwt, requireRole, requireManager, policy-модул�
 src/lib/jobs/           ← BullMQ конфиг очередей (queues.ts, scheduling.ts)
 src/lib/storage/        ← S3 object-storage порт + адаптер (server-only)
 src/lib/notifications/  ← notifyManagers/notifyOrgUsers + email-dispatch (barrel index.ts → core/org/manager)
+src/lib/logging/        ← структурный логгер: log (pino, server/worker) + edgeLog + clientLog + scrub (ПДн)
 src/lib/featureFlags.ts ← feature flag система
 src/middleware.ts       ← auth + RBAC + feature-flag gate
 src/worker/             ← отдельный процесс: 1С sync, scan, commission gen
@@ -186,6 +187,7 @@ removeOnComplete: { count: 1000 }, removeOnFail: false
 - Student bridge JWT передаёт **только** контрактные claims, перечисленные в [README.md §Student redirect](README.md). Не добавляй туда внутренние флаги или PII.
 - Одноразовые bridge-коды **не логируются** даже в маскированной форме.
 - Audit log — единственный канал для расследования: пиши `action`, `entity`, `entityId`, `userId`, опционально `after`. Не пиши секреты.
+- **Логирование — только через `@/lib/logging`** (`log` — server/worker; `@/lib/logging/edge` — middleware; `@/lib/logging/client` — 'use client'). Сырой `console.*` в `src/**` запрещён eslint-правилом `no-console`. В production логгер пишет pino-JSON и прогоняет контекст через `scrub()` (ПДн/секреты → `[REDACTED]`); в dev/test — console-passthrough с verbatim-аргументами (на этом держатся ~37 console-spy регрессов — формат сообщений не менять). Sentry (server/edge/worker) — no-op без `SENTRY_DSN`; события чистятся `scrubSentryEvent` (`sendDefaultPii: false`).
 
 ## 13. Stylistic preferences
 

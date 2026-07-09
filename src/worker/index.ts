@@ -1,4 +1,7 @@
 import { Worker, type Processor } from 'bullmq';
+import * as Sentry from '@sentry/node';
+import { log } from '@/lib/logging';
+import { scrubSentryEvent } from '@/lib/logging/scrub';
 import { getRedisConnection, closeRedisConnection } from '@/lib/jobs/connection';
 import { closeAllQueues, getQueue, type QueueName } from '@/lib/jobs/queues';
 import { registerSyncSchedules, registerCommissionSchedules, registerAlertSchedules, registerCertExpirySchedules, loadPausedSchedulerIds } from '@/lib/jobs/scheduling';
@@ -22,6 +25,18 @@ import { mangoRecordingProcessor } from './processors/mango-recording';
 import { mangoBackfillProcessor } from './processors/mango-backfill';
 import type { PushLeadJobPayload } from '@/lib/jobs/types';
 
+// No-op без DSN (локально/в тестах Sentry не шумит и не ходит в сеть).
+// beforeSend-скраббер — общий с Next-инициализацией (152-ФЗ: без ПДн/секретов).
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV,
+    tracesSampleRate: 0,
+    sendDefaultPii: false,
+    beforeSend: (event) => scrubSentryEvent(event)
+  });
+}
+
 const workers: Worker[] = [];
 
 function startWorker<T = unknown>(queueName: QueueName, processor: Processor<T>): Worker {
@@ -32,17 +47,25 @@ function startWorker<T = unknown>(queueName: QueueName, processor: Processor<T>)
     autorun: true
   });
   worker.on('completed', (job) => {
-    console.log(`[worker] ${queueName} completed`, { id: job.id });
+    log.info(`[worker] ${queueName} completed`, { id: job.id });
   });
   worker.on('failed', (job, err) => {
-    console.error(`[worker] ${queueName} failed`, { id: job?.id, error: err.message });
+    log.error(`[worker] ${queueName} failed`, { id: job?.id, error: err.message });
+    // Терминальная неудача (retries исчерпаны) — сигнал в Sentry; промежуточные
+    // ретраи не шлём, чтобы не дублировать одно падение до 5 раз.
+    if ((job?.attemptsMade ?? 0) >= (job?.opts?.attempts ?? 1)) {
+      Sentry.captureException(err, {
+        tags: { queue: queueName },
+        extra: { jobId: job?.id, attemptsMade: job?.attemptsMade }
+      });
+    }
   });
   workers.push(worker);
   return worker;
 }
 
 async function main() {
-  console.log('[worker] starting...');
+  log.info('[worker] starting...');
   startWorker('oneCSync.pullOrganizations', syncOrganizationsProcessor as Processor);
   startWorker('oneCSync.pullOrders', syncOrdersProcessor as Processor);
   startWorker('oneCSync.pullPayments', syncPaymentsProcessor as Processor);
@@ -61,7 +84,7 @@ async function main() {
         await notifyPushLeadFinalFailure(prisma, {
           leadId: data.leadId,
           errorMessage: err.message
-        }).catch((e) => console.error('[worker] notifyPushLeadFinalFailure failed', e));
+        }).catch((e) => log.error('[worker] notifyPushLeadFinalFailure failed', e));
       }
     }
   });
@@ -84,7 +107,7 @@ async function main() {
     const alertSchedules = await registerAlertSchedules();
     const certExpirySchedules = await registerCertExpirySchedules();
     for (const r of [...syncSchedules, ...commissionSchedules, ...alertSchedules, ...certExpirySchedules]) {
-      console.log('[worker] schedule registered', {
+      log.info('[worker] schedule registered', {
         schedulerId: r.schedulerId,
         queue: r.queueName,
         pattern: r.pattern,
@@ -92,14 +115,14 @@ async function main() {
       });
     }
   } else {
-    console.log('[worker] ENABLE_SYNC_CRON!=1 — cron schedules NOT registered (hot standby mode)');
+    log.info('[worker] ENABLE_SYNC_CRON!=1 — cron schedules NOT registered (hot standby mode)');
   }
 
-  console.log('[worker] ready, listening on queues');
+  log.info('[worker] ready, listening on queues');
 }
 
 async function shutdown(signal: string) {
-  console.log(`[worker] received ${signal}, shutting down...`);
+  log.info(`[worker] received ${signal}, shutting down...`);
   await Promise.all(workers.map((w) => w.close()));
   await closeAllQueues();
   await closeRedisConnection();
@@ -109,7 +132,10 @@ async function shutdown(signal: string) {
 process.on('SIGINT', () => void shutdown('SIGINT'));
 process.on('SIGTERM', () => void shutdown('SIGTERM'));
 
-main().catch((err) => {
-  console.error('[worker] fatal error', err);
+main().catch(async (err) => {
+  log.error('[worker] fatal error', err);
+  Sentry.captureException(err, { tags: { fatal: 'worker-bootstrap' } });
+  // flush(2s): дать транспорту отправить событие до выхода процесса; без DSN — no-op
+  await Sentry.flush(2000).catch(() => {});
   process.exit(1);
 });

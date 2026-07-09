@@ -57,7 +57,12 @@ export default [
     files: ['src/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-syntax': NO_HANDROLLED_MODAL,
-      'no-restricted-imports': ['error', { patterns: [NO_MOCK1C_FROM_SRC] }]
+      'no-restricted-imports': ['error', { patterns: [NO_MOCK1C_FROM_SRC] }],
+      // PR-2 (observability): сырой console.* запрещён — только @/lib/logging
+      // (server), @/lib/logging/edge (middleware), @/lib/logging/client ('use
+      // client'). Транспорты внутри src/lib/logging/** несут точечные
+      // eslint-disable с причиной; тесты — в override ниже.
+      'no-console': 'error'
     }
   },
   {
@@ -78,7 +83,10 @@ export default [
   {
     files: ['src/__tests__/**/*.{ts,tsx}', 'src/**/*.test.{ts,tsx}', 'src/**/*.spec.{ts,tsx}'],
     rules: {
-      '@typescript-eslint/no-explicit-any': 'off'
+      '@typescript-eslint/no-explicit-any': 'off',
+      // Тесты спают/ассертят console (37 файлов graceful-degrade регрессов) —
+      // запрет не для них.
+      'no-console': 'off'
     }
   }
 ];
