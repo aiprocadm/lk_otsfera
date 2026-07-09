@@ -24,6 +24,8 @@ function makeCard(overrides: Partial<OrganizationCard>): OrganizationCard {
     documents: [],
     payments: [],
     activity: [],
+    inboundMessages: [],
+    calls: [],
     ...overrides
   } as unknown as OrganizationCard;
 }
@@ -257,5 +259,78 @@ describe('OrgCardTabs — history section (default tab)', () => {
       React.createElement(OrgCardTabs, { card, activeTab: 'nonsense' as never })
     );
     expect(html).toContain('Истории пока нет');
+  });
+});
+
+describe('OrgCardTabs — calls tab (G4)', () => {
+  it('renders the read-only CallsList (empty state)', () => {
+    const card = makeCard({ calls: [] });
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'calls' }));
+    expect(html).toContain('Звонков нет');
+  });
+});
+
+describe('OrgCardTabs — inbound messages tab (G4, read-only)', () => {
+  it('empty: renders EmptyState', () => {
+    const card = makeCard({ inboundMessages: [] });
+    const html = renderToString(
+      React.createElement(OrgCardTabs, { card, activeTab: 'inbound_messages' })
+    );
+    expect(html).toContain('Обращений нет');
+  });
+
+  it('renders a full row: channel/status labels, sender, subject, excerpt, attachment', () => {
+    const card = makeCard({
+      inboundMessages: [
+        {
+          id: 'im1',
+          channel: 'telegram',
+          senderRef: '@ref',
+          senderDisplay: 'Отправитель',
+          subject: 'Тема письма',
+          body: 'б'.repeat(200),
+          createdAt: new Date('2026-07-01'),
+          status: 'bound',
+          scanStatus: 'clean',
+          attachmentName: 'скан.pdf'
+        }
+      ]
+    });
+    const html = renderToString(
+      React.createElement(OrgCardTabs, { card, activeTab: 'inbound_messages' })
+    );
+    expect(html).toContain('Telegram');
+    expect(html).toContain('Привязано');
+    expect(html).toContain('Отправитель');
+    expect(html).toContain('Тема письма');
+    expect(html).toContain('…'); // excerpt длинного body
+    expect(html).toContain('скан.pdf');
+  });
+
+  it('falls back for unknown channel/status and senderRef when display is null', () => {
+    const card = makeCard({
+      inboundMessages: [
+        {
+          id: 'im2',
+          channel: 'pigeon',
+          senderRef: '@fallback',
+          senderDisplay: null,
+          subject: null,
+          body: 'коротко',
+          createdAt: new Date('2026-07-02'),
+          status: 'strange',
+          scanStatus: 'none',
+          attachmentName: null
+        }
+      ]
+    });
+    const html = renderToString(
+      React.createElement(OrgCardTabs, { card, activeTab: 'inbound_messages' })
+    );
+    expect(html).toContain('pigeon');
+    expect(html).toContain('strange');
+    expect(html).toContain('@fallback');
+    expect(html).toContain('коротко');
+    expect(html).not.toContain('📎');
   });
 });

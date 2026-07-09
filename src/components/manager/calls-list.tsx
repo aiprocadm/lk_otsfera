@@ -1,3 +1,4 @@
+import React from 'react';
 import { TableShell, THead, Th, Tr, Td, Badge, EmptyState } from '@/components/ui';
 import { fmtDateTime } from '@/lib/format';
 
