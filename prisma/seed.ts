@@ -21,6 +21,18 @@ function fakeJob(): Job<SyncJobPayload> {
 }
 
 async function main() {
+  // R0.3: демо-данные (admin@demo.local / Password123! и коллеги) в бою
+  // недопустимы. До этого защита была чисто процедурной (чекбокс в
+  // launch-runbook); теперь seed сам отказывается работать в production.
+  // SEED_ALLOW_PROD=1 — явный аварийный обход для стендов с NODE_ENV=production.
+  if (process.env.NODE_ENV === 'production' && process.env.SEED_ALLOW_PROD !== '1') {
+    console.error(
+      '[seed] NODE_ENV=production — демо-seed заблокирован. ' +
+        'Для первого админа используйте npm run db:create-admin; ' +
+        'явный обход — SEED_ALLOW_PROD=1.'
+    );
+    process.exit(1);
+  }
   process.env.ONE_C_ADAPTER = 'fake';
   resetOneCAdapter();
 
