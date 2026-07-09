@@ -1,5 +1,6 @@
 import { Worker, type Processor } from 'bullmq';
 import * as Sentry from '@sentry/node';
+import { assertEnvOnBoot } from '@/lib/env';
 import { log } from '@/lib/logging';
 import { scrubSentryEvent } from '@/lib/logging/scrub';
 import { getRedisConnection, closeRedisConnection } from '@/lib/jobs/connection';
@@ -65,6 +66,9 @@ function startWorker<T = unknown>(queueName: QueueName, processor: Processor<T>)
 }
 
 async function main() {
+  // R0.2 fail-fast: воркер не стартует с невалидным production-окружением
+  // (no-op вне production). Ошибка уйдёт в main().catch → Sentry + exit(1).
+  assertEnvOnBoot();
   log.info('[worker] starting...');
   startWorker('oneCSync.pullOrganizations', syncOrganizationsProcessor as Processor);
   startWorker('oneCSync.pullOrders', syncOrdersProcessor as Processor);
