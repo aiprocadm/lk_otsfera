@@ -1,10 +1,13 @@
 /**
  * Local integration gate (CLAUDE.md §6 "L2.5"; spec 2026-05-31-test-safety-net).
  *
- * Spins up the Dockerized Postgres from docker-compose.yml, applies migrations +
- * seed against a HOST-FACING DATABASE_URL (localhost, not the compose-internal
- * `db` host), then runs the integration tier. Cross-platform (tsx, not bash) so
- * it behaves the same on Windows/PowerShell and sh.
+ * Spins up the Dockerized Postgres + Redis from docker-compose.yml, applies
+ * migrations + seed against a HOST-FACING DATABASE_URL (localhost, not the
+ * compose-internal `db` host), then runs the integration tier. Cross-platform
+ * (tsx, not bash) so it behaves the same on Windows/PowerShell and sh.
+ * Redis обязателен: интеграционный слой ходит по enqueue-путям (PDF/XLSX
+ * комиссии, скан) — при REDIS_URL в .env и мёртвом Redis они виснут до
+ * test-таймаута (ioredis с maxRetriesPerRequest:null ретраит бесконечно).
  *
  *   npm run gate         # up → migrate → seed → integration tests (leaves DB up)
  *   npm run gate:down    # stop the db/redis containers
@@ -69,8 +72,8 @@ async function main(): Promise<void> {
   if (process.env.GATE_SKIP_DOCKER === '1') {
     console.log('[gate] GATE_SKIP_DOCKER=1 — assuming an externally provided Postgres.');
   } else {
-    console.log('[gate] starting Dockerized Postgres…');
-    await run('docker', ['compose', 'up', '-d', 'db']);
+    console.log('[gate] starting Dockerized Postgres + Redis…');
+    await run('docker', ['compose', 'up', '-d', 'db', 'redis']);
     await waitForPostgres();
   }
 
