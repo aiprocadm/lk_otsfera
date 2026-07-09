@@ -75,6 +75,44 @@ describe('mangoRecordingProcessor', () => {
     expect(row?.recordingId).toBe('rec-123');
   });
 
+  it('enqueue-падение скана проглатывается (best-effort): stored:true, запись сохранена', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const externalId = `${STAMP}:enqueue-fail`;
+    const call = await prisma.call.create({
+      data: {
+        provider: 'mango',
+        externalId,
+        direction: 'inbound',
+        callerNumber: '+79990003333',
+        status: 'completed',
+      },
+    });
+    fetchRecording.mockResolvedValue({ buffer: Buffer.from('x'), contentType: 'audio/mpeg' });
+    addMock.mockRejectedValue(new Error('redis down'));
+
+    const result = await mangoRecordingProcessor(makeJob({ externalId, recordingId: 'rec-f' }), prisma);
+
+    expect(result).toEqual({ stored: true });
+    expect(warn).toHaveBeenCalledWith(
+      '[mango-recording] enqueue scan failed',
+      expect.objectContaining({ callId: call.id, error: 'redis down' })
+    );
+
+    // Не-Error значение стрингифицируется (вторая нога тернарника).
+    const externalId2 = `${STAMP}:enqueue-fail-str`;
+    await prisma.call.create({
+      data: { provider: 'mango', externalId: externalId2, direction: 'inbound', callerNumber: '+79990003334', status: 'completed' },
+    });
+    addMock.mockRejectedValue('queue gone');
+    const r2 = await mangoRecordingProcessor(makeJob({ externalId: externalId2, recordingId: 'rec-g' }), prisma);
+    expect(r2).toEqual({ stored: true });
+    expect(warn).toHaveBeenCalledWith(
+      '[mango-recording] enqueue scan failed',
+      expect.objectContaining({ error: 'queue gone' })
+    );
+    warn.mockRestore();
+  });
+
   it('a call without a recording is a valid, non-failing path: no upload, no enqueue, status stays "none"', async () => {
     const externalId = `${STAMP}:no-recording`;
     const call = await prisma.call.create({

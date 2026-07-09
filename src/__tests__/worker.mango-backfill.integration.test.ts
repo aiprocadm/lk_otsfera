@@ -95,6 +95,40 @@ describe('mangoBackfillProcessor', () => {
     });
   });
 
+  it('ingest-падение одной строки логируется и не валит джобу (Error и не-Error)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const nowF = new Date('2026-07-05T15:00:00.000Z');
+    requestStats.mockResolvedValue({ key: 'stats-key-f' });
+    fetchStatsResult.mockResolvedValue({
+      ready: true,
+      rows: [
+        { garbage: true }, // не парсится в событие → строка пропускается (continue)
+        statsRow(`${STAMP}:f1`, '+79990004444'),
+        statsRow(`${STAMP}:f2`, '+79990005555'),
+      ],
+    });
+
+    // db-обёртка: резолв/стейт идут в настоящую БД, а call.findUnique падает —
+    // Error для первой строки, строкой для второй (обе ноги String(err)-тернарника).
+    const db = {
+      user: prisma.user,
+      lead: prisma.lead,
+      syncState: prisma.syncState,
+      call: {
+        findUnique: vi.fn()
+          .mockRejectedValueOnce(new Error('ingest down'))
+          .mockRejectedValueOnce('ingest gone'),
+      },
+    } as unknown as PrismaClient;
+
+    const result = await mangoBackfillProcessor(makeJob(), db, nowF);
+
+    expect(result).toEqual({ ingested: 2 }); // счётчик учитывает попытки (существующая семантика)
+    expect(warn).toHaveBeenCalledWith('[mango-backfill] ingest failed', { error: 'ingest down' });
+    expect(warn).toHaveBeenCalledWith('[mango-backfill] ingest failed', { error: 'ingest gone' });
+    warn.mockRestore();
+  });
+
   it('never becomes ready within the attempt cap: returns ingested:0 without throwing', async () => {
     const now3 = new Date('2026-07-05T14:00:00.000Z');
     requestStats.mockResolvedValue({ key: 'stats-key-3' });

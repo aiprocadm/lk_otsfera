@@ -101,6 +101,24 @@ describe('POST /api/integrations/mango/webhook', () => {
     expect(addMock).not.toHaveBeenCalled();
   });
 
+  it('без ?type события трактуются как summary (дефолт ?? "summary")', async () => {
+    ingestCallEvent.mockResolvedValue({ ok: true, id: 'call1' });
+    const json = JSON.stringify({
+      entry_id: 'e-default',
+      from: { number: '79990001122' },
+      to: { number: '100' },
+      call_direction: 1,
+      duration: 10,
+      status: 'Answered',
+    });
+    const res = await POST(req('https://app.local/api/integrations/mango/webhook', json));
+    expect(res.status).toBe(200);
+    expect(ingestCallEvent).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ kind: 'summary', externalId: 'e-default' })
+    );
+  });
+
   it('валидный ?type=recording (recording_state=Completed + recording_id) → ingestCallEvent И enqueue вызваны, 200', async () => {
     ingestCallEvent.mockResolvedValue({ ok: true, id: 'call1', needsRecording: true });
     const json = JSON.stringify({
