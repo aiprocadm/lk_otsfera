@@ -1,12 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const { checkDbMock, checkRedisMock } = vi.hoisted(() => ({
+const { checkDbMock, checkRedisMock, checkS3Mock } = vi.hoisted(() => ({
   checkDbMock: vi.fn(),
-  checkRedisMock: vi.fn()
+  checkRedisMock: vi.fn(),
+  checkS3Mock: vi.fn()
 }));
 vi.mock('@/lib/health/checks', () => ({
   checkDb: checkDbMock,
-  checkRedis: checkRedisMock
+  checkRedis: checkRedisMock,
+  checkS3: checkS3Mock
 }));
 // don't instantiate the real Prisma singleton — the route imports it but
 // checkDb (mocked) never uses it
@@ -26,8 +28,10 @@ beforeEach(() => {
   process.env.HEALTH_TOKEN = TOKEN;
   checkDbMock.mockReset();
   checkRedisMock.mockReset();
+  checkS3Mock.mockReset();
   checkDbMock.mockResolvedValue({ ok: true, ms: 1 });
   checkRedisMock.mockResolvedValue({ ok: true, ms: 1 });
+  checkS3Mock.mockResolvedValue({ ok: true, ms: 1 });
 });
 
 describe('GET /api/health (readiness)', () => {
@@ -38,6 +42,16 @@ describe('GET /api/health (readiness)', () => {
     expect(body.status).toBe('ok');
     expect(body.checks.db.ok).toBe(true);
     expect(body.checks.redis.ok).toBe(true);
+    expect(body.checks.s3.ok).toBe(true);
+  });
+
+  it('503 when the s3 check fails (R1.1: readiness отражает S3)', async () => {
+    checkS3Mock.mockResolvedValue({ ok: false, ms: 2001, error: 'timeout' });
+    const res = await GET(req(`Bearer ${TOKEN}`) as never);
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.status).toBe('down');
+    expect(body.checks.s3.ok).toBe(false);
   });
 
   it('503 down when the db check fails', async () => {

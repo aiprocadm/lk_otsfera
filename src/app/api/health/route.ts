@@ -1,8 +1,8 @@
-// Readiness: can the app serve traffic? Checks DB + Redis. Token-gated.
+// Readiness: can the app serve traffic? Checks DB + Redis + S3. Token-gated.
 import type { NextRequest } from 'next/server';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { prisma } from '@/lib/db/prisma';
-import { checkDb, checkRedis } from '@/lib/health/checks';
+import { checkDb, checkRedis, checkS3 } from '@/lib/health/checks';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,10 +32,10 @@ export async function GET(req: NextRequest) {
     return Response.json({ status: 'unauthorized' }, { status: 401 });
   }
 
-  const [db, redis] = await Promise.all([checkDb(prisma), checkRedis()]);
-  const ok = db.ok && redis.ok;
+  const [db, redis, s3] = await Promise.all([checkDb(prisma), checkRedis(), checkS3()]);
+  const ok = db.ok && redis.ok && s3.ok;
   return Response.json(
-    { status: ok ? 'ok' : 'down', checks: { db, redis } },
+    { status: ok ? 'ok' : 'down', checks: { db, redis, s3 } },
     { status: ok ? 200 : 503 }
   );
 }

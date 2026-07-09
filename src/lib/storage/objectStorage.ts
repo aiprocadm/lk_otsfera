@@ -4,7 +4,7 @@
  * THROW StorageError on provider failure (CLAUDE.md §3 boundary-catch): callers
  * already sit inside try/catch and map it to their Result code / HTTP status.
  */
-export type StorageOp = 'upload' | 'sign' | 'remove' | 'download';
+export type StorageOp = 'upload' | 'sign' | 'remove' | 'download' | 'ping';
 
 export class StorageError extends Error {
   constructor(

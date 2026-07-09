@@ -1,11 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
 
-const { pingMock } = vi.hoisted(() => ({ pingMock: vi.fn() }));
+const { pingMock, s3PingMock } = vi.hoisted(() => ({ pingMock: vi.fn(), s3PingMock: vi.fn() }));
 vi.mock('@/lib/jobs/connection', () => ({
   getRedisConnection: () => ({ ping: pingMock })
 }));
+vi.mock('@/lib/storage/s3', () => ({
+  s3HealthPing: s3PingMock
+}));
 
-import { withTimeout, checkDb, checkRedis } from '@/lib/health/checks';
+import { withTimeout, checkDb, checkRedis, checkS3 } from '@/lib/health/checks';
 
 describe('withTimeout', () => {
   it('resolves ok when fn resolves in time', async () => {
@@ -54,6 +57,21 @@ describe('checkRedis', () => {
     const r = await checkRedis(1000);
     expect(r.ok).toBe(false);
     expect(r.error).toBe('redis down');
+  });
+});
+
+describe('checkS3 (R1.1)', () => {
+  it('ok when s3HealthPing resolves', async () => {
+    s3PingMock.mockResolvedValue(undefined);
+    const r = await checkS3(1000);
+    expect(r.ok).toBe(true);
+  });
+
+  it('not ok when s3HealthPing rejects', async () => {
+    s3PingMock.mockRejectedValue(new Error('STORAGE_PING: bucket unreachable'));
+    const r = await checkS3(1000);
+    expect(r.ok).toBe(false);
+    expect(r.error).toBe('STORAGE_PING: bucket unreachable');
   });
 });
 
