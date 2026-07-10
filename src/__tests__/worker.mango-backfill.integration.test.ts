@@ -144,6 +144,25 @@ describe('mangoBackfillProcessor', () => {
     expect(state?.cursor).toBe(now3.toISOString());
   });
 
+  it('reads the default poll delay from MANGO_STATS_POLL_DELAY_MS', async () => {
+    process.env.MANGO_STATS_POLL_DELAY_MS = '0';
+    try {
+      const now5 = new Date('2026-07-05T16:00:00.000Z');
+      requestStats.mockResolvedValue({ key: 'stats-key-5' });
+      fetchStatsResult
+        .mockResolvedValueOnce({ ready: false, rows: [] })
+        .mockResolvedValueOnce({ ready: true, rows: [] });
+
+      // 4-й аргумент опущен → дефолт из env ('0' → без паузы, тест быстрый)
+      const result = await mangoBackfillProcessor(makeJob(), prisma, now5);
+
+      expect(result).toEqual({ ingested: 0 });
+      expect(fetchStatsResult).toHaveBeenCalledTimes(2);
+    } finally {
+      delete process.env.MANGO_STATS_POLL_DELAY_MS;
+    }
+  });
+
   it('waits pollDelayMs between attempts (R2: no busy-loop against the stats API)', async () => {
     const now4 = new Date('2026-07-05T15:00:00.000Z');
     requestStats.mockResolvedValue({ key: 'stats-key-4' });
