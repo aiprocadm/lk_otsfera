@@ -185,11 +185,30 @@ async function main() {
   log.info('[worker] ready, listening on queues');
 }
 
+// Грейс на закрытие: BullMQ w.close() ждёт завершения активного job'а — если
+// job завис, SIGTERM раньше блокировался навсегда (до SIGKILL оркестратора).
+// 25с по умолчанию: меньше стандартных 30с grace-периода Docker/K8s, чтобы
+// успеть выйти самим и залогировать причину.
+const SHUTDOWN_TIMEOUT_MS = (() => {
+  const raw = Number(process.env.WORKER_SHUTDOWN_TIMEOUT_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : 25_000;
+})();
+
+let shuttingDown = false;
 async function shutdown(signal: string) {
+  if (shuttingDown) return; // повторный SIGTERM/SIGINT во время закрытия
+  shuttingDown = true;
   log.info(`[worker] received ${signal}, shutting down...`);
+  const forceExit = setTimeout(() => {
+    log.error('[worker] graceful shutdown timed out — forcing exit', {
+      timeoutMs: SHUTDOWN_TIMEOUT_MS
+    });
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT_MS);
   await Promise.all(workers.map((w) => w.close()));
   await closeAllQueues();
   await closeRedisConnection();
+  clearTimeout(forceExit);
   process.exit(0);
 }
 
