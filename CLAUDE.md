@@ -105,9 +105,11 @@ function doX(
 | Слой | Триггер | Команда | Покрытие | Время |
 |---|---|---|---|---|
 | **L1** | `git commit` ([.husky/pre-commit](.husky/pre-commit)) | `npx lint-staged && npm run typecheck && npm run test:changed` | ESLint на staged-файлах + TS + vitest на затронутых unit-тестах | 5-15 сек (warm) |
-| **L2** | `git push` ([.husky/pre-push](.husky/pre-push)) | `npm run test:unit` | Весь unit-слой (~91 файл, ~700 тестов) | ~30 сек (warm) |
-| **L2.5** | `git push`, затрагивающий `prisma/`/`worker/`/`services/` ([scripts/gate-precheck.ts](scripts/gate-precheck.ts)) | `npm run gate` | Integration-слой против эфемерного Docker-Postgres | единицы минут |
-| **L3** | Перед PR / релизом, вручную | `npm run test:integration` | Integration-слой (~36 файлов) — требует **живой Postgres** | 5-10 мин |
+| **L2** | `git push` ([.husky/pre-push](.husky/pre-push)) | `npm run test:unit` | Весь unit-слой (~600 файлов, ~5.6k тестов) | минуты (сильно зависит от кэша/нагрузки) |
+| **L2.5** | `git push`, затрагивающий `prisma/`/`worker/`/`services/` ([scripts/gate-precheck.ts](scripts/gate-precheck.ts)) | `npm run gate` | Integration-слой против эфемерного Docker-Postgres | ~10+ мин |
+| **L3** | Перед PR / релизом, вручную | `npm run test:integration` | Integration-слой (~115 файлов, ~900 тестов) — требует **живой Postgres** | ~10-20 мин |
+
+Полный `test:coverage` (оба слоя + coverage-инструментация, см. ниже) на свободной машине — ~30 мин. **Не гонять `test:unit` и `gate` параллельно**: конкуренция за CPU даёт ложные hook/test-таймауты.
 
 **`npm run gate` (L2.5)** — кроссплатформенный `tsx`-оркестратор ([scripts/gate.ts](scripts/gate.ts)): поднимает Docker-Postgres из [docker-compose.yml](docker-compose.yml), `prisma migrate deploy` + seed против host-facing `DATABASE_URL` (localhost; override через `GATE_DATABASE_URL`), затем `npm run test:integration`. Условно вызывается из `pre-push`; запускается и вручную перед PR. `npm run gate:down` останавливает контейнеры. Требует Docker; обход — `git push --no-verify`. Полнота покрытия воркера держится unit-тестом [worker.processor-coverage.guardrail.test.ts](src/__tests__/worker.processor-coverage.guardrail.test.ts) — падает, если у процессора нет интеграционного теста.
 
