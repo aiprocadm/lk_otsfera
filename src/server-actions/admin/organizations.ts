@@ -12,6 +12,7 @@ import {
   setOrgCommissionRate,
   clearOrgCommissionRate
 } from '@/lib/services/partner/rateOverride';
+import { log } from '@/lib/logging';
 
 type Failure = {
   ok: false;
@@ -96,10 +97,10 @@ export async function setOrgRateOverrideAction(fd: FormData): Promise<ActionResu
 // a trace until these forms migrate to useActionState with inline feedback.
 export async function updateOrgFormAction(fd: FormData): Promise<void> {
   const result = await updateOrganizationAction(fd);
-  if (!result.ok) console.warn('[admin/organizations] updateOrgFormAction failed', result);
+  if (!result.ok) log.warn('[admin/organizations] updateOrgFormAction failed', result);
 }
 
 export async function setOrgRateOverrideFormAction(fd: FormData): Promise<void> {
   const result = await setOrgRateOverrideAction(fd);
-  if (!result.ok) console.warn('[admin/organizations] setOrgRateOverrideFormAction failed', result);
+  if (!result.ok) log.warn('[admin/organizations] setOrgRateOverrideFormAction failed', result);
 }

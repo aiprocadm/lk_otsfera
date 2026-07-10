@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth/session';
 import { requirePartner } from '@/lib/auth/guard';
 import { getObjectStorage } from '@/lib/storage';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
+import { log } from '@/lib/logging';
 
 const SIGNED_URL_TTL = 600;
 
@@ -35,7 +36,7 @@ export async function GET(_req: Request, { params }: Params) {
       download: true
     });
   } catch (error) {
-    console.error('[partner/finance/statements] failed to create XLSX signed URL', {
+    log.error('[partner/finance/statements] failed to create XLSX signed URL', {
       statementId: id,
       providerError: error instanceof Error ? error.message : String(error)
     });

@@ -4,6 +4,7 @@ import { QUEUE_NAMES, type QueueName } from '@/lib/jobs/queues';
 import { retryAllDlq } from '@/lib/services/admin/queueStats';
 import { recordAudit } from '@/lib/auth/audit';
 import { prisma } from '@/lib/db/prisma';
+import { log } from '@/lib/logging';
 
 type Params = { params: Promise<{ queue: string }> };
 
@@ -33,7 +34,7 @@ export async function POST(_req: Request, { params }: Params) {
     entity: 'job_queue',
     entityId: queue,
     after: { retried: result.retried, failed: result.failed, truncated: result.truncated },
-  }).catch((e) => console.warn('[dlq/retry-all] audit failed', e));
+  }).catch((e) => log.warn('[dlq/retry-all] audit failed', e));
 
   return NextResponse.json({ retried: result.retried, failed: result.failed, truncated: result.truncated });
 }

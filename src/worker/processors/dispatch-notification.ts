@@ -8,6 +8,7 @@ import {
   type EmailContentRef,
 } from '@/lib/notifications/channels/types';
 import type { NotificationDispatchPayload } from '@/lib/jobs/types';
+import { log } from '@/lib/logging';
 
 /**
  * Email-props с типом Date, которые JSON round-trip через Redis превратил в
@@ -95,7 +96,7 @@ export async function runDispatchNotification(
         },
       })
       .catch((logErr) =>
-        console.error('[dispatch-notification] SyncLog write failed', { error: logErr })
+        log.error('[dispatch-notification] SyncLog write failed', { error: logErr })
       );
     throw new Error(
       `notification channel ${data.channel} failed: ${result.reason ?? 'unknown'}`

@@ -10,6 +10,7 @@ import { resolveAutoManager } from '@/lib/services/manager/distribution';
 import { fetchAndStore1CDocument } from './document-fetch';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
+import { log } from '@/lib/logging';
 
 export type WriteCtx = { mode: OneCMode; notify: boolean; scope?: ImportScope; bump?: (iso: string) => void };
 const isLive = (c: WriteCtx) => c.mode === 'live';
@@ -70,7 +71,7 @@ export async function upsertOrderRecord(db: PrismaClient, dto: OneCOrderDto, sum
       try { await notifyOrgUsers(db, { organizationId: targetOrgId, type: 'order_status_changed', payload: {
         orderId: existing.id, orderNumber: existing.orderNumber, orderTitle: existing.title,
         dimension: 'financial', oldStatus: existing.financialStatus, newStatus: input.financialStatus } }); }
-      catch (err) { console.warn('[1c] order status notifyOrgUsers failed', err); }
+      catch (err) { log.warn('[1c] order status notifyOrgUsers failed', err); }
     }
   } else {
     if (isLive(ctx)) {
@@ -80,7 +81,7 @@ export async function upsertOrderRecord(db: PrismaClient, dto: OneCOrderDto, sum
       try {
         managerId = await resolveAutoManager(db, { organizationId: org.id, partnerId: org.partnerId });
       } catch (err) {
-        console.warn('[1c] auto-assign manager failed', err);
+        log.warn('[1c] auto-assign manager failed', err);
       }
       await db.order.create({ data: { ...ownedBy1C, externalId: input.externalId,
         executionStatus: input.executionStatus, companyId: org.companyId, partnerId: org.partnerId, organizationId: org.id,
@@ -131,11 +132,11 @@ export async function upsertPaymentRecord(db: PrismaClient, dto: OneCPaymentDto,
     if (ctx.notify && isLive(ctx) && order && order.organizationId && !input.isRefund) {
       try { await notifyOrgUsers(db, { organizationId: order.organizationId, type: 'payment_received', payload: {
         orderId: order.id, orderNumber: order.orderNumber, orderTitle: order.title, amount: input.amount.toString(), paidAt: input.paidAt } }); }
-      catch (err) { console.warn('[1c] payment notifyOrgUsers failed', err); }
+      catch (err) { log.warn('[1c] payment notifyOrgUsers failed', err); }
     }
     if (ctx.notify && isLive(ctx) && order && !input.isRefund) {
       try { await notifyManagers(db, { orderId: order.id, type: 'order_marked_paid_by_1c', payload: { amount: Number(input.amount), paidAt: input.paidAt } }); }
-      catch (err) { console.warn('[1c] payment notifyManagers failed', err); }
+      catch (err) { log.warn('[1c] payment notifyManagers failed', err); }
     }
   }
 }
@@ -222,14 +223,14 @@ export async function upsertDocumentRecord(db: PrismaClient, dto: OneCDocumentDt
         try {
           const payload: ScanDocumentPayload = { kind: 'document', id: created.id };
           await getQueue('docs.scanDocument').add('scan', payload);
-        } catch (err) { console.warn('[1c] document scan enqueue failed', err); }
+        } catch (err) { log.warn('[1c] document scan enqueue failed', err); }
       }
     }
     sum.created += 1; ctx.bump?.(dto.updatedAt);
     if (ctx.notify && isLive(ctx) && order.organizationId) {
       try { await notifyOrgUsers(db, { organizationId: order.organizationId, type: 'document_published', payload: {
         orderId: order.id, orderNumber: order.orderNumber, orderTitle: order.title, documentName: input.name, documentType: input.type } }); }
-      catch (err) { console.warn('[1c] document notifyOrgUsers failed', err); }
+      catch (err) { log.warn('[1c] document notifyOrgUsers failed', err); }
     }
   }
 }

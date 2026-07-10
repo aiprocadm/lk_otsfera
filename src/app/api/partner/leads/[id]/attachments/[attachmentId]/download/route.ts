@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth/session';
 import { requirePartner } from '@/lib/auth/guard';
 import { getLeadAttachmentDownloadUrl } from '@/lib/services/partner/leadAttachments';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
+import { log } from '@/lib/logging';
 
 function scopeOf(session: { assignedOrgIds?: string[] }): string[] | undefined {
   const arr = session.assignedOrgIds ?? [];
@@ -47,7 +48,7 @@ export async function GET(
     }
     return NextResponse.redirect(result.url, 307);
   } catch (err) {
-    console.error('[partner/leads/attachments] download failed unexpectedly', { attachmentId, err });
+    log.error('[partner/leads/attachments] download failed unexpectedly', { attachmentId, err });
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }

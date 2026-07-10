@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
 import { notifyManagers, notifyManagersOrderLess } from '@/lib/notifications';
 import { persistUploadedDocument } from '@/lib/services/documents/upload-core';
+import { log } from '@/lib/logging';
 
 export type UploadDocumentResult =
   | { ok: true; documentId: string }
@@ -67,7 +68,7 @@ export async function uploadOrganizationDocument(formData: FormData): Promise<Up
         documentType: parsed.data.docType
       });
     } catch (err) {
-      console.warn('[uploadOrganizationDocument] order-less notify failed', {
+      log.warn('[uploadOrganizationDocument] order-less notify failed', {
         documentId: persisted.documentId,
         error: err instanceof Error ? err.message : String(err)
       });
@@ -108,7 +109,7 @@ export async function uploadOrganizationDocument(formData: FormData): Promise<Up
       payload: { orgName: org?.name ?? 'организация', documentName: file.name, documentType: parsed.data.docType }
     });
   } catch (err) {
-    console.warn('[uploadOrganizationDocument] notifyManagers failed', {
+    log.warn('[uploadOrganizationDocument] notifyManagers failed', {
       documentId: persisted.documentId,
       error: err instanceof Error ? err.message : String(err)
     });

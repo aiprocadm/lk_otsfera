@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { getRedisConnection } from '@/lib/jobs/connection';
+import { s3HealthPing } from '@/lib/storage/s3';
 
 export type CheckResult = { ok: boolean; ms: number; error?: string };
 
@@ -43,4 +44,12 @@ export function checkDb(prisma: PrismaClient, timeoutMs?: number): Promise<Check
 
 export function checkRedis(timeoutMs?: number): Promise<CheckResult> {
   return withTimeout(() => getRedisConnection().ping(), timeoutMs);
+}
+
+/**
+ * R1.1: скачивание документов — core-flow и rollback-триггер запуска, поэтому
+ * readiness обязан отражать доступность S3 наравне с БД и Redis.
+ */
+export function checkS3(timeoutMs?: number): Promise<CheckResult> {
+  return withTimeout(() => s3HealthPing(), timeoutMs);
 }

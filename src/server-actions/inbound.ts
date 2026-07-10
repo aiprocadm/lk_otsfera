@@ -7,6 +7,7 @@ import { recordAudit } from '@/lib/auth/audit';
 import { notifyOrgUsers } from '@/lib/notifications';
 import { replyToInbound } from '@/lib/services/inbound/reply';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
+import { log } from '@/lib/logging';
 
 export type BindInboundMessageArgs = {
   inboundMessageId: string;
@@ -175,7 +176,7 @@ export async function replyInboundAction(
         });
       }
     } catch (err) {
-      console.warn('[inbound/replyInboundAction] thread mirror failed', {
+      log.warn('[inbound/replyInboundAction] thread mirror failed', {
         inboundMessageId: args.inboundMessageId,
         error: err instanceof Error ? err.message : String(err)
       });

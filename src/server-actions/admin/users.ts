@@ -12,6 +12,7 @@ import {
   type AdminUserErrorCode
 } from '@/lib/services/admin/users';
 import { sendAdminUserInviteEmail } from '@/lib/email/send';
+import { log } from '@/lib/logging';
 
 type Failure = { ok: false; error: 'validation' | AdminUserErrorCode; details?: unknown };
 type Success<T> = T extends void ? { ok: true } : { ok: true } & T;
@@ -75,7 +76,7 @@ export async function createUserAction(
       invitedByName: session.name ?? undefined
     });
   } catch (e) {
-    console.warn('[admin/users] send invite email failed', e);
+    log.warn('[admin/users] send invite email failed', e);
   }
 
   revalidatePath('/admin/users');
@@ -127,15 +128,15 @@ export async function reactivateUserAction(fd: FormData): Promise<ActionResult> 
 // failures so they're traceable until these forms migrate to useActionState.
 export async function updateUserFormAction(fd: FormData): Promise<void> {
   const result = await updateUserAction(fd);
-  if (!result.ok) console.warn('[admin/users] updateUserFormAction failed', result);
+  if (!result.ok) log.warn('[admin/users] updateUserFormAction failed', result);
 }
 
 export async function deactivateUserFormAction(fd: FormData): Promise<void> {
   const result = await deactivateUserAction(fd);
-  if (!result.ok) console.warn('[admin/users] deactivateUserFormAction failed', result);
+  if (!result.ok) log.warn('[admin/users] deactivateUserFormAction failed', result);
 }
 
 export async function reactivateUserFormAction(fd: FormData): Promise<void> {
   const result = await reactivateUserAction(fd);
-  if (!result.ok) console.warn('[admin/users] reactivateUserFormAction failed', result);
+  if (!result.ok) log.warn('[admin/users] reactivateUserFormAction failed', result);
 }

@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { log } from '@/lib/logging';
 import { type BatchSummary, emptySummary } from './record-batch';
 import { OneCOrgSchema, OneCOrderSchema, OneCPaymentSchema, OneCDocumentSchema } from './schemas';
 import { upsertOrgRecord, upsertOrderRecord, upsertPaymentRecord, upsertDocumentRecord, type WriteCtx } from './writers';
@@ -77,7 +78,7 @@ export async function replayPendingRecords(
     take: 500,
   });
   if (rows.length === 500) {
-    console.warn('[1c-pending] replay batch hit the 500-row cap for entity %s — backlog may be truncated this run', entity);
+    log.warn('[1c-pending] replay batch hit the 500-row cap for entity %s — backlog may be truncated this run', entity);
   }
 
   let resolved = 0, deadLettered = 0, stillPending = 0;

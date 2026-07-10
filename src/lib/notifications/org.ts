@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
+import { log } from '@/lib/logging';
 import { dispatchToRecipient } from './channels/dispatch';
 import { CHANNEL_RECIPIENT_SELECT, type ChannelPayload, type EmailContentRef } from './channels/types';
 import { getAppBaseUrl, orderLabel } from './shared';
@@ -301,7 +302,7 @@ export async function notifyOrgUsers(
       emailsSkipped += 1;
     }
     if (outcome.results.email?.status === 'failed') {
-      console.warn('[notifyOrgUsers] email dispatch failed', {
+      log.warn('[notifyOrgUsers] email dispatch failed', {
         organizationId: org.id,
         error: outcome.results.email.reason,
       });

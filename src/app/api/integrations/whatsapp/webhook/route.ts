@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { parseWazzupInbound } from '@/lib/whatsapp/aggregator';
 import { ingestInboundMessage } from '@/lib/services/inbound/ingest';
+import { log } from '@/lib/logging';
 
 /**
  * Webhook входящих сообщений WhatsApp через агрегатор Wazzup (D-inbound) —
@@ -41,7 +42,12 @@ export async function POST(req: Request): Promise<Response> {
       senderRef: m.phone,
       senderDisplay: m.name,
       body: m.text,
-    }).catch(() => {});
+    }).catch((e: unknown) => {
+      log.error('[webhook/whatsapp] ingest failed', {
+        externalId: m.externalId,
+        error: e instanceof Error ? e.message : String(e)
+      });
+    });
   }
 
   return new Response(null, { status: 200 });

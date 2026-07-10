@@ -1,4 +1,5 @@
 import { getRedisConnection } from '@/lib/jobs/connection';
+import { log } from '@/lib/logging';
 
 /**
  * Shared rate limiter for serverless-safe throttling.
@@ -116,7 +117,7 @@ export async function isRateLimited(
       deps?.timeoutMs ?? DEFAULT_TIMEOUT_MS
     );
   } catch (err) {
-    console.warn('[rateLimit] redis backend failed, degrading to in-memory', {
+    log.warn('[rateLimit] redis backend failed, degrading to in-memory', {
       error: err instanceof Error ? err.message : String(err)
     });
     return memoryIsLimited(key, opts.windowMs, opts.max);

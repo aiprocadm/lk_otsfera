@@ -138,4 +138,30 @@ describe('POST /api/integrations/max/webhook', () => {
     );
     expect(res.status).toBe(200);
   });
+
+  it('ошибка отправки ответа ботом не превращается в 500 (best-effort, warn-лог)', async () => {
+    linkMaxByCode.mockResolvedValue({ ok: true });
+    sendMaxMessage.mockRejectedValue(new Error('max api down'));
+    const res = await POST(
+      req({ message: { text: '/start OK', chat: { id: 2 } } }, { 'x-max-webhook-secret': SECRET })
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it('не-Error rejection отправки ответа (строка) → 200 (String(e)-плечо warn-лога)', async () => {
+    linkMaxByCode.mockResolvedValue({ ok: true });
+    sendMaxMessage.mockRejectedValue('max string down');
+    const res = await POST(
+      req({ message: { text: '/start OK2', chat: { id: 3 } } }, { 'x-max-webhook-secret': SECRET })
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it('не-Error throw из linkMaxByCode (строка) → 200 (String(e)-плечо error-лога)', async () => {
+    linkMaxByCode.mockRejectedValue('db string down');
+    const res = await POST(
+      req({ message: { text: '/start FAIL', chat: { id: 4 } } }, { 'x-max-webhook-secret': SECRET })
+    );
+    expect(res.status).toBe(200);
+  });
 });

@@ -7,11 +7,13 @@
  */
 
 /* eslint-disable no-console -- клиентский транспорт: console — единственный
-   sink в браузере; санкционированная обёртка (см. док-блок). */
+   sink в браузере; санкционированная обёртка (см. док-блок). Полностью
+   variadic (без обязательной строки): error-boundary передают Error первым
+   аргументом, как принимает и сам console. */
 export const clientLog = {
-  debug: (msg: string, ...args: unknown[]) => console.debug(msg, ...args),
-  info: (msg: string, ...args: unknown[]) => console.log(msg, ...args),
-  warn: (msg: string, ...args: unknown[]) => console.warn(msg, ...args),
-  error: (msg: string, ...args: unknown[]) => console.error(msg, ...args)
+  debug: (...args: unknown[]) => console.debug(...args),
+  info: (...args: unknown[]) => console.log(...args),
+  warn: (...args: unknown[]) => console.warn(...args),
+  error: (...args: unknown[]) => console.error(...args)
 };
 /* eslint-enable no-console */

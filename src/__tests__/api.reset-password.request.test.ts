@@ -15,6 +15,12 @@ vi.mock('@/lib/email/send', () => ({
   send: vi.fn()
 }));
 
+// Лимитер здесь всегда пропускает: 429-контракт покрыт отдельным
+// api.auth.ratelimit.test.ts; этот файл тестирует доменную логику маршрута.
+vi.mock('@/lib/rateLimit', () => ({
+  isRateLimited: vi.fn().mockResolvedValue(false)
+}));
+
 // Mock react-dom/server so renderHtml doesn't need a real DOM
 vi.mock('react-dom/server', () => ({
   renderToStaticMarkup: vi.fn(() => '<html>mocked</html>')

@@ -11,6 +11,7 @@ import { runRecordBatch, batchStatus, type BatchSummary } from '@/lib/services/o
 import { oneCMode } from '@/lib/services/oneCSync/config';
 import { upsertOrderRecord } from '@/lib/services/oneCSync/writers';
 import { capturePendingSkips, replayPendingRecords } from '@/lib/services/oneCSync/pending';
+import { log } from '@/lib/logging';
 
 export type SyncOrdersResult = BatchSummary;
 
@@ -20,7 +21,7 @@ export async function syncOrdersProcessor(
 ): Promise<SyncOrdersResult> {
   const startedAt = Date.now();
   const mode = oneCMode();
-  console.log('[worker] sync-orders job started', { id: job.id, mode });
+  log.info('[worker] sync-orders job started', { id: job.id, mode });
 
   try {
     const adapter = getOneCAdapter();
@@ -45,7 +46,7 @@ export async function syncOrdersProcessor(
         await capturePendingSkips(db, 'order', raw, (dto) => (dto as OneCOrderDto).externalId, summary);
         await replayPendingRecords(db, 'order', { now: new Date() });
       } catch (e) {
-        console.warn('[sync-order] pending capture/replay failed', e);
+        log.warn('[sync-order] pending capture/replay failed', e);
       }
     }
 
@@ -65,7 +66,7 @@ export async function syncOrdersProcessor(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await markCursorError(db, 'order', message).catch((e) =>
-      console.warn('[sync-orders] markCursorError failed', e)
+      log.warn('[sync-orders] markCursorError failed', e)
     );
     await writeSyncLog(
       {

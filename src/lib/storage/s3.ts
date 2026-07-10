@@ -2,7 +2,8 @@ import {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
-  DeleteObjectsCommand
+  DeleteObjectsCommand,
+  ListObjectsV2Command
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { type ObjectStorage, StorageError, documentBucket } from './objectStorage';
@@ -82,6 +83,19 @@ export class S3Storage implements ObjectStorage {
       throw new StorageError('sign', errMsg(e));
     }
   }
+  /**
+   * Лёгкая сетевая проба для readiness (R1.1): ListObjectsV2 MaxKeys=1 —
+   * реальный round-trip до бакета (в отличие от createSignedUrl, который
+   * подписывает локально и сеть не трогает).
+   */
+  async ping(): Promise<void> {
+    try {
+      await this.client.send(new ListObjectsV2Command({ Bucket: this.bucket, MaxKeys: 1 }));
+    } catch (e) {
+      throw new StorageError('ping', errMsg(e));
+    }
+  }
+
   async remove(paths: string[]): Promise<void> {
     try {
       await this.client.send(
@@ -123,4 +137,10 @@ let _storage: S3Storage | null = null;
 export function getObjectStorage(): ObjectStorage {
   if (!_storage) _storage = buildS3Storage();
   return _storage;
+}
+
+/** Readiness-проба S3 (lib/health/checks.checkS3) — тем же singleton-клиентом. */
+export function s3HealthPing(): Promise<void> {
+  if (!_storage) _storage = buildS3Storage();
+  return _storage.ping();
 }

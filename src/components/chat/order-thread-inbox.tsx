@@ -5,6 +5,7 @@ import { ChatThreadView, type ChatMessageVM } from '@/components/chat/chat-threa
 import { ChatComposer } from '@/components/chat/chat-composer';
 import { uploadAttachment } from '@/lib/chat/upload-attachment';
 import { useThreadPolling } from '@/hooks/useThreadPolling';
+import { clientLog } from '@/lib/logging/client';
 
 type Thread = {
   id: string;
@@ -132,11 +133,11 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
         };
         setMessages(data.rows.map(toVM));
       } else {
-        console.warn('[order-thread-inbox] fetch messages failed', res.status);
+        clientLog.warn('[order-thread-inbox] fetch messages failed', res.status);
         setMessages([]);
       }
     } catch (err) {
-      console.warn('[order-thread-inbox] fetch messages error', err);
+      clientLog.warn('[order-thread-inbox] fetch messages error', err);
       setMessages([]);
     } finally {
       setLoadingMessages(false);
@@ -152,7 +153,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
         if (res.ok) setThreadUnread((prev) => ({ ...prev, [thread.id]: false }));
       })
       .catch((err) => {
-        console.warn('[order-thread-inbox] markRead error', err);
+        clientLog.warn('[order-thread-inbox] markRead error', err);
       });
   }
 
@@ -169,7 +170,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
     if (path) {
       setPendingAttachment({ path, name: file.name });
     } else {
-      console.warn('[order-thread-inbox] attachment upload failed');
+      clientLog.warn('[order-thread-inbox] attachment upload failed');
       setAttachError('Не удалось загрузить файл');
     }
   }
@@ -191,7 +192,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
         })
       });
       if (!res.ok) {
-        console.warn('[order-thread-inbox] send message failed', res.status);
+        clientLog.warn('[order-thread-inbox] send message failed', res.status);
         return;
       }
       setPendingAttachment(null);
@@ -211,7 +212,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
         setMessages(data.rows.map(toVM));
       }
     } catch (err) {
-      console.warn('[order-thread-inbox] handleSend error', err);
+      clientLog.warn('[order-thread-inbox] handleSend error', err);
     }
   }
 

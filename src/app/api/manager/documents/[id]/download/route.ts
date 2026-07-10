@@ -5,6 +5,7 @@ import { getDocumentForDownload } from '@/lib/services/manager/documents';
 import { getObjectStorage } from '@/lib/storage';
 import { recordAudit } from '@/lib/auth/audit';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
+import { log } from '@/lib/logging';
 
 /**
  * POST /api/manager/documents/[id]/download
@@ -51,7 +52,7 @@ export async function POST(
   try {
     signedUrl = await getObjectStorage().createSignedUrl(result.path, SIGNED_URL_TTL_SEC);
   } catch (error) {
-    console.error('Failed to create manager document signed URL', {
+    log.error('Failed to create manager document signed URL', {
       correlationId,
       documentId: id,
       storagePath: result.path,

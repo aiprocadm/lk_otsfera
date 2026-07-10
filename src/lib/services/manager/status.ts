@@ -3,6 +3,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { recordAudit } from '@/lib/auth/audit';
 import { notifyManagers, notifyOrgUsers } from '@/lib/notifications';
+import { log } from '@/lib/logging';
 
 /**
  * Manager-facing execution status transition.
@@ -133,7 +134,7 @@ export async function transitionOrderStatus(
       { excludeUserId: session.sub }
     );
   } catch (err) {
-    console.warn('[manager/status] notifyManagers (order_status_changed_by_manager) failed', {
+    log.warn('[manager/status] notifyManagers (order_status_changed_by_manager) failed', {
       orderId,
       actorId: session.sub,
       error: err instanceof Error ? err.message : String(err)

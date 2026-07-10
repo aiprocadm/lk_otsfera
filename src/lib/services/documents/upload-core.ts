@@ -6,6 +6,7 @@ import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
 import { maxFileSizeBytes, ALLOWED_MIME_TYPES } from '@/lib/config/upload';
+import { log } from '@/lib/logging';
 
 /**
  * Shared write path for every document upload (manager outgoing, org/partner
@@ -86,7 +87,7 @@ export async function persistUploadedDocument(
       contentType: args.file.mimeType
     });
   } catch (uploadError) {
-    console.error('[documents/upload-core] storage upload failed', {
+    log.error('[documents/upload-core] storage upload failed', {
       orderId: args.orderId,
       storagePath,
       providerError: uploadError instanceof Error ? uploadError.message : String(uploadError)
@@ -118,7 +119,7 @@ export async function persistUploadedDocument(
     const payload: ScanDocumentPayload = { kind: 'document', id: doc.id };
     await getQueue('docs.scanDocument').add('scan', payload);
   } catch (err) {
-    console.warn('[documents/upload-core] enqueue scan failed', {
+    log.warn('[documents/upload-core] enqueue scan failed', {
       documentId: doc.id,
       error: err instanceof Error ? err.message : String(err)
     });

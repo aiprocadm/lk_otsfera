@@ -7,6 +7,7 @@ import { notifyPartnerUsers } from '@/lib/notifications/partner';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { fmtMoney } from '@/lib/format';
 import type { SyncJobPayload } from '@/lib/jobs/types';
+import { log } from '@/lib/logging';
 
 /** Russian month-year label, e.g. "май 2026" (no «г.» suffix). */
 function formatPeriod(periodFrom: Date): string {
@@ -33,7 +34,7 @@ export async function calculateMonthlyCommissionsProcessor(
   job: Job<SyncJobPayload>,
   db: PrismaClient = prisma
 ): Promise<CalculateMonthlyCommissionsResult> {
-  console.log('[worker] calculate-monthly-commissions started', { id: job.id });
+  log.info('[worker] calculate-monthly-commissions started', { id: job.id });
 
   const { periodFrom, periodTo } = prevMonthRange();
 
@@ -41,9 +42,9 @@ export async function calculateMonthlyCommissionsProcessor(
   // Best-effort: падение детекта не валит месячный батч (§3 graceful degrade).
   try {
     const detected = await detectLateRefundCorrections(db);
-    if (detected > 0) console.log('[worker] late-refund corrections detected', { detected });
+    if (detected > 0) log.info('[worker] late-refund corrections detected', { detected });
   } catch (e) {
-    console.warn('[worker] correction detection failed', { error: e instanceof Error ? e.message : String(e) });
+    log.warn('[worker] correction detection failed', { error: e instanceof Error ? e.message : String(e) });
   }
 
   // Партнёры, у кого есть хотя бы один платёж в периоде (по paidAt). При истории
@@ -107,7 +108,7 @@ export async function calculateMonthlyCommissionsProcessor(
               }
             });
           } catch (e) {
-            console.warn('[worker] commission-ready notify failed', {
+            log.warn('[worker] commission-ready notify failed', {
               partnerId,
               error: e instanceof Error ? e.message : String(e)
             });
@@ -134,7 +135,7 @@ export async function calculateMonthlyCommissionsProcessor(
   // failed, 'warn' for partial failures.
   if (errors.length > 0) {
     const allFailed = partnersProcessed === 0 && partnersSkipped === 0;
-    console.error('[worker] calculate-monthly-commissions partner failures', {
+    log.error('[worker] calculate-monthly-commissions partner failures', {
       failed: errors.length,
       processed: partnersProcessed,
       skipped: partnersSkipped,
@@ -152,9 +153,9 @@ export async function calculateMonthlyCommissionsProcessor(
           .join('; ')}`
       },
       db
-    ).catch((e) => console.warn('[worker] calculate-monthly-commissions writeSyncLog failed', e));
+    ).catch((e) => log.warn('[worker] calculate-monthly-commissions writeSyncLog failed', e));
   }
 
-  console.log('[worker] calculate-monthly-commissions done', summary);
+  log.info('[worker] calculate-monthly-commissions done', summary);
   return summary;
 }

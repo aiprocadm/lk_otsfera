@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { log } from '@/lib/logging';
 import { getOneCAdapter, type OneCAdapter } from '.';
 import { writeSyncLog } from './log';
 import type { OneCLeadPushPayload, OneCLeadPushResult } from './dto';
@@ -160,7 +161,7 @@ export async function pushLeadToOneC(
         data: { pushedToOneCAt: null }
       });
     } catch (rollbackErr) {
-      console.error('[pushLeadToOneC] claim rollback failed — lead may be stuck claimed', {
+      log.error('[pushLeadToOneC] claim rollback failed — lead may be stuck claimed', {
         leadId: lead.id,
         rollbackError: rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr)
       });

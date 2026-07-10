@@ -115,4 +115,27 @@ describe('getManagerFinanceOverview', () => {
     expect(res.sections).toEqual([]);
     expect(res.summary).toEqual({ billed: '0.00', paid: '0.00', outstanding: '0.00' });
   });
+
+  it('includePayments:false (R1.2, leaderDashboard): ledger не запрашивается, payments пустые, итоги на месте', async () => {
+    const prisma = fakePrisma([{ id: 'o1', name: 'A' }, { id: 'o2', name: 'B' }]);
+    const res = await getManagerFinanceOverview(
+      prisma,
+      session({ managerRole: 'leader', companyId: 'c1' }),
+      { teamMode: true, includePayments: false }
+    );
+
+    expect(orgFinance.listOrgPaymentsForOrgs).not.toHaveBeenCalled();
+    expect(res.sections).toHaveLength(2);
+    expect(res.sections.every((s) => s.payments.length === 0)).toBe(true);
+    // Итоги и комиссия не деградируют без ledger'а.
+    expect(res.summary).toEqual({ billed: '200.00', paid: '80.00', outstanding: '120.00' });
+    expect(res.sections[0].commission).toEqual({ effectiveRate: '0.1', totalCommission: '10.00', perOrder: [] });
+  });
+
+  it('без includePayments (страницы финансов): ledger запрашивается как раньше', async () => {
+    const prisma = fakePrisma([{ id: 'o1', name: 'A' }]);
+    const res = await getManagerFinanceOverview(prisma, session({ role: 'admin' }), { teamMode: false });
+    expect(orgFinance.listOrgPaymentsForOrgs).toHaveBeenCalledWith(prisma, ['o1']);
+    expect(res.sections[0].payments).toHaveLength(1);
+  });
 });

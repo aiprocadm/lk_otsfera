@@ -4,12 +4,14 @@ const {
   notificationFindMany,
   notificationUpdateMany,
   orderFindMany,
+  queryRaw,
   requireSession,
   requireRole
 } = vi.hoisted(() => ({
   notificationFindMany: vi.fn(),
   notificationUpdateMany: vi.fn(),
   orderFindMany: vi.fn(),
+  queryRaw: vi.fn(),
   requireSession: vi.fn(),
   requireRole: vi.fn()
 }));
@@ -17,7 +19,8 @@ const {
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     notification: { findMany: notificationFindMany, updateMany: notificationUpdateMany },
-    order: { findMany: orderFindMany }
+    order: { findMany: orderFindMany },
+    $queryRaw: queryRaw
   }
 }));
 vi.mock('@/lib/auth/guard', () => ({ requireSession, requireRole }));
@@ -71,6 +74,7 @@ describe('GET /api/notifications', () => {
     vi.resetAllMocks();
     notificationFindMany.mockResolvedValue([]);
     orderFindMany.mockResolvedValue([]);
+    queryRaw.mockResolvedValue([]);
   });
 
   it('returns 401 when requireSession fails', async () => {
@@ -104,10 +108,11 @@ describe('GET /api/notifications', () => {
     expect(call.where).toEqual({});
   });
 
-  it('manager: uses managedOrgIds + order IDs in OR scope', async () => {
+  it('manager: uses managedOrgIds + raw meta-candidate ids in OR scope (R1.2)', async () => {
     requireSession.mockResolvedValue({ ok: true, value: managerSession });
     requireRole.mockReturnValue({ ok: true, value: managerSession });
     orderFindMany.mockResolvedValue([{ id: 'order-1' }]);
+    queryRaw.mockResolvedValue([{ id: 'n-meta-1' }]);
     notificationFindMany.mockResolvedValue([]);
 
     const res = await GET();
@@ -117,7 +122,9 @@ describe('GET /api/notifications', () => {
     const orBranches = call.where.OR as Array<Record<string, unknown>>;
     expect(orBranches).toContainEqual({ userId: 'mgr-1' });
     expect(orBranches).toContainEqual({ organizationId: { in: ['orgA'] } });
-    expect(orBranches).toContainEqual({ meta: { path: ['orderId'], equals: 'order-1' } });
+    // R1.2: вместо per-order JSONB-веток — одна id-ветка из raw-кандидатов.
+    expect(orBranches).toContainEqual({ id: { in: ['n-meta-1'] } });
+    expect(orBranches.some((b) => 'meta' in b)).toBe(false);
   });
 
   it('manager with no managedOrgIds: scope has only userId + order branches (no orgId branch)', async () => {
@@ -211,6 +218,7 @@ describe('PATCH /api/notifications', () => {
     vi.resetAllMocks();
     notificationUpdateMany.mockResolvedValue({ count: 1 });
     orderFindMany.mockResolvedValue([]);
+    queryRaw.mockResolvedValue([]);
   });
 
   it('returns 401 when requireSession fails', async () => {

@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getObjectStorage } from '@/lib/storage';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import type { ScanDocumentPayload, ScanDocumentTarget } from '@/lib/jobs/types';
+import { log } from '@/lib/logging';
 
 export type ScanStatus = 'clean' | 'infected' | 'error';
 
@@ -129,7 +130,7 @@ export async function scanDocumentProcessor(
   deps: ScanDeps = defaultScanDeps,
 ): Promise<ScanDocumentResult> {
   const { kind, id } = job.data;
-  console.log('[worker] scan-document started', { id: job.id, kind, targetId: id });
+  log.info('[worker] scan-document started', { id: job.id, kind, targetId: id });
 
   const target = await loadTarget(db, kind, id);
   if (!target) throw new Error(`NOT_FOUND: ${kind} ${id}`);

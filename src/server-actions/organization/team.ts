@@ -14,6 +14,7 @@ import {
   type InviteMemberResult
 } from '@/lib/services/organization/team';
 import { sendOrgInviteEmail } from '@/lib/email/send';
+import { log } from '@/lib/logging';
 
 type Success<T> = T extends void ? { ok: true } : { ok: true } & T;
 type Failure = {
@@ -94,7 +95,7 @@ export async function inviteOrgMemberAction(
         invitedByName: session.name ?? undefined
       });
     } catch (e) {
-      console.warn('[organization/team] send invite email failed', e);
+      log.warn('[organization/team] send invite email failed', e);
     }
   }
 
@@ -172,15 +173,15 @@ export async function reactivateOrgMemberAction(formData: FormData): Promise<Act
 
 export async function updateOrgMemberRoleFormAction(formData: FormData): Promise<void> {
   const result = await updateOrgMemberRoleAction(formData);
-  if (!result.ok) console.warn('[organization/team] updateOrgMemberRoleFormAction failed', result);
+  if (!result.ok) log.warn('[organization/team] updateOrgMemberRoleFormAction failed', result);
 }
 
 export async function deactivateOrgMemberFormAction(formData: FormData): Promise<void> {
   const result = await deactivateOrgMemberAction(formData);
-  if (!result.ok) console.warn('[organization/team] deactivateOrgMemberFormAction failed', result);
+  if (!result.ok) log.warn('[organization/team] deactivateOrgMemberFormAction failed', result);
 }
 
 export async function reactivateOrgMemberFormAction(formData: FormData): Promise<void> {
   const result = await reactivateOrgMemberAction(formData);
-  if (!result.ok) console.warn('[organization/team] reactivateOrgMemberFormAction failed', result);
+  if (!result.ok) log.warn('[organization/team] reactivateOrgMemberFormAction failed', result);
 }

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getObjectStorage } from '@/lib/storage';
 import { renderStatementXlsx } from '@/lib/services/commission/xlsx';
 import type { GenerateCommissionXlsxPayload } from '@/lib/jobs/types';
+import { log } from '@/lib/logging';
 
 export type GenerateCommissionXlsxResult = {
   statementId: string;
@@ -15,7 +16,7 @@ export async function generateCommissionXlsxProcessor(
   db: PrismaClient = prisma
 ): Promise<GenerateCommissionXlsxResult> {
   const { statementId } = job.data;
-  console.log('[worker] generate-commission-xlsx started', { id: job.id, statementId });
+  log.info('[worker] generate-commission-xlsx started', { id: job.id, statementId });
 
   const statement = await db.commissionStatement.findUnique({
     where: { id: statementId },

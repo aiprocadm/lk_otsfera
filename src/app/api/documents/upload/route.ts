@@ -9,6 +9,7 @@ import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { recordAudit } from '@/lib/auth/audit';
 import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
 import { resolveMaxFileSizeMb, maxFileSizeBytes } from '@/lib/config/upload';
+import { log } from '@/lib/logging';
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
@@ -99,7 +100,7 @@ export async function POST(req: Request) {
       contentType: file.type
     });
   } catch (uploadError) {
-    console.error('Document upload failed', {
+    log.error('Document upload failed', {
       correlationId,
       orderId,
       fileName: file.name,
@@ -137,7 +138,7 @@ export async function POST(req: Request) {
     const payload: ScanDocumentPayload = { kind: 'document', id: doc.id };
     await getQueue('docs.scanDocument').add('scan', payload);
   } catch (err) {
-    console.warn('[documents/upload] enqueue scan failed', {
+    log.warn('[documents/upload] enqueue scan failed', {
       correlationId,
       documentId: doc.id,
       error: err instanceof Error ? err.message : String(err)
@@ -165,7 +166,7 @@ export async function POST(req: Request) {
       dedupKey: row.id
     });
   } catch (err) {
-    console.warn('[documents/upload] notification fan-out failed', {
+    log.warn('[documents/upload] notification fan-out failed', {
       correlationId,
       documentId: doc.id,
       error: err instanceof Error ? err.message : String(err)

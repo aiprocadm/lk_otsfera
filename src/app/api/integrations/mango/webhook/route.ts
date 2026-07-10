@@ -5,6 +5,7 @@ import { isMangoIpAllowed, clientIpFrom } from '@/lib/telephony/mango/ip';
 import { parseMangoEvent } from '@/lib/telephony/mango/parse';
 import { ingestCallEvent } from '@/lib/services/telephony/ingestCall';
 import { getQueue } from '@/lib/jobs/queues';
+import { log } from '@/lib/logging';
 
 /**
  * Публичный webhook событий Mango Office VPBX (B1). Mango шлёт per-type POST
@@ -61,11 +62,27 @@ export async function POST(req: Request): Promise<Response> {
   // event содержит только DATA от Mango, никогда не интерпретируется как код.
   const event = parseMangoEvent(eventType, payload);
   if (event) {
-    await ingestCallEvent(prisma, event).catch(() => {});
+    await ingestCallEvent(prisma, event).catch((e: unknown) => {
+      log.error('[webhook/mango] ingest failed', {
+        externalId: event.externalId,
+        error: e instanceof Error ? e.message : String(e)
+      });
+    });
     if (event.kind === 'recording' && event.recordingId) {
-      await getQueue('telephony.mango.recording')
-        .add('rec', { externalId: event.externalId, recordingId: event.recordingId })
-        .catch(() => {});
+      // try/catch, а не .catch(): getQueue → getRedisConnection бросает
+      // СИНХРОННО при отсутствующем REDIS_URL — промисный .catch это не ловил
+      // и вебхук отвечал 500 (carry-over PR-4 серии укрепления).
+      try {
+        await getQueue('telephony.mango.recording').add('rec', {
+          externalId: event.externalId,
+          recordingId: event.recordingId
+        });
+      } catch (e) {
+        log.error('[webhook/mango] recording enqueue failed', {
+          externalId: event.externalId,
+          error: e instanceof Error ? e.message : String(e)
+        });
+      }
     }
   }
 

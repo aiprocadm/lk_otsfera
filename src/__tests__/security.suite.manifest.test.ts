@@ -30,7 +30,12 @@ const INTEGRATION_INVARIANTS = [
   'f4.org-rate-history.test.ts', // per-org commission rate history
   'security.idor-lead.integration.test.ts', // Lead cross-partner IDOR (E2-A)
   'security.idor-comments.integration.test.ts', // partner comments cross-tenant (E2-C)
-  'security.partner-commission-idor.integration.test.ts' // partner↔partner commission IDOR (E2-B)
+  'security.partner-commission-idor.integration.test.ts', // partner↔partner commission IDOR (E2-B)
+  // Новые домены (R0.7 release hardening): инварианты изоляции под защитой манифеста.
+  'security.idor-calls.integration.test.ts', // telephony: listCalls C8 + recording IDOR
+  'security.idor-inbox.integration.test.ts', // inbound inbox: C8 list + bind/reply cross-company
+  'services.tasks.isolation.test.ts', // internal tasks: клиентские роли + cross-company deny
+  'services.funnel.isolation.test.ts' // sales funnel: staff-гейт (клиентские роли deny)
 ];
 
 function read(file: string): string {

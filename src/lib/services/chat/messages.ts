@@ -3,6 +3,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeThread } from './policy';
 import { recordAudit } from '@/lib/auth/audit';
 import { notifyManagers, notifyOrgUsers } from '@/lib/notifications';
+import { log } from '@/lib/logging';
 
 export type ListMessagesResult =
   | { ok: true; rows: Array<{ id: string; authorId: string; authorName: string; body: string; hasAttachment: boolean; createdAt: Date }> }
@@ -110,7 +111,7 @@ export async function sendMessage(
       });
     }
   } catch (err) {
-    console.warn('[chat/sendMessage] notify failed', { messageId: message.id, error: err instanceof Error ? err.message : String(err) });
+    log.warn('[chat/sendMessage] notify failed', { messageId: message.id, error: err instanceof Error ? err.message : String(err) });
   }
 
   return { ok: true, messageId: message.id };

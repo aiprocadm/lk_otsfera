@@ -5,6 +5,7 @@ const {
   notificationUpdateMany,
   orderFindMany,
   organizationUserFindMany,
+  queryRaw,
   requireSession,
   requireRole
 } = vi.hoisted(() => ({
@@ -12,6 +13,7 @@ const {
   notificationUpdateMany: vi.fn(),
   orderFindMany: vi.fn(),
   organizationUserFindMany: vi.fn(),
+  queryRaw: vi.fn(),
   requireSession: vi.fn(),
   requireRole: vi.fn()
 }));
@@ -20,12 +22,13 @@ vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     notification: { findMany: notificationFindMany, updateMany: notificationUpdateMany },
     order: { findMany: orderFindMany },
-    organizationUser: { findMany: organizationUserFindMany }
+    organizationUser: { findMany: organizationUserFindMany },
+    $queryRaw: queryRaw
   }
 }));
 vi.mock('@/lib/auth/guard', () => ({ requireSession, requireRole }));
 
-import { GET } from '@/app/api/notifications/route';
+import { GET, PATCH } from '@/app/api/notifications/route';
 import { managerOrderScopeFilter } from '@/lib/auth/managerPolicy';
 
 const managerSession = {
@@ -34,12 +37,18 @@ const managerSession = {
   managedOrgIds: ['orgA']
 };
 
-describe('GET /api/notifications — manager branch (Task 5b)', () => {
+/** Prisma.Sql хранит подставленные значения в .values — по ним ассертим параметры. */
+function sqlValues(callIndex = 0): unknown[] {
+  return (queryRaw.mock.calls[callIndex][0] as { values: unknown[] }).values;
+}
+
+describe('GET /api/notifications — manager branch (Task 5b + R1.2 candidate query)', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     requireSession.mockResolvedValue({ ok: true, value: managerSession });
     requireRole.mockReturnValue({ ok: true, value: managerSession });
     notificationFindMany.mockResolvedValue([]);
+    queryRaw.mockResolvedValue([]);
   });
 
   it('uses session.managedOrgIds (not OrganizationUser) for per-org scope', async () => {
@@ -48,6 +57,8 @@ describe('GET /api/notifications — manager branch (Task 5b)', () => {
     await GET();
 
     expect(organizationUserFindMany).not.toHaveBeenCalled();
+    // Нет видимых заказов → raw-запрос кандидатов даже не выполняется.
+    expect(queryRaw).not.toHaveBeenCalled();
     expect(notificationFindMany).toHaveBeenCalledTimes(1);
     const where = notificationFindMany.mock.calls[0][0].where as {
       OR: Array<Record<string, unknown>>;
@@ -56,8 +67,9 @@ describe('GET /api/notifications — manager branch (Task 5b)', () => {
     expect(where.OR).toContainEqual({ organizationId: { in: ['orgA'] } });
   });
 
-  it('hydrates in-scope order ids via managerOrderScopeFilter and matches notifications by meta.orderId', async () => {
+  it('hydrates in-scope order ids via managerOrderScopeFilter and matches meta.orderId candidates in ONE raw query', async () => {
     orderFindMany.mockResolvedValue([{ id: 'order-mine-foreign-org' }, { id: 'order-in-my-org' }]);
+    queryRaw.mockResolvedValue([{ id: 'n-meta-1' }, { id: 'n-meta-2' }]);
 
     await GET();
 
@@ -67,16 +79,19 @@ describe('GET /api/notifications — manager branch (Task 5b)', () => {
       select: { id: true }
     });
 
+    // R1.2: ровно один raw-запрос со ВСЕМИ in-scope order ids в параметрах —
+    // вместо OR-ветки с JSONB-путём на каждый заказ.
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    expect(sqlValues()).toEqual(
+      expect.arrayContaining(['order-mine-foreign-org', 'order-in-my-org'])
+    );
+
     const where = notificationFindMany.mock.calls[0][0].where as {
       OR: Array<Record<string, unknown>>;
     };
-    // Per-order ownership coverage: notifications referencing those order IDs via meta.orderId.
-    expect(where.OR).toContainEqual({
-      meta: { path: ['orderId'], equals: 'order-mine-foreign-org' }
-    });
-    expect(where.OR).toContainEqual({
-      meta: { path: ['orderId'], equals: 'order-in-my-org' }
-    });
+    // Кандидаты входят в scope одной id-веткой; per-order meta-веток больше нет.
+    expect(where.OR).toContainEqual({ id: { in: ['n-meta-1', 'n-meta-2'] } });
+    expect(where.OR.some((b) => 'meta' in b)).toBe(false);
   });
 
   it('omits organizationId branch when manager has no managedOrgIds', async () => {
@@ -115,21 +130,52 @@ describe('GET /api/notifications — manager branch (Task 5b)', () => {
     expect(organizationUserFindMany).not.toHaveBeenCalled();
   });
 
-  it('does not include notifications for an order outside scope (only in-scope orderIds become branches)', async () => {
-    // Simulate the scoped Order query returning only the two visible orders;
-    // the route must NOT produce a meta.orderId branch for any other id.
+  it('feeds ONLY in-scope order ids into the candidate query; empty candidates → no id branch', async () => {
     orderFindMany.mockResolvedValue([{ id: 'in-scope-1' }]);
+    queryRaw.mockResolvedValue([]);
 
     await GET();
 
+    expect(sqlValues()).toContain('in-scope-1');
+    expect(sqlValues()).not.toContain('out-of-scope');
     const where = notificationFindMany.mock.calls[0][0].where as {
       OR: Array<Record<string, unknown>>;
     };
-    const orderIdBranches = where.OR.filter(
-      (b) => 'meta' in b
-    ) as Array<{ meta: { path: string[]; equals: string } }>;
-    const ids = orderIdBranches.map((b) => b.meta.equals);
-    expect(ids).toEqual(['in-scope-1']);
-    expect(ids).not.toContain('out-of-scope');
+    expect(where.OR.some((b) => 'id' in b)).toBe(false);
+    expect(where.OR.some((b) => 'meta' in b)).toBe(false);
+  });
+});
+
+describe('PATCH /api/notifications — manager candidate query stays bounded (R1.2)', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    requireSession.mockResolvedValue({ ok: true, value: managerSession });
+    requireRole.mockReturnValue({ ok: true, value: managerSession });
+    notificationUpdateMany.mockResolvedValue({ count: 1 });
+    queryRaw.mockResolvedValue([]);
+  });
+
+  function patchReq(body: unknown): Request {
+    return new Request('http://x/api/notifications', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+      headers: { 'content-type': 'application/json' }
+    });
+  }
+
+  it('кандидаты ограничены переданными ids (в SQL уходят и ids, и order ids)', async () => {
+    orderFindMany.mockResolvedValue([{ id: 'order-1' }]);
+    queryRaw.mockResolvedValue([{ id: 'n1' }]);
+
+    await PATCH(patchReq({ id: 'n1' }));
+
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    expect(sqlValues()).toEqual(expect.arrayContaining(['n1', 'order-1']));
+
+    const call = notificationUpdateMany.mock.calls[0][0];
+    const scope = (call.where.AND as Array<Record<string, unknown>>)[1] as {
+      OR: Array<Record<string, unknown>>;
+    };
+    expect(scope.OR).toContainEqual({ id: { in: ['n1'] } });
   });
 });

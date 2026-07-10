@@ -31,11 +31,16 @@ export type ManagerFinanceOverview = {
  * (для руководителя/админа) проценты посредника. Тонкий агрегатор поверх
  * organization/finance.ts. Гейт комиссии — здесь (§4 service-layer): рядовой
  * менеджер физически не вызывает расчёт маржи (field-level).
+ *
+ * `includePayments: false` (R1.2) — для потребителей, которым нужны только
+ * итоги (leaderDashboard): пропускает оконный запрос top-50 платежей на
+ * КАЖДУЮ организацию, sections[].payments приходят пустыми. Страницы финансов
+ * менеджера/руководителя зовут без опции — полный ledger как раньше.
  */
 export async function getManagerFinanceOverview(
   prisma: PrismaClient,
   session: SessionPayload,
-  opts: { teamMode: boolean }
+  opts: { teamMode: boolean; includePayments?: boolean }
 ): Promise<ManagerFinanceOverview> {
   const unscoped = session.role === 'admin';
   // G1: единый capability-gate. Для no-profile сессий тождественно старому
@@ -52,9 +57,10 @@ export async function getManagerFinanceOverview(
   // Батч: KPI, платежи (top-50 per-org оконным ROW_NUMBER) и комиссия
   // считаются 3-4 запросами на весь scope вместо 3×N.
   const orgIdList = orgs.map((org) => org.id);
+  const includePayments = opts.includePayments ?? true;
   const [kpisByOrg, paymentsByOrg, commissionByOrg] = await Promise.all([
     getOrgFinanceKpisForOrgs(prisma, orgIdList),
-    listOrgPaymentsForOrgs(prisma, orgIdList),
+    includePayments ? listOrgPaymentsForOrgs(prisma, orgIdList) : Promise.resolve(null),
     canSeeCommission
       ? getOrgIntermediaryCommissionForOrgs(prisma, orgIdList)
       : Promise.resolve(null)
@@ -64,7 +70,7 @@ export async function getManagerFinanceOverview(
     orgId: org.id,
     orgName: org.name,
     kpis: kpisByOrg.get(org.id)!,
-    payments: paymentsByOrg.get(org.id)!,
+    payments: paymentsByOrg?.get(org.id) ?? [],
     commission: commissionByOrg?.get(org.id) ?? null
   }));
 

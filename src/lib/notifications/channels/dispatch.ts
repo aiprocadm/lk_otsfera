@@ -14,6 +14,7 @@
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { getQueue } from '@/lib/jobs/queues';
 import type { NotificationDispatchPayload } from '@/lib/jobs/types';
+import { log } from '@/lib/logging';
 import { deliverToRecipient, type DeliverOptions, type DeliveryResults } from './deliver';
 import { getChannels } from './registry';
 import type { ChannelKey, ChannelPayload, ChannelRecipient } from './types';
@@ -66,7 +67,7 @@ export async function dispatchToRecipient(
     );
     return { mode: 'queued', channels: enabled.map((ch) => ch.key) };
   } catch (err) {
-    console.warn('[notifications] enqueue failed — falling back to inline delivery', {
+    log.warn('[notifications] enqueue failed — falling back to inline delivery', {
       dedupKey: opts.dedupKey,
       error: err instanceof Error ? err.message : String(err),
     });

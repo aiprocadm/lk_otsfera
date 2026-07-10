@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { log } from '@/lib/logging';
 import {
   defaultTransport,
   getEmailFrom,
@@ -109,7 +110,7 @@ export async function send(
   const transport = options.transport ?? (await defaultTransport());
   if (!transport) {
     if (process.env.EMAIL_ENABLED?.trim().toLowerCase() === 'true') {
-      console.warn('[email] EMAIL_ENABLED=true but RESEND_API_KEY is missing — skipping send');
+      log.warn('[email] EMAIL_ENABLED=true but RESEND_API_KEY is missing — skipping send');
     }
     return { status: 'skipped', reason: 'no-api-key' };
   }

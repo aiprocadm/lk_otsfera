@@ -3,6 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import type { PushLeadJobPayload } from '@/lib/jobs/types';
 import { pushLeadToOneC } from '@/lib/services/oneCSync/push';
+import { log } from '@/lib/logging';
 
 export type PushLeadProcessorResult = {
   leadId: string;
@@ -13,7 +14,7 @@ export async function pushLeadProcessor(
   job: Job<PushLeadJobPayload>,
   db: PrismaClient = prisma
 ): Promise<PushLeadProcessorResult> {
-  console.log('[worker] push-lead job started', { id: job.id, leadId: job.data.leadId });
+  log.info('[worker] push-lead job started', { id: job.id, leadId: job.data.leadId });
 
   const res = await pushLeadToOneC(db, job.data.leadId);
   if (!res.ok) {

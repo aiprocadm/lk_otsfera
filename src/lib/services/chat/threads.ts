@@ -1,4 +1,5 @@
-import type { PrismaClient, ThreadSide, OrderThread, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { PrismaClient, ThreadSide, OrderThread } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeThread } from './policy';
 import { activeOrgIds } from '@/lib/auth/organizationPolicy';
@@ -44,6 +45,33 @@ function scopeWhere(session: SessionPayload): Prisma.OrderThreadWhereInput | nul
   }
   if (session.role === 'partner') {
     return { side: 'partner', order: { partnerId: session.partnerId ?? '' } };
+  }
+  return null; // any other role: no threads
+}
+
+/**
+ * SQL-зеркало scopeWhere для unreadCount (R1.2) — единственное место с raw SQL
+ * в домене chat: условие «lastMessageAt > lastReadAt» — column-to-column
+ * сравнение, которое Prisma-фильтром не выражается. Роль-ветки дублируют
+ * scopeWhere НАМЕРЕННО и построчно (t = OrderThread, o = Order); при правке
+ * одной функции правь вторую. Эквивалентность закреплена интеграционным
+ * тестом (unread в listThreads ↔ unreadCount, services.chat.inbox.integration).
+ */
+function scopeSql(session: SessionPayload): Prisma.Sql | null {
+  if (session.role === 'admin') {
+    return Prisma.sql`TRUE`;
+  }
+  if (session.role === 'manager') {
+    return Prisma.sql`o."companyId" = ${session.companyId ?? '__no_company__'}`;
+  }
+  if (session.role === 'organization') {
+    const orgIds = activeOrgIds(session);
+    // Пустой membership = ноль тредов (зеркало `in: []`); IN () невалиден в SQL.
+    if (orgIds.length === 0) return Prisma.sql`FALSE`;
+    return Prisma.sql`t."side" = 'org'::"ThreadSide" AND o."organizationId" IN (${Prisma.join(orgIds)})`;
+  }
+  if (session.role === 'partner') {
+    return Prisma.sql`t."side" = 'partner'::"ThreadSide" AND o."partnerId" = ${session.partnerId ?? ''}`;
   }
   return null; // any other role: no threads
 }
@@ -121,32 +149,32 @@ export async function markRead(
 
 /**
  * Returns the count of threads the caller has not yet read (unread threads).
- * Reuses scopeWhere to stay consistent with listThreads scoping.
+ * Scoping mirrors listThreads via scopeSql (см. комментарий у scopeSql).
+ *
+ * R1.2: раньше — findMany ВСЕХ тредов scope с подзапросом readStates и счётом
+ * в JS, на каждый 15-секундный поллинг UnreadBadge (admin — все треды системы).
+ * Теперь один SQL-count: LEFT JOIN по unique (threadId, userId) строки не
+ * размножает, COALESCE(to_timestamp(0)) повторяет JS-семантику «нет readState —
+ * тред непрочитан».
  */
 export async function unreadCount(
   prisma: PrismaClient,
   session: SessionPayload
 ): Promise<UnreadCountResult> {
-  const where = scopeWhere(session);
-  if (where === null) return { ok: true, count: 0 };
+  const scope = scopeSql(session);
+  if (scope === null) return { ok: true, count: 0 };
 
-  const threads = await prisma.orderThread.findMany({
-    where,
-    select: {
-      lastMessageAt: true,
-      readStates: {
-        where: { userId: session.sub },
-        select: { lastReadAt: true },
-        take: 1
-      }
-    }
-  });
+  const rows = await prisma.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+    SELECT COUNT(*)::int AS count
+    FROM "OrderThread" t
+    JOIN "Order" o ON o."id" = t."orderId"
+    LEFT JOIN "ThreadReadState" rs
+      ON rs."threadId" = t."id" AND rs."userId" = ${session.sub}
+    WHERE ${scope}
+      AND t."lastMessageAt" > COALESCE(rs."lastReadAt", to_timestamp(0))
+  `);
 
-  const count = threads.filter(
-    (t) => t.lastMessageAt > (t.readStates[0]?.lastReadAt ?? new Date(0))
-  ).length;
-
-  return { ok: true, count };
+  return { ok: true, count: rows[0].count };
 }
 
 export async function findOrCreateThread(

@@ -6,6 +6,7 @@ import { signStudentBridgeToken } from '@/lib/auth/jwt';
 import { prisma } from '@/lib/db/prisma';
 import { assertAllowedStudentPortalUrl } from '@/lib/security/redirect';
 import { recordAudit } from '@/lib/auth/audit';
+import { log } from '@/lib/logging';
 
 const bridgeCodeTtlSec = Number(process.env.STUDENT_BRIDGE_CODE_TTL_SEC ?? 60);
 
@@ -23,7 +24,7 @@ function getStudentRedirectConfig() {
   const redirectUrl = newRedirectUrl || legacyRedirectUrl;
 
   if (!newRedirectUrl && legacyRedirectUrl) {
-    console.warn(
+    log.warn(
       '[student-redirect] STUDENT_PORTAL_URL is deprecated. Please migrate to STUDENT_REDIRECT_URL.'
     );
   }
@@ -33,7 +34,7 @@ function getStudentRedirectConfig() {
   const allowlistRaw = (newAllowlist && newAllowlist.trim()) || legacyAllowlist;
 
   if ((!newAllowlist || !newAllowlist.trim()) && legacyAllowlist) {
-    console.warn(
+    log.warn(
       '[student-redirect] STUDENT_PORTAL_ALLOWED_HOSTS is deprecated. Please migrate to STUDENT_REDIRECT_ALLOWED_DOMAINS.'
     );
   }
@@ -63,7 +64,7 @@ export default async function StudentRedirectPage() {
     url = assertAllowedStudentPortalUrl(externalUrl, { allowlist: studentPortalAllowlist });
   } catch (error) {
     const parsed = URL.canParse(externalUrl) ? new URL(externalUrl) : null;
-    console.error('Blocked student portal redirect URL', {
+    log.error('Blocked student portal redirect URL', {
       reason: error instanceof Error ? error.message : 'Unknown error',
       protocol: parsed?.protocol,
       hostname: parsed?.hostname

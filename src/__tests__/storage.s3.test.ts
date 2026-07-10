@@ -158,6 +158,43 @@ describe('S3Storage.download', () => {
   });
 });
 
+describe('S3Storage.ping (R1.1 readiness-проба)', () => {
+  it('шлёт ListObjectsV2 MaxKeys=1 по бакету', async () => {
+    sendMock.mockReset();
+    sendMock.mockResolvedValue({ KeyCount: 0 });
+    const { S3Storage } = await import('@/lib/storage/s3');
+    const storage = new S3Storage({ send: sendMock } as never, 'bkt');
+    await storage.ping();
+    const cmd = sendMock.mock.calls[0][0];
+    expect(cmd.input).toMatchObject({ Bucket: 'bkt', MaxKeys: 1 });
+  });
+
+  it('оборачивает провал в StorageError(op=ping)', async () => {
+    sendMock.mockReset();
+    sendMock.mockRejectedValue(new Error('s3 down'));
+    const { S3Storage } = await import('@/lib/storage/s3');
+    const { StorageError } = await import('@/lib/storage/objectStorage');
+    const storage = new S3Storage({ send: sendMock } as never, 'bkt');
+    await expect(storage.ping()).rejects.toBeInstanceOf(StorageError);
+    await expect(storage.ping()).rejects.toThrow('STORAGE_PING: s3 down');
+  });
+});
+
+describe('s3HealthPing (singleton-делегат для lib/health/checks)', () => {
+  it('строит singleton при первом вызове и переиспользует при втором', async () => {
+    vi.stubEnv('S3_ENDPOINT', 'http://localhost:9000');
+    vi.stubEnv('S3_ACCESS_KEY_ID', 'ak');
+    vi.stubEnv('S3_SECRET_ACCESS_KEY', 'sk');
+    vi.resetModules();
+    const mod = await import('@/lib/storage/s3');
+    const pingSpy = vi.spyOn(mod.S3Storage.prototype, 'ping').mockResolvedValue(undefined);
+    await mod.s3HealthPing();
+    await mod.s3HealthPing();
+    expect(pingSpy).toHaveBeenCalledTimes(2);
+    pingSpy.mockRestore();
+  });
+});
+
 describe('S3Storage.createSignedUrl', () => {
   it('no download opt → no ResponseContentDisposition (inline)', async () => {
     getSignedUrlMock.mockReset();

@@ -8,6 +8,7 @@
  */
 
 import type { Resend } from 'resend';
+import { log } from '@/lib/logging';
 
 export type EmailTransport = {
   send(input: {
@@ -58,7 +59,7 @@ export async function defaultTransport(): Promise<EmailTransport | null> {
       // key). Without this they were swallowed and reported upstream as "sent"
       // with a null id, hiding systematic delivery failures from operators.
       if (result.error) {
-        console.error('[email] Resend API error', { to: input.to, error: result.error });
+        log.error('[email] Resend API error', { to: input.to, error: result.error });
       }
       return { id: result.data?.id ?? null };
     },

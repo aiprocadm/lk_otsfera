@@ -136,4 +136,12 @@ describe('POST /api/integrations/max/webhook — inbound ingest', () => {
     );
     expect(res.status).toBe(200);
   });
+
+  it('не-Error rejection ingest (строка) → 200 (String(e)-плечо error-лога)', async () => {
+    ingestMock.mockRejectedValue('db string down');
+    const res = await POST(
+      req({ message: { message_id: 4, text: 'привет опять', chat: { id: 1 } } }, { 'x-max-webhook-secret': SECRET })
+    );
+    expect(res.status).toBe(200);
+  });
 });

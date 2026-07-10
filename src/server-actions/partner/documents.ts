@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
 import { notifyManagers } from '@/lib/notifications';
 import { persistUploadedDocument } from '@/lib/services/documents/upload-core';
+import { log } from '@/lib/logging';
 
 export type UploadDocumentResult =
   | { ok: true; documentId: string }
@@ -59,7 +60,7 @@ export async function uploadPartnerDocument(formData: FormData): Promise<UploadD
       payload: { partnerName: partner?.name ?? 'партнёр', documentName: file.name, documentType: parsed.data.docType }
     });
   } catch (err) {
-    console.warn('[uploadPartnerDocument] notifyManagers failed', {
+    log.warn('[uploadPartnerDocument] notifyManagers failed', {
       documentId: persisted.documentId,
       error: err instanceof Error ? err.message : String(err)
     });

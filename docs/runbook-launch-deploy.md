@@ -96,11 +96,15 @@ DATABASE_URL=<PROD> npm run dedupe:commission
 
 ### 3.2 Применить миграции
 ```bash
+# R0.5: перед миграциями — точка восстановления БД (снапшот у провайдера
+# или логический дамп ./scripts/backup/pg-dump.sh; см. runbook-backups.md).
 npx prisma migrate status          # ожидание: pending миграции из PR #124
 npx prisma migrate deploy          # применяет partial-unique (C-01) + enrollment_requests (T5)
 npx prisma migrate status          # ожидание: "Database schema is up to date"
 ```
 Ключевые миграции волны: `20260614000000_commission_statement_partial_unique` (C-01, raw SQL — Prisma не выражает partial-unique), `20260615030202_enrollment_requests` (T5, аддитивная). Откатывать миграции для отключения фич **не нужно** — всё гейтится флагами.
+
+> С 2026-07 `docker compose -f docker-compose.prod.yml up -d` выполняет `migrate deploy` сам (one-shot сервис `migrate`, web/worker ждут его успеха) — ручная форма выше нужна для контроля статуса и запусков вне compose-цикла.
 
 ### 3.3 Включить opt-in флаги первой волны (web + worker)
 ```
@@ -146,7 +150,9 @@ FEATURE_CHAT=1            # только если чат идёт в перву�
 **Шаги** (по слоям, независимо):
 - **Фичи волны** — выставить соответствующий `FEATURE_*=0` (или `unset` для opt-in) → redeploy web+worker. Кабинеты partner/admin/student не затронуты.
 - **1С** — `ONE_C_ADAPTER=fake` → restart worker.
-- **Миграции откатывать НЕ нужно.** Partial-unique (C-01) и `EnrollmentRequest` (T5) безвредны при выключенных фичах; данные read-only.
+- **Миграции откатывать НЕ нужно.** Partial-unique (C-01) и `EnrollmentRequest` (T5) безвредны при выключенных фичах; данные read-only. Общий принцип для будущих волн: миграции этого проекта аддитивны; при деструктивной миграции точка отката — снапшот/дамп из §3.2.
+- **Код** — образ тегируется `lk-otsfera:prod` без версии, поэтому откат кода = `git checkout <прошлый tag/SHA>` → `docker build -t lk-otsfera:prod .` → `up -d`. (Рекомендация: начать тегировать образы SHA, чтобы откат был мгновенным `docker tag`.)
+- **Reverse-proxy контракт** — login-лимитер и Mango IP-allowlist доверяют `x-forwarded-for` только потому, что наружу смотрит один Caddy, который его перезаписывает. Не выставлять web (порт 3000) наружу в обход Caddy.
 
 ---
 
@@ -169,9 +175,9 @@ T3/F2 — это **чистый флип видимости**: партнёр т
 
 ## 8. Чек-лист одной страницей (порядок строгий)
 
-- [ ] **(свежая БД)** §0.1 Step 0: `db:create-admin` создан · `SHOW_DEMO_LOGINS` снят/`off` · demo-seed НЕ запускался
+- [ ] **(свежая БД)** §0.1 Step 0: `SHOW_DEMO_LOGINS` снят/`off` · demo-seed НЕ запускался (и сам откажется: NODE_ENV=production) · `db:create-admin` — **только ПОСЛЕ §3.2 миграций** (на пустой БД без схемы упадёт)
 - [ ] §2 `dedupe:commission` dry-run → `--apply` (если нужно) → dry-run `OK` *(свежая БД → сразу `OK`, `--apply` не нужен)*
-- [ ] §3.2 `prisma migrate deploy` → `up to date`
+- [ ] §3.2 снапшот/дамп БД → `prisma migrate deploy` → `up to date` → **(свежая БД)** `db:create-admin`
 - [ ] §3.3 `FEATURE_*=1` (org/manager/leader/enrollment [+chat]) на web **и** worker → redeploy обоих → верификация
 - [ ] §6 коммуникация партнёрам про F2 отправлена
 - [ ] §4 1С: shadow-репетиция → go/no-go → `ONE_C_MODE=live` (отдельным окном)

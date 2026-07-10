@@ -13,11 +13,19 @@
  * Worker BullMQ — отдельный процесс, его init в src/worker/index.ts.
  */
 import { scrubSentryEvent } from '@/lib/logging/scrub';
+import { assertEnvOnBoot } from '@/lib/env';
 
 export async function register(): Promise<void> {
+  const runtime = process.env.NEXT_RUNTIME;
+  // R0.2 fail-fast: production-сервер не поднимается с пустыми/плейсхолдерными
+  // секретами (throw до какой-либо инициализации). Только nodejs-runtime:
+  // edge-инстанс middleware не видит полного серверного окружения. Вне
+  // production assertEnvOnBoot — no-op.
+  if (runtime === 'nodejs') {
+    assertEnvOnBoot();
+  }
   const dsn = process.env.SENTRY_DSN;
   if (!dsn) return;
-  const runtime = process.env.NEXT_RUNTIME;
   if (runtime !== 'nodejs' && runtime !== 'edge') return;
   const Sentry = await import('@sentry/nextjs');
   Sentry.init({

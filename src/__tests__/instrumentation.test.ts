@@ -7,11 +7,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { onRequestError, register } from '@/instrumentation';
 import { REDACTED } from '@/lib/logging/scrub';
 
-const { init, captureRequestError } = vi.hoisted(() => ({
+const { init, captureRequestError, assertEnvOnBoot } = vi.hoisted(() => ({
   init: vi.fn(),
-  captureRequestError: vi.fn()
+  captureRequestError: vi.fn(),
+  assertEnvOnBoot: vi.fn()
 }));
 vi.mock('@sentry/nextjs', () => ({ init, captureRequestError }));
+vi.mock('@/lib/env', () => ({ assertEnvOnBoot }));
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -59,6 +61,29 @@ describe('register', () => {
     vi.stubEnv('SENTRY_DSN', 'https://k@sentry.example.ru/1');
     vi.stubEnv('NEXT_RUNTIME', '');
     await register();
+    expect(init).not.toHaveBeenCalled();
+  });
+
+  it('nodejs runtime зовёт assertEnvOnBoot (R0.2 fail-fast) даже без DSN', async () => {
+    vi.stubEnv('SENTRY_DSN', '');
+    vi.stubEnv('NEXT_RUNTIME', 'nodejs');
+    await register();
+    expect(assertEnvOnBoot).toHaveBeenCalledTimes(1);
+  });
+
+  it('edge runtime НЕ зовёт assertEnvOnBoot (нет полного серверного окружения)', async () => {
+    vi.stubEnv('SENTRY_DSN', 'https://k@sentry.example.ru/1');
+    vi.stubEnv('NEXT_RUNTIME', 'edge');
+    await register();
+    expect(assertEnvOnBoot).not.toHaveBeenCalled();
+  });
+
+  it('throw из assertEnvOnBoot пробрасывается (сервер не стартует)', async () => {
+    vi.stubEnv('NEXT_RUNTIME', 'nodejs');
+    assertEnvOnBoot.mockImplementationOnce(() => {
+      throw new Error('Некорректное production-окружение');
+    });
+    await expect(register()).rejects.toThrow('production-окружение');
     expect(init).not.toHaveBeenCalled();
   });
 });

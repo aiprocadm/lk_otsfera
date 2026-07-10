@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { getObjectStorage } from '@/lib/storage';
+import { log } from '@/lib/logging';
 import { withTimeout, withRetry, OneCHttpError } from './resilience';
 
 /**
@@ -39,7 +40,7 @@ export async function fetchAndStore1CDocument(args: {
     try {
       await getObjectStorage().upload(storagePath, buffer, { contentType: args.mimeType });
     } catch (e) {
-      console.warn('[1c] document store failed', {
+      log.warn('[1c] document store failed', {
         url: args.url,
         error: e instanceof Error ? e.message : String(e)
       });
@@ -47,7 +48,7 @@ export async function fetchAndStore1CDocument(args: {
     }
     return storagePath;
   } catch (err) {
-    console.warn('[1c] document fetch failed', {
+    log.warn('[1c] document fetch failed', {
       url: args.url,
       error: err instanceof Error ? err.message : String(err)
     });

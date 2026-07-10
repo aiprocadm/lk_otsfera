@@ -3,6 +3,7 @@ import { linkByCode } from '@/lib/services/telegram/link';
 import { sendTelegramMessage } from '@/lib/telegram/client';
 import { ingestInboundMessage } from '@/lib/services/inbound/ingest';
 import { isFeatureEnabled } from '@/lib/featureFlags';
+import { log } from '@/lib/logging';
 
 export async function POST(req: Request): Promise<Response> {
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
@@ -44,9 +45,17 @@ export async function POST(req: Request): Promise<Response> {
           ? '✅ Уведомления привязаны к этому чату.'
           : 'Код недействителен или истёк.';
         // Best-effort — don't await failure propagation
-        await sendTelegramMessage(chatId, reply).catch(() => {});
-      } catch {
+        await sendTelegramMessage(chatId, reply).catch((e: unknown) => {
+          log.warn('[webhook/telegram] reply send failed', {
+            error: e instanceof Error ? e.message : String(e)
+          });
+        });
+      } catch (e) {
         // Swallow — always 200 below so Telegram doesn't retry.
+        // Код привязки НЕ логируем (§12).
+        log.error('[webhook/telegram] link handling failed', {
+          error: e instanceof Error ? e.message : String(e)
+        });
       }
     } else if (
       !/^\/start\b/.test(text) &&
@@ -68,7 +77,12 @@ export async function POST(req: Request): Promise<Response> {
             ? ((message!.from as Record<string, unknown>).username as string)
             : undefined,
         body: text,
-      }).catch(() => {});
+      }).catch((e: unknown) => {
+        log.error('[webhook/telegram] ingest failed', {
+          externalId: `tg:${chatId}:${message.message_id}`,
+          error: e instanceof Error ? e.message : String(e)
+        });
+      });
     }
   }
 

@@ -11,6 +11,7 @@ import {
 } from '@/lib/services/organization/invite';
 import { OrgMemberError, type OrgMemberErrorCode } from '@/lib/services/organization/team';
 import { sendOrgInviteEmail } from '@/lib/email/send';
+import { log } from '@/lib/logging';
 
 export type InviteAdminActionError =
   | 'validation'
@@ -78,7 +79,7 @@ export async function inviteAdminOrgAdminAction(
           invitedByName: session.name ?? undefined
         });
       } catch (e) {
-        console.warn('[admin/inviteOrgAdmin] send invite email failed', e);
+        log.warn('[admin/inviteOrgAdmin] send invite email failed', e);
       }
     }
 

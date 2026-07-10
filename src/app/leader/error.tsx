@@ -1,6 +1,7 @@
 'use client';
 import { useEffect } from 'react';
 import { Button } from '@/components/ui';
+import { clientLog } from '@/lib/logging/client';
 
 // Сегментный error-boundary: ошибка страницы показывается внутри layout
 // кабинета (навигация остаётся живой), в отличие от корневого app/error.tsx.
@@ -12,7 +13,7 @@ export default function CabinetError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    clientLog.error(error);
   }, [error]);
 
   return (

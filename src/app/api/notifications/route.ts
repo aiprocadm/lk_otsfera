@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireRole, requireSession } from '@/lib/auth/guard';
 import { managedOrgIds, managerOrderScopeFilter } from '@/lib/auth/managerPolicy';
@@ -14,7 +15,10 @@ const patchSchema = z.object({
   message: 'id or ids required'
 });
 
-async function buildScopeWhere(session: SessionPayload) {
+async function buildScopeWhere(
+  session: SessionPayload,
+  opts: { candidateIds?: string[] } = {}
+) {
   if (session.role === 'admin') return {};
 
   if (session.role === 'manager') {
@@ -23,6 +27,14 @@ async function buildScopeWhere(session: SessionPayload) {
     // Notification has no direct Order FK, so we hydrate the in-scope order IDs
     // and match them via meta.orderId for order-bound fan-outs that did not
     // also stamp organizationId (e.g. per-order ownership in a foreign org).
+    //
+    // R1.2: раньше на КАЖДЫЙ видимый заказ строилась отдельная OR-ветка с
+    // JSONB-путём — при тысячах заказов SQL-план взрывался. Теперь кандидаты
+    // собираются ОДНИМ raw-запросом `meta->>'orderId' IN (…)` и входят в scope
+    // веткой `id IN (…)`. Контракт сохранён: GET отдаёт top-50 по createdAt —
+    // top-50 кандидатов по createdAt покрывают любой возможный вклад meta-ветки
+    // в этот срез; PATCH ограничен своими candidateIds (≤100 по схеме), поэтому
+    // кандидаты фильтруются ими и остаются bounded.
     const orgIds = managedOrgIds(session);
     const visibleOrders = await prisma.order.findMany({
       where: managerOrderScopeFilter(session),
@@ -32,8 +44,19 @@ async function buildScopeWhere(session: SessionPayload) {
 
     const branches: Array<Record<string, unknown>> = [{ userId: session.sub }];
     if (orgIds.length > 0) branches.push({ organizationId: { in: orgIds } });
-    for (const orderId of orderIds) {
-      branches.push({ meta: { path: ['orderId'], equals: orderId } });
+
+    if (orderIds.length > 0) {
+      const rows = await prisma.$queryRaw<Array<{ id: string }>>(
+        opts.candidateIds
+          ? Prisma.sql`SELECT id FROM "Notification"
+              WHERE id IN (${Prisma.join(opts.candidateIds)})
+                AND (meta->>'orderId') IN (${Prisma.join(orderIds)})`
+          : Prisma.sql`SELECT id FROM "Notification"
+              WHERE (meta->>'orderId') IN (${Prisma.join(orderIds)})
+              ORDER BY "createdAt" DESC
+              LIMIT 50`
+      );
+      if (rows.length > 0) branches.push({ id: { in: rows.map((r) => r.id) } });
     }
 
     return { OR: branches };
@@ -89,7 +112,7 @@ export async function PATCH(req: Request) {
   }
 
   const { id, ids, isRead = true } = parsed.data;
-  const where = await buildScopeWhere(session);
+  const where = await buildScopeWhere(session, { candidateIds: id ? [id] : ids! });
 
   if (id) {
     const notification = await prisma.notification.updateMany({
