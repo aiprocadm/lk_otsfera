@@ -176,6 +176,34 @@ describe('organization dashboard service — recentEvents', () => {
     // Must NOT include any orgB event
     expect(evts.some((e) => e.orderId === otherOrder.id)).toBe(false);
   });
+
+  it('audit status events are scoped to the org at the SQL level', async () => {
+    const order = await prisma.order.create({
+      data: {
+        title: 'A-audit-order', companyId, partnerId, organizationId: orgAId,
+        executionStatus: 'in_progress'
+      }
+    });
+    const otherOrder = await prisma.order.create({
+      data: {
+        title: 'B-audit-order', companyId, partnerId, organizationId: orgBId,
+        executionStatus: 'in_progress'
+      }
+    });
+    await prisma.auditLog.create({
+      data: { action: 'order_status_in_progress', entity: 'order', entityId: order.id, userId }
+    });
+    await prisma.auditLog.create({
+      data: { action: 'order_status_completed', entity: 'order', entityId: otherOrder.id, userId }
+    });
+
+    const evts = await recentEvents(prisma, orgAId, 100);
+    const statusEvents = evts.filter((e) => e.kind === 'order_status_changed');
+    // Регресс R2: раньше бралась глобальная верхушка AuditLog с пост-фильтром —
+    // чужой тенант мог вытеснить события организации из окна выборки.
+    expect(statusEvents.some((e) => e.orderId === order.id)).toBe(true);
+    expect(statusEvents.some((e) => e.orderId === otherOrder.id)).toBe(false);
+  });
 });
 
 describe('organization dashboard service — channel-isolation leak regression', () => {

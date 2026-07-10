@@ -231,19 +231,13 @@ describe('organization/dashboard — recentEvents (unit)', () => {
           { id: 'pay1', amount: new Prisma.Decimal('5000'), paidAt: t2, orderId: 'o1' },
         ]),
       },
-      auditLog: {
-        findMany: vi.fn().mockResolvedValue([
-          { id: 'aud1', entityId: 'o1', createdAt: t3, meta: {} },
-        ]),
-      },
+      // Статус-события приходят из raw-join (скоуп по org на уровне SQL).
+      $queryRaw: vi.fn().mockResolvedValue([
+        { id: 'aud1', entityId: 'o1', createdAt: t3 },
+      ]),
       comment: {
         findMany: vi.fn().mockResolvedValue([
           { id: 'cmt1', createdAt: t4, orderId: 'o1', body: 'Комментарий к заказу' },
-        ]),
-      },
-      order: {
-        findMany: vi.fn().mockResolvedValue([
-          { id: 'o1' },
         ]),
       },
     } as unknown as PrismaClient;
@@ -257,51 +251,17 @@ describe('organization/dashboard — recentEvents (unit)', () => {
     expect(events[3].title).toContain('Комментарий к заказу');
   });
 
-  it('skips audit entries for orders not in org', async () => {
-    const prisma = {
-      document: { findMany: vi.fn().mockResolvedValue([]) },
-      payment: { findMany: vi.fn().mockResolvedValue([]) },
-      auditLog: {
-        findMany: vi.fn().mockResolvedValue([
-          { id: 'aud2', entityId: 'foreign-order', createdAt: new Date(), meta: {} },
-        ]),
-      },
-      comment: { findMany: vi.fn().mockResolvedValue([]) },
-      order: {
-        findMany: vi.fn().mockResolvedValue([]),
-      },
-    } as unknown as PrismaClient;
-
-    const events = await recentEvents(prisma, 'org-1', 20);
-    expect(events.filter((e) => e.kind === 'order_status_changed')).toHaveLength(0);
-  });
-
-  it('skips order.findMany call when auditOrderIds is empty', async () => {
-    const orderFindMany = vi.fn().mockResolvedValue([]);
-    const prisma = {
-      document: { findMany: vi.fn().mockResolvedValue([]) },
-      payment: { findMany: vi.fn().mockResolvedValue([]) },
-      auditLog: { findMany: vi.fn().mockResolvedValue([]) },
-      comment: { findMany: vi.fn().mockResolvedValue([]) },
-      order: { findMany: orderFindMany },
-    } as unknown as PrismaClient;
-
-    await recentEvents(prisma, 'org-1', 20);
-    expect(orderFindMany).not.toHaveBeenCalled();
-  });
-
   it('truncates long comment body with ellipsis', async () => {
     const longBody = 'А'.repeat(100);
     const prisma = {
       document: { findMany: vi.fn().mockResolvedValue([]) },
       payment: { findMany: vi.fn().mockResolvedValue([]) },
-      auditLog: { findMany: vi.fn().mockResolvedValue([]) },
+      $queryRaw: vi.fn().mockResolvedValue([]),
       comment: {
         findMany: vi.fn().mockResolvedValue([
           { id: 'cmt2', createdAt: new Date(), orderId: 'o1', body: longBody },
         ]),
       },
-      order: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
 
     const events = await recentEvents(prisma, 'org-1', 20);
@@ -314,13 +274,12 @@ describe('organization/dashboard — recentEvents (unit)', () => {
     const prisma = {
       document: { findMany: vi.fn().mockResolvedValue([]) },
       payment: { findMany: vi.fn().mockResolvedValue([]) },
-      auditLog: { findMany: vi.fn().mockResolvedValue([]) },
+      $queryRaw: vi.fn().mockResolvedValue([]),
       comment: {
         findMany: vi.fn().mockResolvedValue([
           { id: 'cmt3', createdAt: new Date(), orderId: 'o1', body: shortBody },
         ]),
       },
-      order: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
 
     const events = await recentEvents(prisma, 'org-1', 20);
@@ -336,9 +295,8 @@ describe('organization/dashboard — recentEvents (unit)', () => {
     const prisma = {
       document: { findMany: vi.fn().mockResolvedValue(manyDocs) },
       payment: { findMany: vi.fn().mockResolvedValue([]) },
-      auditLog: { findMany: vi.fn().mockResolvedValue([]) },
+      $queryRaw: vi.fn().mockResolvedValue([]),
       comment: { findMany: vi.fn().mockResolvedValue([]) },
-      order: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
 
     const events = await recentEvents(prisma, 'org-1');
