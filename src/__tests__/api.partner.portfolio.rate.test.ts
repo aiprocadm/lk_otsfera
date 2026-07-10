@@ -43,13 +43,15 @@ describe('PUT /api/partner/portfolio/[orgId]/rate', () => {
     expect((await PUT(body({ rate: 0.1, reason: 'x' }), ctx('o1'))).status).toBe(403);
   });
 
-  it('400 on invalid payload (no rate, no reason)', async () => {
+  it('400 on invalid payload (no rate, no reason) — no zod details in body (R2)', async () => {
     vi.mocked(getSession).mockResolvedValue({
       sub: 'u', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
     } as any);
     vi.mocked(canPartnerAccessOrg).mockResolvedValue(true);
 
-    expect((await PUT(body({}), ctx('o1'))).status).toBe(400);
+    const res = await PUT(body({}), ctx('o1'));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Invalid payload' });
     expect((await PUT(body({ rate: 0.1 }), ctx('o1'))).status).toBe(400);
   });
 

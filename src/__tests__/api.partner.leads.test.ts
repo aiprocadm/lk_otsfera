@@ -174,10 +174,12 @@ describe('POST /api/partner/leads', () => {
     expect(res.status).toBe(403);
   });
 
-  it('400 on missing required fields', async () => {
+  it('400 on missing required fields — body is the bare stable code, no zod details (R2)', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession);
     const res = await POST(jsonReq({ clientCompanyName: '' }));
     expect(res.status).toBe(400);
+    // Пиннинг R2-контракта: схема (имена полей/ограничения) не эхуется клиенту.
+    expect(await res.json()).toEqual({ error: 'Invalid payload' });
   });
 
   it('201 on success and audit-logs the create', async () => {
@@ -354,10 +356,11 @@ describe('PATCH /api/partner/leads/[id] — guards & additional branches', () =>
 describe('PATCH /api/partner/leads/[id]', () => {
   beforeEach(() => vi.resetAllMocks());
 
-  it('400 on invalid action', async () => {
+  it('400 on invalid action — no zod details in body (R2)', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession);
     const res = await PATCH(jsonReq({ action: 'nope' }, 'PATCH'), ctx('l'));
     expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Invalid payload' });
   });
 
   it('200 on withdraw (with non-null rejectedReason)', async () => {
