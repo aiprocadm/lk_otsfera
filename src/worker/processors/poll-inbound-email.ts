@@ -7,6 +7,7 @@ import { log } from '@/lib/logging';
 
 export type PollInboundEmailResult = {
   processed: number;
+  failed: number;
 };
 
 export async function pollInboundEmailProcessor(
@@ -16,6 +17,7 @@ export async function pollInboundEmailProcessor(
   const state = await db.syncState.findUnique({ where: { entity: 'inbound.email' } });
   const { messages, cursor } = await getInboundEmailAdapter().fetchNewMessages(state?.cursor ?? null);
 
+  let failed = 0;
   for (const m of messages) {
     await ingestInboundMessage(db, {
       channel: 'email',
@@ -24,6 +26,7 @@ export async function pollInboundEmailProcessor(
       subject: m.subject,
       body: m.text
     }).catch((err) => {
+      failed += 1;
       log.warn('[poll-inbound-email] ingest failed', {
         externalId: m.externalId,
         error: err instanceof Error ? err.message : String(err)
@@ -32,11 +35,24 @@ export async function pollInboundEmailProcessor(
   }
 
   const now = new Date();
-  await db.syncState.upsert({
-    where: { entity: 'inbound.email' },
-    create: { entity: 'inbound.email', cursor, lastRunAt: now, lastSuccessAt: now },
-    update: { cursor, lastRunAt: now, lastSuccessAt: now }
-  });
+  if (failed === 0) {
+    await db.syncState.upsert({
+      where: { entity: 'inbound.email' },
+      create: { entity: 'inbound.email', cursor, lastRunAt: now, lastSuccessAt: now, lastError: null },
+      update: { cursor, lastRunAt: now, lastSuccessAt: now, lastError: null }
+    });
+  } else {
+    // Курсор НЕ продвигаем: иначе упавшее письмо потеряно навсегда. Следующий
+    // поллинг перечитает батч со старого курсора — успешно принятые письма
+    // дедупятся в ingest по externalId, упавшие получают повторную попытку.
+    const lastError = `${failed}/${messages.length} ingest failed — cursor held for retry`;
+    log.warn('[poll-inbound-email] cursor held', { failed, total: messages.length });
+    await db.syncState.upsert({
+      where: { entity: 'inbound.email' },
+      create: { entity: 'inbound.email', cursor: state?.cursor ?? null, lastRunAt: now, lastError },
+      update: { lastRunAt: now, lastError }
+    });
+  }
 
-  return { processed: messages.length };
+  return { processed: messages.length - failed, failed };
 }
