@@ -1,10 +1,28 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import * as React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import bcrypt from 'bcryptjs';
-import { signToken } from '@/lib/auth/jwt';
+import { signToken, signTwoFactorPendingToken } from '@/lib/auth/jwt';
 import { buildSessionClaims } from '@/lib/auth/buildSessionClaims';
 import { isRateLimited } from '@/lib/rateLimit';
+import { isFeatureEnabled } from '@/lib/featureFlags';
+import { createTwoFactorChallenge } from '@/lib/services/auth/twoFactor';
+import { send } from '@/lib/email/send';
+import {
+  TwoFactorCodeTemplate,
+  twoFactorCodeSubject,
+  twoFactorCodeText
+} from '@/lib/email/templates/two-factor-code';
+import { recordAudit } from '@/lib/auth/audit';
+import { log } from '@/lib/logging';
+
+// Dynamic import keeps react-dom/server out of the static module graph
+// (тот же приём, что в reset-password/request).
+async function renderHtml(element: React.ReactElement): Promise<string> {
+  const mod = await import('react-dom/server');
+  return `<!DOCTYPE html>\n${mod.renderToStaticMarkup(element)}`;
+}
 
 const DUMMY_BCRYPT_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
 
@@ -71,6 +89,48 @@ export async function POST(req: Request) {
   const built = await buildSessionClaims(prisma, user);
   if (!built.ok) {
     return NextResponse.json({ code: 'ACCOUNT_DEACTIVATED', message: 'Account deactivated' }, { status: 403 });
+  }
+
+  // Staff 2FA (спека 2026-07-11): для сотрудников при включённом флаге сессия
+  // НЕ выдаётся — вместо неё одноразовый email-код + pre-auth cookie. Ветка
+  // стоит ПОСЛЕ buildSessionClaims, чтобы деактивированный аккаунт не получал
+  // письмо. leader — это manager с managerRole='leader', отдельной ветки нет.
+  const isStaff = user.role === 'admin' || user.role === 'manager';
+  if (isStaff && isFeatureEnabled('staff_2fa')) {
+    const { code } = await createTwoFactorChallenge(prisma, user.id);
+    try {
+      await send({
+        to: user.email,
+        subject: twoFactorCodeSubject(),
+        html: await renderHtml(React.createElement(TwoFactorCodeTemplate, { name: user.name, code })),
+        text: twoFactorCodeText({ name: user.name, code })
+      });
+    } catch (err) {
+      // Без письма войти нельзя — честная ошибка вместо тихого проглота
+      // (осознанное исключение из «notification fan-out проглатываем» §3).
+      await prisma.twoFactorChallenge.delete({ where: { userId: user.id } }).catch(() => {});
+      log.error('[auth/login] 2fa email send failed', {
+        userId: user.id,
+        error: err instanceof Error ? err.message : String(err)
+      });
+      return NextResponse.json({ code: 'EMAIL_SEND_FAILED', message: 'Failed to send the code' }, { status: 502 });
+    }
+    await recordAudit(prisma, {
+      action: '2fa_code_sent',
+      entity: 'auth_2fa',
+      entityId: user.id,
+      userId: user.id
+    }).catch(() => {});
+    const pending = await signTwoFactorPendingToken(user.id);
+    const res = NextResponse.json({ ok: true, twoFactorRequired: true });
+    res.cookies.set('2fa_pending', pending, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 600
+    });
+    return res;
   }
 
   const token = await signToken(built.claims);
