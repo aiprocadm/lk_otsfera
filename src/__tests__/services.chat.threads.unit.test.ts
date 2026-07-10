@@ -166,25 +166,92 @@ describe('markRead — unit', () => {
 });
 
 // ─── unreadCount ──────────────────────────────────────────────────────────────
+// R1.2: unreadCount ушёл с findMany-полной-выборки на один SQL-count ($queryRaw).
+// Юнит-слой фиксирует роль-ветки scopeSql (зеркало scopeWhere) по параметрам и
+// тексту SQL; живая эквивалентность закреплена integration-слоем (inbox).
+
+function queryRawPrisma(count = 0) {
+  const queryRaw = vi.fn().mockResolvedValue([{ count }]);
+  return { prisma: { $queryRaw: queryRaw } as any, queryRaw };
+}
+
+function sqlOf(queryRaw: ReturnType<typeof vi.fn>): { text: string; values: unknown[] } {
+  const sql = queryRaw.mock.calls[0][0] as { sql: string; values: unknown[] };
+  return { text: sql.sql, values: sql.values };
+}
 
 describe('unreadCount — unit', () => {
-  it('returns count:0 for roles with null scopeWhere', async () => {
-    const prisma = { orderThread: { findMany: vi.fn() } } as any;
+  it('returns count:0 for roles with null scope (query never fired)', async () => {
+    const { prisma, queryRaw } = queryRawPrisma();
     const result = await unreadCount(prisma, makeSession({ role: 'leader' as any }));
     expect(result).toEqual({ ok: true, count: 0 });
+    expect(queryRaw).not.toHaveBeenCalled();
   });
 
-  it('counts threads where lastMessageAt > lastReadAt', async () => {
-    const now = new Date('2024-06-01');
-    const old = new Date('2024-01-01');
-    const findMany = vi.fn().mockResolvedValue([
-      { lastMessageAt: now, readStates: [{ lastReadAt: old }] }, // unread
-      { lastMessageAt: old, readStates: [{ lastReadAt: now }] }, // read
-      { lastMessageAt: now, readStates: [] }                     // unread (no state)
-    ]);
-    const prisma = { orderThread: { findMany } } as any;
+  it('admin: scope TRUE, count из SQL возвращается как есть', async () => {
+    const { prisma, queryRaw } = queryRawPrisma(7);
     const result = await unreadCount(prisma, makeSession({ role: 'admin' }));
-    expect(result).toEqual({ ok: true, count: 2 });
+    expect(result).toEqual({ ok: true, count: 7 });
+    const { text, values } = sqlOf(queryRaw);
+    expect(text).toContain('TRUE');
+    expect(text).toContain('COALESCE(rs."lastReadAt", to_timestamp(0))');
+    // единственный параметр — userId для LEFT JOIN readStates
+    expect(values).toEqual(['u1']);
+  });
+
+  it('manager: scope по companyId компании', async () => {
+    const { prisma, queryRaw } = queryRawPrisma(2);
+    await unreadCount(prisma, makeSession({ role: 'manager', companyId: 'c1' }));
+    const { text, values } = sqlOf(queryRaw);
+    expect(text).toContain('o."companyId"');
+    expect(values).toContain('c1');
+  });
+
+  it('manager без companyId: sentinel __no_company__ (deny-all, зеркало scopeWhere)', async () => {
+    const { prisma, queryRaw } = queryRawPrisma(0);
+    await unreadCount(prisma, makeSession({ role: 'manager', companyId: undefined }));
+    expect(sqlOf(queryRaw).values).toContain('__no_company__');
+  });
+
+  it('organization: side=org + orgIds из активных membership', async () => {
+    const { prisma, queryRaw } = queryRawPrisma(1);
+    const session = makeSession({
+      role: 'organization',
+      organizationMemberships: [
+        { organizationId: 'org1', isActive: true, roleInOrg: 'member' },
+        { organizationId: 'org2', isActive: false, roleInOrg: 'member' }
+      ] as any
+    });
+    await unreadCount(prisma, session);
+    const { text, values } = sqlOf(queryRaw);
+    expect(text).toContain(`'org'::"ThreadSide"`);
+    expect(values).toContain('org1');
+    expect(values).not.toContain('org2');
+  });
+
+  it('organization без активных membership: scope FALSE (ноль тредов, IN () невалиден)', async () => {
+    const { prisma, queryRaw } = queryRawPrisma(0);
+    const result = await unreadCount(
+      prisma,
+      makeSession({ role: 'organization', organizationMemberships: [] as any })
+    );
+    expect(result).toEqual({ ok: true, count: 0 });
+    expect(sqlOf(queryRaw).text).toContain('FALSE');
+  });
+
+  it('partner: side=partner + partnerId', async () => {
+    const { prisma, queryRaw } = queryRawPrisma(3);
+    const result = await unreadCount(prisma, makeSession({ role: 'partner', partnerId: 'p1' }));
+    expect(result).toEqual({ ok: true, count: 3 });
+    const { text, values } = sqlOf(queryRaw);
+    expect(text).toContain(`'partner'::"ThreadSide"`);
+    expect(values).toContain('p1');
+  });
+
+  it('partner без partnerId: sentinel пустая строка (зеркало scopeWhere)', async () => {
+    const { prisma, queryRaw } = queryRawPrisma(0);
+    await unreadCount(prisma, makeSession({ role: 'partner', partnerId: undefined }));
+    expect(sqlOf(queryRaw).values).toContain('');
   });
 });
 
