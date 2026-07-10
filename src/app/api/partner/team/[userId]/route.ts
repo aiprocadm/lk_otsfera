@@ -23,7 +23,7 @@ export async function PUT(
   const { userId } = await ctx.params;
   const parsed = assignSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid payload', details: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
 
   const res = await assignOrgs(prisma, {

@@ -85,7 +85,7 @@ export async function POST(req: Request) {
   const parsed = createSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Invalid payload', details: parsed.error.flatten() },
+      { error: 'Invalid payload' },
       { status: 400 }
     );
   }
