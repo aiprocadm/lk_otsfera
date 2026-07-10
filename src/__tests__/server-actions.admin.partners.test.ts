@@ -60,11 +60,11 @@ beforeEach(() => {
 });
 
 describe('createPartnerWithAdminAction', () => {
-  it('returns validation error when name is empty', async () => {
+  it('returns validation error when name is empty — bare stable code, no zod details (R2)', async () => {
     const res = await createPartnerWithAdminAction(
       fd({ name: '', slug: 'valid-slug', adminEmail: 'admin@test.local', adminName: 'Admin' })
     );
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
     expect(createPartnerWithAdmin).not.toHaveBeenCalled();
   });
 
@@ -297,9 +297,9 @@ describe('updatePartnerAction — mapErr re-throw', () => {
 });
 
 describe('updatePartnerAction', () => {
-  it('returns validation error when id is missing', async () => {
+  it('returns validation error when id is missing — bare stable code, no zod details (R2)', async () => {
     const res = await updatePartnerAction(fd({ id: '', name: 'New Name' }));
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
     expect(updatePartner).not.toHaveBeenCalled();
   });
 

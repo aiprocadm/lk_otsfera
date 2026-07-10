@@ -60,11 +60,11 @@ beforeEach(() => {
 });
 
 describe('createUserAction', () => {
-  it('returns validation error when email is missing', async () => {
+  it('returns validation error when email is missing — bare stable code, no zod details (R2)', async () => {
     const res = await createUserAction(
       fd({ email: '', name: 'Test', role: 'organization' })
     );
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
     expect(createUser).not.toHaveBeenCalled();
   });
 
@@ -177,9 +177,9 @@ describe('updateUserAction', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/admin/users/u-10');
   });
 
-  it('returns validation error when id is missing', async () => {
+  it('returns validation error when id is missing — bare stable code, no zod details (R2)', async () => {
     const res = await updateUserAction(fd({ id: '', name: 'X' }));
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
     expect(updateUser).not.toHaveBeenCalled();
   });
 

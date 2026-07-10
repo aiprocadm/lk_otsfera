@@ -78,11 +78,11 @@ beforeEach(() => {
 });
 
 describe('inviteOrgMemberAction', () => {
-  it('returns validation when email is malformed', async () => {
+  it('returns validation when email is malformed — bare stable code, no zod details (R2)', async () => {
     const res = await inviteOrgMemberAction(
       fd({ organizationId: 'org-1', email: 'not-an-email', name: 'X', roleInOrg: 'member' })
     );
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
     expect(inviteMember).not.toHaveBeenCalled();
   });
 
@@ -227,11 +227,11 @@ describe('inviteOrgMemberAction — email failure (graceful degradation)', () =>
 });
 
 describe('updateOrgMemberRoleAction — validation branch', () => {
-  it('returns validation when organizationId is empty', async () => {
+  it('returns validation when organizationId is empty — bare stable code, no zod details (R2)', async () => {
     const res = await updateOrgMemberRoleAction(
       fd({ organizationId: '', orgUserId: 'ou-1', newRole: 'member' })
     );
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
     expect(updateMemberRole).not.toHaveBeenCalled();
   });
 
@@ -245,21 +245,21 @@ describe('updateOrgMemberRoleAction — validation branch', () => {
 });
 
 describe('deactivateOrgMemberAction — validation branch', () => {
-  it('returns validation when orgUserId is empty', async () => {
+  it('returns validation when orgUserId is empty — bare stable code, no zod details (R2)', async () => {
     const res = await deactivateOrgMemberAction(
       fd({ organizationId: 'org-1', orgUserId: '' })
     );
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
     expect(deactivateMember).not.toHaveBeenCalled();
   });
 });
 
 describe('reactivateOrgMemberAction — validation + error mapping', () => {
-  it('returns validation when orgUserId is empty', async () => {
+  it('returns validation when orgUserId is empty — bare stable code, no zod details (R2)', async () => {
     const res = await reactivateOrgMemberAction(
       fd({ organizationId: 'org-1', orgUserId: '' })
     );
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
     expect(reactivateMember).not.toHaveBeenCalled();
   });
 

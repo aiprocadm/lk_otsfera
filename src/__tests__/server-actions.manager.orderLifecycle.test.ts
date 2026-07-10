@@ -29,9 +29,9 @@ beforeEach(() => {
 });
 
 describe('transitionOrderLifecycleAction', () => {
-  it('validation when orderId is empty (service not called)', async () => {
+  it('validation when orderId is empty (service not called) — bare stable code, no zod details (R2)', async () => {
     const res = await transitionOrderLifecycleAction({ orderId: '', to: 'in_progress' });
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
     expect(transitionOrderLifecycle).not.toHaveBeenCalled();
   });
 
@@ -71,9 +71,9 @@ describe('transitionOrderLifecycleAction', () => {
 });
 
 describe('setOrderAccountingSignedAction', () => {
-  it('validation when signed is missing', async () => {
+  it('validation when signed is missing — bare stable code, no zod details (R2)', async () => {
     const res = await setOrderAccountingSignedAction({ orderId: 'o1' } as never);
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
     expect(setOrderAccountingSigned).not.toHaveBeenCalled();
   });
 
