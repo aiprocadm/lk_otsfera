@@ -55,7 +55,45 @@ const RU: Record<string, string> = {
   // Task 11 — омниканальный инбокс (bindInboundMessageAction/replyInboundAction)
   invalid: 'Введите текст ответа.',
   reply_failed: 'Не удалось отправить ответ. Попробуйте ещё раз.',
-  email_unsupported: 'Ответ по email пока не поддерживается — свяжитесь с клиентом другим каналом.'
+  email_unsupported: 'Ответ по email пока не поддерживается — свяжитесь с клиентом другим каналом.',
+  // R2 — инвентаризация недостающих кодов (grep по services/server-actions/api/worker):
+  // до этого 36 кодов доходили до пользователя сырым fallback'ом.
+  bad_request: 'Некорректный запрос.',
+  invalid_request: 'Некорректный запрос.',
+  order_not_found: 'Заказ не найден.',
+  invalid_file: 'Файл не выбран или повреждён.',
+  parse_failed: 'Не удалось разобрать файл. Проверьте формат.',
+  empty: 'Файл не содержит данных для импорта.',
+  infected: 'Файл не прошёл антивирусную проверку.',
+  queue_unavailable: 'Фоновая обработка недоступна. Попробуйте позже.',
+  too_many_requests: 'Слишком много запросов. Попробуйте позже.',
+  invalid_token: 'Ссылка недействительна или устарела.',
+  invalid_code: 'Код недействителен или истёк.',
+  chat_taken: 'Этот чат уже привязан к другому пользователю.',
+  thread_not_found: 'Диалог не найден.',
+  empty_body: 'Введите текст сообщения.',
+  reason_required: 'Укажите причину.',
+  invalid_transition: 'Недопустимый переход.',
+  invalid_stage: 'Этап воронки не найден.',
+  invalid_state: 'Действие недоступно в текущем статусе.',
+  position_taken: 'Позиция уже занята другим этапом.',
+  duplicate_position: 'Позиция уже занята.',
+  invalid_column: 'Колонка не найдена.',
+  org_required: 'Сначала привяжите организацию.',
+  forbidden_org: 'Нет доступа к этой организации.',
+  name_taken: 'Название уже занято.',
+  invalid_manager: 'Менеджер не найден или недоступен.',
+  not_a_manager: 'Пользователь не является менеджером.',
+  no_company: 'У пользователя не указана компания.',
+  member_limit_reached: 'Достигнут лимит участников команды.',
+  completion_conditions_unmet: 'Не выполнены условия завершения заказа.',
+  student_mismatch: 'Слушатель принадлежит другой организации.',
+  direction_inactive: 'Направление обучения неактивно.',
+  unknown_entity: 'Неизвестная сущность синхронизации.',
+  unknown_schedule: 'Неизвестное расписание.',
+  already_running: 'Синхронизация уже запущена.',
+  write_skipped: 'Запись пропущена (shadow-режим).',
+  invalid_cursor: 'Некорректное значение курсора.'
 };
 
 export function errorMessageRu(code: string, fallback = 'Произошла ошибка.'): string {

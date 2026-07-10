@@ -30,4 +30,18 @@ describe('errorMessageRu', () => {
       expect(errorMessageRu(code)).not.toBe('Произошла ошибка.');
     }
   });
+  it('maps the R2 backlog codes to Russian (36-code inventory)', () => {
+    for (const code of [
+      'bad_request', 'invalid_request', 'order_not_found', 'invalid_file', 'parse_failed',
+      'empty', 'infected', 'queue_unavailable', 'too_many_requests', 'invalid_token',
+      'invalid_code', 'chat_taken', 'thread_not_found', 'empty_body', 'reason_required',
+      'invalid_transition', 'invalid_stage', 'invalid_state', 'position_taken',
+      'duplicate_position', 'invalid_column', 'org_required', 'forbidden_org', 'name_taken',
+      'invalid_manager', 'not_a_manager', 'no_company', 'member_limit_reached',
+      'completion_conditions_unmet', 'student_mismatch', 'direction_inactive',
+      'unknown_entity', 'unknown_schedule', 'already_running', 'write_skipped', 'invalid_cursor'
+    ]) {
+      expect(errorMessageRu(code)).not.toBe('Произошла ошибка.');
+    }
+  });
 });
