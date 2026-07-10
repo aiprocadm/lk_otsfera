@@ -89,6 +89,8 @@ function doX(
 
 Не добавляй новый флаг без всех трёх точек.
 
+**Поведенческие флаги — исключение из «трёх точек».** `max_channel`/`whatsapp_channel`/`notif_queue`/`staff_2fa` гейтят не route, а шаг/канал. Их точки чтения перечислены в комментарии флага в `featureFlags.ts`. Пример — `staff_2fa` (2FA сотрудников, спека 2026-07-11): читается в `api/auth/login` (выдать сессию или email-challenge для admin/manager/leader), `api/auth/2fa/{verify,resend}` (`notFoundIfDisabled` — не раскрываем механизм) и в секции «Коды восстановления» settings-страниц staff. Middleware/nav неприменимы. Pre-auth токен шага 2FA несёт `purpose:'2fa'` без `role` — `verifyToken`/`getSession` его отвергают (guard-тест `auth.jwt.2fa-pending`).
+
 **Матрица гейтинга «Сообщения» (флаг `chat`) — не выравнивай в один флаг.** Страница `/messages` несёт два разных домена, смонтированных по-разному:
 - **partner / organization** — team-chat **только** → гейт `chat` во всех 3 точках (middleware-префикс, nav-`flag: 'chat'`, page `if (!isFeatureEnabled('chat')) notFound()`). Route-handler `api/messages` тоже `notFoundIfDisabled('chat')`.
 - **manager** — order-comments (**ungated, всегда видны**) + team-chat (только при `chat`). Nav-флаг пункта — `manager_cabinet`, НЕ `chat` (иначе при `chat=off` исчезнут комментарии). Чат-секция рендерится условно (`chatEnabled`).
