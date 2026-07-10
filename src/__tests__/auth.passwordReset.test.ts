@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createHash } from 'crypto';
+
+const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 
 // ---------------------------------------------------------------------------
 // Mock helpers hoisted so they are available before module imports
@@ -51,10 +54,12 @@ describe('createInviteToken', () => {
     expect(callArg.data.userId).toBe('user-1');
     expect(callArg.data.purpose).toBe('invite');
     expect(callArg.data.token).toBeTypeOf('string');
-    expect(callArg.data.token.length).toBeGreaterThan(20);
     expect(callArg.data.expiresAt).toBeInstanceOf(Date);
 
-    expect(result.token).toBe(callArg.data.token);
+    // В БД уходит sha256-хеш, наружу — плейнтекст (живёт только в письме).
+    expect(result.token.length).toBeGreaterThan(20);
+    expect(callArg.data.token).toBe(sha256(result.token));
+    expect(callArg.data.token).not.toBe(result.token);
     expect(result.expiresAt).toEqual(callArg.data.expiresAt);
   });
 
@@ -82,6 +87,44 @@ describe('createInviteToken', () => {
     expect(diffMs).toBeGreaterThanOrEqual(expectedMs - 100);
     expect(result.expiresAt.getTime()).toBeLessThanOrEqual(after + expectedMs);
   });
+
+  it("purpose='reset' defaults to a short 2-hour TTL", async () => {
+    delete process.env.RESET_TOKEN_TTL_HOURS;
+    const before = Date.now();
+    const result = await createInviteToken(mockPrisma, 'user-4', undefined, 'reset');
+    const after = Date.now();
+
+    const callArg = prtCreate.mock.calls[0][0];
+    expect(callArg.data.purpose).toBe('reset');
+    const diffMs = result.expiresAt.getTime() - before;
+    const expectedMs = 2 * 60 * 60 * 1000;
+    expect(diffMs).toBeGreaterThanOrEqual(expectedMs - 100);
+    expect(result.expiresAt.getTime()).toBeLessThanOrEqual(after + expectedMs);
+  });
+
+  it("purpose='reset' honours RESET_TOKEN_TTL_HOURS", async () => {
+    process.env.RESET_TOKEN_TTL_HOURS = '1';
+    const before = Date.now();
+    const result = await createInviteToken(mockPrisma, 'user-5', undefined, 'reset');
+    const after = Date.now();
+    delete process.env.RESET_TOKEN_TTL_HOURS;
+
+    const diffMs = result.expiresAt.getTime() - before;
+    const expectedMs = 60 * 60 * 1000;
+    expect(diffMs).toBeGreaterThanOrEqual(expectedMs - 100);
+    expect(result.expiresAt.getTime()).toBeLessThanOrEqual(after + expectedMs);
+  });
+
+  it('explicit ttlDays wins over the reset default', async () => {
+    const before = Date.now();
+    const result = await createInviteToken(mockPrisma, 'user-6', 1, 'reset');
+    const after = Date.now();
+
+    const diffMs = result.expiresAt.getTime() - before;
+    const expectedMs = 24 * 60 * 60 * 1000;
+    expect(diffMs).toBeGreaterThanOrEqual(expectedMs - 100);
+    expect(result.expiresAt.getTime()).toBeLessThanOrEqual(after + expectedMs);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -101,9 +144,9 @@ describe('verifyAndConsumeToken', () => {
     );
   });
 
-  it('happy path: updates password and marks token used', async () => {
+  it('happy path: updates password and marks token used (lookup by sha256)', async () => {
     prtFindUnique.mockResolvedValue({
-      token: 'tok',
+      token: sha256('tok'),
       userId: 'user-1',
       expiresAt: FUTURE,
       usedAt: null
@@ -114,12 +157,14 @@ describe('verifyAndConsumeToken', () => {
     const result = await verifyAndConsumeToken(mockPrisma, 'tok', 'hash-new');
 
     expect(result).toEqual({ ok: true, userId: 'user-1' });
+    // И поиск, и consume идут по хешу — плейнтекст в БД не попадает.
+    expect(prtFindUnique).toHaveBeenCalledWith({ where: { token: sha256('tok') } });
     expect(userUpdate).toHaveBeenCalledWith({
       where: { id: 'user-1' },
       data: { passwordHash: 'hash-new' }
     });
     expect(prtUpdate).toHaveBeenCalledWith({
-      where: { token: 'tok' },
+      where: { token: sha256('tok') },
       data: { usedAt: expect.any(Date) }
     });
   });
