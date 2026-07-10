@@ -107,6 +107,17 @@ describe('POST /api/integrations/whatsapp/webhook', () => {
     expect(res.status).toBe(200);
   });
 
+  it('не-Error rejection ingest (строка) → 200 (String(e)-плечо error-лога)', async () => {
+    ingest.mockRejectedValue('db string down');
+    const res = await POST(
+      req(
+        { messages: [{ messageId: 'W3s', chatId: '79990001122', text: 'hi again' }] },
+        { 'x-wazzup-secret': SECRET }
+      )
+    );
+    expect(res.status).toBe(200);
+  });
+
   it('несколько сообщений в одном апдейте → ingest вызывается для каждого', async () => {
     ingest.mockResolvedValue({ ok: true, id: 'm', deduped: false });
     const res = await POST(

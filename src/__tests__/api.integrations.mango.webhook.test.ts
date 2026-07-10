@@ -170,6 +170,32 @@ describe('POST /api/integrations/mango/webhook', () => {
     expect(res.status).toBe(200);
   });
 
+  it('не-Error rejection ingest (строка) → 200 (String(e)-плечо лога)', async () => {
+    ingestCallEvent.mockRejectedValue('plain ingest failure');
+    const json = JSON.stringify({
+      entry_id: 'e-fail-str',
+      from: { number: '79990001122' },
+      to: { number: '100' },
+      call_direction: 1,
+      duration: 5,
+      status: 'Answered',
+    });
+    const res = await POST(req('https://app.local/api/integrations/mango/webhook?type=summary', json));
+    expect(res.status).toBe(200);
+  });
+
+  it('не-Error rejection queue.add (строка) → 200 (String(e)-плечо лога)', async () => {
+    ingestCallEvent.mockResolvedValue({ ok: true, id: 'call1' });
+    addMock.mockRejectedValueOnce('redis exploded');
+    const json = JSON.stringify({
+      entry_id: 'e-enq-str',
+      recording_state: 'Completed',
+      recording_id: 'rec-11',
+    });
+    const res = await POST(req('https://app.local/api/integrations/mango/webhook?type=recording', json));
+    expect(res.status).toBe(200);
+  });
+
   it('СИНХРОННЫЙ throw getQueue (REDIS_URL не задан) не превращается в 500 (carry-over PR-4)', async () => {
     ingestCallEvent.mockResolvedValue({ ok: true, id: 'call1' });
     getQueue.mockImplementationOnce(() => {

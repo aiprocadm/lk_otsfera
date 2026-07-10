@@ -117,4 +117,13 @@ describe('POST /api/integrations/telegram/webhook — inbound ingest', () => {
     const res = await POST(makeRequest(update));
     expect(res.status).toBe(200);
   });
+
+  it('не-Error rejection ingest (строка) → 200 (String(e)-плечо error-лога)', async () => {
+    ingestMock.mockRejectedValue('db string down');
+    const update = {
+      message: { message_id: 58, chat: { id: 999 }, text: 'привет ещё раз' },
+    };
+    const res = await POST(makeRequest(update));
+    expect(res.status).toBe(200);
+  });
 });
