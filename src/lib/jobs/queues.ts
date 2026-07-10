@@ -13,7 +13,6 @@ export const QUEUE_NAMES = [
   'docs.calculateMonthlyCommissions',
   'docs.scanDocument',
   'notifications.dispatch',
-  'emails.send',
   'monitoring.evaluateAlerts',
   'notifications.certificateExpiry',
   'inbound.email.poll',

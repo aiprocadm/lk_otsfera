@@ -141,7 +141,7 @@ removeOnComplete: { count: 1000 }, removeOnFail: false
 
 Не вырезай `removeOnFail: false` — это намеренно: failed jobs остаются для расследования.
 
-Доступные очереди: `oneCSync.{pullOrders,pullPayments,pullDocuments,pullOrganizations,pushLead,reconcile}`, `docs.{generateCommissionPdf,generateCommissionXlsx,calculateMonthlyCommissions,scanDocument}`, `notifications.dispatch`, `emails.send`.
+Доступные очереди: `oneCSync.{pullOrders,pullPayments,pullDocuments,pullOrganizations,pushLead,reconcile}`, `docs.{generateCommissionPdf,generateCommissionXlsx,calculateMonthlyCommissions,scanDocument}`, `notifications.{dispatch,certificateExpiry}`, `monitoring.evaluateAlerts`, `inbound.email.poll`, `telephony.mango.{recording,backfill}`. (Очередь `emails.send` удалена 2026-07-10: не имела ни продьюсера, ни процессора — письма шлются inline через `src/lib/email/send.ts`; не добавляй её обратно без реальной постановки задач.)
 
 ## 8. Spec-first процесс
 

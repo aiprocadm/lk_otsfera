@@ -24,11 +24,11 @@ describe('evaluate', () => {
 
   it('flags queue depth over the waiting threshold', () => {
     const r = evaluate(
-      metrics({ queues: [{ queue: 'emails.send', counts: { ...noCounts, waiting: 101 } }] }),
+      metrics({ queues: [{ queue: 'notifications.dispatch', counts: { ...noCounts, waiting: 101 } }] }),
       T
     );
     expect(r).toHaveLength(1);
-    expect(r[0].key).toBe('queue_depth:emails.send');
+    expect(r[0].key).toBe('queue_depth:notifications.dispatch');
     expect(r[0].value).toBe(101);
   });
 

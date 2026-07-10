@@ -12,7 +12,7 @@ const { getDlq, retryDlqJob } = vi.hoisted(() => ({
 vi.mock('@/lib/auth/guard', () => ({ requireSession, requireAdmin }));
 vi.mock('@/lib/services/admin/queueStats', () => ({ getDlq, retryDlqJob }));
 vi.mock('@/lib/jobs/queues', () => ({
-  QUEUE_NAMES: ['docs.scanDocument', 'emails.send'],
+  QUEUE_NAMES: ['docs.scanDocument', 'notifications.dispatch'],
   getQueue: vi.fn()
 }));
 

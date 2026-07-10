@@ -14,7 +14,7 @@ vi.mock('@/lib/monitoring/deliver', () => ({ deliverAlert: deliverAlertMock }));
 
 import { evaluateAlertsProcessor } from '@/worker/processors/evaluate-alerts';
 
-const KEY = 'dlq:emails.send';
+const KEY = 'dlq:notifications.dispatch';
 const DEAD_KEY = 'onec_dead_letters';
 const noCounts = { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 };
 let prisma: PrismaClient;
@@ -30,11 +30,11 @@ function job(): Job<SyncJobPayload> {
   return { id: 'alert-test', data: { triggeredAt: new Date().toISOString(), reason: 'manual' } } as Job<SyncJobPayload>;
 }
 function withFailure() {
-  getQueueStatsMock.mockResolvedValue([{ queue: 'emails.send', counts: { ...noCounts, failed: 3 } }]);
+  getQueueStatsMock.mockResolvedValue([{ queue: 'notifications.dispatch', counts: { ...noCounts, failed: 3 } }]);
   getSyncLagMock.mockResolvedValue([]);
 }
 function healthy() {
-  getQueueStatsMock.mockResolvedValue([{ queue: 'emails.send', counts: { ...noCounts } }]);
+  getQueueStatsMock.mockResolvedValue([{ queue: 'notifications.dispatch', counts: { ...noCounts } }]);
   getSyncLagMock.mockResolvedValue([]);
 }
 
