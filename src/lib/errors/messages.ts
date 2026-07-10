@@ -99,7 +99,8 @@ const RU: Record<string, string> = {
   email_send_failed: 'Не удалось отправить код на почту. Попробуйте ещё раз.',
   code_expired: 'Код истёк. Войдите заново.',
   too_many_attempts: 'Слишком много попыток. Войдите заново.',
-  session_expired: 'Сессия входа истекла. Войдите заново.'
+  session_expired: 'Сессия входа истекла. Войдите заново.',
+  not_staff: 'Пользователь не является сотрудником.'
 };
 
 export function errorMessageRu(code: string, fallback = 'Произошла ошибка.'): string {

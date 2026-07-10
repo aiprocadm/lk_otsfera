@@ -6,6 +6,7 @@ const {
   updateUser,
   deactivateUser,
   reactivateUser,
+  adminRegenerateBackupCodes,
   sendAdminUserInviteEmail,
   revalidatePath
 } = vi.hoisted(() => ({
@@ -14,6 +15,7 @@ const {
   updateUser: vi.fn(),
   deactivateUser: vi.fn(),
   reactivateUser: vi.fn(),
+  adminRegenerateBackupCodes: vi.fn(),
   sendAdminUserInviteEmail: vi.fn(),
   revalidatePath: vi.fn()
 }));
@@ -33,7 +35,8 @@ vi.mock('@/lib/services/admin/users', async () => {
     createUser,
     updateUser,
     deactivateUser,
-    reactivateUser
+    reactivateUser,
+    adminRegenerateBackupCodes
   };
 });
 
@@ -42,6 +45,7 @@ import {
   updateUserAction,
   deactivateUserAction,
   reactivateUserAction,
+  regenerateUserBackupCodesAction,
   updateUserFormAction,
   deactivateUserFormAction,
   reactivateUserFormAction
@@ -241,6 +245,27 @@ describe('reactivateUserAction', () => {
     reactivateUser.mockResolvedValue({ ok: false, error: 'not_found' });
     const res = await reactivateUserAction(fd({ id: 'gone-2' }));
     expect(res).toEqual({ ok: false, error: 'not_found' });
+  });
+});
+
+describe('regenerateUserBackupCodesAction', () => {
+  it('happy path returns the fresh codes from the service', async () => {
+    adminRegenerateBackupCodes.mockResolvedValue({ ok: true, codes: ['A', 'B'] });
+    const res = await regenerateUserBackupCodesAction(fd({ id: 'm-1' }));
+    expect(res).toEqual({ ok: true, codes: ['A', 'B'] });
+    expect(adminRegenerateBackupCodes).toHaveBeenCalledWith(expect.anything(), 'admin-1', 'm-1');
+  });
+
+  it('validation error when id is missing', async () => {
+    const res = await regenerateUserBackupCodesAction(fd({ id: '' }));
+    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(adminRegenerateBackupCodes).not.toHaveBeenCalled();
+  });
+
+  it('maps not_staff failure through', async () => {
+    adminRegenerateBackupCodes.mockResolvedValue({ ok: false, error: 'not_staff' });
+    const res = await regenerateUserBackupCodesAction(fd({ id: 'p-1' }));
+    expect(res).toEqual({ ok: false, error: 'not_staff' });
   });
 });
 

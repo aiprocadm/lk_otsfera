@@ -6,7 +6,8 @@ export type AdminUserErrorCode =
   | 'last_admin_protected'
   | 'duplicate_email'
   | 'member_limit_reached'
-  | 'role_transition_forbidden';
+  | 'role_transition_forbidden'
+  | 'not_staff';
 
 export class AdminUserError extends Error {
   readonly code: AdminUserErrorCode;
