@@ -134,12 +134,36 @@ describe('mangoBackfillProcessor', () => {
     requestStats.mockResolvedValue({ key: 'stats-key-3' });
     fetchStatsResult.mockResolvedValue({ ready: false, rows: [] });
 
-    const result = await mangoBackfillProcessor(makeJob(), prisma, now3);
+    // pollDelayMs=0 — иначе тест спит 9×3с (дефолтная пауза между попытками)
+    const result = await mangoBackfillProcessor(makeJob(), prisma, now3, 0);
 
     expect(result).toEqual({ ingested: 0 });
     expect(fetchStatsResult).toHaveBeenCalledTimes(10);
 
     const state = await prisma.syncState.findUnique({ where: { entity: 'telephony.mango' } });
     expect(state?.cursor).toBe(now3.toISOString());
+  });
+
+  it('waits pollDelayMs between attempts (R2: no busy-loop against the stats API)', async () => {
+    const now4 = new Date('2026-07-05T15:00:00.000Z');
+    requestStats.mockResolvedValue({ key: 'stats-key-4' });
+    let firstCallAt = 0;
+    let secondCallAt = 0;
+    fetchStatsResult
+      .mockImplementationOnce(async () => {
+        firstCallAt = performance.now();
+        return { ready: false, rows: [] };
+      })
+      .mockImplementationOnce(async () => {
+        secondCallAt = performance.now();
+        return { ready: true, rows: [] };
+      });
+
+    const result = await mangoBackfillProcessor(makeJob(), prisma, now4, 25);
+
+    expect(result).toEqual({ ingested: 0 });
+    expect(fetchStatsResult).toHaveBeenCalledTimes(2);
+    // Между 1-й (not ready) и 2-й попыткой была пауза ≥ pollDelayMs
+    expect(secondCallAt - firstCallAt).toBeGreaterThanOrEqual(20);
   });
 });
