@@ -83,7 +83,9 @@ export async function leaderDashboard(
       },
       _count: { _all: true }
     }),
-    getManagerFinanceOverview(prisma, session, { teamMode: true })
+    // R1.2: дашборду нужны только summary.outstanding и commission-итоги —
+    // ledger платежей (top-50 на каждую организацию) не тянем.
+    getManagerFinanceOverview(prisma, session, { teamMode: true, includePayments: false })
   ]);
 
   const aggBy = new Map(activeGroup.map((g) => [g.managerId, g]));

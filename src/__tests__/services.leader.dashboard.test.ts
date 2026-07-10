@@ -65,8 +65,12 @@ describe('leaderDashboard', () => {
     expect(res.kpis.debt).toBe('600.00');
     // two non-null sections summed Decimal-safe: 90.00 + 45.50 = 135.50
     expect(res.kpis.commission).toBe('135.50');
-    // finance overview must be company-wide ALWAYS (teamMode:true), regardless of toggle
-    expect(financeMock).toHaveBeenCalledWith(prisma, expect.anything(), { teamMode: true });
+    // finance overview must be company-wide ALWAYS (teamMode:true), regardless of toggle;
+    // R1.2: дашборду не нужен ledger платежей — includePayments:false.
+    expect(financeMock).toHaveBeenCalledWith(prisma, expect.anything(), {
+      teamMode: true,
+      includePayments: false
+    });
   });
 
   it('perManager: rows aggregated by managerId with names from roster', async () => {
