@@ -6,6 +6,9 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
+const { getCompanyTeamVisibility } = vi.hoisted(() => ({ getCompanyTeamVisibility: vi.fn() }));
+vi.mock('@/lib/auth/managerPolicy', () => ({ getCompanyTeamVisibility }));
+
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { kpis, attention, recentEvents } = vi.hoisted(() => ({
@@ -37,12 +40,14 @@ const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as 
 describe('ManagerDashboard', () => {
   beforeEach(() => {
     requireManager.mockReset();
+    getCompanyTeamVisibility.mockReset();
+    getCompanyTeamVisibility.mockResolvedValue(true);
     kpis.mockReset();
     attention.mockReset();
     recentEvents.mockReset();
   });
 
-  it('fetches kpis/attention/events in parallel and renders them', async () => {
+  it('fetches kpis/attention/events in parallel, resolving teamMode ONCE for all three', async () => {
     requireManager.mockResolvedValue(SESSION);
     kpis.mockResolvedValue({ activeOrders: 1 });
     attention.mockResolvedValue([{ id: 'a1' }]);
@@ -51,9 +56,13 @@ describe('ManagerDashboard', () => {
     const { container } = await renderServerComponent(ManagerDashboard());
 
     expect(requireManager).toHaveBeenCalled();
-    expect(kpis).toHaveBeenCalledWith({}, SESSION);
-    expect(attention).toHaveBeenCalledWith({}, SESSION);
-    expect(recentEvents).toHaveBeenCalledWith({}, SESSION);
+    // R2: один рид флага на запрос, прокинутый во все три сервиса — вместо
+    // трёх одинаковых внутри kpis/attention/recentEvents.
+    expect(getCompanyTeamVisibility).toHaveBeenCalledTimes(1);
+    expect(getCompanyTeamVisibility).toHaveBeenCalledWith({}, 'c1');
+    expect(kpis).toHaveBeenCalledWith({}, SESSION, true);
+    expect(attention).toHaveBeenCalledWith({}, SESSION, true);
+    expect(recentEvents).toHaveBeenCalledWith({}, SESSION, undefined, true);
     expect(container.textContent).toContain('Главная');
     expect(container.textContent).toContain('activeOrders');
     expect(container.textContent).toContain('a1');

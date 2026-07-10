@@ -43,19 +43,21 @@ export async function kpis(
 ): Promise<OrgDashboardKpis> {
   const since30 = new Date(Date.now() - THIRTY_DAYS_MS);
 
-  const [activeOrders, outstandingOrders, studentsCount, recentDocumentsCount] = await Promise.all([
+  const [activeOrders, outstandingAgg, studentsCount, recentDocumentsCount] = await Promise.all([
     prisma.order.count({
       where: {
         organizationId,
         executionStatus: { in: ['pending', 'in_progress'] }
       }
     }),
-    prisma.order.findMany({
+    // Сумма линейна → SQL SUM вместо выборки всех строк в JS (R2).
+    // Decimal-канон сохранён: Prisma возвращает _sum Decimal'ом.
+    prisma.order.aggregate({
       where: {
         organizationId,
         financialStatus: { in: ['billed', 'partially_paid'] }
       },
-      select: { totalAmount: true, paidAmount: true }
+      _sum: { totalAmount: true, paidAmount: true }
     }),
     prisma.student.count({ where: { organizationId } }),
     prisma.document.count({
@@ -66,9 +68,8 @@ export async function kpis(
     })
   ]);
 
-  const outstanding = outstandingOrders.reduce(
-    (sum, o) => sum.plus(o.totalAmount).minus(o.paidAmount),
-    new Prisma.Decimal(0)
+  const outstanding = (outstandingAgg._sum.totalAmount ?? new Prisma.Decimal(0)).minus(
+    outstandingAgg._sum.paidAmount ?? new Prisma.Decimal(0)
   );
 
   return {

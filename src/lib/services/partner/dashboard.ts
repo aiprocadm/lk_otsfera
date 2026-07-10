@@ -63,13 +63,14 @@ export async function kpis(
   });
   const rate = partner?.commissionRate ?? new Prisma.Decimal(0);
 
-  const [openOrders, outstandingOrders, activeLeads, paidThisMonth] = await Promise.all([
+  const [openOrders, outstandingAgg, activeLeads, paidThisMonth] = await Promise.all([
     prisma.order.count({
       where: { ...baseWhere, executionStatus: { in: ['pending', 'in_progress'] } }
     }),
-    prisma.order.findMany({
+    // Сумма линейна → SQL SUM вместо выборки всех строк в JS (R2).
+    prisma.order.aggregate({
       where: { ...baseWhere, executionStatus: { not: 'cancelled' } },
-      select: { totalAmount: true, paidAmount: true }
+      _sum: { totalAmount: true, paidAmount: true }
     }),
     prisma.lead.count({
       where: {
@@ -88,10 +89,10 @@ export async function kpis(
   ]);
 
   // Деньги — на Decimal (канон §1 ТЗ): накопление сумм и умножение на ставку
-  // не должны проходить через JS number.
-  const outstanding = outstandingOrders.reduce(
-    (sum, o) => sum.plus(o.totalAmount).minus(o.paidAmount),
-    new Prisma.Decimal(0)
+  // не должны проходить через JS number. _sum приходит Decimal'ом (или null
+  // при нуле строк).
+  const outstanding = (outstandingAgg._sum.totalAmount ?? new Prisma.Decimal(0)).minus(
+    outstandingAgg._sum.paidAmount ?? new Prisma.Decimal(0)
   );
   // §6.2 ТЗ: приоритет ставки — индивидуальная ставка организации (договорная
   // скидка) → дефолт партнёра. Историческая ставка по дате платежа тут

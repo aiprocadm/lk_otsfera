@@ -48,11 +48,12 @@ vi.mock('@/lib/services/commission/calculator', () => ({
 import { kpis, attention, recentEvents } from '@/lib/services/organization/dashboard';
 
 describe('organization/dashboard — kpis (unit)', () => {
-  it('returns zeros when all queries return empty', async () => {
+  it('returns zeros when all queries return empty (aggregate _sum null)', async () => {
     const prisma = {
       order: {
         count: vi.fn().mockResolvedValue(0),
-        findMany: vi.fn().mockResolvedValue([]),
+        // SUM по нулю строк в Prisma — null, не 0 (R2: outstanding через aggregate)
+        aggregate: vi.fn().mockResolvedValue({ _sum: { totalAmount: null, paidAmount: null } }),
       },
       student: { count: vi.fn().mockResolvedValue(0) },
       document: { count: vi.fn().mockResolvedValue(0) },
@@ -65,14 +66,16 @@ describe('organization/dashboard — kpis (unit)', () => {
     expect(result.recentDocumentsCount).toBe(0);
   });
 
-  it('sums outstanding from billed orders', async () => {
+  it('computes outstanding as sum(total) - sum(paid) from the aggregate', async () => {
     const prisma = {
       order: {
         count: vi.fn().mockResolvedValue(2),
-        findMany: vi.fn().mockResolvedValue([
-          { totalAmount: new Prisma.Decimal('100000'), paidAmount: new Prisma.Decimal('30000') },
-          { totalAmount: new Prisma.Decimal('50000'), paidAmount: new Prisma.Decimal('50000') },
-        ]),
+        aggregate: vi.fn().mockResolvedValue({
+          _sum: {
+            totalAmount: new Prisma.Decimal('150000'),
+            paidAmount: new Prisma.Decimal('80000'),
+          },
+        }),
       },
       student: { count: vi.fn().mockResolvedValue(5) },
       document: { count: vi.fn().mockResolvedValue(3) },
