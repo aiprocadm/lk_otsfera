@@ -3,6 +3,7 @@ import { linkByCode } from '@/lib/services/telegram/link';
 import { sendTelegramMessage } from '@/lib/telegram/client';
 import { ingestInboundMessage } from '@/lib/services/inbound/ingest';
 import { isFeatureEnabled } from '@/lib/featureFlags';
+import { secretEquals } from '@/lib/security/secretCompare';
 import { log } from '@/lib/logging';
 
 export async function POST(req: Request): Promise<Response> {
@@ -10,7 +11,7 @@ export async function POST(req: Request): Promise<Response> {
   const provided = req.headers.get('x-telegram-bot-api-secret-token');
 
   // 401 when secret is not configured or header doesn't match
-  if (!secret || provided !== secret) {
+  if (!secret || !secretEquals(provided, secret)) {
     return new Response(null, { status: 401 });
   }
 

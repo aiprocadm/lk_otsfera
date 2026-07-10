@@ -1,8 +1,8 @@
 // Readiness: can the app serve traffic? Checks DB + Redis + S3. Token-gated.
 import type { NextRequest } from 'next/server';
-import { createHash, timingSafeEqual } from 'node:crypto';
 import { prisma } from '@/lib/db/prisma';
 import { checkDb, checkRedis, checkS3 } from '@/lib/health/checks';
+import { secretEquals } from '@/lib/security/secretCompare';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,12 +10,7 @@ function bearerMatches(req: NextRequest, expected: string): boolean {
   const header = req.headers.get('authorization') ?? '';
   const prefix = 'Bearer ';
   if (!header.startsWith(prefix)) return false;
-  const provided = header.slice(prefix.length);
-  // sha256 both to a fixed 32-byte length so timingSafeEqual never throws on
-  // a length mismatch (it requires equal-length buffers).
-  const a = createHash('sha256').update(provided).digest();
-  const b = createHash('sha256').update(expected).digest();
-  return timingSafeEqual(a, b);
+  return secretEquals(header.slice(prefix.length), expected);
 }
 
 export async function GET(req: NextRequest) {
