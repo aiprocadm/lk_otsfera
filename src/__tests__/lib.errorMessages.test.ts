@@ -44,4 +44,9 @@ describe('errorMessageRu', () => {
       expect(errorMessageRu(code)).not.toBe('Произошла ошибка.');
     }
   });
+  it('maps the staff-2FA codes to Russian', () => {
+    for (const code of ['email_send_failed', 'code_expired', 'invalid_code', 'too_many_attempts', 'session_expired']) {
+      expect(errorMessageRu(code)).not.toBe('Произошла ошибка.');
+    }
+  });
 });

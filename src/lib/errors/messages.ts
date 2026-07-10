@@ -93,7 +93,13 @@ const RU: Record<string, string> = {
   unknown_schedule: 'Неизвестное расписание.',
   already_running: 'Синхронизация уже запущена.',
   write_skipped: 'Запись пропущена (shadow-режим).',
-  invalid_cursor: 'Некорректное значение курсора.'
+  invalid_cursor: 'Некорректное значение курсора.',
+  // Staff 2FA (спека 2026-07-11)
+  email_send_failed: 'Не удалось отправить код на почту. Попробуйте ещё раз.',
+  code_expired: 'Код истёк. Войдите заново.',
+  invalid_code: 'Неверный код.',
+  too_many_attempts: 'Слишком много попыток. Войдите заново.',
+  session_expired: 'Сессия входа истекла. Войдите заново.'
 };
 
 export function errorMessageRu(code: string, fallback = 'Произошла ошибка.'): string {
