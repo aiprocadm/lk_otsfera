@@ -14,7 +14,7 @@ import {
 import { sendAdminUserInviteEmail } from '@/lib/email/send';
 import { log } from '@/lib/logging';
 
-type Failure = { ok: false; error: 'validation' | AdminUserErrorCode; details?: unknown };
+type Failure = { ok: false; error: 'validation' | AdminUserErrorCode };
 type Success<T> = T extends void ? { ok: true } : { ok: true } & T;
 type ActionResult<T = void> = Success<T> | Failure;
 
@@ -60,7 +60,7 @@ export async function createUserAction(
     role: readField(fd, 'role'),
     partnerId: readField(fd, 'partnerId') || null
   });
-  if (!parsed.success) return { ok: false, error: 'validation', details: parsed.error.flatten() };
+  if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireAdmin();
   const result = await createUser(prisma, session.sub, parsed.data);
@@ -91,7 +91,7 @@ export async function updateUserAction(fd: FormData): Promise<ActionResult> {
     partnerId: readField(fd, 'partnerId') || undefined,
     isActive: readField(fd, 'isActive') || undefined
   });
-  if (!parsed.success) return { ok: false, error: 'validation', details: parsed.error.flatten() };
+  if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireAdmin();
   const { id, ...args } = parsed.data;

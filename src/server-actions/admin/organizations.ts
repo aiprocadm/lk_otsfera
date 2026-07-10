@@ -17,7 +17,6 @@ import { log } from '@/lib/logging';
 type Failure = {
   ok: false;
   error: 'validation' | AdminOrgErrorCode | 'rate_out_of_range';
-  details?: unknown;
 };
 type Success<T> = T extends void ? { ok: true } : { ok: true } & T;
 type ActionResult<T = void> = Success<T> | Failure;
@@ -48,7 +47,7 @@ export async function updateOrganizationAction(fd: FormData): Promise<ActionResu
     inn: readField(fd, 'inn') || undefined,
     kpp: readField(fd, 'kpp') || undefined
   });
-  if (!parsed.success) return { ok: false, error: 'validation', details: parsed.error.flatten() };
+  if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireAdmin();
   const { id, ...args } = parsed.data;
@@ -66,7 +65,7 @@ export async function setOrgRateOverrideAction(fd: FormData): Promise<ActionResu
     reason: readField(fd, 'reason'),
     clear: readField(fd, 'clear') || undefined
   });
-  if (!parsed.success) return { ok: false, error: 'validation', details: parsed.error.flatten() };
+  if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireAdmin();
 
