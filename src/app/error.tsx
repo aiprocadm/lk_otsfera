@@ -27,6 +27,9 @@ export default function GlobalError({
         >
           Попробовать снова
         </button>
+        {error.digest ? (
+          <p className='text-gray-400 text-xs mt-6'>Код ошибки: {error.digest}</p>
+        ) : null}
       </div>
     </main>
   );
