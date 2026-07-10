@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import bcrypt from 'bcryptjs';
-import { signToken, type OrganizationMembership } from '@/lib/auth/jwt';
-import { toSessionAccessProfile, type SessionAccessProfile } from '@/lib/auth/accessProfile';
+import { signToken } from '@/lib/auth/jwt';
+import { buildSessionClaims } from '@/lib/auth/buildSessionClaims';
 import { isRateLimited } from '@/lib/rateLimit';
 
 const DUMMY_BCRYPT_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
@@ -68,86 +68,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' }, { status: 401 });
   }
 
-  let partnerRole: 'admin' | 'manager' | undefined;
-  let assignedOrgIds: string[] | undefined;
-
-  if (user.role === 'partner' && user.partnerId) {
-    const membership = await prisma.partnerUser.findUnique({
-      where: { partnerId_userId: { partnerId: user.partnerId, userId: user.id } }
-    });
-
-    if (membership) {
-      if (!membership.isActive) {
-        return NextResponse.json({ code: 'ACCOUNT_DEACTIVATED', message: 'Account deactivated' }, { status: 403 });
-      }
-      partnerRole = membership.roleInPartner === 'admin' ? 'admin' : 'manager';
-      assignedOrgIds = membership.assignedOrgIds;
-    }
+  const built = await buildSessionClaims(prisma, user);
+  if (!built.ok) {
+    return NextResponse.json({ code: 'ACCOUNT_DEACTIVATED', message: 'Account deactivated' }, { status: 403 });
   }
 
-  let organizationMemberships: OrganizationMembership[] | undefined;
-
-  if (user.role === 'organization') {
-    const memberships = await prisma.organizationUser.findMany({
-      where: { userId: user.id, isActive: true },
-      select: { organizationId: true, roleInOrg: true, isActive: true }
-    });
-
-    organizationMemberships = memberships.map((m) => ({
-      organizationId: m.organizationId,
-      // Must preserve every role in OrgRoleInOrg — narrowing 'leader' to 'member'
-      // here silently disables the leader feature for the whole token lifetime.
-      roleInOrg:
-        m.roleInOrg === 'admin' ? 'admin' : m.roleInOrg === 'leader' ? 'leader' : 'member',
-      isActive: m.isActive
-    }));
-  }
-
-  let managedOrgIds: string[] | undefined;
-  let managerRole: 'leader' | null | undefined;
-  let accessProfile: SessionAccessProfile | undefined;
-
-  if (user.role === 'manager') {
-    // C8 company floor: a manager's scope is bounded by their own company.
-    // Without the `organization.companyId === user.companyId` filter, a stale or
-    // legacy cross-company OrganizationManager row would widen managedOrgIds
-    // beyond the isolation boundary (see CLAUDE.md §4). A manager with no
-    // companyId is the deny-null sentinel — resolve zero orgs and skip the query.
-    const assigned = user.companyId
-      ? await prisma.organizationManager.findMany({
-          where: { userId: user.id, isActive: true, organization: { companyId: user.companyId } },
-          select: { organizationId: true }
-        })
-      : [];
-    managedOrgIds = assigned.map((a) => a.organizationId);
-    // Preserve 'leader' explicitly. Mirrors the org-membership narrowing warning
-    // above: collapsing this to null silently kills the leader feature for the
-    // whole 7d token lifetime.
-    managerRole = user.managerRole === 'leader' ? 'leader' : null;
-    // G1: денормализуем кастомный профиль доступа в токен (single indexed lookup,
-    // как managedOrgIds). null accessProfileId → профиля нет → legacy-поведение.
-    if (user.accessProfileId) {
-      const row = await prisma.accessProfile.findUnique({ where: { id: user.accessProfileId } });
-      if (row) accessProfile = toSessionAccessProfile(row);
-    }
-  }
-
-  const token = await signToken({
-    sub: user.id,
-    role: user.role,
-    companyId: user.companyId,
-    partnerId: user.partnerId,
-    organizationId: user.organizationId,
-    email: user.email,
-    name: user.name,
-    externalStudentId: user.externalStudentId,
-    ...(partnerRole !== undefined ? { partnerRole } : {}),
-    ...(assignedOrgIds !== undefined ? { assignedOrgIds } : {}),
-    ...(organizationMemberships !== undefined ? { organizationMemberships } : {}),
-    ...(managedOrgIds !== undefined ? { managedOrgIds } : {}),
-    ...(managerRole !== undefined ? { managerRole } : {}),
-    ...(accessProfile !== undefined ? { accessProfile } : {})
-  });
+  const token = await signToken(built.claims);
 
   const res = NextResponse.json({ ok: true });
   res.cookies.set('session', token, {
