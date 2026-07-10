@@ -37,6 +37,23 @@ describe('StaffBackupCodesSection', () => {
     expect(screen.getByRole('button', { name: 'Скопировать' })).toBeTruthy();
   });
 
+  it('re-generating from the codes-shown state shows the pending label', async () => {
+    let releaseSecond: (v: unknown) => void = () => {};
+    actionMock
+      .mockResolvedValueOnce({ ok: true, codes: ['AAAA', 'BBBB'] })
+      .mockImplementationOnce(() => new Promise((r) => { releaseSecond = r; }));
+    render(React.createElement(StaffBackupCodesSection, null));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сгенерировать коды восстановления' }));
+    await waitFor(() => expect(screen.getByText('AAAA')).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сгенерировать заново' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Генерирую…' })).toBeTruthy());
+
+    releaseSecond({ ok: true, codes: ['CCCC', 'DDDD'] });
+    await waitFor(() => expect(screen.getByText('CCCC')).toBeTruthy());
+  });
+
   it('forbidden result surfaces a toast error, no codes shown', async () => {
     actionMock.mockResolvedValue({ ok: false, error: 'forbidden' });
     render(React.createElement(StaffBackupCodesSection, null));
@@ -58,5 +75,19 @@ describe('StaffBackupCodesSection', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Скопировать' }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('AAAA\nBBBB'));
+    await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
+  });
+
+  it('copy failure surfaces a toast error (clipboard rejects)', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('denied'));
+    Object.assign(navigator, { clipboard: { writeText } });
+    actionMock.mockResolvedValue({ ok: true, codes: ['AAAA', 'BBBB'] });
+    render(React.createElement(StaffBackupCodesSection, null));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сгенерировать коды восстановления' }));
+    await waitFor(() => expect(screen.getByText('AAAA')).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Скопировать' }));
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalledWith('Не удалось скопировать'));
   });
 });

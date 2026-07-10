@@ -94,6 +94,20 @@ describe('LoginForm — 2FA step', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it('verify error without a code field falls back to the default RU message', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await reachCodeStep(fetchMock);
+
+    fetchMock.mockResolvedValueOnce(jsonRes(401, {})); // тело без code → ветка ': '''
+    fireEvent.change(screen.getByPlaceholderText('Код из письма или код восстановления'), {
+      target: { value: '000000' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить' }));
+
+    expect(await screen.findByText('Неверный код.')).toBeTruthy();
+  });
+
   it('network failure during verification shows the network error', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
@@ -155,6 +169,26 @@ describe('LoginForm — 2FA step', () => {
     });
 
     expect(screen.getByText('Слишком много запросов. Попробуйте позже.')).toBeTruthy();
+  });
+
+  it('resend error without a code field falls back to the default RU message', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await reachCodeStepFake(fetchMock);
+
+    await act(async () => {
+      vi.advanceTimersByTime(31_000);
+    });
+
+    fetchMock.mockResolvedValueOnce(jsonRes(500, {})); // тело без code
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Отправить код ещё раз' }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText('Не удалось отправить код.')).toBeTruthy();
   });
 
   it('resend network failure shows the network error', async () => {

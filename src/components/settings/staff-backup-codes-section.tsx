@@ -23,9 +23,10 @@ export function StaffBackupCodesSection() {
     });
   }
 
-  function onCopy() {
-    if (!codes) return;
-    void navigator.clipboard.writeText(codes.join('\n')).then(
+  // codes передаётся аргументом (кнопка копирования рендерится только внутри
+  // codes-ветки, где codes уже non-null) — так нет недостижимого null-guard'а.
+  function copyCodes(list: string[]) {
+    void navigator.clipboard.writeText(list.join('\n')).then(
       () => toast.success('Коды скопированы'),
       () => toast.error('Не удалось скопировать')
     );
@@ -53,7 +54,7 @@ export function StaffBackupCodesSection() {
             ))}
           </ul>
           <div className='mt-3 flex gap-2'>
-            <Button type='button' variant='secondary' onClick={onCopy}>
+            <Button type='button' variant='secondary' onClick={() => copyCodes(codes)}>
               Скопировать
             </Button>
             <Button type='button' variant='secondary' onClick={onGenerate} disabled={isPending}>

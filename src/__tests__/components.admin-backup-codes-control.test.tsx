@@ -37,6 +37,25 @@ describe('AdminBackupCodesControl', () => {
     expect(fdArg.get('id')).toBe('m1');
   });
 
+  it('re-generating from the codes-shown state shows the pending label', async () => {
+    // Первый вызов сразу отдаёт коды; второй держим pending, чтобы отрендерить
+    // «Генерирую…» в кнопке «Перевыпустить заново».
+    let releaseSecond: (v: unknown) => void = () => {};
+    actionMock
+      .mockResolvedValueOnce({ ok: true, codes: ['AAAA', 'BBBB'] })
+      .mockImplementationOnce(() => new Promise((r) => { releaseSecond = r; }));
+    render(React.createElement(AdminBackupCodesControl, { userId: 'm1' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Перевыпустить коды восстановления' }));
+    await waitFor(() => expect(screen.getByText('AAAA')).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Перевыпустить заново' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Генерирую…' })).toBeTruthy());
+
+    releaseSecond({ ok: true, codes: ['CCCC', 'DDDD'] });
+    await waitFor(() => expect(screen.getByText('CCCC')).toBeTruthy());
+  });
+
   it('a not_staff failure surfaces a toast error, no codes shown', async () => {
     actionMock.mockResolvedValue({ ok: false, error: 'not_staff' });
     render(React.createElement(AdminBackupCodesControl, { userId: 'p1' }));

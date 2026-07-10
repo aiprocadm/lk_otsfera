@@ -770,4 +770,11 @@ describe('adminRegenerateBackupCodes', () => {
     expect(await adminRegenerateBackupCodes(prisma, 'admin1', 'p1')).toEqual({ ok: false, error: 'not_staff' });
     expect(bcCreateMany).not.toHaveBeenCalled();
   });
+
+  it('rethrows a non-AdminUserError (e.g. a DB failure) instead of swallowing it', async () => {
+    const prisma = {
+      user: { findUnique: vi.fn().mockRejectedValue(new Error('db down')) }
+    } as unknown as Parameters<typeof adminRegenerateBackupCodes>[0];
+    await expect(adminRegenerateBackupCodes(prisma, 'admin1', 'm1')).rejects.toThrow('db down');
+  });
 });

@@ -82,6 +82,21 @@ describe('POST /api/auth/2fa/verify', () => {
     expect(res.status).toBe(429);
   });
 
+  it('rate-limit key uses the first x-forwarded-for hop', async () => {
+    isRateLimitedMock.mockResolvedValue(false);
+    const r = new NextRequest('http://x/api/auth/2fa/verify', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        cookie: '2fa_pending=t',
+        'x-forwarded-for': '203.0.113.9, 10.0.0.1'
+      },
+      body: JSON.stringify({ code: '123456' })
+    });
+    await POST(r);
+    expect(isRateLimitedMock).toHaveBeenCalledWith('2fa-verify:203.0.113.9', expect.anything());
+  });
+
   it('401 SESSION_EXPIRED without the pending cookie', async () => {
     const res = await POST(req({ code: '123456' }));
     expect(res.status).toBe(401);
