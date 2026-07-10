@@ -24,6 +24,14 @@ vi.mock('@/components/settings/notification-channels-card', () => ({
     React.createElement('div', { 'data-testid': 'notif-card' }, JSON.stringify(props.settings))
 }));
 
+const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
+vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
+
+vi.mock('@/components/settings/staff-backup-codes-section', () => ({
+  StaffBackupCodesSection: () =>
+    React.createElement('div', { 'data-testid': 'backup-codes-section' }, 'BACKUP')
+}));
+
 import AdminSettingsPage from '@/app/admin/settings/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
@@ -33,6 +41,8 @@ describe('AdminSettingsPage', () => {
     requireAdmin.mockReset();
     getTelegramStatus.mockReset();
     getNotificationSettings.mockReset();
+    isFeatureEnabled.mockReset();
+    isFeatureEnabled.mockReturnValue(false);
   });
 
   it('renders telegram + notification settings cards', async () => {
@@ -48,5 +58,19 @@ describe('AdminSettingsPage', () => {
     expect(container.textContent).toContain('Настройки');
     expect(container.textContent).toContain('linked');
     expect(container.textContent).toContain('email');
+    // Флаг выключен → секции кодов восстановления нет
+    expect(container.querySelector('[data-testid="backup-codes-section"]')).toBeNull();
+  });
+
+  it('shows the backup-codes section when staff_2fa is enabled', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getTelegramStatus.mockResolvedValue({ linked: true });
+    getNotificationSettings.mockResolvedValue({ view: { email: true } });
+    isFeatureEnabled.mockReturnValue(true);
+
+    const { container } = await renderServerComponent(AdminSettingsPage());
+
+    expect(isFeatureEnabled).toHaveBeenCalledWith('staff_2fa');
+    expect(container.querySelector('[data-testid="backup-codes-section"]')).not.toBeNull();
   });
 });

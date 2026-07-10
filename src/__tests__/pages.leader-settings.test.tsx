@@ -28,6 +28,14 @@ vi.mock('@/components/settings/notification-channels-card', () => ({
     React.createElement('div', { 'data-testid': 'notification-channels' }, JSON.stringify(props.settings))
 }));
 
+const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
+vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
+
+vi.mock('@/components/settings/staff-backup-codes-section', () => ({
+  StaffBackupCodesSection: () =>
+    React.createElement('div', { 'data-testid': 'backup-codes-section' }, 'BACKUP')
+}));
+
 import LeaderSettingsPage from '@/app/leader/settings/page';
 
 const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
@@ -37,6 +45,8 @@ describe('LeaderSettingsPage', () => {
     requireManagerLeader.mockReset();
     getTelegramStatus.mockReset();
     getNotificationSettings.mockReset();
+    isFeatureEnabled.mockReset();
+    isFeatureEnabled.mockReturnValue(false);
   });
 
   it('renders telegram status and notification settings view', async () => {
@@ -54,5 +64,18 @@ describe('LeaderSettingsPage', () => {
     expect(getNotificationSettings).toHaveBeenCalledWith({}, SESSION);
     expect(container.textContent).toContain('Настройки');
     expect(container.textContent).toContain('linked');
+    expect(container.querySelector('[data-testid="backup-codes-section"]')).toBeNull();
+  });
+
+  it('shows the backup-codes section when staff_2fa is enabled', async () => {
+    requireManagerLeader.mockResolvedValue(SESSION);
+    getTelegramStatus.mockResolvedValue({ ok: true, linked: true, enabled: true });
+    getNotificationSettings.mockResolvedValue({ ok: true, view: { telegramLinked: true, maxLinked: false, channels: [] } });
+    isFeatureEnabled.mockReturnValue(true);
+
+    const { container } = await renderServerComponent(LeaderSettingsPage());
+
+    expect(isFeatureEnabled).toHaveBeenCalledWith('staff_2fa');
+    expect(container.querySelector('[data-testid="backup-codes-section"]')).not.toBeNull();
   });
 });
