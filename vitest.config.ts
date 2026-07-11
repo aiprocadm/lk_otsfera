@@ -65,6 +65,7 @@ function includeFor(mode: string | undefined): string[] {
 export default defineConfig(({ mode }) => ({
   test: {
     environment: 'node',
+    setupFiles: ['src/__tests__/helpers/vitest.setup.ts'],
     globals: true,
     include: includeFor(mode),
     // Timeout: unit stays at vitest's tight 5s (fast pre-commit/pre-push feedback);
