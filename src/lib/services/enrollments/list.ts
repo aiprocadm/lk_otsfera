@@ -1,5 +1,6 @@
 import type { PrismaClient, EnrollmentStatus, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { recordPiiAccess } from '@/lib/pii/record';
 import { canReviewEnrollments } from './policy';
 
 export type EnrollmentRow = {
@@ -76,6 +77,13 @@ export async function listEnrollmentRequests(
 
   const hasMore = rows.length > take;
   const page = hasMore ? rows.slice(0, take) : rows;
+
+  await recordPiiAccess(prisma, {
+    session,
+    context: 'enrollments_list',
+    subjectIds: page.map((r) => r.id),
+    meta: { take, cursor: opts.cursor !== undefined }
+  });
 
   return {
     rows: page.map((r) => ({

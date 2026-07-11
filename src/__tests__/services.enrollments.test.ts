@@ -3,6 +3,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { recordAudit } = vi.hoisted(() => ({ recordAudit: vi.fn() }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 
+const { recordPiiAccess } = vi.hoisted(() => ({ recordPiiAccess: vi.fn() }));
+vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
+
 import { canReviewEnrollments, canSubmitEnrollments, submitterRoleLabel } from '@/lib/services/enrollments/policy';
 import { submitEnrollmentRequest } from '@/lib/services/enrollments/submit';
 import { listEnrollmentRequests } from '@/lib/services/enrollments/list';
@@ -10,7 +13,10 @@ import { approveEnrollment, rejectEnrollment, markProvisioned } from '@/lib/serv
 
 const s = (over: Record<string, unknown> = {}) => ({ sub: 'u1', role: 'manager', ...over }) as never;
 
-beforeEach(() => recordAudit.mockReset());
+beforeEach(() => {
+  recordAudit.mockReset();
+  recordPiiAccess.mockReset();
+});
 
 describe('enrollment policy', () => {
   it('reviewers = manager (incl leader) + admin', () => {
@@ -72,6 +78,18 @@ describe('listEnrollmentRequests scope', () => {
     const { db: d, findMany } = db();
     await listEnrollmentRequests(d, s({ role: 'partner', partnerId: 'p1' }));
     expect(findMany.mock.calls[0][0].where.AND[0]).toEqual({ partnerId: 'p1' });
+  });
+  it('PII: журналирует состав выдачи для staff-вызова', async () => {
+    const rows = [
+      { id: 'R1', submittedByUser: { name: 'U' } },
+      { id: 'R2', submittedByUser: { name: 'U' } }
+    ];
+    const { db: d } = db(rows);
+    await listEnrollmentRequests(d, s({ role: 'manager' }), {});
+    expect(recordPiiAccess).toHaveBeenCalledWith(d, expect.objectContaining({
+      context: 'enrollments_list',
+      subjectIds: ['R1', 'R2']
+    }));
   });
 });
 

@@ -1,6 +1,7 @@
 import type { PrismaClient, LeadStatus, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { leadWhereForLevel } from '@/lib/auth/accessProfile';
+import { recordPiiAccess } from '@/lib/pii/record';
 
 /**
  * Manager-side lead reads (T3). Leads are a shared TEAM QUEUE by default (owner
@@ -113,6 +114,7 @@ export type ManagerLeadDetail = ManagerLeadRow & {
 
 export async function getManagerLead(
   prisma: PrismaClient,
+  session: SessionPayload,
   leadId: string
 ): Promise<ManagerLeadDetail | null> {
   const l = await prisma.lead.findUnique({
@@ -125,6 +127,11 @@ export async function getManagerLead(
     }
   });
   if (!l) return null;
+  await recordPiiAccess(prisma, {
+    session,
+    context: 'manager_lead_view',
+    subjectIds: [l.id]
+  });
   return {
     id: l.id,
     clientCompanyName: l.clientCompanyName,

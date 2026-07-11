@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createHash } from 'crypto';
+
+const { recordPiiAccess } = vi.hoisted(() => ({ recordPiiAccess: vi.fn() }));
+vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
+
 import {
   listUsers,
   getUser,
@@ -13,6 +17,8 @@ import { MAX_PARTNER_USERS } from '@/lib/config/teamLimits';
 
 const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 
+const ADMIN_SESSION = { sub: 'adm', role: 'admin' as const };
+
 describe('listUsers', () => {
   it('фильтрует по role и active', async () => {
     const prisma = {
@@ -22,7 +28,7 @@ describe('listUsers', () => {
       }
     } as unknown as Parameters<typeof listUsers>[0];
 
-    await listUsers(prisma, { role: 'partner', active: true });
+    await listUsers(prisma, ADMIN_SESSION, { role: 'partner', active: true });
 
     const findManyArgs = (prisma.user.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(findManyArgs.where).toMatchObject({ role: 'partner', isActive: true });
@@ -36,7 +42,7 @@ describe('listUsers', () => {
       }
     } as unknown as Parameters<typeof listUsers>[0];
 
-    await listUsers(prisma, { q: 'foo' });
+    await listUsers(prisma, ADMIN_SESSION, { q: 'foo' });
 
     const args = (prisma.user.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(args.where.OR).toEqual(
@@ -67,7 +73,7 @@ describe('listUsers', () => {
       }
     } as unknown as Parameters<typeof listUsers>[0];
 
-    const { rows } = await listUsers(prisma, {});
+    const { rows } = await listUsers(prisma, ADMIN_SESSION, {});
     expect(rows[0].attachmentLabel).toBe('Acme');
   });
 
@@ -94,7 +100,7 @@ describe('listUsers', () => {
       }
     } as unknown as Parameters<typeof listUsers>[0];
 
-    const { rows } = await listUsers(prisma, {});
+    const { rows } = await listUsers(prisma, ADMIN_SESSION, {});
     expect(rows[0].attachmentLabel).toBe('Org A (+1)');
   });
 
@@ -118,7 +124,7 @@ describe('listUsers', () => {
       }
     } as unknown as Parameters<typeof listUsers>[0];
 
-    const { rows } = await listUsers(prisma, {});
+    const { rows } = await listUsers(prisma, ADMIN_SESSION, {});
     expect(rows[0].attachmentLabel).toBe('ManagedOrg');
   });
 
@@ -143,7 +149,7 @@ describe('listUsers', () => {
         }
       } as unknown as Parameters<typeof listUsers>[0];
 
-      const { rows } = await listUsers(prisma, {});
+      const { rows } = await listUsers(prisma, ADMIN_SESSION, {});
       expect(rows[0].attachmentLabel).toBe('—');
     }
   });
@@ -156,7 +162,7 @@ describe('listUsers', () => {
       }
     } as unknown as Parameters<typeof listUsers>[0];
 
-    await listUsers(prisma, { take: 999 });
+    await listUsers(prisma, ADMIN_SESSION, { take: 999 });
 
     const args = (prisma.user.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(args.take).toBe(100);
@@ -170,7 +176,7 @@ describe('listUsers', () => {
       }
     } as unknown as Parameters<typeof listUsers>[0];
 
-    const { total } = await listUsers(prisma, {});
+    const { total } = await listUsers(prisma, ADMIN_SESSION, {});
     expect(total).toBe(42);
   });
 
@@ -182,7 +188,7 @@ describe('listUsers', () => {
       }
     } as unknown as Parameters<typeof listUsers>[0];
 
-    await listUsers(prisma, { q: 'bar' });
+    await listUsers(prisma, ADMIN_SESSION, { q: 'bar' });
 
     const args = (prisma.user.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(args.where.OR).toEqual([
@@ -200,7 +206,7 @@ describe('listUsers', () => {
       }
     } as unknown as Parameters<typeof listUsers>[0];
 
-    await listUsers(prisma, { q: 'baz', organizationId: 'org-1' });
+    await listUsers(prisma, ADMIN_SESSION, { q: 'baz', organizationId: 'org-1' });
 
     const args = (prisma.user.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(args.where.OR).toBeUndefined();
@@ -228,7 +234,7 @@ describe('listUsers', () => {
       }
     } as unknown as Parameters<typeof listUsers>[0];
 
-    await listUsers(prisma, { organizationId: 'org-2' });
+    await listUsers(prisma, ADMIN_SESSION, { organizationId: 'org-2' });
 
     const args = (prisma.user.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(args.where.OR).toEqual([
@@ -236,6 +242,33 @@ describe('listUsers', () => {
       { managedOrganizations: { some: { organizationId: 'org-2' } } }
     ]);
     expect(args.where.AND).toBeUndefined();
+  });
+
+  it('listUsers журналирует состав выдачи', async () => {
+    recordPiiAccess.mockClear();
+    const row = (id: string) => ({
+      id,
+      email: `${id}@x`,
+      name: id,
+      role: 'admin',
+      isActive: true,
+      createdAt: new Date(),
+      partner: null,
+      organizationUsers: [],
+      managedOrganizations: []
+    });
+    const prisma = {
+      user: {
+        findMany: vi.fn().mockResolvedValue([row('U1'), row('U2')]),
+        count: vi.fn().mockResolvedValue(2)
+      }
+    } as unknown as Parameters<typeof listUsers>[0];
+
+    await listUsers(prisma, ADMIN_SESSION, {});
+    expect(recordPiiAccess).toHaveBeenCalledWith(prisma, expect.objectContaining({
+      context: 'admin_users_list',
+      subjectIds: ['U1', 'U2']
+    }));
   });
 });
 
@@ -245,7 +278,7 @@ describe('getUser', () => {
       user: { findUnique: vi.fn().mockResolvedValue(null) }
     } as unknown as Parameters<typeof getUser>[0];
 
-    const result = await getUser(prisma, 'nonexistent');
+    const result = await getUser(prisma, ADMIN_SESSION, 'nonexistent');
     expect(result).toBeNull();
   });
 
@@ -275,7 +308,7 @@ describe('getUser', () => {
       }
     } as unknown as Parameters<typeof getUser>[0];
 
-    const result = await getUser(prisma, 'u1');
+    const result = await getUser(prisma, ADMIN_SESSION, 'u1');
     expect(result).not.toBeNull();
     expect(result!.organizationMemberships).toEqual([
       {
@@ -314,7 +347,7 @@ describe('getUser', () => {
       }
     } as unknown as Parameters<typeof getUser>[0];
 
-    const result = await getUser(prisma, 'u2');
+    const result = await getUser(prisma, ADMIN_SESSION, 'u2');
     expect(result).not.toBeNull();
     expect(result!.organizationManagerships).toEqual([
       {
@@ -353,8 +386,41 @@ describe('getUser', () => {
       }
     } as unknown as Parameters<typeof getUser>[0];
 
-    const result = await getUser(prisma, 'u3');
+    const result = await getUser(prisma, ADMIN_SESSION, 'u3');
     expect(result!.organizationMemberships[0].roleInOrg).toBe('');
+  });
+
+  it('getUser журналирует карточку; null-ветка — нет', async () => {
+    recordPiiAccess.mockClear();
+    const prismaWithUser = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'U1',
+          email: 'u@x',
+          name: 'U',
+          role: 'organization',
+          isActive: true,
+          createdAt: new Date(),
+          partnerId: null,
+          partner: null,
+          organizationUsers: [],
+          managedOrganizations: []
+        })
+      }
+    } as unknown as Parameters<typeof getUser>[0];
+
+    await getUser(prismaWithUser, ADMIN_SESSION, 'U1');
+    expect(recordPiiAccess).toHaveBeenCalledWith(prismaWithUser, expect.objectContaining({
+      context: 'admin_user_view',
+      subjectIds: ['U1']
+    }));
+
+    recordPiiAccess.mockClear();
+    const prismaWithoutUser = {
+      user: { findUnique: vi.fn().mockResolvedValue(null) }
+    } as unknown as Parameters<typeof getUser>[0];
+    await getUser(prismaWithoutUser, ADMIN_SESSION, 'nope');
+    expect(recordPiiAccess).not.toHaveBeenCalled();
   });
 });
 

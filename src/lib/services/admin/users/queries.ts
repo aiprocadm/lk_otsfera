@@ -1,4 +1,6 @@
 import type { PrismaClient, Prisma, Role } from '@prisma/client';
+import type { SessionPayload } from '@/lib/auth/jwt';
+import { recordPiiAccess } from '@/lib/pii/record';
 
 export type UserRow = {
   id: string;
@@ -58,7 +60,13 @@ function computeAttachmentLabel(u: {
   return '—';
 }
 
-export async function getUser(
+/**
+ * Внутренняя выборка карточки БЕЗ записи в журнал ПДн (§25.7).
+ * Использовать ТОЛЬКО для пост-мутационного re-fetch внутри транзакций
+ * (updateUser), где нет read-контекста. Любое чтение карточки пользователем
+ * идёт через getUser, который журналирует доступ.
+ */
+export async function fetchUserDetail(
   prisma: PrismaClient,
   id: string
 ): Promise<UserDetail | null> {
@@ -102,8 +110,20 @@ export async function getUser(
   };
 }
 
+export async function getUser(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  id: string
+): Promise<UserDetail | null> {
+  const u = await fetchUserDetail(prisma, id);
+  if (!u) return null;
+  await recordPiiAccess(prisma, { session, context: 'admin_user_view', subjectIds: [u.id] });
+  return u;
+}
+
 export async function listUsers(
   prisma: PrismaClient,
+  session: SessionPayload,
   filters: UserFilters
 ): Promise<{ rows: UserRow[]; total: number }> {
   const take = Math.min(Math.max(filters.take ?? 50, 1), 100);
@@ -166,6 +186,13 @@ export async function listUsers(
     createdAt: u.createdAt,
     attachmentLabel: computeAttachmentLabel(u)
   }));
+
+  await recordPiiAccess(prisma, {
+    session,
+    context: 'admin_users_list',
+    subjectIds: rows.map((u) => u.id),
+    meta: { hasQuery: filters.q !== undefined }
+  });
 
   return { rows, total };
 }

@@ -1,6 +1,6 @@
 # Матрица фиче-флагов для прод-релиза (R0.1)
 
-Источник истины по семантике — [src/lib/featureFlags.ts](../src/lib/featureFlags.ts) (18 флагов: 4 opt-out default-ON, 14 opt-in default-OFF). Env-переменная — `FEATURE_<UPPER_SNAKE>`. Точки чтения route-флагов — тройные (§5 CLAUDE.md): middleware (404) + навигация + page/route-гейт; поведенческие флаги (`max_channel`, `staff_2fa` и т.п.) читаются в своих точках, перечисленных в комментарии флага.
+Источник истины по семантике — [src/lib/featureFlags.ts](../src/lib/featureFlags.ts) (19 флагов: 5 opt-out default-ON, 14 opt-in default-OFF). Env-переменная — `FEATURE_<UPPER_SNAKE>`. Точки чтения route-флагов — тройные (§5 CLAUDE.md): middleware (404) + навигация + page/route-гейт; поведенческие флаги (`max_channel`, `staff_2fa` и т.п.) читаются в своих точках, перечисленных в комментарии флага.
 
 **Главный инвариант проверен (аудит 2026-07-10): ни одна незавершённая фича не «включится сама» — все сырые флаги opt-in.** Заглушечные адаптеры (Mango REST, IMAP) дополнительно защищены двойным предохранителем «флаг + креды/адаптер».
 
@@ -12,6 +12,7 @@
 | `commission_pdf` | Скачивание PDF стейтмента | **on** | Redis+worker (генерация) |
 | `commission_xlsx` | Скачивание XLSX стейтмента | **on** | Redis+worker |
 | `pwa_installer` | PWA-подсказка установки | **on** | — |
+| `pii_access_log` | Журнал доступа сотрудников к ПДн (§25.7): запись — recordPiiAccess, просмотр — /admin/pii-access (не гейтится) | **on** | Postgres. Выключение = пауза журнала = комплаенс-дыра; только на время инцидента |
 
 ## Opt-in (default OFF — включать явно `=1`)
 

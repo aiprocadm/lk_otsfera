@@ -6,6 +6,9 @@ const { recordAudit } = vi.hoisted(() => ({ recordAudit: vi.fn() }));
 vi.mock('@/lib/auth/managerPolicy', () => ({ managedOrgIds, getCompanyTeamVisibility }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 
+const { recordPiiAccess } = vi.hoisted(() => ({ recordPiiAccess: vi.fn() }));
+vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
+
 import { listCertificates, createCertificate, issueFromOrderItem } from '@/lib/services/training/certificates';
 
 function session(role: string, extra: Record<string, unknown> = {}) {
@@ -33,6 +36,19 @@ describe('certificates service', () => {
     expect(res.ok).toBe(true);
     const callArg = prisma.certificate.findMany.mock.calls[0][0];
     expect(JSON.stringify(callArg.where)).toContain('org1');
+  });
+
+  it('PII: listCertificates журналирует studentId каждого удостоверения', async () => {
+    prisma.certificate.findMany.mockResolvedValue([
+      { id: 'cert1', studentId: 's1' },
+      { id: 'cert2', studentId: 's2' }
+    ]);
+    const res = await listCertificates(prisma, session('manager'), {});
+    expect(res.ok).toBe(true);
+    expect(recordPiiAccess).toHaveBeenCalledWith(prisma, expect.objectContaining({
+      context: 'certificates_list',
+      subjectIds: ['s1', 's2']
+    }));
   });
 
   it('createCertificate запрещён организации (read-only)', async () => {

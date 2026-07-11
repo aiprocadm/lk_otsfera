@@ -661,6 +661,8 @@ describe('admin/users/mutations — missed branches', () => {
 // ---------------------------------------------------------------------------
 import { getUser, listUsers } from '@/lib/services/admin/users/queries';
 
+const ADMIN_SESSION = { sub: 'adm', role: 'admin' as const };
+
 describe('admin/users/queries — computeAttachmentLabel missed arms', () => {
   it('getUser: partner role but partner is null → attachmentLabel "—"', async () => {
     const prisma = {
@@ -676,7 +678,7 @@ describe('admin/users/queries — computeAttachmentLabel missed arms', () => {
       },
     } as unknown as PrismaClient;
 
-    const result = await getUser(prisma, 'u1');
+    const result = await getUser(prisma, ADMIN_SESSION, 'u1');
     expect(result!.attachmentLabel).toBe('—');
   });
 
@@ -693,7 +695,7 @@ describe('admin/users/queries — computeAttachmentLabel missed arms', () => {
       },
     } as unknown as PrismaClient;
 
-    const result = await getUser(prisma, 'u2');
+    const result = await getUser(prisma, ADMIN_SESSION, 'u2');
     expect(result!.attachmentLabel).toBe('—');
   });
 
@@ -715,7 +717,7 @@ describe('admin/users/queries — computeAttachmentLabel missed arms', () => {
       },
     } as unknown as PrismaClient;
 
-    const { rows } = await listUsers(prisma, {});
+    const { rows } = await listUsers(prisma, ADMIN_SESSION, {});
     expect(rows[0].attachmentLabel).toBe('Org A (+1)');
   });
 
@@ -734,7 +736,7 @@ describe('admin/users/queries — computeAttachmentLabel missed arms', () => {
       },
     } as unknown as PrismaClient;
 
-    const { rows } = await listUsers(prisma, {});
+    const { rows } = await listUsers(prisma, ADMIN_SESSION, {});
     expect(rows[0].attachmentLabel).toBe('—');
   });
 
@@ -743,7 +745,7 @@ describe('admin/users/queries — computeAttachmentLabel missed arms', () => {
     const count = vi.fn().mockResolvedValue(0);
     const prisma = { user: { findMany, count } } as unknown as PrismaClient;
 
-    await listUsers(prisma, { partnerId: 'partner-42' });
+    await listUsers(prisma, ADMIN_SESSION, { partnerId: 'partner-42' });
 
     const whereArg = findMany.mock.calls[0][0].where;
     expect(whereArg.partnerId).toBe('partner-42');

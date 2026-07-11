@@ -6,25 +6,13 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
-const { studentFindUnique, organizationFindUnique } = vi.hoisted(() => ({
-  studentFindUnique: vi.fn(),
-  organizationFindUnique: vi.fn()
-}));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: {
-    student: { findUnique: studentFindUnique },
-    organization: { findUnique: organizationFindUnique }
-  }
-}));
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+
+const { getStudent } = vi.hoisted(() => ({ getStudent: vi.fn() }));
+vi.mock('@/lib/services/manager/students', () => ({ getStudent }));
 
 const { listCertificates } = vi.hoisted(() => ({ listCertificates: vi.fn() }));
 vi.mock('@/lib/services/training', () => ({ listCertificates }));
-
-const { managedOrgIds, getCompanyTeamVisibility } = vi.hoisted(() => ({
-  managedOrgIds: vi.fn(),
-  getCompanyTeamVisibility: vi.fn()
-}));
-vi.mock('@/lib/auth/managerPolicy', () => ({ managedOrgIds, getCompanyTeamVisibility }));
 
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
@@ -52,55 +40,31 @@ const STUDENT = {
   organization: { id: 'org-1', name: 'Org' }
 };
 
+// Scope-ветки (teamMode ON/OFF, чужая организация/company) переехали из
+// страницы в сервис getStudent — покрываются unit-тестами
+// services.manager.students.unit.test.ts, здесь остаётся контракт страницы.
 describe('ManagerStudentDetailPage', () => {
   beforeEach(() => {
     requireManager.mockReset();
-    studentFindUnique.mockReset();
-    organizationFindUnique.mockReset();
+    getStudent.mockReset();
     listCertificates.mockReset();
-    managedOrgIds.mockReset();
-    getCompanyTeamVisibility.mockReset();
     nav.notFound.mockClear();
   });
 
-  it('calls notFound() when the student does not exist', async () => {
+  it('calls notFound() when getStudent returns null (missing or out of scope)', async () => {
     requireManager.mockResolvedValue(SESSION);
-    studentFindUnique.mockResolvedValue(null);
+    getStudent.mockResolvedValue(null);
 
     await expect(
       renderServerComponent(ManagerStudentDetailPage({ params: Promise.resolve({ id: 'missing' }) }))
     ).rejects.toThrow('NOT_FOUND');
 
-    expect(getCompanyTeamVisibility).not.toHaveBeenCalled();
+    expect(listCertificates).not.toHaveBeenCalled();
   });
 
-  it('teamMode:true — calls notFound() when the org is not in the same company', async () => {
+  it('renders the student card with certificates', async () => {
     requireManager.mockResolvedValue(SESSION);
-    studentFindUnique.mockResolvedValue(STUDENT);
-    getCompanyTeamVisibility.mockResolvedValue(true);
-    organizationFindUnique.mockResolvedValue({ companyId: 'other-company' });
-
-    await expect(
-      renderServerComponent(ManagerStudentDetailPage({ params: Promise.resolve({ id: 's1' }) }))
-    ).rejects.toThrow('NOT_FOUND');
-  });
-
-  it('teamMode:true — calls notFound() when the org lookup returns null', async () => {
-    requireManager.mockResolvedValue(SESSION);
-    studentFindUnique.mockResolvedValue(STUDENT);
-    getCompanyTeamVisibility.mockResolvedValue(true);
-    organizationFindUnique.mockResolvedValue(null);
-
-    await expect(
-      renderServerComponent(ManagerStudentDetailPage({ params: Promise.resolve({ id: 's1' }) }))
-    ).rejects.toThrow('NOT_FOUND');
-  });
-
-  it('teamMode:true — renders when the org matches the session companyId', async () => {
-    requireManager.mockResolvedValue(SESSION);
-    studentFindUnique.mockResolvedValue(STUDENT);
-    getCompanyTeamVisibility.mockResolvedValue(true);
-    organizationFindUnique.mockResolvedValue({ companyId: 'c1' });
+    getStudent.mockResolvedValue(STUDENT);
     listCertificates.mockResolvedValue({ ok: true, certificates: [{ id: 'cert1' }] });
 
     const { container } = await renderServerComponent(
@@ -112,24 +76,9 @@ describe('ManagerStudentDetailPage', () => {
     expect(container.textContent).toContain('cert1');
   });
 
-  it('teamMode:false — calls notFound() when the org is not in managedOrgIds', async () => {
+  it('falls back to empty certificates when listCertificates returns ok:false', async () => {
     requireManager.mockResolvedValue(SESSION);
-    studentFindUnique.mockResolvedValue(STUDENT);
-    getCompanyTeamVisibility.mockResolvedValue(false);
-    managedOrgIds.mockReturnValue(['org-2']);
-
-    await expect(
-      renderServerComponent(ManagerStudentDetailPage({ params: Promise.resolve({ id: 's1' }) }))
-    ).rejects.toThrow('NOT_FOUND');
-
-    expect(organizationFindUnique).not.toHaveBeenCalled();
-  });
-
-  it('teamMode:false — renders when the org is in managedOrgIds, falling back to empty certificates on ok:false', async () => {
-    requireManager.mockResolvedValue(SESSION);
-    studentFindUnique.mockResolvedValue(STUDENT);
-    getCompanyTeamVisibility.mockResolvedValue(false);
-    managedOrgIds.mockReturnValue(['org-1']);
+    getStudent.mockResolvedValue(STUDENT);
     listCertificates.mockResolvedValue({ ok: false, error: 'forbidden' });
 
     const { container } = await renderServerComponent(

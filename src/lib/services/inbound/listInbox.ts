@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { recordPiiAccess } from '@/lib/pii/record';
 
 /**
  * Company-scoped staff inbox query (Task 11a).
@@ -83,6 +84,12 @@ export async function listInbox(
     }),
     prisma.inboundMessage.count({ where }),
   ]);
+
+  await recordPiiAccess(prisma, {
+    session,
+    context: 'inbox_list',
+    subjectIds: rows.map((r) => r.id)
+  });
 
   return { items: rows, total };
 }

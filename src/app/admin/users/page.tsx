@@ -33,7 +33,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
     skip
   };
 
-  const { rows, total } = await listUsers(prisma, filters);
+  const { rows, total } = await listUsers(prisma, session, filters);
 
   return (
     <div className="space-y-4">

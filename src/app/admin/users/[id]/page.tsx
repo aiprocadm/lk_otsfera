@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export default async function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAdmin();
   const { id } = await params;
-  const user = await getUser(prisma, id);
+  const user = await getUser(prisma, session, id);
   if (!user) notFound();
 
   const partners = await prisma.partner.findMany({

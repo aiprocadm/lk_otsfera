@@ -4,7 +4,7 @@ import { recordAudit } from '@/lib/auth/audit';
 import { generateBackupCodes } from '@/lib/services/auth/twoFactor';
 import { MAX_PARTNER_USERS } from '@/lib/config/teamLimits';
 import { AdminUserError, type AdminUserFailure } from './errors';
-import { getUser, type UserDetail } from './queries';
+import { fetchUserDetail, type UserDetail } from './queries';
 
 export type CreateUserArgs = {
   email: string;
@@ -189,7 +189,8 @@ export async function updateUser(
         after: { role: updated.role, isActive: updated.isActive, partnerId: updated.partnerId, name: updated.name }
       });
 
-      const detail = await getUser(tx as unknown as PrismaClient, id);
+      // Пост-мутационный re-fetch — не read-контекст, журнал ПДн не пишем.
+      const detail = await fetchUserDetail(tx as unknown as PrismaClient, id);
       return detail!;
     });
     return { ok: true, user: updatedDetail };

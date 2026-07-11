@@ -43,6 +43,11 @@ export const FEATURE_FLAGS = [
   // 2FA сотрудников (email-код). Поведенческий флаг (не route): точки чтения —
   // login/verify/resend-роуты + секция настроек. Спека 2026-07-11-staff-2fa.
   'staff_2fa',
+  // §25.7: журнал доступа сотрудников к ПДн. Поведенческий opt-out флаг —
+  // комплаенс-механизм не может быть opt-in (забытый env = журнал молча не
+  // ведётся). Точки чтения: recordPiiAccess (no-op при off) + баннер на
+  // /admin/pii-access. Выключение = пауза журнала, только на время инцидента.
+  'pii_access_log',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];

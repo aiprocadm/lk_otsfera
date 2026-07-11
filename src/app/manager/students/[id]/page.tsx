@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { listCertificates } from '@/lib/services/training';
-import { managedOrgIds, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import { getStudent } from '@/lib/services/manager/students';
 import { CertificateList } from '@/components/training/certificate-list';
 import { fmtDate } from '@/lib/format';
 
@@ -16,25 +16,9 @@ export default async function ManagerStudentDetailPage({
   const { id } = await params;
   const session = await requireManager();
 
-  // Load student and verify it is in this manager's scope.
-  const student = await prisma.student.findUnique({
-    where: { id },
-    select: { id: true, name: true, email: true, organizationId: true, createdAt: true, organization: { select: { id: true, name: true } } },
-  });
+  // Load student; scope-чек и журнал ПДн — внутри сервиса (getStudent).
+  const student = await getStudent(prisma, session, id);
   if (!student) notFound();
-
-  // Scope check: same logic as listStudents (managerPolicy).
-  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
-  if (teamMode) {
-    const org = await prisma.organization.findUnique({
-      where: { id: student.organizationId },
-      select: { companyId: true },
-    });
-    if (!org || !session.companyId || org.companyId !== session.companyId) notFound();
-  } else {
-    const orgIds = managedOrgIds(session);
-    if (!orgIds.includes(student.organizationId)) notFound();
-  }
 
   const certsResult = await listCertificates(prisma, session, { studentId: id });
   const certificates = certsResult.ok ? certsResult.certificates : [];

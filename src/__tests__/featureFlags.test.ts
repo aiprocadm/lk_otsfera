@@ -127,3 +127,14 @@ describe('notFoundIfDisabled', () => {
     expect(await res!.text()).toBe('Not Found');
   });
 });
+
+describe('pii_access_log (§25.7)', () => {
+  it('opt-out: включён при пустом env', () => {
+    expect(isFeatureEnabled('pii_access_log')).toBe(true);
+  });
+
+  it('kill-switch: FEATURE_PII_ACCESS_LOG=0 выключает', () => {
+    process.env.FEATURE_PII_ACCESS_LOG = '0';
+    expect(isFeatureEnabled('pii_access_log')).toBe(false);
+  });
+});

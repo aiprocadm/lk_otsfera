@@ -14,9 +14,9 @@ const statusFor = (error: 'not_found' | 'lifecycle_violation'): number =>
 export async function GET(_req: Request, { params }: Params) {
   const disabled = notFoundIfDisabled('manager_cabinet');
   if (disabled) return disabled;
-  await requireManager();
+  const session = await requireManager();
   const { id } = await params;
-  const lead = await getManagerLead(prisma, id);
+  const lead = await getManagerLead(prisma, session, id);
   if (!lead) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json({ lead });
 }

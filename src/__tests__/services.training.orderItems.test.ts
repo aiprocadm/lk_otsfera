@@ -5,6 +5,9 @@ const { recordAudit } = vi.hoisted(() => ({ recordAudit: vi.fn() }));
 vi.mock('@/lib/services/manager/orders', () => ({ getOrder }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 
+const { recordPiiAccess } = vi.hoisted(() => ({ recordPiiAccess: vi.fn() }));
+vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
+
 import { listOrderItems, addOrderItem, updateItemStatus } from '@/lib/services/training/orderItems';
 
 function session(role: string) {
@@ -32,6 +35,26 @@ describe('orderItems service', () => {
     const res = await listOrderItems(prisma, session('manager'), { orderId: 'o1' });
     expect(res.ok).toBe(true);
     if (res.ok) expect(res.items).toHaveLength(1);
+  });
+
+  it('PII: listOrderItems журналирует studentId каждой позиции', async () => {
+    getOrder.mockResolvedValue({ id: 'o1', organizationId: 'org1' });
+    prisma.orderItem.findMany.mockResolvedValue([
+      { id: 'it1', studentId: 's1' },
+      { id: 'it2', studentId: 's2' }
+    ]);
+    const res = await listOrderItems(prisma, session('manager'), { orderId: 'o1' });
+    expect(res.ok).toBe(true);
+    expect(recordPiiAccess).toHaveBeenCalledWith(prisma, expect.objectContaining({
+      context: 'order_items_list',
+      subjectIds: ['s1', 's2']
+    }));
+  });
+
+  it('PII: listOrderItems не журналирует на ветке forbidden', async () => {
+    getOrder.mockResolvedValue(null);
+    await listOrderItems(prisma, session('manager'), { orderId: 'o1' });
+    expect(recordPiiAccess).not.toHaveBeenCalled();
   });
 
   it('addOrderItem запрещён партнёру', async () => {
