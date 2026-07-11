@@ -169,18 +169,29 @@ session.managerRole === 'leader' ? 'leader' : session.role`.
 
 ### Точки вызова (12 контекстов, см. реестр)
 
-Два сопутствующих приведения к канону §2/§3 (единственные рефакторинги PR):
+Три сопутствующих приведения к канону §2/§3 (единственные рефакторинги PR):
 
 1. **`getManagerLead(prisma, leadId)` → `(prisma, session, leadId)`** — без
    session вызов хелпера внутри сервиса невозможен. Затронуты 2 продовых
-   call-site (`manager/leads/[id]/page.tsx`, `api/manager/leads/[id]/route.ts`)
-   и ~5 тест-файлов. Заодно сервис получает возможность в будущем сузить
+   call-site (`manager/leads/[id]/page.tsx`, `api/manager/leads/[id]/route.ts`
+   — в обоих `requireManager()` сейчас вызывается без сохранения session)
+   и ~4 тест-файла. Заодно сервис получает возможность в будущем сузить
    выборку по scope (сейчас scope-чек живёт на странице).
 2. **Инлайн `prisma.student.findUnique` в `manager/students/[id]/page.tsx`
    выносится в `getStudent`** (`services/manager/students.ts`) с тем же
    C8 teamMode-скоупом, что у `listStudents` — существующее отступление
    RSC-инлайна приводится к слоям §2, и карточка слушателя журналируется
    сервисом, а не страницей.
+3. **`listUsers(prisma, filters)` / `getUser(prisma, id)` →
+   `(prisma, session, …)`** — та же причина, что у getManagerLead. Оба
+   продовых call-site (`admin/users/page.tsx`, `admin/users/[id]/page.tsx`)
+   уже сохраняют `session` из `requireAdmin()`.
+
+**Тестовое окружение:** vitest получает setup-файл, выставляющий
+`FEATURE_PII_ACCESS_LOG=0` по умолчанию — ~700 существующих unit-тестов с
+mock-prisma без `piiAccessEvent` не получают шумовых `log.error`, а
+console-spy регрессы не ломаются. Тесты журнала включают флаг явно;
+прод-семантика остаётся opt-out (default ON).
 
 `getOrganizationCard` пишет **два** события (`org_card_inbound`,
 `org_card_calls`) одним `createMany`.
