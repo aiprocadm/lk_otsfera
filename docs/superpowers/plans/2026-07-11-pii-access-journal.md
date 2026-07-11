@@ -561,7 +561,7 @@ git commit --no-verify -m "feat(pii): recordPiiAccess — awaited never-throws �
 - Modify: `src/app/manager/students/[id]/page.tsx:17-37` (замена инлайн-prisma на `getStudent`)
 - Test: `src/__tests__/services.manager.students.unit.test.ts`, `src/__tests__/pages.manager-students-id.test.tsx`
 
-- [ ] **Step 1: Написать падающие unit-тесты сервиса**
+- [x] **Step 1: Написать падающие unit-тесты сервиса**
 
 В `src/__tests__/services.manager.students.unit.test.ts` добавить мок модуля записи (рядом с существующими vi.mock):
 
@@ -636,12 +636,12 @@ describe('getStudent', () => {
 });
 ```
 
-- [ ] **Step 2: Убедиться, что падают**
+- [x] **Step 2: Убедиться, что падают**
 
 Run: `npx vitest run --mode=unit src/__tests__/services.manager.students.unit.test.ts`
 Expected: FAIL — `getStudent` не экспортируется; assert на recordPiiAccess не проходит.
 
-- [ ] **Step 3: Реализовать в сервисе**
+- [x] **Step 3: Реализовать в сервисе**
 
 В `src/lib/services/manager/students.ts`: импорт наверху `import { recordPiiAccess } from '@/lib/pii/record';`. В `listStudents` перед `return { rows: sliced, nextCursor };`:
 
@@ -701,12 +701,12 @@ export async function getStudent(
 }
 ```
 
-- [ ] **Step 4: Прогнать unit-тесты сервиса**
+- [x] **Step 4: Прогнать unit-тесты сервиса**
 
 Run: `npx vitest run --mode=unit src/__tests__/services.manager.students.unit.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Рефактор страницы**
+- [x] **Step 5: Рефактор страницы**
 
 В `src/app/manager/students/[id]/page.tsx`: заменить блок строк 20-37 (findUnique + scope-чек) на:
 
@@ -717,7 +717,7 @@ Expected: PASS.
 
 Импорт: `import { getStudent } from '@/lib/services/manager/students';` (убрать ставшие ненужными импорты `getCompanyTeamVisibility`/`managedOrgIds`, если их больше никто на странице не использует — проверить остальной код страницы).
 
-- [ ] **Step 6: Обновить page-тест**
+- [x] **Step 6: Обновить page-тест**
 
 В `src/__tests__/pages.manager-students-id.test.tsx`: заменить мок prisma-выборки студента на мок сервиса. Убрать `studentFindUnique`/`organizationFindUnique` из vi.hoisted-блока prisma (оставить то, что страница ещё реально использует), добавить:
 
@@ -728,12 +728,12 @@ vi.mock('@/lib/services/manager/students', () => ({ getStudent }));
 
 и в тестах `getStudent.mockResolvedValue(STUDENT)` / `mockResolvedValue(null)` вместо прежних prisma-моков. Ветки scope-чека страницы (teamMode ON/OFF) исчезли — соответствующие page-тесты удалить (их логика теперь покрыта unit-тестами `getStudent` из Step 1; смысловой перенос зафиксировать в коммит-сообщении).
 
-- [ ] **Step 7: Прогнать page-тест + typecheck**
+- [x] **Step 7: Прогнать page-тест + typecheck**
 
 Run: `npx vitest run --mode=unit src/__tests__/pages.manager-students-id.test.tsx && npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git commit --no-verify -m "feat(pii): students — журнал list/view; getStudent вынесен из RSC-инлайна (канон §2)" -- src/lib/services/manager/students.ts "src/app/manager/students/[id]/page.tsx" src/__tests__/services.manager.students.unit.test.ts src/__tests__/pages.manager-students-id.test.tsx
@@ -748,7 +748,7 @@ git commit --no-verify -m "feat(pii): students — журнал list/view; getSt
 - Modify: `src/app/manager/leads/[id]/page.tsx:14-17`, `src/app/api/manager/leads/[id]/route.ts:17-20`
 - Test: `src/__tests__/services.manager.leads.unit.test.ts` (реальные вызовы, строки ~150-202), `src/__tests__/api.manager.leads.test.ts`, `src/__tests__/pages.manager-leads-id.test.tsx`, `src/__tests__/cov.api-misc.test.ts` (мокают модуль — правка не нужна, если мок не типизирован; проверить)
 
-- [ ] **Step 1: Обновить unit-тест сервиса (падающий)**
+- [x] **Step 1: Обновить unit-тест сервиса (падающий)**
 
 В `src/__tests__/services.manager.leads.unit.test.ts`: добавить мок журнала:
 
@@ -778,12 +778,12 @@ vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
   });
 ```
 
-- [ ] **Step 2: Убедиться, что падает**
+- [x] **Step 2: Убедиться, что падает**
 
 Run: `npx vitest run --mode=unit src/__tests__/services.manager.leads.unit.test.ts`
 Expected: FAIL (TS: лишний аргумент).
 
-- [ ] **Step 3: Сменить сигнатуру и инструментировать**
+- [x] **Step 3: Сменить сигнатуру и инструментировать**
 
 В `src/lib/services/manager/leads.ts`: импорт `recordPiiAccess`; тип `SessionPayload` уже импортирован (используется `listManagerLeads`). Сигнатура:
 
@@ -805,7 +805,7 @@ export async function getManagerLead(
   });
 ```
 
-- [ ] **Step 4: Обновить продовые call-sites**
+- [x] **Step 4: Обновить продовые call-sites**
 
 `src/app/manager/leads/[id]/page.tsx:14-16` — захватить session:
 
@@ -823,12 +823,12 @@ export async function getManagerLead(
   const lead = await getManagerLead(prisma, session, id);
 ```
 
-- [ ] **Step 5: Прогнать все затронутые тесты + typecheck**
+- [x] **Step 5: Прогнать все затронутые тесты + typecheck**
 
 Run: `npx vitest run --mode=unit src/__tests__/services.manager.leads.unit.test.ts src/__tests__/api.manager.leads.test.ts src/__tests__/pages.manager-leads-id.test.tsx src/__tests__/cov.api-misc.test.ts && npm run typecheck`
 Expected: PASS. (`api.manager.leads` / `pages.manager-leads-id` / `cov.api-misc` мокают модуль целиком `vi.fn()` без типизации аргументов — как правило, правка им не нужна; если typecheck укажет на mockResolvedValue-типы, поправить точечно.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git commit --no-verify -m "feat(pii): getManagerLead(prisma, session, leadId) + журнал карточки лида" -- src/lib/services/manager/leads.ts "src/app/manager/leads/[id]/page.tsx" "src/app/api/manager/leads/[id]/route.ts" src/__tests__/services.manager.leads.unit.test.ts src/__tests__/api.manager.leads.test.ts src/__tests__/pages.manager-leads-id.test.tsx src/__tests__/cov.api-misc.test.ts
@@ -842,7 +842,7 @@ git commit --no-verify -m "feat(pii): getManagerLead(prisma, session, leadId) + 
 - Modify: `src/lib/services/enrollments/list.ts` (перед return ~строка 80), `src/lib/services/training/certificates.ts` (между строками 77-78), `src/lib/services/training/orderItems.ts` (между строками 38-39)
 - Test: `src/__tests__/services.enrollments.test.ts`, `src/__tests__/services.training.certificates.test.ts`, `src/__tests__/services.training.orderItems.test.ts`
 
-- [ ] **Step 1: Падающие тесты — по одному assert-тесту в каждый файл**
+- [x] **Step 1: Падающие тесты — по одному assert-тесту в каждый файл**
 
 В каждый из трёх тест-файлов добавить мок (в стиле файла, vi.hoisted):
 
@@ -870,12 +870,12 @@ vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
 
 (Точные имена фикстур — из самих файлов; assert-структура выше обязательна.)
 
-- [ ] **Step 2: Убедиться, что падают**
+- [x] **Step 2: Убедиться, что падают**
 
 Run: `npx vitest run --mode=unit src/__tests__/services.enrollments.test.ts src/__tests__/services.training.certificates.test.ts src/__tests__/services.training.orderItems.test.ts`
 Expected: FAIL (recordPiiAccess не вызывается).
 
-- [ ] **Step 3: Инструментировать три сервиса**
+- [x] **Step 3: Инструментировать три сервиса**
 
 `src/lib/services/enrollments/list.ts` — импорт + между `const page = ...` и `return {`:
 
@@ -910,12 +910,12 @@ Expected: FAIL (recordPiiAccess не вызывается).
 
 Хелпер сам отсекает partner/org-сессии (общие сервисы) и пустые выдачи — ветвления в сервисах не нужны.
 
-- [ ] **Step 4: Прогнать тесты + typecheck**
+- [x] **Step 4: Прогнать тесты + typecheck**
 
 Run: `npx vitest run --mode=unit src/__tests__/services.enrollments.test.ts src/__tests__/services.training.certificates.test.ts src/__tests__/services.training.orderItems.test.ts && npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git commit --no-verify -m "feat(pii): журнал enrollments/certificates/orderItems" -- src/lib/services/enrollments/list.ts src/lib/services/training/certificates.ts src/lib/services/training/orderItems.ts src/__tests__/services.enrollments.test.ts src/__tests__/services.training.certificates.test.ts src/__tests__/services.training.orderItems.test.ts
@@ -930,7 +930,7 @@ git commit --no-verify -m "feat(pii): журнал enrollments/certificates/orde
 **Files:**
 - Modify: `src/lib/services/inbound/listInbox.ts` (между строками 85-87), `src/lib/services/telephony/listCalls.ts` (между строками 87-89)
 
-- [ ] **Step 1: Инструментировать**
+- [x] **Step 1: Инструментировать**
 
 `listInbox.ts` — импорт + перед `return { items: rows, total };`:
 
@@ -952,12 +952,12 @@ git commit --no-verify -m "feat(pii): журнал enrollments/certificates/orde
   });
 ```
 
-- [ ] **Step 2: Typecheck + существующие integration-тесты не трогаем**
+- [x] **Step 2: Typecheck + существующие integration-тесты не трогаем**
 
 Run: `npm run typecheck`
 Expected: PASS. (Integration-тесты этих сервисов работают при заглушённом флаге из Task 1 — поведение не меняется.)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit --no-verify -m "feat(pii): журнал inbox_list/calls_list" -- src/lib/services/inbound/listInbox.ts src/lib/services/telephony/listCalls.ts
@@ -970,7 +970,7 @@ git commit --no-verify -m "feat(pii): журнал inbox_list/calls_list" -- src
 **Files:**
 - Modify: `src/lib/services/manager/organizationCard.ts` (после Promise.all ~строка 149, перед финальным return)
 
-- [ ] **Step 1: Инструментировать**
+- [x] **Step 1: Инструментировать**
 
 Импорт `recordPiiAccessMany`. После блока `Promise.all`, где доступны массивы `inboundMessages` и `calls` (перед финальным `return`):
 
@@ -989,12 +989,12 @@ git commit --no-verify -m "feat(pii): журнал inbox_list/calls_list" -- src
   ]);
 ```
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit --no-verify -m "feat(pii): журнал карточки организации (inbound+calls, один createMany)" -- src/lib/services/manager/organizationCard.ts
@@ -1009,7 +1009,7 @@ git commit --no-verify -m "feat(pii): журнал карточки органи
 - Modify: `src/app/admin/users/page.tsx:36`, `src/app/admin/users/[id]/page.tsx:17` (session уже захвачен в обоих)
 - Test: `src/__tests__/services.admin.users.test.ts`, `src/__tests__/pages.admin-users.test.tsx`, `src/__tests__/pages.admin-users-id.test.tsx`
 
-- [ ] **Step 1: Падающие тесты**
+- [x] **Step 1: Падающие тесты**
 
 В `services.admin.users.test.ts`: мок `@/lib/pii/record` (vi.hoisted, как в Task 6), `const ADMIN_SESSION = { sub: 'adm', role: 'admin' as const };`, обновить существующие вызовы `listUsers(prisma, filters)` → `listUsers(prisma, ADMIN_SESSION, filters)` и `getUser(prisma, id)` → `getUser(prisma, ADMIN_SESSION, id)`. Добавить:
 
@@ -1035,12 +1035,12 @@ git commit --no-verify -m "feat(pii): журнал карточки органи
   });
 ```
 
-- [ ] **Step 2: Убедиться, что падают**
+- [x] **Step 2: Убедиться, что падают**
 
 Run: `npx vitest run --mode=unit src/__tests__/services.admin.users.test.ts`
 Expected: FAIL.
 
-- [ ] **Step 3: Сменить сигнатуры и инструментировать**
+- [x] **Step 3: Сменить сигнатуры и инструментировать**
 
 `src/lib/services/admin/users/queries.ts`: импорты `recordPiiAccess`, `SessionPayload`.
 
@@ -1076,17 +1076,17 @@ export async function listUsers(
 ```
 (если в `UserFilters` нет поля `q` — проверить фактические имена фильтров и передать `hasQuery` по текстовому фильтру файла; если текстового фильтра нет вовсе — meta опустить.)
 
-- [ ] **Step 4: Обновить страницы**
+- [x] **Step 4: Обновить страницы**
 
 `src/app/admin/users/page.tsx:36`: `const { rows, total } = await listUsers(prisma, session, filters);`
 `src/app/admin/users/[id]/page.tsx:17`: `const user = await getUser(prisma, session, id);`
 
-- [ ] **Step 5: Прогнать тесты + typecheck**
+- [x] **Step 5: Прогнать тесты + typecheck**
 
 Run: `npx vitest run --mode=unit src/__tests__/services.admin.users.test.ts src/__tests__/pages.admin-users.test.tsx src/__tests__/pages.admin-users-id.test.tsx src/__tests__/server-actions.admin.users.test.ts && npm run typecheck`
 Expected: PASS (page-тесты мокают сервис-модуль — при необходимости поправить только typing моков).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git commit --no-verify -m "feat(pii): admin users — сигнатуры с session + журнал list/view" -- src/lib/services/admin/users/queries.ts src/app/admin/users/page.tsx "src/app/admin/users/[id]/page.tsx" src/__tests__/services.admin.users.test.ts src/__tests__/pages.admin-users.test.tsx src/__tests__/pages.admin-users-id.test.tsx src/__tests__/server-actions.admin.users.test.ts
