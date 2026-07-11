@@ -2,6 +2,7 @@ import { Prisma, type PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeOrganization, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { can } from '@/lib/auth/accessProfile';
+import { recordPiiAccessMany } from '@/lib/pii/record';
 
 /**
  * G4 — CRM-карточка организации: центральный накопитель истории (заявки,
@@ -150,6 +151,19 @@ export async function getOrganizationCard(
 
   const paid = paidAgg._sum.amount ?? new Prisma.Decimal(0);
   const refunded = refundAgg._sum.amount ?? new Prisma.Decimal(0);
+
+  await recordPiiAccessMany(prisma, [
+    {
+      session,
+      context: 'org_card_inbound',
+      subjectIds: inboundMessages.map((m) => m.id)
+    },
+    {
+      session,
+      context: 'org_card_calls',
+      subjectIds: calls.map((c) => c.id)
+    }
+  ]);
 
   return {
     id: org.id,
