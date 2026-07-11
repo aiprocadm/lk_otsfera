@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { managedOrgIds, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import { recordPiiAccess } from '@/lib/pii/record';
 
 /**
  * Manager-facing students service.
@@ -72,5 +73,54 @@ export async function listStudents(
   const hasMore = rows.length > opts.take;
   const sliced = hasMore ? rows.slice(0, opts.take) : rows;
   const nextCursor = hasMore ? sliced[sliced.length - 1]!.id : null;
+  await recordPiiAccess(prisma, {
+    session: opts.session,
+    context: 'manager_students_list',
+    subjectIds: sliced.map((s) => s.id),
+    meta: { take: opts.take, hasQuery: opts.q !== undefined, cursor: opts.cursor !== undefined }
+  });
   return { rows: sliced, nextCursor };
+}
+
+const DETAIL_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  organizationId: true,
+  createdAt: true,
+  organization: { select: { id: true, name: true } }
+} satisfies Prisma.StudentSelect;
+
+export type ManagerStudentDetail = Prisma.StudentGetPayload<{ select: typeof DETAIL_SELECT }>;
+
+/**
+ * Карточка слушателя. Scope — тот же, что у listStudents (C8 teamMode-aware):
+ * при teamMode=ON граница — companyId организации студента, при OFF — явное
+ * назначение OrganizationManager. Успешная выдача журналируется (§25.7).
+ */
+export async function getStudent(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  id: string
+): Promise<ManagerStudentDetail | null> {
+  const student = await prisma.student.findUnique({ where: { id }, select: DETAIL_SELECT });
+  if (!student) return null;
+
+  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+  if (teamMode) {
+    const org = await prisma.organization.findUnique({
+      where: { id: student.organizationId },
+      select: { companyId: true }
+    });
+    if (!org || !session.companyId || org.companyId !== session.companyId) return null;
+  } else if (!managedOrgIds(session).includes(student.organizationId)) {
+    return null;
+  }
+
+  await recordPiiAccess(prisma, {
+    session,
+    context: 'manager_student_view',
+    subjectIds: [student.id]
+  });
+  return student;
 }
