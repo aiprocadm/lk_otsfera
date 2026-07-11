@@ -29,7 +29,8 @@ export type AuditEntity =
   | 'access_profile'
   | 'funnel_stage'
   | 'task'
-  | 'task_column';
+  | 'task_column'
+  | 'auth_2fa';
 
 export type AuditRecord = {
   userId: string;

@@ -77,9 +77,12 @@ describe('POST /api/partner/team', () => {
     expect((await POST(jsonReq({ email: 'x@x.local', name: 'X', roleInPartner: 'manager', assignedOrgIds: [] }))).status).toBe(403);
   });
 
-  it('400 on invalid payload', async () => {
+  it('400 on invalid payload — body is the bare stable code, no zod details (R2)', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    expect((await POST(jsonReq({ email: 'bad-email', name: '', roleInPartner: 'wrong' }))).status).toBe(400);
+    const res = await POST(jsonReq({ email: 'bad-email', name: '', roleInPartner: 'wrong' }));
+    expect(res.status).toBe(400);
+    // Пиннинг R2-контракта: схема (имена полей/enum'ы) не эхуется клиенту.
+    expect(await res.json()).toEqual({ error: 'Invalid payload' });
   });
 
   it('201 on success', async () => {
@@ -129,10 +132,12 @@ describe('PUT /api/partner/team/[userId]', () => {
     expect((await PUT(jsonReq({ assignedOrgIds: [] }), userCtx('u'))).status).toBe(403);
   });
 
-  it('400 on invalid payload (missing assignedOrgIds)', async () => {
+  it('400 on invalid payload (missing assignedOrgIds) — no zod details in body (R2)', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
     const req = new Request('http://x/', { method: 'PUT', body: JSON.stringify({ wrong: 'field' }), headers: { 'content-type': 'application/json' } });
-    expect((await PUT(req, userCtx('u'))).status).toBe(400);
+    const res = await PUT(req, userCtx('u'));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Invalid payload' });
   });
 
   it('400 on JSON parse failure', async () => {

@@ -9,12 +9,13 @@ import {
   updateUser,
   deactivateUser,
   reactivateUser,
+  adminRegenerateBackupCodes,
   type AdminUserErrorCode
 } from '@/lib/services/admin/users';
 import { sendAdminUserInviteEmail } from '@/lib/email/send';
 import { log } from '@/lib/logging';
 
-type Failure = { ok: false; error: 'validation' | AdminUserErrorCode; details?: unknown };
+type Failure = { ok: false; error: 'validation' | AdminUserErrorCode };
 type Success<T> = T extends void ? { ok: true } : { ok: true } & T;
 type ActionResult<T = void> = Success<T> | Failure;
 
@@ -60,7 +61,7 @@ export async function createUserAction(
     role: readField(fd, 'role'),
     partnerId: readField(fd, 'partnerId') || null
   });
-  if (!parsed.success) return { ok: false, error: 'validation', details: parsed.error.flatten() };
+  if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireAdmin();
   const result = await createUser(prisma, session.sub, parsed.data);
@@ -91,7 +92,7 @@ export async function updateUserAction(fd: FormData): Promise<ActionResult> {
     partnerId: readField(fd, 'partnerId') || undefined,
     isActive: readField(fd, 'isActive') || undefined
   });
-  if (!parsed.success) return { ok: false, error: 'validation', details: parsed.error.flatten() };
+  if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireAdmin();
   const { id, ...args } = parsed.data;
@@ -122,6 +123,20 @@ export async function reactivateUserAction(fd: FormData): Promise<ActionResult> 
   if (!result.ok) return result;
   revalidatePath('/admin/users');
   return { ok: true };
+}
+
+// 2FA: админ перевыпускает коды восстановления сотруднику (потеря доступа к
+// почте и кодам). Возвращает новые коды для однократного показа.
+export async function regenerateUserBackupCodesAction(
+  fd: FormData
+): Promise<ActionResult<{ codes: string[] }>> {
+  const parsed = targetSchema.safeParse({ id: readField(fd, 'id') });
+  if (!parsed.success) return { ok: false, error: 'validation' };
+
+  const session = await requireAdmin();
+  const result = await adminRegenerateBackupCodes(prisma, session.sub, parsed.data.id);
+  if (!result.ok) return result;
+  return { ok: true, codes: result.codes };
 }
 
 // <form action> wrappers must return void, so the Result is discarded — log

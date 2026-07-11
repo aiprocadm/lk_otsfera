@@ -67,9 +67,9 @@ beforeEach(() => {
 });
 
 describe('transitionOrderStatusAction — input validation', () => {
-  it('returns validation error for empty orderId', async () => {
+  it('returns validation error for empty orderId — bare stable code, no zod details (R2)', async () => {
     const res = await transitionOrderStatusAction({ orderId: '', newStatus: 'in_progress' });
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
     expect(orderFindUnique).not.toHaveBeenCalled();
     expect(revalidatePath).not.toHaveBeenCalled();
     expect(notifyManagers).not.toHaveBeenCalled();

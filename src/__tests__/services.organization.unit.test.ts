@@ -48,11 +48,12 @@ vi.mock('@/lib/services/commission/calculator', () => ({
 import { kpis, attention, recentEvents } from '@/lib/services/organization/dashboard';
 
 describe('organization/dashboard — kpis (unit)', () => {
-  it('returns zeros when all queries return empty', async () => {
+  it('returns zeros when all queries return empty (aggregate _sum null)', async () => {
     const prisma = {
       order: {
         count: vi.fn().mockResolvedValue(0),
-        findMany: vi.fn().mockResolvedValue([]),
+        // SUM по нулю строк в Prisma — null, не 0 (R2: outstanding через aggregate)
+        aggregate: vi.fn().mockResolvedValue({ _sum: { totalAmount: null, paidAmount: null } }),
       },
       student: { count: vi.fn().mockResolvedValue(0) },
       document: { count: vi.fn().mockResolvedValue(0) },
@@ -65,14 +66,16 @@ describe('organization/dashboard — kpis (unit)', () => {
     expect(result.recentDocumentsCount).toBe(0);
   });
 
-  it('sums outstanding from billed orders', async () => {
+  it('computes outstanding as sum(total) - sum(paid) from the aggregate', async () => {
     const prisma = {
       order: {
         count: vi.fn().mockResolvedValue(2),
-        findMany: vi.fn().mockResolvedValue([
-          { totalAmount: new Prisma.Decimal('100000'), paidAmount: new Prisma.Decimal('30000') },
-          { totalAmount: new Prisma.Decimal('50000'), paidAmount: new Prisma.Decimal('50000') },
-        ]),
+        aggregate: vi.fn().mockResolvedValue({
+          _sum: {
+            totalAmount: new Prisma.Decimal('150000'),
+            paidAmount: new Prisma.Decimal('80000'),
+          },
+        }),
       },
       student: { count: vi.fn().mockResolvedValue(5) },
       document: { count: vi.fn().mockResolvedValue(3) },
@@ -231,19 +234,13 @@ describe('organization/dashboard — recentEvents (unit)', () => {
           { id: 'pay1', amount: new Prisma.Decimal('5000'), paidAt: t2, orderId: 'o1' },
         ]),
       },
-      auditLog: {
-        findMany: vi.fn().mockResolvedValue([
-          { id: 'aud1', entityId: 'o1', createdAt: t3, meta: {} },
-        ]),
-      },
+      // Статус-события приходят из raw-join (скоуп по org на уровне SQL).
+      $queryRaw: vi.fn().mockResolvedValue([
+        { id: 'aud1', entityId: 'o1', createdAt: t3 },
+      ]),
       comment: {
         findMany: vi.fn().mockResolvedValue([
           { id: 'cmt1', createdAt: t4, orderId: 'o1', body: 'Комментарий к заказу' },
-        ]),
-      },
-      order: {
-        findMany: vi.fn().mockResolvedValue([
-          { id: 'o1' },
         ]),
       },
     } as unknown as PrismaClient;
@@ -257,51 +254,17 @@ describe('organization/dashboard — recentEvents (unit)', () => {
     expect(events[3].title).toContain('Комментарий к заказу');
   });
 
-  it('skips audit entries for orders not in org', async () => {
-    const prisma = {
-      document: { findMany: vi.fn().mockResolvedValue([]) },
-      payment: { findMany: vi.fn().mockResolvedValue([]) },
-      auditLog: {
-        findMany: vi.fn().mockResolvedValue([
-          { id: 'aud2', entityId: 'foreign-order', createdAt: new Date(), meta: {} },
-        ]),
-      },
-      comment: { findMany: vi.fn().mockResolvedValue([]) },
-      order: {
-        findMany: vi.fn().mockResolvedValue([]),
-      },
-    } as unknown as PrismaClient;
-
-    const events = await recentEvents(prisma, 'org-1', 20);
-    expect(events.filter((e) => e.kind === 'order_status_changed')).toHaveLength(0);
-  });
-
-  it('skips order.findMany call when auditOrderIds is empty', async () => {
-    const orderFindMany = vi.fn().mockResolvedValue([]);
-    const prisma = {
-      document: { findMany: vi.fn().mockResolvedValue([]) },
-      payment: { findMany: vi.fn().mockResolvedValue([]) },
-      auditLog: { findMany: vi.fn().mockResolvedValue([]) },
-      comment: { findMany: vi.fn().mockResolvedValue([]) },
-      order: { findMany: orderFindMany },
-    } as unknown as PrismaClient;
-
-    await recentEvents(prisma, 'org-1', 20);
-    expect(orderFindMany).not.toHaveBeenCalled();
-  });
-
   it('truncates long comment body with ellipsis', async () => {
     const longBody = 'А'.repeat(100);
     const prisma = {
       document: { findMany: vi.fn().mockResolvedValue([]) },
       payment: { findMany: vi.fn().mockResolvedValue([]) },
-      auditLog: { findMany: vi.fn().mockResolvedValue([]) },
+      $queryRaw: vi.fn().mockResolvedValue([]),
       comment: {
         findMany: vi.fn().mockResolvedValue([
           { id: 'cmt2', createdAt: new Date(), orderId: 'o1', body: longBody },
         ]),
       },
-      order: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
 
     const events = await recentEvents(prisma, 'org-1', 20);
@@ -314,13 +277,12 @@ describe('organization/dashboard — recentEvents (unit)', () => {
     const prisma = {
       document: { findMany: vi.fn().mockResolvedValue([]) },
       payment: { findMany: vi.fn().mockResolvedValue([]) },
-      auditLog: { findMany: vi.fn().mockResolvedValue([]) },
+      $queryRaw: vi.fn().mockResolvedValue([]),
       comment: {
         findMany: vi.fn().mockResolvedValue([
           { id: 'cmt3', createdAt: new Date(), orderId: 'o1', body: shortBody },
         ]),
       },
-      order: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
 
     const events = await recentEvents(prisma, 'org-1', 20);
@@ -336,9 +298,8 @@ describe('organization/dashboard — recentEvents (unit)', () => {
     const prisma = {
       document: { findMany: vi.fn().mockResolvedValue(manyDocs) },
       payment: { findMany: vi.fn().mockResolvedValue([]) },
-      auditLog: { findMany: vi.fn().mockResolvedValue([]) },
+      $queryRaw: vi.fn().mockResolvedValue([]),
       comment: { findMany: vi.fn().mockResolvedValue([]) },
-      order: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
 
     const events = await recentEvents(prisma, 'org-1');

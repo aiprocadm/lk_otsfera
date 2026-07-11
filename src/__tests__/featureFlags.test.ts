@@ -39,6 +39,7 @@ const OPT_IN_FLAGS = new Set([
   'internal_tasks',
   'inbound_messaging',
   'telephony_mango',
+  'staff_2fa',
 ]);
 
 describe('isFeatureEnabled', () => {
@@ -52,6 +53,13 @@ describe('isFeatureEnabled', () => {
   it('returns true when the env var is empty string', () => {
     process.env.FEATURE_PARTNER_LEADS = '';
     expect(isFeatureEnabled('partner_leads')).toBe(true);
+  });
+
+  it('staff_2fa is opt-in: disabled by default, enabled by FEATURE_STAFF_2FA=1', () => {
+    delete process.env.FEATURE_STAFF_2FA;
+    expect(isFeatureEnabled('staff_2fa')).toBe(false);
+    process.env.FEATURE_STAFF_2FA = '1';
+    expect(isFeatureEnabled('staff_2fa')).toBe(true);
   });
 
   it.each(['0', 'false', 'off', 'no', 'disabled', 'False', 'OFF', ' 0 '])(

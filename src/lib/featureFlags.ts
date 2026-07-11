@@ -40,6 +40,9 @@ export const FEATURE_FLAGS = [
   'inbound_messaging',
   // PR-B: телефония Mango. Гейтит /manager/calls (экран придёт отдельной задачей).
   'telephony_mango',
+  // 2FA сотрудников (email-код). Поведенческий флаг (не route): точки чтения —
+  // login/verify/resend-роуты + секция настроек. Спека 2026-07-11-staff-2fa.
+  'staff_2fa',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -62,7 +65,8 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'sales_funnel',
   'internal_tasks',
   'inbound_messaging',
-  'telephony_mango'
+  'telephony_mango',
+  'staff_2fa'
 ]);
 
 export class FeatureDisabledError extends Error {

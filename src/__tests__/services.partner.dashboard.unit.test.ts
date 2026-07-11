@@ -22,7 +22,8 @@ function makePrisma(overrides: Record<string, any> = {}) {
     },
     order: {
       count: vi.fn().mockResolvedValue(0),
-      findMany: vi.fn().mockResolvedValue([])
+      findMany: vi.fn().mockResolvedValue([]),
+      aggregate: vi.fn().mockResolvedValue({ _sum: { totalAmount: null, paidAmount: null } })
     },
     lead: {
       count: vi.fn().mockResolvedValue(0),
@@ -41,8 +42,9 @@ describe('kpis — unit', () => {
       partner: { findUnique: vi.fn().mockResolvedValue(null) },
       order: {
         count: vi.fn().mockResolvedValue(2),
+        // outstanding теперь считается SQL-агрегатом (R2)
+        aggregate: vi.fn().mockResolvedValue({ _sum: { totalAmount: dec(1000), paidAmount: dec(200) } }),
         findMany: vi.fn()
-          .mockResolvedValueOnce([{ totalAmount: dec(1000), paidAmount: dec(200) }]) // outstandingOrders
           .mockResolvedValueOnce([{ totalAmount: dec(500), organization: { partnerCommissionRate: null } }]) // paidThisMonth
       },
       lead: { count: vi.fn().mockResolvedValue(3) }
@@ -75,8 +77,8 @@ describe('kpis — unit', () => {
       partner: { findUnique: vi.fn().mockResolvedValue({ commissionRate: dec(0.1) }) },
       order: {
         count: vi.fn().mockResolvedValue(0),
+        aggregate: vi.fn().mockResolvedValue({ _sum: { totalAmount: null, paidAmount: null } }),
         findMany: vi.fn()
-          .mockResolvedValueOnce([]) // outstandingOrders
           .mockResolvedValueOnce([
             { totalAmount: dec(10000), organization: { partnerCommissionRate: null } },
             { totalAmount: dec(5000), organization: { partnerCommissionRate: null } }
@@ -93,8 +95,8 @@ describe('kpis — unit', () => {
       partner: { findUnique: vi.fn().mockResolvedValue({ commissionRate: dec(0.1) }) },
       order: {
         count: vi.fn().mockResolvedValue(0),
+        aggregate: vi.fn().mockResolvedValue({ _sum: { totalAmount: null, paidAmount: null } }),
         findMany: vi.fn()
-          .mockResolvedValueOnce([]) // outstandingOrders
           .mockResolvedValueOnce([
             { totalAmount: dec(10000), organization: { partnerCommissionRate: dec(0.2) } }, // договорная скидка
             { totalAmount: dec(5000), organization: { partnerCommissionRate: null } } // дефолт партнёра

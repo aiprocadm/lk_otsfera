@@ -54,9 +54,9 @@ beforeEach(() => {
 });
 
 describe('updateOrganizationAction', () => {
-  it('returns validation error when id is empty', async () => {
+  it('returns validation error when id is empty — bare stable code, no zod details (R2)', async () => {
     const res = await updateOrganizationAction(fd({ id: '', name: 'New Name' }));
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
     expect(updateOrganization).not.toHaveBeenCalled();
   });
 
@@ -103,11 +103,11 @@ describe('updateOrganizationAction', () => {
 });
 
 describe('setOrgRateOverrideAction', () => {
-  it('returns validation error when reason is missing', async () => {
+  it('returns validation error when reason is missing — bare stable code, no zod details (R2)', async () => {
     const res = await setOrgRateOverrideAction(
       fd({ organizationId: 'org-1', ratePercent: '8' })
     );
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
     expect(organizationFindUnique).not.toHaveBeenCalled();
     expect(setOrgCommissionRate).not.toHaveBeenCalled();
   });

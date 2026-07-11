@@ -1,10 +1,12 @@
 import React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { requireAdmin } from '@/lib/auth/requireRole';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 import { getTelegramStatus } from '@/lib/services/telegram/link';
 import { getNotificationSettings } from '@/lib/services/notifications/preferences';
 import { TelegramLinkCard } from '@/components/settings/telegram-link-card';
 import { NotificationChannelsCard } from '@/components/settings/notification-channels-card';
+import { StaffBackupCodesSection } from '@/components/settings/staff-backup-codes-section';
 
 export default async function AdminSettingsPage() {
   const session = await requireAdmin();
@@ -16,6 +18,7 @@ export default async function AdminSettingsPage() {
       <h1 className='text-2xl font-bold text-[#111111]'>Настройки</h1>
       <TelegramLinkCard status={status} />
       <NotificationChannelsCard settings={settings.view} />
+      {isFeatureEnabled('staff_2fa') ? <StaffBackupCodesSection /> : null}
     </div>
   );
 }

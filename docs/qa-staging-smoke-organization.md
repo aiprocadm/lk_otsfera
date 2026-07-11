@@ -45,7 +45,7 @@ ON CONFLICT (id) DO NOTHING;
 
 - **Действие**: залогиниться как `admin@…otsfera.ru`. Открыть `/admin/organizations/test-org-stage2`. В блоке «Доступ заказчика» → «Пригласить» → email тестового QA, name «Org Admin», role `admin`.
 - **Ожидание**: toast «Приглашение отправлено», invite-link виден (copy-button). Audit log пишет `org_member_invited`.
-- **Fallback**: если email не приходит — проверить `[worker] emails.send`. Invite-link можно дёрнуть из БД `User.resetToken` или из лога.
+- **Fallback**: если email не приходит — проверить `[worker] emails.send`. Восстановить ссылку из БД невозможно: invite/reset-токены хранятся хэшированными (R2, c3ab030). Вместо этого перепригласить пользователя тем же диалогом — UI покажет свежую invite-ссылку (copy-button).
 
 ### Step 2 — Reset password → login → /organization/dashboard
 

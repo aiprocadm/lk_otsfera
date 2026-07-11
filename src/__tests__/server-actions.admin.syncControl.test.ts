@@ -54,9 +54,9 @@ describe('setSchedulePausedAction', () => {
     expect(res).toEqual({ ok: true, paused: true });
   });
 
-  it('returns validation when schedulerId is missing', async () => {
+  it('returns validation when schedulerId is missing — bare stable code, no zod details (R2)', async () => {
     const res = await setSchedulePausedAction(fd({ paused: 'true' }));
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
     expect(setSchedulePaused).not.toHaveBeenCalled();
   });
 });
@@ -74,9 +74,9 @@ describe('rewindCursorAction', () => {
     expect(rewindCursor).toHaveBeenCalledWith({}, 'admin-1', 'order', '2026-06-01T00:00:00.000Z');
   });
 
-  it('returns validation when entity is missing', async () => {
+  it('returns validation when entity is missing — bare stable code, no zod details (R2)', async () => {
     const res = await rewindCursorAction(fd({ cursor: '2026-06-01' }));
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
     expect(rewindCursor).not.toHaveBeenCalled();
   });
 });

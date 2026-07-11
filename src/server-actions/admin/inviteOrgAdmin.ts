@@ -25,7 +25,7 @@ export type InviteAdminActionResult =
       inviteUrl: string | null;
       alreadyHasPassword: boolean;
     }
-  | { ok: false; error: InviteAdminActionError; details?: unknown };
+  | { ok: false; error: InviteAdminActionError };
 
 const schema = z.object({
   organizationId: z.string().min(1),
@@ -47,7 +47,7 @@ export async function inviteAdminOrgAdminAction(
     name: readFormValue(formData, 'name')
   });
   if (!parsed.success) {
-    return { ok: false, error: 'validation', details: parsed.error.flatten() };
+    return { ok: false, error: 'validation' };
   }
 
   const session = await requireAdmin();

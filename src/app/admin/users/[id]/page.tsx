@@ -2,10 +2,12 @@ import React from 'react';
 import { notFound } from 'next/navigation';
 import { BackLink } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
 import { getUser } from '@/lib/services/admin/users';
 import { UserEditForm } from '@/components/admin/user-edit-form';
 import { ManagerRoleControl } from '@/components/admin/manager-role-control';
+import { AdminBackupCodesControl } from '@/components/admin/admin-backup-codes-control';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,6 +36,9 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
           <h2 className="text-sm font-semibold text-[#111111]">Менеджерский кабинет</h2>
           <ManagerRoleControl userId={user.id} current={user.managerRole} />
         </div>
+      )}
+      {isFeatureEnabled('staff_2fa') && (user.role === 'admin' || user.role === 'manager') && (
+        <AdminBackupCodesControl userId={user.id} />
       )}
     </div>
   );

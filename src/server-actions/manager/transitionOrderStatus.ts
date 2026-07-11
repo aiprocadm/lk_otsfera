@@ -11,7 +11,7 @@ import {
 
 type ActionResult =
   | { ok: true; changed: boolean }
-  | { ok: false; error: 'validation' | 'invalid_status' | 'forbidden' | 'not_found'; details?: unknown };
+  | { ok: false; error: 'validation' | 'invalid_status' | 'forbidden' | 'not_found' };
 
 const InputSchema = z.object({
   orderId: z.string().min(1),
@@ -24,7 +24,7 @@ export async function transitionOrderStatusAction(input: {
 }): Promise<ActionResult> {
   const parsed = InputSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: 'validation', details: parsed.error.flatten() };
+    return { ok: false, error: 'validation' };
   }
 
   const session = await requireManager();

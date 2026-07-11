@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { parseWazzupInbound } from '@/lib/whatsapp/aggregator';
 import { ingestInboundMessage } from '@/lib/services/inbound/ingest';
+import { secretEquals } from '@/lib/security/secretCompare';
 import { log } from '@/lib/logging';
 
 /**
@@ -21,7 +22,7 @@ export async function POST(req: Request): Promise<Response> {
 
   const secret = process.env.WHATSAPP_WEBHOOK_SECRET?.trim();
   const provided = req.headers.get('x-wazzup-secret');
-  if (!secret || provided !== secret) {
+  if (!secret || !secretEquals(provided, secret)) {
     return new Response(null, { status: 401 });
   }
 

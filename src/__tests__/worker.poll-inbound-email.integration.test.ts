@@ -44,6 +44,7 @@ describe('pollInboundEmailProcessor', () => {
     const result = await pollInboundEmailProcessor(job, prisma);
 
     expect(result.processed).toBe(1);
+    expect(result.failed).toBe(0);
     expect(ingestInboundMessage).toHaveBeenCalledTimes(1);
     expect(ingestInboundMessage).toHaveBeenCalledWith(
       expect.anything(),
@@ -61,6 +62,7 @@ describe('pollInboundEmailProcessor', () => {
     expect(state?.cursor).toBe('1');
     expect(state?.lastRunAt).not.toBeNull();
     expect(state?.lastSuccessAt).not.toBeNull();
+    expect(state?.lastError).toBeNull();
   });
 
   it('passes the persisted cursor from a prior run into fetchNewMessages', async () => {
@@ -74,7 +76,10 @@ describe('pollInboundEmailProcessor', () => {
     expect(fetchNewMessages).toHaveBeenCalledWith('5');
   });
 
-  it('does not let a failing ingest call abort the batch or the cursor update', async () => {
+  it('failing ingest does not abort the batch, but holds the cursor for a retry', async () => {
+    await prisma.syncState.create({
+      data: { entity: 'inbound.email', cursor: '1', lastRunAt: new Date(), lastSuccessAt: new Date() }
+    });
     fetchNewMessages.mockResolvedValue({
       messages: [
         { externalId: 'ok1', from: 'a@example.com', text: 'body1' },
@@ -88,9 +93,30 @@ describe('pollInboundEmailProcessor', () => {
 
     const result = await pollInboundEmailProcessor(job, prisma);
 
-    expect(result.processed).toBe(2);
+    expect(result.processed).toBe(1);
+    expect(result.failed).toBe(1);
+    // Курсор остался на '1': следующий поллинг перечитает батч, ok1 дедупится
+    // по externalId, bad1 получает повторную попытку вместо тихой потери.
     const state = await prisma.syncState.findUnique({ where: { entity: 'inbound.email' } });
-    expect(state?.cursor).toBe('2');
+    expect(state?.cursor).toBe('1');
+    expect(state?.lastError).toBe('1/2 ingest failed — cursor held for retry');
+  });
+
+  it('first-run failure creates SyncState without advancing past the null cursor', async () => {
+    fetchNewMessages.mockResolvedValue({
+      messages: [{ externalId: 'bad3', from: 'd@example.com', text: 'body' }],
+      cursor: '7'
+    });
+    ingestInboundMessage.mockRejectedValueOnce(new Error('boom'));
+
+    const result = await pollInboundEmailProcessor(job, prisma);
+
+    expect(result.failed).toBe(1);
+    const state = await prisma.syncState.findUnique({ where: { entity: 'inbound.email' } });
+    expect(state).not.toBeNull();
+    expect(state?.cursor).toBeNull();
+    expect(state?.lastSuccessAt).toBeNull();
+    expect(state?.lastError).toBe('1/1 ingest failed — cursor held for retry');
   });
 
   it('non-Error ingest rejection is stringified in the warn log', async () => {
@@ -103,10 +129,15 @@ describe('pollInboundEmailProcessor', () => {
 
     const result = await pollInboundEmailProcessor(job, prisma);
 
-    expect(result.processed).toBe(1);
+    expect(result.processed).toBe(0);
+    expect(result.failed).toBe(1);
     expect(warn).toHaveBeenCalledWith(
       '[poll-inbound-email] ingest failed',
       expect.objectContaining({ externalId: 'bad2', error: 'smtp gone' })
+    );
+    expect(warn).toHaveBeenCalledWith(
+      '[poll-inbound-email] cursor held',
+      expect.objectContaining({ failed: 1, total: 1 })
     );
     warn.mockRestore();
   });

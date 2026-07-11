@@ -3,6 +3,7 @@ import { linkMaxByCode } from '@/lib/services/max/link';
 import { sendMaxMessage } from '@/lib/max/client';
 import { notFoundIfDisabled, isFeatureEnabled } from '@/lib/featureFlags';
 import { ingestInboundMessage } from '@/lib/services/inbound/ingest';
+import { secretEquals } from '@/lib/security/secretCompare';
 import { log } from '@/lib/logging';
 
 /**
@@ -17,7 +18,7 @@ export async function POST(req: Request): Promise<Response> {
 
   const secret = process.env.MAX_WEBHOOK_SECRET?.trim();
   const provided = req.headers.get('x-max-webhook-secret');
-  if (!secret || provided !== secret) {
+  if (!secret || !secretEquals(provided, secret)) {
     return new Response(null, { status: 401 });
   }
 

@@ -14,7 +14,7 @@ import {
 import { sendAdminUserInviteEmail } from '@/lib/email/send';
 import { log } from '@/lib/logging';
 
-type Failure = { ok: false; error: 'validation' | AdminPartnerErrorCode; details?: unknown };
+type Failure = { ok: false; error: 'validation' | AdminPartnerErrorCode };
 type Success<T> = T extends void ? { ok: true } : { ok: true } & T;
 type ActionResult<T = void> = Success<T> | Failure;
 
@@ -63,7 +63,7 @@ export async function createPartnerWithAdminAction(
     adminEmail: readField(fd, 'adminEmail'),
     adminName: readField(fd, 'adminName')
   });
-  if (!parsed.success) return { ok: false, error: 'validation', details: parsed.error.flatten() };
+  if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireAdmin();
   const serviceArgs = {
@@ -98,7 +98,7 @@ export async function updatePartnerAction(fd: FormData): Promise<ActionResult> {
     isActive: readField(fd, 'isActive') || undefined,
     effectiveFrom: readField(fd, 'effectiveFrom') || undefined
   });
-  if (!parsed.success) return { ok: false, error: 'validation', details: parsed.error.flatten() };
+  if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireAdmin();
   const { id, ...raw } = parsed.data;

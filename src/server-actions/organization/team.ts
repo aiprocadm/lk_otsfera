@@ -20,7 +20,6 @@ type Success<T> = T extends void ? { ok: true } : { ok: true } & T;
 type Failure = {
   ok: false;
   error: 'validation' | 'forbidden' | OrgMemberErrorCode;
-  details?: unknown;
 };
 export type ActionResult<T = void> = Success<T> | Failure;
 
@@ -63,7 +62,7 @@ export async function inviteOrgMemberAction(
     roleInOrg: readFormValue(formData, 'roleInOrg') || 'member'
   });
   if (!parsed.success) {
-    return { ok: false, error: 'validation', details: parsed.error.flatten() };
+    return { ok: false, error: 'validation' };
   }
 
   const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);
@@ -115,7 +114,7 @@ export async function updateOrgMemberRoleAction(formData: FormData): Promise<Act
     newRole: readFormValue(formData, 'newRole')
   });
   if (!parsed.success) {
-    return { ok: false, error: 'validation', details: parsed.error.flatten() };
+    return { ok: false, error: 'validation' };
   }
 
   const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);
@@ -133,7 +132,7 @@ export async function deactivateOrgMemberAction(formData: FormData): Promise<Act
     orgUserId: readFormValue(formData, 'orgUserId')
   });
   if (!parsed.success) {
-    return { ok: false, error: 'validation', details: parsed.error.flatten() };
+    return { ok: false, error: 'validation' };
   }
 
   const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);
@@ -151,7 +150,7 @@ export async function reactivateOrgMemberAction(formData: FormData): Promise<Act
     orgUserId: readFormValue(formData, 'orgUserId')
   });
   if (!parsed.success) {
-    return { ok: false, error: 'validation', details: parsed.error.flatten() };
+    return { ok: false, error: 'validation' };
   }
 
   const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);

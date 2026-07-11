@@ -168,6 +168,8 @@ model User {
   commissionStatementsAuthored CommissionStatement[] @relation("CommissionAuthor")
   savedViews                   SavedView[]           @relation("SavedViewOwner")
   passwordResetTokens          PasswordResetToken[]
+  twoFactorChallenge           TwoFactorChallenge?
+  twoFactorBackupCodes         TwoFactorBackupCode[]
   authoredMessages             Message[]             @relation("MessageAuthor")
   threadReadStates             ThreadReadState[]
   enrollmentsSubmitted         EnrollmentRequest[]   @relation("EnrollmentSubmitter")
@@ -912,6 +914,30 @@ model PasswordResetToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+// Staff 2FA (спека 2026-07-11): одноразовый email-код при логине staff-ролей.
+model TwoFactorChallenge {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String   @unique // одна активная challenge на пользователя (upsert)
+  user      User     @relation(fields: [userId], references: [id])
+  codeHash  String // sha256(code) — плейнтекст не хранится (§12)
+  expiresAt DateTime
+  attempts  Int      @default(0)
+
+  @@index([expiresAt])
+}
+
+model TwoFactorBackupCode {
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  codeHash  String    @unique
+  usedAt    DateTime?
+
+  @@index([userId])
 }
 
 model StudentBridgeTokenJti {

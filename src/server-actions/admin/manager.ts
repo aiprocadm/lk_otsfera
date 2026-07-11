@@ -27,7 +27,7 @@ export type AssignOrInviteManagerActionResult =
       alreadyHasPassword: boolean;
       reactivated: boolean;
     }
-  | { ok: false; error: AssignOrInviteManagerActionError; details?: unknown };
+  | { ok: false; error: AssignOrInviteManagerActionError };
 
 const assignOrInviteSchema = z.discriminatedUnion('mode', [
   z.object({
@@ -59,7 +59,7 @@ export async function assignOrInviteManagerAction(
   };
   const parsed = assignOrInviteSchema.safeParse(raw);
   if (!parsed.success) {
-    return { ok: false, error: 'validation', details: parsed.error.flatten() };
+    return { ok: false, error: 'validation' };
   }
 
   const session = await requireAdmin();
@@ -178,7 +178,6 @@ export type AssignOrderManagerActionResult =
   | {
       ok: false;
       error: 'validation' | 'order_not_found' | 'invalid_manager';
-      details?: unknown;
     };
 
 export async function assignOrderManagerAction(
@@ -194,7 +193,7 @@ export async function assignOrderManagerAction(
     managerUserId
   });
   if (!parsed.success) {
-    return { ok: false, error: 'validation', details: parsed.error.flatten() };
+    return { ok: false, error: 'validation' };
   }
 
   const session = await requireAdmin();

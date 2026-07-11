@@ -176,6 +176,45 @@ describe('organization dashboard service — recentEvents', () => {
     // Must NOT include any orgB event
     expect(evts.some((e) => e.orderId === otherOrder.id)).toBe(false);
   });
+
+  it('audit status events are scoped to the org at the SQL level (no starvation by a noisy tenant)', async () => {
+    const order = await prisma.order.create({
+      data: {
+        title: 'A-audit-order', companyId, partnerId, organizationId: orgAId,
+        executionStatus: 'in_progress'
+      }
+    });
+    const otherOrder = await prisma.order.create({
+      data: {
+        title: 'B-audit-order', companyId, partnerId, organizationId: orgBId,
+        executionStatus: 'in_progress'
+      }
+    });
+    // Регресс R2 (starvation): старая реализация брала ГЛОБАЛЬНУЮ верхушку
+    // fetchLimit*2 (=200 при take=100) с пост-фильтром. Чтобы тест честно
+    // отличал новую scoped-выборку от старой, событие orgA должно быть
+    // вытеснено из этого окна: делаем его старше и заливаем 201 более свежую
+    // строку соседнего тенанта. Старый код на этом сценарии возвращал пусто.
+    const orgAEventAt = new Date(Date.now() - 60 * 60 * 1000);
+    await prisma.auditLog.create({
+      data: {
+        action: 'order_status_in_progress', entity: 'order', entityId: order.id,
+        userId, createdAt: orgAEventAt
+      }
+    });
+    const noisyBase = Date.now() - 30 * 60 * 1000;
+    await prisma.auditLog.createMany({
+      data: Array.from({ length: 201 }, (_, i) => ({
+        action: 'order_status_completed', entity: 'order', entityId: otherOrder.id,
+        userId, createdAt: new Date(noisyBase + i * 1000)
+      }))
+    });
+
+    const evts = await recentEvents(prisma, orgAId, 100);
+    const statusEvents = evts.filter((e) => e.kind === 'order_status_changed');
+    expect(statusEvents.some((e) => e.orderId === order.id)).toBe(true);
+    expect(statusEvents.some((e) => e.orderId === otherOrder.id)).toBe(false);
+  });
 });
 
 describe('organization dashboard service — channel-isolation leak regression', () => {

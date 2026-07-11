@@ -38,6 +38,14 @@ vi.mock('@/components/admin/manager-role-control', () => ({
     React.createElement('div', { 'data-testid': 'manager-role-control' }, props.userId, String(props.current))
 }));
 
+const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
+vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
+
+vi.mock('@/components/admin/admin-backup-codes-control', () => ({
+  AdminBackupCodesControl: (props: { userId: string }) =>
+    React.createElement('div', { 'data-testid': 'admin-backup-codes' }, props.userId)
+}));
+
 import EditUserPage from '@/app/admin/users/[id]/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
@@ -56,6 +64,8 @@ describe('EditUserPage', () => {
     partnerFindMany.mockReset();
     getUser.mockReset();
     nav.notFound.mockClear();
+    isFeatureEnabled.mockReset();
+    isFeatureEnabled.mockReturnValue(false);
   });
 
   it('calls notFound() when user is missing', async () => {
@@ -97,5 +107,32 @@ describe('EditUserPage', () => {
     expect(container.querySelector('[data-testid="manager-role-control"]')).toBeNull();
     const editForm = container.querySelector('[data-testid="user-edit-form"]');
     expect(editForm?.textContent).toContain('true');
+  });
+
+  it('shows the admin backup-codes control for a staff user when staff_2fa is enabled', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getUser.mockResolvedValue(USER); // role: manager = staff
+    partnerFindMany.mockResolvedValue([]);
+    isFeatureEnabled.mockReturnValue(true);
+
+    const { container } = await renderServerComponent(
+      EditUserPage({ params: Promise.resolve({ id: 'u1' }) })
+    );
+
+    expect(isFeatureEnabled).toHaveBeenCalledWith('staff_2fa');
+    expect(container.querySelector('[data-testid="admin-backup-codes"]')).not.toBeNull();
+  });
+
+  it('hides the backup-codes control for a non-staff user even with the flag on', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getUser.mockResolvedValue({ ...USER, role: 'organization' });
+    partnerFindMany.mockResolvedValue([]);
+    isFeatureEnabled.mockReturnValue(true);
+
+    const { container } = await renderServerComponent(
+      EditUserPage({ params: Promise.resolve({ id: 'u1' }) })
+    );
+
+    expect(container.querySelector('[data-testid="admin-backup-codes"]')).toBeNull();
   });
 });

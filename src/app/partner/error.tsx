@@ -25,6 +25,9 @@ export default function CabinetError({
         <h1 className='text-2xl font-bold text-brand-black mb-2'>Что-то пошло не так</h1>
         <p className='text-gray-500 mb-6'>Произошла непредвиденная ошибка. Попробуйте ещё раз.</p>
         <Button onClick={reset}>Попробовать снова</Button>
+        {error.digest ? (
+          <p className='text-gray-400 text-xs mt-6'>Код ошибки: {error.digest}</p>
+        ) : null}
       </div>
     </div>
   );

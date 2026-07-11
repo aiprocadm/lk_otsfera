@@ -43,19 +43,21 @@ export async function kpis(
 ): Promise<OrgDashboardKpis> {
   const since30 = new Date(Date.now() - THIRTY_DAYS_MS);
 
-  const [activeOrders, outstandingOrders, studentsCount, recentDocumentsCount] = await Promise.all([
+  const [activeOrders, outstandingAgg, studentsCount, recentDocumentsCount] = await Promise.all([
     prisma.order.count({
       where: {
         organizationId,
         executionStatus: { in: ['pending', 'in_progress'] }
       }
     }),
-    prisma.order.findMany({
+    // Сумма линейна → SQL SUM вместо выборки всех строк в JS (R2).
+    // Decimal-канон сохранён: Prisma возвращает _sum Decimal'ом.
+    prisma.order.aggregate({
       where: {
         organizationId,
         financialStatus: { in: ['billed', 'partially_paid'] }
       },
-      select: { totalAmount: true, paidAmount: true }
+      _sum: { totalAmount: true, paidAmount: true }
     }),
     prisma.student.count({ where: { organizationId } }),
     prisma.document.count({
@@ -66,9 +68,8 @@ export async function kpis(
     })
   ]);
 
-  const outstanding = outstandingOrders.reduce(
-    (sum, o) => sum.plus(o.totalAmount).minus(o.paidAmount),
-    new Prisma.Decimal(0)
+  const outstanding = (outstandingAgg._sum.totalAmount ?? new Prisma.Decimal(0)).minus(
+    outstandingAgg._sum.paidAmount ?? new Prisma.Decimal(0)
   );
 
   return {
@@ -176,12 +177,20 @@ export async function recentEvents(
       take: fetchLimit,
       select: { id: true, amount: true, paidAt: true, orderId: true }
     }),
-    prisma.auditLog.findMany({
-      where: { entity: 'order', action: { startsWith: 'order_status_' } },
-      orderBy: { createdAt: 'desc' },
-      take: fetchLimit * 2,
-      select: { id: true, entityId: true, createdAt: true, meta: true }
-    }),
+    // AuditLog не имеет relation к Order (entityId — строка), поэтому скоуп —
+    // raw-join. Раньше бралась ГЛОБАЛЬНАЯ верхушка fetchLimit*2 с пост-фильтром
+    // по заказам организации: активный соседний тенант вытеснял события текущего
+    // из окна (starvation), и приложение читало чужие строки впустую.
+    prisma.$queryRaw<Array<{ id: string; entityId: string; createdAt: Date }>>`
+      SELECT a."id", a."entityId", a."createdAt"
+      FROM "AuditLog" a
+      JOIN "Order" o ON o."id" = a."entityId"
+      WHERE a."entity" = 'order'
+        AND a."action" LIKE 'order_status_%'
+        AND o."organizationId" = ${organizationId}
+      ORDER BY a."createdAt" DESC
+      LIMIT ${fetchLimit}
+    `,
     prisma.comment.findMany({
       where: { order: { organizationId } },
       orderBy: { createdAt: 'desc' },
@@ -189,21 +198,6 @@ export async function recentEvents(
       select: { id: true, createdAt: true, orderId: true, body: true }
     })
   ]);
-
-  // Filter audits to ones that belong to our organization's orders
-  const orderIds = new Set([
-    ...documents.map((d) => d.orderId),
-    ...payments.map((p) => p.orderId),
-    ...comments.map((c) => c.orderId)
-  ]);
-  const auditOrderIds = statusAudits.map((a) => a.entityId);
-  const ordersForAudit = auditOrderIds.length
-    ? await prisma.order.findMany({
-        where: { id: { in: auditOrderIds }, organizationId },
-        select: { id: true }
-      })
-    : [];
-  const orgOrderIds = new Set(ordersForAudit.map((o) => o.id));
 
   const events: OrgEvent[] = [
     ...documents.map((d): OrgEvent => ({
@@ -220,15 +214,13 @@ export async function recentEvents(
       title: `Получена оплата ${fmtMoney(Number(p.amount))}`,
       at: p.paidAt
     })),
-    ...statusAudits
-      .filter((a) => orgOrderIds.has(a.entityId))
-      .map((a): OrgEvent => ({
-        id: `audit-${a.id}`,
-        kind: 'order_status_changed',
-        orderId: a.entityId,
-        title: 'Статус заказа изменён',
-        at: a.createdAt
-      })),
+    ...statusAudits.map((a): OrgEvent => ({
+      id: `audit-${a.id}`,
+      kind: 'order_status_changed',
+      orderId: a.entityId,
+      title: 'Статус заказа изменён',
+      at: a.createdAt
+    })),
     ...comments.map((c): OrgEvent => ({
       id: `comment-${c.id}`,
       kind: 'comment_posted',
@@ -237,10 +229,6 @@ export async function recentEvents(
       at: c.createdAt
     }))
   ];
-
-  // Touch orderIds for lint (used by future enrichment); for now we keep
-  // documents/payments/comments already-scoped via where clause.
-  void orderIds;
 
   events.sort((a, b) => b.at.getTime() - a.at.getTime());
   return events.slice(0, take);

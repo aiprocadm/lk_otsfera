@@ -74,9 +74,9 @@ beforeEach(() => {
 });
 
 describe('assignOrInviteManagerAction', () => {
-  it('returns validation on missing fields', async () => {
+  it('returns validation on missing fields — bare stable code, no zod details (R2)', async () => {
     const res = await assignOrInviteManagerAction(fd({}));
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
     expect(createAndAssignManager).not.toHaveBeenCalled();
   });
 
@@ -210,9 +210,9 @@ describe('deactivateManagerAssignmentAction / reactivateManagerAssignmentAction'
 });
 
 describe('assignOrderManagerAction', () => {
-  it('returns validation when orderId missing', async () => {
+  it('returns validation when orderId missing — bare stable code, no zod details (R2)', async () => {
     const res = await assignOrderManagerAction(fd({ managerUserId: 'm-1' }));
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
   });
 
   it('order_not_found when order does not exist', async () => {

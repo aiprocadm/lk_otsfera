@@ -51,11 +51,11 @@ beforeEach(() => {
 });
 
 describe('invitePartnerOrgAdminAction', () => {
-  it('returns validation on bad email', async () => {
+  it('returns validation on bad email — bare stable code, no zod details (R2)', async () => {
     const res = await invitePartnerOrgAdminAction(
       fd({ organizationId: 'org-1', email: 'not-email', name: 'X' })
     );
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
     expect(createOrgAdminInvite).not.toHaveBeenCalled();
   });
 

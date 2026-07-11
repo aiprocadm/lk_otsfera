@@ -51,7 +51,7 @@
    ```bash
    cp .env.production.example .env.production
    # отредактировать .env.production реальными значениями:
-   #   APP_DOMAIN + NEXT_PUBLIC_APP_URL + APP_URL (все три = https://<APP_DOMAIN>)
+   #   APP_DOMAIN + APP_URL (APP_URL = https://<APP_DOMAIN>)
    #   DATABASE_URL / DIRECT_URL (managed PG)
    #   JWT_SECRET ≥32, HEALTH_TOKEN ≥32
    #   S3_* (endpoint/region/keys/bucket/force_path_style)
@@ -137,7 +137,7 @@ docker compose -f docker-compose.prod.yml run --rm \
 - [ ] §1 Провижн: PostgreSQL (🔴 ICU-коллация; **автобэкапы включены и первый создан**) + S3-бакет `documents` (**приватный, versioning + SSE включены**) + VM (Docker+compose) готовы
 - [ ] §1 DNS: A-запись `APP_DOMAIN` → IP VM распространилась (`dig +short`)
 - [ ] §1 Firewall: вход только `22`/`80`/`443`; порт `3000` закрыт
-- [ ] §2 `.env.production` заполнен (`APP_DOMAIN`, `NEXT_PUBLIC_APP_URL` **и `APP_URL`** = `https://<APP_DOMAIN>`, секреты ≥32 без плейсхолдеров — иначе fail-fast не даст стартовать, S3-*, DB-*)
+- [ ] §2 `.env.production` заполнен (`APP_DOMAIN`, `APP_URL` = `https://<APP_DOMAIN>`, секреты ≥32 без плейсхолдеров — иначе fail-fast не даст стартовать, S3-*, DB-*)
 - [ ] §2 Cron бэкапа на VM установлен ([runbook-backups.md](runbook-backups.md) §3)
 - [ ] §3 `docker compose up -d` → в логах caddy `certificate obtained`
 - [ ] §4 Infra-smoke зелёный (TLS / HTTP→HTTPS / readiness DB+Redis+S3 / worker `healthy`)

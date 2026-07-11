@@ -28,7 +28,7 @@ export async function PUT(
   const parseResult = payloadSchema.safeParse(await req.json().catch(() => null));
   if (!parseResult.success) {
     return NextResponse.json(
-      { error: 'Invalid payload', details: parseResult.error.flatten() },
+      { error: 'Invalid payload' },
       { status: 400 }
     );
   }

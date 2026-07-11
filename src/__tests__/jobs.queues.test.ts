@@ -47,8 +47,7 @@ describe('Job queue registry', () => {
       'oneCSync.reconcile',
       'docs.generateCommissionPdf',
       'docs.generateCommissionXlsx',
-      'notifications.dispatch',
-      'emails.send'
+      'notifications.dispatch'
     ];
     for (const name of expected) {
       expect(QUEUE_NAMES).toContain(name);
@@ -68,9 +67,9 @@ describe('Job queue registry', () => {
 describe('getQueue', () => {
   it('creates a new Queue with the given name and Redis connection', async () => {
     const { getQueue } = await import('@/lib/jobs/queues');
-    const q = getQueue('emails.send');
+    const q = getQueue('docs.scanDocument');
     expect(QueueConstructorMock).toHaveBeenCalledWith(
-      'emails.send',
+      'docs.scanDocument',
       expect.objectContaining({ defaultJobOptions: expect.any(Object) })
     );
     expect(q).toBeDefined();
@@ -86,7 +85,7 @@ describe('getQueue', () => {
 
   it('creates distinct Queue instances for different names', async () => {
     const { getQueue } = await import('@/lib/jobs/queues');
-    const a = getQueue('emails.send');
+    const a = getQueue('docs.scanDocument');
     const b = getQueue('notifications.dispatch');
     expect(a).not.toBe(b);
     expect(QueueConstructorMock).toHaveBeenCalledTimes(2);
@@ -96,13 +95,13 @@ describe('getQueue', () => {
 describe('closeAllQueues', () => {
   it('calls close() on all open queues and clears the registry', async () => {
     const { getQueue, closeAllQueues } = await import('@/lib/jobs/queues');
-    getQueue('emails.send');
+    getQueue('docs.scanDocument');
     getQueue('notifications.dispatch');
     await closeAllQueues();
     expect(closeMock).toHaveBeenCalledTimes(2);
     // After closing, a new getQueue call creates a fresh Queue (registry was cleared)
     QueueConstructorMock.mockClear();
-    getQueue('emails.send');
+    getQueue('docs.scanDocument');
     expect(QueueConstructorMock).toHaveBeenCalledTimes(1);
   });
 

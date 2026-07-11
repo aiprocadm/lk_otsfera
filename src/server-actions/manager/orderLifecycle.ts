@@ -21,7 +21,6 @@ export type TransitionLifecycleActionResult =
   | {
       ok: false;
       error: 'validation' | 'not_found' | 'forbidden' | 'invalid_transition' | 'reason_required';
-      details?: unknown;
     }
   | { ok: false; error: 'completion_conditions_unmet'; unmet: CompletionCondition[] };
 
@@ -39,7 +38,7 @@ export async function transitionOrderLifecycleAction(input: {
 }): Promise<TransitionLifecycleActionResult> {
   const parsed = TransitionSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: 'validation', details: parsed.error.flatten() };
+    return { ok: false, error: 'validation' };
   }
 
   const session = await requireManager();
@@ -57,7 +56,7 @@ const AccountingSchema = z.object({
 
 export type SetAccountingSignedActionResult =
   | { ok: true; changed: boolean }
-  | { ok: false; error: 'validation' | 'not_found' | 'forbidden'; details?: unknown };
+  | { ok: false; error: 'validation' | 'not_found' | 'forbidden' };
 
 export async function setOrderAccountingSignedAction(input: {
   orderId: string;
@@ -65,7 +64,7 @@ export async function setOrderAccountingSignedAction(input: {
 }): Promise<SetAccountingSignedActionResult> {
   const parsed = AccountingSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: 'validation', details: parsed.error.flatten() };
+    return { ok: false, error: 'validation' };
   }
 
   const session = await requireManager();

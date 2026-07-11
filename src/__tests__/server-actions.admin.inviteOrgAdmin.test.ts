@@ -64,11 +64,11 @@ describe('inviteAdminOrgAdminAction', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/admin/organizations/any-org');
   });
 
-  it('returns validation on bad email', async () => {
+  it('returns validation on bad email — bare stable code, no zod details (R2)', async () => {
     const res = await inviteAdminOrgAdminAction(
       fd({ organizationId: 'o', email: 'bad', name: 'X' })
     );
-    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(res).toEqual({ ok: false, error: 'validation' });
   });
 
   it('returns validation when form is completely empty (readFormValue null branch)', async () => {
