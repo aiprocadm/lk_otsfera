@@ -52,6 +52,9 @@ async function resolveSubjectLabels(
   const put = (id: string, label: string | null | undefined) => {
     if (label) labels.set(id, label);
   };
+  // ids() вызывается только внутри byType.has(t)-гардов — get() не бывает
+  // undefined; ?? [] — защитный fallback на случай будущего рефактора.
+  /* v8 ignore next */
   const ids = (t: string) => [...(byType.get(t) ?? [])];
 
   if (byType.has('student')) {

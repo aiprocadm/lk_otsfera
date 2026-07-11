@@ -75,4 +75,32 @@ describe('AdminPiiAccessPage', () => {
     );
     expect(second.container.textContent).toContain('Записей журнала не найдено');
   });
+
+  it('прокидывает все фильтры из searchParams, валидные даты парсятся', async () => {
+    await renderServerComponent(
+      AdminPiiAccessPage({
+        searchParams: Promise.resolve({
+          actorUserId: 'u1',
+          userRole: 'leader',
+          context: 'calls_list',
+          subjectType: 'caller',
+          subjectId: 'c1',
+          from: '2026-07-01',
+          to: '2026-07-11',
+          cursor: 'ev5'
+        })
+      })
+    );
+    expect(listPiiAccess.mock.calls[0][2]).toMatchObject({
+      actorUserId: 'u1',
+      userRole: 'leader',
+      context: 'calls_list',
+      subjectType: 'caller',
+      subjectId: 'c1',
+      cursor: 'ev5',
+      from: new Date('2026-07-01'),
+      to: new Date('2026-07-11'),
+      take: 50
+    });
+  });
 });

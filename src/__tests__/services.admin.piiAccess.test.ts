@@ -94,11 +94,50 @@ describe('listPiiAccess', () => {
     });
   });
 
+  it('резолвит субъектов всех типов батчами; falsy-лейбл → «(удалён)»', async () => {
+    const rows = [
+      eventRow('e1', { subjectType: 'user', subjectIds: ['u9'], context: 'admin_users_list' }),
+      eventRow('e2', { subjectType: 'lead', subjectIds: ['L1', 'L2'], context: 'manager_lead_view' }),
+      eventRow('e3', { subjectType: 'enrollment_request', subjectIds: ['R1'], context: 'enrollments_list' }),
+      eventRow('e4', { subjectType: 'inbound_sender', subjectIds: ['m1'], context: 'inbox_list' }),
+      eventRow('e5', { subjectType: 'caller', subjectIds: ['c1'], context: 'calls_list' })
+    ];
+    const p = makePrisma(rows);
+    (p as any).user.findMany.mockResolvedValue([{ id: 'u9', name: 'Юзер' }]);
+    (p as any).lead.findMany.mockResolvedValue([
+      { id: 'L1', clientContactName: 'Контакт' },
+      { id: 'L2', clientContactName: null }
+    ]);
+    (p as any).enrollmentRequest.findMany.mockResolvedValue([{ id: 'R1', studentName: 'Слушатель' }]);
+    (p as any).inboundMessage.findMany.mockResolvedValue([{ id: 'm1', senderDisplay: 'Отправитель' }]);
+    (p as any).call.findMany.mockResolvedValue([{ id: 'c1', callerNumber: '+79001234567' }]);
+    const res = await listPiiAccess(p, ADMIN, {});
+    if (!res.ok) throw new Error('expected ok');
+    const byId = Object.fromEntries(res.rows.map((r) => [r.id, r.subjects.map((s) => s.label)]));
+    expect(byId).toEqual({
+      e1: ['Юзер'],
+      e2: ['Контакт', 'L2 (удалён)'],
+      e3: ['Слушатель'],
+      e4: ['Отправитель'],
+      e5: ['+79001234567']
+    });
+  });
+
   it('неизвестный реестру context → labelRu = сам context (fallback)', async () => {
     const p = makePrisma([eventRow('ev1', { context: 'ghost_ctx', subjectType: 'student' })]);
     const res = await listPiiAccess(p, ADMIN, {});
     if (!res.ok) throw new Error('expected ok');
     expect(res.rows[0].labelRu).toBe('ghost_ctx');
+  });
+
+  it('cursor прокидывается в findMany как cursor+skip; actor=null при отсутствии user', async () => {
+    const p = makePrisma([eventRow('ev1', { user: null })]);
+    const res = await listPiiAccess(p, ADMIN, { cursor: 'ev5' });
+    const arg = (p as any).piiAccessEvent.findMany.mock.calls[0][0];
+    expect(arg.cursor).toEqual({ id: 'ev5' });
+    expect(arg.skip).toBe(1);
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.rows[0].actor).toBeNull();
   });
 
   it('take зажимается в [1, 100]', async () => {
@@ -126,5 +165,11 @@ describe('listPiiAccessFilters', () => {
     if (!res.ok) throw new Error('expected ok');
     expect(res.contexts.find((c) => c.key === 'calls_list')?.labelRu).toBe('Журнал звонков');
     expect(res.actors).toEqual([{ id: 'u1', name: 'Емп', email: 'e@x.ru' }]);
+  });
+
+  it('пустой журнал → actors []', async () => {
+    const res = await listPiiAccessFilters(makePrisma(), ADMIN);
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.actors).toEqual([]);
   });
 });
