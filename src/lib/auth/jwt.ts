@@ -174,6 +174,32 @@ export async function verifyToken(token: string): Promise<SessionPayload> {
   return sessionPayloadSchema.parse(payload) as SessionPayload;
 }
 
+const TWO_FACTOR_PENDING_TTL = '10m';
+
+const twoFactorPendingSchema = z.object({
+  sub: z.string().min(1),
+  purpose: z.literal('2fa')
+});
+
+/**
+ * Pre-auth токен шага 2FA (staff-логин, спека 2026-07-11): выдан после верного
+ * пароля, до ввода email-кода. Намеренно НЕ содержит role — sessionPayloadSchema
+ * (verifyToken) такой payload отвергает, поэтому pre-auth токен не открывает ни
+ * один маршрут, даже если подложить его в cookie `session`. Guard-тест:
+ * auth.jwt.2fa-pending.test.ts.
+ */
+export async function signTwoFactorPendingToken(userId: string) {
+  return new SignJWT({ sub: userId, purpose: '2fa' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime(TWO_FACTOR_PENDING_TTL)
+    .sign(getJwtSecret());
+}
+
+export async function verifyTwoFactorPendingToken(token: string): Promise<{ sub: string }> {
+  const { payload } = await jwtVerify(token, getJwtSecret());
+  return twoFactorPendingSchema.parse(payload);
+}
+
 
 export async function verifyStudentBridgeToken(token: string) {
   const { payload } = await jwtVerify(token, getStudentBridgeSecret(), {

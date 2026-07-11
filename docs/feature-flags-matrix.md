@@ -1,6 +1,6 @@
 # Матрица фиче-флагов для прод-релиза (R0.1)
 
-Источник истины по семантике — [src/lib/featureFlags.ts](../src/lib/featureFlags.ts) (17 флагов: 4 opt-out default-ON, 13 opt-in default-OFF). Env-переменная — `FEATURE_<UPPER_SNAKE>`. Точки чтения route-флагов — тройные (§5 CLAUDE.md): middleware (404) + навигация + page/route-гейт.
+Источник истины по семантике — [src/lib/featureFlags.ts](../src/lib/featureFlags.ts) (18 флагов: 4 opt-out default-ON, 14 opt-in default-OFF). Env-переменная — `FEATURE_<UPPER_SNAKE>`. Точки чтения route-флагов — тройные (§5 CLAUDE.md): middleware (404) + навигация + page/route-гейт; поведенческие флаги (`max_channel`, `staff_2fa` и т.п.) читаются в своих точках, перечисленных в комментарии флага.
 
 **Главный инвариант проверен (аудит 2026-07-10): ни одна незавершённая фича не «включится сама» — все сырые флаги opt-in.** Заглушечные адаптеры (Mango REST, IMAP) дополнительно защищены двойным предохранителем «флаг + креды/адаптер».
 
@@ -30,6 +30,7 @@
 | `whatsapp_channel` | Канал уведомлений WhatsApp (агрегатор) | **0**, пока не подключён агрегатор | `WHATSAPP_AGGREGATOR_*` |
 | `inbound_messaging` | Омниканальный инбокс `/manager/inbox` | **0** на старте. Мессенджер-каналы готовы (нужны `TELEGRAM_/MAX_/WHATSAPP_WEBHOOK_SECRET`); **email-канал** — IMAP-адаптер = заглушка: `INBOUND_EMAIL_ADAPTER` держать `fake`/unset, иначе DLQ-шум каждые 2 мин | секреты вебхуков |
 | `telephony_mango` | Телефония `/manager/calls` + вебхук Mango | **0** до реализации боевого REST-адаптера записей (сейчас заглушка → recording-джобы уходили бы в DLQ). При включении fail-fast требует `MANGO_API_KEY`/`MANGO_API_SALT` | `MANGO_*`, IP-allowlist |
+| `staff_2fa` | 2FA сотрудников: email-код при логине admin/manager/leader (поведенческий флаг; точки чтения — login/2fa-роуты + секция настроек) | **1** после мержа PR и проверки доставки писем (EMAIL_ENABLED) | Resend (`EMAIL_ENABLED`, `RESEND_API_KEY`) |
 
 ## Как флипать в проде
 

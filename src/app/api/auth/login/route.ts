@@ -1,10 +1,28 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import * as React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import bcrypt from 'bcryptjs';
-import { signToken, type OrganizationMembership } from '@/lib/auth/jwt';
-import { toSessionAccessProfile, type SessionAccessProfile } from '@/lib/auth/accessProfile';
+import { signToken, signTwoFactorPendingToken } from '@/lib/auth/jwt';
+import { buildSessionClaims } from '@/lib/auth/buildSessionClaims';
 import { isRateLimited } from '@/lib/rateLimit';
+import { isFeatureEnabled } from '@/lib/featureFlags';
+import { createTwoFactorChallenge } from '@/lib/services/auth/twoFactor';
+import { send } from '@/lib/email/send';
+import {
+  TwoFactorCodeTemplate,
+  twoFactorCodeSubject,
+  twoFactorCodeText
+} from '@/lib/email/templates/two-factor-code';
+import { recordAudit } from '@/lib/auth/audit';
+import { log } from '@/lib/logging';
+
+// Dynamic import keeps react-dom/server out of the static module graph
+// (тот же приём, что в reset-password/request).
+async function renderHtml(element: React.ReactElement): Promise<string> {
+  const mod = await import('react-dom/server');
+  return `<!DOCTYPE html>\n${mod.renderToStaticMarkup(element)}`;
+}
 
 const DUMMY_BCRYPT_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
 
@@ -68,86 +86,54 @@ export async function POST(req: Request) {
     return NextResponse.json({ code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' }, { status: 401 });
   }
 
-  let partnerRole: 'admin' | 'manager' | undefined;
-  let assignedOrgIds: string[] | undefined;
+  const built = await buildSessionClaims(prisma, user);
+  if (!built.ok) {
+    return NextResponse.json({ code: 'ACCOUNT_DEACTIVATED', message: 'Account deactivated' }, { status: 403 });
+  }
 
-  if (user.role === 'partner' && user.partnerId) {
-    const membership = await prisma.partnerUser.findUnique({
-      where: { partnerId_userId: { partnerId: user.partnerId, userId: user.id } }
-    });
-
-    if (membership) {
-      if (!membership.isActive) {
-        return NextResponse.json({ code: 'ACCOUNT_DEACTIVATED', message: 'Account deactivated' }, { status: 403 });
-      }
-      partnerRole = membership.roleInPartner === 'admin' ? 'admin' : 'manager';
-      assignedOrgIds = membership.assignedOrgIds;
+  // Staff 2FA (спека 2026-07-11): для сотрудников при включённом флаге сессия
+  // НЕ выдаётся — вместо неё одноразовый email-код + pre-auth cookie. Ветка
+  // стоит ПОСЛЕ buildSessionClaims, чтобы деактивированный аккаунт не получал
+  // письмо. leader — это manager с managerRole='leader', отдельной ветки нет.
+  const isStaff = user.role === 'admin' || user.role === 'manager';
+  if (isStaff && isFeatureEnabled('staff_2fa')) {
+    const { code } = await createTwoFactorChallenge(prisma, user.id);
+    try {
+      await send({
+        to: user.email,
+        subject: twoFactorCodeSubject(),
+        html: await renderHtml(React.createElement(TwoFactorCodeTemplate, { name: user.name, code })),
+        text: twoFactorCodeText({ name: user.name, code })
+      });
+    } catch (err) {
+      // Без письма войти нельзя — честная ошибка вместо тихого проглота
+      // (осознанное исключение из «notification fan-out проглатываем» §3).
+      await prisma.twoFactorChallenge.delete({ where: { userId: user.id } }).catch(() => {});
+      log.error('[auth/login] 2fa email send failed', {
+        userId: user.id,
+        error: err instanceof Error ? err.message : String(err)
+      });
+      return NextResponse.json({ code: 'EMAIL_SEND_FAILED', message: 'Failed to send the code' }, { status: 502 });
     }
-  }
-
-  let organizationMemberships: OrganizationMembership[] | undefined;
-
-  if (user.role === 'organization') {
-    const memberships = await prisma.organizationUser.findMany({
-      where: { userId: user.id, isActive: true },
-      select: { organizationId: true, roleInOrg: true, isActive: true }
+    await recordAudit(prisma, {
+      action: '2fa_code_sent',
+      entity: 'auth_2fa',
+      entityId: user.id,
+      userId: user.id
+    }).catch(() => {});
+    const pending = await signTwoFactorPendingToken(user.id);
+    const res = NextResponse.json({ ok: true, twoFactorRequired: true });
+    res.cookies.set('2fa_pending', pending, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 600
     });
-
-    organizationMemberships = memberships.map((m) => ({
-      organizationId: m.organizationId,
-      // Must preserve every role in OrgRoleInOrg — narrowing 'leader' to 'member'
-      // here silently disables the leader feature for the whole token lifetime.
-      roleInOrg:
-        m.roleInOrg === 'admin' ? 'admin' : m.roleInOrg === 'leader' ? 'leader' : 'member',
-      isActive: m.isActive
-    }));
+    return res;
   }
 
-  let managedOrgIds: string[] | undefined;
-  let managerRole: 'leader' | null | undefined;
-  let accessProfile: SessionAccessProfile | undefined;
-
-  if (user.role === 'manager') {
-    // C8 company floor: a manager's scope is bounded by their own company.
-    // Without the `organization.companyId === user.companyId` filter, a stale or
-    // legacy cross-company OrganizationManager row would widen managedOrgIds
-    // beyond the isolation boundary (see CLAUDE.md §4). A manager with no
-    // companyId is the deny-null sentinel — resolve zero orgs and skip the query.
-    const assigned = user.companyId
-      ? await prisma.organizationManager.findMany({
-          where: { userId: user.id, isActive: true, organization: { companyId: user.companyId } },
-          select: { organizationId: true }
-        })
-      : [];
-    managedOrgIds = assigned.map((a) => a.organizationId);
-    // Preserve 'leader' explicitly. Mirrors the org-membership narrowing warning
-    // above: collapsing this to null silently kills the leader feature for the
-    // whole 7d token lifetime.
-    managerRole = user.managerRole === 'leader' ? 'leader' : null;
-    // G1: денормализуем кастомный профиль доступа в токен (single indexed lookup,
-    // как managedOrgIds). null accessProfileId → профиля нет → legacy-поведение.
-    if (user.accessProfileId) {
-      const row = await prisma.accessProfile.findUnique({ where: { id: user.accessProfileId } });
-      if (row) accessProfile = toSessionAccessProfile(row);
-    }
-  }
-
-  const token = await signToken({
-    sub: user.id,
-    role: user.role,
-    companyId: user.companyId,
-    partnerId: user.partnerId,
-    organizationId: user.organizationId,
-    email: user.email,
-    name: user.name,
-    externalStudentId: user.externalStudentId,
-    ...(partnerRole !== undefined ? { partnerRole } : {}),
-    ...(assignedOrgIds !== undefined ? { assignedOrgIds } : {}),
-    ...(organizationMemberships !== undefined ? { organizationMemberships } : {}),
-    ...(managedOrgIds !== undefined ? { managedOrgIds } : {}),
-    ...(managerRole !== undefined ? { managerRole } : {}),
-    ...(accessProfile !== undefined ? { accessProfile } : {})
-  });
+  const token = await signToken(built.claims);
 
   const res = NextResponse.json({ ok: true });
   res.cookies.set('session', token, {

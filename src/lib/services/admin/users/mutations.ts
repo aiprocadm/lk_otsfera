@@ -1,6 +1,7 @@
 import type { PrismaClient, Prisma, Role } from '@prisma/client';
 import { createInviteToken } from '@/lib/auth/passwordReset';
 import { recordAudit } from '@/lib/auth/audit';
+import { generateBackupCodes } from '@/lib/services/auth/twoFactor';
 import { MAX_PARTNER_USERS } from '@/lib/config/teamLimits';
 import { AdminUserError, type AdminUserFailure } from './errors';
 import { getUser, type UserDetail } from './queries';
@@ -262,6 +263,43 @@ export async function reactivateUser(
       });
     });
     return { ok: true };
+  } catch (e) {
+    if (e instanceof AdminUserError) return { ok: false, error: e.code };
+    throw e;
+  }
+}
+
+export type AdminBackupCodesResult = { codes: string[] };
+
+// Админ перевыпускает коды восстановления 2FA сотруднику (потерял доступ и к
+// почте, и к кодам). Инвалидирует все прежние коды пользователя и возвращает
+// новые для однократного показа. Гейт requireAdmin — на уровне server-action.
+export async function adminRegenerateBackupCodes(
+  prisma: PrismaClient,
+  actorUserId: string,
+  targetUserId: string
+): Promise<({ ok: true } & AdminBackupCodesResult) | AdminUserFailure> {
+  try {
+    const target = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, role: true }
+    });
+    if (!target) throw new AdminUserError('not_found');
+    // Только staff пользуется 2FA (admin/manager, включая leader).
+    if (target.role !== 'admin' && target.role !== 'manager') {
+      throw new AdminUserError('not_staff');
+    }
+
+    const { codes } = await generateBackupCodes(prisma, target.id);
+
+    await recordAudit(prisma, {
+      userId: actorUserId,
+      action: '2fa_backup_regenerated',
+      entity: 'auth_2fa',
+      entityId: target.id
+    });
+
+    return { ok: true, codes };
   } catch (e) {
     if (e instanceof AdminUserError) return { ok: false, error: e.code };
     throw e;

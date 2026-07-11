@@ -1,6 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
-import { listUsers, getUser, createUser, updateUser, deactivateUser, reactivateUser } from '@/lib/services/admin/users';
+import { createHash } from 'crypto';
+import {
+  listUsers,
+  getUser,
+  createUser,
+  updateUser,
+  deactivateUser,
+  reactivateUser,
+  adminRegenerateBackupCodes
+} from '@/lib/services/admin/users';
 import { MAX_PARTNER_USERS } from '@/lib/config/teamLimits';
+
+const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 
 describe('listUsers', () => {
   it('фильтрует по role и active', async () => {
@@ -702,5 +713,68 @@ describe('reactivateUser', () => {
 
     await reactivateUser(prisma, 'actor', 'u1');
     expect(txMock.user.count).not.toHaveBeenCalled();
+  });
+});
+
+describe('adminRegenerateBackupCodes', () => {
+  function makePrisma(target: { id: string; role: string } | null) {
+    const bcDeleteMany = vi.fn().mockResolvedValue(undefined);
+    const bcCreateMany = vi.fn().mockResolvedValue(undefined);
+    const auditCreate = vi.fn().mockResolvedValue(undefined);
+    const prisma = {
+      user: { findUnique: vi.fn().mockResolvedValue(target) },
+      auditLog: { create: auditCreate },
+      // generateBackupCodes выполняет транзакцию с deleteMany+createMany
+      $transaction: vi.fn().mockImplementation((cb: (tx: unknown) => unknown) =>
+        cb({ twoFactorBackupCode: { deleteMany: bcDeleteMany, createMany: bcCreateMany } })
+      )
+    } as unknown as Parameters<typeof adminRegenerateBackupCodes>[0];
+    return { prisma, bcDeleteMany, bcCreateMany, auditCreate };
+  }
+
+  it('manager target: 10 fresh hashed codes + audit with target entityId', async () => {
+    const { prisma, bcDeleteMany, bcCreateMany, auditCreate } = makePrisma({ id: 'm1', role: 'manager' });
+    const res = await adminRegenerateBackupCodes(prisma, 'admin1', 'm1');
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.codes).toHaveLength(10);
+      const rows = (bcCreateMany.mock.calls[0][0] as { data: { codeHash: string }[] }).data;
+      expect(rows.map((r) => r.codeHash)).toEqual(res.codes.map(sha256));
+    }
+    expect(bcDeleteMany).toHaveBeenCalledWith({ where: { userId: 'm1' } });
+    expect(auditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: '2fa_backup_regenerated',
+          entity: 'auth_2fa',
+          entityId: 'm1',
+          userId: 'admin1'
+        })
+      })
+    );
+  });
+
+  it('admin target: allowed', async () => {
+    const { prisma } = makePrisma({ id: 'a2', role: 'admin' });
+    expect((await adminRegenerateBackupCodes(prisma, 'admin1', 'a2')).ok).toBe(true);
+  });
+
+  it('missing target → not_found', async () => {
+    const { prisma, bcCreateMany } = makePrisma(null);
+    expect(await adminRegenerateBackupCodes(prisma, 'admin1', 'ghost')).toEqual({ ok: false, error: 'not_found' });
+    expect(bcCreateMany).not.toHaveBeenCalled();
+  });
+
+  it('non-staff target → not_staff, no codes issued', async () => {
+    const { prisma, bcCreateMany } = makePrisma({ id: 'p1', role: 'partner' });
+    expect(await adminRegenerateBackupCodes(prisma, 'admin1', 'p1')).toEqual({ ok: false, error: 'not_staff' });
+    expect(bcCreateMany).not.toHaveBeenCalled();
+  });
+
+  it('rethrows a non-AdminUserError (e.g. a DB failure) instead of swallowing it', async () => {
+    const prisma = {
+      user: { findUnique: vi.fn().mockRejectedValue(new Error('db down')) }
+    } as unknown as Parameters<typeof adminRegenerateBackupCodes>[0];
+    await expect(adminRegenerateBackupCodes(prisma, 'admin1', 'm1')).rejects.toThrow('db down');
   });
 });

@@ -9,6 +9,7 @@ import {
   updateUser,
   deactivateUser,
   reactivateUser,
+  adminRegenerateBackupCodes,
   type AdminUserErrorCode
 } from '@/lib/services/admin/users';
 import { sendAdminUserInviteEmail } from '@/lib/email/send';
@@ -122,6 +123,20 @@ export async function reactivateUserAction(fd: FormData): Promise<ActionResult> 
   if (!result.ok) return result;
   revalidatePath('/admin/users');
   return { ok: true };
+}
+
+// 2FA: админ перевыпускает коды восстановления сотруднику (потеря доступа к
+// почте и кодам). Возвращает новые коды для однократного показа.
+export async function regenerateUserBackupCodesAction(
+  fd: FormData
+): Promise<ActionResult<{ codes: string[] }>> {
+  const parsed = targetSchema.safeParse({ id: readField(fd, 'id') });
+  if (!parsed.success) return { ok: false, error: 'validation' };
+
+  const session = await requireAdmin();
+  const result = await adminRegenerateBackupCodes(prisma, session.sub, parsed.data.id);
+  if (!result.ok) return result;
+  return { ok: true, codes: result.codes };
 }
 
 // <form action> wrappers must return void, so the Result is discarded — log
