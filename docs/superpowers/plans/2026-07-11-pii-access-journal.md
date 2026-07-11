@@ -1960,7 +1960,7 @@ git commit --no-verify -m "feat(pii): страница /admin/pii-access + nav (
 
 Требуется живой Postgres (Task 3 Step 1). Флаг включается явно (setup Task 1 глушит его по умолчанию).
 
-- [ ] **Step 1: Написать integration-тесты**
+- [x] **Step 1: Написать integration-тесты**
 
 Каркас — по образцу соседних integration-файлов (`new PrismaClient(` в исходнике автоматически помечает файл как integration; cleanup в beforeEach/afterAll по созданным id). Сценарии (все обязательны):
 
@@ -2075,12 +2075,12 @@ describe('PII access journal (integration)', () => {
 
 Примечание: если `prisma.user.create` требует других обязательных полей (проверить схему/соседние integration-тесты) — дополнить data по их образцу.
 
-- [ ] **Step 2: Прогнать integration-файл**
+- [x] **Step 2: Прогнать integration-файл**
 
 Run: `npx vitest run --mode=integration src/__tests__/pii.access-journal.integration.test.ts`
 Expected: PASS (нужен живой PG с применённой миграцией Task 3).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/__tests__/pii.access-journal.integration.test.ts
@@ -2094,7 +2094,7 @@ git commit --no-verify -m "test(pii): integration — GIN has, createMany, leade
 **Files:**
 - Modify: `.env.example` (рядом с FEATURE_STAFF_2FA, строка ~90), `.env.production.example` (аналогичное место), `docs/feature-flags-matrix.md` (Opt-out таблица + счётчики во вводном абзаце), `CLAUDE.md` (§5 список opt-out; §12 новый пункт)
 
-- [ ] **Step 1: env-примеры**
+- [x] **Step 1: env-примеры**
 
 В `.env.example` (после строки FEATURE_STAFF_2FA) и `.env.production.example`:
 
@@ -2102,7 +2102,7 @@ git commit --no-verify -m "test(pii): integration — GIN has, createMany, leade
 # FEATURE_PII_ACCESS_LOG=0        # Журнал доступа к ПДн (§25.7): opt-out, ВКЛЮЧЁН по умолчанию. 0 — только аварийный kill-switch на время инцидента
 ```
 
-- [ ] **Step 2: Матрица флагов**
+- [x] **Step 2: Матрица флагов**
 
 `docs/feature-flags-matrix.md`: во вводном абзаце «18 флагов: 4 opt-out … 14 opt-in» → «19 флагов: 5 opt-out default-ON, 14 opt-in default-OFF». В таблицу Opt-out добавить строку:
 
@@ -2110,7 +2110,7 @@ git commit --no-verify -m "test(pii): integration — GIN has, createMany, leade
 | `pii_access_log` | Журнал доступа сотрудников к ПДн (§25.7): запись — recordPiiAccess, просмотр — /admin/pii-access (не гейтится) | **on** | Postgres. Выключение = пауза журнала = комплаенс-дыра; только на время инцидента |
 ```
 
-- [ ] **Step 3: CLAUDE.md**
+- [x] **Step 3: CLAUDE.md**
 
 §5, список opt-out флагов: `partner_leads`, `commission_pdf`, `commission_xlsx`, `pwa_installer` → добавить `pii_access_log` c пометкой «(§25.7, поведенческий: recordPiiAccess no-op + баннер /admin/pii-access; выключать только на время инцидента)».
 
@@ -2134,7 +2134,7 @@ Expected: всё зелёное. Blast-radius: если упали сущест�
 Run: `npm run test:coverage`
 Expected: пороги 100% по всем glob'ам. Типичные дыры этой фичи: ветка `catch` в resolveSubjectLabels отсутствует (не нужна — никакой catch не писали), непокрытые ветки meta-полей хелпера, `?? r.context` fallback labelRu (покрыть unit-тестом с неизвестным контекстом в listPiiAccess — mock-строка с context='ghost_ctx'). Дописать точечные тесты до зелёного гейта.
 
-- [ ] **Step 6: Commit доков + фиксы**
+- [x] **Step 6: Commit доков + фиксы**
 
 ```bash
 git commit --no-verify -m "docs(pii): env-примеры, матрица флагов, CLAUDE.md §5/§12" -- .env.example .env.production.example docs/feature-flags-matrix.md CLAUDE.md
