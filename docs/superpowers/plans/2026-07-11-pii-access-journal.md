@@ -26,7 +26,7 @@
 - Create: `src/__tests__/helpers/vitest.setup.ts`
 - Modify: `vitest.config.ts` (блок `test:`)
 
-- [ ] **Step 1: Создать setup-файл**
+- [x] **Step 1: Создать setup-файл**
 
 ```ts
 // src/__tests__/helpers/vitest.setup.ts
@@ -38,7 +38,7 @@
 process.env.FEATURE_PII_ACCESS_LOG ??= '0';
 ```
 
-- [ ] **Step 2: Подключить в vitest.config.ts**
+- [x] **Step 2: Подключить в vitest.config.ts**
 
 В `defineConfig(({ mode }) => ({ test: { ... } }))` добавить строку рядом с `environment: 'node'`:
 
@@ -49,12 +49,12 @@ process.env.FEATURE_PII_ACCESS_LOG ??= '0';
 
 Внимание: каталог `src/__tests__/helpers/` уже содержит `renderServerComponent.tsx`; setup-файл не оканчивается на `.test.ts`, в прогоны не попадает.
 
-- [ ] **Step 3: Проверить, что прогон не сломан**
+- [x] **Step 3: Проверить, что прогон не сломан**
 
 Run: `npx vitest run --mode=unit src/__tests__/featureFlags.test.ts`
 Expected: PASS (featureFlags-тесты сами чистят FEATURE_*-env в beforeEach — setup им не мешает).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/__tests__/helpers/vitest.setup.ts vitest.config.ts
@@ -69,7 +69,7 @@ git commit --no-verify -m "test(pii): vitest setup глушит pii_access_log �
 - Modify: `src/lib/featureFlags.ts:45-46` (конец массива FEATURE_FLAGS; НЕ добавлять в OPT_IN_FLAGS)
 - Test: `src/__tests__/featureFlags.test.ts`
 
-- [ ] **Step 1: Написать падающий тест**
+- [x] **Step 1: Написать падающий тест**
 
 В `src/__tests__/featureFlags.test.ts` добавить в конец файла (файл уже имеет beforeEach, чистящий FEATURE_*-env):
 
@@ -86,12 +86,12 @@ describe('pii_access_log (§25.7)', () => {
 });
 ```
 
-- [ ] **Step 2: Убедиться, что тест падает**
+- [x] **Step 2: Убедиться, что тест падает**
 
 Run: `npx vitest run --mode=unit src/__tests__/featureFlags.test.ts`
 Expected: FAIL — TS-ошибка/`'pii_access_log'` не входит в тип `FeatureFlag`.
 
-- [ ] **Step 3: Добавить флаг**
+- [x] **Step 3: Добавить флаг**
 
 В `src/lib/featureFlags.ts` в конец массива `FEATURE_FLAGS` (после `'staff_2fa'`):
 
@@ -105,12 +105,12 @@ Expected: FAIL — TS-ошибка/`'pii_access_log'` не входит в ти�
 
 В `OPT_IN_FLAGS` НЕ добавлять (это и делает его opt-out).
 
-- [ ] **Step 4: Прогнать тест**
+- [x] **Step 4: Прогнать тест**
 
 Run: `npx vitest run --mode=unit src/__tests__/featureFlags.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git commit --no-verify -m "feat(pii): opt-out флаг pii_access_log" -- src/lib/featureFlags.ts src/__tests__/featureFlags.test.ts
@@ -123,12 +123,12 @@ git commit --no-verify -m "feat(pii): opt-out флаг pii_access_log" -- src/li
 **Files:**
 - Modify: `prisma/schema.prisma` — back-relation в `model User` (рядом с `auditLogs AuditLog[]`, строка ~161) + новая модель после `model AuditLog` (после строки ~859)
 
-- [ ] **Step 1: Поднять Postgres, если не запущен**
+- [x] **Step 1: Поднять Postgres, если не запущен**
 
 Run: `docker compose up -d db`
 Expected: контейнер `db` (postgres:16-alpine, порт 5432) healthy. Если порт 5432 занят WinNAT — см. memory: override-compose на 15432.
 
-- [ ] **Step 2: Добавить модель в schema.prisma**
+- [x] **Step 2: Добавить модель в schema.prisma**
 
 После закрывающей скобки `model AuditLog { ... }`:
 
@@ -164,17 +164,17 @@ model PiiAccessEvent {
   piiAccessEvents              PiiAccessEvent[]
 ```
 
-- [ ] **Step 3: Создать миграцию + сгенерировать клиент**
+- [x] **Step 3: Создать миграцию + сгенерировать клиент**
 
 Run: `npm run prisma:migrate -- --name pii_access_event && npm run prisma:generate`
 Expected: новая папка `prisma/migrations/<timestamp>_pii_access_event/` с `CREATE TABLE "PiiAccessEvent"` и `CREATE INDEX ... USING GIN`; `prisma generate` зелёный. Применённые миграции не трогать.
 
-- [ ] **Step 4: Typecheck**
+- [x] **Step 4: Typecheck**
 
 Run: `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add prisma/schema.prisma prisma/migrations
@@ -189,7 +189,7 @@ git commit --no-verify -m "feat(pii): модель PiiAccessEvent + GIN-инде
 - Create: `src/lib/pii/contexts.ts`
 - Test: `src/__tests__/pii.contexts.test.ts`
 
-- [ ] **Step 1: Написать падающий тест**
+- [x] **Step 1: Написать падающий тест**
 
 ```ts
 // src/__tests__/pii.contexts.test.ts
@@ -223,12 +223,12 @@ describe('PII_CONTEXTS registry', () => {
 });
 ```
 
-- [ ] **Step 2: Убедиться, что падает**
+- [x] **Step 2: Убедиться, что падает**
 
 Run: `npx vitest run --mode=unit src/__tests__/pii.contexts.test.ts`
 Expected: FAIL — модуль `@/lib/pii/contexts` не существует.
 
-- [ ] **Step 3: Реализовать реестр**
+- [x] **Step 3: Реализовать реестр**
 
 ```ts
 // src/lib/pii/contexts.ts
@@ -277,12 +277,12 @@ export const PII_CONTEXTS = {
 export type PiiContextKey = keyof typeof PII_CONTEXTS;
 ```
 
-- [ ] **Step 4: Прогнать тест**
+- [x] **Step 4: Прогнать тест**
 
 Run: `npx vitest run --mode=unit src/__tests__/pii.contexts.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/pii/contexts.ts src/__tests__/pii.contexts.test.ts
@@ -297,7 +297,7 @@ git commit --no-verify -m "feat(pii): реестр PII_CONTEXTS — 12 конт�
 - Create: `src/lib/pii/record.ts`
 - Test: `src/__tests__/pii.record.unit.test.ts`
 
-- [ ] **Step 1: Написать падающие тесты**
+- [x] **Step 1: Написать падающие тесты**
 
 ```ts
 // src/__tests__/pii.record.unit.test.ts
@@ -450,12 +450,12 @@ describe('recordPiiAccessMany', () => {
 });
 ```
 
-- [ ] **Step 2: Убедиться, что падают**
+- [x] **Step 2: Убедиться, что падают**
 
 Run: `npx vitest run --mode=unit src/__tests__/pii.record.unit.test.ts`
 Expected: FAIL — модуль `@/lib/pii/record` не существует.
 
-- [ ] **Step 3: Реализовать хелпер**
+- [x] **Step 3: Реализовать хелпер**
 
 ```ts
 // src/lib/pii/record.ts
@@ -540,12 +540,12 @@ export async function recordPiiAccessMany(prisma: PrismaLike, argsList: PiiAcces
 }
 ```
 
-- [ ] **Step 4: Прогнать тесты**
+- [x] **Step 4: Прогнать тесты**
 
 Run: `npx vitest run --mode=unit src/__tests__/pii.record.unit.test.ts`
 Expected: PASS (10 тестов). Примечание: в dev/test логгер — console-passthrough verbatim, поэтому spy на `console.error` ловит вызов `log.error` с теми же аргументами.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/pii/record.ts src/__tests__/pii.record.unit.test.ts
