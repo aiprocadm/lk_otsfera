@@ -159,6 +159,7 @@ model User {
   comments                     Comment[]
   documents                    Document[]
   auditLogs                    AuditLog[]
+  piiAccessEvents              PiiAccessEvent[]
   notifications                Notification[]
   studentBridgeGrants          StudentBridgeGrant[]
   partnerMemberships           PartnerUser[]         @relation("PartnerMembership")
@@ -855,6 +856,30 @@ model AuditLog {
   // (admin/dashboard.ts recentEvents, listAudit default) → [createdAt].
   @@index([entity, entityId])
   @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+/// §25.7: журнал доступа сотрудников к ПДн физлиц клиентского контура.
+/// Append-only: приложение никогда не обновляет и не удаляет строки.
+/// subjectIds хранит id строк (Student.id, Call.id, ...), не сами ПДн;
+/// meta НИКОГДА не содержит сырых поисковых строк (только hasQuery/take/cursor).
+model PiiAccessEvent {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  userRole     String // снапшот на момент доступа: admin | manager | leader
+  companyId    String? // снапшот C8-скоупа сессии
+  context      String // ключ PII_CONTEXTS (src/lib/pii/contexts.ts)
+  action       String // list | view
+  subjectType  String // student | lead | enrollment_request | user | caller | inbound_sender
+  subjectIds   String[] // точный поимённый состав выдачи (естественный cap: take<=100)
+  subjectCount Int // = subjectIds.length (денорм для сводок)
+  meta         Json?
+
+  @@index([subjectIds], type: Gin) // обратный поиск «кто смотрел субъекта X»
+  @@index([userId, createdAt]) // трейл по сотруднику
+  @@index([subjectType, createdAt])
   @@index([createdAt])
 }
 
