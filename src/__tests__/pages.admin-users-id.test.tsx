@@ -87,7 +87,7 @@ describe('EditUserPage', () => {
       EditUserPage({ params: Promise.resolve({ id: 'u1' }) })
     );
 
-    expect(getUser).toHaveBeenCalledWith(expect.anything(), 'u1');
+    expect(getUser).toHaveBeenCalledWith(expect.anything(), SESSION, 'u1');
     expect(container.textContent).toContain('Иван Иванов');
     expect(container.textContent).toContain('ivan@x.com');
     expect(container.querySelector('[data-testid="manager-role-control"]')).not.toBeNull();

@@ -51,6 +51,7 @@ describe('AdminUsersPage', () => {
     expect(requireAdmin).toHaveBeenCalled();
     expect(listUsers).toHaveBeenCalledWith(
       {},
+      SESSION,
       expect.objectContaining({
         role: 'manager',
         active: true,
@@ -76,6 +77,7 @@ describe('AdminUsersPage', () => {
 
     expect(listUsers).toHaveBeenCalledWith(
       {},
+      SESSION,
       expect.objectContaining({ role: undefined, active: false, skip: 0 })
     );
   });
@@ -88,7 +90,7 @@ describe('AdminUsersPage', () => {
       AdminUsersPage({ searchParams: Promise.resolve({ skip: '50', q: 'abc' }) })
     );
 
-    expect(listUsers).toHaveBeenCalledWith({}, expect.objectContaining({ active: undefined }));
+    expect(listUsers).toHaveBeenCalledWith({}, SESSION, expect.objectContaining({ active: undefined }));
     const links = Array.from(container.querySelectorAll('a')).filter(
       (a) => a.textContent === 'Назад' || a.textContent === 'Вперёд'
     );
