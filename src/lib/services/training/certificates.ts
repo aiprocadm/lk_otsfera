@@ -2,6 +2,7 @@ import type { PrismaClient, Prisma, Certificate } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { managedOrgIds, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { recordAudit } from '@/lib/auth/audit';
+import { recordPiiAccess } from '@/lib/pii/record';
 
 export type CertificatesError = 'forbidden' | 'not_found' | 'validation';
 type Result<T> = ({ ok: true } & T) | { ok: false; error: CertificatesError };
@@ -74,6 +75,11 @@ export async function listCertificates(
     where,
     include: CERT_INCLUDE,
     orderBy: { issuedAt: 'desc' },
+  });
+  await recordPiiAccess(prisma, {
+    session,
+    context: 'certificates_list',
+    subjectIds: certificates.map((c) => c.studentId)
   });
   return { ok: true, certificates };
 }

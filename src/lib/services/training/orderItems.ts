@@ -2,6 +2,7 @@ import type { PrismaClient, Prisma, TrainingStatus } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { getOrder } from '@/lib/services/manager/orders';
 import { recordAudit } from '@/lib/auth/audit';
+import { recordPiiAccess } from '@/lib/pii/record';
 
 export type OrderItemsError =
   | 'forbidden' | 'not_found' | 'direction_inactive'
@@ -35,6 +36,11 @@ export async function listOrderItems(
     where: { orderId: args.orderId },
     include: ITEM_INCLUDE,
     orderBy: { createdAt: 'asc' }
+  });
+  await recordPiiAccess(prisma, {
+    session,
+    context: 'order_items_list',
+    subjectIds: items.map((i) => i.studentId)
   });
   return { ok: true, items };
 }
