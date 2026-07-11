@@ -2120,7 +2120,7 @@ git commit --no-verify -m "test(pii): integration — GIN has, createMany, leade
 - **Журнал доступа к ПДн (§25.7)** — модель `PiiAccessEvent` + хелпер `recordPiiAccess` ([src/lib/pii/record.ts](src/lib/pii/record.ts)). Новое staff-чтение ПДн физлиц клиентского контура обязано зарегистрировать контекст в [src/lib/pii/contexts.ts](src/lib/pii/contexts.ts) и вызвать `recordPiiAccess` (guardrail `pii.capture-coverage`). `subjectIds` — только id строк; в `meta` запрещены сырые поисковые строки; содержимое журнала не выводится в pino-логи. Запись awaited + never-throws (fail-open §3, `log.error` на сбой).
 ```
 
-- [ ] **Step 4: Полная локальная верификация**
+- [x] **Step 4: Полная локальная верификация** — typecheck/lint чисто; gate 916 тестов (117 файлов) зелёный.
 
 Run (последовательно, НЕ параллельно с gate):
 ```
@@ -2129,7 +2129,7 @@ npm run gate
 ```
 Expected: всё зелёное. Blast-radius: если упали существующие тесты — чинить по одному (ожидаемые категории: typing моков после смены сигнатур; page-тесты, задетые рефакторами Task 6/11).
 
-- [ ] **Step 5: Coverage-гейт (100%)**
+- [x] **Step 5: Coverage-гейт (100%)** — 6693 теста (738 файлов), пороги удержаны (exit 0). Препфлайтом закрыты ветки meta.cursor, labelRu-fallback, резолв всех 6 типов субъектов, cursor+skip, actor=null, page-фильтры; один `/* v8 ignore next */` на unreachable `?? []` под has-гардом.
 
 Run: `npm run test:coverage`
 Expected: пороги 100% по всем glob'ам. Типичные дыры этой фичи: ветка `catch` в resolveSubjectLabels отсутствует (не нужна — никакой catch не писали), непокрытые ветки meta-полей хелпера, `?? r.context` fallback labelRu (покрыть unit-тестом с неизвестным контекстом в listPiiAccess — mock-строка с context='ghost_ctx'). Дописать точечные тесты до зелёного гейта.
@@ -2141,7 +2141,7 @@ git commit --no-verify -m "docs(pii): env-примеры, матрица фла�
 ```
 (фиксы blast-radius — отдельными точечными коммитами с пояснением)
 
-- [ ] **Step 7: Close-out**
+- [x] **Step 7: Close-out**
 
 Создать `docs/superpowers/plans/2026-07-11-pii-access-journal-DONE.md` по образцу [staff-2fa-DONE](2026-07-11-staff-2fa-DONE.md): что отгружено, отличия от плана, цифры прогонов.
 
