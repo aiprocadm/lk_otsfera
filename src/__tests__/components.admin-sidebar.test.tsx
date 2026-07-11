@@ -46,6 +46,7 @@ const EXPECTED_HREFS = [
   '/admin/payments-import',
   '/admin/enrollments',
   '/admin/audit',
+  '/admin/pii-access',
   '/admin/users',
   '/admin/partners',
   '/admin/organizations',
@@ -65,13 +66,13 @@ describe('AdminSidebar', () => {
     }
   });
 
-  it('renders exactly 19 nav links', () => {
+  it('renders exactly 20 nav links', () => {
     vi.mocked(usePathname).mockReturnValue('/admin/dashboard');
 
     const html = renderToString(React.createElement(AdminSidebar, { items: navByRole.admin }));
 
     const matches = html.match(/data-testid="admin-nav-/g);
-    expect(matches).toHaveLength(19);
+    expect(matches).toHaveLength(20);
   });
 
   it('marks exactly one link as active when on /admin/dashboard', () => {

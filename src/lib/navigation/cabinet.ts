@@ -34,6 +34,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/admin/payments-import', label: 'Импорт оплат', icon: '📥', group: 'Операции' },
     { href: '/admin/enrollments', label: 'Заявки на обучение', icon: '🎓', group: 'Операции', flag: 'enrollment_requests' },
     { href: '/admin/audit', label: 'Аудит', icon: '🧾', group: 'Операции' },
+    { href: '/admin/pii-access', label: 'Доступ к ПДн', icon: '🛡️', group: 'Операции' },
     { href: '/admin/users', label: 'Пользователи', icon: '👤', group: 'Справочники' },
     { href: '/admin/partners', label: 'Партнёры', icon: '🏢', group: 'Справочники' },
     { href: '/admin/organizations', label: 'Организации', icon: '🏛', group: 'Справочники' },
