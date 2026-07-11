@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { recordPiiAccess } from '@/lib/pii/record';
 
 /**
  * Company-scoped calls journal query (Task 9a).
@@ -85,6 +86,12 @@ export async function listCalls(
     ...rest,
     hasRecording: recordingPath != null,
   }));
+
+  await recordPiiAccess(prisma, {
+    session,
+    context: 'calls_list',
+    subjectIds: items.map((i) => i.id)
+  });
 
   return { items, total };
 }
