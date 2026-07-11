@@ -11,9 +11,9 @@ import { fmtMoney } from '@/lib/format';
 export const dynamic = 'force-dynamic';
 
 export default async function ManagerLeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireManager();
+  const session = await requireManager();
   const { id } = await params;
-  const lead = await getManagerLead(prisma, id);
+  const lead = await getManagerLead(prisma, session, id);
   if (!lead) notFound();
 
   const rows: Array<[string, string]> = [

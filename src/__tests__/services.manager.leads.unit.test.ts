@@ -3,9 +3,19 @@
  * Covers getManagerLead (not in existing unit test) and additional
  * listManagerLeads branches (with cursor, estimatedAmount, organization).
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const { recordPiiAccess } = vi.hoisted(() => ({ recordPiiAccess: vi.fn() }));
+vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
+
 import { listManagerLeads, getManagerLead } from '@/lib/services/manager/leads';
 import { Decimal } from '@prisma/client/runtime/library';
+
+const SESSION = { sub: 'mgr-1', role: 'manager' as const, companyId: 'co-1' };
+
+beforeEach(() => {
+  recordPiiAccess.mockClear();
+});
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -147,7 +157,7 @@ describe('getManagerLead', () => {
     const db = {
       lead: { findUnique: vi.fn().mockResolvedValue(null) }
     } as never;
-    const result = await getManagerLead(db, 'nonexistent');
+    const result = await getManagerLead(db, SESSION, 'nonexistent');
     expect(result).toBeNull();
   });
 
@@ -155,7 +165,7 @@ describe('getManagerLead', () => {
     const db = {
       lead: { findUnique: vi.fn().mockResolvedValue(fullRow()) }
     } as never;
-    const result = await getManagerLead(db, 'L1');
+    const result = await getManagerLead(db, SESSION, 'L1');
     expect(result).not.toBeNull();
     expect(result!.id).toBe('L1');
     expect(result!.clientContactName).toBe('Контактное лицо');
@@ -177,7 +187,7 @@ describe('getManagerLead', () => {
         )
       }
     } as never;
-    const result = await getManagerLead(db, 'L1');
+    const result = await getManagerLead(db, SESSION, 'L1');
     expect(result!.estimatedAmount).toBe('5000.00');
   });
 
@@ -187,7 +197,7 @@ describe('getManagerLead', () => {
         findUnique: vi.fn().mockResolvedValue(fullRow({ estimatedAmount: null }))
       }
     } as never;
-    const result = await getManagerLead(db, 'L1');
+    const result = await getManagerLead(db, SESSION, 'L1');
     expect(result!.estimatedAmount).toBeNull();
   });
 
@@ -199,7 +209,7 @@ describe('getManagerLead', () => {
         )
       }
     } as never;
-    const result = await getManagerLead(db, 'L1');
+    const result = await getManagerLead(db, SESSION, 'L1');
     expect(result!.organizationId).toBe('o1');
     expect(result!.organizationName).toBe('Org One');
   });
@@ -210,7 +220,7 @@ describe('getManagerLead', () => {
         findUnique: vi.fn().mockResolvedValue(fullRow({ organization: null }))
       }
     } as never;
-    const result = await getManagerLead(db, 'L1');
+    const result = await getManagerLead(db, SESSION, 'L1');
     expect(result!.organizationId).toBeNull();
     expect(result!.organizationName).toBeNull();
   });
@@ -223,7 +233,25 @@ describe('getManagerLead', () => {
         )
       }
     } as never;
-    const result = await getManagerLead(db, 'L1');
+    const result = await getManagerLead(db, SESSION, 'L1');
     expect(result!.assignedManagerName).toBeNull();
+  });
+
+  it('журналирует выдачу контактных ПДн (view)', async () => {
+    const db = {
+      lead: { findUnique: vi.fn().mockResolvedValue(fullRow()) }
+    } as never;
+    await getManagerLead(db, SESSION, 'L1');
+    expect(recordPiiAccess).toHaveBeenCalledWith(db, {
+      session: SESSION,
+      context: 'manager_lead_view',
+      subjectIds: ['L1']
+    });
+  });
+
+  it('null-ветка: журнал не пишется', async () => {
+    const db = { lead: { findUnique: vi.fn().mockResolvedValue(null) } } as never;
+    await getManagerLead(db, SESSION, 'nope');
+    expect(recordPiiAccess).not.toHaveBeenCalled();
   });
 });
