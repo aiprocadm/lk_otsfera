@@ -94,6 +94,13 @@ describe('listPiiAccess', () => {
     });
   });
 
+  it('неизвестный реестру context → labelRu = сам context (fallback)', async () => {
+    const p = makePrisma([eventRow('ev1', { context: 'ghost_ctx', subjectType: 'student' })]);
+    const res = await listPiiAccess(p, ADMIN, {});
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.rows[0].labelRu).toBe('ghost_ctx');
+  });
+
   it('take зажимается в [1, 100]', async () => {
     const p = makePrisma();
     await listPiiAccess(p, ADMIN, { take: 5000 });

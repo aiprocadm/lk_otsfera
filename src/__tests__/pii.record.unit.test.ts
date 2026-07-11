@@ -68,6 +68,17 @@ describe('recordPiiAccess', () => {
     expect(data).not.toHaveProperty('meta');
   });
 
+  it('meta.cursor попадает в событие, когда передан', async () => {
+    const p = makePrisma();
+    await recordPiiAccess(p, {
+      session: MANAGER,
+      context: 'manager_students_list',
+      subjectIds: ['s1'],
+      meta: { cursor: true }
+    });
+    expect((p as any).piiAccessEvent.create.mock.calls[0][0].data.meta).toEqual({ cursor: true });
+  });
+
   it('no-op: флаг выключен', async () => {
     process.env.FEATURE_PII_ACCESS_LOG = '0';
     const p = makePrisma();
