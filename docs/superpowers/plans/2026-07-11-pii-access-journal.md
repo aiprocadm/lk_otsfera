@@ -1101,7 +1101,7 @@ git commit --no-verify -m "feat(pii): admin users — сигнатуры с sess
 **Files:**
 - Create: `src/__tests__/pii.capture-coverage.guardrail.test.ts`
 
-- [ ] **Step 1: Написать guardrail (по образцу worker.processor-coverage.guardrail.test.ts)**
+- [x] **Step 1: Написать guardrail (по образцу worker.processor-coverage.guardrail.test.ts)**
 
 ```ts
 // src/__tests__/pii.capture-coverage.guardrail.test.ts
@@ -1150,12 +1150,12 @@ describe('PII capture coverage guardrail', () => {
 });
 ```
 
-- [ ] **Step 2: Прогнать — должен пройти сразу**
+- [x] **Step 2: Прогнать — должен пройти сразу**
 
 Run: `npx vitest run --mode=unit src/__tests__/pii.capture-coverage.guardrail.test.ts`
 Expected: PASS. Если FAIL — какой-то из Tasks 6-11 не завершён; починить его, не тест.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/__tests__/pii.capture-coverage.guardrail.test.ts
@@ -1170,7 +1170,7 @@ git commit --no-verify -m "test(pii): guardrail полноты call-sites жур
 - Create: `src/lib/services/admin/piiAccess.ts`
 - Test: `src/__tests__/services.admin.piiAccess.test.ts`
 
-- [ ] **Step 1: Падающие unit-тесты**
+- [x] **Step 1: Падающие unit-тесты**
 
 ```ts
 // src/__tests__/services.admin.piiAccess.test.ts
@@ -1299,12 +1299,12 @@ describe('listPiiAccessFilters', () => {
 });
 ```
 
-- [ ] **Step 2: Убедиться, что падают**
+- [x] **Step 2: Убедиться, что падают**
 
 Run: `npx vitest run --mode=unit src/__tests__/services.admin.piiAccess.test.ts`
 Expected: FAIL — модуль не существует.
 
-- [ ] **Step 3: Реализовать сервис**
+- [x] **Step 3: Реализовать сервис**
 
 ```ts
 // src/lib/services/admin/piiAccess.ts
@@ -1473,12 +1473,12 @@ export async function listPiiAccessFilters(
 }
 ```
 
-- [ ] **Step 4: Прогнать тесты + typecheck**
+- [x] **Step 4: Прогнать тесты + typecheck**
 
 Run: `npx vitest run --mode=unit src/__tests__/services.admin.piiAccess.test.ts && npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/services/admin/piiAccess.ts src/__tests__/services.admin.piiAccess.test.ts
@@ -1495,7 +1495,7 @@ git commit --no-verify -m "feat(pii): admin-сервис listPiiAccess — ин�
 - Modify: `src/lib/navigation/cabinet.ts` (массив `navByRole.admin`, рядом с пунктом Аудит ~строка 36)
 - Test: `src/__tests__/components.pii-access-filters.test.tsx`, `src/__tests__/components.pii-access-table.test.tsx`, `src/__tests__/pages.admin-pii-access.test.tsx`, `src/__tests__/navigation.cabinet.test.ts` (если существует — добавить assert нового пункта; если нет — пропустить)
 
-- [ ] **Step 1: Компонент таблицы (по образцу audit-log-table.tsx)**
+- [x] **Step 1: Компонент таблицы (по образцу audit-log-table.tsx)**
 
 ```tsx
 // src/components/admin/pii-access-table.tsx
@@ -1559,7 +1559,7 @@ export function PiiAccessTable({ rows }: { rows: PiiAccessRow[] }) {
 }
 ```
 
-- [ ] **Step 2: Компонент фильтров (по образцу audit-log-filters.tsx; БЕЗ текстового поиска — только точные фильтры)**
+- [x] **Step 2: Компонент фильтров (по образцу audit-log-filters.tsx; БЕЗ текстового поиска — только точные фильтры)**
 
 ```tsx
 // src/components/admin/pii-access-filters.tsx
@@ -1653,7 +1653,7 @@ export function PiiAccessFilters({ contexts, subjectTypes, actors, current }: Pr
 
 (Инлайн-hex `#F97316`/`#EA580C` скопирован 1:1 из sibling `audit-log-filters.tsx` — консистентность с соседом; общий рефактор на примитив — вне scope.)
 
-- [ ] **Step 3: Тесты компонентов (renderToString-паттерн Phase 3, по образцу components.audit-*-тестов; если их нет — см. components.manager-students-table.test.tsx)**
+- [x] **Step 3: Тесты компонентов (renderToString-паттерн Phase 3, по образцу components.audit-*-тестов; если их нет — см. components.manager-students-table.test.tsx)**
 
 `components.pii-access-table.test.tsx`: пустой список → EmptyState; строки → имя актора, labelRu, «и ещё N» при subjectCount>5, «—» при actor=null.
 `components.pii-access-filters.test.tsx`: рендер всех фильтров; кнопка «Сбросить» видна только при активном фильтре.
@@ -1738,7 +1738,7 @@ describe('PiiAccessFilters', () => {
 Run: `npx vitest run --mode=unit src/__tests__/components.pii-access-table.test.tsx src/__tests__/components.pii-access-filters.test.tsx`
 Expected: сперва FAIL (нет компонентов) → после Step 1-2 PASS.
 
-- [ ] **Step 4: Страница**
+- [x] **Step 4: Страница**
 
 ```tsx
 // src/app/admin/pii-access/page.tsx
@@ -1845,7 +1845,7 @@ export default async function AdminPiiAccessPage({ searchParams }: { searchParam
 }
 ```
 
-- [ ] **Step 5: Nav-пункт**
+- [x] **Step 5: Nav-пункт**
 
 В `src/lib/navigation/cabinet.ts`, массив `admin`, после строки `{ href: '/admin/audit', label: 'Аудит', icon: '🧾', group: 'Операции' },`:
 
@@ -1855,7 +1855,7 @@ export default async function AdminPiiAccessPage({ searchParams }: { searchParam
 
 (Флагом НЕ гейтится — страница graceful при выключенной записи, спека §Флаг.)
 
-- [ ] **Step 6: Page-тест**
+- [x] **Step 6: Page-тест**
 
 ```tsx
 // src/__tests__/pages.admin-pii-access.test.tsx
@@ -1939,12 +1939,12 @@ describe('AdminPiiAccessPage', () => {
 });
 ```
 
-- [ ] **Step 7: Прогнать всё + typecheck + lint**
+- [x] **Step 7: Прогнать всё + typecheck + lint**
 
 Run: `npx vitest run --mode=unit src/__tests__/components.pii-access-table.test.tsx src/__tests__/components.pii-access-filters.test.tsx src/__tests__/pages.admin-pii-access.test.tsx && npm run typecheck && npm run lint`
 Expected: PASS, 0 warnings.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/components/admin/pii-access-filters.tsx src/components/admin/pii-access-table.tsx src/app/admin/pii-access src/lib/navigation/cabinet.ts src/__tests__/components.pii-access-table.test.tsx src/__tests__/components.pii-access-filters.test.tsx src/__tests__/pages.admin-pii-access.test.tsx
