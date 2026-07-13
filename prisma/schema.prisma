@@ -1263,6 +1263,7 @@ model InboundMessage {
   @@index([companyId, createdAt])
   @@index([resolvedOrgId, createdAt])
   @@index([channel, createdAt])
+  @@index([threadId])
 }
 
 // PR-B: телефония Mango — журнал звонков (входящих/исходящих).
@@ -1297,6 +1298,7 @@ model Call {
   @@index([companyId, createdAt])
   @@index([resolvedOrgId, createdAt])
   @@index([callerNumber, createdAt])
+  @@index([threadId])
 }
 
 /// M1 (спека 2026-07-14): внутренняя заметка по сделке (staff-only). Отдельная
