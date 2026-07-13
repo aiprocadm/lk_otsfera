@@ -1,5 +1,3 @@
-import type { NextConfig } from 'next';
-
 const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -17,7 +15,8 @@ const securityHeaders = [
   }
 ];
 
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   experimental: { serverActions: { bodySizeLimit: '10mb' } },
   // pino использует Node-API (streams/sonic-boom) — оставить внешним пакетом,
   // а не бандлить в серверный граф RSC.

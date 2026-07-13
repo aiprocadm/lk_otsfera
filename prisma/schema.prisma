@@ -1,5 +1,9 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // Alpine-рантайм (node:*-alpine) несёт OpenSSL 3.x; без явного musl-openssl-3.0.x
+  // таргета Prisma в минимальном образе не детектит openssl и откатывается на
+  // движок под openssl-1.1.x (нужен libssl.so.1.1, которого в Alpine 3.x нет).
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
