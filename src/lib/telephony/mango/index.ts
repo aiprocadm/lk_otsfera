@@ -5,6 +5,7 @@ export interface MangoAdapter {
   fetchRecording(recordingId: string): Promise<{ buffer: Buffer; contentType: string } | null>;
   requestStats(range: { from: string; to: string }): Promise<{ key: string }>;
   fetchStatsResult(key: string): Promise<{ ready: boolean; rows: unknown[] }>;
+  initiateCallback(input: { fromInternal: string; toNumber: string }): Promise<{ commandId: string }>;
 }
 
 let cached: MangoAdapter | null = null;

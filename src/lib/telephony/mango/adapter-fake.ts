@@ -24,6 +24,10 @@ export class FakeMangoAdapter implements MangoAdapter {
     void key;
     return { ready: true, rows: readStatsFixture() };
   }
+
+  async initiateCallback(input: { fromInternal: string; toNumber: string }): Promise<{ commandId: string }> {
+    return { commandId: `fake-cmd-${input.toNumber}` };
+  }
 }
 
 function readStatsFixture(): unknown[] {
