@@ -7,7 +7,7 @@ export type ActivityView = 'dialogue' | 'all';
 
 export type ActivityItem =
   | { kind: 'message_in'; id: string; at: Date; channel: string; sender: string; body: string; attachmentName: string | null }
-  | { kind: 'message_out'; id: string; at: Date; author: string; body: string }
+  | { kind: 'message_out'; id: string; at: Date; author: string; body: string; hasAttachment: boolean }
   | { kind: 'comment'; id: string; at: Date; author: string; body: string }
   | { kind: 'call'; id: string; at: Date; direction: string; number: string; durationSec: number | null; recordingReady: boolean; initiator: string | null }
   | { kind: 'note'; id: string; at: Date; author: string; body: string }
@@ -17,7 +17,7 @@ export type GetDealActivityResult =
   | { ok: true; items: ActivityItem[] }
   | { ok: false; error: 'not_found' };
 
-const DIALOGUE_KINDS = new Set(['message_in', 'message_out', 'comment']);
+const DIALOGUE_KINDS = new Set<ActivityItem['kind']>(['message_in', 'message_out', 'comment']);
 
 export async function getDealActivity(
   prisma: PrismaClient,
@@ -44,7 +44,7 @@ export async function getDealActivity(
     threadIds.length
       ? prisma.message.findMany({
           where: { threadId: { in: threadIds } },
-          select: { id: true, body: true, createdAt: true, author: { select: { name: true } } }
+          select: { id: true, body: true, createdAt: true, attachmentPath: true, author: { select: { name: true } } }
         })
       : Promise.resolve([]),
     threadIds.length
@@ -65,13 +65,13 @@ export async function getDealActivity(
     }),
     prisma.auditLog.findMany({
       where: { entity: 'order', entityId: orderId, action: 'order_status_changed' },
-      select: { id: true, createdAt: true, action: true }
+      select: { id: true, createdAt: true }
     })
   ]);
 
   const items: ActivityItem[] = [
     ...comments.map((c): ActivityItem => ({ kind: 'comment', id: c.id, at: c.createdAt, author: c.author.name, body: c.body })),
-    ...messages.map((m): ActivityItem => ({ kind: 'message_out', id: m.id, at: m.createdAt, author: m.author.name, body: m.body })),
+    ...messages.map((m): ActivityItem => ({ kind: 'message_out', id: m.id, at: m.createdAt, author: m.author.name, body: m.body, hasAttachment: m.attachmentPath !== null })),
     ...inbound.map((i): ActivityItem => ({ kind: 'message_in', id: i.id, at: i.sentAt ?? i.createdAt, channel: i.channel, sender: i.senderDisplay ?? i.senderRef, body: i.body, attachmentName: i.attachmentName })),
     ...calls.map((c): ActivityItem => ({ kind: 'call', id: c.id, at: c.startedAt ?? c.createdAt, direction: c.direction, number: c.callerNumber, durationSec: c.durationSec, recordingReady: c.recordingScanStatus === 'clean' && !!c.recordingPath, initiator: c.initiatedBy?.name ?? null })),
     ...notes.map((n): ActivityItem => ({ kind: 'note', id: n.id, at: n.createdAt, author: n.author.name, body: n.body })),
@@ -82,8 +82,8 @@ export async function getDealActivity(
 
   // Журнал ПДн (§12): читаем контакты клиента (отправители/абоненты) → фиксируем.
   const piiArgs: PiiAccessArgs[] = [];
-  if (inbound.length) piiArgs.push({ session, context: 'deal_activity_inbound', subjectIds: inbound.map((i) => i.id), meta: { take: inbound.length } });
-  if (calls.length) piiArgs.push({ session, context: 'deal_activity_calls', subjectIds: calls.map((c) => c.id), meta: { take: calls.length } });
+  if (inbound.length) piiArgs.push({ session, context: 'deal_activity_inbound', subjectIds: inbound.map((i) => i.id) });
+  if (calls.length) piiArgs.push({ session, context: 'deal_activity_calls', subjectIds: calls.map((c) => c.id) });
   if (piiArgs.length) await recordPiiAccessMany(prisma, piiArgs);
 
   const filtered = opts.view === 'dialogue' ? items.filter((i) => DIALOGUE_KINDS.has(i.kind)) : items;

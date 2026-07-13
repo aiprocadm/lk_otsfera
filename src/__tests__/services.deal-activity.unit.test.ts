@@ -57,8 +57,19 @@ it("view:'dialogue' excludes note/call/event", async () => {
   const prisma = fakePrisma({
     dealNote: { findMany: vi.fn().mockResolvedValue([
       { id: 'n1', body: 'x', createdAt: new Date(), author: { name: 'И' } }
+    ]) },
+    call: { findMany: vi.fn().mockResolvedValue([
+      { id: 'ca1', direction: 'inbound', callerNumber: '+70000000000', durationSec: 10,
+        startedAt: new Date(), createdAt: new Date(), recordingScanStatus: 'clean',
+        recordingPath: 'x', initiatedBy: null }
+    ]) },
+    auditLog: { findMany: vi.fn().mockResolvedValue([
+      { id: 'e1', createdAt: new Date() }
     ]) }
   });
+  // Sanity: view:'all' surfaces note+call+event, so their absence below is real exclusion.
+  const all = await getDealActivity(prisma, session, 'o1', { view: 'all' });
+  expect(all.ok && all.items.map((i) => i.kind).sort()).toEqual(['call', 'event', 'note']);
   const res = await getDealActivity(prisma, session, 'o1', { view: 'dialogue' });
   expect(res.ok && res.items.length).toBe(0);
 });
@@ -103,6 +114,30 @@ it('handles an order with no threads (skips thread-scoped queries)', async () =>
   expect(message.findMany).not.toHaveBeenCalled();
   expect(inboundMessage.findMany).not.toHaveBeenCalled();
   expect(call.findMany).not.toHaveBeenCalled();
+});
+
+it('maps outgoing messages with hasAttachment flag and status-change events', async () => {
+  getOrder.mockResolvedValue({ id: 'o1' });
+  const prisma = fakePrisma({
+    message: { findMany: vi.fn().mockResolvedValue([
+      { id: 'm1', body: 'без файла', createdAt: new Date('2026-07-13T06:00:00Z'),
+        attachmentPath: null, author: { name: 'Менеджер' } },
+      { id: 'm2', body: 'с файлом', createdAt: new Date('2026-07-13T06:30:00Z'),
+        attachmentPath: 'orders/o1/doc.pdf', author: { name: 'Менеджер' } }
+    ]) },
+    auditLog: { findMany: vi.fn().mockResolvedValue([
+      { id: 'e1', createdAt: new Date('2026-07-13T07:00:00Z') }
+    ]) }
+  });
+  const res = await getDealActivity(prisma, session, 'o1', { view: 'all' });
+  expect(res.ok).toBe(true);
+  if (!res.ok) return;
+  const m1 = res.items.find((i) => i.id === 'm1');
+  const m2 = res.items.find((i) => i.id === 'm2');
+  expect(m1).toMatchObject({ kind: 'message_out', hasAttachment: false, body: 'без файла' });
+  expect(m2).toMatchObject({ kind: 'message_out', hasAttachment: true, body: 'с файлом' });
+  const event = res.items.find((i) => i.kind === 'event');
+  expect(event).toMatchObject({ id: 'e1', label: 'Смена статуса заказа' });
 });
 
 it('maps a call with no startedAt, unscanned recording, and a known initiator', async () => {
