@@ -82,3 +82,45 @@ it('records PII access for inbound + calls (two contexts)', async () => {
   expect(argsList.map((a: { context: string }) => a.context).sort())
     .toEqual(['deal_activity_calls', 'deal_activity_inbound']);
 });
+
+it('handles an order with no threads (skips thread-scoped queries)', async () => {
+  getOrder.mockResolvedValue({ id: 'o1' });
+  const message = { findMany: vi.fn() };
+  const inboundMessage = { findMany: vi.fn() };
+  const call = { findMany: vi.fn() };
+  const prisma = fakePrisma({
+    orderThread: { findMany: vi.fn().mockResolvedValue([]) },
+    message, inboundMessage, call,
+    comment: { findMany: vi.fn().mockResolvedValue([
+      { id: 'cm1', body: 'привет', createdAt: new Date('2026-07-13T08:00:00Z'), author: { name: 'Клиент' } }
+    ]) }
+  });
+  const res = await getDealActivity(prisma, session, 'o1', { view: 'all' });
+  expect(res.ok).toBe(true);
+  if (!res.ok) return;
+  expect(res.items.map((i) => i.kind)).toEqual(['comment']);
+  // thread-scoped queries must NOT run when there are no threads
+  expect(message.findMany).not.toHaveBeenCalled();
+  expect(inboundMessage.findMany).not.toHaveBeenCalled();
+  expect(call.findMany).not.toHaveBeenCalled();
+});
+
+it('maps a call with no startedAt, unscanned recording, and a known initiator', async () => {
+  getOrder.mockResolvedValue({ id: 'o1' });
+  const prisma = fakePrisma({
+    call: { findMany: vi.fn().mockResolvedValue([
+      { id: 'ca2', direction: 'outbound', callerNumber: '+79990000000', durationSec: null,
+        startedAt: null, createdAt: new Date('2026-07-13T07:00:00Z'), recordingScanStatus: 'pending',
+        recordingPath: null, initiatedBy: { name: 'Менеджер' } }
+    ]) }
+  });
+  const res = await getDealActivity(prisma, session, 'o1', { view: 'all' });
+  expect(res.ok).toBe(true);
+  if (!res.ok) return;
+  const call = res.items.find((i) => i.kind === 'call');
+  expect(call).toMatchObject({
+    at: new Date('2026-07-13T07:00:00Z'), // startedAt null → falls back to createdAt
+    recordingReady: false, // scanStatus !== 'clean' short-circuits
+    initiator: 'Менеджер' // initiatedBy present → name, not null fallback
+  });
+});
