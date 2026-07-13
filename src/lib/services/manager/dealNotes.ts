@@ -12,7 +12,7 @@ export async function addDealNote(
   session: SessionPayload,
   args: { orderId: string; body: string }
 ): Promise<AddDealNoteResult> {
-  const body = args.body.trim();
+  const body = (args.body ?? '').trim();
   if (!body) return { ok: false, error: 'invalid' };
 
   const order = await getOrder(prisma, session, args.orderId);

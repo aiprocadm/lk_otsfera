@@ -16,6 +16,12 @@ it('rejects empty body as invalid', async () => {
   expect(res).toEqual({ ok: false, error: 'invalid' });
 });
 
+it('treats a missing body as invalid (no throw at the boundary)', async () => {
+  const prisma = { dealNote: { create: vi.fn() } } as never;
+  const res = await addDealNote(prisma, session, { orderId: 'o1', body: undefined as never });
+  expect(res).toEqual({ ok: false, error: 'invalid' });
+});
+
 it('returns not_found when order not visible', async () => {
   getOrder.mockResolvedValue(null);
   const prisma = { dealNote: { create: vi.fn() } } as never;
