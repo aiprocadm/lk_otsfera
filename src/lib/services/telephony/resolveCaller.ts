@@ -1,15 +1,9 @@
 import type { PrismaClient } from '@prisma/client';
-import { normalizePhone } from '@/lib/services/inbound/resolve';
+import { normalizePhoneCanonical } from '@/lib/phone/normalize';
 
-// RU-aware canonicalization: Mango often delivers Russian numbers in national
-// 8XXXXXXXXXX form; contacts are stored E.164 +7XXXXXXXXXX. Canonicalize a leading
-// domestic 8 (11 digits total) to +7 so resolution matches. Do NOT change the shared
-// normalizePhone (would ripple into WhatsApp); this canonicalization is telephony-local.
+/** @deprecated use normalizePhoneCanonical; kept as a thin alias (M2 unification). */
 export function canonicalizeRuPhone(raw: string): string {
-  const n = normalizePhone(raw); // '+<digits>'
-  const digits = n.replace(/^\+/, '');
-  if (digits.length === 11 && digits.startsWith('8')) return `+7${digits.slice(1)}`;
-  return n;
+  return normalizePhoneCanonical(raw);
 }
 
 export type CallerResolution =

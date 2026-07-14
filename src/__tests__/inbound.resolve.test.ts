@@ -31,7 +31,7 @@ describe('resolveInboundSender', () => {
 
   it('normalizePhone: строка без цифр → пустая строка', () => {
     expect(normalizePhone('---')).toBe('');
-    expect(normalizePhone('8 (999) 000-11-22')).toBe('+89990001122');
+    expect(normalizePhone('8 (999) 000-11-22')).toBe('+79990001122'); // canonicalized (M2 fix)
   });
 
   it('ambiguous (>1 user) → unresolved (never cross-bind)', async () => {

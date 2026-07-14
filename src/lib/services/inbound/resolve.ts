@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { normalizePhoneCanonical } from '@/lib/phone/normalize';
 
 export type ResolveInput = {
   channel: 'telegram' | 'max' | 'whatsapp' | 'email';
@@ -17,10 +18,9 @@ export type ResolveResult =
       threadId?: undefined;
     };
 
-/** E.164-нормализация: только цифры, ведущий '+'. */
+/** @deprecated use normalizePhoneCanonical; kept as a thin alias (M2 unification). */
 export function normalizePhone(raw: string): string {
-  const digits = raw.replace(/[^\d]/g, '');
-  return digits ? `+${digits}` : '';
+  return normalizePhoneCanonical(raw);
 }
 
 export async function resolveInboundSender(prisma: PrismaClient, input: ResolveInput): Promise<ResolveResult> {
