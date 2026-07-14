@@ -50,6 +50,7 @@ export function DealActivityThread({
 
   const visible = items.filter((item) => {
     if (!inboundEnabled && CHANNEL_KINDS.has(item.kind)) return false;
+    if (!telephonyEnabled && item.kind === 'call') return false;
     if (view === 'dialogue' && !DIALOGUE_KINDS.has(item.kind)) return false;
     return true;
   });
@@ -145,6 +146,7 @@ export function DealActivityThread({
               <form ref={callFormRef} action={call.formAction} className='flex flex-wrap items-center gap-2'>
                 <Input
                   name='toNumber'
+                  type='tel'
                   required
                   disabled={call.pending}
                   placeholder='Номер телефона'

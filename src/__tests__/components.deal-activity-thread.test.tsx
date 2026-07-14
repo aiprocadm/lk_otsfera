@@ -185,6 +185,18 @@ describe('DealActivityThread', () => {
     expect(screen.queryByRole('button', { name: 'Позвонить' })).toBeNull();
   });
 
+  it('telephonyEnabled=false: строки call скрыты даже во «Вся активность» (но comment/note видны)', () => {
+    render(
+      <DealActivityThread orderId='o1' items={allKindsItems()} inboundEnabled={true} telephonyEnabled={false} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Вся активность' }));
+
+    expect(screen.queryByText('+79990000000')).toBeNull();
+    expect(screen.queryByText('▶ запись')).toBeNull();
+    expect(screen.getByText('Комментарий заказчика')).toBeTruthy();
+    expect(screen.getByText('Внутренняя заметка для команды')).toBeTruthy();
+  });
+
   it('заметка: успешная отправка вызывает action, тост, refresh и сбрасывает форму', async () => {
     addDealNoteAction.mockResolvedValue({ ok: true, id: 'note-1' });
     render(

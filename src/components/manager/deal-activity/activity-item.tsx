@@ -122,7 +122,7 @@ export function ActivityItemView({ item }: { item: ActivityItem }) {
     case 'event':
       return (
         <li className='flex justify-center'>
-          <span className='text-xs text-gray-400'>
+          <span className='inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-xs text-gray-500'>
             {item.label} · {fmtDate(item.at)}
           </span>
         </li>

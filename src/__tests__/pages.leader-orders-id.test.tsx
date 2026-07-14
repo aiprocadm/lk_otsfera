@@ -14,11 +14,17 @@ vi.mock('@/lib/db/prisma', () => ({
 const { loadManagerOrderDetail } = vi.hoisted(() => ({ loadManagerOrderDetail: vi.fn() }));
 vi.mock('@/lib/services/manager/orderDetail', () => ({ loadManagerOrderDetail }));
 
+const { getDealActivity } = vi.hoisted(() => ({ getDealActivity: vi.fn() }));
+vi.mock('@/lib/services/manager/dealActivity', () => ({ getDealActivity }));
+
 const { listDirections } = vi.hoisted(() => ({ listDirections: vi.fn() }));
 vi.mock('@/lib/services/training', () => ({ listDirections }));
 
 const { getValuesForEntity } = vi.hoisted(() => ({ getValuesForEntity: vi.fn() }));
 vi.mock('@/lib/services/customFields', () => ({ getValuesForEntity }));
+
+const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
+vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
@@ -35,6 +41,9 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
     directions: unknown[];
     students: unknown[];
     customFields?: unknown[];
+    activityItems?: unknown[];
+    inboundEnabled?: boolean;
+    telephonyEnabled?: boolean;
   }) =>
     React.createElement(
       'div',
@@ -42,7 +51,10 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
       props.backHref,
       JSON.stringify(props.directions),
       JSON.stringify(props.students),
-      JSON.stringify(props.customFields)
+      JSON.stringify(props.customFields),
+      JSON.stringify(props.activityItems),
+      String(props.inboundEnabled),
+      String(props.telephonyEnabled)
     )
 }));
 
@@ -72,8 +84,10 @@ describe('LeaderOrderDetailPage', () => {
     requireManagerLeader.mockReset();
     studentFindMany.mockReset();
     loadManagerOrderDetail.mockReset();
+    getDealActivity.mockReset();
     listDirections.mockReset();
     getValuesForEntity.mockReset();
+    isFeatureEnabled.mockReset();
     nav.notFound.mockClear();
   });
 
@@ -88,9 +102,10 @@ describe('LeaderOrderDetailPage', () => {
     ).rejects.toThrow('NOT_FOUND');
 
     expect(listDirections).not.toHaveBeenCalled();
+    expect(getDealActivity).not.toHaveBeenCalled();
   });
 
-  it('renders the order detail view with a /leader/orders back link, using org-scoped students when organizationId is present', async () => {
+  it('renders the order detail view with a /leader/orders back link, using org-scoped students when organizationId is present, and wires the deal-activity feed with the leader session', async () => {
     requireManagerLeader.mockResolvedValue(SESSION);
     loadManagerOrderDetail.mockResolvedValue(BASE_DATA);
     listDirections.mockResolvedValue({ ok: true, directions: [{ id: 'd1', name: 'Направление' }] });
@@ -99,6 +114,11 @@ describe('LeaderOrderDetailPage', () => {
       ok: true,
       fields: [{ definition: { id: 'f1', key: 'k1', label: 'Поле', fieldType: 'text', options: null, required: false, sortOrder: 0 }, value: 'v' }]
     });
+    getDealActivity.mockResolvedValue({
+      ok: true,
+      items: [{ kind: 'event', id: 'e1', at: new Date('2026-01-01T00:00:00Z'), label: 'Смена статуса заказа' }]
+    });
+    isFeatureEnabled.mockImplementation((flag: string) => flag === 'telephony_mango');
 
     const { container } = await renderServerComponent(
       LeaderOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
@@ -117,12 +137,23 @@ describe('LeaderOrderDetailPage', () => {
       'order',
       'order-1'
     );
+    expect(getDealActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ student: expect.anything() }),
+      SESSION,
+      'order-1',
+      { view: 'all' }
+    );
+    expect(isFeatureEnabled).toHaveBeenCalledWith('inbound_messaging');
+    expect(isFeatureEnabled).toHaveBeenCalledWith('telephony_mango');
     expect(container.textContent).toContain('/leader/orders');
     expect(container.textContent).toContain('Направление');
     expect(container.textContent).toContain('Студент');
+    expect(container.textContent).toContain('"kind":"event"');
+    // inboundEnabled=false (only telephony_mango truthy), telephonyEnabled=true.
+    expect(container.textContent).toContain('falsetrue');
   });
 
-  it('falls back to directions:[] / customFields:[] when the results are ok:false, and organizationId:undefined when the order has none', async () => {
+  it('falls back to directions:[] / customFields:[] / activityItems:[] when the results are ok:false, both feature flags off, and organizationId:undefined when the order has none', async () => {
     requireManagerLeader.mockResolvedValue(SESSION);
     loadManagerOrderDetail.mockResolvedValue({
       ...BASE_DATA,
@@ -131,13 +162,16 @@ describe('LeaderOrderDetailPage', () => {
     listDirections.mockResolvedValue({ ok: false, error: 'forbidden' });
     studentFindMany.mockResolvedValue([]);
     getValuesForEntity.mockResolvedValue({ ok: false, error: 'not_found' });
+    getDealActivity.mockResolvedValue({ ok: false, error: 'not_found' });
+    isFeatureEnabled.mockReturnValue(false);
 
-    await renderServerComponent(
+    const { container } = await renderServerComponent(
       LeaderOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
     );
 
     expect(studentFindMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { organizationId: undefined } })
     );
+    expect(container.textContent).toContain('[]falsefalse');
   });
 });
