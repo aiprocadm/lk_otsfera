@@ -19,6 +19,11 @@ export type GetDealActivityResult =
 
 const DIALOGUE_KINDS = new Set<ActivityItem['kind']>(['message_in', 'message_out', 'comment']);
 
+// Защитный cap (CLAUDE.md close-out follow-up): курсорная пагинация отложена в M2,
+// но ни один источник не должен грузиться неограниченно. Берём последние N на источник —
+// финальная сортировка по `at` в памяти всё равно даёт oldest→newest.
+const ACTIVITY_SOURCE_CAP = 500;
+
 export async function getDealActivity(
   prisma: PrismaClient,
   session: SessionPayload,
@@ -39,33 +44,44 @@ export async function getDealActivity(
     prisma.comment.findMany({
       where: { orderId },
       select: { id: true, body: true, createdAt: true, author: { select: { name: true } } },
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: 'desc' },
+      take: ACTIVITY_SOURCE_CAP
     }),
     threadIds.length
       ? prisma.message.findMany({
           where: { threadId: { in: threadIds } },
-          select: { id: true, body: true, createdAt: true, attachmentPath: true, author: { select: { name: true } } }
+          select: { id: true, body: true, createdAt: true, attachmentPath: true, author: { select: { name: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: ACTIVITY_SOURCE_CAP
         })
       : Promise.resolve([]),
     threadIds.length
       ? prisma.inboundMessage.findMany({
           where: { threadId: { in: threadIds } },
-          select: { id: true, channel: true, senderDisplay: true, senderRef: true, body: true, sentAt: true, createdAt: true, attachmentName: true }
+          select: { id: true, channel: true, senderDisplay: true, senderRef: true, body: true, sentAt: true, createdAt: true, attachmentName: true },
+          orderBy: { createdAt: 'desc' },
+          take: ACTIVITY_SOURCE_CAP
         })
       : Promise.resolve([]),
     threadIds.length
       ? prisma.call.findMany({
           where: { threadId: { in: threadIds } },
-          select: { id: true, direction: true, callerNumber: true, durationSec: true, startedAt: true, createdAt: true, recordingScanStatus: true, recordingPath: true, initiatedBy: { select: { name: true } } }
+          select: { id: true, direction: true, callerNumber: true, durationSec: true, startedAt: true, createdAt: true, recordingScanStatus: true, recordingPath: true, initiatedBy: { select: { name: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: ACTIVITY_SOURCE_CAP
         })
       : Promise.resolve([]),
     prisma.dealNote.findMany({
       where: { orderId },
-      select: { id: true, body: true, createdAt: true, author: { select: { name: true } } }
+      select: { id: true, body: true, createdAt: true, author: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: ACTIVITY_SOURCE_CAP
     }),
     prisma.auditLog.findMany({
       where: { entity: 'order', entityId: orderId, action: 'order_status_changed' },
-      select: { id: true, createdAt: true }
+      select: { id: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: ACTIVITY_SOURCE_CAP
     })
   ]);
 

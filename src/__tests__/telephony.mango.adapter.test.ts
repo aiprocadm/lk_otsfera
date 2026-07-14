@@ -103,6 +103,20 @@ describe('FakeMangoAdapter', () => {
     const result = await adapter.fetchStatsResult('some-key');
     expect(result).toEqual({ ready: true, rows });
   });
+
+  it('initiateCallback resolves to an object with a string commandId', async () => {
+    const adapter = new FakeMangoAdapter();
+    const result = await adapter.initiateCallback({ fromInternal: '101', toNumber: '+70000000000' });
+    expect(typeof result.commandId).toBe('string');
+    expect(result.commandId).toBeTruthy();
+  });
+
+  it('initiateCallback returns a different commandId on each call for the same toNumber (no collision)', async () => {
+    const adapter = new FakeMangoAdapter();
+    const first = await adapter.initiateCallback({ fromInternal: '101', toNumber: '+70000000000' });
+    const second = await adapter.initiateCallback({ fromInternal: '101', toNumber: '+70000000000' });
+    expect(first.commandId).not.toBe(second.commandId);
+  });
 });
 
 describe('RestMangoAdapter', () => {
@@ -135,5 +149,12 @@ describe('RestMangoAdapter', () => {
     delete process.env.MANGO_API_KEY;
     delete process.env.MANGO_API_SALT;
     delete process.env.MANGO_VPBX_BASE_URL;
+  });
+
+  it('initiateCallback rejects with the "not wired yet" error (deliberate stub)', async () => {
+    const adapter = new RestMangoAdapter();
+    await expect(adapter.initiateCallback({ fromInternal: '101', toNumber: '+70000000000' })).rejects.toThrow(
+      'RestMangoAdapter.initiateCallback not wired yet (owner enables live callback)'
+    );
   });
 });
