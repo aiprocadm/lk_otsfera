@@ -60,4 +60,12 @@ export class RestMangoAdapter implements MangoAdapter {
     void this.config;
     throw new Error('Mango REST adapter not wired (set MANGO_ADAPTER=fake for tests)');
   }
+
+  // POST {MANGO_VPBX_BASE_URL}/commands/callback — signature as in the other calls.
+  // Response shape (command_id) confirmed against Mango docs at live wiring.
+  async initiateCallback(_input: { fromInternal: string; toNumber: string }): Promise<{ commandId: string }> {
+    void _input;
+    void this.config;
+    throw new Error('RestMangoAdapter.initiateCallback not wired yet (owner enables live callback)');
+  }
 }

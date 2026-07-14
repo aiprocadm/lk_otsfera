@@ -197,6 +197,8 @@ model User {
   taskAssignments              TaskAssignee[]        @relation("TaskAssignee")
   inboundMessages              InboundMessage[]      @relation("UserInbound")
   calls                        Call[]                @relation("UserCalls")
+  callsInitiated               Call[]                @relation("CallInitiator")
+  dealNotesAuthored            DealNote[]            @relation("DealNoteAuthor")
 }
 
 model PartnerUser {
@@ -764,6 +766,7 @@ model Order {
   threads            OrderThread[]
   items              OrderItem[]
   tasks              Task[]                    @relation("TaskLinkedOrder")
+  dealNotes          DealNote[]                @relation("OrderDealNotes")
 
   @@index([partnerId, executionStatus])
   @@index([partnerId, financialStatus])
@@ -1235,6 +1238,7 @@ model PaymentImportRow {
 model InboundMessage {
   id             String    @id @default(cuid())
   createdAt      DateTime  @default(now())
+  sentAt         DateTime?
   channel        String
   externalId     String    @unique
   senderRef      String
@@ -1263,13 +1267,14 @@ model InboundMessage {
   @@index([companyId, createdAt])
   @@index([resolvedOrgId, createdAt])
   @@index([channel, createdAt])
+  @@index([threadId])
 }
 
 // PR-B: телефония Mango — журнал звонков (входящих/исходящих).
 model Call {
-  id                  String   @id @default(cuid())
-  createdAt           DateTime @default(now())
-  provider            String   @default("mango")
+  id                  String    @id @default(cuid())
+  createdAt           DateTime  @default(now())
+  provider            String    @default("mango")
   externalId          String
   direction           String
   callerNumber        String
@@ -1281,9 +1286,11 @@ model Call {
   status              String
   recordingId         String?
   recordingPath       String?
-  recordingScanStatus String   @default("none")
+  recordingScanStatus String    @default("none")
   resolvedOrgId       String?
   resolvedUserId      String?
+  initiatedByUserId   String?
+  initiatedBy         User?     @relation("CallInitiator", fields: [initiatedByUserId], references: [id])
   threadId            String?
   companyId           String?
 
@@ -1295,4 +1302,22 @@ model Call {
   @@index([companyId, createdAt])
   @@index([resolvedOrgId, createdAt])
   @@index([callerNumber, createdAt])
+  @@index([threadId])
+}
+
+/// M1 (спека 2026-07-14): внутренняя заметка по сделке (staff-only). Отдельная
+/// таблица, а не флаг на Comment — у заметки НЕТ клиентского пути чтения, поэтому
+/// «клиент не видит» держится конструкцией (CLAUDE.md §5). Company-scope — через order.
+model DealNote {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orderId   String
+  order     Order    @relation("OrderDealNotes", fields: [orderId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("DealNoteAuthor", fields: [authorId], references: [id])
+  body      String
+
+  @@index([orderId, createdAt])
+  @@index([authorId])
 }

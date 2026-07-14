@@ -11,6 +11,22 @@ vi.mock('@/components/manager/manager-payments-list', () => ({ ManagerPaymentsLi
 vi.mock('@/components/partner/documents-list', () => ({ DocumentsList: () => null }));
 vi.mock('@/components/training/order-items-section', () => ({ OrderItemsSection: () => null }));
 vi.mock('@/components/orders/order-custom-fields', () => ({ OrderCustomFields: () => null }));
+vi.mock('@/components/manager/deal-activity/deal-activity-thread', () => ({
+  DealActivityThread: (props: {
+    orderId: string;
+    items: unknown[];
+    inboundEnabled: boolean;
+    telephonyEnabled: boolean;
+  }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'deal-activity-thread' },
+      props.orderId,
+      String(props.items.length),
+      String(props.inboundEnabled),
+      String(props.telephonyEnabled)
+    )
+}));
 
 import { ManagerOrderDetailView } from '@/components/manager/manager-order-detail-view';
 
@@ -72,53 +88,6 @@ describe('ManagerOrderDetailView', () => {
     expect(html).not.toContain('Документы<!-- --> <span');
   });
 
-  it('no comments: renders the "no comments yet" placeholder text', () => {
-    const html = renderToString(
-      React.createElement(ManagerOrderDetailView, {
-        data: makeData({ comments: [] }),
-        backHref: '/manager/orders',
-        directions: [],
-        students: []
-      })
-    );
-    expect(html).toContain('Комментариев пока нет');
-  });
-
-  it('with comments: renders count, author name, and body; falls back to email when name is null', () => {
-    const html = renderToString(
-      React.createElement(ManagerOrderDetailView, {
-        data: makeData({
-          comments: [
-            { id: 'c1', author: { name: 'Иван', email: 'ivan@x.com' }, body: 'Привет', createdAt: new Date('2026-01-01T10:00:00Z') },
-            { id: 'c2', author: { name: null, email: 'anon@x.com' }, body: 'Аноним', createdAt: new Date('2026-01-02T10:00:00Z') }
-          ]
-        }),
-        backHref: '/manager/orders',
-        directions: [],
-        students: []
-      })
-    );
-    expect(html).toContain('(<!-- -->2<!-- -->)');
-    expect(html).toContain('Иван');
-    expect(html).toContain('Привет');
-    expect(html).toContain('anon@x.com');
-    expect(html).toContain('Аноним');
-  });
-
-  it('comment author with both name and email null: avatar initial falls back to "?"', () => {
-    const html = renderToString(
-      React.createElement(ManagerOrderDetailView, {
-        data: makeData({
-          comments: [{ id: 'c1', author: { name: null, email: null }, body: 'X', createdAt: new Date('2026-01-01') }]
-        }),
-        backHref: '/manager/orders',
-        directions: [],
-        students: []
-      })
-    );
-    expect(html).toContain('>?<');
-  });
-
   it('threads customFields down to OrderCustomFields (default [] when omitted)', () => {
     const html = renderToString(
       React.createElement(ManagerOrderDetailView, {
@@ -129,5 +98,35 @@ describe('ManagerOrderDetailView', () => {
       })
     );
     expect(html).toContain('Все заказы');
+  });
+
+  it('DealActivityThread gets order.id and defaults (activityItems=[], inboundEnabled=false, telephonyEnabled=false) when omitted', () => {
+    const html = renderToString(
+      React.createElement(ManagerOrderDetailView, {
+        data: makeData({}),
+        backHref: '/manager/orders',
+        directions: [],
+        students: []
+      })
+    );
+    expect(html).toContain('data-testid="deal-activity-thread"');
+    expect(html).toContain('o1<!-- -->0<!-- -->false<!-- -->false');
+  });
+
+  it('DealActivityThread receives explicit activityItems/inboundEnabled/telephonyEnabled when passed', () => {
+    const html = renderToString(
+      React.createElement(ManagerOrderDetailView, {
+        data: makeData({}),
+        backHref: '/manager/orders',
+        directions: [],
+        students: [],
+        activityItems: [
+          { kind: 'event', id: 'e1', at: new Date('2026-01-01'), label: 'Смена статуса заказа' }
+        ],
+        inboundEnabled: true,
+        telephonyEnabled: true
+      })
+    );
+    expect(html).toContain('o1<!-- -->1<!-- -->true<!-- -->true');
   });
 });

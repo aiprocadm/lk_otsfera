@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { MangoAdapter } from './index';
 
 /**
@@ -23,6 +24,11 @@ export class FakeMangoAdapter implements MangoAdapter {
   async fetchStatsResult(key: string): Promise<{ ready: boolean; rows: unknown[] }> {
     void key;
     return { ready: true, rows: readStatsFixture() };
+  }
+
+  async initiateCallback(input: { fromInternal: string; toNumber: string }): Promise<{ commandId: string }> {
+    void input;
+    return { commandId: `fake-cmd-${randomUUID()}` };
   }
 }
 
