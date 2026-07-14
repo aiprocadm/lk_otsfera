@@ -30,7 +30,8 @@ export type AuditEntity =
   | 'funnel_stage'
   | 'task'
   | 'task_column'
-  | 'auth_2fa';
+  | 'auth_2fa'
+  | 'contact';
 
 export type AuditRecord = {
   userId: string;
