@@ -58,3 +58,28 @@ it('links to the org thread when one exists (threadId set) and tolerates none', 
   expect(res).toEqual({ ok: true, callId: 'ca2' });
   expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ threadId: null }) }));
 });
+
+it('returns call_failed when persisting the Call throws (e.g. P2002 collision)', async () => {
+  getOrder.mockResolvedValue({ id: 'o1', organizationId: 'org1', companyId: 'c1' });
+  initiateCallback.mockResolvedValue({ commandId: 'cmdDup' });
+  const create = vi.fn().mockRejectedValue(new Error('Unique constraint failed on Call_provider_externalId'));
+  const prisma = { orderThread: { findUnique: vi.fn().mockResolvedValue(null) }, call: { create } } as never;
+  const res = await initiateOutboundCall(prisma, session, { orderId: 'o1', toNumber: '+70000000000', fromInternal: '101' });
+  expect(res).toEqual({ ok: false, error: 'call_failed' });
+});
+
+it('maps a non-Error adapter rejection to call_failed', async () => {
+  getOrder.mockResolvedValue({ id: 'o1', organizationId: 'org1', companyId: 'c1' });
+  initiateCallback.mockRejectedValue('mango exploded'); // non-Error → exercises String(err)
+  const res = await initiateOutboundCall({} as never, session, { orderId: 'o1', toNumber: '+70000000000', fromInternal: '101' });
+  expect(res).toEqual({ ok: false, error: 'call_failed' });
+});
+
+it('maps a non-Error Call-persist rejection to call_failed (String(err) branch)', async () => {
+  getOrder.mockResolvedValue({ id: 'o1', organizationId: 'org1', companyId: 'c1' });
+  initiateCallback.mockResolvedValue({ commandId: 'cmdRaw' });
+  const create = vi.fn().mockRejectedValue('db exploded'); // non-Error on the persist path
+  const prisma = { orderThread: { findUnique: vi.fn().mockResolvedValue(null) }, call: { create } } as never;
+  const res = await initiateOutboundCall(prisma, session, { orderId: 'o1', toNumber: '+70000000000', fromInternal: '101' });
+  expect(res).toEqual({ ok: false, error: 'call_failed' });
+});

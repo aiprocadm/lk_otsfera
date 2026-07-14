@@ -34,23 +34,29 @@ export async function initiateOutboundCall(
     select: { id: true }
   });
 
-  const call = await prisma.call.create({
-    data: {
-      provider: 'mango',
-      externalId: `mango:cmd:${commandId}`,
-      direction: 'outbound',
-      status: 'initiated',
-      callerNumber: args.toNumber,
-      initiatedByUserId: session.sub,
-      resolvedOrgId: order.organizationId,
-      companyId: order.companyId,
-      threadId: thread?.id ?? null
-    },
-    select: { id: true }
-  });
+  let call;
+  try {
+    call = await prisma.call.create({
+      data: {
+        provider: 'mango',
+        externalId: `mango:cmd:${commandId}`,
+        direction: 'outbound',
+        status: 'initiated',
+        callerNumber: args.toNumber,
+        initiatedByUserId: session.sub,
+        resolvedOrgId: order.organizationId,
+        companyId: order.companyId,
+        threadId: thread?.id ?? null
+      },
+      select: { id: true }
+    });
+  } catch (err) {
+    log.warn('[telephony/initiateOutboundCall] call persist failed', { orderId: args.orderId, error: err instanceof Error ? err.message : String(err) });
+    return { ok: false, error: 'call_failed' };
+  }
 
   await recordAudit(prisma, { action: 'call_initiated', entity: 'order', entityId: args.orderId, userId: session.sub });
-  await writeSyncLog({ entity: 'call', direction: 'outbound', operation: 'create', status: 'success' });
+  await writeSyncLog({ entity: 'call', direction: 'outbound', operation: 'create', status: 'success', externalId: `mango:cmd:${commandId}` });
 
   return { ok: true, callId: call.id };
 }
