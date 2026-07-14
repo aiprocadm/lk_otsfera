@@ -3,8 +3,10 @@ import { notFound } from 'next/navigation';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { loadManagerOrderDetail } from '@/lib/services/manager/orderDetail';
+import { getDealActivity } from '@/lib/services/manager/dealActivity';
 import { listDirections } from '@/lib/services/training';
 import { getValuesForEntity } from '@/lib/services/customFields';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 import { ManagerOrderDetailView } from '@/components/manager/manager-order-detail-view';
 
 export default async function ManagerOrderDetailPage({
@@ -17,17 +19,21 @@ export default async function ManagerOrderDetailPage({
   const data = await loadManagerOrderDetail(prisma, session, id);
   if (!data) notFound();
 
-  const [directionsResult, students, customFieldsResult] = await Promise.all([
+  const [directionsResult, students, customFieldsResult, activity] = await Promise.all([
     listDirections(prisma, session),
     prisma.student.findMany({
       where: { organizationId: data.order.organizationId ?? undefined },
       select: { id: true, name: true, email: true },
       orderBy: { name: 'asc' }
     }),
-    getValuesForEntity(prisma, 'order', id)
+    getValuesForEntity(prisma, 'order', id),
+    getDealActivity(prisma, session, id, { view: 'all' })
   ]);
   const directions = directionsResult.ok ? directionsResult.directions : [];
   const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
+  const activityItems = activity.ok ? activity.items : [];
+  const inboundEnabled = isFeatureEnabled('inbound_messaging');
+  const telephonyEnabled = isFeatureEnabled('telephony_mango');
 
   return (
     <ManagerOrderDetailView
@@ -36,6 +42,9 @@ export default async function ManagerOrderDetailPage({
       directions={directions}
       students={students}
       customFields={customFields}
+      activityItems={activityItems}
+      inboundEnabled={inboundEnabled}
+      telephonyEnabled={telephonyEnabled}
     />
   );
 }

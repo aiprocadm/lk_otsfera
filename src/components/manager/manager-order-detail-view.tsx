@@ -8,8 +8,10 @@ import { ManagerPaymentsList } from '@/components/manager/manager-payments-list'
 import { DocumentsList } from '@/components/partner/documents-list';
 import { OrderItemsSection } from '@/components/training/order-items-section';
 import { OrderCustomFields } from '@/components/orders/order-custom-fields';
+import { DealActivityThread } from '@/components/manager/deal-activity/deal-activity-thread';
 import type { ManagerOrderDetailData } from '@/lib/services/manager/orderDetail';
 import type { FieldWithValue } from '@/lib/services/customFields';
+import type { ActivityItem } from '@/lib/services/manager/dealActivity';
 import type { TrainingDirection } from '@prisma/client';
 
 function fmtDateTime(d: Date): string {
@@ -29,13 +31,19 @@ export function ManagerOrderDetailView({
   backHref,
   directions,
   students,
-  customFields = []
+  customFields = [],
+  activityItems = [],
+  inboundEnabled = false,
+  telephonyEnabled = false
 }: {
   data: ManagerOrderDetailData;
   backHref: string;
   directions: TrainingDirection[];
   students: Student[];
   customFields?: FieldWithValue[];
+  activityItems?: ActivityItem[];
+  inboundEnabled?: boolean;
+  telephonyEnabled?: boolean;
 }) {
   const { order, auditEntries, comments, documentRows, items } = data;
 
@@ -75,6 +83,13 @@ export function ManagerOrderDetailView({
           />
 
           <OrderCustomFields fields={customFields} orderId={order.id} editable={true} />
+
+          <DealActivityThread
+            orderId={order.id}
+            items={activityItems}
+            inboundEnabled={inboundEnabled}
+            telephonyEnabled={telephonyEnabled}
+          />
 
           {/*
             Read-only comments fallback. Phase 8.4 (Task 25 introduces the manager
