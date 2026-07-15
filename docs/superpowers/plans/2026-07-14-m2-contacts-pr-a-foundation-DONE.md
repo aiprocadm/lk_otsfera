@@ -62,6 +62,7 @@
 - **Промоушен лида → `order.primaryContact`** (в `promoteLead`).
 - **PII-контексты** `manager_contacts_list`/`manager_contact_view` (PR-A не добавляет новую staff-поверхность чтения ПДн — триаж переиспользует `calls_list`/`inbox_list`-логирование).
 - **Полноценный пикер контактов** в inbox/триаже (PR-A: минимальное «создать из отправителя/номера»).
+- **Симметрия phone-like для входящих (найдено финальным ревью).** `resolveInboundSender` резолвит WhatsApp-отправителя по `type:'whatsapp'`, тогда как `resolveCaller` расширяет до `{phone,whatsapp}`. Контакт с номером, сохранённым только как `phone`-канал (напр. создан из триажа звонка), НЕ авто-свяжет входящий WhatsApp с того же номера → ручной триаж. Fail-safe (промах, не cross-tenant), но стоит выровнять в PR-B (phone-like и для входящих WhatsApp).
 
 Дальше по программе CRM-паритета: **M3** (аналитика). См. [[crm-parity-program]].
 
@@ -69,4 +70,5 @@
 
 - Отклонение задачи 11: `createContactFromInboundAction` вызывает server-action `bindInboundMessageAction` напрямую (двойной `requireManager` — безвредно, нет TOCTOU; чистый рефактор в отдельный сервис — вне объёма).
 - В ходе PR-A ветка стояла в изолированном worktree после того, как параллельная сессия перекинула основную папку на `main` посреди работы (восстановлено через reflog). См. [[concurrent-sessions-same-worktree]].
+- **Финальное холистическое ревью (opus, весь M2-дифф): VERDICT SHIP.** C8-аудит каждого write-пути (create/capture/bind/ingest/backfill) — чужая компания недостижима ни на одном; `resolveContactByChannel` exactly-one-or-null + инвариант `channel.companyId === contact.companyId` исключают cross-attribution. Non-blocking: phone-like симметрия входящих (см. §4).
 - **Не влито в main** — ждёт владельца (как M1). Мержить после M1.
