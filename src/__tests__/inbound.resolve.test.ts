@@ -80,6 +80,17 @@ describe('resolveInboundSender', () => {
     expect(d.user.findMany).not.toHaveBeenCalled();
   });
 
+  it('a resolved contact linked to a portal User surfaces that userId', async () => {
+    // Covers the `hit.userId ? { userId } : {}` true-leg on the contact-first path.
+    const d = {
+      contactChannel: { findMany: vi.fn(async () => [{ contact: { id: 'k7', organizationId: 'o7', companyId: 'c7', userId: 'u7', isArchived: false } }]) },
+      user: { findMany: vi.fn(async () => []) },
+    } as any;
+    const r = await resolveInboundSender(d, { channel: 'telegram', chatId: 'tg-7' });
+    expect(r).toMatchObject({ matchType: 'exact', orgId: 'o7', companyId: 'c7', contactId: 'k7', userId: 'u7' });
+    expect(d.user.findMany).not.toHaveBeenCalled();
+  });
+
   it('falls back to User when no contact channel matches', async () => {
     const d = {
       contactChannel: { findMany: vi.fn(async () => []) },

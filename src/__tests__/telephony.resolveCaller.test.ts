@@ -31,6 +31,34 @@ describe('resolveCaller', () => {
     expect(d.user.findMany).not.toHaveBeenCalled();
   });
 
+  it('org-less contact hit falls through to the User path (a call needs an org to resolve)', async () => {
+    // Contact matched by channel but not linked to an organization → cannot resolve
+    // the call on its own; resolution must fall through to User.whatsappPhone (mirrors
+    // the inbound org-less fall-through). Covers the `hit && hit.organizationId` false-leg.
+    const d = {
+      contactChannel: { findMany: vi.fn(async () => [{ contact: { id: 'k9', organizationId: null, companyId: 'c9', userId: null, isArchived: false } }]) },
+      user: { findMany: vi.fn(async () => [{ id: 'u1', organization: { id: 'o1', companyId: 'c1' } }]) },
+      lead: { findMany: vi.fn(async () => []) },
+    } as any;
+    const r = await resolveCaller(d, '+79990001122');
+    expect(r).toMatchObject({ matchType: 'exact', userId: 'u1', orgId: 'o1', companyId: 'c1' });
+    expect((r as any).contactId).toBeUndefined();
+    expect(d.user.findMany).toHaveBeenCalled();
+  });
+
+  it('a resolved contact linked to a portal User surfaces that userId', async () => {
+    // Covers the `hit.userId ? { userId } : {}` true-leg — a contact whose
+    // channel matched AND that is linked to a User row.
+    const d = {
+      contactChannel: { findMany: vi.fn(async () => [{ contact: { id: 'k7', organizationId: 'o7', companyId: 'c7', userId: 'u7', isArchived: false } }]) },
+      user: { findMany: vi.fn(async () => []) },
+      lead: { findMany: vi.fn(async () => []) },
+    } as any;
+    const r = await resolveCaller(d, '+79990001122');
+    expect(r).toMatchObject({ matchType: 'exact', orgId: 'o7', companyId: 'c7', contactId: 'k7', userId: 'u7' });
+    expect(d.user.findMany).not.toHaveBeenCalled();
+  });
+
   it('exact match on User.whatsappPhone → org+company', async () => {
     const u = { id: 'u1', organization: { id: 'o1', companyId: 'c1' } };
     const r = await resolveCaller(db([u]), '+79990001122');
