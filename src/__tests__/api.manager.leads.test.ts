@@ -91,6 +91,14 @@ describe('PATCH /api/manager/leads/[id]', () => {
     expect(await res.json()).toEqual({ error: 'lifecycle_violation' });
   });
 
+  it('maps invalid_manager → 400 (B1: невалидная цель передачи)', async () => {
+    vi.mocked(assignLead).mockResolvedValue({ ok: false, error: 'invalid_manager' } as never);
+    const res = await PATCH(patchReq({ action: 'assign', assignToUserId: 'u-bad' }), ctx('L1'));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'invalid_manager' });
+    expect(vi.mocked(assignLead)).toHaveBeenCalledWith({}, expect.objectContaining({ assignToUserId: 'u-bad' }));
+  });
+
   it('maps not_found → 404', async () => {
     vi.mocked(setLeadStatus).mockResolvedValue({ ok: false, error: 'not_found' } as never);
     const res = await PATCH(patchReq({ action: 'setStatus', status: 'qualified' }), ctx('Lx'));
