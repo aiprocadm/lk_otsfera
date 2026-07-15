@@ -197,8 +197,8 @@ describe('ManagerLeadActions (interactive, jsdom)', () => {
     expect(refresh).toHaveBeenCalled();
   });
 
-  it('non-ok response with json error body: toasts the error message', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({ error: 'bad_request' }) });
+  it('non-ok response with a code from the central map: toasts the russian errorMessageRu text', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 409, json: async () => ({ error: 'lifecycle_violation' }) });
     vi.stubGlobal('fetch', fetchMock);
 
     render(
@@ -211,7 +211,25 @@ describe('ManagerLeadActions (interactive, jsdom)', () => {
     );
     fireEvent.click(screen.getByText('Взять в работу'));
 
-    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось выполнить действие: bad_request'));
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Недопустимый переход статуса.'));
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('non-ok response with an unknown code: falls back to the generic message with the raw code', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({ error: 'unknown_code_xyz' }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      React.createElement(ManagerLeadActions, {
+        leadId: 'l1',
+        status: 'new',
+        hasOrganization: true,
+        promotedOrderId: null
+      })
+    );
+    fireEvent.click(screen.getByText('Взять в работу'));
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось выполнить действие: unknown_code_xyz'));
     expect(toastSuccess).not.toHaveBeenCalled();
   });
 
@@ -392,7 +410,7 @@ describe('ManagerLeadActions (interactive, jsdom)', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('invalid_manager от бэкенда: тост «Выбранный менеджер недоступен»', async () => {
+  it('invalid_manager от бэкенда: тост «Выбранный менеджер недоступен», выбор в селекте сохраняется', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({ error: 'invalid_manager' }) });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -405,12 +423,36 @@ describe('ManagerLeadActions (interactive, jsdom)', () => {
         candidates: [{ id: 'm2', name: 'Мария', email: 'm@x.ru' }]
       })
     );
-    fireEvent.change(screen.getByLabelText('Менеджер для передачи заявки'), { target: { value: 'm2' } });
+    const select = screen.getByLabelText('Менеджер для передачи заявки') as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: 'm2' } });
     fireEvent.click(screen.getByText('Передать'));
 
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Выбранный менеджер недоступен'));
     expect(toastSuccess).not.toHaveBeenCalled();
     expect(refresh).not.toHaveBeenCalled();
+    expect(select.value).toBe('m2');
+  });
+
+  it('после успешной передачи селект сброшен и «Передать» снова disabled', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      React.createElement(ManagerLeadActions, {
+        leadId: 'l1',
+        status: 'new',
+        hasOrganization: true,
+        promotedOrderId: null,
+        candidates: [{ id: 'm2', name: 'Мария', email: 'm@x.ru' }]
+      })
+    );
+    const select = screen.getByLabelText('Менеджер для передачи заявки') as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: 'm2' } });
+    fireEvent.click(screen.getByText('Передать'));
+
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Заявка передана менеджеру'));
+    await waitFor(() => expect(select.value).toBe(''));
+    expect((screen.getByText('Передать').closest('button') as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('"Преобразовать в заказ" sends promote action', async () => {

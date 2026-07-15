@@ -5,9 +5,20 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button, Select } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
+import { errorMessageRu } from '@/lib/errors/messages';
 import type { LeadStatus } from '@prisma/client';
 
 type Candidate = { id: string; name: string; email: string };
+
+// Дельты поверх errorMessageRu (контекст передачи заявки конкретному менеджеру).
+const ERROR_LABELS: Record<string, string> = {
+  invalid_manager: 'Выбранный менеджер недоступен'
+};
+
+function patchErrorText(code: string | undefined, status: number): string {
+  if (!code) return `Не удалось выполнить действие: ${status}`;
+  return ERROR_LABELS[code] ?? errorMessageRu(code, `Не удалось выполнить действие: ${code}`);
+}
 
 type Props = {
   leadId: string;
@@ -22,7 +33,7 @@ export function ManagerLeadActions({ leadId, status, hasOrganization, promotedOr
   const [busy, setBusy] = useState(false);
   const [assignTo, setAssignTo] = useState('');
 
-  async function run(body: Record<string, unknown>, successMsg: string) {
+  async function run(body: Record<string, unknown>, successMsg: string): Promise<boolean> {
     setBusy(true);
     try {
       const res = await fetch(`/api/manager/leads/${leadId}`, {
@@ -32,17 +43,15 @@ export function ManagerLeadActions({ leadId, status, hasOrganization, promotedOr
       });
       if (!res.ok) {
         const e = (await res.json().catch(() => ({}))) as { error?: string };
-        toast.error(
-          e.error === 'invalid_manager'
-            ? 'Выбранный менеджер недоступен'
-            : `Не удалось выполнить действие: ${e.error ?? res.status}`
-        );
-        return;
+        toast.error(patchErrorText(e.error, res.status));
+        return false;
       }
       toast.success(successMsg);
       router.refresh();
+      return true;
     } catch {
       toast.error('Сетевая ошибка');
+      return false;
     } finally {
       setBusy(false);
     }
@@ -126,7 +135,9 @@ export function ManagerLeadActions({ leadId, status, hasOrganization, promotedOr
             variant='secondary'
             loading={busy}
             disabled={!assignTo}
-            onClick={() => run({ action: 'assign', assignToUserId: assignTo }, 'Заявка передана менеджеру')}
+            onClick={async () => {
+              if (await run({ action: 'assign', assignToUserId: assignTo }, 'Заявка передана менеджеру')) setAssignTo('');
+            }}
           >
             Передать
           </Button>
