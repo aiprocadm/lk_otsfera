@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { getManagerLead } from '@/lib/services/manager/leads';
+import { listCompanyManagers } from '@/lib/services/manager/team';
 import { LeadStatusBadge } from '@/components/partner/lead-status-badge';
 import { ManagerLeadActions } from '@/components/manager/manager-lead-actions';
 import { fmtMoney } from '@/lib/format';
@@ -15,6 +16,12 @@ export default async function ManagerLeadDetailPage({ params }: { params: Promis
   const { id } = await params;
   const lead = await getManagerLead(prisma, session, id);
   if (!lead) notFound();
+
+  const candidates = session.companyId
+    ? (await listCompanyManagers(prisma, session.companyId))
+        .filter((m) => m.isActive && m.id !== session.sub)
+        .map((m) => ({ id: m.id, name: m.name, email: m.email }))
+    : [];
 
   const rows: Array<[string, string]> = [
     ['Партнёр', lead.partnerName],
@@ -47,6 +54,7 @@ export default async function ManagerLeadDetailPage({ params }: { params: Promis
           status={lead.status}
           hasOrganization={lead.organizationId !== null}
           promotedOrderId={lead.promotedOrderId}
+          candidates={candidates}
         />
         {lead.organizationId === null && lead.status !== 'promoted_to_order' && lead.status !== 'rejected' && (
           <p className='text-xs text-gray-500 mt-2'>
