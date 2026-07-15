@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import type { PrismaClient, ContactChannelType } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { getCompanyTeamVisibility, isOrgInScope } from '@/lib/auth/managerPolicy';
 import { normalizeChannelValue } from '@/lib/services/contacts/resolveContactByChannel';
 import { recordAudit } from '@/lib/auth/audit';
 
@@ -22,6 +23,21 @@ export async function createContact(
   if (!session.companyId) return { ok: false, error: 'forbidden' };
   const name = args.name.trim();
   if (!name) return { ok: false, error: 'invalid' };
+
+  // C8 defense-in-depth (CLAUDE.md §4 layer 3): validate the target org belongs
+  // to the session's company AND is in the manager's bind-scope BEFORE persisting.
+  // Without this, a caller passing a foreign company's org (e.g.
+  // createContactFromCallAction) would orphan a Contact{companyId:A,
+  // organizationId:B} before any action-level check runs. Mirrors bindCall's gate.
+  if (args.organizationId) {
+    const org = await prisma.organization.findUnique({
+      where: { id: args.organizationId },
+      select: { companyId: true },
+    });
+    if (!org || org.companyId !== session.companyId) return { ok: false, error: 'forbidden' };
+    const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+    if (!teamMode && !isOrgInScope(session, args.organizationId)) return { ok: false, error: 'forbidden' };
+  }
 
   // isPrimary is assigned AFTER filtering out channels that normalize to '' so the
   // first SURVIVING channel is primary — otherwise a leading empty channel would

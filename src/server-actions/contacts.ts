@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { requireManager } from '@/lib/auth/requireRole';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { bindCall, type BindCallArgs, type BindCallResult } from '@/lib/services/telephony/bindCall';
-import { createContact, type CreateContactResult } from '@/lib/services/manager/contacts';
+import { createContact } from '@/lib/services/manager/contacts';
 
 /**
  * Thin adapter over `bindCall` (src/lib/services/telephony/bindCall.ts) — binds
@@ -29,10 +29,14 @@ export type CreateContactFromCallArgs = {
  * it. `createContact` writes the phone as the contact's primary channel, so
  * `bindCall`'s learn-on-link capture is a no-op for this number — it's already
  * there.
+ *
+ * A bind failure is surfaced (e.g. `'not_found'` if the call vanished): the
+ * created contact is itself valid and org-scoped, so no rollback is needed, but
+ * the caller must know the CALL wasn't attributed.
  */
 export async function createContactFromCallAction(
   args: CreateContactFromCallArgs
-): Promise<CreateContactResult> {
+): Promise<{ ok: true; contactId: string } | { ok: false; error: 'forbidden' | 'invalid' | 'not_found' }> {
   if (notFoundIfDisabled('contacts')) return { ok: false, error: 'forbidden' };
   const session = await requireManager();
   const created = await createContact(prisma, session, {
@@ -41,10 +45,11 @@ export async function createContactFromCallAction(
     channels: [{ type: 'phone', value: args.phone }]
   });
   if (!created.ok) return created;
-  await bindCall(prisma, session, {
+  const bound = await bindCall(prisma, session, {
     callId: args.callId,
     organizationId: args.organizationId,
     contactId: created.contactId
   });
+  if (!bound.ok) return { ok: false, error: bound.error };
   return created;
 }

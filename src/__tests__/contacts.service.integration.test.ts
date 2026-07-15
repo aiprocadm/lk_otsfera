@@ -5,7 +5,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 
 const prisma = new PrismaClient();
 const STAMP = `m2cs${Date.now()}`;
-const session = (companyId: string): SessionPayload => ({ sub: 'mgr1', role: 'manager', companyId, managedOrgIds: [] } as any);
+const session = (companyId: string, managedOrgIds: string[] = []): SessionPayload => ({ sub: 'mgr1', role: 'manager', companyId, managedOrgIds } as any);
 
 // createContact writes an audit row (AuditLog.userId → User FK) and sets
 // Contact.createdById (also a real FK) to session.sub — 'mgr1' must exist as
@@ -65,6 +65,45 @@ describe('contacts service', () => {
   it('createContact rejects a session without companyId', async () => {
     const r = await createContact(prisma, session(null as any), { name: `${STAMP}-x`, channels: [] });
     expect(r).toEqual({ ok: false, error: 'forbidden' });
+  });
+
+  it('createContact (C8): refuses an organizationId belonging to ANOTHER company — no row persisted', async () => {
+    const coA = await prisma.company.create({ data: { name: `${STAMP}-scA` } });
+    const coB = await prisma.company.create({ data: { name: `${STAMP}-scB` } });
+    const orgB = await prisma.organization.create({ data: { name: `${STAMP}-scOrgB`, companyId: coB.id } });
+    // Session in company A, but with orgB in managedOrgIds (cross-company assignment
+    // must NOT bypass the company floor — the IDOR the gate closes).
+    const r = await createContact(prisma, session(coA.id, [orgB.id]), {
+      name: `${STAMP}-scForeign`, organizationId: orgB.id, channels: [],
+    });
+    expect(r).toEqual({ ok: false, error: 'forbidden' });
+    const persisted = await prisma.contact.findFirst({ where: { name: `${STAMP}-scForeign` } });
+    expect(persisted).toBeNull();
+  });
+
+  it('createContact: refuses an in-company org NOT in managedOrgIds when teamMode is OFF', async () => {
+    // Fresh company → managerTeamVisibility defaults to false (teamMode OFF).
+    const co = await prisma.company.create({ data: { name: `${STAMP}-scGateCo` } });
+    const org = await prisma.organization.create({ data: { name: `${STAMP}-scGateOrg`, companyId: co.id } });
+    const r = await createContact(prisma, session(co.id, []), {
+      name: `${STAMP}-scGate`, organizationId: org.id, channels: [],
+    });
+    expect(r).toEqual({ ok: false, error: 'forbidden' });
+    const persisted = await prisma.contact.findFirst({ where: { name: `${STAMP}-scGate` } });
+    expect(persisted).toBeNull();
+  });
+
+  it('createContact: allows an in-company org that IS in managedOrgIds', async () => {
+    const co = await prisma.company.create({ data: { name: `${STAMP}-scOkCo` } });
+    const org = await prisma.organization.create({ data: { name: `${STAMP}-scOkOrg`, companyId: co.id } });
+    const r = await createContact(prisma, session(co.id, [org.id]), {
+      name: `${STAMP}-scOk`, organizationId: org.id, channels: [],
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const row = await prisma.contact.findUnique({ where: { id: r.contactId } });
+    expect(row?.companyId).toBe(co.id);
+    expect(row?.organizationId).toBe(org.id);
   });
 
   it('captureChannel is idempotent and de-dupes on (company,type,normalizedValue)', async () => {

@@ -29,4 +29,14 @@ describe('contacts server-actions', () => {
     expect(createContact).toHaveBeenCalledWith({}, expect.anything(), expect.objectContaining({ name: 'Иван', organizationId: 'o1', channels: [{ type: 'phone', value: '+79990001122' }] }));
     expect(bindCall).toHaveBeenCalledWith({}, expect.anything(), { callId: 'call1', organizationId: 'o1', contactId: 'k9' });
   });
+
+  it('createContactFromCallAction surfaces a bind failure (call not_found) even though createContact succeeded', async () => {
+    createContact.mockResolvedValue({ ok: true, contactId: 'k9' });
+    bindCall.mockResolvedValue({ ok: false, error: 'not_found' });
+    const r = await createContactFromCallAction({ callId: 'gone', organizationId: 'o1', name: 'Иван', phone: '+79990001122' });
+    expect(r).toEqual({ ok: false, error: 'not_found' });
+    // The contact WAS created (valid + org-scoped); only the call binding failed.
+    expect(createContact).toHaveBeenCalledTimes(1);
+    expect(bindCall).toHaveBeenCalledWith({}, expect.anything(), { callId: 'gone', organizationId: 'o1', contactId: 'k9' });
+  });
 });
