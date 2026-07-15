@@ -4,8 +4,12 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('@/components/manager/inbox-bind-form', () => ({
-  InboxBindForm: (props: { inboundMessageId: string; organizations: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'bind-form' }, `bind:${props.inboundMessageId}:orgs=${props.organizations.length}`)
+  InboxBindForm: (props: { inboundMessageId: string; organizations: unknown[]; contactsEnabled?: boolean }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'bind-form' },
+      `bind:${props.inboundMessageId}:orgs=${props.organizations.length}:contacts=${String(props.contactsEnabled)}`
+    )
 }));
 vi.mock('@/components/manager/inbox-reply-form', () => ({
   InboxReplyForm: (props: { inboundMessageId: string }) =>
@@ -40,9 +44,14 @@ describe('InboxList', () => {
 
   it('unresolved → форма привязки с организациями', () => {
     const html = renderToString(<InboxList items={[base]} organizations={ORGS} />);
-    expect(html).toContain('bind:msg-1:orgs=1');
+    expect(html).toContain('bind:msg-1:orgs=1:contacts=false');
     expect(html).toContain('Не распознано');
     expect(html).toContain('Вася');
+  });
+
+  it('contactsEnabled=true прокидывается в InboxBindForm (Task 11)', () => {
+    const html = renderToString(<InboxList items={[base]} organizations={ORGS} contactsEnabled />);
+    expect(html).toContain('bind:msg-1:orgs=1:contacts=true');
   });
 
   it('bound → форма ответа; archived → тире без формы', () => {
