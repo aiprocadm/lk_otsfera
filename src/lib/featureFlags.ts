@@ -36,9 +36,9 @@ export const FEATURE_FLAGS = [
   'sales_funnel',
   // Трек G3: внутренние задачи / канбан. Гейтит /manager/tasks + /leader/tasks.
   'internal_tasks',
-  // PR-A: омниканальный инбокс. Гейтит /manager/inbox (экран придёт отдельной задачей).
+  // PR-A: омниканальный инбокс. Гейтит /manager/inbox (экран построен: src/app/manager/inbox).
   'inbound_messaging',
-  // PR-B: телефония Mango. Гейтит /manager/calls (экран придёт отдельной задачей).
+  // PR-B: телефония Mango. Гейтит /manager/calls (экран построен: src/app/manager/calls).
   'telephony_mango',
   // 2FA сотрудников (email-код). Поведенческий флаг (не route): точки чтения —
   // login/verify/resend-роуты + секция настроек. Спека 2026-07-11-staff-2fa.
