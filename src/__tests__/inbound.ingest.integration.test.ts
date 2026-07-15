@@ -54,6 +54,35 @@ describe('ingestInboundMessage', () => {
     }
   });
 
+  it('contact channel match (M2) → status bound + contactId persisted, no User row needed', async () => {
+    const stamp = Date.now();
+    const company = await prisma.company.create({ data: { name: `inb-kco-${stamp}` } });
+    const org = await prisma.organization.create({ data: { name: `inb-korg-${stamp}`, companyId: company.id } });
+    const contact = await prisma.contact.create({
+      data: {
+        companyId: company.id,
+        organizationId: org.id,
+        name: `inb-contact-${stamp}`,
+        channels: { create: [{ companyId: company.id, type: 'telegram', value: `tgc-k-${stamp}`, normalizedValue: `tgc-k-${stamp}` }] },
+      },
+    });
+    try {
+      const r = await ingestInboundMessage(prisma, { channel: 'telegram', externalId: `tg:test:contact:${stamp}`, senderRef: `tgc-k-${stamp}`, body: 'hi from contact' });
+      expect(r.ok).toBe(true);
+      const row = await prisma.inboundMessage.findUnique({ where: { externalId: `tg:test:contact:${stamp}` } });
+      expect(row?.status).toBe('bound');
+      expect(row?.contactId).toBe(contact.id);
+      expect(row?.resolvedOrgId).toBe(org.id);
+      expect(row?.companyId).toBe(company.id);
+    } finally {
+      await prisma.inboundMessage.deleteMany({ where: { externalId: `tg:test:contact:${stamp}` } });
+      await prisma.contactChannel.deleteMany({ where: { contactId: contact.id } });
+      await prisma.contact.delete({ where: { id: contact.id } });
+      await prisma.organization.delete({ where: { id: org.id } });
+      await prisma.company.delete({ where: { id: company.id } });
+    }
+  });
+
   it('concurrent duplicate delivery → single row (race handled, no throw)', async () => {
     const dto = { channel: 'telegram' as const, externalId: 'tg:test:race', senderRef: '888', body: 'race' };
     const [a, b] = await Promise.all([ingestInboundMessage(prisma, dto), ingestInboundMessage(prisma, dto)]);
@@ -134,6 +163,7 @@ describe('ingestInboundMessage', () => {
         findUnique: vi.fn().mockResolvedValue(null), // и предчек, и пост-гоночный поиск
         create: vi.fn().mockRejectedValue(p2002),
       },
+      contactChannel: { findMany: vi.fn().mockResolvedValue([]) },
       user: { findMany: vi.fn().mockResolvedValue([]) },
       syncLog: { create: vi.fn().mockResolvedValue({}) },
     } as unknown as PrismaClient;
@@ -169,6 +199,7 @@ describe('ingestInboundMessage', () => {
         findUnique: vi.fn().mockResolvedValue(null),
         create: vi.fn().mockRejectedValue(new Error('db exploded')),
       },
+      contactChannel: { findMany: vi.fn().mockResolvedValue([]) },
       user: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
 

@@ -1,5 +1,6 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, ContactChannelType } from '@prisma/client';
 import { normalizePhoneCanonical } from '@/lib/phone/normalize';
+import { resolveContactByChannel } from '@/lib/services/contacts/resolveContactByChannel';
 
 export type ResolveInput = {
   channel: 'telegram' | 'max' | 'whatsapp' | 'email';
@@ -8,12 +9,21 @@ export type ResolveInput = {
   email?: string;
 };
 export type ResolveResult =
-  | { matchType: 'exact'; userId: string; orgId: string; companyId: string; orderId?: string; threadId?: string }
+  | {
+      matchType: 'exact';
+      userId?: string;
+      orgId: string;
+      companyId: string;
+      contactId?: string;
+      orderId?: string;
+      threadId?: string;
+    }
   | {
       matchType: 'unresolved';
       userId?: undefined;
       orgId?: undefined;
       companyId?: undefined;
+      contactId?: undefined;
       orderId?: undefined;
       threadId?: undefined;
     };
@@ -23,7 +33,32 @@ export function normalizePhone(raw: string): string {
   return normalizePhoneCanonical(raw);
 }
 
+const CHANNEL_TYPE: Record<ResolveInput['channel'], ContactChannelType> = {
+  telegram: 'telegram',
+  max: 'max',
+  whatsapp: 'whatsapp',
+  email: 'email',
+};
+
 export async function resolveInboundSender(prisma: PrismaClient, input: ResolveInput): Promise<ResolveResult> {
+  // 1) Contact-first: prefer a ContactChannel match over the legacy User exact-match.
+  // An org-less contact hit does NOT short-circuit — inbound needs an org to bind, so
+  // it falls through to the User path below.
+  const value = input.chatId ?? input.phone ?? input.email;
+  if (value) {
+    const hit = await resolveContactByChannel(prisma, { type: CHANNEL_TYPE[input.channel], value });
+    if (hit && hit.organizationId) {
+      return {
+        matchType: 'exact',
+        orgId: hit.organizationId,
+        companyId: hit.companyId,
+        contactId: hit.contactId,
+        ...(hit.userId ? { userId: hit.userId } : {}),
+      };
+    }
+  }
+
+  // 2) Existing User exact-match fallback (unchanged).
   const where: Record<string, unknown> = {};
   if (input.channel === 'telegram' && input.chatId) where.telegramChatId = input.chatId;
   else if (input.channel === 'max' && input.chatId) where.maxChatId = input.chatId;
@@ -39,5 +74,5 @@ export async function resolveInboundSender(prisma: PrismaClient, input: ResolveI
   if (users.length !== 1) return { matchType: 'unresolved' };
   const u = users[0];
   if (!u.organization?.id || !u.organization.companyId) return { matchType: 'unresolved' };
-  return { matchType: 'exact', userId: u.id, orgId: u.organization.id, companyId: u.organization.companyId };
+  return { matchType: 'exact', userId: u.id, orgId: u.organization.id, companyId: u.organization.companyId, contactId: undefined };
 }
