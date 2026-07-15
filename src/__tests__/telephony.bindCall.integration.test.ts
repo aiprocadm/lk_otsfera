@@ -5,7 +5,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 
 const prisma = new PrismaClient();
 const STAMP = `m2bc${Date.now()}`;
-const session = (companyId: string): SessionPayload => ({ sub: 'mgr1', role: 'manager', companyId, managedOrgIds: [] } as any);
+const session = (companyId: string, managedOrgIds: string[] = []): SessionPayload => ({ sub: 'mgr1', role: 'manager', companyId, managedOrgIds } as any);
 
 // bindCall writes an audit row (AuditLog.userId → User FK) to session.sub —
 // 'mgr1' must exist as a real row, same pattern as
@@ -38,7 +38,7 @@ describe('bindCall', () => {
     const contact = await prisma.contact.create({ data: { companyId: co.id, organizationId: org.id, name: `${STAMP}-Ivan` } });
     const call = await prisma.call.create({ data: { provider: 'mango', externalId: `${STAMP}:c1`, direction: 'inbound', callerNumber: '8 (999) 000-88-77', status: 'completed' } });
 
-    const r = await bindCall(prisma, session(co.id), { callId: call.id, organizationId: org.id, contactId: contact.id });
+    const r = await bindCall(prisma, session(co.id, [org.id]), { callId: call.id, organizationId: org.id, contactId: contact.id });
     expect(r.ok).toBe(true);
     const row = await prisma.call.findUnique({ where: { id: call.id } });
     expect(row?.resolvedOrgId).toBe(org.id);
@@ -55,5 +55,19 @@ describe('bindCall', () => {
     const call = await prisma.call.create({ data: { provider: 'mango', externalId: `${STAMP}:c2`, direction: 'inbound', callerNumber: '+79990001111', status: 'completed' } });
     const r = await bindCall(prisma, session(coA.id), { callId: call.id, organizationId: orgB.id });
     expect(r).toEqual({ ok: false, error: 'forbidden' });
+  });
+
+  it('bind-authority: refuses when teamMode is OFF and the target org is NOT in the manager managedOrgIds (even same company)', async () => {
+    // Fresh Company → managerTeamVisibility defaults to false (teamMode OFF).
+    // Same company isolates the isOrgInScope gate from the C8 company boundary:
+    // visibility is company-wide, but bind-authority requires assignment.
+    const co = await prisma.company.create({ data: { name: `${STAMP}-coGate` } });
+    const org = await prisma.organization.create({ data: { name: `${STAMP}-orgGate`, companyId: co.id } });
+    const call = await prisma.call.create({ data: { provider: 'mango', externalId: `${STAMP}:c3`, direction: 'inbound', callerNumber: '+79990002222', status: 'completed' } });
+    // managedOrgIds is empty → manager is in the company but not assigned to org.
+    const r = await bindCall(prisma, session(co.id, []), { callId: call.id, organizationId: org.id });
+    expect(r).toEqual({ ok: false, error: 'forbidden' });
+    const row = await prisma.call.findUnique({ where: { id: call.id } });
+    expect(row?.resolvedOrgId).toBeNull();
   });
 });
