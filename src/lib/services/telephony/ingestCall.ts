@@ -26,7 +26,12 @@ export async function ingestCallEvent(prisma: PrismaClient, event: MangoEvent): 
     const resolved = await resolveCaller(prisma, event.callerNumber);
     const resolvedFields =
       resolved.matchType === 'exact'
-        ? { resolvedOrgId: resolved.orgId, resolvedUserId: resolved.userId ?? null, companyId: resolved.companyId }
+        ? {
+            resolvedOrgId: resolved.orgId,
+            resolvedUserId: resolved.userId ?? null,
+            contactId: resolved.contactId ?? null,
+            companyId: resolved.companyId,
+          }
         : {};
 
     const existing = await prisma.call.findUnique({ where, select: { id: true } });
@@ -76,7 +81,12 @@ export async function ingestCallEvent(prisma: PrismaClient, event: MangoEvent): 
     const resolved = event.callerNumber ? await resolveCaller(prisma, event.callerNumber) : { matchType: 'unresolved' as const };
     const resolvedFields =
       resolved.matchType === 'exact'
-        ? { resolvedOrgId: resolved.orgId, resolvedUserId: resolved.userId ?? null, companyId: resolved.companyId }
+        ? {
+            resolvedOrgId: resolved.orgId,
+            resolvedUserId: resolved.userId ?? null,
+            contactId: resolved.contactId ?? null,
+            companyId: resolved.companyId,
+          }
         : {};
 
     const existing = await prisma.call.findUnique({ where, select: { id: true } });

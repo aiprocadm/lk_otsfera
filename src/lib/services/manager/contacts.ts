@@ -1,0 +1,95 @@
+import { Prisma } from '@prisma/client';
+import type { PrismaClient, ContactChannelType } from '@prisma/client';
+import type { SessionPayload } from '@/lib/auth/jwt';
+import { getCompanyTeamVisibility, isOrgInScope } from '@/lib/auth/managerPolicy';
+import { normalizeChannelValue } from '@/lib/services/contacts/resolveContactByChannel';
+import { recordAudit } from '@/lib/auth/audit';
+
+export type ContactChannelInput = { type: ContactChannelType; value: string };
+export type CreateContactArgs = {
+  name: string;
+  organizationId?: string | null;
+  position?: string;
+  note?: string;
+  channels: ContactChannelInput[];
+};
+export type CreateContactResult = { ok: true; contactId: string } | { ok: false; error: 'forbidden' | 'invalid' };
+
+export async function createContact(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  args: CreateContactArgs
+): Promise<CreateContactResult> {
+  if (!session.companyId) return { ok: false, error: 'forbidden' };
+  const name = args.name.trim();
+  if (!name) return { ok: false, error: 'invalid' };
+
+  // C8 defense-in-depth (CLAUDE.md §4 layer 3): validate the target org belongs
+  // to the session's company AND is in the manager's bind-scope BEFORE persisting.
+  // Without this, a caller passing a foreign company's org (e.g.
+  // createContactFromCallAction) would orphan a Contact{companyId:A,
+  // organizationId:B} before any action-level check runs. Mirrors bindCall's gate.
+  if (args.organizationId) {
+    const org = await prisma.organization.findUnique({
+      where: { id: args.organizationId },
+      select: { companyId: true },
+    });
+    if (!org || org.companyId !== session.companyId) return { ok: false, error: 'forbidden' };
+    const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+    if (!teamMode && !isOrgInScope(session, args.organizationId)) return { ok: false, error: 'forbidden' };
+  }
+
+  // isPrimary is assigned AFTER filtering out channels that normalize to '' so the
+  // first SURVIVING channel is primary — otherwise a leading empty channel would
+  // leave the contact with channels but none marked primary.
+  const channelData: Prisma.ContactChannelCreateWithoutContactInput[] = args.channels
+    .map((ch) => ({
+      companyId: session.companyId!, type: ch.type, value: ch.value.trim(),
+      normalizedValue: normalizeChannelValue(ch.type, ch.value),
+    }))
+    .filter((ch) => ch.normalizedValue !== '')
+    .map((ch, i) => ({ ...ch, isPrimary: i === 0 }));
+
+  const contact = await prisma.contact.create({
+    data: {
+      companyId: session.companyId,
+      organizationId: args.organizationId ?? null,
+      name, position: args.position?.trim() || null, note: args.note?.trim() || null,
+      createdById: session.sub,
+      channels: { create: channelData },
+    },
+    select: { id: true },
+  });
+
+  await recordAudit(prisma, {
+    action: 'contact_created',
+    entity: 'contact',
+    entityId: contact.id,
+    userId: session.sub,
+    after: { organizationId: args.organizationId ?? null },
+  });
+  return { ok: true, contactId: contact.id };
+}
+
+/**
+ * Learn-on-link: attach a communication identifier to a contact if not already
+ * present. Idempotent — a duplicate (company,type,normalizedValue) is a no-op.
+ */
+export async function captureChannel(
+  prisma: PrismaClient,
+  args: { contactId: string; companyId: string; type: ContactChannelType; value: string }
+): Promise<void> {
+  const normalizedValue = normalizeChannelValue(args.type, args.value);
+  if (!normalizedValue) return;
+  const exists = await prisma.contactChannel.findFirst({
+    where: { companyId: args.companyId, type: args.type, normalizedValue }, select: { id: true },
+  });
+  if (exists) return;
+  try {
+    await prisma.contactChannel.create({
+      data: { contactId: args.contactId, companyId: args.companyId, type: args.type, value: args.value.trim(), normalizedValue },
+    });
+  } catch (e) {
+    if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002')) throw e;
+  }
+}

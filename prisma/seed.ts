@@ -7,6 +7,7 @@ import { syncOrdersProcessor } from '../src/worker/processors/sync-orders';
 import { syncPaymentsProcessor } from '../src/worker/processors/sync-payments';
 import { syncDocumentsProcessor } from '../src/worker/processors/sync-documents';
 import { calculateStatementForPartner } from '../src/lib/services/commission/statement';
+import { backfillContacts } from '../src/lib/services/contacts/backfill';
 import { recordAudit } from '../src/lib/auth/audit';
 import type { SyncJobPayload } from '../src/lib/jobs/types';
 
@@ -375,6 +376,10 @@ async function main() {
     });
   }
   console.log(`Seeded ${TRAINING_DIRECTIONS.length} training directions`);
+
+  // ─── M2: backfill Contact/ContactChannel from org Users + Leads (idempotent) ──
+  const bf = await backfillContacts(prisma);
+  console.log(`[seed] contacts backfill: +${bf.contactsCreated} contacts, +${bf.channelsCreated} channels`);
 
   console.log('[seed] demo accounts (password = ' + PASSWORD + '):');
   console.log('  - admin@demo.local (role=admin)');

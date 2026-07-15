@@ -40,6 +40,7 @@ const OPT_IN_FLAGS = new Set([
   'inbound_messaging',
   'telephony_mango',
   'staff_2fa',
+  'contacts',
 ]);
 
 describe('isFeatureEnabled', () => {
@@ -125,6 +126,15 @@ describe('notFoundIfDisabled', () => {
     expect(res).not.toBeNull();
     expect(res!.status).toBe(404);
     expect(await res!.text()).toBe('Not Found');
+  });
+});
+
+describe('contacts (M2)', () => {
+  it('is opt-in: disabled by default, enabled by FEATURE_CONTACTS=1', () => {
+    delete process.env.FEATURE_CONTACTS;
+    expect(isFeatureEnabled('contacts')).toBe(false);
+    process.env.FEATURE_CONTACTS = '1';
+    expect(isFeatureEnabled('contacts')).toBe(true);
   });
 });
 

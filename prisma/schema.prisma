@@ -137,6 +137,14 @@ enum TaskPriority {
   high
 }
 
+enum ContactChannelType {
+  phone
+  email
+  telegram
+  whatsapp
+  max
+}
+
 model User {
   id                           String                @id @default(cuid())
   createdAt                    DateTime              @default(now())
@@ -199,6 +207,9 @@ model User {
   calls                        Call[]                @relation("UserCalls")
   callsInitiated               Call[]                @relation("CallInitiator")
   dealNotesAuthored            DealNote[]            @relation("DealNoteAuthor")
+  internalPhone                String?
+  contact                      Contact?              @relation("UserContact")
+  contactsCreated              Contact[]             @relation("ContactCreatedBy")
 }
 
 model PartnerUser {
@@ -535,6 +546,7 @@ model Organization {
   tasks                          Task[]                             @relation("TaskLinkedOrganization")
   inboundMessages                InboundMessage[]                   @relation("OrgInbound")
   calls                          Call[]                             @relation("OrgCalls")
+  contacts                       Contact[]                          @relation("OrgContacts")
 
   @@index([partnerId])
   @@index([externalId])
@@ -608,6 +620,7 @@ model Company {
   tasks                 Task[]
   inboundMessages       InboundMessage[]
   calls                 Call[]
+  contacts              Contact[]        @relation("CompanyContacts")
 }
 
 // Трек G1 (§3.2 ТЗ): роль-профиль как данные. Матрица охватов по типам объектов
@@ -767,6 +780,8 @@ model Order {
   items              OrderItem[]
   tasks              Task[]                    @relation("TaskLinkedOrder")
   dealNotes          DealNote[]                @relation("OrderDealNotes")
+  primaryContactId   String?
+  primaryContact     Contact?                  @relation("OrderPrimaryContact", fields: [primaryContactId], references: [id], onDelete: SetNull)
 
   @@index([partnerId, executionStatus])
   @@index([partnerId, financialStatus])
@@ -1257,11 +1272,13 @@ model InboundMessage {
   status         String    @default("unresolved")
   boundAt        DateTime?
   boundById      String?
+  contactId      String?
 
   resolvedOrg  Organization? @relation("OrgInbound", fields: [resolvedOrgId], references: [id])
   resolvedUser User?         @relation("UserInbound", fields: [resolvedUserId], references: [id])
   thread       OrderThread?  @relation(fields: [threadId], references: [id], onDelete: SetNull)
   company      Company?      @relation(fields: [companyId], references: [id])
+  contact      Contact?      @relation("ContactInbound", fields: [contactId], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])
   @@index([companyId, createdAt])
@@ -1293,16 +1310,66 @@ model Call {
   initiatedBy         User?     @relation("CallInitiator", fields: [initiatedByUserId], references: [id])
   threadId            String?
   companyId           String?
+  contactId           String?
 
   resolvedOrg  Organization? @relation("OrgCalls", fields: [resolvedOrgId], references: [id])
   resolvedUser User?         @relation("UserCalls", fields: [resolvedUserId], references: [id])
   company      Company?      @relation(fields: [companyId], references: [id])
+  contact      Contact?      @relation("ContactCalls", fields: [contactId], references: [id], onDelete: SetNull)
 
   @@unique([provider, externalId])
   @@index([companyId, createdAt])
   @@index([resolvedOrgId, createdAt])
   @@index([callerNumber, createdAt])
   @@index([threadId])
+}
+
+/// M2 (спека контактов): первоклассная сущность контакта (физлицо), к которой
+/// привязываются каналы связи (телефон/email/telegram/whatsapp/max), входящие
+/// сообщения, звонки и заказ (primaryContact). companyId — граница C8-изоляции.
+model Contact {
+  id             String        @id @default(cuid())
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  companyId      String
+  company        Company       @relation("CompanyContacts", fields: [companyId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization? @relation("OrgContacts", fields: [organizationId], references: [id], onDelete: SetNull)
+  userId         String?       @unique
+  user           User?         @relation("UserContact", fields: [userId], references: [id], onDelete: SetNull)
+  name           String
+  position       String?
+  note           String?
+  isArchived     Boolean       @default(false)
+  createdById    String?
+  createdBy      User?         @relation("ContactCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  channels        ContactChannel[]
+  inboundMessages InboundMessage[] @relation("ContactInbound")
+  calls           Call[]           @relation("ContactCalls")
+  ordersAsPrimary Order[]          @relation("OrderPrimaryContact")
+
+  @@index([companyId, organizationId])
+  @@index([organizationId])
+}
+
+/// M2: канал связи контакта (телефон/email/мессенджер). Уникальность
+/// нормализованного значения — per-company (§: разные компании могут иметь
+/// клиентов с одним и тем же номером/email независимо друг от друга).
+model ContactChannel {
+  id              String             @id @default(cuid())
+  createdAt       DateTime           @default(now())
+  contactId       String
+  contact         Contact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  companyId       String
+  type            ContactChannelType
+  value           String
+  normalizedValue String
+  isPrimary       Boolean            @default(false)
+
+  @@unique([companyId, type, normalizedValue])
+  @@index([type, normalizedValue])
+  @@index([contactId])
 }
 
 /// M1 (спека 2026-07-14): внутренняя заметка по сделке (staff-only). Отдельная

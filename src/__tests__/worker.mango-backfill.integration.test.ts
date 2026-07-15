@@ -113,6 +113,11 @@ describe('mangoBackfillProcessor', () => {
     const db = {
       user: prisma.user,
       lead: prisma.lead,
+      // resolveCaller now queries ContactChannel first (M2 attribution rewire);
+      // wire the real (empty-result) table so resolution falls through to the
+      // mocked call.findUnique — otherwise contactChannel is undefined and its
+      // findMany throws before the intended ingest error.
+      contactChannel: prisma.contactChannel,
       syncState: prisma.syncState,
       call: {
         findUnique: vi.fn()

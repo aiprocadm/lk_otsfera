@@ -1,5 +1,6 @@
 'use server';
 
+import type { ContactChannelType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireManager } from '@/lib/auth/requireRole';
 import { getCompanyTeamVisibility, isOrgInScope } from '@/lib/auth/managerPolicy';
@@ -7,12 +8,27 @@ import { recordAudit } from '@/lib/auth/audit';
 import { notifyOrgUsers } from '@/lib/notifications';
 import { replyToInbound } from '@/lib/services/inbound/reply';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
+import { captureChannel } from '@/lib/services/manager/contacts';
 import { log } from '@/lib/logging';
+
+/**
+ * `InboundMessage.channel` values map 1:1 onto `ContactChannelType` — used by
+ * the learn-on-link capture in `bindInboundMessageAction` below, and reused by
+ * `createContactFromInboundAction` (src/server-actions/contacts.ts) to seed
+ * the new contact's channel from the message that created it.
+ */
+export const CHANNEL_TO_CONTACT_TYPE: Record<'telegram' | 'max' | 'whatsapp' | 'email', ContactChannelType> = {
+  telegram: 'telegram',
+  max: 'max',
+  whatsapp: 'whatsapp',
+  email: 'email'
+};
 
 export type BindInboundMessageArgs = {
   inboundMessageId: string;
   organizationId: string;
   orderId?: string;
+  contactId?: string;
 };
 
 export type BindInboundMessageResult =
@@ -21,12 +37,18 @@ export type BindInboundMessageResult =
 
 /**
  * Binds an unresolved/mis-resolved InboundMessage to a specific organization
- * (and optionally an order), so a manager can triage inbound chat/email that
- * `resolveInboundSender` (src/lib/services/inbound/resolve.ts) failed to
- * auto-match. Company-scoped (CLAUDE.md §4, C8): the target organization must
- * belong to the manager's own company — team-visibility-aware via
- * `getCompanyTeamVisibility` (ON → any org in the company; OFF → only orgs in
- * `session.managedOrgIds` via `isOrgInScope`).
+ * (and optionally an order and/or a contact), so a manager can triage inbound
+ * chat/email that `resolveInboundSender` (src/lib/services/inbound/resolve.ts)
+ * failed to auto-match. Company-scoped (CLAUDE.md §4, C8): the target
+ * organization must belong to the manager's own company — team-visibility-aware
+ * via `getCompanyTeamVisibility` (ON → any org in the company; OFF → only orgs
+ * in `session.managedOrgIds` via `isOrgInScope`).
+ *
+ * Learn-on-link: when a contact is bound, the message's sender identity
+ * (`senderRef`) is captured as a channel on that contact (`captureChannel`,
+ * idempotent) so future messages from the same sender auto-resolve. Mirrors
+ * `bindCall` (src/lib/services/telephony/bindCall.ts) — same shape, different
+ * source entity.
  */
 export async function bindInboundMessageAction(
   args: BindInboundMessageArgs
@@ -35,7 +57,7 @@ export async function bindInboundMessageAction(
 
   const message = await prisma.inboundMessage.findUnique({
     where: { id: args.inboundMessageId },
-    select: { id: true }
+    select: { id: true, channel: true, senderRef: true }
   });
   if (!message) return { ok: false, error: 'not_found' };
 
@@ -58,6 +80,22 @@ export async function bindInboundMessageAction(
   // enforced above).
   if (!teamMode && !isOrgInScope(session, args.organizationId)) {
     return { ok: false, error: 'forbidden' };
+  }
+
+  // Optional contact attribution: the contact must belong to the manager's own
+  // company and (if it already has an org) that org must match the target —
+  // mirrors bindCall's contact gate (src/lib/services/telephony/bindCall.ts).
+  let contactId: string | null = null;
+  if (args.contactId) {
+    const contact = await prisma.contact.findUnique({
+      where: { id: args.contactId },
+      select: { id: true, companyId: true, organizationId: true }
+    });
+    if (!contact || contact.companyId !== session.companyId) return { ok: false, error: 'forbidden' };
+    if (contact.organizationId && contact.organizationId !== args.organizationId) {
+      return { ok: false, error: 'forbidden' };
+    }
+    contactId = contact.id;
   }
 
   // Best-effort thread resolution: only if an orderId was given AND that
@@ -88,18 +126,29 @@ export async function bindInboundMessageAction(
       resolvedOrgId: args.organizationId,
       companyId: org.companyId,
       threadId,
+      contactId,
       status: 'bound',
       boundAt: new Date(),
       boundById: session.sub
     }
   });
 
+  if (contactId) {
+    const channelType = CHANNEL_TO_CONTACT_TYPE[message.channel as keyof typeof CHANNEL_TO_CONTACT_TYPE];
+    await captureChannel(prisma, {
+      contactId,
+      companyId: org.companyId,
+      type: channelType,
+      value: message.senderRef
+    });
+  }
+
   await recordAudit(prisma, {
     action: 'inbound_message_bound',
     entity: 'order_thread',
     entityId: args.inboundMessageId,
     userId: session.sub,
-    after: { organizationId: args.organizationId, threadId }
+    after: { organizationId: args.organizationId, threadId, contactId }
   });
 
   return { ok: true };
