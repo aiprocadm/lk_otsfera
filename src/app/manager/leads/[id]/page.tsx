@@ -7,7 +7,8 @@ import { getManagerLead } from '@/lib/services/manager/leads';
 import { listCompanyManagers } from '@/lib/services/manager/team';
 import { LeadStatusBadge } from '@/components/partner/lead-status-badge';
 import { ManagerLeadActions } from '@/components/manager/manager-lead-actions';
-import { fmtMoney } from '@/lib/format';
+import { PushLeadButton } from '@/components/manager/push-lead-button';
+import { fmtDate, fmtMoney } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +34,13 @@ export default async function ManagerLeadDetailPage({ params }: { params: Promis
     ['Оценка суммы', lead.estimatedAmount ? fmtMoney(lead.estimatedAmount) : '—'],
     ['Продукты', lead.productType.length ? lead.productType.join(', ') : '—'],
     ['Назначен', lead.assignedManagerName ?? '—'],
-    ['Создал', lead.createdByUserName]
+    ['Создал', lead.createdByUserName],
+    [
+      '1С',
+      lead.pushedToOneCAt
+        ? `отправлено ${fmtDate(lead.pushedToOneCAt)}, №${lead.externalIdInOneC ?? '—'}`
+        : 'не отправлялся'
+    ]
   ];
 
   return (
@@ -56,6 +63,13 @@ export default async function ManagerLeadDetailPage({ params }: { params: Promis
           promotedOrderId={lead.promotedOrderId}
           candidates={candidates}
         />
+        {/* B3: отправлять можно лид в любом статусе (ручная кнопка, решение владельца);
+            скрываем только уже отправленный. */}
+        {lead.pushedToOneCAt === null && (
+          <div className='mt-3'>
+            <PushLeadButton leadId={lead.id} />
+          </div>
+        )}
         {lead.organizationId === null && lead.status !== 'promoted_to_order' && lead.status !== 'rejected' && (
           <p className='text-xs text-gray-500 mt-2'>
             Чтобы преобразовать заявку в заказ, к ней должна быть привязана организация.

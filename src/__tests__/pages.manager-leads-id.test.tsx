@@ -27,6 +27,11 @@ vi.mock('@/components/partner/lead-status-badge', () => ({
     React.createElement('span', { 'data-testid': 'status-badge' }, props.status)
 }));
 
+vi.mock('@/components/manager/push-lead-button', () => ({
+  PushLeadButton: (props: { leadId: string }) =>
+    React.createElement('button', { 'data-testid': 'push-lead-button' }, props.leadId)
+}));
+
 vi.mock('@/components/manager/manager-lead-actions', () => ({
   ManagerLeadActions: (props: {
     leadId: string;
@@ -68,7 +73,9 @@ const BASE_LEAD = {
   status: 'new',
   rejectedReason: null as string | null,
   notes: null as string | null,
-  promotedOrderId: null as string | null
+  promotedOrderId: null as string | null,
+  externalIdInOneC: null as string | null,
+  pushedToOneCAt: null as Date | null
 };
 
 describe('ManagerLeadDetailPage', () => {
@@ -102,6 +109,42 @@ describe('ManagerLeadDetailPage', () => {
     expect(container.textContent).toContain('Чтобы преобразовать заявку в заказ');
     expect(container.textContent).not.toContain('Причина отклонения');
     expect(container.querySelector('[data-testid="lead-actions"]')?.textContent).toContain('false');
+    // 1С: лид ещё не отправлялся — строка-заглушка + кнопка отправки смонтирована
+    expect(container.textContent).toContain('не отправлялся');
+    expect(container.querySelector('[data-testid="push-lead-button"]')?.textContent).toBe('lead-1');
+  });
+
+  it('pushedToOneCAt задан: строка «1С» с датой и номером, кнопка отправки скрыта', async () => {
+    requireManager.mockResolvedValue(SESSION);
+    getManagerLead.mockResolvedValue({
+      ...BASE_LEAD,
+      pushedToOneCAt: new Date('2026-06-05T00:00:00Z'),
+      externalIdInOneC: 'EXT-77'
+    });
+
+    const { container } = await renderServerComponent(
+      ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+    );
+
+    expect(container.textContent).toContain('отправлено 05.06.2026, №EXT-77');
+    expect(container.textContent).not.toContain('не отправлялся');
+    expect(container.querySelector('[data-testid="push-lead-button"]')).toBeNull();
+  });
+
+  it('pushedToOneCAt без externalIdInOneC: номер рендерится прочерком', async () => {
+    requireManager.mockResolvedValue(SESSION);
+    getManagerLead.mockResolvedValue({
+      ...BASE_LEAD,
+      pushedToOneCAt: new Date('2026-06-05T00:00:00Z'),
+      externalIdInOneC: null
+    });
+
+    const { container } = await renderServerComponent(
+      ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+    );
+
+    expect(container.textContent).toContain('отправлено 05.06.2026, №—');
+    expect(container.querySelector('[data-testid="push-lead-button"]')).toBeNull();
   });
 
   it('renders populated fields, org present, rejectedReason, and notes', async () => {
