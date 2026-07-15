@@ -45,14 +45,14 @@ describe('PushLeadButton', () => {
     expect(toastSuccess).not.toHaveBeenCalled();
   });
 
-  it('queue_error — локальная дельта «Очередь недоступна, попробуйте позже»', async () => {
-    pushLeadToOneCAction.mockResolvedValue({ ok: false, error: 'queue_error' });
+  it('queue_unavailable — общий словарь errorMessageRu (дельта не нужна)', async () => {
+    pushLeadToOneCAction.mockResolvedValue({ ok: false, error: 'queue_unavailable' });
     render(<PushLeadButton leadId='l1' />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Отправить в 1С' }));
 
     await waitFor(() =>
-      expect(toastError).toHaveBeenCalledWith('Очередь недоступна, попробуйте позже')
+      expect(toastError).toHaveBeenCalledWith('Фоновая обработка недоступна. Попробуйте позже.')
     );
   });
 
@@ -63,5 +63,23 @@ describe('PushLeadButton', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Отправить в 1С' }));
 
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Проверьте поля формы.'));
+  });
+
+  it('кнопка disabled во время pending — double-submit невозможен', async () => {
+    let resolveAction!: (v: { ok: true }) => void;
+    pushLeadToOneCAction.mockImplementation(
+      () => new Promise<{ ok: true }>((r) => { resolveAction = r; })
+    );
+    render(<PushLeadButton leadId='l1' />);
+
+    const button = screen.getByRole('button', { name: 'Отправить в 1С' }) as HTMLButtonElement;
+    fireEvent.click(button);
+
+    await waitFor(() => expect(button.disabled).toBe(true));
+    expect(toastSuccess).not.toHaveBeenCalled();
+
+    resolveAction({ ok: true });
+    await waitFor(() => expect(button.disabled).toBe(false));
+    expect(toastSuccess).toHaveBeenCalledWith('Лид поставлен в очередь отправки в 1С');
   });
 });

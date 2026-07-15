@@ -70,7 +70,7 @@ describe('pushLeadToOneCAction', () => {
     expect(recordAudit).not.toHaveBeenCalled();
   });
 
-  it('успех: джоба с идемпотентным jobId + аудит + revalidatePath', async () => {
+  it('успех: джоба с timestamped jobId (образец triggerSync) + аудит + revalidatePath', async () => {
     leadFindUnique.mockResolvedValue({ id: 'l1', pushedToOneCAt: null });
     queueAdd.mockResolvedValue({ id: 'job-1' });
 
@@ -78,7 +78,13 @@ describe('pushLeadToOneCAction', () => {
 
     expect(res).toEqual({ ok: true });
     expect(getQueue).toHaveBeenCalledWith('oneCSync.pushLead');
-    expect(queueAdd).toHaveBeenCalledWith('push', { leadId: 'l1' }, { jobId: 'push-lead:l1' });
+    // Статический jobId при removeOnFail:false навсегда дедупил бы повторный
+    // пуш после исчерпания attempts — поэтому суффикс-timestamp обязателен.
+    expect(queueAdd).toHaveBeenCalledWith(
+      'push',
+      { leadId: 'l1' },
+      { jobId: expect.stringMatching(/^push-lead:l1:\d+$/) }
+    );
     expect(recordAudit).toHaveBeenCalledWith(expect.anything(), {
       action: 'lead_push_enqueued',
       entity: 'lead',
@@ -89,13 +95,13 @@ describe('pushLeadToOneCAction', () => {
     expect(logError).not.toHaveBeenCalled();
   });
 
-  it('queue_error при reject add: логирует, не бросает, аудит/revalidate не выполняются', async () => {
+  it('queue_unavailable при reject add: логирует, не бросает, аудит/revalidate не выполняются', async () => {
     leadFindUnique.mockResolvedValue({ id: 'l1', pushedToOneCAt: null });
     queueAdd.mockRejectedValue(new Error('redis down'));
 
     const res = await pushLeadToOneCAction({ leadId: 'l1' });
 
-    expect(res).toEqual({ ok: false, error: 'queue_error' });
+    expect(res).toEqual({ ok: false, error: 'queue_unavailable' });
     expect(logError).toHaveBeenCalledWith('[manager/leads] push lead enqueue failed', {
       leadId: 'l1',
       error: 'redis down'
@@ -104,7 +110,7 @@ describe('pushLeadToOneCAction', () => {
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
-  it('queue_error при синхронном throw getQueue (нет REDIS_URL) и не-Error значении', async () => {
+  it('queue_unavailable при синхронном throw getQueue (нет REDIS_URL) и не-Error значении', async () => {
     leadFindUnique.mockResolvedValue({ id: 'l2', pushedToOneCAt: null });
     getQueue.mockImplementationOnce(() => {
       // getRedisConnection бросает синхронно при отсутствующем REDIS_URL
@@ -113,7 +119,7 @@ describe('pushLeadToOneCAction', () => {
 
     const res = await pushLeadToOneCAction({ leadId: 'l2' });
 
-    expect(res).toEqual({ ok: false, error: 'queue_error' });
+    expect(res).toEqual({ ok: false, error: 'queue_unavailable' });
     expect(logError).toHaveBeenCalledWith('[manager/leads] push lead enqueue failed', {
       leadId: 'l2',
       error: 'REDIS_URL is not set'
