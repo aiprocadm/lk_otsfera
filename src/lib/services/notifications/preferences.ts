@@ -17,6 +17,7 @@ import { isTelegramEnabled } from '@/lib/telegram/client';
 import { isMaxEnabled } from '@/lib/max/client';
 import { isWhatsAppEnabled } from '@/lib/whatsapp/aggregator';
 import { recordAudit } from '@/lib/auth/audit';
+import { normalizePhoneCanonical } from '@/lib/phone/normalize';
 
 /**
  * Полное представление настроек каналов для UI (D2). Собирает привязки,
@@ -96,18 +97,15 @@ export async function updateChannelPreference(
 }
 
 /**
- * Нормализация телефона к E.164-виду: убираем разделители, «8XXXXXXXXXX»
- * (домашний RU-формат) переводим в «+7…», требуем 10–15 цифр. Возвращает
- * null для невалидного ввода.
+ * Нормализация телефона к E.164-виду: убираем разделители, требуем 10–15
+ * цифр (возвращает null для невалидного ввода), затем канонизирует через
+ * `normalizePhoneCanonical` («8XXXXXXXXXX» домашний RU-формат → «+7…»; M2
+ * unification — единая точка правды для RU-8 canonicalization).
  */
 export function normalizePhone(raw: string): string | null {
   const stripped = raw.trim().replace(/[\s\-()]/g, '');
   if (!/^\+?\d{10,15}$/.test(stripped)) return null;
-  const digits = stripped.replace(/^\+/, '');
-  if (digits.length === 11 && digits.startsWith('8')) {
-    return `+7${digits.slice(1)}`;
-  }
-  return `+${digits}`;
+  return normalizePhoneCanonical(stripped);
 }
 
 export async function saveWhatsappPhone(

@@ -1,6 +1,7 @@
 import React from 'react';
 import { TableShell, THead, Th, Tr, Td, Badge, EmptyState } from '@/components/ui';
 import { fmtDateTime } from '@/lib/format';
+import { CallBindForm } from '@/components/manager/contacts/call-bind-form';
 
 /**
  * Task 9b — презентационный список звонков (B4 UI). Переиспользуется в двух
@@ -12,6 +13,12 @@ import { fmtDateTime } from '@/lib/format';
  * получает `recordingPath` напрямую (сервисный слой его не отдаёт) — ссылка
  * всегда указывает на `/api/manager/calls/[id]/recording`, который сам
  * переповторяет company-scope + clean-gate на сервере.
+ *
+ * Task 10 — call-triage: строки с `resolvedOrgId == null` (нераспознанный
+ * звонок) получают `CallBindForm`, но ТОЛЬКО когда `contactsEnabled` (флаг
+ * `contacts`, передаётся страницей). Распознанные звонки остаются read-only —
+ * `orgs`/`contactsEnabled` опциональны, т.к. read-only места (CRM-таб)
+ * продолжают рендерить список без формы.
  */
 
 export type CallListItem = {
@@ -66,7 +73,15 @@ function RecordingCell({ item }: { item: CallListItem }) {
   return <Badge tone="neutral">Проверяется</Badge>;
 }
 
-export function CallsList({ items }: { items: CallListItem[] }) {
+export function CallsList({
+  items,
+  orgs = [],
+  contactsEnabled = false
+}: {
+  items: CallListItem[];
+  orgs?: { id: string; name: string }[];
+  contactsEnabled?: boolean;
+}) {
   if (items.length === 0) {
     return <EmptyState icon="📞" message="Звонков нет" />;
   }
@@ -82,6 +97,7 @@ export function CallsList({ items }: { items: CallListItem[] }) {
           <Th>Длительность</Th>
           <Th>Дата</Th>
           <Th>Запись</Th>
+          {contactsEnabled && <Th>Привязка</Th>}
         </THead>
         <tbody>
           {items.map((item) => (
@@ -99,6 +115,15 @@ export function CallsList({ items }: { items: CallListItem[] }) {
               <Td>
                 <RecordingCell item={item} />
               </Td>
+              {contactsEnabled && (
+                <Td>
+                  {item.resolvedOrgId == null ? (
+                    <CallBindForm callId={item.id} callerNumber={item.callerNumber} orgs={orgs} />
+                  ) : (
+                    <span className="text-xs text-gray-400">Привязан</span>
+                  )}
+                </Td>
+              )}
             </Tr>
           ))}
         </tbody>
@@ -125,6 +150,11 @@ export function CallsList({ items }: { items: CallListItem[] }) {
             <div className="mt-2">
               <RecordingCell item={item} />
             </div>
+            {contactsEnabled && item.resolvedOrgId == null && (
+              <div className="mt-2 border-t border-gray-100 pt-2">
+                <CallBindForm callId={item.id} callerNumber={item.callerNumber} orgs={orgs} />
+              </div>
+            )}
           </div>
         ))}
       </div>

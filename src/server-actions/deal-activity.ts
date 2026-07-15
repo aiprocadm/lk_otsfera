@@ -11,9 +11,11 @@ export async function addDealNoteAction(args: { orderId: string; body: string })
   return addDealNote(prisma, session, args);
 }
 
-export async function initiateCallAction(args: { orderId: string; toNumber: string; fromInternal: string }): Promise<InitiateCallResult> {
+export async function initiateCallAction(args: { orderId: string; toNumber: string }): Promise<InitiateCallResult> {
   const disabled = notFoundIfDisabled('telephony_mango');
   if (disabled) return { ok: false, error: 'disabled' };
   const session = await requireManager();
-  return initiateOutboundCall(prisma, session, args);
+  const me = await prisma.user.findUnique({ where: { id: session.sub }, select: { internalPhone: true } });
+  if (!me?.internalPhone) return { ok: false, error: 'no_internal_phone' };
+  return initiateOutboundCall(prisma, session, { orderId: args.orderId, toNumber: args.toNumber, fromInternal: me.internalPhone });
 }

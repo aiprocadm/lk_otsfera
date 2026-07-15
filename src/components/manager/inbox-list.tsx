@@ -48,10 +48,12 @@ function ScanBadge({ scanStatus }: { scanStatus: string }) {
 
 export function InboxList({
   items,
-  organizations
+  organizations,
+  contactsEnabled = false
 }: {
   items: InboxItem[];
   organizations: ManagerOrgListRow[];
+  contactsEnabled?: boolean;
 }) {
   if (items.length === 0) {
     return <EmptyState icon="📨" message="Обращений нет" />;
@@ -93,7 +95,11 @@ export function InboxList({
               <Td className="whitespace-nowrap text-gray-500">{fmtDateTime(item.createdAt)}</Td>
               <Td className="min-w-[16rem]">
                 {item.status === 'unresolved' && (
-                  <InboxBindForm inboundMessageId={item.id} organizations={organizations} />
+                  <InboxBindForm
+                    inboundMessageId={item.id}
+                    organizations={organizations}
+                    contactsEnabled={contactsEnabled}
+                  />
                 )}
                 {item.status === 'bound' && <InboxReplyForm inboundMessageId={item.id} />}
                 {item.status === 'archived' && <span className="text-xs text-gray-400">—</span>}
@@ -125,7 +131,11 @@ export function InboxList({
             <p className="mt-1 text-xs text-gray-400">{fmtDateTime(item.createdAt)}</p>
             <div className="mt-3">
               {item.status === 'unresolved' && (
-                <InboxBindForm inboundMessageId={item.id} organizations={organizations} />
+                <InboxBindForm
+                  inboundMessageId={item.id}
+                  organizations={organizations}
+                  contactsEnabled={contactsEnabled}
+                />
               )}
               {item.status === 'bound' && <InboxReplyForm inboundMessageId={item.id} />}
             </div>

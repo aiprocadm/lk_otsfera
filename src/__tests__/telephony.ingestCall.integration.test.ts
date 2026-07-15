@@ -217,6 +217,43 @@ describe('ingestCallEvent', () => {
     }
   });
 
+  it('contact-first resolution (M2): summary event resolves via ContactChannel, sets Call.contactId', async () => {
+    const company = await prisma.company.create({ data: { name: `${STAMP}-co4` } });
+    const org = await prisma.organization.create({ data: { name: `${STAMP}-org4`, companyId: company.id } });
+    const contact = await prisma.contact.create({
+      data: {
+        companyId: company.id,
+        organizationId: org.id,
+        name: `${STAMP}-contact4`,
+        channels: {
+          create: [{ companyId: company.id, type: 'phone', value: '+79990006666', normalizedValue: '+79990006666' }],
+        },
+      },
+    });
+    const externalId = `${STAMP}:contact-resolved`;
+    try {
+      const r = await ingestCallEvent(prisma, {
+        kind: 'summary',
+        externalId,
+        direction: 'inbound',
+        callerNumber: '+79990006666',
+        durationSec: 20,
+        status: 'completed',
+      });
+      expect(r.ok).toBe(true);
+      const row = await prisma.call.findFirst({ where: { externalId } });
+      expect(row?.contactId).toBe(contact.id);
+      expect(row?.resolvedOrgId).toBe(org.id);
+      expect(row?.companyId).toBe(company.id);
+    } finally {
+      await prisma.call.deleteMany({ where: { externalId } });
+      await prisma.contactChannel.deleteMany({ where: { contactId: contact.id } });
+      await prisma.contact.delete({ where: { id: contact.id } });
+      await prisma.organization.delete({ where: { id: org.id } });
+      await prisma.company.delete({ where: { id: company.id } });
+    }
+  });
+
   it('unresolved caller → companyId null', async () => {
     const externalId = `${STAMP}:unresolved`;
     const r = await ingestCallEvent(prisma, {

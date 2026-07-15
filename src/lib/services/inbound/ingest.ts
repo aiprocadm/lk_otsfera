@@ -50,7 +50,14 @@ export async function ingestInboundMessage(prisma: PrismaClient, dto: InboundDto
         attachmentMime: dto.attachmentMime ?? null,
         scanStatus: dto.attachmentPath ? 'pending' : 'none',
         ...(resolved.matchType === 'exact'
-          ? { resolvedOrgId: resolved.orgId, resolvedUserId: resolved.userId, companyId: resolved.companyId, status: 'bound', boundAt: new Date() }
+          ? {
+              resolvedOrgId: resolved.orgId,
+              resolvedUserId: resolved.userId ?? null,
+              contactId: resolved.contactId ?? null,
+              companyId: resolved.companyId,
+              status: 'bound',
+              boundAt: new Date(),
+            }
           : { status: 'unresolved' }),
       },
       select: { id: true },

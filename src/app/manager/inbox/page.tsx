@@ -46,6 +46,8 @@ export default async function ManagerInboxPage({
     listOrganizations(prisma, session)
   ]);
 
+  const contactsEnabled = isFeatureEnabled('contacts');
+
   return (
     <div className='space-y-4'>
       <div>
@@ -57,7 +59,7 @@ export default async function ManagerInboxPage({
 
       <InboxFiltersBar channel={sp.channel} status={sp.status} />
 
-      <InboxList items={items} organizations={organizations} />
+      <InboxList items={items} organizations={organizations} contactsEnabled={contactsEnabled} />
 
       <Paginator
         basePath='/manager/inbox'

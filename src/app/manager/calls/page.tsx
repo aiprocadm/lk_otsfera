@@ -4,6 +4,7 @@ import { requireManager } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
 import { listCalls, type CallsFilters } from '@/lib/services/telephony/listCalls';
+import { listOrganizations } from '@/lib/services/manager/organizations';
 import { CallsFiltersBar } from '@/components/manager/calls-filters';
 import { CallsList } from '@/components/manager/calls-list';
 import { Paginator } from '@/components/ui';
@@ -39,6 +40,9 @@ export default async function ManagerCallsPage({
 
   const { items, total } = await listCalls(prisma, session, filters);
 
+  const contactsEnabled = isFeatureEnabled('contacts');
+  const orgs = contactsEnabled ? await listOrganizations(prisma, session) : [];
+
   return (
     <div className="space-y-4">
       <div>
@@ -50,7 +54,7 @@ export default async function ManagerCallsPage({
 
       <CallsFiltersBar direction={sp.direction} />
 
-      <CallsList items={items} />
+      <CallsList items={items} orgs={orgs} contactsEnabled={contactsEnabled} />
 
       <Paginator
         basePath="/manager/calls"
