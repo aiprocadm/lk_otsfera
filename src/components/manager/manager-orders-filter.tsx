@@ -30,16 +30,19 @@ type Props = {
     executionStatus?: string;
     financialStatus?: string;
     organizationId?: string;
+    unassigned?: string;
   };
   basePath?: string;
 };
 
 export function ManagerOrdersFilter({ orgs, initial, basePath = '/manager' }: Props) {
+  const unassigned = initial.unassigned === '1';
   const hasFilter =
     !!initial.search ||
     !!initial.executionStatus ||
     !!initial.financialStatus ||
-    !!initial.organizationId;
+    !!initial.organizationId ||
+    unassigned;
 
   return (
     <form
@@ -91,6 +94,17 @@ export function ManagerOrdersFilter({ orgs, initial, basePath = '/manager' }: Pr
           </option>
         ))}
       </select>
+
+      <label className='flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 cursor-pointer whitespace-nowrap'>
+        <input
+          type='checkbox'
+          name='unassigned'
+          value='1'
+          defaultChecked={unassigned}
+          className='accent-[#F97316]'
+        />
+        Без менеджера
+      </label>
 
       <button
         type='submit'

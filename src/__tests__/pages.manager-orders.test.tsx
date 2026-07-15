@@ -76,7 +76,26 @@ describe('ManagerOrdersPage', () => {
       ManagerOrdersPage({ searchParams: Promise.resolve({}) })
     );
 
-    expect(listOrders).toHaveBeenCalledWith({}, expect.objectContaining({ session: SESSION }));
+    expect(listOrders).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ session: SESSION, unassigned: false })
+    );
     expect(container.textContent).toContain('Заказы ваших организаций');
+  });
+
+  it('парсит ?unassigned=1 в boolean для listOrders и пробрасывает raw-значение в фильтр', async () => {
+    requireManager.mockResolvedValue(SESSION);
+    listOrders.mockResolvedValue({ rows: [], nextCursor: null });
+    listOrganizations.mockResolvedValue([]);
+
+    const { container } = await renderServerComponent(
+      ManagerOrdersPage({ searchParams: Promise.resolve({ unassigned: '1' }) })
+    );
+
+    expect(listOrders).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ session: SESSION, unassigned: true })
+    );
+    expect(container.textContent).toContain('"unassigned":"1"');
   });
 });

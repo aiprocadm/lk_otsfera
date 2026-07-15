@@ -70,6 +70,19 @@ describe('ManagerOrdersTable', () => {
     expect(html).toContain('cursor=cur1');
   });
 
+  it('сохраняет unassigned=1 в ссылке «Дальше» (фильтр переживает пагинацию)', () => {
+    const rows = [makeRow({})];
+    const html = renderToString(
+      React.createElement(ManagerOrdersTable, {
+        rows,
+        nextCursor: 'cur1',
+        searchParams: { unassigned: '1' }
+      })
+    );
+    expect(html).toContain('unassigned=1');
+    expect(html).toContain('cursor=cur1');
+  });
+
   it('respects a custom basePath for both row and next-page links', () => {
     const rows = [makeRow({})];
     const html = renderToString(

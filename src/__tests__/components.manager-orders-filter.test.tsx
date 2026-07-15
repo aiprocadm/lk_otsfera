@@ -34,6 +34,23 @@ describe('ManagerOrdersFilter', () => {
     expect(html).toContain('href="/leader/orders"');
   });
 
+  it('чекбокс «Без менеджера» name="unassigned" value="1", по умолчанию не отмечен', () => {
+    const html = renderToString(React.createElement(ManagerOrdersFilter, { orgs: [], initial: {} }));
+    expect(html).toContain('Без менеджера');
+    expect(html).toContain('name="unassigned"');
+    expect(html).toContain('value="1"');
+    expect(html).not.toContain('checked');
+  });
+
+  it('чекбокс отмечен при initial.unassigned="1" и активирует «Сбросить»', () => {
+    const html = renderToString(
+      React.createElement(ManagerOrdersFilter, { orgs: [], initial: { unassigned: '1' } })
+    );
+    expect(html).toContain('checked');
+    expect(html).toContain('Сбросить');
+    expect(html).toContain('href="/manager/orders"');
+  });
+
   it('рендерит опции организаций и статусов исполнения/финансов', () => {
     const html = renderToString(
       React.createElement(ManagerOrdersFilter, {

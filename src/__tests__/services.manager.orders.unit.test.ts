@@ -104,6 +104,25 @@ describe('listOrders — filter branches', () => {
     expect(searchFilter!.OR).toHaveLength(2);
   });
 
+  it('adds managerId:null filter when unassigned=true', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const p = { order: { findMany }, company: { findUnique: vi.fn() } } as never;
+    await listOrders(p, { session: SESSION, unassigned: true });
+    const where = findMany.mock.calls[0][0].where;
+    const filters = where.AND;
+    expect(filters).toContainEqual({ managerId: null });
+  });
+
+  it('does not add managerId filter when unassigned=false or omitted', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const p = { order: { findMany }, company: { findUnique: vi.fn() } } as never;
+    await listOrders(p, { session: SESSION, unassigned: false });
+    await listOrders(p, { session: SESSION });
+    for (const call of findMany.mock.calls) {
+      expect(call[0].where.AND).not.toContainEqual({ managerId: null });
+    }
+  });
+
   it('passes cursor and skip when cursor provided', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const p = { order: { findMany }, company: { findUnique: vi.fn() } } as never;
