@@ -48,6 +48,20 @@ describe('contacts service', () => {
     expect(row?.channels[0].isPrimary).toBe(true);
   });
 
+  it('createContact: a leading empty-normalizing channel is dropped and the first SURVIVING channel is primary', async () => {
+    const co = await prisma.company.create({ data: { name: `${STAMP}-co3` } });
+    const r = await createContact(prisma, session(co.id), {
+      name: `${STAMP}-Анна`,
+      channels: [{ type: 'email', value: '' }, { type: 'phone', value: '89990001122' }],
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const row = await prisma.contact.findUnique({ where: { id: r.contactId }, include: { channels: true } });
+    expect(row?.channels).toHaveLength(1);
+    expect(row?.channels[0].type).toBe('phone');
+    expect(row?.channels[0].isPrimary).toBe(true);
+  });
+
   it('createContact rejects a session without companyId', async () => {
     const r = await createContact(prisma, session(null as any), { name: `${STAMP}-x`, channels: [] });
     expect(r).toEqual({ ok: false, error: 'forbidden' });

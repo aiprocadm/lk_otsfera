@@ -1,4 +1,5 @@
-import type { PrismaClient, Prisma, ContactChannelType } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { PrismaClient, ContactChannelType } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { normalizeChannelValue } from '@/lib/services/contacts/resolveContactByChannel';
 import { recordAudit } from '@/lib/auth/audit';
@@ -22,12 +23,16 @@ export async function createContact(
   const name = args.name.trim();
   if (!name) return { ok: false, error: 'invalid' };
 
+  // isPrimary is assigned AFTER filtering out channels that normalize to '' so the
+  // first SURVIVING channel is primary — otherwise a leading empty channel would
+  // leave the contact with channels but none marked primary.
   const channelData: Prisma.ContactChannelCreateWithoutContactInput[] = args.channels
-    .map((ch, i) => ({
+    .map((ch) => ({
       companyId: session.companyId!, type: ch.type, value: ch.value.trim(),
-      normalizedValue: normalizeChannelValue(ch.type, ch.value), isPrimary: i === 0,
+      normalizedValue: normalizeChannelValue(ch.type, ch.value),
     }))
-    .filter((ch) => ch.normalizedValue !== '');
+    .filter((ch) => ch.normalizedValue !== '')
+    .map((ch, i) => ({ ...ch, isPrimary: i === 0 }));
 
   const contact = await prisma.contact.create({
     data: {
@@ -69,6 +74,6 @@ export async function captureChannel(
       data: { contactId: args.contactId, companyId: args.companyId, type: args.type, value: args.value.trim(), normalizedValue },
     });
   } catch (e) {
-    if (!(e instanceof Error && e.message.includes('Unique'))) throw e;
+    if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002')) throw e;
   }
 }
