@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { resolveCaller, canonicalizeRuPhone } from '@/lib/services/telephony/resolveCaller';
 
-function db(users: any[], leads: any[] = []) {
+function db(users: any[], leads: any[] = [], contactChannelRows: any[] = []) {
   return {
+    contactChannel: { findMany: vi.fn(async () => contactChannelRows) },
     user: { findMany: vi.fn(async () => users) },
     lead: { findMany: vi.fn(async () => leads) },
   } as any;
@@ -19,6 +20,17 @@ describe('canonicalizeRuPhone', () => {
 });
 
 describe('resolveCaller', () => {
+  it('resolves via ContactChannel (phone-like) before User.whatsappPhone; sets contactId', async () => {
+    const d = {
+      contactChannel: { findMany: vi.fn(async () => [{ contact: { id: 'k5', organizationId: 'o5', companyId: 'c5', userId: null, isArchived: false } }]) },
+      user: { findMany: vi.fn(async () => []) },
+      lead: { findMany: vi.fn(async () => []) },
+    } as any;
+    const r = await resolveCaller(d, '8 (999) 000-33-33');
+    expect(r).toMatchObject({ matchType: 'exact', orgId: 'o5', companyId: 'c5', contactId: 'k5' });
+    expect(d.user.findMany).not.toHaveBeenCalled();
+  });
+
   it('exact match on User.whatsappPhone → org+company', async () => {
     const u = { id: 'u1', organization: { id: 'o1', companyId: 'c1' } };
     const r = await resolveCaller(db([u]), '+79990001122');
