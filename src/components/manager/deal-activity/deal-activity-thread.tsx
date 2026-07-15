@@ -29,7 +29,8 @@ const NOTE_ERROR_LABEL: Record<string, string> = {
 const CALL_ERROR_LABEL: Record<string, string> = {
   disabled: 'Звонки недоступны (модуль не подключён).',
   not_found: 'Заказ не найден.',
-  call_failed: 'Звонок недоступен (не настроено).'
+  call_failed: 'Звонок недоступен (не настроено).',
+  no_internal_phone: 'Укажите ваш внутренний номер в настройках, чтобы звонить.'
 };
 
 export function DealActivityThread({
@@ -69,8 +70,7 @@ export function DealActivityThread({
     action: (formData) =>
       initiateCallAction({
         orderId,
-        toNumber: String(formData.get('toNumber') ?? ''),
-        fromInternal: ''
+        toNumber: String(formData.get('toNumber') ?? '')
       }),
     errorMap: CALL_ERROR_LABEL,
     onSuccess: () => {
