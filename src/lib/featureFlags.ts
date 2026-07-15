@@ -48,6 +48,9 @@ export const FEATURE_FLAGS = [
   // ведётся). Точки чтения: recordPiiAccess (no-op при off) + баннер на
   // /admin/pii-access. Выключение = пауза журнала, только на время инцидента.
   'pii_access_log',
+  // M2: справочник контактов + карточки. Route-флаг: три точки (middleware/nav/route)
+  // добавляются в PR-B вместе с /manager/contacts. В PR-A гейтит триаж-действия.
+  'contacts',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -71,7 +74,8 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'internal_tasks',
   'inbound_messaging',
   'telephony_mango',
-  'staff_2fa'
+  'staff_2fa',
+  'contacts',
 ]);
 
 export class FeatureDisabledError extends Error {
