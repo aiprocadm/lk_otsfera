@@ -29,6 +29,12 @@ describe('LoginForm', () => {
     expect(screen.queryByText('Демо-доступ')).toBeNull();
   });
 
+  it('renders the "Забыли пароль?" link pointing to /reset-password on the credentials step', () => {
+    render(React.createElement(LoginForm, null));
+    const link = screen.getByRole('link', { name: 'Забыли пароль?' }) as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('/reset-password');
+  });
+
   it('renders the demo logins section when provided, and clicking one fills the form', () => {
     render(React.createElement(LoginForm, { demoLogins }));
     expect(screen.getByText('Демо-доступ')).toBeTruthy();
