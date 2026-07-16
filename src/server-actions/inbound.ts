@@ -29,7 +29,10 @@ export type BindInboundMessageResult =
  * auto-match. Company-scoped (CLAUDE.md §4, C8): the target organization must
  * belong to the manager's own company — team-visibility-aware via
  * `getCompanyTeamVisibility` (ON → any org in the company; OFF → only orgs in
- * `session.managedOrgIds` via `isOrgInScope`).
+ * `session.managedOrgIds` via `isOrgInScope`). The MESSAGE itself must also be
+ * in the C8 inbox scope (`isInboundMessageInScope`, scope.ts): without that
+ * gate a manager of company B could re-bind company A's bound/archived row by
+ * cuid, stealing it into their own company (E2 hardening).
  */
 export async function bindInboundMessageAction(
   args: BindInboundMessageArgs
@@ -38,9 +41,16 @@ export async function bindInboundMessageAction(
 
   const message = await prisma.inboundMessage.findUnique({
     where: { id: args.inboundMessageId },
-    select: { id: true }
+    select: { companyId: true, status: true }
   });
   if (!message) return { ok: false, error: 'not_found' };
+
+  // C8 scope gate (E2): own company's rows or the shared unresolved queue —
+  // BEFORE the org lookup, so a foreign row costs no extra queries and does
+  // not depend on whichever organizationId the caller supplied.
+  if (!isInboundMessageInScope(session, message)) {
+    return { ok: false, error: 'forbidden' };
+  }
 
   const org = await prisma.organization.findUnique({
     where: { id: args.organizationId },
@@ -221,8 +231,15 @@ export type ArchiveInboundResult =
  * status='unresolved', and archiving drops the status branch), i.e. it would
  * be invisible in the list and unrestorable. Pinning requires the actor to
  * HAVE a company, so a companyId-less session gets `forbidden` on the shared
- * queue. Idempotent: archiving an already-archived message is a no-op
- * `{ ok: true }` (no update, no audit).
+ * queue. An unresolved row that ALREADY carries a companyId (restored after a
+ * pin) is NOT re-pinned: company B archiving a row pinned to A sends it to
+ * A's archive — deterministic and restorable by A. Idempotent: archiving an
+ * already-archived message is a no-op `{ ok: true }` (no update, no audit).
+ * The write is a compare-and-swap on the status we read (`updateMany` with
+ * `status` in the where): a concurrent bind/archive that moved the row
+ * between our read and write yields 0 rows → `not_found` (TOCTOU guard —
+ * otherwise archive(co-B) racing bind(co-A) on one unresolved row could
+ * stamp co-B's pin over the fresh co-A binding, crossing C8).
  */
 export async function archiveInboundMessageAction(input: {
   inboundMessageId: string;
@@ -252,10 +269,12 @@ export async function archiveInboundMessageAction(input: {
     data = { status: 'archived' };
   }
 
-  await prisma.inboundMessage.update({
-    where: { id: parsed.data.inboundMessageId },
+  // CAS on the status we based the decision on (see JSDoc: TOCTOU guard).
+  const updated = await prisma.inboundMessage.updateMany({
+    where: { id: parsed.data.inboundMessageId, status: message.status },
     data
   });
+  if (updated.count === 0) return { ok: false, error: 'not_found' };
 
   await recordAudit(prisma, {
     action: 'inbound_message_archived',
@@ -278,6 +297,9 @@ export async function archiveInboundMessageAction(input: {
  * A message restored to `unresolved` keeps the companyId pinned by archive —
  * shared-queue visibility comes from the status branch of the scope, and a
  * later bind overwrites companyId from the target organization anyway.
+ * The write is a compare-and-swap on `status='archived'` (`updateMany`):
+ * a concurrent restore/bind that moved the row between our read and write
+ * yields 0 rows → `not_found` (TOCTOU guard, same as archive).
  */
 export async function restoreInboundMessageAction(input: {
   inboundMessageId: string;
@@ -298,10 +320,12 @@ export async function restoreInboundMessageAction(input: {
   if (message.status !== 'archived') return { ok: false, error: 'not_found' };
 
   const restoredStatus = message.boundAt ? 'bound' : 'unresolved';
-  await prisma.inboundMessage.update({
-    where: { id: parsed.data.inboundMessageId },
+  // CAS on 'archived' (see JSDoc: TOCTOU guard).
+  const updated = await prisma.inboundMessage.updateMany({
+    where: { id: parsed.data.inboundMessageId, status: 'archived' },
     data: { status: restoredStatus }
   });
+  if (updated.count === 0) return { ok: false, error: 'not_found' };
 
   await recordAudit(prisma, {
     action: 'inbound_message_restored',

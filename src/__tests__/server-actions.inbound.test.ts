@@ -80,7 +80,7 @@ describe('bindInboundMessageAction', () => {
   });
 
   it('returns not_found when the organization does not exist', async () => {
-    inboundMessageFindUnique.mockResolvedValue({ id: 'im-1' });
+    inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
     organizationFindUnique.mockResolvedValue(null);
 
     const result = await bindInboundMessageAction({ inboundMessageId: 'im-1', organizationId: 'org-x' });
@@ -88,8 +88,34 @@ describe('bindInboundMessageAction', () => {
     expect(result).toEqual({ ok: false, error: 'not_found' });
   });
 
+  it("returns forbidden (C8/IDOR) for another company's bound message — cross-company rebind by cuid is blocked", async () => {
+    inboundMessageFindUnique.mockResolvedValue({ companyId: 'company-b', status: 'bound' });
+
+    const result = await bindInboundMessageAction({ inboundMessageId: 'im-1', organizationId: 'org-a' });
+
+    expect(result).toEqual({ ok: false, error: 'forbidden' });
+    // Scope-гейт стоит ДО org-lookup: чужая строка не тратит запросов и не
+    // зависит от того, какую org подсунул вызывающий.
+    expect(organizationFindUnique).not.toHaveBeenCalled();
+    expect(inboundMessageUpdate).not.toHaveBeenCalled();
+  });
+
+  it("allows re-binding the manager's OWN company's bound message (as before)", async () => {
+    inboundMessageFindUnique.mockResolvedValue({ companyId: 'company-a', status: 'bound' });
+    organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
+    getCompanyTeamVisibility.mockResolvedValue(false);
+    inboundMessageUpdate.mockResolvedValue({});
+
+    const result = await bindInboundMessageAction({ inboundMessageId: 'im-1', organizationId: 'org-a' });
+
+    expect(result).toEqual({ ok: true });
+    expect(inboundMessageUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'bound', companyId: 'company-a' }) })
+    );
+  });
+
   it('returns forbidden when the org is out of the manager scoped (non-team) scope', async () => {
-    inboundMessageFindUnique.mockResolvedValue({ id: 'im-1' });
+    inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
     organizationFindUnique.mockResolvedValue({ id: 'org-b', companyId: 'company-a' });
     requireManager.mockResolvedValue(managerSession({ managedOrgIds: ['org-a'] }));
     getCompanyTeamVisibility.mockResolvedValue(false);
@@ -101,7 +127,7 @@ describe('bindInboundMessageAction', () => {
   });
 
   it('returns forbidden when team-mode is ON but the org belongs to another company', async () => {
-    inboundMessageFindUnique.mockResolvedValue({ id: 'im-1' });
+    inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
     organizationFindUnique.mockResolvedValue({ id: 'org-other', companyId: 'company-other' });
     getCompanyTeamVisibility.mockResolvedValue(true);
 
@@ -114,7 +140,7 @@ describe('bindInboundMessageAction', () => {
     // Regression: managedOrgIds is loaded without a company filter, so a
     // cross-company OrganizationManager assignment must NOT let the manager
     // bind an inbound to a foreign company's org. Company is the hard floor.
-    inboundMessageFindUnique.mockResolvedValue({ id: 'im-1' });
+    inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
     organizationFindUnique.mockResolvedValue({ id: 'org-x', companyId: 'company-b' });
     requireManager.mockResolvedValue(managerSession({ companyId: 'company-a', managedOrgIds: ['org-x'] }));
     getCompanyTeamVisibility.mockResolvedValue(false);
@@ -126,7 +152,7 @@ describe('bindInboundMessageAction', () => {
   });
 
   it('succeeds and sets companyId from the organization (scoped mode, in managedOrgIds)', async () => {
-    inboundMessageFindUnique.mockResolvedValue({ id: 'im-1' });
+    inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
     organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
     getCompanyTeamVisibility.mockResolvedValue(false);
     inboundMessageUpdate.mockResolvedValue({});
@@ -134,6 +160,11 @@ describe('bindInboundMessageAction', () => {
     const result = await bindInboundMessageAction({ inboundMessageId: 'im-1', organizationId: 'org-a' });
 
     expect(result).toEqual({ ok: true });
+    // Scope-гейт (E2) читает companyId+status сообщения.
+    expect(inboundMessageFindUnique).toHaveBeenCalledWith({
+      where: { id: 'im-1' },
+      select: { companyId: true, status: true }
+    });
     expect(inboundMessageUpdate).toHaveBeenCalledWith({
       where: { id: 'im-1' },
       data: expect.objectContaining({
@@ -151,7 +182,7 @@ describe('bindInboundMessageAction', () => {
   });
 
   it('succeeds under team-mode ON when org is same company (even if not in managedOrgIds)', async () => {
-    inboundMessageFindUnique.mockResolvedValue({ id: 'im-1' });
+    inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
     organizationFindUnique.mockResolvedValue({ id: 'org-c', companyId: 'company-a' });
     getCompanyTeamVisibility.mockResolvedValue(true);
     requireManager.mockResolvedValue(managerSession({ managedOrgIds: [] }));
@@ -163,7 +194,7 @@ describe('bindInboundMessageAction', () => {
   });
 
   it('resolves the org-side thread when a valid orderId is supplied', async () => {
-    inboundMessageFindUnique.mockResolvedValue({ id: 'im-1' });
+    inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
     organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
     getCompanyTeamVisibility.mockResolvedValue(false);
     orderFindUnique.mockResolvedValue({ id: 'ord-1', organizationId: 'org-a', companyId: 'company-a' });
@@ -187,7 +218,7 @@ describe('bindInboundMessageAction', () => {
   });
 
   it('team-mode ON: same-company order resolves the thread; foreign-company order does not', async () => {
-    inboundMessageFindUnique.mockResolvedValue({ id: 'im-1' });
+    inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
     organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
     getCompanyTeamVisibility.mockResolvedValue(true);
     inboundMessageUpdate.mockResolvedValue({});
@@ -211,7 +242,7 @@ describe('bindInboundMessageAction', () => {
   });
 
   it('leaves threadId null when the in-scope order has no org-side thread yet', async () => {
-    inboundMessageFindUnique.mockResolvedValue({ id: 'im-1' });
+    inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
     organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
     getCompanyTeamVisibility.mockResolvedValue(false);
     orderFindUnique.mockResolvedValue({ id: 'ord-1', organizationId: 'org-a', companyId: 'company-a' });
@@ -231,7 +262,7 @@ describe('bindInboundMessageAction', () => {
   });
 
   it('leaves threadId null (best-effort) when the order does not belong to the target org', async () => {
-    inboundMessageFindUnique.mockResolvedValue({ id: 'im-1' });
+    inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
     organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
     getCompanyTeamVisibility.mockResolvedValue(false);
     orderFindUnique.mockResolvedValue({ id: 'ord-1', organizationId: 'org-other', companyId: 'company-a' });

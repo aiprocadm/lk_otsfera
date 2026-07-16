@@ -21,8 +21,16 @@ function session(companyId: string | null): SessionPayload {
 type Msg = { companyId: string | null; status: string };
 
 function matchesWhere(where: Prisma.InboundMessageWhereInput, msg: Msg): boolean {
-  const or = where.OR as Array<{ companyId?: string; status?: string }>;
+  const or = where.OR as Array<Record<string, unknown>>;
   expect(Array.isArray(or)).toBe(true);
+  // Каждая клауза — РОВНО один ключ из известного множества. Неизвестная
+  // форма where обязана РОНЯТЬ тест, а не молча оцениваться в false
+  // (иначе усложнённый scope прошёл бы матрицу «эквивалентным» по ошибке).
+  for (const clause of or) {
+    const keys = Object.keys(clause);
+    expect(keys).toHaveLength(1);
+    expect(['companyId', 'status']).toContain(keys[0]);
+  }
   return or.some((clause) =>
     'companyId' in clause ? msg.companyId === clause.companyId : msg.status === clause.status
   );

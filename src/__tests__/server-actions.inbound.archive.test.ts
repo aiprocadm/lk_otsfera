@@ -5,13 +5,13 @@ const {
   recordAudit,
   revalidatePath,
   inboundMessageFindUnique,
-  inboundMessageUpdate
+  inboundMessageUpdateMany
 } = vi.hoisted(() => ({
   requireManager: vi.fn(),
   recordAudit: vi.fn(),
   revalidatePath: vi.fn(),
   inboundMessageFindUnique: vi.fn(),
-  inboundMessageUpdate: vi.fn()
+  inboundMessageUpdateMany: vi.fn()
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
@@ -22,7 +22,7 @@ vi.mock('@/lib/notifications', () => ({ notifyOrgUsers: vi.fn() }));
 vi.mock('@/lib/services/oneCSync/log', () => ({ writeSyncLog: vi.fn() }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
-    inboundMessage: { findUnique: inboundMessageFindUnique, update: inboundMessageUpdate }
+    inboundMessage: { findUnique: inboundMessageFindUnique, updateMany: inboundMessageUpdateMany }
   }
 }));
 
@@ -41,6 +41,7 @@ describe('archiveInboundMessageAction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireManager.mockResolvedValue(managerSession());
+    inboundMessageUpdateMany.mockResolvedValue({ count: 1 });
   });
 
   it('validation: пустой inboundMessageId — до auth и БД дело не доходит', async () => {
@@ -57,7 +58,7 @@ describe('archiveInboundMessageAction', () => {
     const result = await archiveInboundMessageAction({ inboundMessageId: 'im-1' });
 
     expect(result).toEqual({ ok: false, error: 'not_found' });
-    expect(inboundMessageUpdate).not.toHaveBeenCalled();
+    expect(inboundMessageUpdateMany).not.toHaveBeenCalled();
   });
 
   it('forbidden: bound-сообщение чужой компании (C8)', async () => {
@@ -66,7 +67,7 @@ describe('archiveInboundMessageAction', () => {
     const result = await archiveInboundMessageAction({ inboundMessageId: 'im-1' });
 
     expect(result).toEqual({ ok: false, error: 'forbidden' });
-    expect(inboundMessageUpdate).not.toHaveBeenCalled();
+    expect(inboundMessageUpdateMany).not.toHaveBeenCalled();
     expect(recordAudit).not.toHaveBeenCalled();
   });
 
@@ -77,12 +78,11 @@ describe('archiveInboundMessageAction', () => {
     const result = await archiveInboundMessageAction({ inboundMessageId: 'im-1' });
 
     expect(result).toEqual({ ok: false, error: 'forbidden' });
-    expect(inboundMessageUpdate).not.toHaveBeenCalled();
+    expect(inboundMessageUpdateMany).not.toHaveBeenCalled();
   });
 
   it('unresolved (общая очередь, companyId=null) архивируется И закрепляется за компанией архивирующего', async () => {
     inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
-    inboundMessageUpdate.mockResolvedValue({});
 
     const result = await archiveInboundMessageAction({ inboundMessageId: 'im-1' });
 
@@ -93,8 +93,9 @@ describe('archiveInboundMessageAction', () => {
     });
     // Закрепление companyId — иначе archived+companyId=null выпадает из
     // scope ВСЕХ сессий навсегда (невидимо в списке и невосстановимо).
-    expect(inboundMessageUpdate).toHaveBeenCalledWith({
-      where: { id: 'im-1' },
+    // CAS по прочитанному status — TOCTOU-guard против гонки с bind.
+    expect(inboundMessageUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'im-1', status: 'unresolved' },
       data: { status: 'archived', companyId: 'company-a' }
     });
     expect(recordAudit).toHaveBeenCalledWith(
@@ -111,6 +112,26 @@ describe('archiveInboundMessageAction', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/manager/inbox');
   });
 
+  it('unresolved с УЖЕ непустым companyId (восстановленная пиненная строка) — без повторного пина', async () => {
+    // Компания B архивирует unresolved-строку, ранее пиненную за A (restore
+    // сохраняет companyId): строка уходит в архив A — детерминированно и
+    // восстановимо силами A, а не перезакрепляется за B.
+    requireManager.mockResolvedValue(managerSession({ companyId: 'company-b' }));
+    inboundMessageFindUnique.mockResolvedValue({ companyId: 'company-a', status: 'unresolved' });
+
+    const result = await archiveInboundMessageAction({ inboundMessageId: 'im-1' });
+
+    expect(result).toEqual({ ok: true });
+    expect(inboundMessageUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'im-1', status: 'unresolved' },
+      data: { status: 'archived' }
+    });
+    expect(recordAudit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ after: { status: 'archived' } })
+    );
+  });
+
   it('forbidden: unresolved при session.companyId=null — некому закрепить обращение', async () => {
     requireManager.mockResolvedValue(managerSession({ companyId: null }));
     inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
@@ -118,20 +139,19 @@ describe('archiveInboundMessageAction', () => {
     const result = await archiveInboundMessageAction({ inboundMessageId: 'im-1' });
 
     expect(result).toEqual({ ok: false, error: 'forbidden' });
-    expect(inboundMessageUpdate).not.toHaveBeenCalled();
+    expect(inboundMessageUpdateMany).not.toHaveBeenCalled();
     expect(recordAudit).not.toHaveBeenCalled();
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
   it('bound-сообщение своей компании архивируется; companyId в update НЕ трогается', async () => {
     inboundMessageFindUnique.mockResolvedValue({ companyId: 'company-a', status: 'bound' });
-    inboundMessageUpdate.mockResolvedValue({});
 
     const result = await archiveInboundMessageAction({ inboundMessageId: 'im-2' });
 
     expect(result).toEqual({ ok: true });
-    expect(inboundMessageUpdate).toHaveBeenCalledWith({
-      where: { id: 'im-2' },
+    expect(inboundMessageUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'im-2', status: 'bound' },
       data: { status: 'archived' }
     });
     expect(recordAudit).toHaveBeenCalledWith(
@@ -140,13 +160,24 @@ describe('archiveInboundMessageAction', () => {
     );
   });
 
-  it('уже archived → ok:true идемпотентно; update/audit/revalidate НЕ вызваны', async () => {
+  it('уже archived → ok:true идемпотентно; updateMany/audit/revalidate НЕ вызваны', async () => {
     inboundMessageFindUnique.mockResolvedValue({ companyId: 'company-a', status: 'archived' });
 
     const result = await archiveInboundMessageAction({ inboundMessageId: 'im-3' });
 
     expect(result).toEqual({ ok: true });
-    expect(inboundMessageUpdate).not.toHaveBeenCalled();
+    expect(inboundMessageUpdateMany).not.toHaveBeenCalled();
+    expect(recordAudit).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('TOCTOU: статус ушёл из-под ног между чтением и записью (count=0) → not_found без audit', async () => {
+    inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
+    inboundMessageUpdateMany.mockResolvedValue({ count: 0 });
+
+    const result = await archiveInboundMessageAction({ inboundMessageId: 'im-1' });
+
+    expect(result).toEqual({ ok: false, error: 'not_found' });
     expect(recordAudit).not.toHaveBeenCalled();
     expect(revalidatePath).not.toHaveBeenCalled();
   });
@@ -156,6 +187,7 @@ describe('restoreInboundMessageAction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireManager.mockResolvedValue(managerSession());
+    inboundMessageUpdateMany.mockResolvedValue({ count: 1 });
   });
 
   it('validation: пустой inboundMessageId', async () => {
@@ -171,7 +203,7 @@ describe('restoreInboundMessageAction', () => {
     const result = await restoreInboundMessageAction({ inboundMessageId: 'im-1' });
 
     expect(result).toEqual({ ok: false, error: 'not_found' });
-    expect(inboundMessageUpdate).not.toHaveBeenCalled();
+    expect(inboundMessageUpdateMany).not.toHaveBeenCalled();
   });
 
   it('forbidden: archived-сообщение чужой компании (C8)', async () => {
@@ -184,10 +216,10 @@ describe('restoreInboundMessageAction', () => {
     const result = await restoreInboundMessageAction({ inboundMessageId: 'im-1' });
 
     expect(result).toEqual({ ok: false, error: 'forbidden' });
-    expect(inboundMessageUpdate).not.toHaveBeenCalled();
+    expect(inboundMessageUpdateMany).not.toHaveBeenCalled();
   });
 
-  it('не-archived → not_found (нечего восстанавливать); update НЕ вызван', async () => {
+  it('не-archived → not_found (нечего восстанавливать); updateMany НЕ вызван', async () => {
     inboundMessageFindUnique.mockResolvedValue({
       companyId: 'company-a',
       status: 'bound',
@@ -197,17 +229,16 @@ describe('restoreInboundMessageAction', () => {
     const result = await restoreInboundMessageAction({ inboundMessageId: 'im-1' });
 
     expect(result).toEqual({ ok: false, error: 'not_found' });
-    expect(inboundMessageUpdate).not.toHaveBeenCalled();
+    expect(inboundMessageUpdateMany).not.toHaveBeenCalled();
     expect(recordAudit).not.toHaveBeenCalled();
   });
 
-  it('archived с boundAt → восстанавливается в bound; audit + revalidate', async () => {
+  it('archived с boundAt → восстанавливается в bound (CAS по archived); audit + revalidate', async () => {
     inboundMessageFindUnique.mockResolvedValue({
       companyId: 'company-a',
       status: 'archived',
       boundAt: new Date('2026-07-01T10:00:00Z')
     });
-    inboundMessageUpdate.mockResolvedValue({});
 
     const result = await restoreInboundMessageAction({ inboundMessageId: 'im-1' });
 
@@ -216,8 +247,8 @@ describe('restoreInboundMessageAction', () => {
       where: { id: 'im-1' },
       select: { companyId: true, status: true, boundAt: true }
     });
-    expect(inboundMessageUpdate).toHaveBeenCalledWith({
-      where: { id: 'im-1' },
+    expect(inboundMessageUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'im-1', status: 'archived' },
       data: { status: 'bound' }
     });
     expect(recordAudit).toHaveBeenCalledWith(
@@ -240,18 +271,32 @@ describe('restoreInboundMessageAction', () => {
       status: 'archived',
       boundAt: null
     });
-    inboundMessageUpdate.mockResolvedValue({});
 
     const result = await restoreInboundMessageAction({ inboundMessageId: 'im-2' });
 
     expect(result).toEqual({ ok: true });
-    expect(inboundMessageUpdate).toHaveBeenCalledWith({
-      where: { id: 'im-2' },
+    expect(inboundMessageUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'im-2', status: 'archived' },
       data: { status: 'unresolved' }
     });
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ action: 'inbound_message_restored', after: { status: 'unresolved' } })
     );
+  });
+
+  it('TOCTOU: строка ушла из archived между чтением и записью (count=0) → not_found без audit', async () => {
+    inboundMessageFindUnique.mockResolvedValue({
+      companyId: 'company-a',
+      status: 'archived',
+      boundAt: null
+    });
+    inboundMessageUpdateMany.mockResolvedValue({ count: 0 });
+
+    const result = await restoreInboundMessageAction({ inboundMessageId: 'im-1' });
+
+    expect(result).toEqual({ ok: false, error: 'not_found' });
+    expect(recordAudit).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
