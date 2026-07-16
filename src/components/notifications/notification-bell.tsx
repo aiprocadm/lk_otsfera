@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useClientResource } from '@/hooks/useClientResource';
 import { notificationHref, type NotificationRole } from '@/lib/notifications/href';
@@ -52,6 +52,8 @@ export function NotificationBell({ role }: { role: NotificationRole }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
 
   const unread = useClientResource<number>('/api/notifications/unread', {
     intervalMs: 30_000,
@@ -68,7 +70,13 @@ export function NotificationBell({ role }: { role: NotificationRole }) {
   useEffect(() => {
     if (!open) return;
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key !== 'Escape') return;
+      // Disclosure-паттерн: закрытие с клавиатуры возвращает фокус на кнопку.
+      setOpen(false);
+      const btn = buttonRef.current;
+      /* v8 ignore next -- защитный guard: кнопка смонтирована, пока висят листенеры */
+      if (!btn) return;
+      btn.focus();
     }
     function onMouseDown(e: MouseEvent) {
       const root = rootRef.current;
@@ -115,30 +123,39 @@ export function NotificationBell({ role }: { role: NotificationRole }) {
   return (
     <div ref={rootRef} className='relative inline-block'>
       <button
+        ref={buttonRef}
         type='button'
-        aria-label='Уведомления'
+        aria-label={count > 0 ? `Уведомления, непрочитанных: ${count}` : 'Уведомления'}
         aria-expanded={open}
-        aria-haspopup='true'
+        aria-haspopup='dialog'
+        aria-controls={panelId}
         onClick={() => setOpen((v) => !v)}
         className='inline-flex items-center rounded-md px-2 py-1 text-lg hover:bg-gray-100'
       >
         <span aria-hidden>🔔</span>
         {count > 0 ? (
-          <span aria-label='Непрочитанные уведомления' style={PILL_STYLE}>
+          <span aria-hidden style={PILL_STYLE}>
             {count}
           </span>
         ) : null}
       </button>
 
       {open ? (
-        <div className='absolute right-0 z-50 mt-2 w-[360px] max-h-[420px] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg'>
+        // Без role='dialog': репо-правило требует общий <Dialog> для диалогов,
+        // но он модальный — здесь немодальный поповер; aria-haspopup='dialog'
+        // на кнопке анонсирует тип попапа, aria-controls связывает по id.
+        <div
+          id={panelId}
+          className='absolute right-0 z-50 mt-2 w-[360px] max-h-[420px] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg'
+        >
           <div className='flex items-center justify-between border-b border-gray-100 px-4 py-2'>
             <span className='text-sm font-medium text-[#111111]'>Уведомления</span>
+            {/* Помечает только загруженные 50 строк (GET take:50); при большем числе непрочитанных бейдж останется ненулевым — серверный all:true отложен. */}
             <button
               type='button'
               disabled={unreadIds.length === 0}
               onClick={() => void markRead({ ids: unreadIds })}
-              className='text-xs text-blue-600 hover:underline disabled:text-gray-400 disabled:no-underline'
+              className='text-xs text-[#F97316] hover:underline disabled:text-gray-400 disabled:no-underline'
             >
               Прочитать все
             </button>

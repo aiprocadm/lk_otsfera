@@ -70,7 +70,8 @@ function renderBell(role: 'admin' | 'manager' | 'partner' | 'organization' = 'ma
 }
 
 function openPanel() {
-  fireEvent.click(screen.getByRole('button', { name: 'Уведомления' }));
+  // regex: aria-label кнопки включает счётчик при count>0 («Уведомления, непрочитанных: N»)
+  fireEvent.click(screen.getByRole('button', { name: /^Уведомления/ }));
 }
 
 describe('NotificationBell', () => {
@@ -93,19 +94,20 @@ describe('NotificationBell', () => {
   });
 
   describe('бейдж', () => {
-    it('не показывает пилл при count=0 и при data=null', () => {
+    it('не показывает пилл при count=0 и при data=null; aria-label без счётчика', () => {
       const { unmount } = renderBell();
-      expect(screen.queryByLabelText('Непрочитанные уведомления')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Уведомления' }).textContent).toBe('🔔');
       unmount();
       unreadStub = { data: null, loading: false, error: false };
       renderBell();
-      expect(screen.queryByLabelText('Непрочитанные уведомления')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Уведомления' }).textContent).toBe('🔔');
     });
 
-    it('показывает пилл с числом при count>0', () => {
+    it('показывает пилл с числом при count>0; счётчик озвучен в aria-label кнопки', () => {
       unreadStub = { data: 7, loading: false, error: false };
       renderBell();
-      expect(screen.getByLabelText('Непрочитанные уведомления').textContent).toBe('7');
+      const bell = screen.getByRole('button', { name: 'Уведомления, непрочитанных: 7' });
+      expect(bell.textContent).toContain('7');
     });
 
     it('поллит /api/notifications/unread с intervalMs=30000; select даёт count ?? 0', () => {
@@ -117,20 +119,24 @@ describe('NotificationBell', () => {
   });
 
   describe('открытие/закрытие панели', () => {
-    it('панель закрыта по умолчанию: aria-expanded=false, список с enabled=false', () => {
+    it('панель закрыта по умолчанию: aria-expanded=false, haspopup=dialog, список с enabled=false', () => {
       renderBell();
       const bell = screen.getByRole('button', { name: 'Уведомления' });
       expect(bell.getAttribute('aria-expanded')).toBe('false');
-      expect(bell.getAttribute('aria-haspopup')).toBe('true');
+      expect(bell.getAttribute('aria-haspopup')).toBe('dialog');
       expect(screen.queryByText('Прочитать все')).toBeNull();
       expect(listEnabledCalls.at(-1)).toBe(false);
     });
 
-    it('клик по кнопке открывает панель (enabled=true), повторный клик закрывает', () => {
+    it('клик по кнопке открывает панель (enabled=true, aria-controls → dialog), повторный клик закрывает', () => {
       renderBell();
       openPanel();
       const bell = screen.getByRole('button', { name: 'Уведомления' });
       expect(bell.getAttribute('aria-expanded')).toBe('true');
+      const panelId = bell.getAttribute('aria-controls');
+      expect(panelId).toBeTruthy();
+      const panel = document.getElementById(panelId!);
+      expect(panel?.textContent).toContain('Прочитать все');
       expect(screen.getByText('Уведомления', { selector: 'span' })).toBeTruthy();
       expect(listEnabledCalls.at(-1)).toBe(true);
       openPanel();
@@ -138,13 +144,14 @@ describe('NotificationBell', () => {
       expect(screen.queryByText('Прочитать все')).toBeNull();
     });
 
-    it('Escape закрывает панель; другие клавиши — нет', () => {
+    it('Escape закрывает панель и возвращает фокус на кнопку; другие клавиши — нет', () => {
       renderBell();
       openPanel();
       fireEvent.keyDown(document, { key: 'Enter' });
       expect(screen.getByText('Прочитать все')).toBeTruthy();
       fireEvent.keyDown(document, { key: 'Escape' });
       expect(screen.queryByText('Прочитать все')).toBeNull();
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Уведомления' }));
     });
 
     it('клик вне панели закрывает её, клик внутри — нет', () => {
