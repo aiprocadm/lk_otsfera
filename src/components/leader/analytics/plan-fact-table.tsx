@@ -17,7 +17,8 @@ import type { PlanFactRow, PlanFactTotals } from '@/lib/services/leader/analytic
 const TARGET_ERROR_LABEL: Record<string, string> = {
   invalid: 'Некорректная сумма плана.',
   not_found: 'Менеджер не найден.',
-  invalid_period: 'Некорректный период.'
+  invalid_period: 'Некорректный период.',
+  forbidden: 'Нет прав на изменение плана.'
 };
 
 function fmtPct(pct: number | null): string {

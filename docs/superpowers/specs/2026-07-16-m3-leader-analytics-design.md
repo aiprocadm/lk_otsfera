@@ -79,7 +79,7 @@ model SalesTarget {
    `{ ok: true } | { ok: false; error: 'forbidden' | 'not_found' | 'invalid' | 'invalid_period' }`
    - Гард **в сервисе** (defense-in-depth §4, поверх page/action-гардов): `session.role === 'manager' && session.managerRole === 'leader'` или `admin`; `session.companyId` обязателен.
    - Целевой менеджер: `user.findUnique` → должен существовать, `role='manager'`, `companyId === session.companyId` (иначе `not_found`/`forbidden` — кросс-компания невозможна).
-   - `targetAmount`: строка → Decimal, `> 0`, ≤ 10^12 (иначе `invalid`); `null` → `deleteMany` (идемпотентно).
+   - `targetAmount`: строка → Decimal, конечное (`isFinite` — `'NaN'` парсится Decimal без throw, а NaN-сравнения всегда false), `> 0`, `< 10^12` (граница `DECIMAL(14,2)`; иначе `invalid`); `null` → `deleteMany` (идемпотентно).
    - Запись: `upsert` по unique-ключу; `recordAudit({ action: 'sales_target_set' | 'sales_target_cleared', entity: 'user', entityId: managerId, meta: { year, month, targetAmount } })` — entity `'user'` (объект плана — менеджер; расширение `AuditEntity` не требуется).
 
 Хелпер месяца (локальный в сервисе): `monthRange(year, month) → { from, to }` (1-е 00:00 — 1-е следующего).

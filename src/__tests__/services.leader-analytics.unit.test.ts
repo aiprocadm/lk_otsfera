@@ -455,7 +455,7 @@ describe('upsertSalesTarget', () => {
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
-  it.each(['0', '-5', 'abc', '1000000000000'])('targetAmount %s → invalid', async (bad) => {
+  it.each(['0', '-5', 'abc', '1000000000000', 'NaN', 'Infinity', '-Infinity'])('targetAmount %s → invalid', async (bad) => {
     const user = { findUnique: vi.fn().mockResolvedValue({ id: 'm1', role: 'manager', companyId: 'c1' }) };
     const salesTarget = { findMany: vi.fn(), deleteMany: vi.fn(), upsert: vi.fn() };
     const prisma = fakePrisma({ user, salesTarget });

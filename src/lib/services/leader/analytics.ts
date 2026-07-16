@@ -387,7 +387,9 @@ export async function upsertSalesTarget(
   } catch {
     return { ok: false, error: 'invalid' };
   }
-  if (amount.lte(0) || amount.gte(MAX_TARGET_AMOUNT)) return { ok: false, error: 'invalid' };
+  // isFinite: Decimal('NaN') парсится без throw, а NaN-сравнения всегда false —
+  // без явной проверки 'NaN' проскочил бы оба guard'а и уронил upsert (§3: не throw).
+  if (!amount.isFinite() || amount.lte(0) || amount.gte(MAX_TARGET_AMOUNT)) return { ok: false, error: 'invalid' };
 
   await prisma.salesTarget.upsert({
     where: { companyId_managerId_year_month: { companyId, managerId, year, month } },
