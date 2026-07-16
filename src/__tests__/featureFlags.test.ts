@@ -42,6 +42,7 @@ const OPT_IN_FLAGS = new Set([
   'telephony_mango',
   'staff_2fa',
   'contacts',
+  'staff_chat',
 ]);
 
 describe('isFeatureEnabled', () => {
@@ -136,6 +137,15 @@ describe('contacts (M2)', () => {
     expect(isFeatureEnabled('contacts')).toBe(false);
     process.env.FEATURE_CONTACTS = '1';
     expect(isFeatureEnabled('contacts')).toBe(true);
+  });
+});
+
+describe('staff_chat (M4)', () => {
+  it('is opt-in: disabled by default, enabled by FEATURE_STAFF_CHAT=1', () => {
+    delete process.env.FEATURE_STAFF_CHAT;
+    expect(isFeatureEnabled('staff_chat')).toBe(false);
+    process.env.FEATURE_STAFF_CHAT = '1';
+    expect(isFeatureEnabled('staff_chat')).toBe(true);
   });
 });
 

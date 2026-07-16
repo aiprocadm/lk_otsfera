@@ -54,6 +54,11 @@ export const FEATURE_FLAGS = [
   // M2: справочник контактов + карточки. Route-флаг: три точки (middleware/nav/route)
   // добавляются в PR-B вместе с /manager/contacts. В PR-A гейтит триаж-действия.
   'contacts',
+  // M4: внутренний чат сотрудников. Поведенческий флаг (не route): точки чтения —
+  // секции «Чат команды» на /manager/messages и /admin/messages (isFeatureEnabled),
+  // все /api/staff-chat/* хендлеры (notFoundIfDisabled), staff-бейдж непрочитанного.
+  // Спека 2026-07-17-m4-staff-chat.
+  'staff_chat',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -80,6 +85,7 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'telephony_mango',
   'staff_2fa',
   'contacts',
+  'staff_chat',
 ]);
 
 export class FeatureDisabledError extends Error {

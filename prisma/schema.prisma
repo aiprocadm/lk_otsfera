@@ -145,6 +145,11 @@ enum ContactChannelType {
   max
 }
 
+enum StaffConversationKind {
+  dm
+  general
+}
+
 model User {
   id                           String                @id @default(cuid())
   createdAt                    DateTime              @default(now())
@@ -211,6 +216,10 @@ model User {
   contact                      Contact?              @relation("UserContact")
   contactsCreated              Contact[]             @relation("ContactCreatedBy")
   salesTargets                 SalesTarget[]         @relation("SalesTargetManager")
+  staffChatParticipations      StaffParticipant[]    @relation("StaffChatParticipant")
+  staffMessagesAuthored        StaffMessage[]        @relation("StaffMessageAuthor")
+  staffReadStates              StaffMessageRead[]    @relation("StaffChatReadState")
+  staffReactions               StaffReaction[]       @relation("StaffReactionAuthor")
 }
 
 model PartnerUser {
@@ -606,11 +615,11 @@ model Student {
 }
 
 model Company {
-  id                    String           @id @default(cuid())
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
+  id                    String              @id @default(cuid())
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
   name                  String
-  managerTeamVisibility Boolean          @default(false)
+  managerTeamVisibility Boolean             @default(false)
   users                 User[]
   orders                Order[]
   organizations         Organization[]
@@ -621,8 +630,9 @@ model Company {
   tasks                 Task[]
   inboundMessages       InboundMessage[]
   calls                 Call[]
-  contacts              Contact[]        @relation("CompanyContacts")
+  contacts              Contact[]           @relation("CompanyContacts")
   salesTargets          SalesTarget[]
+  staffConversations    StaffConversation[]
 }
 
 // Трек G1 (§3.2 ТЗ): роль-профиль как данные. Матрица охватов по типам объектов
@@ -1402,10 +1412,85 @@ model SalesTarget {
   managerId    String
   manager      User     @relation("SalesTargetManager", fields: [managerId], references: [id], onDelete: Cascade)
   year         Int
-  month        Int      // 1..12
+  month        Int // 1..12
   targetAmount Decimal  @db.Decimal(14, 2)
-  createdById  String?  // кто задал (аудит-денорм; полный трейл в AuditLog)
+  createdById  String? // кто задал (аудит-денорм; полный трейл в AuditLog)
 
   @@unique([companyId, managerId, year, month])
   @@index([companyId, year, month])
+}
+
+/// M4 (спека 2026-07-17): внутренний чат сотрудников — ОТДЕЛЬНЫЙ домен от клиентского
+/// чата (OrderThread): несовместимые модели видимости (§4 sibling-rule). dm: ровно 2
+/// StaffParticipant; general: участников-строк нет (членство = все staff компании + admin,
+/// Model A). dmKey = отсортированная пара "userAId:userBId" — «один ЛС на пару» держится
+/// констрейнтом БД, не кодом (класс гонок C-01). «Один general на компанию» — партиальный
+/// unique-индекс в миграции (Prisma его не выражает; прецедент C-01).
+model StaffConversation {
+  id            String                @id @default(cuid())
+  createdAt     DateTime              @default(now())
+  companyId     String
+  company       Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  kind          StaffConversationKind
+  dmKey         String?               @unique
+  lastMessageAt DateTime              @default(now())
+  participants  StaffParticipant[]
+  messages      StaffMessage[]
+  readStates    StaffMessageRead[]
+
+  @@index([companyId, lastMessageAt])
+}
+
+model StaffParticipant {
+  id             String            @id @default(cuid())
+  createdAt      DateTime          @default(now())
+  conversationId String
+  conversation   StaffConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User              @relation("StaffChatParticipant", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model StaffMessage {
+  id             String            @id @default(cuid())
+  createdAt      DateTime          @default(now())
+  conversationId String
+  conversation   StaffConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  authorId       String
+  author         User              @relation("StaffMessageAuthor", fields: [authorId], references: [id])
+  body           String
+  attachmentPath String?
+  attachmentName String?
+  attachmentMime String?
+  scanStatus     String            @default("none") // none|pending|clean|infected|error
+
+  reactions StaffReaction[]
+
+  @@index([conversationId, createdAt])
+}
+
+model StaffMessageRead {
+  id             String            @id @default(cuid())
+  conversationId String
+  conversation   StaffConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User              @relation("StaffChatReadState", fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime          @default(now())
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model StaffReaction {
+  id        String       @id @default(cuid())
+  createdAt DateTime     @default(now())
+  messageId String
+  message   StaffMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User         @relation("StaffReactionAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  emoji     String
+
+  @@unique([messageId, userId, emoji])
 }
