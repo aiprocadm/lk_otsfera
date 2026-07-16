@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth/session';
 import { navItemsFor } from '@/lib/navigation/cabinet';
 import { isManagerLeader } from '@/lib/auth/managerPolicy';
 import { LogoutButton } from '@/components/ui';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 
 const roleLabel: Record<string, string> = {
   admin: 'Администратор',
@@ -31,6 +32,12 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             <div className='text-xs text-gray-400'>{roleLabel[session.role] ?? session.role}</div>
             <div className='text-sm font-medium'>{session.name}</div>
           </div>
+          {/* Шелл generic (partner-layout + student-fallback /student): у student
+              нет notifications-скоупа (NotificationRole), колокольчик — только
+              партнёру. Тёмный хедер #111111 → нейтральная hover-подложка. */}
+          {session.role === 'partner' ? (
+            <NotificationBell role='partner' buttonClassName='hover:bg-white/10' />
+          ) : null}
           <LogoutButton className='text-xs text-gray-400 hover:text-[#F97316] transition-colors px-2 py-1 border border-gray-700 rounded hover:border-[#F97316] disabled:opacity-60' />
         </div>
       </header>

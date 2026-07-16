@@ -11,6 +11,11 @@ vi.mock('next/link', () => ({
     React.createElement('a', { href, className }, children)
 }));
 
+vi.mock('@/components/notifications/notification-bell', () => ({
+  NotificationBell: (props: { role: string }) =>
+    React.createElement('span', { 'data-testid': 'notification-bell', 'data-role': props.role }, '🔔')
+}));
+
 import { ManagerAppShell } from '@/components/manager/manager-app-shell';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -48,6 +53,11 @@ describe('ManagerAppShell', () => {
     expect(html).toContain('Кабинет менеджера');
     expect(html).toContain('контент');
     expect(html).toContain('Выйти');
+  });
+
+  it('renders NotificationBell with role="manager" in the header', () => {
+    const html = renderToString(renderShell(makeSession({}), 'x'));
+    expect(html).toContain('data-role="manager"');
   });
 
   it('shows the user email in the header when present', () => {

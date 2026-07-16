@@ -48,7 +48,17 @@ const PILL_STYLE: React.CSSProperties = {
   verticalAlign: 'middle'
 };
 
-export function NotificationBell({ role }: { role: NotificationRole }) {
+export function NotificationBell({
+  role,
+  buttonClassName = 'hover:bg-gray-100'
+}: {
+  role: NotificationRole;
+  /**
+   * Hover-подложка кнопки: дефолт заточен под светлый хедер; тёмный хедер
+   * partner-шелла передаёт нейтральный вариант (например, hover:bg-white/10).
+   */
+  buttonClassName?: string;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -130,7 +140,7 @@ export function NotificationBell({ role }: { role: NotificationRole }) {
         aria-haspopup='dialog'
         aria-controls={panelId}
         onClick={() => setOpen((v) => !v)}
-        className='inline-flex items-center rounded-md px-2 py-1 text-lg hover:bg-gray-100'
+        className={`inline-flex items-center rounded-md px-2 py-1 text-lg ${buttonClassName}`}
       >
         <span aria-hidden>🔔</span>
         {count > 0 ? (

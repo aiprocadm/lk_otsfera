@@ -15,6 +15,11 @@ vi.mock('@/components/ui', () => ({
   LogoutButton: () => React.createElement('button', null, 'Выйти')
 }));
 
+vi.mock('@/components/notifications/notification-bell', () => ({
+  NotificationBell: (props: { role: string }) =>
+    React.createElement('span', { 'data-testid': 'notification-bell', 'data-role': props.role }, '🔔')
+}));
+
 import { AdminAppShell } from '@/components/admin/admin-app-shell';
 
 describe('AdminAppShell', () => {
@@ -32,6 +37,15 @@ describe('AdminAppShell', () => {
     expect(html).toContain('дочерний контент');
     expect(html).toContain('Выйти');
     expect(html).toContain('Админ');
+  });
+
+  it('renders NotificationBell with role="admin" in the header', async () => {
+    requireAdmin.mockResolvedValue({ userId: 'u1', role: 'admin', email: 'admin@example.com' });
+
+    const el = await AdminAppShell({ children: 'x' });
+    const html = renderToString(el);
+
+    expect(html).toContain('data-role="admin"');
   });
 
   it('propagates a rejection from requireAdmin (e.g. redirect throw) instead of swallowing it', async () => {

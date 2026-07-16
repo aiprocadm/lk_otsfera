@@ -24,6 +24,19 @@ vi.mock('@/components/ui', () => ({
     React.createElement('button', { className: props.className }, 'Выйти')
 }));
 
+vi.mock('@/components/notifications/notification-bell', () => ({
+  NotificationBell: (props: { role: string; buttonClassName?: string }) =>
+    React.createElement(
+      'span',
+      {
+        'data-testid': 'notification-bell',
+        'data-role': props.role,
+        'data-button-class': props.buttonClassName
+      },
+      '🔔'
+    )
+}));
+
 import { AppShell } from '@/components/dashboard/app-shell';
 
 describe('AppShell', () => {
@@ -80,6 +93,25 @@ describe('AppShell', () => {
     expect(html).toContain('скоро');
     expect(html).toContain('cursor-not-allowed');
     expect(html).not.toContain('href="/manager/team"');
+  });
+
+  it('partner session renders NotificationBell with role="partner" and dark-header hover variant', async () => {
+    getSession.mockResolvedValue({ sub: 'u5', role: 'partner', name: 'P', partnerRole: null });
+
+    const el = await AppShell({ children: 'c' });
+    const html = renderToString(el);
+
+    expect(html).toContain('data-role="partner"');
+    expect(html).toContain('data-button-class="hover:bg-white/10"');
+  });
+
+  it('non-partner session (student fallback of /student) does not render NotificationBell', async () => {
+    getSession.mockResolvedValue({ sub: 'u6', role: 'student', name: 'S' });
+
+    const el = await AppShell({ children: 'c' });
+    const html = renderToString(el);
+
+    expect(html).not.toContain('data-testid="notification-bell"');
   });
 
   it('passes isManagerLeader and isPartnerAdmin through to navItemsFor', async () => {

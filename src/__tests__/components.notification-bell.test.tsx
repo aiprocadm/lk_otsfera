@@ -93,6 +93,26 @@ describe('NotificationBell', () => {
     vi.unstubAllGlobals();
   });
 
+  describe('buttonClassName (подложка hover под хедер)', () => {
+    it('по умолчанию — светлый вариант hover:bg-gray-100', () => {
+      renderBell();
+      const bell = screen.getByRole('button', { name: 'Уведомления' });
+      expect(bell.className).toContain('hover:bg-gray-100');
+    });
+
+    it('проброшенный buttonClassName заменяет дефолт (тёмный хедер partner)', () => {
+      render(
+        React.createElement(NotificationBell, {
+          role: 'partner',
+          buttonClassName: 'hover:bg-white/10'
+        })
+      );
+      const bell = screen.getByRole('button', { name: 'Уведомления' });
+      expect(bell.className).toContain('hover:bg-white/10');
+      expect(bell.className).not.toContain('hover:bg-gray-100');
+    });
+  });
+
   describe('бейдж', () => {
     it('не показывает пилл при count=0 и при data=null; aria-label без счётчика', () => {
       const { unmount } = renderBell();

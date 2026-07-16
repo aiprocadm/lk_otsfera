@@ -18,6 +18,11 @@ vi.mock('@/components/leader/leader-sidebar', () => ({
     )
 }));
 
+vi.mock('@/components/notifications/notification-bell', () => ({
+  NotificationBell: (props: { role: string }) =>
+    React.createElement('span', { 'data-testid': 'notification-bell', 'data-role': props.role }, '🔔')
+}));
+
 import { LeaderAppShell } from '@/components/leader/leader-app-shell';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -50,6 +55,11 @@ describe('LeaderAppShell', () => {
     expect(html).toContain('leader@example.com');
     expect(html).toContain('дочерний контент');
     expect(html).toContain('Сводка');
+  });
+
+  it('renders NotificationBell with role="manager" (leader = manager с той же областью уведомлений)', () => {
+    const html = renderToString(renderShell({ session: baseSession, children: 'c' }));
+    expect(html).toContain('data-role="manager"');
   });
 
   it('omits the email span when session.email is null/undefined', () => {

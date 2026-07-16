@@ -2,6 +2,7 @@ import React, { type ReactNode } from 'react';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { ManagerSidebar } from './manager-sidebar';
 import { LogoutButton } from '@/components/ui';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 import { navItemsFor } from '@/lib/navigation/cabinet';
 import { isManagerLeader } from '@/lib/auth/managerPolicy';
 
@@ -21,7 +22,10 @@ export function ManagerAppShell(props: {
               <span className='ml-3 text-gray-500'>· {userEmail}</span>
             ) : null}
           </div>
-          <LogoutButton />
+          <div className='flex items-center gap-2'>
+            <NotificationBell role='manager' />
+            <LogoutButton />
+          </div>
         </header>
         <main className='flex-1 px-6 py-6'>
           <div className='max-w-[1280px] mx-auto'>{props.children}</div>
