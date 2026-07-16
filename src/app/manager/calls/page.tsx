@@ -4,7 +4,9 @@ import { requireManager } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
 import { listCalls, type CallsFilters } from '@/lib/services/telephony/listCalls';
+import { listOrganizations } from '@/lib/services/manager/organizations';
 import { CallsFiltersBar } from '@/components/manager/calls-filters';
+import { CallsOrgFilter } from '@/components/manager/calls-org-filter';
 import { CallsList } from '@/components/manager/calls-list';
 import { Paginator } from '@/components/ui';
 
@@ -37,7 +39,10 @@ export default async function ManagerCallsPage({
     pageSize: PAGE_SIZE
   };
 
-  const { items, total } = await listCalls(prisma, session, filters);
+  const [{ items, total }, orgs] = await Promise.all([
+    listCalls(prisma, session, filters),
+    listOrganizations(prisma, session)
+  ]);
 
   return (
     <div className="space-y-4">
@@ -48,7 +53,9 @@ export default async function ManagerCallsPage({
         </p>
       </div>
 
-      <CallsFiltersBar direction={sp.direction} />
+      <CallsFiltersBar direction={sp.direction} orgId={sp.orgId}>
+        <CallsOrgFilter orgs={orgs} orgId={sp.orgId} direction={sp.direction} />
+      </CallsFiltersBar>
 
       <CallsList items={items} />
 

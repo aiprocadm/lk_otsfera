@@ -20,9 +20,30 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 const { listCalls } = vi.hoisted(() => ({ listCalls: vi.fn() }));
 vi.mock('@/lib/services/telephony/listCalls', () => ({ listCalls }));
 
+const { listOrganizations } = vi.hoisted(() => ({ listOrganizations: vi.fn() }));
+vi.mock('@/lib/services/manager/organizations', () => ({ listOrganizations }));
+
 vi.mock('@/components/manager/calls-filters', () => ({
-  CallsFiltersBar: (props: { direction?: string }) =>
-    React.createElement('div', { 'data-testid': 'calls-filters' }, String(props.direction))
+  CallsFiltersBar: (props: { direction?: string; orgId?: string; children?: React.ReactNode }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'calls-filters' },
+      `${String(props.direction)}|${String(props.orgId)}`,
+      props.children
+    )
+}));
+
+vi.mock('@/components/manager/calls-org-filter', () => ({
+  CallsOrgFilter: (props: {
+    orgs: { id: string; name: string }[];
+    orgId?: string;
+    direction?: string;
+  }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'calls-org-filter' },
+      JSON.stringify({ orgs: props.orgs, orgId: props.orgId, direction: props.direction })
+    )
 }));
 
 vi.mock('@/components/manager/calls-list', () => ({
@@ -39,6 +60,8 @@ describe('ManagerCallsPage', () => {
     requireManager.mockReset();
     isFeatureEnabled.mockReset();
     listCalls.mockReset();
+    listOrganizations.mockReset();
+    listOrganizations.mockResolvedValue([]);
   });
 
   it('flag telephony_mango выключен → notFound', async () => {
@@ -59,6 +82,7 @@ describe('ManagerCallsPage', () => {
     );
 
     expect(listCalls).toHaveBeenCalledWith({}, SESSION, { page: 1, pageSize: 25 });
+    expect(listOrganizations).toHaveBeenCalledWith({}, SESSION);
     expect(container.textContent).toContain('Звонки');
   });
 
@@ -110,5 +134,50 @@ describe('ManagerCallsPage', () => {
     const filters = listCalls.mock.calls[0][2];
     expect(filters.direction).toBeUndefined();
     expect(filters.page).toBe(1);
+  });
+
+  it('orgs из listOrganizations и orgId/direction прокидываются в CallsOrgFilter', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManager.mockResolvedValue(SESSION);
+    listCalls.mockResolvedValue({ items: [], total: 0 });
+    listOrganizations.mockResolvedValue([{ id: 'org-1', name: 'Альфа' }]);
+
+    const { getByTestId } = await renderServerComponent(
+      ManagerCallsPage({
+        searchParams: Promise.resolve({ orgId: 'org-1', direction: 'inbound' })
+      })
+    );
+
+    const payload = JSON.parse(getByTestId('calls-org-filter').textContent ?? '');
+    expect(payload).toEqual({
+      orgs: [{ id: 'org-1', name: 'Альфа' }],
+      orgId: 'org-1',
+      direction: 'inbound'
+    });
+    // бар направлений тоже получает orgId для сохранения его в ссылках
+    expect(getByTestId('calls-filters').textContent).toContain('inbound|org-1');
+  });
+
+  it('listOrganizations выполняется параллельно с listCalls (Promise.all)', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManager.mockResolvedValue(SESSION);
+    let callsResolved = false;
+    listCalls.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            callsResolved = true;
+            resolve({ items: [], total: 0 });
+          }, 0);
+        })
+    );
+    listOrganizations.mockImplementation(async () => {
+      // при последовательном `await listCalls(...)` сюда пришли бы уже после resolve
+      expect(callsResolved).toBe(false);
+      return [];
+    });
+
+    await renderServerComponent(ManagerCallsPage({ searchParams: Promise.resolve({}) }));
+    expect(listOrganizations).toHaveBeenCalledTimes(1);
   });
 });
