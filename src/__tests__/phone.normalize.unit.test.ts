@@ -17,4 +17,8 @@ describe('normalizePhoneCanonical', () => {
     expect(normalizePhoneCanonical('---')).toBe('');
     expect(normalizePhoneCanonical('')).toBe('');
   });
+  it('null/undefined raw input falls back to empty string via `raw ?? \'\'`', () => {
+    expect(normalizePhoneCanonical(undefined as unknown as string)).toBe('');
+    expect(normalizePhoneCanonical(null as unknown as string)).toBe('');
+  });
 });

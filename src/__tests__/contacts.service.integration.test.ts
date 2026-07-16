@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { PrismaClient } from '@prisma/client';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { createContact, captureChannel } from '@/lib/services/manager/contacts';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -113,5 +113,61 @@ describe('contacts service', () => {
     await captureChannel(prisma, { contactId: c.id, companyId: co.id, type: 'telegram', value: 'tg-777' });
     const chans = await prisma.contactChannel.findMany({ where: { contactId: c.id } });
     expect(chans).toHaveLength(1);
+  });
+
+  it('createContact rejects a whitespace-only name (trims to empty)', async () => {
+    const co = await prisma.company.create({ data: { name: `${STAMP}-coBlankName` } });
+    const r = await createContact(prisma, session(co.id), { name: '   ', channels: [] });
+    expect(r).toEqual({ ok: false, error: 'invalid' });
+    const persisted = await prisma.contact.findFirst({ where: { companyId: co.id } });
+    expect(persisted).toBeNull();
+  });
+
+  it('createContact trims and stores position/note when provided', async () => {
+    const co = await prisma.company.create({ data: { name: `${STAMP}-coPosNote` } });
+    const r = await createContact(prisma, session(co.id), {
+      name: `${STAMP}-Мария`, position: '  Закупщик  ', note: '  ВИП-клиент  ', channels: [],
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const row = await prisma.contact.findUnique({ where: { id: r.contactId } });
+    expect(row?.position).toBe('Закупщик');
+    expect(row?.note).toBe('ВИП-клиент');
+  });
+
+  it('captureChannel: a value that normalizes to empty is a no-op (no query, no row)', async () => {
+    const co = await prisma.company.create({ data: { name: `${STAMP}-coEmptyChan` } });
+    const c = await prisma.contact.create({ data: { companyId: co.id, name: `${STAMP}-EmptyChanContact` } });
+    await captureChannel(prisma, { contactId: c.id, companyId: co.id, type: 'phone', value: '---' });
+    const chans = await prisma.contactChannel.findMany({ where: { contactId: c.id } });
+    expect(chans).toHaveLength(0);
+  });
+
+  it('captureChannel: a P2002 race on create (concurrent writer already inserted the row) is swallowed, not thrown', async () => {
+    const co = await prisma.company.create({ data: { name: `${STAMP}-coRace` } });
+    const c = await prisma.contact.create({ data: { companyId: co.id, name: `${STAMP}-RaceContact` } });
+    const p2002 = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: '5.0.0' });
+    const spy = vi.spyOn(prisma.contactChannel, 'create').mockRejectedValueOnce(p2002);
+    try {
+      await expect(
+        captureChannel(prisma, { contactId: c.id, companyId: co.id, type: 'telegram', value: `${STAMP}-race` })
+      ).resolves.toBeUndefined(); // swallowed, not re-thrown
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('captureChannel: a non-P2002 error on create propagates unchanged', async () => {
+    const co = await prisma.company.create({ data: { name: `${STAMP}-coRaceOther` } });
+    const c = await prisma.contact.create({ data: { companyId: co.id, name: `${STAMP}-RaceOtherContact` } });
+    const other = new Error('connection reset');
+    const spy = vi.spyOn(prisma.contactChannel, 'create').mockRejectedValueOnce(other);
+    try {
+      await expect(
+        captureChannel(prisma, { contactId: c.id, companyId: co.id, type: 'telegram', value: `${STAMP}-raceOther` })
+      ).rejects.toThrow('connection reset');
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

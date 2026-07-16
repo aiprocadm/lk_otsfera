@@ -55,6 +55,7 @@ export async function backfillContacts(
   });
   for (const u of users) {
     const companyId = u.organization?.companyId;
+    /* v8 ignore next -- unreachable: `users` query already filters organization.companyId not-null, so this is a defensive TS-narrowing guard only */
     if (!companyId) continue;
     const seeds: ChannelSeed[] = [];
     if (u.whatsappPhone) seeds.push({ type: 'whatsapp', value: u.whatsappPhone });

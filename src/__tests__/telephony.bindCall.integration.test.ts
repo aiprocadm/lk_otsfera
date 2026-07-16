@@ -24,6 +24,9 @@ afterAll(async () => {
   // FK-safe order: audit log rows reference the 'mgr1' user before it can be deleted.
   await prisma.auditLog.deleteMany({ where: { userId: 'mgr1' } });
   await prisma.call.deleteMany({ where: { externalId: { startsWith: STAMP } } });
+  // Order.title-scoped delete before organization/company teardown; OrderThread
+  // cascades from Order (onDelete: Cascade).
+  await prisma.order.deleteMany({ where: { title: { startsWith: STAMP } } });
   await prisma.contactChannel.deleteMany({ where: { contact: { is: { name: { startsWith: STAMP } } } } });
   await prisma.contact.deleteMany({ where: { name: { startsWith: STAMP } } });
   await prisma.organization.deleteMany({ where: { name: { startsWith: STAMP } } });
@@ -69,5 +72,97 @@ describe('bindCall', () => {
     expect(r).toEqual({ ok: false, error: 'forbidden' });
     const row = await prisma.call.findUnique({ where: { id: call.id } });
     expect(row?.resolvedOrgId).toBeNull();
+  });
+
+  it('returns not_found for a callId that does not exist', async () => {
+    const co = await prisma.company.create({ data: { name: `${STAMP}-coNfCall` } });
+    const org = await prisma.organization.create({ data: { name: `${STAMP}-orgNfCall`, companyId: co.id } });
+    const r = await bindCall(prisma, session(co.id, [org.id]), { callId: `${STAMP}-missing-call`, organizationId: org.id });
+    expect(r).toEqual({ ok: false, error: 'not_found' });
+  });
+
+  it('returns not_found for an organizationId that does not exist', async () => {
+    const co = await prisma.company.create({ data: { name: `${STAMP}-coNfOrg` } });
+    const call = await prisma.call.create({ data: { provider: 'mango', externalId: `${STAMP}:c4`, direction: 'inbound', callerNumber: '+79990004444', status: 'completed' } });
+    const r = await bindCall(prisma, session(co.id), { callId: call.id, organizationId: `${STAMP}-missing-org` });
+    expect(r).toEqual({ ok: false, error: 'not_found' });
+  });
+
+  it('refuses to bind a contact that already belongs to a different organization', async () => {
+    // contact.organizationId set AND different from the target org (as opposed to the
+    // company-mismatch case above): a different bind-authority gate (lines 64-66).
+    const co = await prisma.company.create({ data: { name: `${STAMP}-coCX` } });
+    const orgA = await prisma.organization.create({ data: { name: `${STAMP}-orgCXA`, companyId: co.id } });
+    const orgB = await prisma.organization.create({ data: { name: `${STAMP}-orgCXB`, companyId: co.id } });
+    const contact = await prisma.contact.create({ data: { companyId: co.id, organizationId: orgB.id, name: `${STAMP}-Cross` } });
+    const call = await prisma.call.create({ data: { provider: 'mango', externalId: `${STAMP}:c5`, direction: 'inbound', callerNumber: '+79990005555', status: 'completed' } });
+    const r = await bindCall(prisma, session(co.id, [orgA.id, orgB.id]), { callId: call.id, organizationId: orgA.id, contactId: contact.id });
+    expect(r).toEqual({ ok: false, error: 'forbidden' });
+    const row = await prisma.call.findUnique({ where: { id: call.id } });
+    expect(row?.resolvedOrgId).toBeNull();
+  });
+
+  it('resolves an in-scope order to its org-side thread (best-effort thread resolution)', async () => {
+    const co = await prisma.company.create({ data: { name: `${STAMP}-coOrd` } });
+    const org = await prisma.organization.create({ data: { name: `${STAMP}-orgOrd`, companyId: co.id } });
+    const order = await prisma.order.create({ data: { title: `${STAMP}-order1`, companyId: co.id, organizationId: org.id } });
+    const thread = await prisma.orderThread.create({ data: { orderId: order.id, side: 'org' } });
+    const call = await prisma.call.create({ data: { provider: 'mango', externalId: `${STAMP}:c6`, direction: 'inbound', callerNumber: '+79990006666', status: 'completed' } });
+
+    const r = await bindCall(prisma, session(co.id, [org.id]), { callId: call.id, organizationId: org.id, orderId: order.id });
+    expect(r.ok).toBe(true);
+    const row = await prisma.call.findUnique({ where: { id: call.id } });
+    expect(row?.threadId).toBe(thread.id);
+  });
+
+  it('order given but it belongs to a different org than the target → threadId stays null (bind still succeeds)', async () => {
+    const co = await prisma.company.create({ data: { name: `${STAMP}-coOrdX` } });
+    const orgTarget = await prisma.organization.create({ data: { name: `${STAMP}-orgOrdXTarget`, companyId: co.id } });
+    const orgOther = await prisma.organization.create({ data: { name: `${STAMP}-orgOrdXOther`, companyId: co.id } });
+    const order = await prisma.order.create({ data: { title: `${STAMP}-order2`, companyId: co.id, organizationId: orgOther.id } });
+    const call = await prisma.call.create({ data: { provider: 'mango', externalId: `${STAMP}:c7`, direction: 'inbound', callerNumber: '+79990007766', status: 'completed' } });
+
+    const r = await bindCall(prisma, session(co.id, [orgTarget.id, orgOther.id]), { callId: call.id, organizationId: orgTarget.id, orderId: order.id });
+    expect(r.ok).toBe(true);
+    const row = await prisma.call.findUnique({ where: { id: call.id } });
+    expect(row?.threadId).toBeNull();
+    expect(row?.resolvedOrgId).toBe(orgTarget.id);
+  });
+
+  it('refuses to bind a contact belonging to a different company', async () => {
+    const co = await prisma.company.create({ data: { name: `${STAMP}-coCC` } });
+    const coForeign = await prisma.company.create({ data: { name: `${STAMP}-coCCForeign` } });
+    const org = await prisma.organization.create({ data: { name: `${STAMP}-orgCC`, companyId: co.id } });
+    const contact = await prisma.contact.create({ data: { companyId: coForeign.id, name: `${STAMP}-ForeignContact` } });
+    const call = await prisma.call.create({ data: { provider: 'mango', externalId: `${STAMP}:c9`, direction: 'inbound', callerNumber: '+79990009900', status: 'completed' } });
+    const r = await bindCall(prisma, session(co.id, [org.id]), { callId: call.id, organizationId: org.id, contactId: contact.id });
+    expect(r).toEqual({ ok: false, error: 'forbidden' });
+    const row = await prisma.call.findUnique({ where: { id: call.id } });
+    expect(row?.resolvedOrgId).toBeNull();
+  });
+
+  it('teamMode ON: order.companyId matches session.companyId → in scope, but no OrderThread row exists → threadId stays null', async () => {
+    const co = await prisma.company.create({ data: { name: `${STAMP}-coTm`, managerTeamVisibility: true } });
+    const org = await prisma.organization.create({ data: { name: `${STAMP}-orgTm`, companyId: co.id } });
+    const order = await prisma.order.create({ data: { title: `${STAMP}-order3`, companyId: co.id, organizationId: org.id } });
+    const call = await prisma.call.create({ data: { provider: 'mango', externalId: `${STAMP}:c10`, direction: 'inbound', callerNumber: '+79990001010', status: 'completed' } });
+
+    // No managedOrgIds needed: teamMode ON grants bind-authority company-wide.
+    const r = await bindCall(prisma, session(co.id), { callId: call.id, organizationId: org.id, orderId: order.id });
+    expect(r.ok).toBe(true);
+    const row = await prisma.call.findUnique({ where: { id: call.id } });
+    expect(row?.resolvedOrgId).toBe(org.id); // orderInScope was true (company matched)…
+    expect(row?.threadId).toBeNull(); // …but no OrderThread(side:'org') row exists yet.
+  });
+
+  it('non-existent orderId → threadId stays null (bind still succeeds, best-effort)', async () => {
+    const co = await prisma.company.create({ data: { name: `${STAMP}-coOrdNf` } });
+    const org = await prisma.organization.create({ data: { name: `${STAMP}-orgOrdNf`, companyId: co.id } });
+    const call = await prisma.call.create({ data: { provider: 'mango', externalId: `${STAMP}:c8`, direction: 'inbound', callerNumber: '+79990008866', status: 'completed' } });
+
+    const r = await bindCall(prisma, session(co.id, [org.id]), { callId: call.id, organizationId: org.id, orderId: `${STAMP}-missing-order` });
+    expect(r.ok).toBe(true);
+    const row = await prisma.call.findUnique({ where: { id: call.id } });
+    expect(row?.threadId).toBeNull();
   });
 });

@@ -29,4 +29,18 @@ describe('resolveContactByChannel', () => {
       expect.objectContaining({ where: expect.objectContaining({ type: { in: ['phone', 'whatsapp'] }, normalizedValue: '+79990001122' }) })
     );
   });
+  it('a value that normalizes to empty string short-circuits to null without querying the DB', async () => {
+    const d = db([]);
+    const r = await resolveContactByChannel(d, { type: 'phone', value: '---' });
+    expect(r).toBeNull();
+    expect(d.contactChannel.findMany).not.toHaveBeenCalled();
+  });
+  it('resolved contact with no linked user omits `userId` from the result entirely', async () => {
+    const r = await resolveContactByChannel(
+      db([chan({ contact: { id: 'k1', organizationId: 'o1', companyId: 'c1', userId: null, isArchived: false } })]),
+      { type: 'telegram', value: '123' }
+    );
+    expect(r).toEqual({ contactId: 'k1', organizationId: 'o1', companyId: 'c1' });
+    expect(r).not.toHaveProperty('userId');
+  });
 });
