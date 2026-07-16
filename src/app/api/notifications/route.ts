@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireRole, requireSession } from '@/lib/auth/guard';
-import { managedOrgIds, managerOrderScopeFilter } from '@/lib/auth/managerPolicy';
-
-import type { SessionPayload } from '@/lib/auth/jwt';
+// Task C1 (parity): per-role scope вынесен в сервис — общий для этого роута
+// и GET /api/notifications/unread. Поведение байт-в-байт прежнее.
+import { buildNotificationScopeWhere } from '@/lib/services/notifications/scope';
 
 const patchSchema = z.object({
   id: z.string().min(1).max(64).optional(),
@@ -15,63 +14,6 @@ const patchSchema = z.object({
   message: 'id or ids required'
 });
 
-async function buildScopeWhere(
-  session: SessionPayload,
-  opts: { candidateIds?: string[] } = {}
-) {
-  if (session.role === 'admin') return {};
-
-  if (session.role === 'manager') {
-    // Manager visibility follows managerOrderScopeFilter (per-order ownership +
-    // per-org scope from session.managedOrgIds + historical commenter access).
-    // Notification has no direct Order FK, so we hydrate the in-scope order IDs
-    // and match them via meta.orderId for order-bound fan-outs that did not
-    // also stamp organizationId (e.g. per-order ownership in a foreign org).
-    //
-    // R1.2: раньше на КАЖДЫЙ видимый заказ строилась отдельная OR-ветка с
-    // JSONB-путём — при тысячах заказов SQL-план взрывался. Теперь кандидаты
-    // собираются ОДНИМ raw-запросом `meta->>'orderId' IN (…)` и входят в scope
-    // веткой `id IN (…)`. Контракт сохранён: GET отдаёт top-50 по createdAt —
-    // top-50 кандидатов по createdAt покрывают любой возможный вклад meta-ветки
-    // в этот срез; PATCH ограничен своими candidateIds (≤100 по схеме), поэтому
-    // кандидаты фильтруются ими и остаются bounded.
-    const orgIds = managedOrgIds(session);
-    const visibleOrders = await prisma.order.findMany({
-      where: managerOrderScopeFilter(session),
-      select: { id: true }
-    });
-    const orderIds = visibleOrders.map((order) => order.id);
-
-    const branches: Array<Record<string, unknown>> = [{ userId: session.sub }];
-    if (orgIds.length > 0) branches.push({ organizationId: { in: orgIds } });
-
-    if (orderIds.length > 0) {
-      const rows = await prisma.$queryRaw<Array<{ id: string }>>(
-        opts.candidateIds
-          ? Prisma.sql`SELECT id FROM "Notification"
-              WHERE id IN (${Prisma.join(opts.candidateIds)})
-                AND (meta->>'orderId') IN (${Prisma.join(orderIds)})`
-          : Prisma.sql`SELECT id FROM "Notification"
-              WHERE (meta->>'orderId') IN (${Prisma.join(orderIds)})
-              ORDER BY "createdAt" DESC
-              LIMIT 50`
-      );
-      if (rows.length > 0) branches.push({ id: { in: rows.map((r) => r.id) } });
-    }
-
-    return { OR: branches };
-  }
-
-  const scope: Array<Record<string, unknown>> = [{ userId: session.sub }];
-
-  if (session.role === 'partner' && session.partnerId) scope.push({ partnerId: session.partnerId });
-  if (session.role === 'organization' && session.organizationId) {
-    scope.push({ organizationId: session.organizationId });
-  }
-
-  return { OR: scope };
-}
-
 export async function GET() {
   const sessionResult = await requireSession();
   if (!sessionResult.ok) return sessionResult.response;
@@ -80,7 +22,7 @@ export async function GET() {
   const roleResult = requireRole(session, ['admin', 'manager', 'partner', 'organization']);
   if (!roleResult.ok) return roleResult.response;
 
-  const where = await buildScopeWhere(session);
+  const where = await buildNotificationScopeWhere(prisma, session);
 
   const notifications = await prisma.notification.findMany({
     where,
@@ -112,7 +54,9 @@ export async function PATCH(req: Request) {
   }
 
   const { id, ids, isRead = true } = parsed.data;
-  const where = await buildScopeWhere(session, { candidateIds: id ? [id] : ids! });
+  const where = await buildNotificationScopeWhere(prisma, session, {
+    candidateIds: id ? [id] : ids!
+  });
 
   if (id) {
     const notification = await prisma.notification.updateMany({
