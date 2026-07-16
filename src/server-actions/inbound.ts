@@ -1,11 +1,14 @@
 'use server';
 
+import { z } from 'zod';
+import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
 import { requireManager } from '@/lib/auth/requireRole';
 import { getCompanyTeamVisibility, isOrgInScope } from '@/lib/auth/managerPolicy';
 import { recordAudit } from '@/lib/auth/audit';
 import { notifyOrgUsers } from '@/lib/notifications';
 import { replyToInbound } from '@/lib/services/inbound/reply';
+import { isInboundMessageInScope } from '@/lib/services/inbound/scope';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { log } from '@/lib/logging';
 
@@ -198,5 +201,97 @@ export async function replyInboundAction(
     status: 'success'
   });
 
+  return { ok: true };
+}
+
+const ArchiveInboundSchema = z.object({ inboundMessageId: z.string().min(1).max(64) });
+
+export type ArchiveInboundResult =
+  | { ok: true }
+  | { ok: false; error: 'validation' | 'forbidden' | 'not_found' };
+
+/**
+ * Archives an inbound message (E2). Scope: the shared C8 predicate
+ * `isInboundMessageInScope` (scope.ts) — own company's messages plus the
+ * shared unresolved triage queue; a foreign company's bound message is
+ * `forbidden`. Idempotent: archiving an already-archived message is a no-op
+ * `{ ok: true }` (no update, no audit).
+ */
+export async function archiveInboundMessageAction(input: {
+  inboundMessageId: string;
+}): Promise<ArchiveInboundResult> {
+  const parsed = ArchiveInboundSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+
+  const session = await requireManager();
+
+  const message = await prisma.inboundMessage.findUnique({
+    where: { id: parsed.data.inboundMessageId },
+    select: { companyId: true, status: true }
+  });
+  if (!message) return { ok: false, error: 'not_found' };
+
+  if (!isInboundMessageInScope(session, message)) return { ok: false, error: 'forbidden' };
+
+  if (message.status === 'archived') return { ok: true };
+
+  await prisma.inboundMessage.update({
+    where: { id: parsed.data.inboundMessageId },
+    data: { status: 'archived' }
+  });
+
+  await recordAudit(prisma, {
+    action: 'inbound_message_archived',
+    entity: 'order_thread',
+    entityId: parsed.data.inboundMessageId,
+    userId: session.sub,
+    before: { status: message.status },
+    after: { status: 'archived' }
+  });
+
+  revalidatePath('/manager/inbox');
+  return { ok: true };
+}
+
+/**
+ * Restores an archived inbound message (E2) back to its pre-archive status:
+ * `bound` if it was ever bound (`boundAt` set), otherwise `unresolved`.
+ * Scope: same shared C8 predicate as archive. A non-archived message returns
+ * `not_found` — there is nothing to restore (semantics agreed in the plan).
+ */
+export async function restoreInboundMessageAction(input: {
+  inboundMessageId: string;
+}): Promise<ArchiveInboundResult> {
+  const parsed = ArchiveInboundSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+
+  const session = await requireManager();
+
+  const message = await prisma.inboundMessage.findUnique({
+    where: { id: parsed.data.inboundMessageId },
+    select: { companyId: true, status: true, boundAt: true }
+  });
+  if (!message) return { ok: false, error: 'not_found' };
+
+  if (!isInboundMessageInScope(session, message)) return { ok: false, error: 'forbidden' };
+
+  if (message.status !== 'archived') return { ok: false, error: 'not_found' };
+
+  const restoredStatus = message.boundAt ? 'bound' : 'unresolved';
+  await prisma.inboundMessage.update({
+    where: { id: parsed.data.inboundMessageId },
+    data: { status: restoredStatus }
+  });
+
+  await recordAudit(prisma, {
+    action: 'inbound_message_restored',
+    entity: 'order_thread',
+    entityId: parsed.data.inboundMessageId,
+    userId: session.sub,
+    before: { status: 'archived' },
+    after: { status: restoredStatus }
+  });
+
+  revalidatePath('/manager/inbox');
   return { ok: true };
 }

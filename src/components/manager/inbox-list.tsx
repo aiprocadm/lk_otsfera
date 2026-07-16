@@ -3,6 +3,7 @@ import { TableShell, THead, Th, Tr, Td, Badge, EmptyState } from '@/components/u
 import { fmtDateTime } from '@/lib/format';
 import { InboxBindForm } from '@/components/manager/inbox-bind-form';
 import { InboxReplyForm } from '@/components/manager/inbox-reply-form';
+import { InboxArchiveButton } from '@/components/manager/inbox-archive-button';
 import type { InboxItem } from '@/lib/services/inbound/listInbox';
 import type { ManagerOrgListRow } from '@/lib/services/manager/organizations';
 
@@ -10,9 +11,9 @@ import type { ManagerOrgListRow } from '@/lib/services/manager/organizations';
  * Презентационная таблица инбокса (Task 11b). Сервер-компонент — сама не
  * ходит за данными, только рендерит `items` от `listInbox` и встраивает
  * клиентские формы привязки/ответа по статусу строки:
- *  - `unresolved` → форма привязки (`InboxBindForm`);
- *  - `bound`      → форма ответа (`InboxReplyForm`);
- *  - `archived`   → без формы (только просмотр).
+ *  - `unresolved` → форма привязки (`InboxBindForm`) + кнопка «В архив»;
+ *  - `bound`      → форма ответа (`InboxReplyForm`) + кнопка «В архив»;
+ *  - `archived`   → кнопка «Вернуть» (`InboxArchiveButton`, E2).
  */
 
 const CHANNEL_LABEL: Record<string, string> = {
@@ -110,11 +111,18 @@ export function InboxList({
               </Td>
               <Td className="whitespace-nowrap text-gray-500">{fmtDateTime(item.createdAt)}</Td>
               <Td className="min-w-[16rem]">
-                {item.status === 'unresolved' && (
-                  <InboxBindForm inboundMessageId={item.id} organizations={organizations} />
-                )}
-                {item.status === 'bound' && <InboxReplyForm inboundMessageId={item.id} />}
-                {item.status === 'archived' && <span className="text-xs text-gray-400">—</span>}
+                <div className="space-y-2">
+                  {item.status === 'unresolved' && (
+                    <InboxBindForm inboundMessageId={item.id} organizations={organizations} />
+                  )}
+                  {item.status === 'bound' && <InboxReplyForm inboundMessageId={item.id} />}
+                  {(item.status === 'unresolved' || item.status === 'bound') && (
+                    <InboxArchiveButton inboundMessageId={item.id} mode="archive" />
+                  )}
+                  {item.status === 'archived' && (
+                    <InboxArchiveButton inboundMessageId={item.id} mode="restore" />
+                  )}
+                </div>
               </Td>
             </Tr>
           ))}
@@ -141,11 +149,17 @@ export function InboxList({
               </div>
             )}
             <p className="mt-1 text-xs text-gray-400">{fmtDateTime(item.createdAt)}</p>
-            <div className="mt-3">
+            <div className="mt-3 space-y-2">
               {item.status === 'unresolved' && (
                 <InboxBindForm inboundMessageId={item.id} organizations={organizations} />
               )}
               {item.status === 'bound' && <InboxReplyForm inboundMessageId={item.id} />}
+              {(item.status === 'unresolved' || item.status === 'bound') && (
+                <InboxArchiveButton inboundMessageId={item.id} mode="archive" />
+              )}
+              {item.status === 'archived' && (
+                <InboxArchiveButton inboundMessageId={item.id} mode="restore" />
+              )}
             </div>
           </div>
         ))}

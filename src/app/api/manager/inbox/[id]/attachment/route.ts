@@ -3,6 +3,7 @@ import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { getObjectStorage } from '@/lib/storage';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
+import { isInboundMessageInScope } from '@/lib/services/inbound/scope';
 
 /**
  * GET /api/manager/inbox/[id]/attachment
@@ -56,13 +57,9 @@ export async function GET(
     return new Response(null, { status: 404 });
   }
 
-  // C8 scope (mirrors listInbox): own company's bound messages OR the shared
-  // unresolved triage queue. `msg.companyId != null` keeps a companyId-less
-  // session from matching a null===null pair on the company branch.
-  const inScope =
-    (msg.companyId != null && msg.companyId === session.companyId) ||
-    msg.status === 'unresolved';
-  if (!inScope) {
+  // C8 scope — shared module (scope.ts), the in-memory equivalent of
+  // listInbox's `inboxScopeWhere`; see its JSDoc for the sentinel rationale.
+  if (!isInboundMessageInScope(session, msg)) {
     return new Response(null, { status: 404 });
   }
 
