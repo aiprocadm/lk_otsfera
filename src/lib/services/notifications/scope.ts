@@ -2,6 +2,10 @@
  * Скоуп видимости уведомлений по роли сессии (Task C1, parity) — вынесен
  * из src/app/api/notifications/route.ts без изменения поведения. Общая
  * реализация для GET/PATCH /api/notifications и GET /api/notifications/unread.
+ *
+ * Для unread-count meta-ветка менеджера унаследованно ограничена LIMIT 50
+ * кандидатами — счётчик может недосчитывать старые order-bound уведомления
+ * (известное ограничение, R1.2).
  */
 import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
