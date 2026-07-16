@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useEffect, useRef, useState, useTransition } from 'react';
+
+const GENERIC_ERROR = 'Не удалось отправить запрос, попробуйте позже';
 
 /**
  * Форма самостоятельного запроса сброса пароля (`/reset-password` без токена).
@@ -15,6 +17,14 @@ export function ForgotPasswordForm() {
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
   const [pending, startTransition] = useTransition();
+  const statusRef = useRef<HTMLParagraphElement>(null);
+
+  // A11y: при success форма размонтируется и фокус с кнопки падает на body,
+  // а вставной role=status может не анонсироваться скринридером. Переносим
+  // фокус на само сообщение (tabIndex={-1} делает его фокусируемым программно).
+  useEffect(() => {
+    statusRef.current?.focus();
+  }, [sent]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,17 +41,17 @@ export function ForgotPasswordForm() {
         } else if (res.status === 429) {
           setError('Слишком много запросов, попробуйте позже');
         } else {
-          setError('Не удалось отправить запрос, попробуйте позже');
+          setError(GENERIC_ERROR);
         }
       } catch {
-        setError('Не удалось отправить запрос, попробуйте позже');
+        setError(GENERIC_ERROR);
       }
     });
   }
 
   if (sent) {
     return (
-      <p role='status' className='text-sm text-gray-600'>
+      <p ref={statusRef} tabIndex={-1} role='status' className='text-sm text-gray-600 focus:outline-none'>
         Если такой email зарегистрирован, мы отправили письмо со ссылкой для сброса пароля.
       </p>
     );

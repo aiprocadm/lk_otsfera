@@ -51,6 +51,17 @@ describe('ForgotPasswordForm', () => {
     expect(document.querySelector('form')).toBeNull();
   });
 
+  it('success: moves focus to the status message (form unmount would drop focus to body)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+    render(React.createElement(ForgotPasswordForm, null));
+
+    submit();
+
+    const status = await screen.findByRole('status');
+    await waitFor(() => expect(document.activeElement).toBe(status));
+  });
+
   it('429: shows the rate-limit inline error and keeps the form', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 429 });
     vi.stubGlobal('fetch', fetchMock);
