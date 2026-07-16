@@ -97,6 +97,9 @@ export async function POST(req: Request) {
   // Manager-cabinet users: three-way visibility via managerPolicy (per-order,
   // per-org, or historical comments). Mirrors the upload service hot-path:
   // count comments only when the cheaper per-order/per-org checks miss.
+  // NB: message-строки ошибок этой ветки ('Invalid request'/'Not found'/
+  // 'Access denied') — контракт COMMENT_ERROR_LABEL композера ленты
+  // (deal-activity-thread.tsx); при переименовании обновить обе стороны.
   if (s.role === 'manager') {
     const teamMode = await getCompanyTeamVisibility(prisma, s.companyId);
     const order = await prisma.order.findUnique({

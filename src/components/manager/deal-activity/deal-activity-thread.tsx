@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { Button, Input, Textarea } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { useFormAction } from '@/lib/ui/useFormAction';
@@ -102,6 +102,7 @@ export function DealActivityThread({
   const [callFormOpen, setCallFormOpen] = useState(false);
   const composerFormRef = useRef<HTMLFormElement>(null);
   const callFormRef = useRef<HTMLFormElement>(null);
+  const captionId = useId();
 
   const visible = items.filter((item) => {
     if (!inboundEnabled && CHANNEL_KINDS.has(item.kind)) return false;
@@ -204,6 +205,7 @@ export function DealActivityThread({
           <Button
             type='button'
             size='sm'
+            aria-pressed={view === 'dialogue'}
             variant={view === 'dialogue' ? 'primary' : 'secondary'}
             onClick={() => setView('dialogue')}
           >
@@ -212,6 +214,7 @@ export function DealActivityThread({
           <Button
             type='button'
             size='sm'
+            aria-pressed={view === 'all'}
             variant={view === 'all' ? 'primary' : 'secondary'}
             onClick={() => setView('all')}
           >
@@ -232,14 +235,16 @@ export function DealActivityThread({
 
       <div className='border-t border-gray-100 pt-3 space-y-3'>
         <form ref={composerFormRef} action={composer.formAction} className='flex flex-col gap-2'>
-          <div role='radiogroup' aria-label='Режим сообщения' className='flex flex-wrap gap-1'>
+          {/* Пиллы-переключатели — toggle-кнопки (aria-pressed), не radio:
+              полная radio-семантика требует roving tabindex + стрелки
+              (прецедент — team-visibility-toggle.tsx). */}
+          <div className='flex flex-wrap gap-1'>
             {modes.map((m) => (
               <Button
                 key={m}
                 type='button'
                 size='sm'
-                role='radio'
-                aria-checked={mode === m}
+                aria-pressed={mode === m}
                 variant={mode === m ? 'primary' : 'secondary'}
                 disabled={composer.pending}
                 onClick={() => selectMode(m)}
@@ -255,8 +260,17 @@ export function DealActivityThread({
             disabled={composer.pending}
             placeholder={meta.placeholder}
             aria-label={meta.ariaLabel}
+            aria-describedby={captionId}
           />
-          <p className='text-xs text-gray-500'>{caption}</p>
+          {/* Privacy-дифференциация: client-visible режимы (comment/channel)
+              подписаны предупреждающим тоном; SR слышит подпись при фокусе
+              textarea через aria-describedby. */}
+          <p
+            id={captionId}
+            className={mode === 'note' ? 'text-xs text-gray-500' : 'text-xs text-amber-600 font-medium'}
+          >
+            {caption}
+          </p>
           <div className='flex items-center justify-between gap-2'>
             <Button type='submit' size='sm' loading={composer.pending} disabled={composer.pending}>
               {meta.submitLabel}

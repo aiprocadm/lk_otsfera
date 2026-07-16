@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
@@ -182,7 +182,10 @@ describe('DealActivityThread', () => {
       <DealActivityThread orderId='o1' items={allKindsItems()} inboundEnabled={true} telephonyEnabled={true} />
     );
 
+    expect(screen.getByRole('button', { name: 'Диалог', pressed: true })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Вся активность' }));
+    expect(screen.getByRole('button', { name: 'Вся активность', pressed: true })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Диалог', pressed: false })).toBeTruthy();
 
     expect(screen.getByText('Внутренняя заметка для команды')).toBeTruthy();
     expect(screen.getByText('Клиент не видит')).toBeTruthy();
@@ -235,29 +238,29 @@ describe('DealActivityThread', () => {
 
   // ── Композер: режимы ────────────────────────────────────────────────────
 
-  it('режимы: «Заметка» (checked по умолчанию) и «Комментарий» всегда; «Ответ в канал» при inboundEnabled и не-email message_in', () => {
+  it('режимы: «Заметка» (pressed по умолчанию) и «Комментарий» всегда; «Ответ в канал» при inboundEnabled и не-email message_in', () => {
     render(
       <DealActivityThread orderId='o1' items={tgInboundItems()} inboundEnabled={true} telephonyEnabled={false} />
     );
-    expect(screen.getByRole('radio', { name: 'Заметка', checked: true })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: 'Комментарий', checked: false })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: 'Ответ в канал', checked: false })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Заметка', pressed: true })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Комментарий', pressed: false })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Ответ в канал', pressed: false })).toBeTruthy();
   });
 
   it('режим «Ответ в канал» скрыт при inboundEnabled=false', () => {
     render(
       <DealActivityThread orderId='o1' items={tgInboundItems()} inboundEnabled={false} telephonyEnabled={false} />
     );
-    expect(screen.getByRole('radio', { name: 'Заметка' })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: 'Комментарий' })).toBeTruthy();
-    expect(screen.queryByRole('radio', { name: 'Ответ в канал' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Заметка' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Комментарий' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Ответ в канал' })).toBeNull();
   });
 
   it('режим «Ответ в канал» скрыт без единого message_in', () => {
     render(
       <DealActivityThread orderId='o1' items={[]} inboundEnabled={true} telephonyEnabled={false} />
     );
-    expect(screen.queryByRole('radio', { name: 'Ответ в канал' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ответ в канал' })).toBeNull();
   });
 
   it('режим «Ответ в канал» скрыт, когда последний message_in — email (даже при более раннем telegram)', () => {
@@ -276,22 +279,78 @@ describe('DealActivityThread', () => {
     render(
       <DealActivityThread orderId='o1' items={items} inboundEnabled={true} telephonyEnabled={false} />
     );
-    expect(screen.queryByRole('radio', { name: 'Ответ в канал' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ответ в канал' })).toBeNull();
   });
 
   it('rerender с inboundEnabled=false в режиме «Ответ в канал» откатывает композер на заметку', () => {
     const { rerender } = render(
       <DealActivityThread orderId='o1' items={tgInboundItems()} inboundEnabled={true} telephonyEnabled={false} />
     );
-    fireEvent.click(screen.getByRole('radio', { name: 'Ответ в канал' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ответ в канал' }));
     expect(screen.getByRole('button', { name: 'Ответить в канал' })).toBeTruthy();
 
     rerender(
       <DealActivityThread orderId='o1' items={tgInboundItems()} inboundEnabled={false} telephonyEnabled={false} />
     );
-    expect(screen.queryByRole('radio', { name: 'Ответ в канал' })).toBeNull();
-    expect(screen.getByRole('radio', { name: 'Заметка', checked: true })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Ответ в канал' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Заметка', pressed: true })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Добавить заметку' })).toBeTruthy();
+  });
+
+  it('переключение режима сохраняет черновик в общей textarea', () => {
+    render(
+      <DealActivityThread orderId='o1' items={[]} inboundEnabled={true} telephonyEnabled={false} />
+    );
+    const textarea = screen.getByLabelText('Текст заметки') as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: 'черновик' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Комментарий' }));
+    expect((screen.getByLabelText('Текст комментария') as HTMLTextAreaElement).value).toBe('черновик');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Заметка' }));
+    expect((screen.getByLabelText('Текст заметки') as HTMLTextAreaElement).value).toBe('черновик');
+  });
+
+  it('подпись связана с textarea через aria-describedby; client-visible режим — предупреждающий тон, заметка — обычный', () => {
+    render(
+      <DealActivityThread orderId='o1' items={[]} inboundEnabled={true} telephonyEnabled={false} />
+    );
+    const noteCaption = screen.getByText('Внутренняя заметка — клиент её не видит');
+    expect(noteCaption.id).toBeTruthy();
+    expect(screen.getByLabelText('Текст заметки').getAttribute('aria-describedby')).toBe(noteCaption.id);
+    expect(noteCaption.className).toContain('text-gray-500');
+    expect(noteCaption.className).not.toContain('text-amber-600');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Комментарий' }));
+    const commentCaption = screen.getByText('Комментарий клиенту (видит клиент)');
+    expect(screen.getByLabelText('Текст комментария').getAttribute('aria-describedby')).toBe(commentCaption.id);
+    expect(commentCaption.className).toContain('text-amber-600');
+    expect(commentCaption.className).not.toContain('text-gray-500');
+  });
+
+  it('пиллы заблокированы во время pending — кросс-режимный двойной сабмит невозможен', async () => {
+    let resolveNote!: (v: { ok: true; id: string }) => void;
+    addDealNoteAction.mockImplementation(
+      () => new Promise<{ ok: true; id: string }>((resolve) => { resolveNote = resolve; })
+    );
+    render(
+      <DealActivityThread orderId='order-9' items={tgInboundItems()} inboundEnabled={true} telephonyEnabled={false} />
+    );
+
+    fireEvent.change(screen.getByLabelText('Текст заметки'), { target: { value: 'x' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить заметку' }));
+
+    await waitFor(() => {
+      expect((screen.getByRole('button', { name: 'Заметка' }) as HTMLButtonElement).disabled).toBe(true);
+    });
+    expect((screen.getByRole('button', { name: 'Комментарий' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Ответ в канал' }) as HTMLButtonElement).disabled).toBe(true);
+
+    await act(async () => {
+      resolveNote({ ok: true, id: 'n1' });
+    });
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Заметка добавлена'));
+    expect((screen.getByRole('button', { name: 'Комментарий' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   // ── Композер: заметка (default) ─────────────────────────────────────────
@@ -352,7 +411,7 @@ describe('DealActivityThread', () => {
       <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={false} />
     );
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Комментарий' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Комментарий' }));
     expect(screen.getByText('Комментарий клиенту (видит клиент)')).toBeTruthy();
 
     const textarea = screen.getByLabelText('Текст комментария') as HTMLTextAreaElement;
@@ -377,7 +436,7 @@ describe('DealActivityThread', () => {
       <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={false} />
     );
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Комментарий' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Комментарий' }));
     const textarea = screen.getByLabelText('Текст комментария') as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: 'x' } }); // проходит required
     textarea.removeAttribute('name');
@@ -402,7 +461,7 @@ describe('DealActivityThread', () => {
       <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={false} />
     );
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Комментарий' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Комментарий' }));
     fireEvent.change(screen.getByLabelText('Текст комментария'), { target: { value: 'x' } });
     fireEvent.click(screen.getByRole('button', { name: 'Отправить комментарий' }));
 
@@ -417,14 +476,14 @@ describe('DealActivityThread', () => {
       <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={false} />
     );
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Комментарий' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Комментарий' }));
     fireEvent.change(screen.getByLabelText('Текст комментария'), { target: { value: 'x' } });
     fireEvent.click(screen.getByRole('button', { name: 'Отправить комментарий' }));
     await screen.findByRole('alert');
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Заметка' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Заметка' }));
     expect(screen.queryByRole('alert')).toBeNull();
-    fireEvent.click(screen.getByRole('radio', { name: 'Комментарий' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Комментарий' }));
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
@@ -436,8 +495,9 @@ describe('DealActivityThread', () => {
       <DealActivityThread orderId='order-9' items={tgInboundItems()} inboundEnabled={true} telephonyEnabled={false} />
     );
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Ответ в канал' }));
-    expect(screen.getByText('Ответ в канал (Telegram)')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Ответ в канал' }));
+    const channelCaption = screen.getByText('Ответ в канал (Telegram)');
+    expect(channelCaption.className).toContain('text-amber-600');
 
     const textarea = screen.getByLabelText('Текст ответа') as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: 'Отвечаю в мессенджер' } });
@@ -480,7 +540,7 @@ describe('DealActivityThread', () => {
       <DealActivityThread orderId='order-9' items={items} inboundEnabled={true} telephonyEnabled={false} />
     );
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Ответ в канал' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ответ в канал' }));
     expect(screen.getByText('Ответ в канал (sms)')).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('Текст ответа'), { target: { value: 'ок' } });
@@ -502,7 +562,7 @@ describe('DealActivityThread', () => {
       <DealActivityThread orderId='order-9' items={items} inboundEnabled={true} telephonyEnabled={false} />
     );
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Ответ в канал' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ответ в канал' }));
     fireEvent.change(screen.getByLabelText('Текст ответа'), { target: { value: 'ок' } });
     fireEvent.click(screen.getByRole('button', { name: 'Ответить в канал' }));
 
@@ -517,7 +577,7 @@ describe('DealActivityThread', () => {
       <DealActivityThread orderId='order-9' items={tgInboundItems()} inboundEnabled={true} telephonyEnabled={false} />
     );
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Ответ в канал' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ответ в канал' }));
     const textarea = screen.getByLabelText('Текст ответа') as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: 'x' } }); // проходит required
     textarea.removeAttribute('name');
@@ -538,7 +598,7 @@ describe('DealActivityThread', () => {
       <DealActivityThread orderId='order-9' items={tgInboundItems()} inboundEnabled={true} telephonyEnabled={false} />
     );
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Ответ в канал' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ответ в канал' }));
     fireEvent.change(screen.getByLabelText('Текст ответа'), { target: { value: 'x' } });
     fireEvent.click(screen.getByRole('button', { name: 'Ответить в канал' }));
 
