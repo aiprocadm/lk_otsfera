@@ -5,9 +5,11 @@ import { getSyncSummary, type SyncSummaryRow } from '@/lib/services/syncSummary'
 import { getQueueStats } from '@/lib/services/admin/queueStats';
 import { loadPausedSchedulerIds } from '@/lib/jobs/scheduling';
 import { SYNC_ENTITIES, type SyncControlEntity } from '@/lib/services/admin/syncControl';
+import { listPendingRecords, type PendingRecordRow } from '@/lib/services/admin/pendingRecords';
 import { SyncTriggerButton } from '@/components/admin/sync-trigger-button';
 import { SyncScheduleToggle } from '@/components/admin/sync-schedule-toggle';
 import { SyncCursorDialog } from '@/components/admin/sync-cursor-dialog';
+import { PendingRecordsSection } from '@/components/admin/pending-records-section';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,12 +28,17 @@ function formatDate(d: Date | null): string {
 }
 
 export default async function AdminSyncPage() {
-  await requireAdmin();
+  const session = await requireAdmin();
 
-  const [rows, queueStats, pausedIds] = await Promise.all([
+  const [rows, queueStats, pausedIds, pendingRecords] = await Promise.all([
     getSyncSummary(prisma),
     getQueueStats().catch(() => []),
     loadPausedSchedulerIds(prisma).catch(() => new Set<string>()),
+    // forbidden после requireAdmin недостижим, но контракт Result требует ветку;
+    // сбой БД деградирует в пустую секцию, как соседние загрузки.
+    listPendingRecords(prisma, session)
+      .then((r) => (r.ok ? r.records : []))
+      .catch(() => [] as PendingRecordRow[]),
   ]);
 
   const activeByQueue = new Map(queueStats.map((q) => [q.queue, q.counts.active]));
@@ -101,6 +108,8 @@ export default async function AdminSyncPage() {
           </tbody>
         </table>
       </div>
+
+      <PendingRecordsSection records={pendingRecords} />
     </div>
   );
 }

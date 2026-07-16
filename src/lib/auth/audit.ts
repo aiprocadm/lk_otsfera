@@ -20,6 +20,7 @@ export type AuditEntity =
   | 'job_queue'
   | 'payment'
   | 'one_c_import'
+  | 'one_c_pending'
   | 'enrollment_request'
   | 'order_item'
   | 'certificate'

@@ -17,6 +17,14 @@ vi.mock('@/lib/services/admin/queueStats', () => ({ getQueueStats }));
 const { loadPausedSchedulerIds } = vi.hoisted(() => ({ loadPausedSchedulerIds: vi.fn() }));
 vi.mock('@/lib/jobs/scheduling', () => ({ loadPausedSchedulerIds }));
 
+const { listPendingRecords } = vi.hoisted(() => ({ listPendingRecords: vi.fn() }));
+vi.mock('@/lib/services/admin/pendingRecords', () => ({ listPendingRecords }));
+
+vi.mock('@/components/admin/requeue-pending-button', () => ({
+  RequeuePendingButton: (props: { id: string }) =>
+    React.createElement('button', { 'data-testid': 'requeue' }, props.id)
+}));
+
 const { SYNC_ENTITIES } = vi.hoisted(() => ({
   SYNC_ENTITIES: {
     organization: { queueName: 'oneCSync.pullOrganizations', schedulerId: 'oneCSync.pullOrganizations.cron' },
@@ -52,6 +60,8 @@ describe('AdminSyncPage', () => {
     getSyncSummary.mockReset();
     getQueueStats.mockReset();
     loadPausedSchedulerIds.mockReset();
+    listPendingRecords.mockReset();
+    listPendingRecords.mockResolvedValue({ ok: true, records: [] });
   });
 
   it('renders sync summary rows with active queue badge, formatted date, paused toggle, and cursor', async () => {
@@ -98,5 +108,62 @@ describe('AdminSyncPage', () => {
 
     expect(container.textContent).toContain('Сверка (reconcile)');
     expect(container.textContent).toContain('выполняется');
+  });
+
+  it('renders the 1C pending records section: dead row gets a requeue button, pending row does not', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getSyncSummary.mockResolvedValue([]);
+    getQueueStats.mockResolvedValue([]);
+    loadPausedSchedulerIds.mockResolvedValue(new Set());
+    listPendingRecords.mockResolvedValue({
+      ok: true,
+      records: [
+        {
+          id: 'd1', entity: 'order', externalId: 'ORD-1', reason: 'organization_not_found',
+          attempts: 5, status: 'dead',
+          firstSeenAt: new Date('2026-07-01T10:00:00Z'), lastTriedAt: new Date('2026-07-02T10:00:00Z')
+        },
+        {
+          id: 'p1', entity: 'payment', externalId: 'PAY-1', reason: 'order_not_found',
+          attempts: 1, status: 'pending',
+          firstSeenAt: new Date('2026-07-03T10:00:00Z'), lastTriedAt: new Date('2026-07-04T10:00:00Z')
+        }
+      ]
+    });
+
+    const { container } = await renderServerComponent(AdminSyncPage());
+
+    expect(listPendingRecords).toHaveBeenCalledWith({}, SESSION);
+    expect(container.textContent).toContain('Отложенные записи 1С');
+    expect(container.textContent).toContain('ORD-1');
+    expect(container.textContent).toContain('PAY-1');
+    const requeueButtons = container.querySelectorAll('[data-testid="requeue"]');
+    expect(requeueButtons).toHaveLength(1);
+    expect(requeueButtons[0].textContent).toBe('d1');
+  });
+
+  it('pending section: empty state on ok with no records and on non-ok result', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getSyncSummary.mockResolvedValue([]);
+    getQueueStats.mockResolvedValue([]);
+    loadPausedSchedulerIds.mockResolvedValue(new Set());
+    listPendingRecords.mockResolvedValue({ ok: false, error: 'forbidden' });
+
+    const { container } = await renderServerComponent(AdminSyncPage());
+
+    expect(container.textContent).toContain('Отложенных записей нет');
+  });
+
+  it('pending section degrades gracefully when listPendingRecords rejects', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getSyncSummary.mockResolvedValue([]);
+    getQueueStats.mockResolvedValue([]);
+    loadPausedSchedulerIds.mockResolvedValue(new Set());
+    listPendingRecords.mockRejectedValue(new Error('db down'));
+
+    const { container } = await renderServerComponent(AdminSyncPage());
+
+    expect(container.textContent).toContain('Отложенные записи 1С');
+    expect(container.textContent).toContain('Отложенных записей нет');
   });
 });
