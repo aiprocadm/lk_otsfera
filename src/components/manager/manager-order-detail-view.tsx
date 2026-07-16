@@ -5,6 +5,7 @@ import { ClaimOrderButton } from '@/components/manager/claim-order-button';
 import { ManagerOrderAmounts } from '@/components/manager/manager-order-amounts';
 import { ManagerOrderTimeline } from '@/components/manager/manager-order-timeline';
 import { ManagerStatusChangeForm } from '@/components/manager/manager-status-change-form';
+import { OrderLifecyclePanel } from '@/components/manager/order-lifecycle-panel';
 import { ManagerPaymentsList } from '@/components/manager/manager-payments-list';
 import { DocumentsList } from '@/components/partner/documents-list';
 import { OrderItemsSection } from '@/components/training/order-items-section';
@@ -98,6 +99,13 @@ export function ManagerOrderDetailView({
                 | 'cancelled'
                 | 'on_hold'
             }
+          />
+          {/* A4: ось Order.status (жизненный цикл) — не путать с executionStatus выше. */}
+          <OrderLifecyclePanel
+            orderId={order.id}
+            status={order.status}
+            accountingSigned={order.accountingSignedAt != null}
+            returnReason={order.returnReason}
           />
         </div>
       </div>

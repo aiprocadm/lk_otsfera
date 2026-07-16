@@ -6,7 +6,25 @@ vi.mock('next/link', () => ({ default: ({ href, children }: { href: string; chil
 vi.mock('@/components/manager/manager-order-header', () => ({ ManagerOrderHeader: () => null }));
 vi.mock('@/components/manager/manager-order-amounts', () => ({ ManagerOrderAmounts: () => null }));
 vi.mock('@/components/manager/manager-order-timeline', () => ({ ManagerOrderTimeline: () => null }));
-vi.mock('@/components/manager/manager-status-change-form', () => ({ ManagerStatusChangeForm: () => null }));
+vi.mock('@/components/manager/manager-status-change-form', () => ({
+  ManagerStatusChangeForm: () => React.createElement('div', { 'data-testid': 'status-change-form' })
+}));
+vi.mock('@/components/manager/order-lifecycle-panel', () => ({
+  OrderLifecyclePanel: (props: {
+    orderId: string;
+    status: string;
+    accountingSigned: boolean;
+    returnReason: string | null;
+  }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'order-lifecycle-panel' },
+      props.orderId,
+      props.status,
+      String(props.accountingSigned),
+      String(props.returnReason)
+    )
+}));
 vi.mock('@/components/manager/manager-payments-list', () => ({ ManagerPaymentsList: () => null }));
 vi.mock('@/components/partner/documents-list', () => ({ DocumentsList: () => null }));
 vi.mock('@/components/training/order-items-section', () => ({ OrderItemsSection: () => null }));
@@ -44,6 +62,9 @@ const BASE_ORDER = {
   orderNumber: 'A-1',
   title: 'X',
   executionStatus: 'in_progress',
+  status: 'new',
+  accountingSignedAt: null,
+  returnReason: null,
   managerId: null,
   documents: [],
   payments: [],
@@ -150,6 +171,42 @@ describe('ManagerOrderDetailView', () => {
       })
     );
     expect(html).toContain('o1<!-- -->m1');
+  });
+
+  it('OrderLifecyclePanel монтируется сразу под ManagerStatusChangeForm с props из data.order', () => {
+    const html = renderToString(
+      React.createElement(ManagerOrderDetailView, {
+        data: makeData({}),
+        backHref: '/manager/orders',
+        directions: [],
+        students: []
+      })
+    );
+    expect(html).toContain('data-testid="order-lifecycle-panel"');
+    // props из data.order: id, status, accountingSignedAt != null, returnReason
+    expect(html).toContain('o1<!-- -->new<!-- -->false<!-- -->null');
+    // монтаж в правой колонке ниже операционного статуса
+    expect(html.indexOf('data-testid="status-change-form"')).toBeLessThan(
+      html.indexOf('data-testid="order-lifecycle-panel"')
+    );
+  });
+
+  it('OrderLifecyclePanel: accountingSignedAt != null → accountingSigned=true, returnReason пробрасывается', () => {
+    const html = renderToString(
+      React.createElement(ManagerOrderDetailView, {
+        data: makeData({
+          order: {
+            status: 'waiting_client',
+            accountingSignedAt: new Date('2026-07-01'),
+            returnReason: 'нет сканов'
+          }
+        }),
+        backHref: '/manager/orders',
+        directions: [],
+        students: []
+      })
+    );
+    expect(html).toContain('o1<!-- -->waiting_client<!-- -->true<!-- -->нет сканов');
   });
 
   it('DealActivityThread receives explicit activityItems/inboundEnabled/telephonyEnabled when passed', () => {
