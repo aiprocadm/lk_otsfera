@@ -75,6 +75,24 @@ describe('FunnelBoard', () => {
     expect(screen.getByText('Пусто')).toBeTruthy();
   });
 
+  it('renders a color strip only for stages that have a color', () => {
+    const colored: FunnelBoardData = {
+      stages: [],
+      columns: [
+        { stage: { ...board.columns[0].stage, color: '#22C55E' }, cards: [] },
+        { stage: board.columns[1].stage, cards: [] } // color: null → no strip
+      ]
+    };
+    render(React.createElement(FunnelBoard, { board: colored }));
+    const strips = screen.getAllByTestId('stage-color-strip');
+    expect(strips).toHaveLength(1);
+    // jsdom normalizes the hex; compare against the same serialization.
+    const probe = document.createElement('div');
+    probe.style.background = '#22C55E';
+    expect(strips[0].getAttribute('style')).toBe(probe.getAttribute('style'));
+    expect(strips[0].getAttribute('aria-hidden')).toBe('true');
+  });
+
   it('renders "—" for a null estimatedAmount and "без менеджера" for a null assignedManagerName', () => {
     const b: FunnelBoardData = {
       stages: [],

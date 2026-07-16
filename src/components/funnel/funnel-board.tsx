@@ -60,6 +60,15 @@ export function FunnelBoard({ board }: { board: FunnelBoardData }) {
             dragOver === col.stage.id ? 'bg-[#FFF7ED] ring-2 ring-[#F97316]' : 'bg-[#F3F4F6]'
           }`}
         >
+          {col.stage.color && (
+            // data-driven цвет стадии из БД (FunnelStageView.color), не brand-hex UI-палитры.
+            <div
+              aria-hidden
+              data-testid="stage-color-strip"
+              className="h-1 rounded-full mb-2"
+              style={{ background: col.stage.color }}
+            />
+          )}
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-semibold text-[#111111]">{col.stage.name}</h3>
             <Badge tone="neutral">{col.cards.length}</Badge>

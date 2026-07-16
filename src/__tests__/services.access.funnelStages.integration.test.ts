@@ -62,6 +62,19 @@ describe('createFunnelStage', () => {
   it('plain manager → forbidden', async () => {
     expect(await createFunnelStage(prisma, plainMgrA(), input({ position: 40 }))).toEqual({ ok: false, error: 'forbidden' });
   });
+  it('color: не-hex строка → validation; валидный #RRGGBB → ok и сохраняется', async () => {
+    expect(await createFunnelStage(prisma, leaderA(), input({ position: 70, color: '#ZZZZZZ' }))).toEqual({ ok: false, error: 'validation' });
+    const ok = await createFunnelStage(prisma, leaderA(), input({ position: 70, name: `Цвет-${STAMP}`, color: '#22C55E' }));
+    expect(ok.ok).toBe(true);
+    const id = ok.ok ? ok.id : '';
+    expect((await prisma.funnelStage.findUniqueOrThrow({ where: { id } })).color).toBe('#22C55E');
+  });
+  it('color: undefined → ok (nullish), сохраняется null', async () => {
+    const ok = await createFunnelStage(prisma, leaderA(), input({ position: 71, name: `БезЦвета-${STAMP}`, color: undefined }));
+    expect(ok.ok).toBe(true);
+    const id = ok.ok ? ok.id : '';
+    expect((await prisma.funnelStage.findUniqueOrThrow({ where: { id } })).color).toBeNull();
+  });
 });
 
 describe('updateFunnelStage', () => {

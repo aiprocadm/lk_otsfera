@@ -67,6 +67,27 @@ describe('TaskColumn CRUD', () => {
     expect(r).toEqual({ ok: false, error: 'validation' });
   });
 
+  it('color: не-hex строка → validation; валидный #RRGGBB → ok и сохраняется', async () => {
+    expect(
+      await createTaskColumn(prisma, leaderASession(), { name: 'Цвет', position: 15, statusAnchor: 'todo', color: '#ZZZZZZ' })
+    ).toEqual({ ok: false, error: 'validation' });
+    const ok = await createTaskColumn(prisma, leaderASession(), { name: 'Цвет', position: 15, statusAnchor: 'todo', color: '#22C55E' });
+    expect(ok.ok).toBe(true);
+    const list = await listTaskColumns(prisma, leaderASession());
+    expect(list.ok && list.rows.find((c) => c.position === 15)?.color).toBe('#22C55E');
+  });
+
+  it('color: undefined/null → ok, сохраняется null', async () => {
+    const noColor = await createTaskColumn(prisma, leaderASession(), { name: 'Без цвета', position: 16, statusAnchor: 'todo' });
+    expect(noColor.ok).toBe(true);
+    const nullColor = await createTaskColumn(prisma, leaderASession(), { name: 'Null-цвет', position: 17, statusAnchor: 'todo', color: null });
+    expect(nullColor.ok).toBe(true);
+    const list = await listTaskColumns(prisma, leaderASession());
+    if (!list.ok) throw new Error('list failed');
+    expect(list.rows.find((c) => c.position === 16)?.color).toBeNull();
+    expect(list.rows.find((c) => c.position === 17)?.color).toBeNull();
+  });
+
   it('leader другой компании не может обновить чужую колонку → not_found (IDOR)', async () => {
     const created = await createTaskColumn(prisma, leaderASession(), { name: 'Секрет', position: 13, statusAnchor: 'review' });
     if (!created.ok) throw new Error('setup failed');

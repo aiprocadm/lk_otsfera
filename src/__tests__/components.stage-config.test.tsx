@@ -98,7 +98,7 @@ describe('StageConfig', () => {
     expect(checkbox.checked).toBe(true);
   });
 
-  it('create flow: submits form data, toasts success, and closes (triggers refresh)', async () => {
+  it('create flow: submits form data (default color = «без цвета» → empty string), toasts success, and closes (triggers refresh)', async () => {
     createFunnelStageAction.mockResolvedValue({ ok: true, id: 'new-id' });
     render(renderConfig({ stages: [], isDefault: false }));
     fireEvent.click(screen.getByRole('button', { name: '+ Стадия' }));
@@ -111,9 +111,36 @@ describe('StageConfig', () => {
     await waitFor(() => expect(createFunnelStageAction).toHaveBeenCalledTimes(1));
     const fd = createFunnelStageAction.mock.calls[0][0] as FormData;
     expect(fd.get('name')).toBe('Квалификация');
+    expect(fd.get('color')).toBe(''); // «Без цвета» по умолчанию; экшен маппит '' → null
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Стадия создана.'));
     await waitFor(() => expect(refresh).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByText('Новая стадия')).toBeNull());
+  });
+
+  it('create flow: selecting a color swatch submits its hex in FormData', async () => {
+    createFunnelStageAction.mockResolvedValue({ ok: true, id: 'new-id' });
+    render(renderConfig({ stages: [], isDefault: false }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Стадия' }));
+    const dialogTitle = await screen.findByText('Новая стадия');
+    const dialogEl = dialogTitle.closest('dialog') as HTMLElement;
+
+    fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'Цветная' } });
+    fireEvent.click(within(dialogEl).getByRole('radio', { name: 'Цвет #3B82F6' }));
+    fireEvent.click(within(dialogEl).getByRole('button', { name: 'Создать' }));
+
+    await waitFor(() => expect(createFunnelStageAction).toHaveBeenCalledTimes(1));
+    const fd = createFunnelStageAction.mock.calls[0][0] as FormData;
+    expect(fd.get('color')).toBe('#3B82F6');
+  });
+
+  it('edit dialog pre-selects the stage color in the swatch picker', async () => {
+    const colored: FunnelStageView = { ...stage, color: '#22C55E' };
+    render(renderConfig({ stages: [colored], isDefault: false }));
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
+    await screen.findByText('Изменить стадию');
+    const swatch = screen.getByRole('radio', { name: 'Цвет #22C55E' }) as HTMLInputElement;
+    expect(swatch.checked).toBe(true);
+    expect((screen.getByRole('radio', { name: 'Без цвета' }) as HTMLInputElement).checked).toBe(false);
   });
 
   it('edit flow: submits with the target id set and toasts "updated"', async () => {

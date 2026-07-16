@@ -113,6 +113,24 @@ describe('TaskBoard', () => {
     expect(screen.getByText('Пусто')).toBeTruthy();
   });
 
+  it('renders a color strip only for columns that have a color', () => {
+    const colored: TaskBoardData = {
+      ...board,
+      board: [
+        { column: { ...board.board[0].column, color: '#8B5CF6' }, cards: [] },
+        board.board[1] // color: null → no strip
+      ]
+    };
+    render(React.createElement(TaskBoard, { board: colored, options }));
+    const strips = screen.getAllByTestId('column-color-strip');
+    expect(strips).toHaveLength(1);
+    // jsdom normalizes the hex; compare against the same serialization.
+    const probe = document.createElement('div');
+    probe.style.background = '#8B5CF6';
+    expect(strips[0].getAttribute('style')).toBe(probe.getAttribute('style'));
+    expect(strips[0].getAttribute('aria-hidden')).toBe('true');
+  });
+
   it('a card with no priority shows no priority badge, no assignees shows "без исполнителя", no due date shows no date span', () => {
     render(React.createElement(TaskBoard, { board, options }));
     expect(screen.getByText('Задача без приоритета')).toBeTruthy();

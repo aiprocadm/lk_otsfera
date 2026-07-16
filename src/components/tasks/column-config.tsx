@@ -2,7 +2,7 @@
 
 import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Input, Select, Field, Dialog, TableShell, THead, Th, Tr, Td, Badge } from '@/components/ui';
+import { Button, Input, Select, Field, Dialog, TableShell, THead, Th, Tr, Td, Badge, ColorSwatchPicker } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { createTaskColumnAction, updateTaskColumnAction, deleteTaskColumnAction } from '@/server-actions/tasks';
@@ -144,6 +144,7 @@ function ColumnDialog({
             ))}
           </Select>
         </Field>
+        <ColorSwatchPicker name="color" value={target?.color ?? null} />
         <label className="flex items-center gap-2 cursor-pointer text-sm">
           <input type="checkbox" name="isDoneColumn" defaultChecked={target?.isDoneColumn ?? false} className="h-4 w-4 rounded" />
           <span>Колонка «Готово» (проставляет дату завершения)</span>

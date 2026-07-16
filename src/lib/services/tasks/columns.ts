@@ -19,7 +19,8 @@ const inputSchema = z.object({
   name: z.string().trim().min(1).max(60),
   position: z.number().int().min(0),
   statusAnchor: anchorSchema,
-  color: z.string().trim().max(20).nullish(),
+  // Строгий #RRGGBB (пикер шлёт только такие; '' экшен уже смаппил в null).
+  color: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/).nullish(),
   isDoneColumn: z.boolean().optional()
 });
 export type TaskColumnInput = z.input<typeof inputSchema>;
