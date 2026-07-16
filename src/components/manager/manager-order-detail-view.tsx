@@ -1,6 +1,7 @@
 import React from 'react';
 import { BackLink } from '@/components/ui';
 import { ManagerOrderHeader } from '@/components/manager/manager-order-header';
+import { ClaimOrderButton } from '@/components/manager/claim-order-button';
 import { ManagerOrderAmounts } from '@/components/manager/manager-order-amounts';
 import { ManagerOrderTimeline } from '@/components/manager/manager-order-timeline';
 import { ManagerStatusChangeForm } from '@/components/manager/manager-status-change-form';
@@ -44,6 +45,9 @@ export function ManagerOrderDetailView({
       </div>
 
       <ManagerOrderHeader order={order} />
+
+      {/* A2 (§5.3 self-assign): сам компонент скрывается при managerId != null. */}
+      <ClaimOrderButton orderId={order.id} managerId={order.managerId} />
 
       <div className='grid gap-4 md:grid-cols-3'>
         <div className='md:col-span-2 space-y-4'>

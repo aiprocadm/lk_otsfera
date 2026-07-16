@@ -11,6 +11,15 @@ vi.mock('@/components/manager/manager-payments-list', () => ({ ManagerPaymentsLi
 vi.mock('@/components/partner/documents-list', () => ({ DocumentsList: () => null }));
 vi.mock('@/components/training/order-items-section', () => ({ OrderItemsSection: () => null }));
 vi.mock('@/components/orders/order-custom-fields', () => ({ OrderCustomFields: () => null }));
+vi.mock('@/components/manager/claim-order-button', () => ({
+  ClaimOrderButton: (props: { orderId: string; managerId: string | null }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'claim-order-button' },
+      props.orderId,
+      String(props.managerId)
+    )
+}));
 vi.mock('@/components/manager/deal-activity/deal-activity-thread', () => ({
   DealActivityThread: (props: {
     orderId: string;
@@ -37,6 +46,7 @@ function makeData(overrides: Record<string, unknown>) {
       orderNumber: 'A-1',
       title: 'X',
       executionStatus: 'in_progress',
+      managerId: null,
       documents: [],
       payments: [],
       commentsCountByMe: 0
@@ -111,6 +121,42 @@ describe('ManagerOrderDetailView', () => {
     );
     expect(html).toContain('data-testid="deal-activity-thread"');
     expect(html).toContain('o1<!-- -->0<!-- -->false<!-- -->false');
+  });
+
+  it('ClaimOrderButton монтируется с order.id и managerId=null (кнопка сама решает видимость)', () => {
+    const html = renderToString(
+      React.createElement(ManagerOrderDetailView, {
+        data: makeData({}),
+        backHref: '/manager/orders',
+        directions: [],
+        students: []
+      })
+    );
+    expect(html).toContain('data-testid="claim-order-button"');
+    expect(html).toContain('o1<!-- -->null');
+  });
+
+  it('ClaimOrderButton получает ненулевой managerId, когда заказ закреплён', () => {
+    const html = renderToString(
+      React.createElement(ManagerOrderDetailView, {
+        data: makeData({
+          order: {
+            id: 'o1',
+            orderNumber: 'A-1',
+            title: 'X',
+            executionStatus: 'in_progress',
+            managerId: 'm1',
+            documents: [],
+            payments: [],
+            commentsCountByMe: 0
+          }
+        }),
+        backHref: '/manager/orders',
+        directions: [],
+        students: []
+      })
+    );
+    expect(html).toContain('o1<!-- -->m1');
   });
 
   it('DealActivityThread receives explicit activityItems/inboundEnabled/telephonyEnabled when passed', () => {
