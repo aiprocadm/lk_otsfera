@@ -225,6 +225,20 @@ it('sendStaffMessage: ЛС-уведомление админу использу�
   );
 });
 
+it('DM: получатель упомянут И «первое непрочитанное» → ровно ОДНО уведомление (mention, без staff_dm_message)', async () => {
+  const prisma = prismaFixture({
+    user: {
+      findMany: vi.fn()
+        .mockResolvedValueOnce([{ id: 'm2', name: 'Пётр' }]) // listColleagues
+        .mockResolvedValueOnce([{ id: 'm2', role: 'manager' }]), // mention recipients
+      findUnique: vi.fn()
+    }
+  });
+  await sendStaffMessage(prisma, manager, { conversationId: 'conv1', body: 'привет @Пётр' });
+  expect(deliverNotificationToUser).toHaveBeenCalledTimes(1);
+  expect(deliverNotificationToUser).toHaveBeenCalledWith(expect.objectContaining({ userId: 'm2', type: 'staff_chat_mention' }));
+});
+
 it('sendStaffMessage: first-unread считается верно при наличии предыдущей отметки прочтения', async () => {
   const prisma = prismaFixture({
     staffMessageRead: { findUnique: vi.fn().mockResolvedValue({ lastReadAt: new Date('2026-07-01T00:00:00Z') }) }
@@ -355,4 +369,34 @@ it('toggleReaction: повторный тоггл снимает существ�
   expect(res).toEqual({ ok: true, reacted: false });
   expect((prisma as never as { staffReaction: { delete: ReturnType<typeof vi.fn> } }).staffReaction.delete)
     .toHaveBeenCalledWith({ where: { id: 'r1' } });
+});
+
+it('toggleReaction: P2002 на create (конкурентный идентичный toggle) → ok, reacted: true', async () => {
+  const prisma = prismaFixture({
+    staffMessage: {
+      findUnique: vi.fn().mockResolvedValue({ id: 'msg1', conversation: convFixture() }),
+      findMany: vi.fn(), create: vi.fn(), count: vi.fn()
+    },
+    staffReaction: {
+      create: vi.fn().mockRejectedValue(Object.assign(new Error('dup'), { code: 'P2002' })),
+      delete: vi.fn(),
+      findUnique: vi.fn().mockResolvedValue(null)
+    }
+  });
+  expect(await toggleReaction(prisma, manager, { messageId: 'msg1', emoji: '👍' })).toEqual({ ok: true, reacted: true });
+});
+
+it('toggleReaction: не-P2002 ошибка create пробрасывается', async () => {
+  const prisma = prismaFixture({
+    staffMessage: {
+      findUnique: vi.fn().mockResolvedValue({ id: 'msg1', conversation: convFixture() }),
+      findMany: vi.fn(), create: vi.fn(), count: vi.fn()
+    },
+    staffReaction: {
+      create: vi.fn().mockRejectedValue(new Error('db down')),
+      delete: vi.fn(),
+      findUnique: vi.fn().mockResolvedValue(null)
+    }
+  });
+  await expect(toggleReaction(prisma, manager, { messageId: 'msg1', emoji: '👍' })).rejects.toThrow('db down');
 });

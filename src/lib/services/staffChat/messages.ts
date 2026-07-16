@@ -107,8 +107,10 @@ export async function sendStaffMessage(
   try {
     const excerpt = body.slice(0, 200);
     const url = (role: string) => (role === 'admin' ? '/admin/messages' : '/manager/messages');
-    const colleagues = await listColleagues(prisma, session);
-    const mentioned = extractMentions(body, colleagues.rows).filter((id) => id !== session.sub);
+    // Без '@' в теле упоминаний быть не может — не ходим в БД за списком коллег зря
+    const mentioned = body.includes('@')
+      ? extractMentions(body, (await listColleagues(prisma, session)).rows).filter((id) => id !== session.sub)
+      : [];
     const recipients = mentioned.length
       ? await prisma.user.findMany({ where: { id: { in: mentioned } }, select: { id: true, role: true } })
       : [];
@@ -246,6 +248,11 @@ export async function toggleReaction(
     await prisma.staffReaction.delete({ where: { id: existing.id } });
     return { ok: true, reacted: false };
   }
-  await prisma.staffReaction.create({ data: { messageId: args.messageId, userId: session.sub, emoji: args.emoji } });
+  try {
+    await prisma.staffReaction.create({ data: { messageId: args.messageId, userId: session.sub, emoji: args.emoji } });
+  } catch (err) {
+    // P2002 — конкурентный идентичный toggle: @@unique держит дубль, реакция уже стоит → considered added.
+    if ((err as { code?: string })?.code !== 'P2002') throw err;
+  }
   return { ok: true, reacted: true };
 }
