@@ -4,10 +4,16 @@
  * router.push после пометки прочитанным; null → строка некликабельна.
  *
  * Ветки (по приоритету):
- * 1. `meta.url` — только относительный in-app путь ('/x', но не '//host' —
- *    защита от открытого редиректа). Абсолютные url (в т.ч. записанные
- *    org/partner-продьюсерами через getAppBaseUrl) сознательно отвергаются:
- *    в router.push уходит только внутренний путь.
+ * 1. `meta.url`:
+ *    - относительный in-app путь ('/x', но не '//host') — возвращается как есть;
+ *    - абсолютный http(s)-URL (org/partner-продьюсеры пишут его через
+ *      getAppBaseUrl — org.ts/partner.ts) — возвращается ТОЛЬКО локальная
+ *      часть `pathname + search + hash`. Хост не проверяется и не
+ *      используется: навигация всегда локальная по pathname, открытый
+ *      редирект исключён по построению (даже вредоносный хост в meta.url
+ *      даёт внутренний путь);
+ *    - всё прочее (не-строка, '//host', не-http(s)-протокол вроде
+ *      javascript:, невалидный URL) — ветка пропускается.
  * 2. role='manager' + order-bound типы фан-аута (NotifyManagersType,
  *    src/lib/notifications/manager.ts) + строковый meta.orderId →
  *    /manager/orders/:id (менеджерские продьюсеры url в meta не пишут).
@@ -27,11 +33,30 @@ const MANAGER_ORDER_TYPES: ReadonlySet<string> = new Set([
   'chat_message'
 ]);
 
+/**
+ * Локальный путь из meta.url: относительный — как есть; абсолютный http(s) —
+ * pathname+search+hash (хост отбрасывается); иначе null.
+ */
+function localPathFromUrl(url: string): string | null {
+  if (url.startsWith('/')) return url.startsWith('//') ? null : url;
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+  return u.pathname + u.search + u.hash;
+}
+
 export function notificationHref(role: NotificationRole, type: string, meta: unknown): string | null {
   const m = meta !== null && typeof meta === 'object' ? (meta as Record<string, unknown>) : null;
 
   const url = m?.url;
-  if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) return url;
+  if (typeof url === 'string') {
+    const path = localPathFromUrl(url);
+    if (path) return path;
+  }
 
   if (role === 'manager' && MANAGER_ORDER_TYPES.has(type)) {
     const orderId = m?.orderId;

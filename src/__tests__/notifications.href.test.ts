@@ -35,11 +35,33 @@ describe('notificationHref', () => {
       expect(notificationHref('partner', 'x', { url: null })).toBeNull();
     });
 
-    it('отвергает внешние абсолютные url', () => {
-      expect(notificationHref('partner', 'x', { url: 'https://evil.example/phish' })).toBeNull();
-      // продьюсеры org/partner пишут абсолютный url через getAppBaseUrl — он тоже
-      // не проходит фильтр относительного пути (сознательно: push только in-app path)
-      expect(notificationHref('organization', 'x', { url: 'http://localhost:3000/organization/orders/o1' })).toBeNull();
+    it('принимает абсолютный http(s)-url продьюсеров: навигация по pathname+search+hash', () => {
+      // org/partner-продьюсеры пишут абсолютный url через getAppBaseUrl
+      // (org.ts, partner.ts) — берётся только локальная часть
+      expect(
+        notificationHref('partner', 'lead_status_changed', { url: 'https://lk.otsfera.ru/partner/leads/l1?x=1' })
+      ).toBe('/partner/leads/l1?x=1');
+      expect(
+        notificationHref('organization', 'payment_received', { url: 'http://localhost:3000/organization/orders/o1' })
+      ).toBe('/organization/orders/o1');
+      expect(notificationHref('partner', 'document_published', { url: 'https://lk.otsfera.ru/partner/documents?tab=general#top' })).toBe(
+        '/partner/documents?tab=general#top'
+      );
+    });
+
+    it('чужой хост не даёт внешнего редиректа: берётся только локальный путь', () => {
+      // хост игнорируется по построению — в router.push уходит локальный
+      // pathname, наружу уйти невозможно даже при вредоносном meta.url
+      expect(notificationHref('partner', 'x', { url: 'https://evil.example/partner/leads/l1' })).toBe(
+        '/partner/leads/l1'
+      );
+    });
+
+    it('отвергает не-http(s) протоколы и невалидные URL', () => {
+      expect(notificationHref('partner', 'x', { url: 'javascript:alert(1)' })).toBeNull();
+      expect(notificationHref('partner', 'x', { url: 'ftp://host/file' })).toBeNull();
+      expect(notificationHref('partner', 'x', { url: 'http://' })).toBeNull(); // new URL бросает
+      expect(notificationHref('partner', 'x', { url: 'совсем не урл' })).toBeNull();
     });
 
     it('отвергает protocol-relative //host (открытый редирект)', () => {
@@ -65,8 +87,8 @@ describe('notificationHref', () => {
 
     it('orderId не строка → null', () => {
       expect(notificationHref('manager', 'chat_message', { orderId: 42 })).toBeNull();
-      // order-less фан-аут (notifyManagersOrderLess) пишет orderId: null — но там же
-      // пишется meta.url, здесь проверяем именно отказ ветки 2
+      // order-less фан-аут (notifyManagersOrderLess) пишет в meta orderId: null
+      // и url НЕ пишет — такие строки остаются некликабельными
       expect(notificationHref('manager', 'document_uploaded_by_org', { orderId: null })).toBeNull();
     });
 
