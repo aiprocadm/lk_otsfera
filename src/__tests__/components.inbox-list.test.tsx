@@ -108,6 +108,31 @@ describe('InboxList', () => {
     expect(html).toContain('b.pdf');
     expect(html).not.toContain('Вложение:');
   });
+
+  it('clean вложение → имя становится ссылкой на download-роут', () => {
+    const html = renderToString(
+      <InboxList
+        items={[{ ...base, attachmentName: 'a.pdf', scanStatus: 'clean' }]}
+        organizations={ORGS}
+      />
+    );
+    expect(html).toContain('href="/api/manager/inbox/msg-1/attachment"');
+    expect(html).toContain('a.pdf');
+  });
+
+  it.each(['pending', 'infected', 'none'])(
+    'scanStatus=%s → имя вложения без ссылки',
+    (scanStatus) => {
+      const html = renderToString(
+        <InboxList
+          items={[{ ...base, attachmentName: 'a.pdf', scanStatus }]}
+          organizations={ORGS}
+        />
+      );
+      expect(html).toContain('a.pdf');
+      expect(html).not.toContain('/api/manager/inbox/msg-1/attachment');
+    }
+  );
 });
 
 describe('InboxFiltersBar', () => {

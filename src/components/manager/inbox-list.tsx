@@ -46,6 +46,24 @@ function ScanBadge({ scanStatus }: { scanStatus: string }) {
   return <Badge tone="success">Вложение: чисто</Badge>;
 }
 
+/**
+ * Имя вложения: при `clean` — ссылка на download-роут (сервер сам
+ * переповторяет scope + clean-gate), в остальных статусах — просто текст.
+ */
+function AttachmentName({ item }: { item: InboxItem }) {
+  if (item.scanStatus === 'clean') {
+    return (
+      <a
+        href={`/api/manager/inbox/${item.id}/attachment`}
+        className="font-medium text-[#EA580C] hover:underline"
+      >
+        📎 {item.attachmentName}
+      </a>
+    );
+  }
+  return <span>📎 {item.attachmentName}</span>;
+}
+
 export function InboxList({
   items,
   organizations
@@ -80,7 +98,7 @@ export function InboxList({
                 <p>{excerpt(item.body)}</p>
                 {item.attachmentName && (
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                    <span>📎 {item.attachmentName}</span>
+                    <AttachmentName item={item} />
                     <ScanBadge scanStatus={item.scanStatus} />
                   </div>
                 )}
@@ -118,7 +136,7 @@ export function InboxList({
             <p className="mt-1 text-sm text-gray-600">{excerpt(item.body)}</p>
             {item.attachmentName && (
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                <span>📎 {item.attachmentName}</span>
+                <AttachmentName item={item} />
                 <ScanBadge scanStatus={item.scanStatus} />
               </div>
             )}
