@@ -114,10 +114,11 @@ describe('AdminSyncPage', () => {
     expect(container.textContent).toContain('выполняется');
   });
 
-  it('renders the background jobs section: 4 rows with RU labels, cron strings and trigger buttons (G3)', async () => {
+  it('renders the background jobs section: 4 rows with RU labels, cron strings, activity badge and trigger buttons (G3)', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getSyncSummary.mockResolvedValue([]);
-    getQueueStats.mockResolvedValue([]);
+    // Одна фоновая очередь активна → ровно один бейдж «выполняется» в секции.
+    getQueueStats.mockResolvedValue([{ queue: 'inbound.email.poll', counts: { active: 1 } }]);
     loadPausedSchedulerIds.mockResolvedValue(new Set());
 
     const { container } = await renderServerComponent(AdminSyncPage());
@@ -135,6 +136,9 @@ describe('AdminSyncPage', () => {
     // кнопки запуска: reconcile (основная таблица) + 4 фоновые задачи
     const triggers = Array.from(container.querySelectorAll('[data-testid="sync-trigger"]')).map((el) => el.textContent);
     expect(triggers).toEqual(expect.arrayContaining(['certificateExpiry', 'emailPoll', 'mangoBackfill', 'monthlyCommissions']));
+    // колонка «Сейчас»: active>0 у inbound.email.poll → ровно один бейдж на странице
+    const badges = Array.from(container.querySelectorAll('span')).filter((el) => el.textContent === 'выполняется');
+    expect(badges).toHaveLength(1);
     // пояснение, где смотреть результаты
     expect(container.textContent).toContain('уведомления');
     expect(container.textContent).toContain('инбокс');

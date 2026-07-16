@@ -21,7 +21,9 @@ const ENTITY_RU: Record<SyncSummaryRow['entity'], string> = {
 };
 
 // G3: standalone cron-джобы с ручным запуском. Результаты — не на этой странице,
-// а в целевых разделах (см. resultHint); пауза для них не поддерживается.
+// а в целевых разделах (см. resultHint). Тумблер паузы в этой секции не выводится:
+// certExpiry/commissions — пауза невозможна by design (их schedulerId нет в
+// SYNC_SCHEDULES), email/mango — управляются как 1С-синки на сервисном уровне.
 const BACKGROUND_JOBS: ReadonlyArray<{ entity: SyncControlEntity; label: string; resultHint: string }> = [
   { entity: 'certificateExpiry', label: 'Напоминания об истечении удостоверений', resultHint: 'уведомления' },
   { entity: 'emailPoll', label: 'Поллинг входящей почты', resultHint: 'инбокс' },
@@ -132,6 +134,7 @@ export default async function AdminSyncPage() {
             <tr>
               <th scope='col' className="text-left px-4 py-3 font-medium">Задача</th>
               <th scope='col' className="text-left px-4 py-3 font-medium">Расписание (cron)</th>
+              <th scope='col' className="text-left px-4 py-3 font-medium">Сейчас</th>
               <th scope='col' className="text-left px-4 py-3 font-medium">Запуск</th>
             </tr>
           </thead>
@@ -146,6 +149,13 @@ export default async function AdminSyncPage() {
                   <code className="text-xs text-gray-700 bg-gray-50 px-1.5 py-0.5 rounded">
                     {SYNC_ENTITIES[job.entity].cronLabel}
                   </code>
+                </td>
+                <td className="px-4 py-3">
+                  {(activeByQueue.get(SYNC_ENTITIES[job.entity].queueName) ?? 0) > 0 ? (
+                    <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">выполняется</span>
+                  ) : (
+                    <span className="text-gray-400 text-xs">—</span>
+                  )}
                 </td>
                 <td className="px-4 py-3"><SyncTriggerButton entity={job.entity} /></td>
               </tr>
