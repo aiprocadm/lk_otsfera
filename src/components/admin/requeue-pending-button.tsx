@@ -1,9 +1,7 @@
 'use client';
 
-import React, { useTransition } from 'react';
-import { Button } from '@/components/ui';
-import { toast } from '@/lib/ui/toast';
-import { resolveErrorText } from '@/lib/ui/useFormAction';
+import React from 'react';
+import { ActionToastButton } from '@/components/ui';
 import { requeuePendingRecordAction } from '@/server-actions/admin/pendingRecords';
 
 // Дельты поверх errorMessageRu: центральный not_found говорит про заказ,
@@ -16,26 +14,22 @@ const ERROR_LABELS: Record<string, string> = {
 
 /**
  * G1: возврат dead-записи 1С в очередь replay. Рендерится только у dead-строк
- * (pending и так подберётся ближайшим live-sync). Успешный экшен сам
- * ревалидирует /admin/sync (revalidatePath в pendingRecords action), поэтому
- * router.refresh здесь не нужен.
+ * (pending и так подберётся ближайшим live-sync). Тонкая обёртка над
+ * ActionToastButton — держит ERROR_LABELS-дельту и FormData-сборку в замыкании.
  */
 export function RequeuePendingButton({ id }: { id: string }) {
-  const [pending, startTransition] = useTransition();
-
-  function onClick() {
-    const fd = new FormData();
-    fd.set('id', id);
-    startTransition(async () => {
-      const res = await requeuePendingRecordAction(fd);
-      if (res.ok) toast.success('Запись возвращена в очередь');
-      else toast.error(resolveErrorText(res.error, ERROR_LABELS));
-    });
-  }
-
   return (
-    <Button variant='secondary' size='sm' loading={pending} onClick={onClick}>
-      Вернуть в очередь
-    </Button>
+    <ActionToastButton
+      variant='secondary'
+      size='sm'
+      label='Вернуть в очередь'
+      successText='Запись возвращена в очередь'
+      errorLabels={ERROR_LABELS}
+      action={() => {
+        const fd = new FormData();
+        fd.set('id', id);
+        return requeuePendingRecordAction(fd);
+      }}
+    />
   );
 }

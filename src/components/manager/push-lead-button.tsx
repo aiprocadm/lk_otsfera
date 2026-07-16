@@ -1,9 +1,7 @@
 'use client';
 
-import React, { useTransition } from 'react';
-import { Button } from '@/components/ui';
-import { toast } from '@/lib/ui/toast';
-import { resolveErrorText } from '@/lib/ui/useFormAction';
+import React from 'react';
+import { ActionToastButton } from '@/components/ui';
 import { pushLeadToOneCAction } from '@/server-actions/manager/leads';
 
 // Дельта поверх errorMessageRu (контекст ручной отправки лида в 1С);
@@ -14,23 +12,17 @@ const ERROR_LABELS: Record<string, string> = {
 
 /**
  * B3: ручная постановка лида в очередь oneCSync.pushLead. Отдельный компонент —
- * НЕ добавлять в manager-lead-actions.tsx (он и так вырос). Успешный экшен сам
- * ревалидирует страницу лида (revalidatePath), refresh здесь не нужен.
+ * НЕ добавлять в manager-lead-actions.tsx (он и так вырос). Тонкая обёртка
+ * над ActionToastButton — держит тексты и ERROR_LABELS-дельту.
  */
 export function PushLeadButton({ leadId }: { leadId: string }) {
-  const [pending, startTransition] = useTransition();
-
-  function onClick() {
-    startTransition(async () => {
-      const res = await pushLeadToOneCAction({ leadId });
-      if (res.ok) toast.success('Лид поставлен в очередь отправки в 1С');
-      else toast.error(resolveErrorText(res.error, ERROR_LABELS));
-    });
-  }
-
   return (
-    <Button variant='secondary' loading={pending} onClick={onClick}>
-      Отправить в 1С
-    </Button>
+    <ActionToastButton
+      variant='secondary'
+      label='Отправить в 1С'
+      successText='Лид поставлен в очередь отправки в 1С'
+      errorLabels={ERROR_LABELS}
+      action={() => pushLeadToOneCAction({ leadId })}
+    />
   );
 }

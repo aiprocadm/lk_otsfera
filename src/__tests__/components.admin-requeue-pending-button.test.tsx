@@ -67,16 +67,6 @@ describe('RequeuePendingButton', () => {
     await waitFor(() => expect(error).toHaveBeenCalledWith('Ошибка: mystery'));
   });
 
-  it('pending state disables the button until the action resolves', async () => {
-    let resolvePromise: (v: unknown) => void = () => {};
-    requeuePendingRecordAction.mockReturnValue(new Promise((resolve) => { resolvePromise = resolve; }));
-    render(<RequeuePendingButton id="rec-1" />);
-    const button = screen.getByRole('button', { name: 'Вернуть в очередь' });
-    fireEvent.click(button);
-
-    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(true));
-    resolvePromise({ ok: true });
-    await waitFor(() => expect(success).toHaveBeenCalled());
-    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
-  });
+  // pending-disabled поведение живёт в ActionToastButton —
+  // см. components.ui-action-toast-button.test.tsx
 });

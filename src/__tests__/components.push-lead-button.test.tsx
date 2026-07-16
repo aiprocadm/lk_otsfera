@@ -65,21 +65,6 @@ describe('PushLeadButton', () => {
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Проверьте поля формы.'));
   });
 
-  it('кнопка disabled во время pending — double-submit невозможен', async () => {
-    let resolveAction!: (v: { ok: true }) => void;
-    pushLeadToOneCAction.mockImplementation(
-      () => new Promise<{ ok: true }>((r) => { resolveAction = r; })
-    );
-    render(<PushLeadButton leadId='l1' />);
-
-    const button = screen.getByRole('button', { name: 'Отправить в 1С' }) as HTMLButtonElement;
-    fireEvent.click(button);
-
-    await waitFor(() => expect(button.disabled).toBe(true));
-    expect(toastSuccess).not.toHaveBeenCalled();
-
-    resolveAction({ ok: true });
-    await waitFor(() => expect(button.disabled).toBe(false));
-    expect(toastSuccess).toHaveBeenCalledWith('Лид поставлен в очередь отправки в 1С');
-  });
+  // pending-disabled поведение живёт в ActionToastButton —
+  // см. components.ui-action-toast-button.test.tsx
 });

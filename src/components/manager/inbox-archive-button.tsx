@@ -1,9 +1,7 @@
 'use client';
 
-import React, { useTransition } from 'react';
-import { Button } from '@/components/ui';
-import { toast } from '@/lib/ui/toast';
-import { resolveErrorText } from '@/lib/ui/useFormAction';
+import React from 'react';
+import { ActionToastButton } from '@/components/ui';
 import {
   archiveInboundMessageAction,
   restoreInboundMessageAction
@@ -23,8 +21,9 @@ const MODE_TEXT = {
 } as const;
 
 /**
- * E2: архивация/восстановление обращения в инбоксе. Успешный экшен сам
- * ревалидирует /manager/inbox (revalidatePath), refresh здесь не нужен.
+ * E2: архивация/восстановление обращения в инбоксе. Тонкая обёртка над
+ * ActionToastButton — держит mode-ветку (тексты + выбор экшена) и
+ * ERROR_LABELS-дельту.
  */
 export function InboxArchiveButton({
   inboundMessageId,
@@ -33,21 +32,17 @@ export function InboxArchiveButton({
   inboundMessageId: string;
   mode: 'archive' | 'restore';
 }) {
-  const [pending, startTransition] = useTransition();
   const text = MODE_TEXT[mode];
-
-  function onClick() {
-    startTransition(async () => {
-      const action = mode === 'archive' ? archiveInboundMessageAction : restoreInboundMessageAction;
-      const res = await action({ inboundMessageId });
-      if (res.ok) toast.success(text.success);
-      else toast.error(resolveErrorText(res.error, ERROR_LABELS));
-    });
-  }
+  const action = mode === 'archive' ? archiveInboundMessageAction : restoreInboundMessageAction;
 
   return (
-    <Button variant='secondary' size='sm' loading={pending} onClick={onClick}>
-      {text.label}
-    </Button>
+    <ActionToastButton
+      variant='secondary'
+      size='sm'
+      label={text.label}
+      successText={text.success}
+      errorLabels={ERROR_LABELS}
+      action={() => action({ inboundMessageId })}
+    />
   );
 }

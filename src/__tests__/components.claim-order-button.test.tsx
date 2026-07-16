@@ -70,21 +70,6 @@ describe('ClaimOrderButton', () => {
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Заказ не найден.'));
   });
 
-  it('кнопка disabled во время pending — double-submit невозможен', async () => {
-    let resolveAction!: (v: { ok: true; changed: boolean }) => void;
-    claimOrderAction.mockImplementation(
-      () => new Promise<{ ok: true; changed: boolean }>((r) => { resolveAction = r; })
-    );
-    render(<ClaimOrderButton orderId='o1' managerId={null} />);
-
-    const button = screen.getByRole('button', { name: 'Взять в работу' }) as HTMLButtonElement;
-    fireEvent.click(button);
-
-    await waitFor(() => expect(button.disabled).toBe(true));
-    expect(toastSuccess).not.toHaveBeenCalled();
-
-    resolveAction({ ok: true, changed: true });
-    await waitFor(() => expect(button.disabled).toBe(false));
-    expect(toastSuccess).toHaveBeenCalledWith('Заказ закреплён за вами');
-  });
+  // pending-disabled поведение живёт в ActionToastButton —
+  // см. components.ui-action-toast-button.test.tsx
 });

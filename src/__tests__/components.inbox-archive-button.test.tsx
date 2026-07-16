@@ -78,21 +78,6 @@ describe('InboxArchiveButton', () => {
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Проверьте поля формы.'));
   });
 
-  it('кнопка disabled во время pending — double-submit невозможен', async () => {
-    let resolveAction!: (v: { ok: true }) => void;
-    archiveInboundMessageAction.mockImplementation(
-      () => new Promise<{ ok: true }>((r) => { resolveAction = r; })
-    );
-    render(<InboxArchiveButton inboundMessageId='im-1' mode='archive' />);
-
-    const button = screen.getByRole('button', { name: 'В архив' }) as HTMLButtonElement;
-    fireEvent.click(button);
-
-    await waitFor(() => expect(button.disabled).toBe(true));
-    expect(toastSuccess).not.toHaveBeenCalled();
-
-    resolveAction({ ok: true });
-    await waitFor(() => expect(button.disabled).toBe(false));
-    expect(toastSuccess).toHaveBeenCalledWith('Обращение перемещено в архив');
-  });
+  // pending-disabled поведение живёт в ActionToastButton —
+  // см. components.ui-action-toast-button.test.tsx
 });

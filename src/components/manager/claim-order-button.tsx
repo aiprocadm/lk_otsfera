@@ -1,9 +1,7 @@
 'use client';
 
-import React, { useTransition } from 'react';
-import { Button } from '@/components/ui';
-import { toast } from '@/lib/ui/toast';
-import { resolveErrorText } from '@/lib/ui/useFormAction';
+import React from 'react';
+import { ActionToastButton } from '@/components/ui';
 import { claimOrderAction } from '@/server-actions/manager/orderAssignment';
 
 // Дельта поверх errorMessageRu: центральный already_assigned описывает
@@ -16,9 +14,8 @@ const ERROR_LABELS: Record<string, string> = {
 
 /**
  * A2 (§5.3 self-assign): менеджер забирает незакреплённый заказ в работу.
- * Рендерится только при managerId === null. Успешный claimOrderAction сам
- * ревалидирует деталку и списки (revalidateOrder в orderAssignment.ts),
- * поэтому router.refresh здесь не нужен.
+ * Рендерится только при managerId === null. Тонкая обёртка над
+ * ActionToastButton — держит guard, тексты и ERROR_LABELS-дельту.
  */
 export function ClaimOrderButton({
   orderId,
@@ -27,21 +24,15 @@ export function ClaimOrderButton({
   orderId: string;
   managerId: string | null;
 }) {
-  const [pending, startTransition] = useTransition();
-
   if (managerId !== null) return null;
 
-  function onClick() {
-    startTransition(async () => {
-      const res = await claimOrderAction({ orderId });
-      if (res.ok) toast.success('Заказ закреплён за вами');
-      else toast.error(resolveErrorText(res.error, ERROR_LABELS));
-    });
-  }
-
   return (
-    <Button variant='secondary' loading={pending} onClick={onClick}>
-      Взять в работу
-    </Button>
+    <ActionToastButton
+      variant='secondary'
+      label='Взять в работу'
+      successText='Заказ закреплён за вами'
+      errorLabels={ERROR_LABELS}
+      action={() => claimOrderAction({ orderId })}
+    />
   );
 }
