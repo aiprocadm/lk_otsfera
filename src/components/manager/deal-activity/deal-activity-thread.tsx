@@ -4,19 +4,26 @@ import React, { useRef, useState } from 'react';
 import { Button, Input, Textarea } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { useFormAction } from '@/lib/ui/useFormAction';
+import { useFetchSubmit } from '@/lib/ui/useFetchSubmit';
 import { addDealNoteAction, initiateCallAction } from '@/server-actions/deal-activity';
+import { replyInboundAction } from '@/server-actions/inbound';
 import type { ActivityItem } from '@/lib/services/manager/dealActivity';
-import { ActivityItemView } from './activity-item';
+import { ActivityItemView, CHANNEL_LABEL } from './activity-item';
 
 /**
  * M1 — интерактивная лента активности по сделке (Task 5 UI). Server-компонент
  * `manager-order-detail-view.tsx` грузит `items` через `getDealActivity` и
- * передаёт их сюда read-only; здесь — только фильтр вида (клиент-сайд) и
- * композер (заметка + click-to-call). Ответы в WhatsApp/Telegram/etc НЕ
- * входят в v1 — это остаётся за `/manager/inbox` (см. scope-заметку плана).
+ * передаёт их сюда read-only; здесь — фильтр вида (клиент-сайд), композер с
+ * тремя режимами (спека M1 §2.3.6: композер выбирает цель) и click-to-call:
+ *  - `note`    — внутренняя заметка (`addDealNoteAction`), клиент не видит;
+ *  - `comment` — комментарий клиенту (`POST /api/comments`, manager-ветка);
+ *  - `channel` — ответ в канал последнего входящего (`replyInboundAction`);
+ *    доступен только при `inboundEnabled` и не-email `message_in` — для email
+ *    исходящего транспорта нет (`email_unsupported`), режим честно скрыт (E3).
  */
 
 type View = 'dialogue' | 'all';
+type ComposerMode = 'note' | 'comment' | 'channel';
 
 const DIALOGUE_KINDS = new Set<ActivityItem['kind']>(['message_in', 'message_out', 'comment']);
 const CHANNEL_KINDS = new Set<ActivityItem['kind']>(['message_in', 'message_out']);
@@ -26,11 +33,58 @@ const NOTE_ERROR_LABEL: Record<string, string> = {
   not_found: 'Заказ не найден.'
 };
 
+/**
+ * `POST /api/comments` отдаёт message-строки (`Invalid request`/`Not found`/
+ * `Access denied`), а не стабильные коды §3 — центральная карта их не знает,
+ * маппим все три здесь.
+ */
+const COMMENT_ERROR_LABEL: Record<string, string> = {
+  'Invalid request': 'Введите текст комментария.',
+  'Not found': 'Заказ не найден.',
+  'Access denied': 'Нет доступа к заказу.'
+};
+
+/**
+ * Дельта поверх центральной карты (как в `inbox-reply-form.tsx`): только
+ * контекстные уточнения forbidden/not_found; `invalid`/`reply_failed`/
+ * `email_unsupported` уже точно покрыты errorMessageRu.
+ */
+const REPLY_ERROR_LABEL: Record<string, string> = {
+  forbidden: 'Обращение недоступно вашей компании.',
+  not_found: 'Обращение не найдено.'
+};
+
 const CALL_ERROR_LABEL: Record<string, string> = {
   disabled: 'Звонки недоступны (модуль не подключён).',
   not_found: 'Заказ не найден.',
   call_failed: 'Звонок недоступен (не настроено).'
 };
+
+const COMPOSER_META: Record<
+  ComposerMode,
+  { pill: string; ariaLabel: string; placeholder: string; submitLabel: string }
+> = {
+  note: {
+    pill: 'Заметка',
+    ariaLabel: 'Текст заметки',
+    placeholder: 'Внутренняя заметка — клиент её не видит…',
+    submitLabel: 'Добавить заметку'
+  },
+  comment: {
+    pill: 'Комментарий',
+    ariaLabel: 'Текст комментария',
+    placeholder: 'Комментарий клиенту…',
+    submitLabel: 'Отправить комментарий'
+  },
+  channel: {
+    pill: 'Ответ в канал',
+    ariaLabel: 'Текст ответа',
+    placeholder: 'Ответ клиенту в канал…',
+    submitLabel: 'Ответить в канал'
+  }
+};
+
+type InboundItem = Extract<ActivityItem, { kind: 'message_in' }>;
 
 export function DealActivityThread({
   orderId,
@@ -44,8 +98,9 @@ export function DealActivityThread({
   telephonyEnabled: boolean;
 }) {
   const [view, setView] = useState<View>('dialogue');
+  const [rawMode, setRawMode] = useState<ComposerMode>('note');
   const [callFormOpen, setCallFormOpen] = useState(false);
-  const noteFormRef = useRef<HTMLFormElement>(null);
+  const composerFormRef = useRef<HTMLFormElement>(null);
   const callFormRef = useRef<HTMLFormElement>(null);
 
   const visible = items.filter((item) => {
@@ -55,13 +110,54 @@ export function DealActivityThread({
     return true;
   });
 
+  // Последний входящий — max по дате (сервис сортирует по возрастанию `at`,
+  // но не полагаемся на порядок массива); `>=` — при равных датах побеждает
+  // последний элемент ленты.
+  const lastInbound = items.reduce<InboundItem | null>(
+    (last, item) =>
+      item.kind === 'message_in' && (!last || item.at.getTime() >= last.at.getTime())
+        ? item
+        : last,
+    null
+  );
+  // email — replyToInbound всегда отказ (email_unsupported): режим не показываем.
+  const channelAvailable = inboundEnabled && lastInbound !== null && lastInbound.channel !== 'email';
+  const channelLabel = lastInbound ? (CHANNEL_LABEL[lastInbound.channel] ?? lastInbound.channel) : '';
+  const mode: ComposerMode = rawMode === 'channel' && !channelAvailable ? 'note' : rawMode;
+
   const note = useFormAction<{ id: string }>({
     action: (formData) => addDealNoteAction({ orderId, body: String(formData.get('body') ?? '') }),
     errorMap: NOTE_ERROR_LABEL,
     refresh: true,
     onSuccess: () => {
       toast.success('Заметка добавлена');
-      noteFormRef.current?.reset();
+      composerFormRef.current?.reset();
+    }
+  });
+
+  const comment = useFetchSubmit({
+    url: '/api/comments',
+    body: (formData) => ({ orderId, body: String(formData.get('body') ?? '').trim() }),
+    errorMap: COMMENT_ERROR_LABEL,
+    refresh: true,
+    onSuccess: () => {
+      toast.success('Комментарий отправлен');
+      composerFormRef.current?.reset();
+    }
+  });
+
+  const reply = useFormAction<{ ok: true }>({
+    action: (formData) =>
+      replyInboundAction({
+        /* v8 ignore next -- unreachable: сабмит режима «channel» рендерится только при channelAvailable ⇒ lastInbound non-null; `?? ''` — defensive */
+        inboundMessageId: lastInbound?.id ?? '',
+        text: String(formData.get('body') ?? '')
+      }),
+    errorMap: REPLY_ERROR_LABEL,
+    refresh: true,
+    onSuccess: () => {
+      toast.success('Ответ отправлен');
+      composerFormRef.current?.reset();
     }
   });
 
@@ -70,7 +166,7 @@ export function DealActivityThread({
       initiateCallAction({
         orderId,
         toNumber: String(formData.get('toNumber') ?? ''),
-        fromInternal: ''
+        fromInternal: String(formData.get('fromInternal') ?? '')
       }),
     errorMap: CALL_ERROR_LABEL,
     onSuccess: () => {
@@ -79,6 +175,26 @@ export function DealActivityThread({
       setCallFormOpen(false);
     }
   });
+
+  const composerByMode = { note, comment, channel: reply } as const;
+  const composer = composerByMode[mode];
+  const meta = COMPOSER_META[mode];
+  const modes: ComposerMode[] = channelAvailable ? ['note', 'comment', 'channel'] : ['note', 'comment'];
+  const caption =
+    mode === 'note'
+      ? 'Внутренняя заметка — клиент её не видит'
+      : mode === 'comment'
+        ? 'Комментарий клиенту (видит клиент)'
+        : `Ответ в канал (${channelLabel})`;
+
+  const selectMode = (m: ComposerMode) => {
+    // Смена цели сбрасывает stale-ошибки всех режимов (текст черновика в
+    // общей textarea при этом сохраняется).
+    note.reset();
+    comment.reset();
+    reply.reset();
+    setRawMode(m);
+  };
 
   return (
     <div className='bg-white border border-gray-200 rounded-xl p-5 space-y-4'>
@@ -115,22 +231,39 @@ export function DealActivityThread({
       )}
 
       <div className='border-t border-gray-100 pt-3 space-y-3'>
-        <form ref={noteFormRef} action={note.formAction} className='flex flex-col gap-2'>
+        <form ref={composerFormRef} action={composer.formAction} className='flex flex-col gap-2'>
+          <div role='radiogroup' aria-label='Режим сообщения' className='flex flex-wrap gap-1'>
+            {modes.map((m) => (
+              <Button
+                key={m}
+                type='button'
+                size='sm'
+                role='radio'
+                aria-checked={mode === m}
+                variant={mode === m ? 'primary' : 'secondary'}
+                disabled={composer.pending}
+                onClick={() => selectMode(m)}
+              >
+                {COMPOSER_META[m].pill}
+              </Button>
+            ))}
+          </div>
           <Textarea
             name='body'
             rows={2}
             required
-            disabled={note.pending}
-            placeholder='Внутренняя заметка — клиент её не видит…'
-            aria-label='Текст заметки'
+            disabled={composer.pending}
+            placeholder={meta.placeholder}
+            aria-label={meta.ariaLabel}
           />
+          <p className='text-xs text-gray-500'>{caption}</p>
           <div className='flex items-center justify-between gap-2'>
-            <Button type='submit' size='sm' loading={note.pending} disabled={note.pending}>
-              Добавить заметку
+            <Button type='submit' size='sm' loading={composer.pending} disabled={composer.pending}>
+              {meta.submitLabel}
             </Button>
-            {note.errorText && (
+            {composer.errorText && (
               <p role='alert' className='text-xs text-red-600'>
-                {note.errorText}
+                {composer.errorText}
               </p>
             )}
           </div>
@@ -151,6 +284,13 @@ export function DealActivityThread({
                   disabled={call.pending}
                   placeholder='Номер телефона'
                   aria-label='Номер телефона'
+                  className='max-w-[200px]'
+                />
+                <Input
+                  name='fromInternal'
+                  disabled={call.pending}
+                  placeholder='Внутренний номер (необяз.)'
+                  aria-label='Внутренний номер'
                   className='max-w-[200px]'
                 />
                 <Button type='submit' size='sm' loading={call.pending} disabled={call.pending}>

@@ -13,7 +13,12 @@ import type { ActivityItem } from '@/lib/services/manager/dealActivity';
  * время, остальные виды — только дату.
  */
 
-const CHANNEL_LABEL: Record<string, string> = {
+/**
+ * Словарь каналов — консистентен с inbox-компонентами (`inbox-list.tsx`).
+ * Экспортируется: композер ленты (`DealActivityThread`) подписывает им режим
+ * «Ответ в канал ({label})».
+ */
+export const CHANNEL_LABEL: Record<string, string> = {
   telegram: 'Telegram',
   max: 'MAX',
   whatsapp: 'WhatsApp',
@@ -97,6 +102,9 @@ export function ActivityItemView({ item }: { item: ActivityItem }) {
             <Badge tone={DIRECTION_TONE[item.direction] ?? 'neutral'}>
               {DIRECTION_LABEL[item.direction] ?? item.direction}
             </Badge>
+            {item.initiator && (
+              <span className='font-medium text-gray-700'>{item.initiator}</span>
+            )}
             <span>{item.number}</span>
             <span>{fmtDuration(item.durationSec)}</span>
             {item.recordingReady && <span>▶ запись</span>}
