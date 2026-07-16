@@ -125,7 +125,7 @@ describe('StageConfig', () => {
     const dialogEl = dialogTitle.closest('dialog') as HTMLElement;
 
     fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'Цветная' } });
-    fireEvent.click(within(dialogEl).getByRole('radio', { name: 'Цвет #3B82F6' }));
+    fireEvent.click(within(dialogEl).getByRole('radio', { name: 'Синий' }));
     fireEvent.click(within(dialogEl).getByRole('button', { name: 'Создать' }));
 
     await waitFor(() => expect(createFunnelStageAction).toHaveBeenCalledTimes(1));
@@ -138,7 +138,7 @@ describe('StageConfig', () => {
     render(renderConfig({ stages: [colored], isDefault: false }));
     fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
     await screen.findByText('Изменить стадию');
-    const swatch = screen.getByRole('radio', { name: 'Цвет #22C55E' }) as HTMLInputElement;
+    const swatch = screen.getByRole('radio', { name: 'Зелёный' }) as HTMLInputElement;
     expect(swatch.checked).toBe(true);
     expect((screen.getByRole('radio', { name: 'Без цвета' }) as HTMLInputElement).checked).toBe(false);
   });

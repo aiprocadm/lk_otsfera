@@ -18,6 +18,21 @@ export const COLOR_SWATCH_PRESETS = [
   '#EC4899'
 ] as const;
 
+/** Человекочитаемые имена пресетов для aria-label (рескью-свотч остаётся с hex). */
+const PRESET_LABEL: Record<string, string> = {
+  '#EF4444': 'Красный',
+  '#F97316': 'Оранжевый',
+  '#EAB308': 'Жёлтый',
+  '#22C55E': 'Зелёный',
+  '#06B6D4': 'Голубой',
+  '#3B82F6': 'Синий',
+  '#8B5CF6': 'Фиолетовый',
+  '#EC4899': 'Розовый'
+};
+
+/** Тот же строгий формат, что и в zod-схемах сервисов (funnelStages / tasks/columns). */
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
 export type ColorSwatchPickerProps = {
   /** Имя radio-группы: под этим ключом значение уходит в FormData формы. */
   name: string;
@@ -26,7 +41,7 @@ export type ColorSwatchPickerProps = {
 };
 
 const SWATCH =
-  'block h-6 w-6 rounded-full peer-checked:ring-2 peer-checked:ring-offset-1 peer-checked:ring-gray-500 peer-focus-visible:ring-2 peer-focus-visible:ring-offset-1 peer-focus-visible:ring-gray-400';
+  'block h-6 w-6 rounded-full peer-checked:ring-2 peer-checked:ring-offset-1 peer-checked:ring-gray-500 peer-focus-visible:ring-2 peer-focus-visible:ring-offset-1 peer-focus-visible:ring-gray-700';
 
 /**
  * Презентационный uncontrolled radio-group выбора цвета для FormData-форм:
@@ -34,10 +49,13 @@ const SWATCH =
  * `str(fd,'color') || null`). Выбранный кружок подсвечивается кольцом чисто
  * через CSS (`peer-checked`), состояние не требуется — диалоги сабмитят форму
  * целиком. Не-пресетное сохранённое значение рендерится дополнительным
- * свотчем, чтобы существующий цвет не затирался молча при пересохранении.
+ * свотчем, чтобы существующий цвет не затирался молча при пересохранении, —
+ * но только если оно проходит строгий #RRGGBB (иначе legacy-мусор упал бы
+ * validation при сабмите на ужесточённой zod-схеме); невалидное значение
+ * трактуем как null → checked получает «Без цвета».
  */
 export function ColorSwatchPicker({ name, value }: ColorSwatchPickerProps) {
-  const current = value ?? '';
+  const current = value && HEX_RE.test(value) ? value : '';
   const isPreset = COLOR_SWATCH_PRESETS.some((p) => p.toLowerCase() === current.toLowerCase());
   const swatches: string[] = [...COLOR_SWATCH_PRESETS, ...(current !== '' && !isPreset ? [current] : [])];
 
@@ -65,7 +83,7 @@ export function ColorSwatchPicker({ name, value }: ColorSwatchPickerProps) {
               name={name}
               value={hex}
               defaultChecked={hex.toLowerCase() === current.toLowerCase()}
-              aria-label={`Цвет ${hex}`}
+              aria-label={PRESET_LABEL[hex] ?? `Цвет ${hex}`}
               className="peer sr-only"
             />
             {/* data-driven цвет значения, не brand-hex палитры — см. комментарий у пресетов */}

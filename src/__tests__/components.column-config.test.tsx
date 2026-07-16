@@ -124,7 +124,7 @@ describe('ColumnConfig', () => {
     const dialogEl = dialogTitle.closest('dialog') as HTMLElement;
 
     fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'Цветная' } });
-    fireEvent.click(within(dialogEl).getByRole('radio', { name: 'Цвет #EC4899' }));
+    fireEvent.click(within(dialogEl).getByRole('radio', { name: 'Розовый' }));
     fireEvent.click(within(dialogEl).getByRole('button', { name: 'Создать' }));
 
     await waitFor(() => expect(createTaskColumnAction).toHaveBeenCalledTimes(1));
@@ -137,7 +137,7 @@ describe('ColumnConfig', () => {
     render(renderConfig({ columns: [colored], isDefault: false }));
     fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
     await screen.findByText('Изменить колонку');
-    const swatch = screen.getByRole('radio', { name: 'Цвет #EF4444' }) as HTMLInputElement;
+    const swatch = screen.getByRole('radio', { name: 'Красный' }) as HTMLInputElement;
     expect(swatch.checked).toBe(true);
     expect((screen.getByRole('radio', { name: 'Без цвета' }) as HTMLInputElement).checked).toBe(false);
   });

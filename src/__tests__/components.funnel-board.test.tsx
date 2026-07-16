@@ -75,22 +75,24 @@ describe('FunnelBoard', () => {
     expect(screen.getByText('Пусто')).toBeTruthy();
   });
 
-  it('renders a color strip only for stages that have a color', () => {
+  it('renders a color strip on EVERY column (stable layout): stage color when set, transparent placeholder otherwise', () => {
     const colored: FunnelBoardData = {
       stages: [],
       columns: [
         { stage: { ...board.columns[0].stage, color: '#22C55E' }, cards: [] },
-        { stage: board.columns[1].stage, cards: [] } // color: null → no strip
+        { stage: board.columns[1].stage, cards: [] } // color: null → transparent placeholder
       ]
     };
     render(React.createElement(FunnelBoard, { board: colored }));
     const strips = screen.getAllByTestId('stage-color-strip');
-    expect(strips).toHaveLength(1);
-    // jsdom normalizes the hex; compare against the same serialization.
+    expect(strips).toHaveLength(2); // placeholder всегда — заголовки колонок не «прыгают»
+    // jsdom normalizes background values; compare against the same serialization.
     const probe = document.createElement('div');
     probe.style.background = '#22C55E';
     expect(strips[0].getAttribute('style')).toBe(probe.getAttribute('style'));
-    expect(strips[0].getAttribute('aria-hidden')).toBe('true');
+    probe.style.background = 'transparent';
+    expect(strips[1].getAttribute('style')).toBe(probe.getAttribute('style'));
+    expect(strips.every((s) => s.getAttribute('aria-hidden') === 'true')).toBe(true);
   });
 
   it('renders "—" for a null estimatedAmount and "без менеджера" for a null assignedManagerName', () => {
