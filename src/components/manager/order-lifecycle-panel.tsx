@@ -70,18 +70,22 @@ export function OrderLifecyclePanel({
   returnReason
 }: {
   orderId: string;
-  status: string;
+  status: LifecycleStatus;
   accountingSigned: boolean;
   returnReason: string | null;
 }) {
+  // Один pending на обе мутации (переходы + чекбокс) — сознательная сериализация
+  // записей по одному заказу; второй useTransition вернул бы конкурирующие записи.
   const [pending, startTransition] = useTransition();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [unmet, setUnmet] = useState<CompletionCondition[]>([]);
 
-  const transitions = TRANSITIONS[status as LifecycleStatus] ?? [];
-  const statusLabel = STATUS_RU[status as LifecycleStatus] ?? status;
-  const statusTone = STATUS_TONE[status as LifecycleStatus] ?? 'neutral';
+  // `??`-фолбэки — runtime forward-compat: новое значение OrderStatus из БД не
+  // должно ронять деталку до синхронизации словарей (тип его уже не пропустит).
+  const transitions = TRANSITIONS[status] ?? [];
+  const statusLabel = STATUS_RU[status] ?? status;
+  const statusTone = STATUS_TONE[status] ?? 'neutral';
 
   function runTransition(to: LifecycleStatus, transitionReason?: string) {
     setUnmet([]);
@@ -122,8 +126,14 @@ export function OrderLifecyclePanel({
     const signed = e.target.checked;
     startTransition(async () => {
       const res = await setOrderAccountingSignedAction({ orderId, signed });
-      if (res.ok) toast.success('Отметка бухгалтерии обновлена');
-      else toast.error(resolveErrorText(res.error, ERROR_LABELS));
+      if (res.ok) {
+        // Галочка закрывает одноимённое условие завершения — точечно убираем его
+        // из показанного unmet-списка; остальные условия остаются актуальными.
+        setUnmet((prev) => prev.filter((c) => c !== 'accounting_signed'));
+        toast.success('Отметка бухгалтерии обновлена');
+      } else {
+        toast.error(resolveErrorText(res.error, ERROR_LABELS));
+      }
     });
   }
 

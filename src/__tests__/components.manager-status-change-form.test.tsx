@@ -13,18 +13,21 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 import { ManagerStatusChangeForm } from '@/components/manager/manager-status-change-form';
 
 describe('ManagerStatusChangeForm (SSR structure)', () => {
-  it('рендерит триггер «Изменить»', () => {
+  it('рендерит заголовок оси «Операционный статус» и триггер «Изменить»', () => {
     const html = renderToString(
       React.createElement(ManagerStatusChangeForm, { orderId: 'o1', currentStatus: 'pending' as never })
     );
+    // A4: заголовок различает ось executionStatus от панели «Жизненный цикл» ниже
+    expect(html).toContain('Операционный статус');
     expect(html).toContain('Изменить');
   });
 
-  it('locked-статус показывает read-only нотис', () => {
+  it('locked-статус показывает read-only нотис (заголовок оси сохраняется)', () => {
     const html = renderToString(
       React.createElement(ManagerStatusChangeForm, { orderId: 'o1', currentStatus: 'cancelled' as never })
     );
     expect(html).toContain('отдельным процессом');
+    expect(html).toContain('Операционный статус');
   });
 
   it('не рендерит select для locked-статуса', () => {

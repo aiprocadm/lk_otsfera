@@ -86,7 +86,8 @@ describe('OrderLifecyclePanel', () => {
     });
 
     it('неизвестный статус: кнопок переходов нет, бейдж показывает сырой код', () => {
-      renderPanel({ status: 'cancelled' });
+      // единственный каст: проверяем runtime forward-compat ветку `??` за пределами union-типа
+      renderPanel({ status: 'cancelled' as never });
       expect(transitionButtons()).toEqual([]);
       expect(screen.getByText('cancelled')).toBeTruthy();
     });
@@ -261,6 +262,26 @@ describe('OrderLifecyclePanel', () => {
       transitionOrderLifecycleAction.mockResolvedValueOnce({ ok: true, changed: true, status: 'completed' });
       fireEvent.click(complete);
       await waitFor(() => expect(screen.queryByText('Бухгалтерия не подписана')).toBeNull());
+    });
+
+    it('чекбокс «подписана» точечно убирает accounting_signed из unmet, остальные строки остаются', async () => {
+      transitionOrderLifecycleAction.mockResolvedValueOnce({
+        ok: false,
+        error: 'completion_conditions_unmet',
+        unmet: ['documents_uploaded', 'accounting_signed']
+      });
+      setOrderAccountingSignedAction.mockResolvedValue({ ok: true, changed: true });
+      renderPanel({ status: 'in_progress', accountingSigned: false });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Завершить' }));
+      await screen.findByText('Бухгалтерия не подписана');
+
+      const checkbox = screen.getByRole('checkbox', { name: 'Бухгалтерия подписана' }) as HTMLInputElement;
+      await waitFor(() => expect(checkbox.disabled).toBe(false));
+      fireEvent.click(checkbox);
+
+      await waitFor(() => expect(screen.queryByText('Бухгалтерия не подписана')).toBeNull());
+      expect(screen.getByText('Нет чистого документа')).toBeTruthy();
     });
   });
 
