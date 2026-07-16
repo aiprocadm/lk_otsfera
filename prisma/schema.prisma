@@ -210,6 +210,7 @@ model User {
   internalPhone                String?
   contact                      Contact?              @relation("UserContact")
   contactsCreated              Contact[]             @relation("ContactCreatedBy")
+  salesTargets                 SalesTarget[]         @relation("SalesTargetManager")
 }
 
 model PartnerUser {
@@ -621,6 +622,7 @@ model Company {
   inboundMessages       InboundMessage[]
   calls                 Call[]
   contacts              Contact[]        @relation("CompanyContacts")
+  salesTargets          SalesTarget[]
 }
 
 // Трек G1 (§3.2 ТЗ): роль-профиль как данные. Матрица охватов по типам объектов
@@ -1387,4 +1389,23 @@ model DealNote {
 
   @@index([orderId, createdAt])
   @@index([authorId])
+}
+
+/// M3: месячный план продаж менеджера (деньги, нетто-оплаты). Задаёт руководитель.
+/// Company-scoped (C8). Очистка плана = удаление строки (нет "нулевых" планов).
+model SalesTarget {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  managerId    String
+  manager      User     @relation("SalesTargetManager", fields: [managerId], references: [id], onDelete: Cascade)
+  year         Int
+  month        Int      // 1..12
+  targetAmount Decimal  @db.Decimal(14, 2)
+  createdById  String?  // кто задал (аудит-денорм; полный трейл в AuditLog)
+
+  @@unique([companyId, managerId, year, month])
+  @@index([companyId, year, month])
 }

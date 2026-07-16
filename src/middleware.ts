@@ -26,6 +26,8 @@ const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   // G2: воронка продаж / канбан.
   { prefix: '/leader/funnel', flag: 'sales_funnel' },
   { prefix: '/manager/funnel', flag: 'sales_funnel' },
+  // M3: аналитика руководителя (план/факт продаж) — additive sub-prefix поверх /leader.
+  { prefix: '/leader/analytics', flag: 'leader_analytics' },
   // G3: внутренние задачи / канбан.
   { prefix: '/manager/tasks', flag: 'internal_tasks' },
   { prefix: '/leader/tasks', flag: 'internal_tasks' },

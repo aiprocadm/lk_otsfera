@@ -79,6 +79,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     // этот пункт, не опустошает сайдбар при выключении.
     { href: '/leader/roles', label: 'Роли', icon: '🎭', flag: 'role_constructor' },
     { href: '/leader/funnel', label: 'Воронка', icon: '📈', flag: 'sales_funnel' },
+    { href: '/leader/analytics', label: 'Аналитика', icon: '📊', flag: 'leader_analytics' },
     { href: '/leader/tasks', label: 'Задачи', icon: '✅', flag: 'internal_tasks' },
     { href: '/leader/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests' },
     // Личный inbox (комментарии+чат) живёт в кабинете менеджера — см. план, «Отклонение от спеки».

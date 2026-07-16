@@ -36,6 +36,7 @@ const OPT_IN_FLAGS = new Set([
   'notif_queue',
   'role_constructor',
   'sales_funnel',
+  'leader_analytics',
   'internal_tasks',
   'inbound_messaging',
   'telephony_mango',

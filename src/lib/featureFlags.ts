@@ -34,6 +34,9 @@ export const FEATURE_FLAGS = [
   'role_constructor',
   // Трек G2: воронка продаж / канбан. Гейтит /leader/funnel + /manager/funnel.
   'sales_funnel',
+  // M3: аналитика руководителя (план/факт продаж). Гейтит /leader/analytics
+  // (middleware FEATURE_PREFIXES + nav-пункт + page notFound-гейт).
+  'leader_analytics',
   // Трек G3: внутренние задачи / канбан. Гейтит /manager/tasks + /leader/tasks.
   'internal_tasks',
   // PR-A: омниканальный инбокс. Гейтит /manager/inbox (экран придёт отдельной задачей).
@@ -71,6 +74,7 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'notif_queue',
   'role_constructor',
   'sales_funnel',
+  'leader_analytics',
   'internal_tasks',
   'inbound_messaging',
   'telephony_mango',
