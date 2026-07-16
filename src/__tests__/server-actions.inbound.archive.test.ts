@@ -80,7 +80,7 @@ describe('archiveInboundMessageAction', () => {
     expect(inboundMessageUpdate).not.toHaveBeenCalled();
   });
 
-  it('unresolved (общая очередь, companyId=null) архивируется: update + audit + revalidate', async () => {
+  it('unresolved (общая очередь, companyId=null) архивируется И закрепляется за компанией архивирующего', async () => {
     inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
     inboundMessageUpdate.mockResolvedValue({});
 
@@ -91,9 +91,11 @@ describe('archiveInboundMessageAction', () => {
       where: { id: 'im-1' },
       select: { companyId: true, status: true }
     });
+    // Закрепление companyId — иначе archived+companyId=null выпадает из
+    // scope ВСЕХ сессий навсегда (невидимо в списке и невосстановимо).
     expect(inboundMessageUpdate).toHaveBeenCalledWith({
       where: { id: 'im-1' },
-      data: { status: 'archived' }
+      data: { status: 'archived', companyId: 'company-a' }
     });
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
@@ -103,13 +105,25 @@ describe('archiveInboundMessageAction', () => {
         entityId: 'im-1',
         userId: 'u-mgr-1',
         before: { status: 'unresolved' },
-        after: { status: 'archived' }
+        after: { status: 'archived', companyId: 'company-a' }
       })
     );
     expect(revalidatePath).toHaveBeenCalledWith('/manager/inbox');
   });
 
-  it('bound-сообщение своей компании архивируется', async () => {
+  it('forbidden: unresolved при session.companyId=null — некому закрепить обращение', async () => {
+    requireManager.mockResolvedValue(managerSession({ companyId: null }));
+    inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
+
+    const result = await archiveInboundMessageAction({ inboundMessageId: 'im-1' });
+
+    expect(result).toEqual({ ok: false, error: 'forbidden' });
+    expect(inboundMessageUpdate).not.toHaveBeenCalled();
+    expect(recordAudit).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('bound-сообщение своей компании архивируется; companyId в update НЕ трогается', async () => {
     inboundMessageFindUnique.mockResolvedValue({ companyId: 'company-a', status: 'bound' });
     inboundMessageUpdate.mockResolvedValue({});
 

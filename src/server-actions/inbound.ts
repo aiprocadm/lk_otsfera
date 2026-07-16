@@ -214,7 +214,14 @@ export type ArchiveInboundResult =
  * Archives an inbound message (E2). Scope: the shared C8 predicate
  * `isInboundMessageInScope` (scope.ts) — own company's messages plus the
  * shared unresolved triage queue; a foreign company's bound message is
- * `forbidden`. Idempotent: archiving an already-archived message is a no-op
+ * `forbidden`. Archiving an unresolved (companyId=null) message PINS it to
+ * the archiver's company (bind-like semantics: a staff action fixes the
+ * message to the actor's company) — otherwise the archived row would leave
+ * EVERY session's scope forever (the scope matches own-company rows OR
+ * status='unresolved', and archiving drops the status branch), i.e. it would
+ * be invisible in the list and unrestorable. Pinning requires the actor to
+ * HAVE a company, so a companyId-less session gets `forbidden` on the shared
+ * queue. Idempotent: archiving an already-archived message is a no-op
  * `{ ok: true }` (no update, no audit).
  */
 export async function archiveInboundMessageAction(input: {
@@ -235,9 +242,19 @@ export async function archiveInboundMessageAction(input: {
 
   if (message.status === 'archived') return { ok: true };
 
+  // Unresolved queue → pin to the archiver's company (see JSDoc); an
+  // already-bound message keeps its companyId untouched.
+  let data: { status: string; companyId?: string };
+  if (message.companyId == null) {
+    if (!session.companyId) return { ok: false, error: 'forbidden' };
+    data = { status: 'archived', companyId: session.companyId };
+  } else {
+    data = { status: 'archived' };
+  }
+
   await prisma.inboundMessage.update({
     where: { id: parsed.data.inboundMessageId },
-    data: { status: 'archived' }
+    data
   });
 
   await recordAudit(prisma, {
@@ -246,7 +263,7 @@ export async function archiveInboundMessageAction(input: {
     entityId: parsed.data.inboundMessageId,
     userId: session.sub,
     before: { status: message.status },
-    after: { status: 'archived' }
+    after: data
   });
 
   revalidatePath('/manager/inbox');
@@ -258,6 +275,9 @@ export async function archiveInboundMessageAction(input: {
  * `bound` if it was ever bound (`boundAt` set), otherwise `unresolved`.
  * Scope: same shared C8 predicate as archive. A non-archived message returns
  * `not_found` — there is nothing to restore (semantics agreed in the plan).
+ * A message restored to `unresolved` keeps the companyId pinned by archive —
+ * shared-queue visibility comes from the status branch of the scope, and a
+ * later bind overwrites companyId from the target organization anyway.
  */
 export async function restoreInboundMessageAction(input: {
   inboundMessageId: string;

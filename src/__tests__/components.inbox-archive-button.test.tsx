@@ -59,6 +59,16 @@ describe('InboxArchiveButton', () => {
     expect(toastSuccess).not.toHaveBeenCalled();
   });
 
+  it('not_found — локальная дельта («Обращение не найдено», не «Заказ не найден.» из общего словаря)', async () => {
+    restoreInboundMessageAction.mockResolvedValue({ ok: false, error: 'not_found' });
+    render(<InboxArchiveButton inboundMessageId='im-1' mode='restore' />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Вернуть' }));
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Обращение не найдено'));
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
   it('код вне локальной дельты падает в errorMessageRu (validation)', async () => {
     restoreInboundMessageAction.mockResolvedValue({ ok: false, error: 'validation' });
     render(<InboxArchiveButton inboundMessageId='im-1' mode='restore' />);
