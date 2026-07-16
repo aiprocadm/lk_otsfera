@@ -1,9 +1,28 @@
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { log } from '@/lib/logging';
 import { isStaff, canSeeStaffConversation, NO_COMPANY_SENTINEL } from './policy';
 
+// ':' безопасен как разделитель: User.id = cuid() и не содержит ':'.
 export function dmKeyFor(a: string, b: string): string {
   return [a, b].sort().join(':');
+}
+
+function isP2002(err: unknown): boolean {
+  return (err as { code?: string })?.code === 'P2002';
+}
+
+/** Общий where бесед: general — company-scoped (sentinel), dm — только участие (зеркало canSeeStaffConversation). */
+function conversationScopeWhere(session: SessionPayload): Prisma.StaffConversationWhereInput {
+  if (session.role === 'admin') {
+    return { OR: [{ kind: 'general' }, { participants: { some: { userId: session.sub } } }] };
+  }
+  return {
+    OR: [
+      { kind: 'general', companyId: session.companyId ?? NO_COMPANY_SENTINEL },
+      { participants: { some: { userId: session.sub } } }
+    ]
+  };
 }
 
 export type EnsureGeneralResult = { ok: true; conversationId: string } | { ok: false; error: 'storage' };
@@ -21,7 +40,11 @@ export async function ensureGeneral(prisma: PrismaClient, companyId: string): Pr
       select: { id: true }
     });
     return { ok: true, conversationId: created.id };
-  } catch {
+  } catch (err) {
+    // P2002 — ожидаемая гонка (партиальный unique); всё прочее логируем, но восстанавливаемся graceful (§3).
+    if (!isP2002(err)) {
+      log.warn('[staffChat/ensureGeneral] create failed', { companyId, error: err instanceof Error ? err.message : String(err) });
+    }
     const raced = await prisma.staffConversation.findFirst({
       where: { companyId, kind: 'general' },
       select: { id: true }
@@ -51,11 +74,8 @@ export async function openDm(
   if (session.role !== 'admin' && target.role !== 'admin') {
     if (!session.companyId || session.companyId !== target.companyId) return { ok: false, error: 'forbidden' };
   }
-  const companyId =
-    (session.role === 'admin' ? target.companyId : target.role === 'admin' ? session.companyId : session.companyId) ??
-    session.companyId ??
-    target.companyId;
-  if (!companyId) return { ok: false, error: 'forbidden' }; // оба без компании — ЛС некуда прикрепить
+  const companyId = session.role === 'admin' ? (target.companyId ?? session.companyId) : session.companyId;
+  if (!companyId) return { ok: false, error: 'forbidden' }; // companyless non-admin не создаёт ЛС (sentinel deny-all философия); admin↔companyless-admin — некуда прикрепить
   const key = dmKeyFor(session.sub, args.targetUserId);
   try {
     const created = await prisma.staffConversation.create({
@@ -68,7 +88,11 @@ export async function openDm(
       select: { id: true }
     });
     return { ok: true, conversationId: created.id };
-  } catch {
+  } catch (err) {
+    // P2002 — ожидаемая гонка (dmKey unique); всё прочее логируем, но восстанавливаемся graceful (§3).
+    if (!isP2002(err)) {
+      log.warn('[staffChat/openDm] create failed', { dmKey: key, error: err instanceof Error ? err.message : String(err) });
+    }
     const existing = await prisma.staffConversation.findUnique({ where: { dmKey: key }, select: { id: true } });
     return existing ? { ok: true, conversationId: existing.id } : { ok: false, error: 'forbidden' };
   }
@@ -93,15 +117,8 @@ export async function listConversations(prisma: PrismaClient, session: SessionPa
   if (session.role === 'manager' && session.companyId) {
     await ensureGeneral(prisma, session.companyId); // лениво, идемпотентно
   }
-  const where =
-    session.role === 'admin'
-      ? { OR: [{ kind: 'general' as const }, { participants: { some: { userId: session.sub } } }] }
-      : {
-          companyId: session.companyId ?? NO_COMPANY_SENTINEL,
-          OR: [{ kind: 'general' as const }, { participants: { some: { userId: session.sub } } }]
-        };
   const rows = await prisma.staffConversation.findMany({
-    where,
+    where: conversationScopeWhere(session),
     select: {
       id: true,
       kind: true,
@@ -134,15 +151,8 @@ export type StaffUnreadResult = { ok: true; count: number };
 /** Кол-во бесед с непрочитанным (зеркало chat/unreadCount, но на Prisma — объёмы staff-чата малы). */
 export async function staffUnreadCount(prisma: PrismaClient, session: SessionPayload): Promise<StaffUnreadResult> {
   if (!isStaff(session)) return { ok: true, count: 0 };
-  const where =
-    session.role === 'admin'
-      ? { OR: [{ kind: 'general' as const }, { participants: { some: { userId: session.sub } } }] }
-      : {
-          companyId: session.companyId ?? NO_COMPANY_SENTINEL,
-          OR: [{ kind: 'general' as const }, { participants: { some: { userId: session.sub } } }]
-        };
   const rows = await prisma.staffConversation.findMany({
-    where,
+    where: conversationScopeWhere(session),
     select: { lastMessageAt: true, readStates: { where: { userId: session.sub }, select: { lastReadAt: true }, take: 1 } },
     take: 200
   });

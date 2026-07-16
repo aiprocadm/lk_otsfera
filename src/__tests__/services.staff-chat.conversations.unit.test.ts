@@ -21,6 +21,7 @@ it('dmKeyFor is order-independent', () => {
 });
 
 it('ensureGeneral creates lazily and recovers from P2002 race', async () => {
+  const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   const create = vi.fn().mockRejectedValue(Object.assign(new Error('dup'), { code: 'P2002' }));
   const findFirst = vi.fn()
     .mockResolvedValueOnce(null)
@@ -28,6 +29,8 @@ it('ensureGeneral creates lazily and recovers from P2002 race', async () => {
   const prisma = { staffConversation: { create, findFirst } } as never;
   const res = await ensureGeneral(prisma, 'c1');
   expect(res).toEqual({ ok: true, conversationId: 'g1' });
+  expect(warnSpy).not.toHaveBeenCalled(); // P2002 — ожидаемая гонка, не шумим
+  warnSpy.mockRestore();
 });
 
 it('openDm: cross-company target → forbidden; non-staff caller → forbidden', async () => {
@@ -87,12 +90,26 @@ it('ensureGeneral: creates when none exists (no race)', async () => {
   expect(res).toEqual({ ok: true, conversationId: 'g2' });
 });
 
-it('ensureGeneral: race then still not found → storage error', async () => {
+it('ensureGeneral: race then still not found → storage error, non-P2002 warns', async () => {
+  const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   const create = vi.fn().mockRejectedValue(new Error('boom'));
   const findFirst = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(null);
   const prisma = { staffConversation: { create, findFirst } } as never;
   const res = await ensureGeneral(prisma, 'c1');
   expect(res).toEqual({ ok: false, error: 'storage' });
+  expect(warnSpy).toHaveBeenCalledWith('[staffChat/ensureGeneral] create failed', { companyId: 'c1', error: 'boom' });
+  warnSpy.mockRestore();
+});
+
+it('ensureGeneral: non-Error rejection is stringified in the warn payload', async () => {
+  const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const create = vi.fn().mockRejectedValue('raw-failure');
+  const findFirst = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'g3' });
+  const prisma = { staffConversation: { create, findFirst } } as never;
+  const res = await ensureGeneral(prisma, 'c1');
+  expect(res).toEqual({ ok: true, conversationId: 'g3' });
+  expect(warnSpy).toHaveBeenCalledWith('[staffChat/ensureGeneral] create failed', { companyId: 'c1', error: 'raw-failure' });
+  warnSpy.mockRestore();
 });
 
 // --- extended coverage: openDm branches ---
@@ -165,7 +182,8 @@ it('openDm: both sides companyless → forbidden (nowhere to attach DM)', async 
   expect(res).toEqual({ ok: false, error: 'forbidden' });
 });
 
-it('openDm: create races and dmKey lookup also empty → forbidden', async () => {
+it('openDm: create races and dmKey lookup also empty → forbidden, non-P2002 warns', async () => {
+  const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   const target = { id: 'm4', role: 'manager', companyId: 'c1', isActive: true };
   const create = vi.fn().mockRejectedValue(new Error('boom'));
   const findUnique = vi.fn().mockResolvedValue(null);
@@ -175,11 +193,51 @@ it('openDm: create races and dmKey lookup also empty → forbidden', async () =>
   } as never;
   const res = await openDm(prisma, manager, { targetUserId: 'm4' });
   expect(res).toEqual({ ok: false, error: 'forbidden' });
+  expect(warnSpy).toHaveBeenCalledWith('[staffChat/openDm] create failed', { dmKey: 'm1:m4', error: 'boom' });
+  warnSpy.mockRestore();
+});
+
+it('openDm: non-Error rejection is stringified in the warn payload, recovery still works', async () => {
+  const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const target = { id: 'm4', role: 'manager', companyId: 'c1', isActive: true };
+  const create = vi.fn().mockRejectedValue('raw-failure');
+  const findUnique = vi.fn().mockResolvedValue({ id: 'dmRecovered' });
+  const prisma = {
+    user: { findUnique: vi.fn().mockResolvedValue(target) },
+    staffConversation: { create, findUnique }
+  } as never;
+  const res = await openDm(prisma, manager, { targetUserId: 'm4' });
+  expect(res).toEqual({ ok: true, conversationId: 'dmRecovered' });
+  expect(warnSpy).toHaveBeenCalledWith('[staffChat/openDm] create failed', { dmKey: 'm1:m4', error: 'raw-failure' });
+  warnSpy.mockRestore();
+});
+
+it('openDm: companyless manager cannot open a DM even to an admin (deny-all posture)', async () => {
+  const mgrNoCompany = { sub: 'm9', role: 'manager', companyId: null } as never;
+  const target = { id: 'a2', role: 'admin', companyId: 'c5', isActive: true };
+  const prisma = {
+    user: { findUnique: vi.fn().mockResolvedValue(target) },
+    staffConversation: { create: vi.fn(), findUnique: vi.fn() }
+  } as never;
+  expect(await openDm(prisma, mgrNoCompany, { targetUserId: 'a2' })).toEqual({ ok: false, error: 'forbidden' });
+});
+
+it('openDm: admin without company falls back to own companyId=null → forbidden only if target companyless too', async () => {
+  // target admin с компанией: admin→admin ЛС прикрепляется к компании таргета
+  const target = { id: 'a3', role: 'admin', companyId: 'c7', isActive: true };
+  const create = vi.fn().mockResolvedValue({ id: 'dmAA' });
+  const prisma = {
+    user: { findUnique: vi.fn().mockResolvedValue(target) },
+    staffConversation: { create, findUnique: vi.fn() }
+  } as never;
+  const res = await openDm(prisma, admin, { targetUserId: 'a3' });
+  expect(res).toEqual({ ok: true, conversationId: 'dmAA' });
+  expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ companyId: 'c7' }) }));
 });
 
 // --- extended coverage: listConversations branches ---
 
-it('listConversations: manager without companyId skips ensureGeneral and scopes via sentinel', async () => {
+it('listConversations: manager without companyId skips ensureGeneral and scopes general via sentinel', async () => {
   const findFirst = vi.fn();
   const findMany = vi.fn().mockResolvedValue([]);
   const prisma = { staffConversation: { findFirst, findMany, create: vi.fn() } } as never;
@@ -188,11 +246,18 @@ it('listConversations: manager without companyId skips ensureGeneral and scopes 
   expect(res).toEqual({ ok: true, rows: [] });
   expect(findFirst).not.toHaveBeenCalled();
   expect(findMany).toHaveBeenCalledWith(
-    expect.objectContaining({ where: expect.objectContaining({ companyId: '__no_company__' }) })
+    expect.objectContaining({
+      where: {
+        OR: [
+          { kind: 'general', companyId: '__no_company__' },
+          { participants: { some: { userId: 'm9' } } }
+        ]
+      }
+    })
   );
 });
 
-it('listConversations: manager with companyId triggers ensureGeneral and scopes by company', async () => {
+it('listConversations: manager with companyId triggers ensureGeneral; general company-scoped, dm participant-only', async () => {
   const findFirst = vi.fn().mockResolvedValue({ id: 'g1' });
   const findMany = vi.fn().mockResolvedValue([]);
   const prisma = { staffConversation: { findFirst, findMany, create: vi.fn() } } as never;
@@ -201,9 +266,52 @@ it('listConversations: manager with companyId triggers ensureGeneral and scopes 
   expect(findFirst).toHaveBeenCalled();
   expect(findMany).toHaveBeenCalledWith(
     expect.objectContaining({
-      where: { companyId: 'c1', OR: [{ kind: 'general' }, { participants: { some: { userId: 'm1' } } }] }
+      where: {
+        OR: [
+          { kind: 'general', companyId: 'c1' },
+          { participants: { some: { userId: 'm1' } } }
+        ]
+      }
     })
   );
+});
+
+it('listConversations: participant DM is not dropped by company mismatch (dm branch is participant-only)', async () => {
+  // Менеджер c1 — участник ЛС, привязанного к c2 (напр. открыт admin-ом чужой компании):
+  // policy говорит «участник видит dm», значит и список обязан его отдавать.
+  const findFirst = vi.fn().mockResolvedValue({ id: 'g1' });
+  const findMany = vi.fn().mockResolvedValue([
+    {
+      id: 'dmX',
+      kind: 'dm',
+      lastMessageAt: new Date('2026-07-17T11:00:00Z'),
+      company: { name: 'Чужая компания' },
+      participants: [
+        { userId: 'm1', user: { name: 'Мария' } },
+        { userId: 'a9', user: { name: 'Админ' } }
+      ],
+      readStates: []
+    }
+  ]);
+  const prisma = { staffConversation: { findFirst, findMany, create: vi.fn() } } as never;
+  const res = await listConversations(prisma, manager);
+  expect(res).toEqual({
+    ok: true,
+    rows: [
+      {
+        id: 'dmX',
+        kind: 'dm',
+        title: 'Админ',
+        companyName: null,
+        lastMessageAt: new Date('2026-07-17T11:00:00Z'),
+        unread: true
+      }
+    ]
+  });
+  // where не содержит top-level companyId — dm-ветка фильтруется только участием
+  const where = findMany.mock.calls[0][0].where;
+  expect(where).not.toHaveProperty('companyId');
+  expect(where.OR[1]).toEqual({ participants: { some: { userId: 'm1' } } });
 });
 
 it('listConversations: admin sees general (all companies) + own dm, mapped correctly', async () => {
@@ -263,14 +371,21 @@ it('staffUnreadCount: admin where-branch counts unread across all-company genera
   );
 });
 
-it('staffUnreadCount: manager without companyId uses sentinel', async () => {
+it('staffUnreadCount: manager without companyId uses sentinel for general, participant-only for dm', async () => {
   const findMany = vi.fn().mockResolvedValue([]);
   const prisma = { staffConversation: { findMany } } as never;
   const mgrNoCompany = { sub: 'm9', role: 'manager', companyId: null } as never;
   const res = await staffUnreadCount(prisma, mgrNoCompany);
   expect(res).toEqual({ ok: true, count: 0 });
   expect(findMany).toHaveBeenCalledWith(
-    expect.objectContaining({ where: expect.objectContaining({ companyId: '__no_company__' }) })
+    expect.objectContaining({
+      where: {
+        OR: [
+          { kind: 'general', companyId: '__no_company__' },
+          { participants: { some: { userId: 'm9' } } }
+        ]
+      }
+    })
   );
 });
 
