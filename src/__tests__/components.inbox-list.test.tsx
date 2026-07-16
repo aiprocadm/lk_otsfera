@@ -60,7 +60,8 @@ describe('InboxList', () => {
     const bound = renderToString(
       <InboxList items={[{ ...base, status: 'bound' }]} organizations={ORGS} />
     );
-    expect(bound).toContain('reply:msg-1');
+    expect(count(bound, 'reply:msg-1')).toBe(2);
+    expect(bound).not.toContain('Ответ по email пока недоступен');
     expect(count(bound, 'archive:msg-1')).toBe(2);
     expect(bound).not.toContain('restore:msg-1');
 
@@ -72,6 +73,23 @@ describe('InboxList', () => {
     expect(archived).toContain('В архиве');
     expect(count(archived, 'restore:msg-1')).toBe(2);
     expect(archived).not.toContain('archive:msg-1');
+  });
+
+  it('email + bound → подсказка вместо формы ответа в обеих раскладках, «В архив» остаётся', () => {
+    const html = renderToString(
+      <InboxList items={[{ ...base, channel: 'email', status: 'bound' }]} organizations={ORGS} />
+    );
+    expect(html).not.toContain('reply:msg-1');
+    expect(count(html, 'Ответ по email пока недоступен — ответьте из почтового клиента')).toBe(2);
+    expect(count(html, 'archive:msg-1')).toBe(2);
+  });
+
+  it('email + unresolved → форма привязки как обычно, без email-подсказки', () => {
+    const html = renderToString(
+      <InboxList items={[{ ...base, channel: 'email' }]} organizations={ORGS} />
+    );
+    expect(count(html, 'bind:msg-1:orgs=1')).toBe(2);
+    expect(html).not.toContain('Ответ по email пока недоступен');
   });
 
   it('senderDisplay=null → показывается senderRef; неизвестные channel/status — как есть, без архив-кнопок', () => {
