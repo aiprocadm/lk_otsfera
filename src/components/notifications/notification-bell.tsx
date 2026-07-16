@@ -156,7 +156,7 @@ export function NotificationBell({
         // на кнопке анонсирует тип попапа, aria-controls связывает по id.
         <div
           id={panelId}
-          className='absolute right-0 z-50 mt-2 w-[360px] max-h-[420px] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg'
+          className='absolute right-0 z-50 mt-2 w-[min(360px,calc(100vw-2rem))] max-h-[420px] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg'
         >
           <div className='flex items-center justify-between border-b border-gray-100 px-4 py-2'>
             <span className='text-sm font-medium text-[#111111]'>Уведомления</span>

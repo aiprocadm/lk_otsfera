@@ -101,6 +101,17 @@ describe('AdminHealthPage', () => {
     expect(alerts?.textContent).toContain('dlq_depth');
     const errors = container.querySelector('[data-testid="sync-errors-section"]');
     expect(errors?.textContent).toContain('sl1');
+
+    // подзаголовок упоминает алерты и ошибки синхронизации
+    expect(container.textContent).toContain('алерты и последние ошибки синхронизации');
+    // алерты — первая секция: firing-блок идёт раньше таблицы лага
+    const lagHeading = Array.from(container.querySelectorAll('h2')).find(
+      (h) => h.textContent === 'Лаг синхронизации'
+    );
+    expect(lagHeading).toBeDefined();
+    expect(
+      alerts!.compareDocumentPosition(lagHeading!) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 
   it('forbidden-ветка listAlertStates деградирует в пустой список алертов', async () => {

@@ -319,12 +319,12 @@ describe('DealActivityThread', () => {
     expect(noteCaption.id).toBeTruthy();
     expect(screen.getByLabelText('Текст заметки').getAttribute('aria-describedby')).toBe(noteCaption.id);
     expect(noteCaption.className).toContain('text-gray-500');
-    expect(noteCaption.className).not.toContain('text-amber-600');
+    expect(noteCaption.className).not.toContain('text-amber-700');
 
     fireEvent.click(screen.getByRole('button', { name: 'Комментарий' }));
     const commentCaption = screen.getByText('Комментарий клиенту (видит клиент)');
     expect(screen.getByLabelText('Текст комментария').getAttribute('aria-describedby')).toBe(commentCaption.id);
-    expect(commentCaption.className).toContain('text-amber-600');
+    expect(commentCaption.className).toContain('text-amber-700');
     expect(commentCaption.className).not.toContain('text-gray-500');
   });
 
@@ -497,7 +497,7 @@ describe('DealActivityThread', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ответ в канал' }));
     const channelCaption = screen.getByText('Ответ в канал (Telegram)');
-    expect(channelCaption.className).toContain('text-amber-600');
+    expect(channelCaption.className).toContain('text-amber-700');
 
     const textarea = screen.getByLabelText('Текст ответа') as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: 'Отвечаю в мессенджер' } });

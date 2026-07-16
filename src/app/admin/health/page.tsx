@@ -61,9 +61,13 @@ export default async function AdminHealthPage() {
       <div>
         <h1 className='text-2xl font-bold text-[#111111]'>Здоровье системы</h1>
         <p className='text-sm text-gray-500 mt-0.5'>
-          Свежесть синхронизации с 1С, глубина BullMQ очередей и список упавших задач.
+          Свежесть синхронизации с 1С, глубина BullMQ очередей и список упавших задач,
+          алерты и последние ошибки синхронизации.
         </p>
       </div>
+
+      {/* Алерты первыми: firing — самый высокосигнальный блок страницы */}
+      <AlertsSection alerts={alertRows} />
 
       <section className='space-y-3'>
         <h2 className='text-base font-semibold text-[#111111]'>Лаг синхронизации</h2>
@@ -133,8 +137,6 @@ export default async function AdminHealthPage() {
         )}
         <DlqTable rows={dlqRows} />
       </section>
-
-      <AlertsSection alerts={alertRows} />
 
       <SyncErrorsSection errors={syncErrorRows} />
     </div>

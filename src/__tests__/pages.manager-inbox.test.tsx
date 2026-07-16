@@ -91,20 +91,20 @@ describe('ManagerInboxPage', () => {
     }
   );
 
-  it('нечисловой page → 1', async () => {
+  it('нечисловой skip → page 1', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManager.mockResolvedValue(SESSION);
     listInbox.mockResolvedValue({ items: [], total: 0 });
     listOrganizations.mockResolvedValue([]);
 
     await renderServerComponent(
-      ManagerInboxPage({ searchParams: Promise.resolve({ page: 'abc' }) })
+      ManagerInboxPage({ searchParams: Promise.resolve({ skip: 'abc' }) })
     );
 
     expect(listInbox.mock.calls[0][2].page).toBe(1);
   });
 
-  it('нераспознанный status отброшен; channel и page проходят', async () => {
+  it('нераспознанный status отброшен; channel и skip проходят', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManager.mockResolvedValue(SESSION);
     listInbox.mockResolvedValue({ items: [], total: 100 });
@@ -112,7 +112,7 @@ describe('ManagerInboxPage', () => {
 
     await renderServerComponent(
       ManagerInboxPage({
-        searchParams: Promise.resolve({ status: 'bogus', channel: 'telegram', page: '2' })
+        searchParams: Promise.resolve({ status: 'bogus', channel: 'telegram', skip: '25' })
       })
     );
 
@@ -120,5 +120,30 @@ describe('ManagerInboxPage', () => {
     expect(filters.status).toBeUndefined();
     expect(filters.channel).toBe('telegram');
     expect(filters.page).toBe(2);
+  });
+
+  it('ссылка пагинатора реально меняет выборку (total > pageSize)', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManager.mockResolvedValue(SESSION);
+    listInbox.mockResolvedValue({ items: [], total: 60 });
+    listOrganizations.mockResolvedValue([]);
+
+    const { container } = await renderServerComponent(
+      ManagerInboxPage({ searchParams: Promise.resolve({ channel: 'telegram' }) })
+    );
+    const next = Array.from(container.querySelectorAll('a')).find(
+      (a) => a.textContent === 'Вперёд'
+    );
+    expect(next).toBeDefined();
+
+    const qs = new URLSearchParams((next as HTMLAnchorElement).getAttribute('href')!.split('?')[1]);
+    const spFromLink = Object.fromEntries(qs.entries());
+    listInbox.mockClear();
+    await renderServerComponent(ManagerInboxPage({ searchParams: Promise.resolve(spFromLink) }));
+    expect(listInbox).toHaveBeenCalledWith(
+      {},
+      SESSION,
+      expect.objectContaining({ page: 2, channel: 'telegram' })
+    );
   });
 });

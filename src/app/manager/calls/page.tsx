@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 type SearchParams = {
   direction?: string;
   orgId?: string;
-  page?: string;
+  skip?: string;
 };
 
 const PAGE_SIZE = 25;
@@ -30,7 +30,9 @@ export default async function ManagerCallsPage({
   const session = await requireManager();
   const sp = await searchParams;
 
-  const page = Math.max(1, Number.parseInt(sp.page ?? '1', 10) || 1);
+  // skip-конвенция общего Paginator (см. organization/orders): page выводится из skip
+  const skip = Number.isFinite(Number(sp.skip)) ? Math.max(0, Number(sp.skip)) : 0;
+  const page = Math.floor(skip / PAGE_SIZE) + 1;
   const direction = sp.direction === 'inbound' || sp.direction === 'outbound' ? sp.direction : undefined;
   const filters: CallsFilters = {
     ...(direction ? { direction } : {}),
@@ -53,8 +55,8 @@ export default async function ManagerCallsPage({
         </p>
       </div>
 
-      <CallsFiltersBar direction={sp.direction} orgId={sp.orgId}>
-        <CallsOrgFilter orgs={orgs} orgId={sp.orgId} direction={sp.direction} />
+      <CallsFiltersBar direction={direction} orgId={sp.orgId}>
+        <CallsOrgFilter orgs={orgs} orgId={sp.orgId} direction={direction} />
       </CallsFiltersBar>
 
       <CallsList items={items} />

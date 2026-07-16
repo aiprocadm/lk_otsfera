@@ -86,14 +86,14 @@ describe('ManagerCallsPage', () => {
     expect(container.textContent).toContain('Звонки');
   });
 
-  it('direction=inbound + orgId + page=3 прокидываются в фильтры', async () => {
+  it('direction=inbound + orgId + skip=50 → page=3 в фильтрах', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManager.mockResolvedValue(SESSION);
     listCalls.mockResolvedValue({ items: [{ id: 'call1' }], total: 60 });
 
     const { container } = await renderServerComponent(
       ManagerCallsPage({
-        searchParams: Promise.resolve({ direction: 'inbound', orgId: 'org-1', page: '3' })
+        searchParams: Promise.resolve({ direction: 'inbound', orgId: 'org-1', skip: '50' })
       })
     );
 
@@ -104,6 +104,34 @@ describe('ManagerCallsPage', () => {
       pageSize: 25
     });
     expect(container.textContent).toContain('call1');
+  });
+
+  it('ссылка пагинатора реально меняет выборку (total > pageSize)', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManager.mockResolvedValue(SESSION);
+    listCalls.mockResolvedValue({ items: [], total: 60 });
+
+    // страница 1: пагинатор строит ссылку «Вперёд»
+    const { container } = await renderServerComponent(
+      ManagerCallsPage({ searchParams: Promise.resolve({ orgId: 'org-1' }) })
+    );
+    const next = Array.from(container.querySelectorAll('a')).find(
+      (a) => a.textContent === 'Вперёд'
+    );
+    expect(next).toBeDefined();
+
+    // переходим по ссылке: её query-параметры парсятся страницей в page=2
+    const qs = new URLSearchParams((next as HTMLAnchorElement).getAttribute('href')!.split('?')[1]);
+    const spFromLink = Object.fromEntries(qs.entries());
+    listCalls.mockClear();
+    await renderServerComponent(
+      ManagerCallsPage({ searchParams: Promise.resolve(spFromLink) })
+    );
+    expect(listCalls).toHaveBeenCalledWith(
+      {},
+      SESSION,
+      expect.objectContaining({ page: 2, orgId: 'org-1' })
+    );
   });
 
   it('direction=outbound проходит второй ногой OR', async () => {
@@ -122,18 +150,21 @@ describe('ManagerCallsPage', () => {
     );
   });
 
-  it('нераспознанный direction отбрасывается, кривой page → 1', async () => {
+  it('нераспознанный direction отбрасывается (и в фильтрах, и в UI), кривой skip → page 1', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManager.mockResolvedValue(SESSION);
     listCalls.mockResolvedValue({ items: [], total: 0 });
 
-    await renderServerComponent(
-      ManagerCallsPage({ searchParams: Promise.resolve({ direction: 'sideways', page: 'abc' }) })
+    const { getByTestId } = await renderServerComponent(
+      ManagerCallsPage({ searchParams: Promise.resolve({ direction: 'sideways', skip: 'abc' }) })
     );
 
     const filters = listCalls.mock.calls[0][2];
     expect(filters.direction).toBeUndefined();
     expect(filters.page).toBe(1);
+    // в UI-фильтры уходит валидированный direction, а не сырой sp.direction
+    expect(getByTestId('calls-filters').textContent).toContain('undefined|undefined');
+    expect(JSON.parse(getByTestId('calls-org-filter').textContent ?? '').direction).toBeUndefined();
   });
 
   it('orgs из listOrganizations и orgId/direction прокидываются в CallsOrgFilter', async () => {

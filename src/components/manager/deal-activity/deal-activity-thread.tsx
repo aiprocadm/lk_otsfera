@@ -267,7 +267,7 @@ export function DealActivityThread({
               textarea через aria-describedby. */}
           <p
             id={captionId}
-            className={mode === 'note' ? 'text-xs text-gray-500' : 'text-xs text-amber-600 font-medium'}
+            className={mode === 'note' ? 'text-xs text-gray-500' : 'text-xs text-amber-700 font-medium'}
           >
             {caption}
           </p>
