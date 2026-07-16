@@ -41,13 +41,6 @@ export default async function LeaderOrderDetailPage({ params }: { params: Promis
 
   return (
     <div className='space-y-5'>
-      {/* Форма назначения — leader-only, поэтому монтируется рядом с общей
-          деталкой, а не внутри ManagerOrderDetailView (§4 sibling-rule). */}
-      <LeaderAssignOrderManagerForm
-        orderId={data.order.id}
-        currentManagerId={data.order.managerId}
-        candidates={candidates}
-      />
       <ManagerOrderDetailView
         data={data}
         backHref='/leader/orders'
@@ -57,6 +50,14 @@ export default async function LeaderOrderDetailPage({ params }: { params: Promis
         activityItems={activityItems}
         inboundEnabled={inboundEnabled}
         telephonyEnabled={telephonyEnabled}
+      />
+      {/* Форма назначения — leader-only, поэтому монтируется рядом с общей
+          деталкой (после неё: back-link и h1 заказа остаются первыми в потоке),
+          а не внутри ManagerOrderDetailView (§4 sibling-rule). */}
+      <LeaderAssignOrderManagerForm
+        orderId={data.order.id}
+        currentManagerId={data.order.managerId}
+        candidates={candidates}
       />
     </div>
   );

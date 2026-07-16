@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Button, Select } from '@/components/ui';
 import { assignOrderManagerLeaderAction } from '@/server-actions/manager/orderAssignment';
 import { useFormAction } from '@/lib/ui/useFormAction';
 
@@ -34,6 +35,16 @@ export function LeaderAssignOrderManagerForm({
   candidates: LeaderManagerCandidate[];
 }) {
   const [selected, setSelected] = useState<string>(currentManagerId ?? '');
+  // Ресинк при внешнем изменении currentManagerId (например, claim «Взять в
+  // работу» внутри деталки → revalidate): иначе форма показывала бы устаревший
+  // выбор с активной «Сохранить», снимающей только что взятый заказ. Паттерн
+  // «adjusting state when props change» (setState в рендере), НЕ key-ремоунт —
+  // тот стирал бы success-нотис после собственного сабмита формы.
+  const [prevManagerId, setPrevManagerId] = useState(currentManagerId);
+  if (prevManagerId !== currentManagerId) {
+    setPrevManagerId(currentManagerId);
+    setSelected(currentManagerId ?? '');
+  }
   const { formAction, pending, errorText, data, success } = useFormAction<{ changed: boolean }>({
     // Экшен принимает объект (не FormData): адаптер извлекает выбор из формы;
     // '' (опция «— Без менеджера —») → null по схеме экшена (string|null).
@@ -71,11 +82,10 @@ export function LeaderAssignOrderManagerForm({
         <span className='block text-sm font-medium text-gray-700 mb-1'>
           Выберите менеджера
         </span>
-        <select
+        <Select
           name='managerUserId'
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
-          className='w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'
         >
           <option value=''>— Без менеджера —</option>
           {sorted.map((c) => (
@@ -83,7 +93,7 @@ export function LeaderAssignOrderManagerForm({
               {c.name ? `${c.name} (${c.email})` : c.email}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
 
       {success && data && (
@@ -104,13 +114,9 @@ export function LeaderAssignOrderManagerForm({
       )}
 
       <div className='flex justify-end'>
-        <button
-          type='submit'
-          disabled={pending || !dirty}
-          className='px-4 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C] disabled:opacity-50'
-        >
+        <Button type='submit' disabled={!dirty} loading={pending}>
           {pending ? 'Сохраняем…' : 'Сохранить'}
-        </button>
+        </Button>
       </div>
     </form>
   );

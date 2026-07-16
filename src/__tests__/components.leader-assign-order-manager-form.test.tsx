@@ -131,6 +131,66 @@ describe('LeaderAssignOrderManagerForm', () => {
     expect((submit as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it('ресинк при внешнем изменении currentManagerId (A2 claim → revalidate): селект показывает нового менеджера, submit снова disabled', () => {
+    const { rerender } = render(
+      React.createElement(LeaderAssignOrderManagerForm, {
+        orderId: 'o1',
+        currentManagerId: null,
+        candidates: CANDIDATES,
+      })
+    );
+    const select = screen.getByRole('combobox') as HTMLSelectElement;
+    expect(select.value).toBe('');
+
+    rerender(
+      React.createElement(LeaderAssignOrderManagerForm, {
+        orderId: 'o1',
+        currentManagerId: 'm2',
+        candidates: CANDIDATES,
+      })
+    );
+    expect(select.value).toBe('m2');
+    expect(
+      (screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement).disabled
+    ).toBe(true);
+
+    // Обратный переход: менеджера сняли извне → селект возвращается к «Без менеджера».
+    rerender(
+      React.createElement(LeaderAssignOrderManagerForm, {
+        orderId: 'o1',
+        currentManagerId: null,
+        candidates: CANDIDATES,
+      })
+    );
+    expect(select.value).toBe('');
+    expect(
+      (screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement).disabled
+    ).toBe(true);
+  });
+
+  it('rerender с тем же currentManagerId не затирает несохранённый выбор пользователя', () => {
+    const { rerender } = render(
+      React.createElement(LeaderAssignOrderManagerForm, {
+        orderId: 'o1',
+        currentManagerId: 'm1',
+        candidates: CANDIDATES,
+      })
+    );
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'm2' } });
+
+    rerender(
+      React.createElement(LeaderAssignOrderManagerForm, {
+        orderId: 'o1',
+        currentManagerId: 'm1',
+        candidates: CANDIDATES,
+      })
+    );
+    expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('m2');
+    expect(
+      (screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement).disabled
+    ).toBe(false);
+  });
+
   it('успех (changed): зовёт экшен объектом {orderId, managerUserId} и показывает «Менеджер обновлён.»', async () => {
     assignOrderManagerLeaderAction.mockResolvedValue({ ok: true, changed: true });
     render(
