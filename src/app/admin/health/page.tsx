@@ -3,9 +3,13 @@ import { prisma } from '@/lib/db/prisma';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { getSyncLag, type SyncLagRow } from '@/lib/services/admin/syncHealth';
 import { getQueueStats, getDlq } from '@/lib/services/admin/queueStats';
+import { listAlertStates, type AlertStateRow } from '@/lib/services/admin/alerts';
+import { listSyncErrors, type SyncErrorRow } from '@/lib/services/syncSummary';
 import { QueueStatsGrid } from '@/components/admin/queue-stats-grid';
 import { DlqTable } from '@/components/admin/dlq-table';
 import { RetryAllButton } from '@/components/admin/retry-all-button';
+import { AlertsSection } from '@/components/admin/alerts-section';
+import { SyncErrorsSection } from '@/components/admin/sync-errors-section';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,15 +39,21 @@ function lagBadgeClass(lagMs: number | null): string {
 }
 
 export default async function AdminHealthPage() {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   // Sync stats hit Postgres; queues hit Redis. Failure of one shouldn't
   // hide the other — wrap each branch in a per-section guard so the page
   // still renders something useful even if Redis is down for maintenance.
-  const [syncRows, queueRows, dlqRows] = await Promise.all([
+  const [syncRows, queueRows, dlqRows, alertRows, syncErrorRows] = await Promise.all([
     getSyncLag(prisma).catch(() => [] as SyncLagRow[]),
     getQueueStats().catch(() => []),
     getDlq().catch(() => []),
+    // forbidden после requireAdmin недостижим, но контракт Result требует ветку;
+    // сбой БД деградирует в пустую секцию, как соседние загрузки.
+    listAlertStates(prisma, session)
+      .then((r) => (r.ok ? r.alerts : []))
+      .catch(() => [] as AlertStateRow[]),
+    listSyncErrors(prisma).catch(() => [] as SyncErrorRow[]),
   ]);
 
   return (
@@ -123,6 +133,10 @@ export default async function AdminHealthPage() {
         )}
         <DlqTable rows={dlqRows} />
       </section>
+
+      <AlertsSection alerts={alertRows} />
+
+      <SyncErrorsSection errors={syncErrorRows} />
     </div>
   );
 }
