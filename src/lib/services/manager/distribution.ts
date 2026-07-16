@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
-import { canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import { canSeeOrder, getCompanyTeamVisibility, isLeaderSameCompany } from '@/lib/auth/managerPolicy';
 
 /**
  * §5.3 ТЗ — распределение заявок:
@@ -115,7 +115,16 @@ export async function claimOrder(
   if (!order) return { ok: false, error: 'not_found' };
   // Scope gate BEFORE mutation: claiming would set managerId=sub, which itself
   // grants canSeeOrder — so the visibility check must precede the write.
-  if (!canSeeOrder(session, order, teamMode)) return { ok: false, error: 'forbidden' };
+  // Leader bypass зеркалит getOrder (orders.ts): лидер открывает деталку любого
+  // заказа СВОЕЙ компании (isLeaderSameCompany), значит и claim обязан принимать
+  // ту же границу — иначе при teamMode=false лидер видит кнопку «Взять в работу»
+  // на незакреплённом заказе вне своих орг, а клик даёт forbidden. Привилегий это
+  // НЕ расширяет: лидер уже может назначить себя на любой заказ своей компании
+  // через assignOrderManager (leader-экшен). Прекондиции claim ниже не трогаем.
+  const leaderSameCompany = isLeaderSameCompany(session, order.companyId);
+  if (!leaderSameCompany && !canSeeOrder(session, order, teamMode)) {
+    return { ok: false, error: 'forbidden' };
+  }
   if (order.managerId && order.managerId !== session.sub) {
     return { ok: false, error: 'already_assigned' };
   }

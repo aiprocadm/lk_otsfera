@@ -7,9 +7,11 @@ import { resolveErrorText } from '@/lib/ui/useFormAction';
 import { claimOrderAction } from '@/server-actions/manager/orderAssignment';
 
 // Дельта поверх errorMessageRu: центральный already_assigned описывает
-// назначение менеджера на организацию, здесь контекст — самозабор заказа.
+// назначение менеджера на организацию, а forbidden — загрузку документов;
+// здесь контекст — самозабор заказа.
 const ERROR_LABELS: Record<string, string> = {
-  already_assigned: 'Заказ уже взят другим менеджером'
+  already_assigned: 'Заказ уже взят другим менеджером',
+  forbidden: 'Нет доступа к этому заказу.'
 };
 
 /**

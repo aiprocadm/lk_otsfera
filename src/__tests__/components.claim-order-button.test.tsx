@@ -51,6 +51,16 @@ describe('ClaimOrderButton', () => {
     expect(toastSuccess).not.toHaveBeenCalled();
   });
 
+  it('forbidden — локальная дельта (центральный текст «Нет прав на загрузку.» — про документы)', async () => {
+    claimOrderAction.mockResolvedValue({ ok: false, error: 'forbidden' });
+    render(<ClaimOrderButton orderId='o1' managerId={null} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Нет доступа к этому заказу.'));
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
   it('код вне локальной дельты падает в общий словарь errorMessageRu (not_found)', async () => {
     claimOrderAction.mockResolvedValue({ ok: false, error: 'not_found' });
     render(<ClaimOrderButton orderId='o1' managerId={null} />);

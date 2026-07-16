@@ -39,23 +39,27 @@ vi.mock('@/components/manager/deal-activity/deal-activity-thread', () => ({
 
 import { ManagerOrderDetailView } from '@/components/manager/manager-order-detail-view';
 
+const BASE_ORDER = {
+  id: 'o1',
+  orderNumber: 'A-1',
+  title: 'X',
+  executionStatus: 'in_progress',
+  managerId: null,
+  documents: [],
+  payments: [],
+  commentsCountByMe: 0
+};
+
+// order shallow-merge'ится с BASE_ORDER — тестам достаточно передать дельту полей.
 function makeData(overrides: Record<string, unknown>) {
+  const { order, ...rest } = overrides as { order?: Record<string, unknown> };
   return {
-    order: {
-      id: 'o1',
-      orderNumber: 'A-1',
-      title: 'X',
-      executionStatus: 'in_progress',
-      managerId: null,
-      documents: [],
-      payments: [],
-      commentsCountByMe: 0
-    },
+    order: { ...BASE_ORDER, ...order },
     auditEntries: [],
     comments: [],
     documentRows: [],
     items: [],
-    ...overrides
+    ...rest
   } as never;
 }
 
@@ -139,18 +143,7 @@ describe('ManagerOrderDetailView', () => {
   it('ClaimOrderButton получает ненулевой managerId, когда заказ закреплён', () => {
     const html = renderToString(
       React.createElement(ManagerOrderDetailView, {
-        data: makeData({
-          order: {
-            id: 'o1',
-            orderNumber: 'A-1',
-            title: 'X',
-            executionStatus: 'in_progress',
-            managerId: 'm1',
-            documents: [],
-            payments: [],
-            commentsCountByMe: 0
-          }
-        }),
+        data: makeData({ order: { managerId: 'm1' } }),
         backHref: '/manager/orders',
         directions: [],
         students: []
