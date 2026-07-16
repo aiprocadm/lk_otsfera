@@ -6,17 +6,29 @@ import type { SyncJobPayload } from '@/lib/jobs/types';
 import { SYNC_SCHEDULES } from '@/lib/jobs/scheduling';
 import { log } from '@/lib/logging';
 
-export type SyncControlEntity = 'organization' | 'order' | 'payment' | 'document' | 'reconcile';
+export type SyncControlEntity =
+  | 'organization' | 'order' | 'payment' | 'document' | 'reconcile'
+  | 'certificateExpiry' | 'emailPoll' | 'mangoBackfill' | 'monthlyCommissions';
 
+// cronLabel дублирует pattern из schedule-реестров scheduling.ts только для UI;
+// дрейф ловит тест «drift guard» в services.admin.syncControl.test.ts.
 export const SYNC_ENTITIES: Record<
   SyncControlEntity,
-  { queueName: QueueName; schedulerId: string; hasCursor: boolean }
+  { queueName: QueueName; schedulerId: string; hasCursor: boolean; cronLabel: string }
 > = {
-  organization: { queueName: 'oneCSync.pullOrganizations', schedulerId: 'oneCSync.pullOrganizations.cron', hasCursor: true },
-  order: { queueName: 'oneCSync.pullOrders', schedulerId: 'oneCSync.pullOrders.cron', hasCursor: true },
-  payment: { queueName: 'oneCSync.pullPayments', schedulerId: 'oneCSync.pullPayments.cron', hasCursor: true },
-  document: { queueName: 'oneCSync.pullDocuments', schedulerId: 'oneCSync.pullDocuments.cron', hasCursor: true },
-  reconcile: { queueName: 'oneCSync.reconcile', schedulerId: 'oneCSync.reconcile.cron', hasCursor: false },
+  organization: { queueName: 'oneCSync.pullOrganizations', schedulerId: 'oneCSync.pullOrganizations.cron', hasCursor: true, cronLabel: '0 */6 * * *' },
+  order: { queueName: 'oneCSync.pullOrders', schedulerId: 'oneCSync.pullOrders.cron', hasCursor: true, cronLabel: '*/15 * * * *' },
+  payment: { queueName: 'oneCSync.pullPayments', schedulerId: 'oneCSync.pullPayments.cron', hasCursor: true, cronLabel: '*/15 * * * *' },
+  document: { queueName: 'oneCSync.pullDocuments', schedulerId: 'oneCSync.pullDocuments.cron', hasCursor: true, cronLabel: '0 * * * *' },
+  reconcile: { queueName: 'oneCSync.reconcile', schedulerId: 'oneCSync.reconcile.cron', hasCursor: false, cronLabel: '0 3 * * *' },
+  // G3: run-now для standalone cron-джобов. Паузой управляет SYNC_SCHEDULES
+  // (setSchedulePaused ищет по schedulerId в нём, не в этом реестре), поэтому
+  // certificateExpiry/monthlyCommissions паузе не подлежат by design; их
+  // процессоры игнорируют payload — manual-джоба {triggeredAt, reason} безопасна.
+  certificateExpiry: { queueName: 'notifications.certificateExpiry', schedulerId: 'notifications.certificateExpiry.cron', hasCursor: false, cronLabel: '0 7 * * *' },
+  emailPoll: { queueName: 'inbound.email.poll', schedulerId: 'inbound.email.poll.cron', hasCursor: false, cronLabel: '*/5 * * * *' },
+  mangoBackfill: { queueName: 'telephony.mango.backfill', schedulerId: 'telephony.mango.backfill.cron', hasCursor: false, cronLabel: '0 * * * *' },
+  monthlyCommissions: { queueName: 'docs.calculateMonthlyCommissions', schedulerId: 'docs.calculateMonthlyCommissions.cron', hasCursor: false, cronLabel: '0 6 1 * *' },
 };
 
 function isSyncControlEntity(x: string): x is SyncControlEntity {

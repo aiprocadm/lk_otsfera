@@ -27,10 +27,14 @@ vi.mock('@/components/admin/requeue-pending-button', () => ({
 
 const { SYNC_ENTITIES } = vi.hoisted(() => ({
   SYNC_ENTITIES: {
-    organization: { queueName: 'oneCSync.pullOrganizations', schedulerId: 'oneCSync.pullOrganizations.cron' },
-    order: { queueName: 'oneCSync.pullOrders', schedulerId: 'oneCSync.pullOrders.cron' },
-    payment: { queueName: 'oneCSync.pullPayments', schedulerId: 'oneCSync.pullPayments.cron' },
-    document: { queueName: 'oneCSync.pullDocuments', schedulerId: 'oneCSync.pullDocuments.cron' }
+    organization: { queueName: 'oneCSync.pullOrganizations', schedulerId: 'oneCSync.pullOrganizations.cron', cronLabel: '0 */6 * * *' },
+    order: { queueName: 'oneCSync.pullOrders', schedulerId: 'oneCSync.pullOrders.cron', cronLabel: '*/15 * * * *' },
+    payment: { queueName: 'oneCSync.pullPayments', schedulerId: 'oneCSync.pullPayments.cron', cronLabel: '*/15 * * * *' },
+    document: { queueName: 'oneCSync.pullDocuments', schedulerId: 'oneCSync.pullDocuments.cron', cronLabel: '0 * * * *' },
+    certificateExpiry: { queueName: 'notifications.certificateExpiry', schedulerId: 'notifications.certificateExpiry.cron', cronLabel: '0 7 * * *' },
+    emailPoll: { queueName: 'inbound.email.poll', schedulerId: 'inbound.email.poll.cron', cronLabel: '*/5 * * * *' },
+    mangoBackfill: { queueName: 'telephony.mango.backfill', schedulerId: 'telephony.mango.backfill.cron', cronLabel: '0 * * * *' },
+    monthlyCommissions: { queueName: 'docs.calculateMonthlyCommissions', schedulerId: 'docs.calculateMonthlyCommissions.cron', cronLabel: '0 6 1 * *' }
   }
 }));
 vi.mock('@/lib/services/admin/syncControl', () => ({ SYNC_ENTITIES }));
@@ -108,6 +112,34 @@ describe('AdminSyncPage', () => {
 
     expect(container.textContent).toContain('Сверка (reconcile)');
     expect(container.textContent).toContain('выполняется');
+  });
+
+  it('renders the background jobs section: 4 rows with RU labels, cron strings and trigger buttons (G3)', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getSyncSummary.mockResolvedValue([]);
+    getQueueStats.mockResolvedValue([]);
+    loadPausedSchedulerIds.mockResolvedValue(new Set());
+
+    const { container } = await renderServerComponent(AdminSyncPage());
+
+    expect(container.textContent).toContain('Прочие фоновые задачи');
+    // RU-названия задач
+    expect(container.textContent).toContain('Напоминания об истечении удостоверений');
+    expect(container.textContent).toContain('Поллинг входящей почты');
+    expect(container.textContent).toContain('Бэкфилл звонков Mango');
+    expect(container.textContent).toContain('Расчёт ежемесячных комиссий');
+    // cron-строки из реестра
+    expect(container.textContent).toContain('0 7 * * *');
+    expect(container.textContent).toContain('*/5 * * * *');
+    expect(container.textContent).toContain('0 6 1 * *');
+    // кнопки запуска: reconcile (основная таблица) + 4 фоновые задачи
+    const triggers = Array.from(container.querySelectorAll('[data-testid="sync-trigger"]')).map((el) => el.textContent);
+    expect(triggers).toEqual(expect.arrayContaining(['certificateExpiry', 'emailPoll', 'mangoBackfill', 'monthlyCommissions']));
+    // пояснение, где смотреть результаты
+    expect(container.textContent).toContain('уведомления');
+    expect(container.textContent).toContain('инбокс');
+    expect(container.textContent).toContain('звонки');
+    expect(container.textContent).toContain('ведомост');
   });
 
   it('renders the 1C pending records section: dead row gets a requeue button, pending row does not', async () => {

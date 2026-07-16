@@ -20,6 +20,15 @@ const ENTITY_RU: Record<SyncSummaryRow['entity'], string> = {
   document: 'Документы',
 };
 
+// G3: standalone cron-джобы с ручным запуском. Результаты — не на этой странице,
+// а в целевых разделах (см. resultHint); пауза для них не поддерживается.
+const BACKGROUND_JOBS: ReadonlyArray<{ entity: SyncControlEntity; label: string; resultHint: string }> = [
+  { entity: 'certificateExpiry', label: 'Напоминания об истечении удостоверений', resultHint: 'уведомления' },
+  { entity: 'emailPoll', label: 'Поллинг входящей почты', resultHint: 'инбокс' },
+  { entity: 'mangoBackfill', label: 'Бэкфилл звонков Mango', resultHint: 'звонки' },
+  { entity: 'monthlyCommissions', label: 'Расчёт ежемесячных комиссий', resultHint: 'ведомости' },
+];
+
 function formatDate(d: Date | null): string {
   if (!d) return '—';
   return new Intl.DateTimeFormat('ru-RU', {
@@ -105,6 +114,42 @@ export default async function AdminSyncPage() {
               </td>
               <td className="px-4 py-3 text-gray-400 text-xs">нет курсора</td>
             </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <h2 className="text-lg font-semibold text-[#111111]">Прочие фоновые задачи</h2>
+        <p className="text-sm text-gray-500 mt-0.5">
+          Ручной запуск cron-задач вне 1С-синка. Результаты выполнения — в соответствующих
+          разделах: сертификаты → уведомления, почта → инбокс, Mango → звонки, комиссии → ведомости.
+        </p>
+      </div>
+
+      <div className="overflow-x-auto bg-white border border-gray-200 rounded-xl">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-gray-600">
+            <tr>
+              <th scope='col' className="text-left px-4 py-3 font-medium">Задача</th>
+              <th scope='col' className="text-left px-4 py-3 font-medium">Расписание (cron)</th>
+              <th scope='col' className="text-left px-4 py-3 font-medium">Запуск</th>
+            </tr>
+          </thead>
+          <tbody>
+            {BACKGROUND_JOBS.map((job) => (
+              <tr key={job.entity} className="border-t border-gray-100">
+                <td className="px-4 py-3">
+                  <div className="text-[#111111] font-medium">{job.label}</div>
+                  <div className="text-xs text-gray-400">результаты — раздел «{job.resultHint}»</div>
+                </td>
+                <td className="px-4 py-3">
+                  <code className="text-xs text-gray-700 bg-gray-50 px-1.5 py-0.5 rounded">
+                    {SYNC_ENTITIES[job.entity].cronLabel}
+                  </code>
+                </td>
+                <td className="px-4 py-3"><SyncTriggerButton entity={job.entity} /></td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

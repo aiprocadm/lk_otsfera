@@ -58,4 +58,15 @@ describe('setSchedulePaused (integration)', () => {
     expect(resume).toEqual({ ok: true, paused: false });
     expect(await loadPausedSchedulerIds(prisma)).not.toContain(SCHED);
   });
+
+  // G3: standalone cron-джобы (certExpiry, monthlyCommissions) не входят в
+  // SYNC_SCHEDULES — пауза для них отвергается ещё до записи в БД.
+  it.each([['notifications.certificateExpiry.cron'], ['docs.calculateMonthlyCommissions.cron']])(
+    'refuses to pause background scheduler %s and writes no pause row',
+    async (schedulerId) => {
+      const res = await setSchedulePaused(prisma, ACTOR, schedulerId, true, noopProvider);
+      expect(res).toEqual({ ok: false, error: 'unknown_schedule' });
+      expect(await loadPausedSchedulerIds(prisma)).not.toContain(schedulerId);
+    },
+  );
 });

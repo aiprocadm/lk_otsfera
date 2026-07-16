@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { rewindCursor, triggerSync, setSchedulePaused, type SyncControlQueueProvider } from '@/lib/services/admin/syncControl';
+import { SYNC_ENTITIES, rewindCursor, triggerSync, setSchedulePaused, type SyncControlQueueProvider } from '@/lib/services/admin/syncControl';
+import { SYNC_SCHEDULES, CERT_EXPIRY_SCHEDULES, COMMISSION_SCHEDULES } from '@/lib/jobs/scheduling';
 
 function txPrisma(existingCursor: string | null) {
   const findUnique = vi.fn().mockResolvedValue(existingCursor === undefined ? null : { cursor: existingCursor });
@@ -110,6 +111,63 @@ describe('triggerSync', () => {
   });
 });
 
+// G3: run-now для standalone cron-джобов (не 1С-синк).
+describe('triggerSync — background cron jobs (G3)', () => {
+  it.each([
+    ['certificateExpiry', 'notifications.certificateExpiry'],
+    ['emailPoll', 'inbound.email.poll'],
+    ['mangoBackfill', 'telephony.mango.backfill'],
+    ['monthlyCommissions', 'docs.calculateMonthlyCommissions'],
+  ] as const)('enqueues %s into %s with a manual jobId and audits', async (entity, queueName) => {
+    const { prisma, create } = auditPrisma();
+    const add = vi.fn().mockResolvedValue({ id: 'j1' });
+    const provider = vi.fn(() => ({
+      getJobCounts: vi.fn().mockResolvedValue({ active: 0 }),
+      add, upsertJobScheduler: vi.fn(), removeJobScheduler: vi.fn(),
+    })) as unknown as SyncControlQueueProvider;
+    const res = await triggerSync(prisma, 'u1', entity, provider);
+    expect(res.ok).toBe(true);
+    expect(provider).toHaveBeenCalledWith(queueName);
+    expect(add).toHaveBeenCalledWith(
+      'manual',
+      expect.objectContaining({ reason: 'manual', triggeredAt: expect.any(String) }),
+      expect.objectContaining({ jobId: expect.stringMatching(new RegExp(`^manual:${entity}:\\d+$`)) }),
+    );
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ action: 'sync_triggered', entityId: entity }),
+    }));
+  });
+
+  it('already_running guard applies to background jobs too', async () => {
+    const { prisma } = auditPrisma();
+    const add = vi.fn();
+    const provider: SyncControlQueueProvider = () => ({
+      getJobCounts: vi.fn().mockResolvedValue({ active: 1 }),
+      add, upsertJobScheduler: vi.fn(), removeJobScheduler: vi.fn(),
+    }) as never;
+    expect(await triggerSync(prisma, 'u1', 'emailPoll', provider)).toEqual({ ok: false, error: 'already_running' });
+    expect(add).not.toHaveBeenCalled();
+  });
+
+  it.each([['certificateExpiry'], ['emailPoll'], ['mangoBackfill'], ['monthlyCommissions']])(
+    'rewindCursor rejects %s (hasCursor=false)',
+    async (entity) => {
+      const { prisma } = txPrisma(null);
+      expect(await rewindCursor(prisma, 'u1', entity, null)).toEqual({ ok: false, error: 'unknown_entity' });
+    },
+  );
+
+  it('cronLabel/queueName match the schedule registries for every scheduled entity (drift guard)', () => {
+    const all = [...SYNC_SCHEDULES, ...CERT_EXPIRY_SCHEDULES, ...COMMISSION_SCHEDULES];
+    for (const [entity, cfg] of Object.entries(SYNC_ENTITIES)) {
+      const schedule = all.find((s) => s.schedulerId === cfg.schedulerId);
+      expect(schedule, `schedule registry entry for ${entity}`).toBeDefined();
+      expect(cfg.cronLabel, `cronLabel of ${entity}`).toBe(schedule!.pattern);
+      expect(cfg.queueName, `queueName of ${entity}`).toBe(schedule!.queueName);
+    }
+  });
+});
+
 function pausePrisma() {
   const upsert = vi.fn().mockResolvedValue({});
   const deleteMany = vi.fn().mockResolvedValue({ count: 1 });
@@ -150,4 +208,27 @@ describe('setSchedulePaused', () => {
     const provider: SyncControlQueueProvider = () => ({ getJobCounts: vi.fn(), add: vi.fn(), upsertJobScheduler: vi.fn(), removeJobScheduler: vi.fn().mockRejectedValue(new Error('redis down')) }) as never;
     expect(await setSchedulePaused(prisma, 'u1', 'oneCSync.pullOrders.cron', true, provider)).toEqual({ ok: false, error: 'queue_unavailable' });
   });
+
+  // G3: реестр пауз — SYNC_SCHEDULES (ключ — schedulerId), он развязан с
+  // SYNC_ENTITIES. Расширение реестра run-now паузу НЕ открывает: standalone
+  // schedulerId'ы (certExpiry, commissions) и entity-ключи отвергаются.
+  it.each([['notifications.certificateExpiry.cron'], ['docs.calculateMonthlyCommissions.cron']])(
+    'refuses to pause background scheduler %s (not in SYNC_SCHEDULES)',
+    async (schedulerId) => {
+      const { prisma, upsert } = pausePrisma();
+      const provider: SyncControlQueueProvider = () => ({ getJobCounts: vi.fn(), add: vi.fn(), upsertJobScheduler: vi.fn(), removeJobScheduler: vi.fn() }) as never;
+      expect(await setSchedulePaused(prisma, 'u1', schedulerId, true, provider)).toEqual({ ok: false, error: 'unknown_schedule' });
+      expect(upsert).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([['certificateExpiry'], ['emailPoll'], ['mangoBackfill'], ['monthlyCommissions']])(
+    'refuses SYNC_ENTITIES key %s as a schedulerId',
+    async (entityKey) => {
+      const { prisma, upsert } = pausePrisma();
+      const provider: SyncControlQueueProvider = () => ({ getJobCounts: vi.fn(), add: vi.fn(), upsertJobScheduler: vi.fn(), removeJobScheduler: vi.fn() }) as never;
+      expect(await setSchedulePaused(prisma, 'u1', entityKey, true, provider)).toEqual({ ok: false, error: 'unknown_schedule' });
+      expect(upsert).not.toHaveBeenCalled();
+    },
+  );
 });
