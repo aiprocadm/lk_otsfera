@@ -9,7 +9,7 @@ import { log } from '@/lib/logging';
 import { scrubSentryEvent } from '@/lib/logging/scrub';
 import { getRedisConnection, closeRedisConnection } from '@/lib/jobs/connection';
 import { closeAllQueues, getQueue, type QueueName } from '@/lib/jobs/queues';
-import { registerSyncSchedules, registerCommissionSchedules, registerAlertSchedules, registerCertExpirySchedules, loadPausedSchedulerIds } from '@/lib/jobs/scheduling';
+import { registerSyncSchedules, registerCommissionSchedules, registerAlertSchedules, registerCertExpirySchedules, registerCalendarReminderSchedules, loadPausedSchedulerIds } from '@/lib/jobs/scheduling';
 import { prisma } from '@/lib/db/prisma';
 import { toBullProcessor } from './to-bull-processor';
 import { syncOrdersProcessor } from './processors/sync-orders';
@@ -24,6 +24,7 @@ import { calculateMonthlyCommissionsProcessor } from './processors/calculate-mon
 import { scanDocumentProcessor } from './processors/scan-document';
 import { evaluateAlertsProcessor } from './processors/evaluate-alerts';
 import { certificateExpiryProcessor } from './processors/certificate-expiry';
+import { calendarReminderProcessor } from './processors/calendar-reminder';
 import { dispatchNotificationProcessor } from './processors/dispatch-notification';
 import { pollInboundEmailProcessor } from './processors/poll-inbound-email';
 import { mangoRecordingProcessor } from './processors/mango-recording';
@@ -154,6 +155,7 @@ async function main() {
   startWorker('docs.scanDocument', scanDocumentProcessor as Processor);
   startWorker('monitoring.evaluateAlerts', evaluateAlertsProcessor as Processor);
   startWorker('notifications.certificateExpiry', certificateExpiryProcessor as Processor);
+  startWorker('notifications.calendarReminder', calendarReminderProcessor as Processor);
   startWorker('notifications.dispatch', dispatchNotificationProcessor as Processor);
   startWorker('inbound.email.poll', pollInboundEmailProcessor as Processor);
   startWorker('telephony.mango.recording', mangoRecordingProcessor as Processor);
@@ -165,7 +167,8 @@ async function main() {
     const commissionSchedules = await registerCommissionSchedules();
     const alertSchedules = await registerAlertSchedules();
     const certExpirySchedules = await registerCertExpirySchedules();
-    for (const r of [...syncSchedules, ...commissionSchedules, ...alertSchedules, ...certExpirySchedules]) {
+    const calendarReminderSchedules = await registerCalendarReminderSchedules();
+    for (const r of [...syncSchedules, ...commissionSchedules, ...alertSchedules, ...certExpirySchedules, ...calendarReminderSchedules]) {
       log.info('[worker] schedule registered', {
         schedulerId: r.schedulerId,
         queue: r.queueName,
