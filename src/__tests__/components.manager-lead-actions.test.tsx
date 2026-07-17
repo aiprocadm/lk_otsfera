@@ -215,6 +215,24 @@ describe('ManagerLeadActions (interactive, jsdom)', () => {
     expect(toastSuccess).not.toHaveBeenCalled();
   });
 
+  it('not_found: локальная дельта «Заявка не найдена.» (центральный текст — про заказ)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({ error: 'not_found' }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      React.createElement(ManagerLeadActions, {
+        leadId: 'l1',
+        status: 'new',
+        hasOrganization: true,
+        promotedOrderId: null
+      })
+    );
+    fireEvent.click(screen.getByText('Взять в работу'));
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Заявка не найдена.'));
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
   it('non-ok response with an unknown code: falls back to the generic message with the raw code', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({ error: 'unknown_code_xyz' }) });
     vi.stubGlobal('fetch', fetchMock);

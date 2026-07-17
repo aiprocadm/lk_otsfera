@@ -33,19 +33,19 @@ export function PendingRecordsSection({ records }: { records: PendingRecordRow[]
         <EmptyState message='Отложенных записей нет' className='p-8' />
       ) : (
         <TableShell overflow='x-auto'>
-          <THead className='bg-[#F3F4F6]'>
-            <Th className='text-[#111111]'>Сущность</Th>
-            <Th className='text-[#111111]'>Внешний ID</Th>
-            <Th className='text-[#111111]'>Причина</Th>
-            <Th className='text-[#111111]'>Попытки</Th>
-            <Th className='text-[#111111]'>Статус</Th>
-            <Th className='text-[#111111]'>Впервые</Th>
-            <Th className='text-[#111111]'>Последняя попытка</Th>
-            <Th className='text-[#111111]'>Действия</Th>
+          <THead>
+            <Th>Сущность</Th>
+            <Th>Внешний ID</Th>
+            <Th>Причина</Th>
+            <Th>Попытки</Th>
+            <Th>Статус</Th>
+            <Th>Впервые</Th>
+            <Th>Последняя попытка</Th>
+            <Th>Действия</Th>
           </THead>
           <tbody>
             {records.map((r) => (
-              <Tr key={r.id} hover={false} className='border-gray-100'>
+              <Tr key={r.id} hover={false}>
                 <Td className='text-gray-700'>{ENTITY_RU[r.entity] ?? r.entity}</Td>
                 <Td className='text-gray-700 font-mono text-xs'>{r.externalId}</Td>
                 <Td className='text-gray-700'>{r.reason}</Td>

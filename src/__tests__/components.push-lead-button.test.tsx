@@ -45,6 +45,16 @@ describe('PushLeadButton', () => {
     expect(toastSuccess).not.toHaveBeenCalled();
   });
 
+  it('not_found — локальная дельта «Заявка не найдена.» (центральный текст — про заказ)', async () => {
+    pushLeadToOneCAction.mockResolvedValue({ ok: false, error: 'not_found' });
+    render(<PushLeadButton leadId='l1' />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить в 1С' }));
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Заявка не найдена.'));
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
   it('queue_unavailable — общий словарь errorMessageRu (дельта не нужна)', async () => {
     pushLeadToOneCAction.mockResolvedValue({ ok: false, error: 'queue_unavailable' });
     render(<PushLeadButton leadId='l1' />);

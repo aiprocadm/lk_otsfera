@@ -34,12 +34,12 @@ describe('RequeuePendingButton', () => {
     expect(error).not.toHaveBeenCalled();
   });
 
-  it('not_dead → контекстная дельта «Запись уже не в статусе dead»', async () => {
+  it('not_dead → контекстная дельта «Запись уже не в статусе dead.»', async () => {
     requeuePendingRecordAction.mockResolvedValue({ ok: false, error: 'not_dead' });
     render(<RequeuePendingButton id="rec-1" />);
     fireEvent.click(screen.getByRole('button', { name: 'Вернуть в очередь' }));
 
-    await waitFor(() => expect(error).toHaveBeenCalledWith('Запись уже не в статусе dead'));
+    await waitFor(() => expect(error).toHaveBeenCalledWith('Запись уже не в статусе dead.'));
     expect(success).not.toHaveBeenCalled();
   });
 

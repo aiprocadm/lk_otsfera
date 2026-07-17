@@ -53,7 +53,11 @@ async function loadLead(prisma: PrismaClient, leadId: string) {
   });
 }
 
-type LeadResult = { ok: true; lead: Lead } | { ok: false; error: 'not_found' | 'lifecycle_violation' | 'invalid_manager' };
+// Generic по union кодов ошибок: `invalid_manager` возможен только в assignLead
+// (проверка кандидата при передаче лида) и не «протекает» в setLeadStatus/rejectLead.
+type LeadResult<E extends string = 'not_found' | 'lifecycle_violation'> =
+  | { ok: true; lead: Lead }
+  | { ok: false; error: E };
 
 /**
  * Claim/assign a lead to a manager. From `new`, also advances to `in_review`.
@@ -64,7 +68,7 @@ type LeadResult = { ok: true; lead: Lead } | { ok: false; error: 'not_found' | '
 export async function assignLead(
   prisma: PrismaClient,
   args: { leadId: string; managerId: string; assignToUserId?: string }
-): Promise<LeadResult> {
+): Promise<LeadResult<'not_found' | 'lifecycle_violation' | 'invalid_manager'>> {
   const lead = await loadLead(prisma, args.leadId);
   if (!lead) return { ok: false, error: 'not_found' };
   if (lead.status === 'promoted_to_order' || lead.status === 'rejected') {

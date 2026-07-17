@@ -10,9 +10,11 @@ import type { LeadStatus } from '@prisma/client';
 
 type Candidate = { id: string; name: string; email: string };
 
-// Дельты поверх errorMessageRu (контекст передачи заявки конкретному менеджеру).
+// Дельты поверх errorMessageRu (контекст действий над заявкой: центральный
+// not_found говорит «Заказ не найден.», здесь сущность — заявка).
 const ERROR_LABELS: Record<string, string> = {
-  invalid_manager: 'Выбранный менеджер недоступен'
+  invalid_manager: 'Выбранный менеджер недоступен',
+  not_found: 'Заявка не найдена.'
 };
 
 function patchErrorText(code: string | undefined, status: number): string {

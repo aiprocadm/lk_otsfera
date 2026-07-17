@@ -4,10 +4,12 @@ import React from 'react';
 import { ActionToastButton } from '@/components/ui';
 import { pushLeadToOneCAction } from '@/server-actions/manager/leads';
 
-// Дельта поверх errorMessageRu (контекст ручной отправки лида в 1С);
-// queue_unavailable/not_found/validation берутся из общего словаря.
+// Дельта поверх errorMessageRu (контекст ручной отправки лида в 1С):
+// центральный not_found говорит «Заказ не найден.», здесь сущность — заявка;
+// queue_unavailable/validation берутся из общего словаря.
 const ERROR_LABELS: Record<string, string> = {
-  already_pushed: 'Лид уже отправлен в 1С'
+  already_pushed: 'Лид уже отправлен в 1С',
+  not_found: 'Заявка не найдена.'
 };
 
 /**

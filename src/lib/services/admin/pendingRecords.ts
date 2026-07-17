@@ -66,6 +66,10 @@ export type RequeueDeadRecordResult =
  * подберёт ближайший replayPendingRecords при live-sync — он читает
  * status:'pending' (src/lib/services/oneCSync/pending.ts).
  *
+ * Age-бюджет НЕ сбрасывается: replay считает возраст от firstSeenAt, а requeue
+ * его не трогает — запись старше maxAgeDays получит ровно одну попытку и снова
+ * уйдёт в dead, если зависимость так и не появилась.
+ *
  * CAS-паттерн: updateMany с {id, status:'dead'} в where — параллельный requeue
  * (или конкурентный replay, съевший запись) даёт count=0 → not_dead, без
  * второго аудита и без реанимации записи, изменившей статус между чтением и записью.

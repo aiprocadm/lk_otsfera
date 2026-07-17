@@ -7,7 +7,7 @@ import { requeuePendingRecordAction } from '@/server-actions/admin/pendingRecord
 // Дельты поверх errorMessageRu: центральный not_found говорит про заказ,
 // forbidden — про загрузку документов; здесь контекст — отложенная запись 1С.
 const ERROR_LABELS: Record<string, string> = {
-  not_dead: 'Запись уже не в статусе dead',
+  not_dead: 'Запись уже не в статусе dead.',
   not_found: 'Запись не найдена.',
   forbidden: 'Нет прав на это действие.',
 };

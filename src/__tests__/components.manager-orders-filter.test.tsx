@@ -39,14 +39,15 @@ describe('ManagerOrdersFilter', () => {
     expect(html).toContain('Без менеджера');
     expect(html).toContain('name="unassigned"');
     expect(html).toContain('value="1"');
-    expect(html).not.toContain('checked');
+    // точный атрибут checked="" — голое 'checked' ловило бы и подстроки в классах/текстах
+    expect(html).not.toContain('checked=""');
   });
 
   it('чекбокс отмечен при initial.unassigned="1" и активирует «Сбросить»', () => {
     const html = renderToString(
       React.createElement(ManagerOrdersFilter, { orgs: [], initial: { unassigned: '1' } })
     );
-    expect(html).toContain('checked');
+    expect(html).toContain('checked=""');
     expect(html).toContain('Сбросить');
     expect(html).toContain('href="/manager/orders"');
   });

@@ -24,7 +24,8 @@ export function LeaderAppShell(props: {
           </div>
           <div className='flex items-center gap-2'>
             {/* role='manager': leader — это manager с managerRole=leader,
-                notifications-scope у него менеджерский (см. scope.ts). */}
+                notifications-scope у него менеджерский
+                (см. src/lib/services/notifications/scope.ts). */}
             <NotificationBell role='manager' />
             <LogoutButton />
           </div>
