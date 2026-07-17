@@ -29,9 +29,23 @@ vi.mock('@/components/chat/unread-badge', () => ({
   UnreadBadge: () => React.createElement('span', { 'data-testid': 'unread-badge' })
 }));
 
+vi.mock('@/components/staff-chat/staff-chat-section', () => ({
+  StaffChatSection: (props: { currentUserId: string }) =>
+    React.createElement('div', { 'data-testid': 'staff-chat-section' }, props.currentUserId)
+}));
+
+vi.mock('@/components/staff-chat/staff-unread-badge', () => ({
+  StaffUnreadBadge: () => React.createElement('span', { 'data-testid': 'staff-unread-badge' })
+}));
+
 import AdminMessagesPage from '@/app/admin/messages/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
+
+/** Per-flag control — the page now reads both 'chat' and 'staff_chat'. */
+function setFlags(flags: Record<string, boolean>) {
+  isFeatureEnabled.mockImplementation((flag: string) => flags[flag] ?? false);
+}
 
 describe('AdminMessagesPage', () => {
   beforeEach(() => {
@@ -40,9 +54,9 @@ describe('AdminMessagesPage', () => {
     listThreads.mockReset();
   });
 
-  it('shows the graceful "chat not enabled" state without UnreadBadge when chat is disabled', async () => {
+  it('shows the graceful "chat not enabled" state without any badge when both flags are disabled', async () => {
     requireAdmin.mockResolvedValue(SESSION);
-    isFeatureEnabled.mockReturnValue(false);
+    setFlags({ chat: false, staff_chat: false });
 
     const { container } = await renderServerComponent(AdminMessagesPage());
 
@@ -51,11 +65,13 @@ describe('AdminMessagesPage', () => {
     expect(container.textContent).toContain('Сообщения');
     expect(container.textContent).toContain('Чат не включён');
     expect(container.querySelector('[data-testid="unread-badge"]')).toBeNull();
+    expect(container.querySelector('[data-testid="staff-chat-section"]')).toBeNull();
+    expect(container.querySelector('[data-testid="staff-unread-badge"]')).toBeNull();
   });
 
-  it('renders the team chat thread inbox when chat is enabled and listThreads succeeds', async () => {
+  it('renders the team chat thread inbox when chat is enabled and listThreads succeeds (staff_chat off)', async () => {
     requireAdmin.mockResolvedValue(SESSION);
-    isFeatureEnabled.mockReturnValue(true);
+    setFlags({ chat: true, staff_chat: false });
     listThreads.mockResolvedValue({ ok: true, rows: [{ id: 't1' }] });
 
     const { container } = await renderServerComponent(AdminMessagesPage());
@@ -65,16 +81,32 @@ describe('AdminMessagesPage', () => {
     const inbox = container.querySelector('[data-testid="thread-inbox"]');
     expect(inbox?.textContent).toContain('t1');
     expect(inbox?.textContent).toContain('team');
+    expect(container.querySelector('[data-testid="staff-chat-section"]')).toBeNull();
   });
 
   it('falls back to an empty thread list when listThreads returns ok:false', async () => {
     requireAdmin.mockResolvedValue(SESSION);
-    isFeatureEnabled.mockReturnValue(true);
+    setFlags({ chat: true, staff_chat: false });
     listThreads.mockResolvedValue({ ok: false, error: 'forbidden' });
 
     const { container } = await renderServerComponent(AdminMessagesPage());
 
     const inbox = container.querySelector('[data-testid="thread-inbox"]');
     expect(inbox?.textContent).toContain('[]');
+  });
+
+  it('renders the staff-chat section (with badge and currentUserId) when staff_chat is enabled, independently of chat', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    setFlags({ chat: false, staff_chat: true });
+
+    const { container } = await renderServerComponent(AdminMessagesPage());
+
+    expect(listThreads).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Чат не включён');
+    expect(container.textContent).toContain('Чат команды');
+    expect(container.querySelector('[data-testid="staff-unread-badge"]')).not.toBeNull();
+    const staffSection = container.querySelector('[data-testid="staff-chat-section"]');
+    expect(staffSection).not.toBeNull();
+    expect(staffSection?.textContent).toBe('admin1');
   });
 });
