@@ -54,6 +54,7 @@ export function ManagerLeadActions({ leadId, status, hasOrganization, promotedOr
     } catch {
       toast.error('Сетевая ошибка');
       return false;
+      /* v8 ignore next -- ветка «finally с pending-исключением» недостижима: catch выше ловит всё */
     } finally {
       setBusy(false);
     }
