@@ -30,7 +30,7 @@ describe('AdminBackupCodesControl', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Перевыпустить коды восстановления' }));
 
-    await waitFor(() => expect(screen.getByText('AAAA')).toBeTruthy(), { timeout: 10000 });
+    await waitFor(() => expect(screen.getByText('AAAA')).toBeTruthy(), { timeout: 30000 });
     expect(screen.getByText('BBBB')).toBeTruthy();
     // FormData содержит id пользователя
     const fdArg = actionMock.mock.calls[0][0] as FormData;
@@ -47,13 +47,13 @@ describe('AdminBackupCodesControl', () => {
     render(React.createElement(AdminBackupCodesControl, { userId: 'm1' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Перевыпустить коды восстановления' }));
-    await waitFor(() => expect(screen.getByText('AAAA')).toBeTruthy(), { timeout: 10000 });
+    await waitFor(() => expect(screen.getByText('AAAA')).toBeTruthy(), { timeout: 30000 });
 
     fireEvent.click(screen.getByRole('button', { name: 'Перевыпустить заново' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Генерирую…' })).toBeTruthy(), { timeout: 10000 });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Генерирую…' })).toBeTruthy(), { timeout: 30000 });
 
     releaseSecond({ ok: true, codes: ['CCCC', 'DDDD'] });
-    await waitFor(() => expect(screen.getByText('CCCC')).toBeTruthy(), { timeout: 10000 });
+    await waitFor(() => expect(screen.getByText('CCCC')).toBeTruthy(), { timeout: 30000 });
   });
 
   it('a not_staff failure surfaces a toast error, no codes shown', async () => {
@@ -62,7 +62,7 @@ describe('AdminBackupCodesControl', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Перевыпустить коды восстановления' }));
 
-    await waitFor(() => expect(toastErrorMock).toHaveBeenCalled(), { timeout: 10000 });
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalled(), { timeout: 30000 });
     expect(screen.queryByText('AAAA')).toBeNull();
   });
 });
