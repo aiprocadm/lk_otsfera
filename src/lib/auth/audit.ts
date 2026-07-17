@@ -33,7 +33,8 @@ export type AuditEntity =
   | 'task_column'
   | 'auth_2fa'
   | 'contact'
-  | 'call';
+  | 'call'
+  | 'staff_conversation';
 
 export type AuditRecord = {
   userId: string;

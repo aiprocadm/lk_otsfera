@@ -7,6 +7,8 @@ import { isFeatureEnabled } from '@/lib/featureFlags';
 import { listThreads } from '@/lib/services/chat/threads';
 import { OrderThreadInbox } from '@/components/chat/order-thread-inbox';
 import { UnreadBadge } from '@/components/chat/unread-badge';
+import { StaffChatSection } from '@/components/staff-chat/staff-chat-section';
+import { StaffUnreadBadge } from '@/components/staff-chat/staff-unread-badge';
 
 type SearchParams = { cursor?: string };
 
@@ -25,6 +27,7 @@ export default async function ManagerMessagesPage({
 
   const chatEnabled = isFeatureEnabled('chat');
   const chat = chatEnabled ? await listThreads(prisma, session) : null;
+  const staffChatEnabled = isFeatureEnabled('staff_chat');
 
   return (
     <>
@@ -39,6 +42,12 @@ export default async function ManagerMessagesPage({
             currentUserId={session.sub}
             variant='team'
           />
+        </section>
+      )}
+      {staffChatEnabled && (
+        <section className='mt-8'>
+          <h2 className='mb-3 text-lg font-medium text-gray-700'>Чат команды <StaffUnreadBadge /></h2>
+          <StaffChatSection currentUserId={session.sub} />
         </section>
       )}
     </>

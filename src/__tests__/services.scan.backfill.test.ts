@@ -70,6 +70,7 @@ describe('runBackfill', () => {
   let documentFindMany: ReturnType<typeof vi.fn>;
   let leadFindMany: ReturnType<typeof vi.fn>;
   let inboundFindMany: ReturnType<typeof vi.fn>;
+  let staffFindMany: ReturnType<typeof vi.fn>;
   let queueAdd: ReturnType<typeof vi.fn>;
   let db: Parameters<typeof runBackfill>[0];
 
@@ -77,11 +78,13 @@ describe('runBackfill', () => {
     documentFindMany = vi.fn();
     leadFindMany = vi.fn();
     inboundFindMany = vi.fn().mockResolvedValue([]);
+    staffFindMany = vi.fn().mockResolvedValue([]);
     queueAdd = vi.fn().mockResolvedValue({});
     db = {
       document: { findMany: documentFindMany },
       leadAttachment: { findMany: leadFindMany },
       inboundMessage: { findMany: inboundFindMany },
+      staffMessage: { findMany: staffFindMany },
     } as any;
   });
 
@@ -91,7 +94,13 @@ describe('runBackfill', () => {
 
     const result = await runBackfill(db, { add: queueAdd }, 100);
 
-    expect(result).toEqual({ enqueued: 3, documents: 2, leadAttachments: 1, inboundAttachments: 0 });
+    expect(result).toEqual({
+      enqueued: 3,
+      documents: 2,
+      leadAttachments: 1,
+      inboundAttachments: 0,
+      staffAttachments: 0,
+    });
     expect(queueAdd).toHaveBeenCalledTimes(3);
     expect(queueAdd).toHaveBeenCalledWith('scan', { kind: 'document', id: 'd1' });
     expect(queueAdd).toHaveBeenCalledWith('scan', { kind: 'leadAttachment', id: 'l1' });
@@ -108,7 +117,13 @@ describe('runBackfill', () => {
     documentFindMany.mockResolvedValueOnce([]);
     leadFindMany.mockResolvedValueOnce([]);
     const second = await runBackfill(db, { add: queueAdd }, 100);
-    expect(second).toEqual({ enqueued: 0, documents: 0, leadAttachments: 0, inboundAttachments: 0 });
+    expect(second).toEqual({
+      enqueued: 0,
+      documents: 0,
+      leadAttachments: 0,
+      inboundAttachments: 0,
+      staffAttachments: 0,
+    });
   });
 
   it('passes the configured batch size into the findMany take param', async () => {
@@ -176,7 +191,13 @@ describe('runBackfill', () => {
 
     const result = await runBackfill(db, { add: queueAdd }, 100);
 
-    expect(result).toEqual({ enqueued: 1, documents: 0, leadAttachments: 0, inboundAttachments: 1 });
+    expect(result).toEqual({
+      enqueued: 1,
+      documents: 0,
+      leadAttachments: 0,
+      inboundAttachments: 1,
+      staffAttachments: 0,
+    });
     expect(queueAdd).toHaveBeenCalledWith('scan', { kind: 'inbound_attachment', id: 'im1' });
     expect(inboundFindMany.mock.calls[0][0]).toMatchObject({
       where: { scanStatus: 'pending', attachmentPath: { not: null } },
@@ -195,6 +216,43 @@ describe('runBackfill', () => {
     expect(inboundFindMany.mock.calls[0][0]).not.toHaveProperty('cursor');
     expect(inboundFindMany.mock.calls[1][0]).toMatchObject({
       cursor: { id: 'im2' },
+      skip: 1,
+    });
+  });
+
+  it('enqueues pending staff-attachment rows with kind:staff_attachment', async () => {
+    documentFindMany.mockResolvedValueOnce([]);
+    leadFindMany.mockResolvedValueOnce([]);
+    staffFindMany.mockReset();
+    staffFindMany.mockResolvedValueOnce([{ id: 'sm1' }]).mockResolvedValueOnce([]);
+
+    const result = await runBackfill(db, { add: queueAdd }, 100);
+
+    expect(result).toEqual({
+      enqueued: 1,
+      documents: 0,
+      leadAttachments: 0,
+      inboundAttachments: 0,
+      staffAttachments: 1,
+    });
+    expect(queueAdd).toHaveBeenCalledWith('scan', { kind: 'staff_attachment', id: 'sm1' });
+    expect(staffFindMany.mock.calls[0][0]).toMatchObject({
+      where: { scanStatus: 'pending', attachmentPath: { not: null } },
+      take: 100,
+    });
+  });
+
+  it('staffMessage table also uses cursor on subsequent pages', async () => {
+    documentFindMany.mockResolvedValueOnce([]);
+    leadFindMany.mockResolvedValueOnce([]);
+    staffFindMany.mockReset();
+    staffFindMany
+      .mockResolvedValueOnce([{ id: 'sm1' }, { id: 'sm2' }])
+      .mockResolvedValueOnce([]);
+    await runBackfill(db, { add: queueAdd }, 2);
+    expect(staffFindMany.mock.calls[0][0]).not.toHaveProperty('cursor');
+    expect(staffFindMany.mock.calls[1][0]).toMatchObject({
+      cursor: { id: 'sm2' },
       skip: 1,
     });
   });

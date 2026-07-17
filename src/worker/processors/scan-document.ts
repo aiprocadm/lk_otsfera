@@ -88,6 +88,11 @@ async function loadTarget(
     if (!row || !row.recordingPath) return null;
     return { id: row.id, path: row.recordingPath };
   }
+  if (kind === 'staff_attachment') {
+    const row = await db.staffMessage.findUnique({ where: { id }, select: { id: true, attachmentPath: true } });
+    if (!row || !row.attachmentPath) return null;
+    return { id: row.id, path: row.attachmentPath };
+  }
   return db.leadAttachment.findUnique({ where: { id }, select: { id: true, path: true } });
 }
 
@@ -107,6 +112,10 @@ async function persistResult(
     // Call has neither a scan-reason column nor `scannedAt` (unlike Document) —
     // only `recordingScanStatus` is persisted here.
     await db.call.update({ where: { id }, data: { recordingScanStatus: scanStatus } });
+  } else if (kind === 'staff_attachment') {
+    // StaffMessage has neither a scan-reason column nor `scannedAt` (unlike Document) —
+    // only `scanStatus` is persisted here (reason stays in SyncLog, mirroring call_recording).
+    await db.staffMessage.update({ where: { id }, data: { scanStatus } });
   } else {
     await db.leadAttachment.update({ where: { id }, data: { scanStatus, scanReason, scannedAt: new Date() } });
   }
