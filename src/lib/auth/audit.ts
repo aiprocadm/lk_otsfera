@@ -34,7 +34,8 @@ export type AuditEntity =
   | 'auth_2fa'
   | 'contact'
   | 'call'
-  | 'staff_conversation';
+  | 'staff_conversation'
+  | 'calendar_event';
 
 export type AuditRecord = {
   userId: string;
