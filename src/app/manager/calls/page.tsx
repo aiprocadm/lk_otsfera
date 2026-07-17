@@ -41,6 +41,9 @@ export default async function ManagerCallsPage({
     pageSize: PAGE_SIZE
   };
 
+  // Организации нужны безусловно (org-фильтр журнала); флаг `contacts` гейтит
+  // только triage-формы в CallsList (M2 PR-A), не сам список организаций.
+  const contactsEnabled = isFeatureEnabled('contacts');
   const [{ items, total }, orgs] = await Promise.all([
     listCalls(prisma, session, filters),
     listOrganizations(prisma, session)
@@ -59,7 +62,7 @@ export default async function ManagerCallsPage({
         <CallsOrgFilter orgs={orgs} orgId={sp.orgId} direction={direction} />
       </CallsFiltersBar>
 
-      <CallsList items={items} />
+      <CallsList items={items} orgs={orgs} contactsEnabled={contactsEnabled} />
 
       <Paginator
         basePath="/manager/calls"

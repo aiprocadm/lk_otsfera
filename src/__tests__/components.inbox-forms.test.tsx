@@ -12,6 +12,11 @@ const { bindInboundMessageAction, replyInboundAction } = vi.hoisted(() => ({
 }));
 vi.mock('@/server-actions/inbound', () => ({ bindInboundMessageAction, replyInboundAction }));
 
+const { createContactFromInboundAction } = vi.hoisted(() => ({
+  createContactFromInboundAction: vi.fn()
+}));
+vi.mock('@/server-actions/contacts', () => ({ createContactFromInboundAction }));
+
 const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
@@ -106,6 +111,90 @@ describe('InboxBindForm', () => {
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toBe('Организация вне вашей зоны видимости.');
     expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
+  describe('создание контакта из отправителя (Task 11, флаг contacts)', () => {
+    beforeEach(() => {
+      createContactFromInboundAction.mockReset();
+      toastSuccess.mockClear();
+      toastError.mockClear();
+    });
+
+    it('contactsEnabled=false (по умолчанию) → контрол не рендерится', () => {
+      render(<InboxBindForm inboundMessageId='m1' organizations={ORGS} />);
+      expect(screen.queryByLabelText('Имя контакта')).toBeNull();
+      expect(screen.queryByRole('button', { name: /создать контакт/i })).toBeNull();
+    });
+
+    it('contactsEnabled=true → контрол рендерится', () => {
+      render(<InboxBindForm inboundMessageId='m1' organizations={ORGS} contactsEnabled />);
+      expect(screen.getByLabelText('Имя контакта')).toBeTruthy();
+      expect(screen.getByRole('button', { name: /создать контакт/i })).toBeTruthy();
+    });
+
+    it('без выбранной организации → toast.error, action не вызывается', async () => {
+      render(<InboxBindForm inboundMessageId='m1' organizations={ORGS} contactsEnabled />);
+
+      fireEvent.change(screen.getByLabelText('Имя контакта'), { target: { value: 'Иван' } });
+      fireEvent.click(screen.getByRole('button', { name: /создать контакт/i }));
+
+      await waitFor(() => expect(toastError).toHaveBeenCalledWith('Выберите организацию.'));
+      expect(createContactFromInboundAction).not.toHaveBeenCalled();
+    });
+
+    it('без имени контакта → toast.error, action не вызывается', async () => {
+      render(<InboxBindForm inboundMessageId='m1' organizations={ORGS} contactsEnabled />);
+
+      fireEvent.change(screen.getByLabelText('Организация'), { target: { value: 'org-1' } });
+      fireEvent.click(screen.getByRole('button', { name: /создать контакт/i }));
+
+      await waitFor(() => expect(toastError).toHaveBeenCalledWith('Введите имя контакта.'));
+      expect(createContactFromInboundAction).not.toHaveBeenCalled();
+    });
+
+    it('успешное создание: action с org+именем, тост, сброс имени', async () => {
+      createContactFromInboundAction.mockResolvedValue({ ok: true, contactId: 'k1' });
+      render(<InboxBindForm inboundMessageId='m1' organizations={ORGS} contactsEnabled />);
+
+      fireEvent.change(screen.getByLabelText('Организация'), { target: { value: 'org-1' } });
+      const nameInput = screen.getByLabelText('Имя контакта') as HTMLInputElement;
+      fireEvent.change(nameInput, { target: { value: '  Иван  ' } });
+      fireEvent.click(screen.getByRole('button', { name: /создать контакт/i }));
+
+      await waitFor(() =>
+        expect(createContactFromInboundAction).toHaveBeenCalledWith({
+          inboundMessageId: 'm1',
+          organizationId: 'org-1',
+          name: 'Иван'
+        })
+      );
+      await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Контакт создан, обращение привязано.'));
+      await waitFor(() => expect(nameInput.value).toBe(''));
+    });
+
+    it('ошибка action с известным кодом → замапленный toast.error', async () => {
+      createContactFromInboundAction.mockResolvedValue({ ok: false, error: 'invalid' });
+      render(<InboxBindForm inboundMessageId='m1' organizations={ORGS} contactsEnabled />);
+
+      fireEvent.change(screen.getByLabelText('Организация'), { target: { value: 'org-1' } });
+      fireEvent.change(screen.getByLabelText('Имя контакта'), { target: { value: 'Иван' } });
+      fireEvent.click(screen.getByRole('button', { name: /создать контакт/i }));
+
+      await waitFor(() => expect(toastError).toHaveBeenCalledWith('Введите имя контакта.'));
+    });
+
+    it('незамапленный код ошибки → generic-fallback текст в toast.error', async () => {
+      createContactFromInboundAction.mockResolvedValue({ ok: false, error: 'storage' });
+      render(<InboxBindForm inboundMessageId='m1' organizations={ORGS} contactsEnabled />);
+
+      fireEvent.change(screen.getByLabelText('Организация'), { target: { value: 'org-1' } });
+      fireEvent.change(screen.getByLabelText('Имя контакта'), { target: { value: 'Иван' } });
+      fireEvent.click(screen.getByRole('button', { name: /создать контакт/i }));
+
+      await waitFor(() =>
+        expect(toastError).toHaveBeenCalledWith('Не удалось выполнить действие. Попробуйте ещё раз.')
+      );
+    });
   });
 });
 

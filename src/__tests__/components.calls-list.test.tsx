@@ -88,6 +88,30 @@ describe('CallsList', () => {
   });
 });
 
+describe('CallsList — call-triage (Task 10)', () => {
+  const unresolved: CallListItem = { ...base, id: 'call-unresolved', resolvedOrgId: null };
+  const resolved: CallListItem = { ...base, id: 'call-resolved', resolvedOrgId: 'org-1' };
+  const orgs = [{ id: 'o1', name: 'ООО Ромашка' }];
+
+  it('contactsEnabled=false → без формы привязки и без колонки «Привязка», даже для нераспознанного звонка', () => {
+    const html = renderToString(<CallsList items={[unresolved]} orgs={orgs} contactsEnabled={false} />);
+    expect(html).not.toContain('Привязка');
+    expect(html).not.toContain('Создать контакт из номера');
+  });
+
+  it('contactsEnabled=true + resolvedOrgId=null → рендерит CallBindForm (кнопки привязки)', () => {
+    const html = renderToString(<CallsList items={[unresolved]} orgs={orgs} contactsEnabled={true} />);
+    expect(html).toContain('Привязка');
+    expect(html).toContain('Создать контакт из номера');
+  });
+
+  it('contactsEnabled=true + resolvedOrgId!=null → звонок read-only («Привязан»), без формы', () => {
+    const html = renderToString(<CallsList items={[resolved]} orgs={orgs} contactsEnabled={true} />);
+    expect(html).toContain('Привязан');
+    expect(html).not.toContain('Создать контакт из номера');
+  });
+});
+
 describe('CallsFiltersBar', () => {
   it('без direction активна «Все», ссылки строятся на оба направления', () => {
     const html = renderToString(<CallsFiltersBar />);

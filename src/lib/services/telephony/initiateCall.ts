@@ -9,7 +9,7 @@ import { log } from '@/lib/logging';
 
 export type InitiateCallResult =
   | { ok: true; callId: string }
-  | { ok: false; error: 'disabled' | 'not_found' | 'call_failed' };
+  | { ok: false; error: 'disabled' | 'not_found' | 'call_failed' | 'no_internal_phone' };
 
 export async function initiateOutboundCall(
   prisma: PrismaClient,

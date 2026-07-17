@@ -7,13 +7,15 @@ const {
   recordAudit,
   notifyOrgUsers,
   writeSyncLog,
+  captureChannel,
   inboundMessageFindUnique,
   inboundMessageUpdate,
   organizationFindUnique,
   orderFindUnique,
   orderThreadFindUnique,
   orderThreadUpdate,
-  messageCreate
+  messageCreate,
+  contactFindUnique
 } = vi.hoisted(() => ({
   requireManager: vi.fn(),
   getCompanyTeamVisibility: vi.fn(),
@@ -21,13 +23,15 @@ const {
   recordAudit: vi.fn(),
   notifyOrgUsers: vi.fn(),
   writeSyncLog: vi.fn(),
+  captureChannel: vi.fn(),
   inboundMessageFindUnique: vi.fn(),
   inboundMessageUpdate: vi.fn(),
   organizationFindUnique: vi.fn(),
   orderFindUnique: vi.fn(),
   orderThreadFindUnique: vi.fn(),
   orderThreadUpdate: vi.fn(),
-  messageCreate: vi.fn()
+  messageCreate: vi.fn(),
+  contactFindUnique: vi.fn()
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
@@ -42,13 +46,15 @@ vi.mock('@/lib/services/inbound/reply', () => ({ replyToInbound }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 vi.mock('@/lib/notifications', () => ({ notifyOrgUsers }));
 vi.mock('@/lib/services/oneCSync/log', () => ({ writeSyncLog }));
+vi.mock('@/lib/services/manager/contacts', () => ({ captureChannel }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     inboundMessage: { findUnique: inboundMessageFindUnique, update: inboundMessageUpdate },
     organization: { findUnique: organizationFindUnique },
     order: { findUnique: orderFindUnique },
     orderThread: { findUnique: orderThreadFindUnique, update: orderThreadUpdate },
-    message: { create: messageCreate }
+    message: { create: messageCreate },
+    contact: { findUnique: contactFindUnique }
   }
 }));
 
@@ -160,10 +166,10 @@ describe('bindInboundMessageAction', () => {
     const result = await bindInboundMessageAction({ inboundMessageId: 'im-1', organizationId: 'org-a' });
 
     expect(result).toEqual({ ok: true });
-    // Scope-гейт (E2) читает companyId+status сообщения.
+    // Scope-гейт (E2) читает companyId+status; learn-on-link (Task 11) — channel+senderRef.
     expect(inboundMessageFindUnique).toHaveBeenCalledWith({
       where: { id: 'im-1' },
-      select: { companyId: true, status: true }
+      select: { id: true, channel: true, senderRef: true, companyId: true, status: true }
     });
     expect(inboundMessageUpdate).toHaveBeenCalledWith({
       where: { id: 'im-1' },
@@ -279,6 +285,128 @@ describe('bindInboundMessageAction', () => {
     expect(inboundMessageUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ threadId: null }) })
     );
+  });
+
+  describe('contactId (Task 11 — attach + learn-on-link)', () => {
+    it('binds the contact, sets contactId, and captures the sender identity as a channel', async () => {
+      inboundMessageFindUnique.mockResolvedValue({ id: 'im-1', channel: 'telegram', senderRef: 'chat-9', companyId: null, status: 'unresolved' });
+      organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
+      getCompanyTeamVisibility.mockResolvedValue(false);
+      contactFindUnique.mockResolvedValue({ id: 'k1', companyId: 'company-a', organizationId: null });
+      inboundMessageUpdate.mockResolvedValue({});
+
+      const result = await bindInboundMessageAction({
+        inboundMessageId: 'im-1',
+        organizationId: 'org-a',
+        contactId: 'k1'
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(contactFindUnique).toHaveBeenCalledWith({
+        where: { id: 'k1' },
+        select: { id: true, companyId: true, organizationId: true }
+      });
+      expect(inboundMessageUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ contactId: 'k1' }) })
+      );
+      expect(captureChannel).toHaveBeenCalledWith(expect.anything(), {
+        contactId: 'k1',
+        companyId: 'company-a',
+        type: 'telegram',
+        value: 'chat-9'
+      });
+      expect(recordAudit).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ after: expect.objectContaining({ contactId: 'k1' }) })
+      );
+    });
+
+    it('accepts a contact already attached to the SAME target org', async () => {
+      inboundMessageFindUnique.mockResolvedValue({ id: 'im-1', channel: 'whatsapp', senderRef: '+79990001122', companyId: null, status: 'unresolved' });
+      organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
+      getCompanyTeamVisibility.mockResolvedValue(false);
+      contactFindUnique.mockResolvedValue({ id: 'k1', companyId: 'company-a', organizationId: 'org-a' });
+      inboundMessageUpdate.mockResolvedValue({});
+
+      const result = await bindInboundMessageAction({
+        inboundMessageId: 'im-1',
+        organizationId: 'org-a',
+        contactId: 'k1'
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(captureChannel).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ type: 'whatsapp', value: '+79990001122' })
+      );
+    });
+
+    it('returns forbidden when the contact does not exist', async () => {
+      inboundMessageFindUnique.mockResolvedValue({ id: 'im-1', channel: 'telegram', senderRef: 'chat-9', companyId: null, status: 'unresolved' });
+      organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
+      getCompanyTeamVisibility.mockResolvedValue(false);
+      contactFindUnique.mockResolvedValue(null);
+
+      const result = await bindInboundMessageAction({
+        inboundMessageId: 'im-1',
+        organizationId: 'org-a',
+        contactId: 'gone'
+      });
+
+      expect(result).toEqual({ ok: false, error: 'forbidden' });
+      expect(inboundMessageUpdate).not.toHaveBeenCalled();
+      expect(captureChannel).not.toHaveBeenCalled();
+    });
+
+    it('returns forbidden (cross-company) when the contact belongs to another company', async () => {
+      inboundMessageFindUnique.mockResolvedValue({ id: 'im-1', channel: 'telegram', senderRef: 'chat-9', companyId: null, status: 'unresolved' });
+      organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
+      getCompanyTeamVisibility.mockResolvedValue(false);
+      contactFindUnique.mockResolvedValue({ id: 'k1', companyId: 'company-other', organizationId: null });
+
+      const result = await bindInboundMessageAction({
+        inboundMessageId: 'im-1',
+        organizationId: 'org-a',
+        contactId: 'k1'
+      });
+
+      expect(result).toEqual({ ok: false, error: 'forbidden' });
+      expect(inboundMessageUpdate).not.toHaveBeenCalled();
+      expect(captureChannel).not.toHaveBeenCalled();
+    });
+
+    it('returns forbidden when the contact is already attached to a DIFFERENT org', async () => {
+      inboundMessageFindUnique.mockResolvedValue({ id: 'im-1', channel: 'telegram', senderRef: 'chat-9', companyId: null, status: 'unresolved' });
+      organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
+      getCompanyTeamVisibility.mockResolvedValue(false);
+      contactFindUnique.mockResolvedValue({ id: 'k1', companyId: 'company-a', organizationId: 'org-other' });
+
+      const result = await bindInboundMessageAction({
+        inboundMessageId: 'im-1',
+        organizationId: 'org-a',
+        contactId: 'k1'
+      });
+
+      expect(result).toEqual({ ok: false, error: 'forbidden' });
+      expect(inboundMessageUpdate).not.toHaveBeenCalled();
+      expect(captureChannel).not.toHaveBeenCalled();
+    });
+
+    it('без contactId: contactId=null в update, captureChannel не вызывается', async () => {
+      inboundMessageFindUnique.mockResolvedValue({ id: 'im-1', channel: 'telegram', senderRef: 'chat-9', companyId: null, status: 'unresolved' });
+      organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
+      getCompanyTeamVisibility.mockResolvedValue(false);
+      inboundMessageUpdate.mockResolvedValue({});
+
+      const result = await bindInboundMessageAction({ inboundMessageId: 'im-1', organizationId: 'org-a' });
+
+      expect(result).toEqual({ ok: true });
+      expect(contactFindUnique).not.toHaveBeenCalled();
+      expect(inboundMessageUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ contactId: null }) })
+      );
+      expect(captureChannel).not.toHaveBeenCalled();
+    });
   });
 });
 

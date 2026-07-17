@@ -85,10 +85,12 @@ function BoundReplyControl({ item }: { item: InboxItem }) {
 
 export function InboxList({
   items,
-  organizations
+  organizations,
+  contactsEnabled = false
 }: {
   items: InboxItem[];
   organizations: ManagerOrgListRow[];
+  contactsEnabled?: boolean;
 }) {
   if (items.length === 0) {
     return <EmptyState icon="📨" message="Обращений нет" />;
@@ -131,7 +133,11 @@ export function InboxList({
               <Td className="min-w-[16rem]">
                 <div className="space-y-2">
                   {item.status === 'unresolved' && (
-                    <InboxBindForm inboundMessageId={item.id} organizations={organizations} />
+                    <InboxBindForm
+                      inboundMessageId={item.id}
+                      organizations={organizations}
+                      contactsEnabled={contactsEnabled}
+                    />
                   )}
                   {item.status === 'bound' && <BoundReplyControl item={item} />}
                   {(item.status === 'unresolved' || item.status === 'bound') && (
@@ -169,7 +175,11 @@ export function InboxList({
             <p className="mt-1 text-xs text-gray-400">{fmtDateTime(item.createdAt)}</p>
             <div className="mt-3 space-y-2">
               {item.status === 'unresolved' && (
-                <InboxBindForm inboundMessageId={item.id} organizations={organizations} />
+                <InboxBindForm
+                  inboundMessageId={item.id}
+                  organizations={organizations}
+                  contactsEnabled={contactsEnabled}
+                />
               )}
               {item.status === 'bound' && <BoundReplyControl item={item} />}
               {(item.status === 'unresolved' || item.status === 'bound') && (

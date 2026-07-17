@@ -623,8 +623,7 @@ describe('DealActivityThread', () => {
     await waitFor(() =>
       expect(initiateCallAction).toHaveBeenCalledWith({
         orderId: 'order-9',
-        toNumber: '+79995554433',
-        fromInternal: ''
+        toNumber: '+79995554433'
       })
     );
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Звонок инициирован'));
@@ -632,27 +631,10 @@ describe('DealActivityThread', () => {
     expect(screen.getByRole('button', { name: 'Позвонить' })).toBeTruthy();
   });
 
-  it('звонок: заполненный «Внутренний номер» прокидывается в initiateCallAction', async () => {
-    initiateCallAction.mockResolvedValue({ ok: true, callId: 'call-x' });
-    render(
-      <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={true} />
-    );
+  // M2 (c31d76a): клиентского поля «Внутренний номер» больше нет — сервер
+  // берёт внутренний номер из User.internalPhone; см. кейс no_internal_phone ниже.
 
-    fireEvent.click(screen.getByRole('button', { name: 'Позвонить' }));
-    fireEvent.change(screen.getByLabelText('Номер телефона'), { target: { value: '+79995554433' } });
-    fireEvent.change(screen.getByLabelText('Внутренний номер'), { target: { value: '101' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Позвонить' }));
-
-    await waitFor(() =>
-      expect(initiateCallAction).toHaveBeenCalledWith({
-        orderId: 'order-9',
-        toNumber: '+79995554433',
-        fromInternal: '101'
-      })
-    );
-  });
-
-  it('звонок: inputs без name → защитный ?? отдаёт пустой номер и пустой внутренний', async () => {
+  it('звонок: input без name → защитный ?? отдаёт пустой номер', async () => {
     initiateCallAction.mockResolvedValue({ ok: true, callId: 'call-x' });
     render(
       <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={true} />
@@ -662,14 +644,12 @@ describe('DealActivityThread', () => {
     const numberInput = screen.getByLabelText('Номер телефона') as HTMLInputElement;
     fireEvent.change(numberInput, { target: { value: 'x' } }); // проходит required
     numberInput.removeAttribute('name');
-    screen.getByLabelText('Внутренний номер').removeAttribute('name');
     fireEvent.click(screen.getByRole('button', { name: 'Позвонить' }));
 
     await waitFor(() =>
       expect(initiateCallAction).toHaveBeenCalledWith({
         orderId: 'order-9',
-        toNumber: '',
-        fromInternal: ''
+        toNumber: ''
       })
     );
   });
@@ -698,6 +678,22 @@ describe('DealActivityThread', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toBe('Звонок недоступен (не настроено).');
+    expect(screen.getByLabelText('Номер телефона')).toBeTruthy();
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('звонок: no_internal_phone → ошибка "Укажите ваш внутренний номер…" в role=alert, форма остаётся открытой', async () => {
+    initiateCallAction.mockResolvedValue({ ok: false, error: 'no_internal_phone' });
+    render(
+      <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={true} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Позвонить' }));
+    fireEvent.change(screen.getByLabelText('Номер телефона'), { target: { value: '+79995554433' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Позвонить' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe('Укажите ваш внутренний номер в настройках, чтобы звонить.');
     expect(screen.getByLabelText('Номер телефона')).toBeTruthy();
     expect(toastSuccess).not.toHaveBeenCalled();
   });

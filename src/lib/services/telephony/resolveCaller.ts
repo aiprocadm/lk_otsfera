@@ -1,26 +1,36 @@
 import type { PrismaClient } from '@prisma/client';
-import { normalizePhone } from '@/lib/services/inbound/resolve';
+import { normalizePhoneCanonical } from '@/lib/phone/normalize';
+import { resolveContactByChannel } from '@/lib/services/contacts/resolveContactByChannel';
 
-// RU-aware canonicalization: Mango often delivers Russian numbers in national
-// 8XXXXXXXXXX form; contacts are stored E.164 +7XXXXXXXXXX. Canonicalize a leading
-// domestic 8 (11 digits total) to +7 so resolution matches. Do NOT change the shared
-// normalizePhone (would ripple into WhatsApp); this canonicalization is telephony-local.
+/** @deprecated use normalizePhoneCanonical; kept as a thin alias (M2 unification). */
 export function canonicalizeRuPhone(raw: string): string {
-  const n = normalizePhone(raw); // '+<digits>'
-  const digits = n.replace(/^\+/, '');
-  if (digits.length === 11 && digits.startsWith('8')) return `+7${digits.slice(1)}`;
-  return n;
+  return normalizePhoneCanonical(raw);
 }
 
 export type CallerResolution =
-  | { matchType: 'exact'; userId?: string; orgId: string; companyId: string }
-  | { matchType: 'unresolved'; userId?: undefined; orgId?: undefined; companyId?: undefined };
+  | { matchType: 'exact'; userId?: string; orgId: string; companyId: string; contactId?: string }
+  | { matchType: 'unresolved'; userId?: undefined; orgId?: undefined; companyId?: undefined; contactId?: undefined };
 
 export async function resolveCaller(prisma: PrismaClient, phoneRaw: string): Promise<CallerResolution> {
   const phone = canonicalizeRuPhone(phoneRaw);
   if (!phone || phone === '+') return { matchType: 'unresolved' };
 
-  // 1) exact unique User.whatsappPhone
+  // 1) Contact-first: prefer a ContactChannel match (phone-like: {phone, whatsapp})
+  // over the legacy User exact-match. An org-less contact hit does NOT
+  // short-circuit — call attribution needs an org to bind, so it falls
+  // through to the User/Lead paths below.
+  const hit = await resolveContactByChannel(prisma, { type: 'phone', value: phone, phoneLike: true });
+  if (hit && hit.organizationId) {
+    return {
+      matchType: 'exact',
+      orgId: hit.organizationId,
+      companyId: hit.companyId,
+      contactId: hit.contactId,
+      ...(hit.userId ? { userId: hit.userId } : {}),
+    };
+  }
+
+  // 2) exact unique User.whatsappPhone
   const users = await prisma.user.findMany({
     where: { whatsappPhone: phone },
     select: { id: true, organization: { select: { id: true, companyId: true } } },
@@ -31,7 +41,7 @@ export async function resolveCaller(prisma: PrismaClient, phoneRaw: string): Pro
   }
   if (users.length > 1) return { matchType: 'unresolved' }; // ambiguous → never guess
 
-  // 2) fallback: exact Lead.clientContactPhone
+  // 3) fallback: exact Lead.clientContactPhone
   const leads = await prisma.lead.findMany({
     where: { clientContactPhone: phone },
     select: { organizationId: true, organization: { select: { companyId: true } } },
