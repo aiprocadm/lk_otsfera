@@ -43,13 +43,17 @@ export function StaffChatSection({ currentUserId }: { currentUserId: string }) {
 
   const latestCreatedAt = messages.length > 0 ? messages[messages.length - 1].createdAt : null;
 
-  function appendNew(newRows: StaffPolledRow[]) {
+  function appendNew(newRows: StaffPolledRow[], forConversationId: string) {
+    // A poll fired for conversation A can resolve AFTER the user switched to B
+    // (cleanup clears the interval, not an in-flight fetch) — drop the stale
+    // batch instead of appending it into the wrong thread / marking B read.
+    if (forConversationId !== activeId) return;
     setMessages((prev) => {
       const existingIds = new Set(prev.map((m) => m.id));
       const fresh = newRows.filter((r) => !existingIds.has(r.id));
       return fresh.length > 0 ? [...prev, ...fresh] : prev;
     });
-    if (activeId) void markRead(activeId);
+    void markRead(forConversationId);
   }
 
   useStaffChatPolling(activeId, latestCreatedAt, appendNew);

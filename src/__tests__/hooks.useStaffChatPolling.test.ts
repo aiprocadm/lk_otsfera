@@ -64,7 +64,7 @@ describe('useStaffChatPolling — real hook lifecycle', () => {
     expect(onNew).not.toHaveBeenCalled();
   });
 
-  it('polls on the interval, builds the after= URL from the cursor, and fires onNew on new rows', async () => {
+  it('polls on the interval, builds the after= URL from the cursor, and fires onNew with rows tagged by the polled conversationId', async () => {
     const rows = [makeRow('m1', '2024-01-01T12:00:00Z')];
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ rows }));
     vi.stubGlobal('fetch', fetchMock);
@@ -80,7 +80,9 @@ describe('useStaffChatPolling — real hook lifecycle', () => {
     const url = fetchMock.mock.calls[0][0] as string;
     expect(url).toContain('conversationId=conv-abc');
     expect(url).toContain('after=2024-01-01T11%3A00%3A00Z');
-    expect(onNew).toHaveBeenCalledWith(rows);
+    // The batch is tagged with the conversation it was polled for so the
+    // consumer can drop a stale in-flight response after a switch.
+    expect(onNew).toHaveBeenCalledWith(rows, 'conv-abc');
   });
 
   it('omits after= when the cursor is null, and does NOT fire onNew on empty rows', async () => {

@@ -16,7 +16,11 @@ export type StaffPolledRow = {
 /**
  * Polls GET /api/staff-chat/messages?conversationId=&after=<latest createdAt>
  * every `intervalMs` while conversationId is set and document.visibilityState
- * === 'visible'. Calls onNew with rows newer than the latest seen.
+ * === 'visible'. Calls onNew with rows newer than the latest seen, tagged with
+ * the conversationId the batch was polled for: an in-flight response can land
+ * AFTER the user switched conversations (the effect cleanup clears the interval
+ * but not an already-started fetch), and onNewRef always points at the latest
+ * callback — the tag lets the consumer drop such stale batches.
  *
  * Sibling of useThreadPolling (chat domain) — identical mechanics (cursor/onNew
  * live in refs so the effect only depends on [conversationId, intervalMs]),
@@ -25,11 +29,11 @@ export type StaffPolledRow = {
 export function useStaffChatPolling(
   conversationId: string | null,
   latestCreatedAt: string | null,
-  onNew: (rows: StaffPolledRow[]) => void,
+  onNew: (rows: StaffPolledRow[], forConversationId: string) => void,
   intervalMs = 7000
 ): void {
   const cursorRef = useRef<string | null>(latestCreatedAt);
-  const onNewRef = useRef<(rows: StaffPolledRow[]) => void>(onNew);
+  const onNewRef = useRef<(rows: StaffPolledRow[], forConversationId: string) => void>(onNew);
 
   // Keep refs in sync each render without recreating the interval
   useEffect(() => {
@@ -41,26 +45,24 @@ export function useStaffChatPolling(
 
   useEffect(() => {
     if (!conversationId) return;
+    // Captured (narrowed) before any fetch: every batch this effect instance
+    // delivers is tagged with the conversation it was polled for.
+    const polledConversationId = conversationId;
 
     async function poll() {
-      // poll() only runs with a truthy conversationId (the effect returns early
-      // when null) and only client-side (effects never run during SSR), so the
-      // `!conversationId` and `typeof document === 'undefined'` guard branches
-      // are dead defensive code.
-      /* v8 ignore next 2 */
-      if (!conversationId) return;
+      /* v8 ignore next -- SSR guard: effects are client-only, document always defined */
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
       try {
         const cursor = cursorRef.current;
         const url =
           '/api/staff-chat/messages?conversationId=' +
-          encodeURIComponent(conversationId) +
+          encodeURIComponent(polledConversationId) +
           (cursor ? '&after=' + encodeURIComponent(cursor) : '');
         const res = await fetch(url);
         if (res.ok) {
           const data = (await res.json()) as { rows: StaffPolledRow[] };
           if (data.rows && data.rows.length > 0) {
-            onNewRef.current(data.rows);
+            onNewRef.current(data.rows, polledConversationId);
           }
         }
       } catch {

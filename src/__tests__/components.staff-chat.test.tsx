@@ -563,7 +563,7 @@ describe('StaffChatSection', () => {
   ];
 
   let refetchConversations: ReturnType<typeof vi.fn>;
-  let capturedOnNew: ((rows: StaffPolledRow[]) => void) | undefined;
+  let capturedOnNew: ((rows: StaffPolledRow[], forConversationId: string) => void) | undefined;
   let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -580,9 +580,11 @@ describe('StaffChatSection', () => {
       return { data: null, refetch: vi.fn() };
     });
     useStaffChatPolling.mockReset();
-    useStaffChatPolling.mockImplementation((_conversationId: string | null, _latest: string | null, onNew: (rows: StaffPolledRow[]) => void) => {
-      capturedOnNew = onNew;
-    });
+    useStaffChatPolling.mockImplementation(
+      (_conversationId: string | null, _latest: string | null, onNew: (rows: StaffPolledRow[], forConversationId: string) => void) => {
+        capturedOnNew = onNew;
+      }
+    );
     toastError.mockClear();
     // Several tests below deliberately exercise error paths that log via
     // clientLog.warn (a console.warn wrapper) — expected noise, not failures.
@@ -1034,10 +1036,13 @@ describe('StaffChatSection', () => {
     const readCallsAfterSelect = fetchMock.mock.calls.filter((c) => c[0] === '/api/staff-chat/read').length;
 
     act(() => {
-      capturedOnNew!([
-        makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега', body: 'дубликат' }),
-        makeMsg({ id: 'm2', authorId: 'u2', authorName: 'Коллега', body: 'новое сообщение' })
-      ]);
+      capturedOnNew!(
+        [
+          makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега', body: 'дубликат' }),
+          makeMsg({ id: 'm2', authorId: 'u2', authorName: 'Коллега', body: 'новое сообщение' })
+        ],
+        'g1'
+      );
     });
 
     await waitFor(() => expect(screen.getByText('новое сообщение')).toBeTruthy());
@@ -1065,18 +1070,47 @@ describe('StaffChatSection', () => {
     await waitFor(() => expect(screen.getByText('исходное')).toBeTruthy());
 
     act(() => {
-      capturedOnNew!([makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега', body: 'исходное-дубликат' })]);
+      capturedOnNew!([makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега', body: 'исходное-дубликат' })], 'g1');
     });
 
     expect(screen.queryByText('исходное-дубликат')).toBeNull();
   });
 
+  it('appendNew drops a stale batch polled for a different conversation (no append, no markRead)', async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.startsWith('/api/staff-chat/messages?')) {
+        return Promise.resolve(
+          messagesResponse([makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега', body: 'исходное' })])
+        );
+      }
+      if (url === '/api/staff-chat/read') return Promise.resolve({ ok: true });
+      throw new Error('unexpected fetch ' + url);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<StaffChatSection currentUserId="me" />);
+    fireEvent.click(screen.getByText('# Общий')); // activeId = 'g1'
+    await waitFor(() => expect(screen.getByText('исходное')).toBeTruthy());
+    const readCallsAfterSelect = fetchMock.mock.calls.filter((c) => c[0] === '/api/staff-chat/read').length;
+
+    // An in-flight poll response for the previously open dm1 lands after the switch.
+    act(() => {
+      capturedOnNew!([makeMsg({ id: 'stale-1', authorId: 'u2', authorName: 'Коллега', body: 'устаревшая пачка' })], 'dm1');
+    });
+
+    // Dropped: not appended into g1's thread, and no extra read POST fired.
+    expect(screen.queryByText('устаревшая пачка')).toBeNull();
+    const readCallsAfterStale = fetchMock.mock.calls.filter((c) => c[0] === '/api/staff-chat/read').length;
+    expect(readCallsAfterStale).toBe(readCallsAfterSelect);
+  });
+
   it('appendNew is a no-op (no markRead call) while no conversation is selected', () => {
     render(<StaffChatSection currentUserId="me" />);
     expect(capturedOnNew).toBeDefined();
+    // activeId is null → every tagged batch is stale by definition and dropped.
     expect(() =>
       act(() => {
-        capturedOnNew!([makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега' })]);
+        capturedOnNew!([makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега' })], 'g1');
       })
     ).not.toThrow();
   });
