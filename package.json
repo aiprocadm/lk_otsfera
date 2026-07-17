@@ -89,5 +89,16 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "vitest": "^2.1.8"
+  },
+  "allowScripts": {
+    "@prisma/client@5.22.0": true,
+    "@prisma/engines@5.22.0": true,
+    "@sentry/cli@2.58.6": true,
+    "esbuild@0.28.0": true,
+    "esbuild@0.21.5": true,
+    "msgpackr-extract@3.0.3": true,
+    "prisma@5.22.0": true,
+    "sharp@0.34.5": true,
+    "unrs-resolver@1.12.2": true
   }
 }
