@@ -23,12 +23,14 @@ function makeDb(
     attachmentPath?: string | null;
     inboundAttachmentPath?: string | null;
     callRecordingPath?: string | null;
+    staffAttachmentPath?: string | null;
   } = {},
 ) {
   const documentUpdate = vi.fn().mockResolvedValue({});
   const attachmentUpdate = vi.fn().mockResolvedValue({});
   const inboundMessageUpdate = vi.fn().mockResolvedValue({});
   const callUpdate = vi.fn().mockResolvedValue({});
+  const staffMessageUpdate = vi.fn().mockResolvedValue({});
   const syncLogCreate = vi.fn().mockResolvedValue({});
   return {
     document: {
@@ -70,6 +72,16 @@ function makeDb(
             : { id: 'call-1', recordingPath: opts.callRecordingPath },
       ),
       update: callUpdate,
+    },
+    staffMessage: {
+      findUnique: vi.fn().mockResolvedValue(
+        opts.staffAttachmentPath === undefined
+          ? { id: 'staff-msg-1', attachmentPath: 'staff-chat/conv-1/file.pdf' }
+          : opts.staffAttachmentPath === null
+            ? null
+            : { id: 'staff-msg-1', attachmentPath: opts.staffAttachmentPath },
+      ),
+      update: staffMessageUpdate,
     },
     syncLog: { create: syncLogCreate },
   } as any;
@@ -330,6 +342,61 @@ describe('scanDocumentProcessor', () => {
       scanDocumentProcessor(makeJob({ kind: 'call_recording', id: 'call-1' }), db, deps),
     ).rejects.toThrow(/NOT_FOUND/);
     expect(db.call.update).not.toHaveBeenCalled();
+  });
+
+  it('updates StaffMessage row when kind=staff_attachment (no scanReason/scannedAt columns)', async () => {
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    const deps = makeDeps({ scan: vi.fn().mockResolvedValue('stream: OK') });
+
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'staff_attachment', id: 'staff-msg-1' }),
+      db,
+      deps,
+    );
+
+    expect(result).toEqual({
+      kind: 'staff_attachment',
+      id: 'staff-msg-1',
+      scanStatus: 'clean',
+      scanReason: null,
+    });
+    expect(db.staffMessage.update).toHaveBeenCalledWith({
+      where: { id: 'staff-msg-1' },
+      data: { scanStatus: 'clean' },
+    });
+    expect(db.document.update).not.toHaveBeenCalled();
+    expect(db.leadAttachment.update).not.toHaveBeenCalled();
+    expect(db.inboundMessage.update).not.toHaveBeenCalled();
+    expect(db.call.update).not.toHaveBeenCalled();
+  });
+
+  it('marks StaffMessage infected and captures virus name from "FOUND" response', async () => {
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    const deps = makeDeps({ scan: vi.fn().mockResolvedValue('stream: Eicar-Test-Signature FOUND') });
+
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'staff_attachment', id: 'staff-msg-1' }),
+      db,
+      deps,
+    );
+
+    expect(result.scanStatus).toBe('infected');
+    expect(db.staffMessage.update).toHaveBeenCalledWith({
+      where: { id: 'staff-msg-1' },
+      data: { scanStatus: 'infected' },
+    });
+  });
+
+  it('throws NOT_FOUND when the StaffMessage has no attachmentPath', async () => {
+    const db = makeDb({ staffAttachmentPath: null });
+    const deps = makeDeps();
+
+    await expect(
+      scanDocumentProcessor(makeJob({ kind: 'staff_attachment', id: 'staff-msg-1' }), db, deps),
+    ).rejects.toThrow(/NOT_FOUND/);
+    expect(db.staffMessage.update).not.toHaveBeenCalled();
   });
 
   it('throws NOT_FOUND when the InboundMessage has no attachmentPath', async () => {
