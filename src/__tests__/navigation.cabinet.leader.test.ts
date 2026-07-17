@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 describe('канон leader', () => {
-  it('14 пунктов: сводка/команда/финансы/корректировки/заказы/организации/роли/воронка/аналитика/задачи/обучение/сообщения/мои заказы/настройки', () => {
+  it('15 пунктов: сводка/команда/финансы/корректировки/заказы/организации/роли/воронка/аналитика/задачи/календарь/обучение/сообщения/мои заказы/настройки', () => {
     expect(navByRole.leader.map((i) => i.href)).toEqual([
       '/leader/dashboard',
       '/leader/team',
@@ -25,6 +25,7 @@ describe('канон leader', () => {
       '/leader/funnel',
       '/leader/analytics',
       '/leader/tasks',
+      '/leader/calendar',
       '/leader/enrollments',
       '/manager/messages',
       '/manager/dashboard',
@@ -32,7 +33,7 @@ describe('канон leader', () => {
     ]);
   });
 
-  it('пункты leader-меню без flag, кроме «Заявок», «Ролей», «Воронки», «Аналитики» и «Задач» (свои opt-in флаги)', () => {
+  it('пункты leader-меню без flag, кроме «Заявок», «Ролей», «Воронки», «Аналитики», «Задач» и «Календаря» (свои opt-in флаги)', () => {
     for (const item of navByRole.leader) {
       if (item.href === '/leader/enrollments') {
         expect(item.flag).toBe('enrollment_requests');
@@ -44,6 +45,8 @@ describe('канон leader', () => {
         expect(item.flag).toBe('leader_analytics');
       } else if (item.href === '/leader/tasks') {
         expect(item.flag).toBe('internal_tasks');
+      } else if (item.href === '/leader/calendar') {
+        expect(item.flag).toBe('staff_calendar');
       } else {
         expect(item.flag).toBeUndefined();
       }
@@ -65,14 +68,15 @@ describe('канон leader', () => {
     }
   });
 
-  it('navItemsFor("leader") без opt-in флагов скрывает «Заявки на обучение», «Роли», «Воронку», «Аналитику» и «Задачи»', () => {
+  it('navItemsFor("leader") без opt-in флагов скрывает «Заявки на обучение», «Роли», «Воронку», «Аналитику», «Задачи» и «Календарь»', () => {
     const hrefs = navItemsFor('leader').map((i) => i.href);
     expect(hrefs).not.toContain('/leader/enrollments');
     expect(hrefs).not.toContain('/leader/roles');
     expect(hrefs).not.toContain('/leader/funnel');
     expect(hrefs).not.toContain('/leader/analytics');
     expect(hrefs).not.toContain('/leader/tasks');
-    expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length - 5);
+    expect(hrefs).not.toContain('/leader/calendar');
+    expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length - 6);
   });
 
   it('navItemsFor("leader") показывает opt-in пункты при включённых флагах', () => {
@@ -81,12 +85,14 @@ describe('канон leader', () => {
     process.env.FEATURE_SALES_FUNNEL = '1';
     process.env.FEATURE_LEADER_ANALYTICS = '1';
     process.env.FEATURE_INTERNAL_TASKS = '1';
+    process.env.FEATURE_STAFF_CALENDAR = '1';
     const hrefs = navItemsFor('leader').map((i) => i.href);
     expect(hrefs).toContain('/leader/enrollments');
     expect(hrefs).toContain('/leader/roles');
     expect(hrefs).toContain('/leader/funnel');
     expect(hrefs).toContain('/leader/analytics');
     expect(hrefs).toContain('/leader/tasks');
+    expect(hrefs).toContain('/leader/calendar');
     expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length);
   });
 });

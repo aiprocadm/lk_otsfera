@@ -43,6 +43,7 @@ const OPT_IN_FLAGS = new Set([
   'staff_2fa',
   'contacts',
   'staff_chat',
+  'staff_calendar',
 ]);
 
 describe('isFeatureEnabled', () => {
