@@ -55,7 +55,7 @@ describe('ManagerLeadActions (SSR structure)', () => {
     expect(html).toContain('Заявка отклонена');
   });
 
-  it('in_review: renders qualify button; new/qualified extra buttons absent', () => {
+  it('in_review: renders qualify and "Вернуть в новые" buttons; qualified extra button absent', () => {
     const html = renderToString(
       React.createElement(ManagerLeadActions, {
         leadId: 'l1',
@@ -65,6 +65,7 @@ describe('ManagerLeadActions (SSR structure)', () => {
       })
     );
     expect(html).toContain('Квалифицировать');
+    expect(html).toContain('Вернуть в новые');
     expect(html).not.toContain('Вернуть на рассмотрение');
   });
 
@@ -79,6 +80,7 @@ describe('ManagerLeadActions (SSR structure)', () => {
     );
     expect(html).toContain('Вернуть на рассмотрение');
     expect(html).not.toContain('Квалифицировать');
+    expect(html).not.toContain('Вернуть в новые');
   });
 
   it('new: neither in_review nor qualified button rendered', () => {
@@ -92,6 +94,49 @@ describe('ManagerLeadActions (SSR structure)', () => {
     );
     expect(html).not.toContain('Квалифицировать');
     expect(html).not.toContain('Вернуть на рассмотрение');
+    expect(html).not.toContain('Вернуть в новые');
+  });
+
+  it('candidates present (non-terminal): renders manager select and "Передать" button', () => {
+    const html = renderToString(
+      React.createElement(ManagerLeadActions, {
+        leadId: 'l1',
+        status: 'new',
+        hasOrganization: true,
+        promotedOrderId: null,
+        candidates: [{ id: 'm2', name: 'Мария', email: 'm@x.ru' }]
+      })
+    );
+    expect(html).toContain('Выберите менеджера');
+    expect(html).toContain('Мария (m@x.ru)');
+    expect(html).toContain('Передать');
+  });
+
+  it('no candidates: transfer select and "Передать" button are absent', () => {
+    const html = renderToString(
+      React.createElement(ManagerLeadActions, {
+        leadId: 'l1',
+        status: 'new',
+        hasOrganization: true,
+        promotedOrderId: null
+      })
+    );
+    expect(html).not.toContain('Передать');
+    expect(html).not.toContain('Выберите менеджера');
+  });
+
+  it('terminal status: transfer select is absent even with candidates', () => {
+    const html = renderToString(
+      React.createElement(ManagerLeadActions, {
+        leadId: 'l1',
+        status: 'promoted_to_order',
+        hasOrganization: true,
+        promotedOrderId: 'o1',
+        candidates: [{ id: 'm2', name: 'Мария', email: 'm@x.ru' }]
+      })
+    );
+    expect(html).not.toContain('Передать');
+    expect(html).not.toContain('Выберите менеджера');
   });
 
   it('hasOrganization=false: "Преобразовать в заказ" is disabled with a title hint', () => {
@@ -152,8 +197,8 @@ describe('ManagerLeadActions (interactive, jsdom)', () => {
     expect(refresh).toHaveBeenCalled();
   });
 
-  it('non-ok response with json error body: toasts the error message', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({ error: 'bad_request' }) });
+  it('non-ok response with a code from the central map: toasts the russian errorMessageRu text', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 409, json: async () => ({ error: 'lifecycle_violation' }) });
     vi.stubGlobal('fetch', fetchMock);
 
     render(
@@ -166,7 +211,43 @@ describe('ManagerLeadActions (interactive, jsdom)', () => {
     );
     fireEvent.click(screen.getByText('Взять в работу'));
 
-    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось выполнить действие: bad_request'));
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Недопустимый переход статуса.'));
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('not_found: локальная дельта «Заявка не найдена.» (центральный текст — про заказ)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({ error: 'not_found' }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      React.createElement(ManagerLeadActions, {
+        leadId: 'l1',
+        status: 'new',
+        hasOrganization: true,
+        promotedOrderId: null
+      })
+    );
+    fireEvent.click(screen.getByText('Взять в работу'));
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Заявка не найдена.'));
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('non-ok response with an unknown code: falls back to the generic message with the raw code', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({ error: 'unknown_code_xyz' }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      React.createElement(ManagerLeadActions, {
+        leadId: 'l1',
+        status: 'new',
+        hasOrganization: true,
+        promotedOrderId: null
+      })
+    );
+    fireEvent.click(screen.getByText('Взять в работу'));
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось выполнить действие: unknown_code_xyz'));
     expect(toastSuccess).not.toHaveBeenCalled();
   });
 
@@ -280,6 +361,116 @@ describe('ManagerLeadActions (interactive, jsdom)', () => {
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Возвращено на рассмотрение'));
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
     expect(body).toEqual({ action: 'setStatus', status: 'in_review' });
+  });
+
+  it('"Вернуть в новые" (in_review) sends setStatus=new', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      React.createElement(ManagerLeadActions, {
+        leadId: 'l1',
+        status: 'in_review',
+        hasOrganization: true,
+        promotedOrderId: null
+      })
+    );
+    fireEvent.click(screen.getByText('Вернуть в новые'));
+
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Заявка возвращена в новые'));
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body).toEqual({ action: 'setStatus', status: 'new' });
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it('передача: выбор кандидата + «Передать» шлёт assign с assignToUserId', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      React.createElement(ManagerLeadActions, {
+        leadId: 'l1',
+        status: 'new',
+        hasOrganization: true,
+        promotedOrderId: null,
+        candidates: [
+          { id: 'm2', name: 'Мария', email: 'm@x.ru' },
+          { id: 'm3', name: 'Пётр', email: 'p@x.ru' }
+        ]
+      })
+    );
+    fireEvent.change(screen.getByLabelText('Менеджер для передачи заявки'), { target: { value: 'm2' } });
+    fireEvent.click(screen.getByText('Передать'));
+
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Заявка передана менеджеру'));
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body).toEqual({ action: 'assign', assignToUserId: 'm2' });
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it('«Передать» без выбранного кандидата: кнопка disabled, fetch не вызывается', () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      React.createElement(ManagerLeadActions, {
+        leadId: 'l1',
+        status: 'new',
+        hasOrganization: true,
+        promotedOrderId: null,
+        candidates: [{ id: 'm2', name: 'Мария', email: 'm@x.ru' }]
+      })
+    );
+    const btn = screen.getByText('Передать').closest('button') as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    fireEvent.click(btn);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('invalid_manager от бэкенда: тост «Выбранный менеджер недоступен», выбор в селекте сохраняется', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({ error: 'invalid_manager' }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      React.createElement(ManagerLeadActions, {
+        leadId: 'l1',
+        status: 'new',
+        hasOrganization: true,
+        promotedOrderId: null,
+        candidates: [{ id: 'm2', name: 'Мария', email: 'm@x.ru' }]
+      })
+    );
+    const select = screen.getByLabelText('Менеджер для передачи заявки') as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: 'm2' } });
+    fireEvent.click(screen.getByText('Передать'));
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Выбранный менеджер недоступен'));
+    expect(toastSuccess).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(select.value).toBe('m2');
+  });
+
+  it('после успешной передачи селект сброшен и «Передать» снова disabled', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      React.createElement(ManagerLeadActions, {
+        leadId: 'l1',
+        status: 'new',
+        hasOrganization: true,
+        promotedOrderId: null,
+        candidates: [{ id: 'm2', name: 'Мария', email: 'm@x.ru' }]
+      })
+    );
+    const select = screen.getByLabelText('Менеджер для передачи заявки') as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: 'm2' } });
+    fireEvent.click(screen.getByText('Передать'));
+
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Заявка передана менеджеру'));
+    await waitFor(() => expect(select.value).toBe(''));
+    expect((screen.getByText('Передать').closest('button') as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('"Преобразовать в заказ" sends promote action', async () => {

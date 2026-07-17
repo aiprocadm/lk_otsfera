@@ -1,16 +1,16 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordPiiAccess } from '@/lib/pii/record';
+import { inboxScopeWhere } from '@/lib/services/inbound/scope';
 
 /**
  * Company-scoped staff inbox query (Task 11a).
  *
  * C8 invariant: a manager sees their OWN company's bound inbound messages
  * PLUS the shared "unresolved" triage queue (companyId=null — not yet bound
- * to any company), and NEVER another company's bound messages. This mirrors
- * the proven sentinel pattern in `chat/threads.ts` `scopeWhere` — a
- * companyId-less session must deny-all on the company branch, not match
- * every row (`companyId: undefined` would strip the filter and leak).
+ * to any company), and NEVER another company's bound messages. The scope
+ * itself lives in `scope.ts` (`inboxScopeWhere`, E2) — the single source of
+ * truth shared with the attachment route and archive/restore actions.
  */
 
 export type InboxFilters = {
@@ -61,11 +61,8 @@ export async function listInbox(
 
   // C8: bound messages are visible ONLY within the manager's own company;
   // unresolved messages (companyId null) are the shared triage queue,
-  // visible to all staff. Sentinel guards a companyId-less session from
-  // matching every company's bound rows.
-  const scope: Prisma.InboundMessageWhereInput = {
-    OR: [{ companyId: session.companyId ?? '__no_company__' }, { status: 'unresolved' }],
-  };
+  // visible to all staff. See scope.ts for the sentinel rationale.
+  const scope = inboxScopeWhere(session);
 
   const extra: Prisma.InboundMessageWhereInput = {};
   if (filters.channel) extra.channel = filters.channel;

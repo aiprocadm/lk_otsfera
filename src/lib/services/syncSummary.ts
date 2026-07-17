@@ -16,6 +16,18 @@ export type SyncSummaryRow = {
   lagMs: number | null;
 };
 
+/** Построчная ошибка синхронизации. Намеренно БЕЗ payload — см. listSyncErrors. */
+export type SyncErrorRow = {
+  id: string;
+  entity: string;
+  externalId: string | null;
+  direction: string;
+  operation: string;
+  errorMessage: string | null;
+  durationMs: number | null;
+  createdAt: Date;
+};
+
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export async function getSyncSummary(prisma: PrismaClient): Promise<SyncSummaryRow[]> {
@@ -63,4 +75,28 @@ export async function getSyncSummary(prisma: PrismaClient): Promise<SyncSummaryR
   }
 
   return rows;
+}
+
+/**
+ * Последние 50 построчных ошибок синхронизации (SyncLog.status='error') для
+ * /admin/health. `payload` НАМЕРЕННО не селектится: там сырой DTO из 1С,
+ * который может содержать ПДн — он не покидает БД; полные записи смотреть
+ * напрямую в SyncLog.
+ */
+export async function listSyncErrors(prisma: PrismaClient): Promise<SyncErrorRow[]> {
+  return prisma.syncLog.findMany({
+    where: { status: 'error' },
+    select: {
+      id: true,
+      entity: true,
+      externalId: true,
+      direction: true,
+      operation: true,
+      errorMessage: true,
+      durationMs: true,
+      createdAt: true
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 50
+  });
 }

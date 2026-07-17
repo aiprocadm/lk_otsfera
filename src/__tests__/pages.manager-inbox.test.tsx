@@ -26,7 +26,11 @@ vi.mock('@/lib/services/manager/organizations', () => ({ listOrganizations }));
 
 vi.mock('@/components/manager/inbox-filters', () => ({
   InboxFiltersBar: (props: { channel?: string; status?: string }) =>
-    React.createElement('div', { 'data-testid': 'inbox-filters' }, String(props.channel), String(props.status))
+    React.createElement(
+      'div',
+      { 'data-testid': 'inbox-filters' },
+      `${String(props.channel)}|${String(props.status)}`
+    )
 }));
 
 vi.mock('@/components/manager/inbox-list', () => ({
@@ -99,28 +103,28 @@ describe('ManagerInboxPage', () => {
     }
   );
 
-  it('нечисловой page → 1', async () => {
+  it('нечисловой skip → page 1', async () => {
     mockFlags({ inbound_messaging: true });
     requireManager.mockResolvedValue(SESSION);
     listInbox.mockResolvedValue({ items: [], total: 0 });
     listOrganizations.mockResolvedValue([]);
 
     await renderServerComponent(
-      ManagerInboxPage({ searchParams: Promise.resolve({ page: 'abc' }) })
+      ManagerInboxPage({ searchParams: Promise.resolve({ skip: 'abc' }) })
     );
 
     expect(listInbox.mock.calls[0][2].page).toBe(1);
   });
 
-  it('нераспознанный status отброшен; channel и page проходят', async () => {
+  it('нераспознанный status отброшен; channel и skip проходят', async () => {
     mockFlags({ inbound_messaging: true });
     requireManager.mockResolvedValue(SESSION);
     listInbox.mockResolvedValue({ items: [], total: 100 });
     listOrganizations.mockResolvedValue([]);
 
-    await renderServerComponent(
+    const { getByTestId } = await renderServerComponent(
       ManagerInboxPage({
-        searchParams: Promise.resolve({ status: 'bogus', channel: 'telegram', page: '2' })
+        searchParams: Promise.resolve({ status: 'bogus', channel: 'telegram', skip: '25' })
       })
     );
 
@@ -128,6 +132,51 @@ describe('ManagerInboxPage', () => {
     expect(filters.status).toBeUndefined();
     expect(filters.channel).toBe('telegram');
     expect(filters.page).toBe(2);
+    // бар получает валидированные значения: канал известен, статус отброшен
+    expect(getByTestId('inbox-filters').textContent).toBe('telegram|undefined');
+  });
+
+  it('?status=bogus&channel=bogus не увековечиваются: в бар и фильтры уходит undefined', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManager.mockResolvedValue(SESSION);
+    listInbox.mockResolvedValue({ items: [], total: 0 });
+    listOrganizations.mockResolvedValue([]);
+
+    const { getByTestId } = await renderServerComponent(
+      ManagerInboxPage({
+        searchParams: Promise.resolve({ status: 'bogus', channel: 'bogus' })
+      })
+    );
+
+    const filters = listInbox.mock.calls[0][2];
+    expect(filters.status).toBeUndefined();
+    expect(filters.channel).toBeUndefined();
+    expect(getByTestId('inbox-filters').textContent).toBe('undefined|undefined');
+  });
+
+  it('ссылка пагинатора реально меняет выборку (total > pageSize)', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManager.mockResolvedValue(SESSION);
+    listInbox.mockResolvedValue({ items: [], total: 60 });
+    listOrganizations.mockResolvedValue([]);
+
+    const { container } = await renderServerComponent(
+      ManagerInboxPage({ searchParams: Promise.resolve({ channel: 'telegram' }) })
+    );
+    const next = Array.from(container.querySelectorAll('a')).find(
+      (a) => a.textContent === 'Вперёд'
+    );
+    expect(next).toBeDefined();
+
+    const qs = new URLSearchParams((next as HTMLAnchorElement).getAttribute('href')!.split('?')[1]);
+    const spFromLink = Object.fromEntries(qs.entries());
+    listInbox.mockClear();
+    await renderServerComponent(ManagerInboxPage({ searchParams: Promise.resolve(spFromLink) }));
+    expect(listInbox).toHaveBeenCalledWith(
+      {},
+      SESSION,
+      expect.objectContaining({ page: 2, channel: 'telegram' })
+    );
   });
 
   it('flag contacts выключен → contactsEnabled=false прокидывается в InboxList', async () => {

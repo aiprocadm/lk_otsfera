@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { errorMessageRu } from '@/lib/errors/messages';
 
@@ -160,7 +161,15 @@ export function LoginForm({ demoLogins }: { demoLogins?: DemoLogin[] }) {
             />
           </div>
           <div>
-            <label className='block text-sm font-medium text-gray-700 mb-1.5'>Пароль</label>
+            <div className='flex items-center justify-between mb-1.5'>
+              <label className='block text-sm font-medium text-gray-700'>Пароль</label>
+              <Link
+                href='/reset-password'
+                className='text-sm text-[#F97316] hover:text-[#EA580C] transition-colors'
+              >
+                Забыли пароль?
+              </Link>
+            </div>
             <input
               type='password'
               autoComplete='current-password'

@@ -3,6 +3,7 @@ import { TableShell, THead, Th, Tr, Td, Badge, EmptyState } from '@/components/u
 import { fmtDateTime } from '@/lib/format';
 import { InboxBindForm } from '@/components/manager/inbox-bind-form';
 import { InboxReplyForm } from '@/components/manager/inbox-reply-form';
+import { InboxArchiveButton } from '@/components/manager/inbox-archive-button';
 import type { InboxItem } from '@/lib/services/inbound/listInbox';
 import type { ManagerOrgListRow } from '@/lib/services/manager/organizations';
 
@@ -10,9 +11,10 @@ import type { ManagerOrgListRow } from '@/lib/services/manager/organizations';
  * Презентационная таблица инбокса (Task 11b). Сервер-компонент — сама не
  * ходит за данными, только рендерит `items` от `listInbox` и встраивает
  * клиентские формы привязки/ответа по статусу строки:
- *  - `unresolved` → форма привязки (`InboxBindForm`);
- *  - `bound`      → форма ответа (`InboxReplyForm`);
- *  - `archived`   → без формы (только просмотр).
+ *  - `unresolved` → форма привязки (`InboxBindForm`) + кнопка «В архив»;
+ *  - `bound`      → форма ответа (`InboxReplyForm`) + кнопка «В архив»;
+ *                   для email вместо формы — подсказка (`BoundReplyControl`, E3);
+ *  - `archived`   → кнопка «Вернуть» (`InboxArchiveButton`, E2).
  */
 
 const CHANNEL_LABEL: Record<string, string> = {
@@ -44,6 +46,41 @@ function ScanBadge({ scanStatus }: { scanStatus: string }) {
   if (scanStatus === 'infected') return <Badge tone="danger">Вложение: заражено</Badge>;
   if (scanStatus === 'pending') return <Badge tone="neutral">Вложение: проверяется</Badge>;
   return <Badge tone="success">Вложение: чисто</Badge>;
+}
+
+/**
+ * Имя вложения: при `clean` — ссылка на download-роут (сервер сам
+ * переповторяет scope + clean-gate), в остальных статусах — просто текст.
+ */
+function AttachmentName({ item }: { item: InboxItem }) {
+  if (item.scanStatus === 'clean') {
+    return (
+      <a
+        href={`/api/manager/inbox/${item.id}/attachment`}
+        className="font-medium text-[#EA580C] hover:underline"
+      >
+        📎 {item.attachmentName}
+      </a>
+    );
+  }
+  return <span>📎 {item.attachmentName}</span>;
+}
+
+/**
+ * Действие для bound-строки: у email нет исходящей отправки — бэкенд
+ * `replyToInbound` всегда отвечает отказом (`email_unsupported`,
+ * src/lib/services/inbound/reply.ts), поэтому вместо заведомо падающей
+ * формы показываем честную подсказку (E3). Остальные каналы — обычная форма.
+ */
+function BoundReplyControl({ item }: { item: InboxItem }) {
+  if (item.channel === 'email') {
+    return (
+      <p className="text-xs text-gray-500">
+        Ответ по email пока недоступен — ответьте из почтового клиента.
+      </p>
+    );
+  }
+  return <InboxReplyForm inboundMessageId={item.id} />;
 }
 
 export function InboxList({
@@ -82,7 +119,7 @@ export function InboxList({
                 <p>{excerpt(item.body)}</p>
                 {item.attachmentName && (
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                    <span>📎 {item.attachmentName}</span>
+                    <AttachmentName item={item} />
                     <ScanBadge scanStatus={item.scanStatus} />
                   </div>
                 )}
@@ -94,15 +131,22 @@ export function InboxList({
               </Td>
               <Td className="whitespace-nowrap text-gray-500">{fmtDateTime(item.createdAt)}</Td>
               <Td className="min-w-[16rem]">
-                {item.status === 'unresolved' && (
-                  <InboxBindForm
-                    inboundMessageId={item.id}
-                    organizations={organizations}
-                    contactsEnabled={contactsEnabled}
-                  />
-                )}
-                {item.status === 'bound' && <InboxReplyForm inboundMessageId={item.id} />}
-                {item.status === 'archived' && <span className="text-xs text-gray-400">—</span>}
+                <div className="space-y-2">
+                  {item.status === 'unresolved' && (
+                    <InboxBindForm
+                      inboundMessageId={item.id}
+                      organizations={organizations}
+                      contactsEnabled={contactsEnabled}
+                    />
+                  )}
+                  {item.status === 'bound' && <BoundReplyControl item={item} />}
+                  {(item.status === 'unresolved' || item.status === 'bound') && (
+                    <InboxArchiveButton inboundMessageId={item.id} mode="archive" />
+                  )}
+                  {item.status === 'archived' && (
+                    <InboxArchiveButton inboundMessageId={item.id} mode="restore" />
+                  )}
+                </div>
               </Td>
             </Tr>
           ))}
@@ -124,12 +168,12 @@ export function InboxList({
             <p className="mt-1 text-sm text-gray-600">{excerpt(item.body)}</p>
             {item.attachmentName && (
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                <span>📎 {item.attachmentName}</span>
+                <AttachmentName item={item} />
                 <ScanBadge scanStatus={item.scanStatus} />
               </div>
             )}
             <p className="mt-1 text-xs text-gray-400">{fmtDateTime(item.createdAt)}</p>
-            <div className="mt-3">
+            <div className="mt-3 space-y-2">
               {item.status === 'unresolved' && (
                 <InboxBindForm
                   inboundMessageId={item.id}
@@ -137,7 +181,13 @@ export function InboxList({
                   contactsEnabled={contactsEnabled}
                 />
               )}
-              {item.status === 'bound' && <InboxReplyForm inboundMessageId={item.id} />}
+              {item.status === 'bound' && <BoundReplyControl item={item} />}
+              {(item.status === 'unresolved' || item.status === 'bound') && (
+                <InboxArchiveButton inboundMessageId={item.id} mode="archive" />
+              )}
+              {item.status === 'archived' && (
+                <InboxArchiveButton inboundMessageId={item.id} mode="restore" />
+              )}
             </div>
           </div>
         ))}

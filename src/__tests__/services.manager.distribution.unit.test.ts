@@ -11,7 +11,13 @@ const { getCompanyTeamVisibility, canSeeOrder } = vi.hoisted(() => ({
   canSeeOrder: vi.fn()
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
-vi.mock('@/lib/auth/managerPolicy', () => ({ getCompanyTeamVisibility, canSeeOrder }));
+// isLeaderSameCompany остаётся РЕАЛЬНЫМ (чистая функция): leader-bypass в claimOrder
+// тестируется против настоящей границы «лидер + та же компания», а не мока.
+vi.mock('@/lib/auth/managerPolicy', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth/managerPolicy')>()),
+  getCompanyTeamVisibility,
+  canSeeOrder
+}));
 
 import {
   resolveAutoManager,
@@ -21,6 +27,13 @@ import {
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const SESSION: SessionPayload = { sub: 'mgr-1', role: 'manager', managedOrgIds: [], companyId: 'co-1' };
+const LEADER: SessionPayload = {
+  sub: 'lead-1',
+  role: 'manager',
+  managerRole: 'leader',
+  managedOrgIds: [],
+  companyId: 'co-1'
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -188,6 +201,49 @@ describe('claimOrder', () => {
     const update = vi.fn();
     const prisma = { order: { findUnique: vi.fn().mockResolvedValue(scopedOrder('mgr-1')), update } } as never;
     expect(await claimOrder(prisma, SESSION, { orderId: 'o1' })).toEqual({ ok: true, changed: false });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('leader bypass: лидер забирает незакреплённый заказ СВОЕЙ компании вне canSeeOrder (teamMode=false)', async () => {
+    // Зеркалит isLeaderSameCompany-bypass деталки (getOrder): лидер видит заказ →
+    // должен мочь и забрать его, иначе кнопка ведёт в forbidden.
+    canSeeOrder.mockReturnValue(false);
+    const update = vi.fn().mockResolvedValue({});
+    const prisma = { order: { findUnique: vi.fn().mockResolvedValue(scopedOrder(null)), update } } as never;
+    expect(await claimOrder(prisma, LEADER, { orderId: 'o1' })).toEqual({ ok: true, changed: true });
+    expect(update).toHaveBeenCalledWith({ where: { id: 'o1' }, data: { managerId: 'lead-1' } });
+    expect(recordAudit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ action: 'order_self_assigned', after: { managerId: 'lead-1' } })
+    );
+  });
+
+  it('обычный менеджер в той же точке (вне scope, своя компания) → forbidden', async () => {
+    canSeeOrder.mockReturnValue(false);
+    const update = vi.fn();
+    const prisma = { order: { findUnique: vi.fn().mockResolvedValue(scopedOrder(null)), update } } as never;
+    expect(await claimOrder(prisma, SESSION, { orderId: 'o1' })).toEqual({ ok: false, error: 'forbidden' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('лидер на заказ ДРУГОЙ компании → forbidden (bypass ограничен C8-границей)', async () => {
+    canSeeOrder.mockReturnValue(false);
+    const update = vi.fn();
+    const prisma = {
+      order: {
+        findUnique: vi.fn().mockResolvedValue({ managerId: null, organizationId: 'org-9', companyId: 'co-OTHER' }),
+        update
+      }
+    } as never;
+    expect(await claimOrder(prisma, LEADER, { orderId: 'o-foreign' })).toEqual({ ok: false, error: 'forbidden' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('leader bypass НЕ обходит прекондицию already_assigned', async () => {
+    canSeeOrder.mockReturnValue(false);
+    const update = vi.fn();
+    const prisma = { order: { findUnique: vi.fn().mockResolvedValue(scopedOrder('other')), update } } as never;
+    expect(await claimOrder(prisma, LEADER, { orderId: 'o1' })).toEqual({ ok: false, error: 'already_assigned' });
     expect(update).not.toHaveBeenCalled();
   });
 

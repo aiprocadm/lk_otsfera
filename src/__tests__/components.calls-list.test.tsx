@@ -128,4 +128,20 @@ describe('CallsFiltersBar', () => {
     const highlighted = html.slice(0, inboundIdx).lastIndexOf('bg-[#F97316]');
     expect(highlighted).toBeGreaterThan(-1);
   });
+
+  it('с orgId ссылки направлений сохраняют orgId, «Все» — тоже (только без direction)', () => {
+    const html = renderToString(<CallsFiltersBar orgId='org-1' />);
+    expect(html).toContain('/manager/calls?direction=inbound&amp;orgId=org-1');
+    expect(html).toContain('/manager/calls?direction=outbound&amp;orgId=org-1');
+    expect(html).toContain('href="/manager/calls?orgId=org-1"');
+  });
+
+  it('рендерит children — слот под дополнительные фильтры внутри бара', () => {
+    const html = renderToString(
+      <CallsFiltersBar direction='inbound'>
+        <div>ORG_FILTER_SLOT</div>
+      </CallsFiltersBar>
+    );
+    expect(html).toContain('ORG_FILTER_SLOT');
+  });
 });

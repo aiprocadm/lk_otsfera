@@ -25,6 +25,8 @@ function db(lead: LeadRow | null, txOver: Record<string, unknown> = {}) {
       update: vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ ...lead, ...data }))
     },
     organization: { findUnique: vi.fn().mockResolvedValue({ companyId: 'co1' }) },
+    // B1: assign-to-other валидирует кандидата; по умолчанию — активный менеджер
+    user: { findUnique: vi.fn().mockResolvedValue({ role: 'manager', isActive: true }) },
     $transaction: vi.fn(async (cb: (tx: unknown) => unknown) => cb({
       order: { create: vi.fn().mockResolvedValue({ id: 'ord-new' }) },
       lead: { update: vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ ...lead, ...data })),

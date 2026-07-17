@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { getSyncSummary } from '@/lib/services/syncSummary';
+import { getSyncSummary, listSyncErrors } from '@/lib/services/syncSummary';
 import type { PrismaClient } from '@prisma/client';
 
 type CountInput = { where: { entity: string; status: string } };
@@ -108,5 +108,51 @@ describe('getSyncSummary', () => {
     const org = rows.find((r) => r.entity === 'organization')!;
     expect(org.cursor).toBeNull();
     expect(org.lagMs).toBeNull();
+  });
+});
+
+describe('listSyncErrors', () => {
+  function makeErrorsPrisma(rows: unknown[] = []) {
+    return {
+      syncLog: { findMany: vi.fn().mockResolvedValue(rows) }
+    } as unknown as PrismaClient;
+  }
+
+  it('возвращает строки ошибок как есть', async () => {
+    const row = {
+      id: 'sl1',
+      entity: 'payment',
+      externalId: 'EXT-1',
+      direction: 'inbound',
+      operation: 'upsert',
+      errorMessage: 'timeout calling 1C',
+      durationMs: 1200,
+      createdAt: new Date('2026-07-16T09:00:00Z')
+    };
+    const prisma = makeErrorsPrisma([row]);
+    const rows = await listSyncErrors(prisma);
+    expect(rows).toEqual([row]);
+  });
+
+  it('запрос: только status=error, свежие сверху, cap 50, select БЕЗ payload (ПДн)', async () => {
+    const prisma = makeErrorsPrisma();
+    await listSyncErrors(prisma);
+    const arg = (prisma.syncLog.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(arg).toEqual({
+      where: { status: 'error' },
+      select: {
+        id: true,
+        entity: true,
+        externalId: true,
+        direction: true,
+        operation: true,
+        errorMessage: true,
+        durationMs: true,
+        createdAt: true
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+    expect(arg.select).not.toHaveProperty('payload');
   });
 });

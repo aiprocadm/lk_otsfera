@@ -123,7 +123,8 @@ export function isManagerLeader(session: SessionPayload): boolean {
 /**
  * Лидер открывает любой заказ СВОЕЙ компании (инвариант C8: граница — компания).
  * companyId=null у лидера → false (деградирует в обычный scoped-путь, не deny-all).
- * Расширяет только деталь заказа, НЕ списки.
+ * Расширяет деталь заказа и держит scope-gate самозабора (claimOrder в
+ * distribution.ts зеркалит getOrder этой же границей), НЕ списки.
  */
 export function isLeaderSameCompany(session: SessionPayload, orderCompanyId: string | null | undefined): boolean {
   return isManagerLeader(session) && !!session.companyId && orderCompanyId === session.companyId;

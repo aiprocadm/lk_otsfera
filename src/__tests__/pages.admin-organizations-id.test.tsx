@@ -14,6 +14,9 @@ vi.mock('@/lib/db/prisma', () => ({
 const { getOrganization } = vi.hoisted(() => ({ getOrganization: vi.fn() }));
 vi.mock('@/lib/services/admin/organizations', () => ({ getOrganization }));
 
+const { listOrgRateHistory } = vi.hoisted(() => ({ listOrgRateHistory: vi.fn() }));
+vi.mock('@/lib/services/commission/rateHistory', () => ({ listOrgRateHistory }));
+
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
@@ -79,6 +82,8 @@ describe('AdminOrganizationDetailPage', () => {
     requireAdmin.mockReset();
     organizationFindUnique.mockReset();
     getOrganization.mockReset();
+    listOrgRateHistory.mockReset();
+    listOrgRateHistory.mockResolvedValue({ ok: true, rows: [] });
     nav.notFound.mockClear();
   });
 
@@ -141,5 +146,85 @@ describe('AdminOrganizationDetailPage', () => {
 
     expect(container.textContent).toContain('Без партнёра');
     expect(container.textContent).not.toContain('Компания:');
+  });
+
+  it('renders the rate history section with rows (percent formatting, changedByName)', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getOrganization.mockResolvedValue(ORG);
+    organizationFindUnique.mockResolvedValue(META);
+    listOrgRateHistory.mockResolvedValue({
+      ok: true,
+      rows: [
+        {
+          id: 'ch-1',
+          oldRate: 0.05,
+          newRate: 0.1,
+          effectiveFrom: new Date('2026-03-01'),
+          changedByName: 'Admin One'
+        }
+      ]
+    });
+
+    const { container } = await renderServerComponent(
+      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
+    );
+
+    expect(listOrgRateHistory).toHaveBeenCalledWith(expect.anything(), SESSION, 'org-1');
+    expect(container.textContent).toContain('История ставок');
+    expect(container.textContent).toMatch(/5\s*%/);
+    expect(container.textContent).toMatch(/10\s*%/);
+    expect(container.textContent).toContain('Admin One');
+    expect(container.textContent).not.toContain('Изменений не было');
+  });
+
+  it('renders "—" for oldRate:null and «сброс (ставка партнёра)» for newRate:null', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getOrganization.mockResolvedValue(ORG);
+    organizationFindUnique.mockResolvedValue(META);
+    listOrgRateHistory.mockResolvedValue({
+      ok: true,
+      rows: [
+        {
+          id: 'ch-reset',
+          oldRate: null,
+          newRate: null,
+          effectiveFrom: new Date('2026-04-01'),
+          changedByName: null
+        }
+      ]
+    });
+
+    const { container } = await renderServerComponent(
+      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
+    );
+
+    expect(container.textContent).toContain('—');
+    expect(container.textContent).toContain('сброс (ставка партнёра)');
+  });
+
+  it('renders the empty state «Изменений не было» when history has no rows', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getOrganization.mockResolvedValue(ORG);
+    organizationFindUnique.mockResolvedValue(META);
+    listOrgRateHistory.mockResolvedValue({ ok: true, rows: [] });
+
+    const { container } = await renderServerComponent(
+      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
+    );
+
+    expect(container.textContent).toContain('Изменений не было');
+  });
+
+  it('gracefully falls back to the empty state when listOrgRateHistory returns ok:false', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getOrganization.mockResolvedValue(ORG);
+    organizationFindUnique.mockResolvedValue(META);
+    listOrgRateHistory.mockResolvedValue({ ok: false, error: 'forbidden' });
+
+    const { container } = await renderServerComponent(
+      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
+    );
+
+    expect(container.textContent).toContain('Изменений не было');
   });
 });

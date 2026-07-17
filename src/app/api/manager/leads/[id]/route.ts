@@ -8,8 +8,8 @@ import type { LeadStatus } from '@prisma/client';
 
 type Params = { params: Promise<{ id: string }> };
 
-const statusFor = (error: 'not_found' | 'lifecycle_violation'): number =>
-  error === 'not_found' ? 404 : 409;
+const statusFor = (error: 'not_found' | 'lifecycle_violation' | 'invalid_manager'): number =>
+  error === 'not_found' ? 404 : error === 'invalid_manager' ? 400 : 409;
 
 export async function GET(_req: Request, { params }: Params) {
   const disabled = notFoundIfDisabled('manager_cabinet');

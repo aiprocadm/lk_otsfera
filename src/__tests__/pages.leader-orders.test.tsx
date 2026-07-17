@@ -93,4 +93,20 @@ describe('LeaderOrdersPage', () => {
     );
     expect(container.textContent).toContain('cursor-2');
   });
+
+  it('парсит ?unassigned=1 в boolean для listOrders (teamModeOverride сохраняется)', async () => {
+    requireManagerLeader.mockResolvedValue(SESSION);
+    listOrders.mockResolvedValue({ rows: [], nextCursor: null });
+    listOrganizations.mockResolvedValue([]);
+
+    const { container } = await renderServerComponent(
+      LeaderOrdersPage({ searchParams: Promise.resolve({ unassigned: '1' }) })
+    );
+
+    expect(listOrders).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ session: SESSION, teamModeOverride: true, unassigned: true })
+    );
+    expect(container.textContent).toContain('"unassigned":"1"');
+  });
 });

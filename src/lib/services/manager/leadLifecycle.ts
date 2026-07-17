@@ -53,19 +53,37 @@ async function loadLead(prisma: PrismaClient, leadId: string) {
   });
 }
 
-type LeadResult = { ok: true; lead: Lead } | { ok: false; error: 'not_found' | 'lifecycle_violation' };
+// Generic по union кодов ошибок: `invalid_manager` возможен только в assignLead
+// (проверка кандидата при передаче лида) и не «протекает» в setLeadStatus/rejectLead.
+type LeadResult<E extends string = 'not_found' | 'lifecycle_violation'> =
+  | { ok: true; lead: Lead }
+  | { ok: false; error: E };
 
-/** Claim/assign a lead to a manager. From `new`, also advances to `in_review`. */
+/**
+ * Claim/assign a lead to a manager. From `new`, also advances to `in_review`.
+ * B1 (parity): handing over to ANOTHER user requires an existing, active user
+ * with role='manager' → otherwise `invalid_manager`. No company check on
+ * purpose — leads are a shared team queue (owner decision 2026-06-14 above).
+ */
 export async function assignLead(
   prisma: PrismaClient,
   args: { leadId: string; managerId: string; assignToUserId?: string }
-): Promise<LeadResult> {
+): Promise<LeadResult<'not_found' | 'lifecycle_violation' | 'invalid_manager'>> {
   const lead = await loadLead(prisma, args.leadId);
   if (!lead) return { ok: false, error: 'not_found' };
   if (lead.status === 'promoted_to_order' || lead.status === 'rejected') {
     return { ok: false, error: 'lifecycle_violation' };
   }
   const assignee = args.assignToUserId ?? args.managerId;
+  if (assignee !== args.managerId) {
+    const candidate = await prisma.user.findUnique({
+      where: { id: assignee },
+      select: { role: true, isActive: true }
+    });
+    if (!candidate || candidate.role !== 'manager' || !candidate.isActive) {
+      return { ok: false, error: 'invalid_manager' };
+    }
+  }
   const updated = await prisma.lead.update({
     where: { id: lead.id },
     data: { assignedManagerId: assignee, ...(lead.status === 'new' ? { status: 'in_review' as LeadStatus } : {}) }

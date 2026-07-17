@@ -14,6 +14,7 @@ type SearchParams = {
   executionStatus?: string;
   financialStatus?: string;
   organizationId?: string;
+  unassigned?: string;
   cursor?: string;
 };
 
@@ -25,7 +26,7 @@ export default async function LeaderOrdersPage({
   const session = await requireManagerLeader();
   const sp = await searchParams;
   const [{ rows, nextCursor }, orgs] = await Promise.all([
-    listOrders(prisma, { session, ...sp, teamModeOverride: true }),
+    listOrders(prisma, { session, ...sp, unassigned: sp.unassigned === '1', teamModeOverride: true }),
     listOrganizations(prisma, session, true)
   ]);
   return (

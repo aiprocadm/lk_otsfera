@@ -110,6 +110,9 @@ export type ManagerLeadDetail = ManagerLeadRow & {
   rejectedReason: string | null;
   createdByUserName: string;
   updatedAt: Date;
+  // B3: состояние ручной отправки в 1С (строка «1С» + гейт кнопки на странице лида)
+  externalIdInOneC: string | null;
+  pushedToOneCAt: Date | null;
 };
 
 export async function getManagerLead(
@@ -153,6 +156,8 @@ export async function getManagerLead(
     notes: l.notes,
     rejectedReason: l.rejectedReason,
     createdByUserName: l.createdByUser.name,
-    updatedAt: l.updatedAt
+    updatedAt: l.updatedAt,
+    externalIdInOneC: l.externalIdInOneC,
+    pushedToOneCAt: l.pushedToOneCAt
   };
 }

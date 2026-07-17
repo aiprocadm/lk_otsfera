@@ -15,6 +15,10 @@ vi.mock('@/components/manager/inbox-reply-form', () => ({
   InboxReplyForm: (props: { inboundMessageId: string }) =>
     React.createElement('div', { 'data-testid': 'reply-form' }, `reply:${props.inboundMessageId}`)
 }));
+vi.mock('@/components/manager/inbox-archive-button', () => ({
+  InboxArchiveButton: (props: { inboundMessageId: string; mode: string }) =>
+    React.createElement('div', { 'data-testid': 'archive-button' }, `${props.mode}:${props.inboundMessageId}`)
+}));
 
 import { InboxList } from '@/components/manager/inbox-list';
 import { InboxFiltersBar } from '@/components/manager/inbox-filters';
@@ -36,17 +40,24 @@ const base: InboxItem = {
 
 const ORGS = [{ id: 'org-1', name: 'Орг' }] as never;
 
+/** Кол-во вхождений маркера мока — «обе раскладки» = 2 (таблица + карточки). */
+function count(html: string, needle: string): number {
+  return html.split(needle).length - 1;
+}
+
 describe('InboxList', () => {
   it('пустой список → EmptyState', () => {
     const html = renderToString(<InboxList items={[]} organizations={ORGS} />);
     expect(html).toContain('Обращений нет');
   });
 
-  it('unresolved → форма привязки с организациями', () => {
+  it('unresolved → форма привязки с организациями + «В архив» в обеих раскладках', () => {
     const html = renderToString(<InboxList items={[base]} organizations={ORGS} />);
     expect(html).toContain('bind:msg-1:orgs=1:contacts=false');
     expect(html).toContain('Не распознано');
     expect(html).toContain('Вася');
+    expect(count(html, 'archive:msg-1')).toBe(2);
+    expect(html).not.toContain('restore:msg-1');
   });
 
   it('contactsEnabled=true прокидывается в InboxBindForm (Task 11)', () => {
@@ -54,11 +65,14 @@ describe('InboxList', () => {
     expect(html).toContain('bind:msg-1:orgs=1:contacts=true');
   });
 
-  it('bound → форма ответа; archived → тире без формы', () => {
+  it('bound → форма ответа + «В архив»; archived → «Вернуть» без форм', () => {
     const bound = renderToString(
       <InboxList items={[{ ...base, status: 'bound' }]} organizations={ORGS} />
     );
-    expect(bound).toContain('reply:msg-1');
+    expect(count(bound, 'reply:msg-1')).toBe(2);
+    expect(bound).not.toContain('Ответ по email пока недоступен');
+    expect(count(bound, 'archive:msg-1')).toBe(2);
+    expect(bound).not.toContain('restore:msg-1');
 
     const archived = renderToString(
       <InboxList items={[{ ...base, status: 'archived' }]} organizations={ORGS} />
@@ -66,9 +80,28 @@ describe('InboxList', () => {
     expect(archived).not.toContain('reply:');
     expect(archived).not.toContain('bind:');
     expect(archived).toContain('В архиве');
+    expect(count(archived, 'restore:msg-1')).toBe(2);
+    expect(archived).not.toContain('archive:msg-1');
   });
 
-  it('senderDisplay=null → показывается senderRef; неизвестные channel/status — как есть', () => {
+  it('email + bound → подсказка вместо формы ответа в обеих раскладках, «В архив» остаётся', () => {
+    const html = renderToString(
+      <InboxList items={[{ ...base, channel: 'email', status: 'bound' }]} organizations={ORGS} />
+    );
+    expect(html).not.toContain('reply:msg-1');
+    expect(count(html, 'Ответ по email пока недоступен — ответьте из почтового клиента')).toBe(2);
+    expect(count(html, 'archive:msg-1')).toBe(2);
+  });
+
+  it('email + unresolved → форма привязки как обычно, без email-подсказки', () => {
+    const html = renderToString(
+      <InboxList items={[{ ...base, channel: 'email' }]} organizations={ORGS} />
+    );
+    expect(count(html, 'bind:msg-1:orgs=1')).toBe(2);
+    expect(html).not.toContain('Ответ по email пока недоступен');
+  });
+
+  it('senderDisplay=null → показывается senderRef; неизвестные channel/status — как есть, без архив-кнопок', () => {
     const html = renderToString(
       <InboxList
         items={[{ ...base, senderDisplay: null, channel: 'carrier-pigeon', status: 'odd' }]}
@@ -78,6 +111,8 @@ describe('InboxList', () => {
     expect(html).toContain('@vasya');
     expect(html).toContain('carrier-pigeon');
     expect(html).toContain('odd');
+    expect(html).not.toContain('archive:msg-1');
+    expect(html).not.toContain('restore:msg-1');
   });
 
   it('subject рендерится, длинный body обрезается с многоточием', () => {
@@ -117,6 +152,31 @@ describe('InboxList', () => {
     expect(html).toContain('b.pdf');
     expect(html).not.toContain('Вложение:');
   });
+
+  it('clean вложение → имя становится ссылкой на download-роут', () => {
+    const html = renderToString(
+      <InboxList
+        items={[{ ...base, attachmentName: 'a.pdf', scanStatus: 'clean' }]}
+        organizations={ORGS}
+      />
+    );
+    expect(html).toContain('href="/api/manager/inbox/msg-1/attachment"');
+    expect(html).toContain('a.pdf');
+  });
+
+  it.each(['pending', 'infected', 'none'])(
+    'scanStatus=%s → имя вложения без ссылки',
+    (scanStatus) => {
+      const html = renderToString(
+        <InboxList
+          items={[{ ...base, attachmentName: 'a.pdf', scanStatus }]}
+          organizations={ORGS}
+        />
+      );
+      expect(html).toContain('a.pdf');
+      expect(html).not.toContain('/api/manager/inbox/msg-1/attachment');
+    }
+  );
 });
 
 describe('InboxFiltersBar', () => {

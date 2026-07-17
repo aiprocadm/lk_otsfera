@@ -245,4 +245,22 @@ describe('InboxReplyForm', () => {
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toBe('Обращение не найдено.');
   });
+
+  // Полный контракт replyInboundAction (E3): коды вне локального ERROR_LABEL
+  // резолвятся центральной картой errorMessageRu, а не сырым fallback'ом.
+  it.each([
+    ['invalid', 'Введите текст ответа.'],
+    ['reply_failed', 'Не удалось отправить ответ. Попробуйте ещё раз.'],
+    ['email_unsupported', 'Ответ по email пока не поддерживается — свяжитесь с клиентом другим каналом.']
+  ])('%s → текст центральной карты в role=alert', async (code, label) => {
+    replyInboundAction.mockResolvedValue({ ok: false, error: code });
+    render(<InboxReplyForm inboundMessageId='m3' />);
+
+    fireEvent.change(screen.getByLabelText('Текст ответа'), { target: { value: 'Ау' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ответить' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe(label);
+    expect(alert.textContent).not.toContain('Ошибка:');
+  });
 });

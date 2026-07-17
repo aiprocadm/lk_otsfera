@@ -18,6 +18,11 @@ vi.mock('@/components/organization/org-sidebar', () => ({
     )
 }));
 
+vi.mock('@/components/notifications/notification-bell', () => ({
+  NotificationBell: (props: { role: string }) =>
+    React.createElement('span', { 'data-testid': 'notification-bell', 'data-role': props.role }, '🔔')
+}));
+
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import type { OrgSidebarMembership } from '@/components/organization/org-sidebar';
 
@@ -57,6 +62,20 @@ describe('OrgAppShell', () => {
     expect(html).toContain('дочерний контент');
     expect(html).toContain('Главная');
     expect(html).toContain('data-testid="org-sidebar"');
+  });
+
+  it('renders NotificationBell with role="organization" in the header', () => {
+    const html = renderToString(
+      renderShell({
+        userEmail: null,
+        activeOrgName: 'ООО Заря',
+        memberships: MEMBERSHIPS,
+        activeOrgId: 'org-A',
+        viewerRole: 'admin',
+        children: 'c'
+      })
+    );
+    expect(html).toContain('data-role="organization"');
   });
 
   it('omits the email span when userEmail is null/undefined', () => {

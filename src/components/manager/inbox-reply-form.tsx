@@ -10,10 +10,15 @@ import { Textarea, Button } from '@/components/ui';
 /**
  * Ответ на уже привязанное (`status==='bound'`) обращение. Отправляет через
  * `replyInboundAction` → `replyToInbound` (реальный исходящий транспорт
- * канала). `email_unsupported` — известное ограничение (email пока без
- * исходящей отправки) и должно быть заметно, а не тонуть в общей ошибке.
+ * канала). Для email-строк форма не рендерится вовсе (`InboxList`, E3) —
+ * исходящей отправки нет; `email_unsupported` остаётся защитой в глубину.
  */
 
+/**
+ * Дельта поверх центральной карты: только контекстные уточнения forbidden/
+ * not_found. Остальной контракт action'а (`invalid`, `reply_failed`,
+ * `email_unsupported`) уже точно покрыт errorMessageRu — не дублируем (E3).
+ */
 const ERROR_LABEL: Record<string, string> = {
   forbidden: 'Обращение недоступно вашей компании.',
   not_found: 'Обращение не найдено.'

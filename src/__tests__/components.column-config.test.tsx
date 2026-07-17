@@ -97,7 +97,7 @@ describe('ColumnConfig', () => {
     expect(checkbox.checked).toBe(true);
   });
 
-  it('create flow: submits form data, toasts success, and closes (triggers refresh)', async () => {
+  it('create flow: submits form data (default color = «без цвета» → empty string), toasts success, and closes (triggers refresh)', async () => {
     createTaskColumnAction.mockResolvedValue({ ok: true, id: 'new-id' });
     render(renderConfig({ columns: [], isDefault: false }));
     fireEvent.click(screen.getByRole('button', { name: '+ Колонка' }));
@@ -110,9 +110,36 @@ describe('ColumnConfig', () => {
     await waitFor(() => expect(createTaskColumnAction).toHaveBeenCalledTimes(1));
     const fd = createTaskColumnAction.mock.calls[0][0] as FormData;
     expect(fd.get('name')).toBe('Ревью');
+    expect(fd.get('color')).toBe(''); // «Без цвета» по умолчанию; экшен маппит '' → null
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Колонка создана.'));
     await waitFor(() => expect(refresh).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByText('Новая колонка')).toBeNull());
+  });
+
+  it('create flow: selecting a color swatch submits its hex in FormData', async () => {
+    createTaskColumnAction.mockResolvedValue({ ok: true, id: 'new-id' });
+    render(renderConfig({ columns: [], isDefault: false }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Колонка' }));
+    const dialogTitle = await screen.findByText('Новая колонка');
+    const dialogEl = dialogTitle.closest('dialog') as HTMLElement;
+
+    fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'Цветная' } });
+    fireEvent.click(within(dialogEl).getByRole('radio', { name: 'Розовый' }));
+    fireEvent.click(within(dialogEl).getByRole('button', { name: 'Создать' }));
+
+    await waitFor(() => expect(createTaskColumnAction).toHaveBeenCalledTimes(1));
+    const fd = createTaskColumnAction.mock.calls[0][0] as FormData;
+    expect(fd.get('color')).toBe('#EC4899');
+  });
+
+  it('edit dialog pre-selects the column color in the swatch picker', async () => {
+    const colored: TaskColumnView = { ...column, color: '#EF4444' };
+    render(renderConfig({ columns: [colored], isDefault: false }));
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
+    await screen.findByText('Изменить колонку');
+    const swatch = screen.getByRole('radio', { name: 'Красный' }) as HTMLInputElement;
+    expect(swatch.checked).toBe(true);
+    expect((screen.getByRole('radio', { name: 'Без цвета' }) as HTMLInputElement).checked).toBe(false);
   });
 
   it('edit flow: submits with the target id set and toasts "updated"', async () => {

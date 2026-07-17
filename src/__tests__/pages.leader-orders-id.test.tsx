@@ -26,6 +26,26 @@ vi.mock('@/lib/services/customFields', () => ({ getValuesForEntity }));
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
+const { listCompanyManagers } = vi.hoisted(() => ({ listCompanyManagers: vi.fn() }));
+vi.mock('@/lib/services/manager/team', () => ({ listCompanyManagers }));
+
+vi.mock('@/components/leader/leader-assign-order-manager-form', () => ({
+  LeaderAssignOrderManagerForm: (props: {
+    orderId: string;
+    currentManagerId: string | null;
+    candidates: unknown[];
+  }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'leader-assign-form' },
+      JSON.stringify({
+        orderId: props.orderId,
+        currentManagerId: props.currentManagerId,
+        candidates: props.candidates
+      })
+    )
+}));
+
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
@@ -66,6 +86,7 @@ const BASE_DATA = {
   order: {
     id: 'order-1',
     organizationId: 'org-1',
+    managerId: 'm-current',
     orderNumber: '2024-001',
     title: 'Обучение по ОТ',
     executionStatus: 'in_progress',
@@ -88,6 +109,8 @@ describe('LeaderOrderDetailPage', () => {
     listDirections.mockReset();
     getValuesForEntity.mockReset();
     isFeatureEnabled.mockReset();
+    listCompanyManagers.mockReset();
+    listCompanyManagers.mockResolvedValue([]);
     nav.notFound.mockClear();
   });
 
@@ -173,5 +196,61 @@ describe('LeaderOrderDetailPage', () => {
       expect.objectContaining({ where: { organizationId: undefined } })
     );
     expect(container.textContent).toContain('[]falsefalse');
+  });
+
+  it('монтирует форму назначения менеджера: кандидаты фильтруются по isActive, мапятся в {id,email,name}, currentManagerId — из data.order.managerId', async () => {
+    requireManagerLeader.mockResolvedValue(SESSION);
+    loadManagerOrderDetail.mockResolvedValue(BASE_DATA);
+    listDirections.mockResolvedValue({ ok: true, directions: [] });
+    studentFindMany.mockResolvedValue([]);
+    getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+    getDealActivity.mockResolvedValue({ ok: true, items: [] });
+    isFeatureEnabled.mockReturnValue(false);
+    listCompanyManagers.mockResolvedValue([
+      { id: 'm1', name: 'Анна', email: 'anna@x.com', isActive: true, managerRole: null, assignments: [] },
+      { id: 'm2', name: 'Борис', email: 'boris@x.com', isActive: false, managerRole: null, assignments: [] },
+      { id: 'm-current', name: 'Вера', email: 'vera@x.com', isActive: true, managerRole: 'leader', assignments: [] }
+    ]);
+
+    const { getByTestId } = await renderServerComponent(
+      LeaderOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+    );
+
+    expect(listCompanyManagers).toHaveBeenCalledWith(
+      expect.objectContaining({ student: expect.anything() }),
+      'c1'
+    );
+    const formProps = JSON.parse(getByTestId('leader-assign-form').textContent ?? '{}');
+    expect(formProps).toEqual({
+      orderId: 'order-1',
+      currentManagerId: 'm-current',
+      candidates: [
+        { id: 'm1', email: 'anna@x.com', name: 'Анна' },
+        { id: 'm-current', email: 'vera@x.com', name: 'Вера' }
+      ]
+    });
+    // Деталка рендерится рядом с формой, а не заменяется ею.
+    expect(getByTestId('order-detail-view')).toBeTruthy();
+  });
+
+  it('companyId=null: listCompanyManagers не вызывается, кандидаты пустые; managerId=null прокидывается как currentManagerId', async () => {
+    requireManagerLeader.mockResolvedValue({ ...SESSION, companyId: null });
+    loadManagerOrderDetail.mockResolvedValue({
+      ...BASE_DATA,
+      order: { ...BASE_DATA.order, managerId: null }
+    });
+    listDirections.mockResolvedValue({ ok: true, directions: [] });
+    studentFindMany.mockResolvedValue([]);
+    getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+    getDealActivity.mockResolvedValue({ ok: true, items: [] });
+    isFeatureEnabled.mockReturnValue(false);
+
+    const { getByTestId } = await renderServerComponent(
+      LeaderOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+    );
+
+    expect(listCompanyManagers).not.toHaveBeenCalled();
+    const formProps = JSON.parse(getByTestId('leader-assign-form').textContent ?? '{}');
+    expect(formProps).toEqual({ orderId: 'order-1', currentManagerId: null, candidates: [] });
   });
 });

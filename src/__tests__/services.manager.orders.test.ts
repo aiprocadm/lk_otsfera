@@ -288,6 +288,25 @@ describe('services/manager/orders — listOrders filters', () => {
     }
   });
 
+  it('unassigned=true returns only orders without manager within scope', async () => {
+    const session = managerSession(userBId, [orgBId]);
+    const { rows } = await listOrders(prisma, { session, unassigned: true, take: 100 });
+    const ids = rows.map((r) => r.id);
+    expect(ids).toContain(orderOrgBId); // managerId=null
+    expect(ids).toContain(orderForeignId); // managerId=null, тоже в orgB
+    expect(ids).not.toContain(orderManagerCId); // manager=userC — отфильтрован
+    for (const r of rows) {
+      expect(r.managerId).toBeNull();
+    }
+  });
+
+  it('unassigned=false is a no-op: assigned orders remain visible', async () => {
+    const session = managerSession(userBId, [orgBId]);
+    const { rows } = await listOrders(prisma, { session, unassigned: false, take: 100 });
+    const ids = rows.map((r) => r.id);
+    expect(ids).toContain(orderManagerCId);
+  });
+
   it('search matches orderNumber case-insensitively within scope', async () => {
     const session = managerSession(userBId, [orgBId]);
     const { rows } = await listOrders(prisma, { session, search: 'mo-mc' });

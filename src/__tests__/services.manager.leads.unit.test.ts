@@ -149,6 +149,8 @@ describe('getManagerLead', () => {
       rejectedReason: null,
       createdByUser: { name: 'Admin' },
       updatedAt: new Date('2026-06-05'),
+      externalIdInOneC: null,
+      pushedToOneCAt: null,
       ...over
     };
   }
@@ -177,6 +179,22 @@ describe('getManagerLead', () => {
     expect(result!.createdByUserName).toBe('Admin');
     expect(result!.partnerName).toBe('Partner B');
     expect(result!.assignedManagerName).toBe('Иванов');
+    expect(result!.externalIdInOneC).toBeNull();
+    expect(result!.pushedToOneCAt).toBeNull();
+  });
+
+  it('прокидывает externalIdInOneC/pushedToOneCAt (B3: строка «1С» на странице лида)', async () => {
+    const pushedAt = new Date('2026-06-05T10:00:00Z');
+    const db = {
+      lead: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue(fullRow({ externalIdInOneC: 'EXT-77', pushedToOneCAt: pushedAt }))
+      }
+    } as never;
+    const result = await getManagerLead(db, SESSION, 'L1');
+    expect(result!.externalIdInOneC).toBe('EXT-77');
+    expect(result!.pushedToOneCAt).toEqual(pushedAt);
   });
 
   it('maps estimatedAmount Decimal to string when present', async () => {

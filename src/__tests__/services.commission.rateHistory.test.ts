@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { listRateHistory } from '@/lib/services/commission/rateHistory';
+import { listRateHistory, listOrgRateHistory } from '@/lib/services/commission/rateHistory';
 
 let prisma: PrismaClient;
 let partnerId: string;
@@ -122,6 +122,89 @@ describe('listRateHistory()', () => {
       expect(nullRow!.changedByName).toBeNull();
     } finally {
       await prisma.commissionRateChange.deleteMany({ where: { id: nullActorChange.id } });
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// G4 — listOrgRateHistory: история орг-ставки (OrganizationCommissionRateChange).
+// Отличие от партнёрской истории: newRate nullable (null = «сброс к ставке
+// партнёра»). Сид: установка override, затем сброс (newRate: null).
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('listOrgRateHistory() (integration)', () => {
+  let organizationId: string;
+
+  beforeAll(async () => {
+    const org = await prisma.organization.create({
+      data: { name: 'OrgRateHistoryTestOrg-' + Date.now() }
+    });
+    organizationId = org.id;
+
+    // Установка org-override (oldRate null = ставка не была задана)
+    await prisma.organizationCommissionRateChange.create({
+      data: {
+        organizationId,
+        oldRate: null,
+        newRate: new Prisma.Decimal('0.07'),
+        effectiveFrom: new Date('2026-02-01T00:00:00Z'),
+        changedById: actorUserId
+      }
+    });
+    // Сброс к ставке партнёра (newRate null)
+    await prisma.organizationCommissionRateChange.create({
+      data: {
+        organizationId,
+        oldRate: new Prisma.Decimal('0.07'),
+        newRate: null,
+        effectiveFrom: new Date('2026-05-01T00:00:00Z'),
+        changedById: actorUserId
+      }
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.organizationCommissionRateChange.deleteMany({ where: { organizationId } });
+    await prisma.organization.deleteMany({ where: { id: organizationId } });
+  });
+
+  it('returns forbidden for non-admin session', async () => {
+    const result = await listOrgRateHistory(prisma, makeSession('manager'), organizationId);
+    expect(result).toEqual({ ok: false, error: 'forbidden' });
+  });
+
+  it('returns rows newest-first with null newRate for the reset event and resolved names', async () => {
+    const result = await listOrgRateHistory(prisma, makeSession('admin'), organizationId);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.rows).toHaveLength(2);
+
+    // Newest first: сброс от 2026-05-01 раньше в списке, чем установка от 2026-02-01
+    expect(result.rows[0].effectiveFrom.toISOString()).toContain('2026-05');
+    expect(result.rows[1].effectiveFrom.toISOString()).toContain('2026-02');
+
+    // Первая строка: сброс — newRate null, oldRate 0.07
+    expect(result.rows[0].oldRate).toBeCloseTo(0.07);
+    expect(result.rows[0].newRate).toBeNull();
+    expect(result.rows[0].changedByName).toBe('Rate History Actor');
+
+    // Вторая строка: установка — oldRate null, newRate 0.07
+    expect(result.rows[1].oldRate).toBeNull();
+    expect(result.rows[1].newRate).toBeCloseTo(0.07);
+    expect(result.rows[1].changedByName).toBe('Rate History Actor');
+  });
+
+  it('returns empty rows array when organization has no history', async () => {
+    const emptyOrg = await prisma.organization.create({
+      data: { name: 'EmptyOrgRateHistoryOrg-' + Date.now() }
+    });
+    try {
+      const result = await listOrgRateHistory(prisma, makeSession('admin'), emptyOrg.id);
+      expect(result).toEqual({ ok: true, rows: [] });
+    } finally {
+      await prisma.organization.deleteMany({ where: { id: emptyOrg.id } });
     }
   });
 });

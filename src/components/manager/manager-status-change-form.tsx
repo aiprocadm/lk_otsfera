@@ -74,7 +74,7 @@ export function ManagerStatusChangeForm({ orderId, currentStatus }: Props) {
     const label = currentStatus === 'cancelled' ? 'отменён' : 'на удержании';
     return (
       <div className='bg-white border border-gray-200 rounded-xl p-5'>
-        <h2 className='text-sm font-semibold text-[#111111] mb-2'>Изменить статус</h2>
+        <h2 className='text-sm font-semibold text-[#111111] mb-2'>Операционный статус</h2>
         <p className='text-sm text-gray-500'>
           Заказ {label}; статус управляется отдельным процессом.
         </p>
@@ -86,7 +86,7 @@ export function ManagerStatusChangeForm({ orderId, currentStatus }: Props) {
 
   return (
     <div className='bg-white border border-gray-200 rounded-xl p-5'>
-      <h2 className='text-sm font-semibold text-[#111111] mb-3'>Изменить статус</h2>
+      <h2 className='text-sm font-semibold text-[#111111] mb-3'>Операционный статус</h2>
       <form ref={formRef} action={formAction} className='flex flex-col sm:flex-row sm:items-end gap-3'>
         <label className='text-sm text-gray-700 flex-1'>
           <span className='block text-xs text-gray-500 mb-1'>Новый статус</span>

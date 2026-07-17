@@ -1,13 +1,17 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
-import { BackLink } from '@/components/ui';
+import { BackLink, TableShell, THead, Th, Tr, Td } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { getOrganization } from '@/lib/services/admin/organizations';
+import { listOrgRateHistory } from '@/lib/services/commission/rateHistory';
 import { CustomerAccessSection } from '@/components/partner/customer-access-section';
 import { ManagersBlock } from '@/components/admin/managers-block';
 import { OrganizationEditForm } from '@/components/admin/organization-edit-form';
 import { AdminRateOverrideForm } from '@/components/admin/admin-rate-override-form';
+import { fmtDate } from '@/lib/format';
+
+const fmtRate = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 2 });
 
 export const dynamic = 'force-dynamic';
 
@@ -16,10 +20,10 @@ export default async function AdminOrganizationDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireAdmin();
+  const session = await requireAdmin();
   const { id } = await params;
 
-  const [org, meta] = await Promise.all([
+  const [org, meta, rateHistoryResult] = await Promise.all([
     getOrganization(prisma, id),
     prisma.organization.findUnique({
       where: { id },
@@ -27,9 +31,11 @@ export default async function AdminOrganizationDetailPage({
         company: { select: { id: true, name: true } },
         _count: { select: { orders: true, students: true, organizationUsers: true } }
       }
-    })
+    }),
+    listOrgRateHistory(prisma, session, id)
   ]);
   if (!org || !meta) notFound();
+  const rateHistory = rateHistoryResult.ok ? rateHistoryResult.rows : [];
 
   return (
     <div className='space-y-5'>
@@ -80,6 +86,36 @@ export default async function AdminOrganizationDetailPage({
           initialRate={org.partnerCommissionRate}
           initialNote={org.partnerCommissionRateNote}
         />
+      </section>
+
+      <section className='space-y-3'>
+        <h2 className='text-base font-semibold text-[#111111]'>История ставок</h2>
+        {rateHistory.length === 0 ? (
+          <p className='text-sm text-gray-500'>Изменений не было.</p>
+        ) : (
+          <TableShell>
+            <THead className='bg-[#F3F4F6]'>
+              <Th className='py-2 text-[#111111]'>Дата</Th>
+              <Th className='py-2 text-[#111111]'>Было</Th>
+              <Th className='py-2 text-[#111111]'>Стало</Th>
+              <Th className='py-2 text-[#111111]'>Кто</Th>
+            </THead>
+            <tbody>
+              {rateHistory.map((row) => (
+                <Tr key={row.id} hover={false} className='border-gray-100'>
+                  <Td className='py-2 text-gray-700'>{fmtDate(row.effectiveFrom)}</Td>
+                  <Td className='py-2 text-gray-700'>
+                    {row.oldRate !== null ? fmtRate.format(row.oldRate) : '—'}
+                  </Td>
+                  <Td className='py-2 text-gray-700'>
+                    {row.newRate !== null ? fmtRate.format(row.newRate) : 'сброс (ставка партнёра)'}
+                  </Td>
+                  <Td className='py-2 text-gray-500'>{row.changedByName ?? '—'}</Td>
+                </Tr>
+              ))}
+            </tbody>
+          </TableShell>
+        )}
       </section>
 
       <CustomerAccessSection organizationId={org.id} canInvite={true} source='admin' />

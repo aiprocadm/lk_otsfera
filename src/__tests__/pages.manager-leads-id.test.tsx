@@ -11,6 +11,9 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 const { getManagerLead } = vi.hoisted(() => ({ getManagerLead: vi.fn() }));
 vi.mock('@/lib/services/manager/leads', () => ({ getManagerLead }));
 
+const { listCompanyManagers } = vi.hoisted(() => ({ listCompanyManagers: vi.fn() }));
+vi.mock('@/lib/services/manager/team', () => ({ listCompanyManagers }));
+
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
@@ -24,15 +27,27 @@ vi.mock('@/components/partner/lead-status-badge', () => ({
     React.createElement('span', { 'data-testid': 'status-badge' }, props.status)
 }));
 
+vi.mock('@/components/manager/push-lead-button', () => ({
+  PushLeadButton: (props: { leadId: string }) =>
+    React.createElement('button', { 'data-testid': 'push-lead-button' }, props.leadId)
+}));
+
 vi.mock('@/components/manager/manager-lead-actions', () => ({
-  ManagerLeadActions: (props: { leadId: string; status: string; hasOrganization: boolean; promotedOrderId: unknown }) =>
+  ManagerLeadActions: (props: {
+    leadId: string;
+    status: string;
+    hasOrganization: boolean;
+    promotedOrderId: unknown;
+    candidates: unknown;
+  }) =>
     React.createElement(
       'div',
       { 'data-testid': 'lead-actions' },
       props.leadId,
       props.status,
       String(props.hasOrganization),
-      String(props.promotedOrderId)
+      String(props.promotedOrderId),
+      JSON.stringify(props.candidates)
     )
 }));
 
@@ -58,13 +73,17 @@ const BASE_LEAD = {
   status: 'new',
   rejectedReason: null as string | null,
   notes: null as string | null,
-  promotedOrderId: null as string | null
+  promotedOrderId: null as string | null,
+  externalIdInOneC: null as string | null,
+  pushedToOneCAt: null as Date | null
 };
 
 describe('ManagerLeadDetailPage', () => {
   beforeEach(() => {
     requireManager.mockReset();
     getManagerLead.mockReset();
+    listCompanyManagers.mockReset();
+    listCompanyManagers.mockResolvedValue([]);
     nav.notFound.mockClear();
   });
 
@@ -90,6 +109,42 @@ describe('ManagerLeadDetailPage', () => {
     expect(container.textContent).toContain('Чтобы преобразовать заявку в заказ');
     expect(container.textContent).not.toContain('Причина отклонения');
     expect(container.querySelector('[data-testid="lead-actions"]')?.textContent).toContain('false');
+    // 1С: лид ещё не отправлялся — строка-заглушка + кнопка отправки смонтирована
+    expect(container.textContent).toContain('не отправлялся');
+    expect(container.querySelector('[data-testid="push-lead-button"]')?.textContent).toBe('lead-1');
+  });
+
+  it('pushedToOneCAt задан: строка «1С» с датой и номером, кнопка отправки скрыта', async () => {
+    requireManager.mockResolvedValue(SESSION);
+    getManagerLead.mockResolvedValue({
+      ...BASE_LEAD,
+      pushedToOneCAt: new Date('2026-06-05T00:00:00Z'),
+      externalIdInOneC: 'EXT-77'
+    });
+
+    const { container } = await renderServerComponent(
+      ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+    );
+
+    expect(container.textContent).toContain('отправлено 05.06.2026, №EXT-77');
+    expect(container.textContent).not.toContain('не отправлялся');
+    expect(container.querySelector('[data-testid="push-lead-button"]')).toBeNull();
+  });
+
+  it('pushedToOneCAt без externalIdInOneC: номер рендерится прочерком', async () => {
+    requireManager.mockResolvedValue(SESSION);
+    getManagerLead.mockResolvedValue({
+      ...BASE_LEAD,
+      pushedToOneCAt: new Date('2026-06-05T00:00:00Z'),
+      externalIdInOneC: null
+    });
+
+    const { container } = await renderServerComponent(
+      ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+    );
+
+    expect(container.textContent).toContain('отправлено 05.06.2026, №—');
+    expect(container.querySelector('[data-testid="push-lead-button"]')).toBeNull();
   });
 
   it('renders populated fields, org present, rejectedReason, and notes', async () => {
@@ -123,6 +178,38 @@ describe('ManagerLeadDetailPage', () => {
     expect(container.textContent).toContain('Примечание к заявке');
     // rejected status -> the org-required hint must not show even without org
     expect(container.querySelector('[data-testid="lead-actions"]')?.textContent).toContain('true');
+  });
+
+  it('передаёт в actions только активных менеджеров компании, кроме самого себя, узким {id,name,email}', async () => {
+    requireManager.mockResolvedValue(SESSION);
+    getManagerLead.mockResolvedValue(BASE_LEAD);
+    listCompanyManagers.mockResolvedValue([
+      { id: 'u1', name: 'Я сам', email: 'me@x.ru', isActive: true, managerRole: 'member', assignments: [] },
+      { id: 'm2', name: 'Мария', email: 'm@x.ru', isActive: true, managerRole: null, assignments: [] },
+      { id: 'm3', name: 'Неактивный', email: 'off@x.ru', isActive: false, managerRole: null, assignments: [] }
+    ]);
+
+    const { container } = await renderServerComponent(
+      ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+    );
+
+    expect(listCompanyManagers).toHaveBeenCalledWith(expect.anything(), 'c1');
+    const actions = container.querySelector('[data-testid="lead-actions"]')?.textContent ?? '';
+    expect(actions).toContain(JSON.stringify([{ id: 'm2', name: 'Мария', email: 'm@x.ru' }]));
+    expect(actions).not.toContain('Я сам');
+    expect(actions).not.toContain('Неактивный');
+  });
+
+  it('companyId=null: кандидаты пустые, listCompanyManagers не вызывается', async () => {
+    requireManager.mockResolvedValue({ ...SESSION, companyId: null });
+    getManagerLead.mockResolvedValue(BASE_LEAD);
+
+    const { container } = await renderServerComponent(
+      ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+    );
+
+    expect(listCompanyManagers).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="lead-actions"]')?.textContent).toContain('[]');
   });
 
   it('does not show the org-required hint when status is promoted_to_order even without an organization', async () => {

@@ -16,6 +16,8 @@ function db(lead: LeadRow | null, over: Record<string, unknown> = {}) {
       update: vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ ...lead, ...data }))
     },
     organization: { findUnique: vi.fn().mockResolvedValue({ companyId: 'co1' }) },
+    // B1: assign-to-other валидирует кандидата; по умолчанию — активный менеджер
+    user: { findUnique: vi.fn().mockResolvedValue({ role: 'manager', isActive: true }) },
     order: { create: vi.fn().mockResolvedValue({ id: 'ord-new' }) },
     $transaction: vi.fn(async (cb: (tx: unknown) => unknown) => cb({
       order: { create: vi.fn().mockResolvedValue({ id: 'ord-new' }) },
@@ -50,6 +52,34 @@ describe('assignLead', () => {
   it('returns not_found for a missing lead', async () => {
     const d = db(null);
     expect(await assignLead(d, { leadId: 'L1', managerId: 'm1' })).toEqual({ ok: false, error: 'not_found' });
+  });
+  it('B1: rejects handover to a nonexistent user → invalid_manager, no update', async () => {
+    const d = db({ id: 'L1', status: 'new', partnerId: 'p1', organizationId: 'o1' });
+    (d as any).user.findUnique.mockResolvedValue(null);
+    expect(await assignLead(d, { leadId: 'L1', managerId: 'm1', assignToUserId: 'ghost' })).toEqual({ ok: false, error: 'invalid_manager' });
+    expect((d as any).lead.update).not.toHaveBeenCalled();
+  });
+  it('B1: rejects handover to a non-manager role → invalid_manager', async () => {
+    const d = db({ id: 'L1', status: 'new', partnerId: 'p1', organizationId: 'o1' });
+    (d as any).user.findUnique.mockResolvedValue({ role: 'partner', isActive: true });
+    expect(await assignLead(d, { leadId: 'L1', managerId: 'm1', assignToUserId: 'u2' })).toEqual({ ok: false, error: 'invalid_manager' });
+  });
+  it('B1: rejects handover to an inactive manager → invalid_manager', async () => {
+    const d = db({ id: 'L1', status: 'new', partnerId: 'p1', organizationId: 'o1' });
+    (d as any).user.findUnique.mockResolvedValue({ role: 'manager', isActive: false });
+    expect(await assignLead(d, { leadId: 'L1', managerId: 'm1', assignToUserId: 'u2' })).toEqual({ ok: false, error: 'invalid_manager' });
+  });
+  it('B1: self-assign skips candidate lookup entirely (behaviour unchanged)', async () => {
+    const d = db({ id: 'L1', status: 'new', partnerId: 'p1', organizationId: 'o1' });
+    const r = await assignLead(d, { leadId: 'L1', managerId: 'm1' });
+    if (!r.ok) throw new Error('expected ok');
+    expect((d as any).user.findUnique).not.toHaveBeenCalled();
+  });
+  it('B1: explicit assignToUserId equal to self skips candidate lookup', async () => {
+    const d = db({ id: 'L1', status: 'new', partnerId: 'p1', organizationId: 'o1' });
+    const r = await assignLead(d, { leadId: 'L1', managerId: 'm1', assignToUserId: 'm1' });
+    if (!r.ok) throw new Error('expected ok');
+    expect((d as any).user.findUnique).not.toHaveBeenCalled();
   });
 });
 

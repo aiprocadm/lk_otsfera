@@ -26,6 +26,8 @@ const ListOrdersOptionsSchema = z.object({
   executionStatus: z.string().optional(),
   financialStatus: z.string().optional(),
   organizationId: z.string().optional(),
+  // «Без менеджера»: только заказы без персонального менеджера (Order.managerId IS NULL).
+  unassigned: z.boolean().optional(),
   take: z.number().int().min(1).max(100).default(50),
   cursor: z.string().optional(),
   // Кабинет руководителя форсит company-wide независимо от toggle ("играющий
@@ -64,6 +66,9 @@ export async function listOrders(
   }
   if (opts.organizationId) {
     filters.push({ organizationId: opts.organizationId });
+  }
+  if (opts.unassigned) {
+    filters.push({ managerId: null });
   }
   if (opts.search) {
     filters.push({

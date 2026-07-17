@@ -14,6 +14,7 @@ type SearchParams = {
   executionStatus?: string;
   financialStatus?: string;
   organizationId?: string;
+  unassigned?: string;
   cursor?: string;
 };
 
@@ -30,6 +31,7 @@ function buildNextHref(searchParams: SearchParams, cursor: string, basePath: str
   if (searchParams.executionStatus) params.set('executionStatus', searchParams.executionStatus);
   if (searchParams.financialStatus) params.set('financialStatus', searchParams.financialStatus);
   if (searchParams.organizationId) params.set('organizationId', searchParams.organizationId);
+  if (searchParams.unassigned) params.set('unassigned', searchParams.unassigned);
   params.set('cursor', cursor);
   return `${basePath}/orders?${params.toString()}`;
 }

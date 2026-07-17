@@ -7,13 +7,17 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), refresh: 
 import ResetPasswordPage from '@/app/(auth)/reset-password/page';
 
 describe('ResetPasswordPage', () => {
-  it('renders the invalid-link message when token is missing', async () => {
+  it('renders the forgot-password request form when token is missing', async () => {
     const { container } = await renderServerComponent(
       ResetPasswordPage({ searchParams: Promise.resolve({}) })
     );
 
-    expect(container.textContent).toContain('Ссылка недействительна');
-    expect(container.textContent).toContain('Вернуться на страницу входа');
+    expect(container.textContent).toContain('Восстановление пароля');
+    expect(container.querySelector('form')).toBeTruthy();
+    expect(container.querySelector('input[type="email"]')).toBeTruthy();
+    const backLink = container.querySelector('a[href="/login"]');
+    expect(backLink).toBeTruthy();
+    expect(backLink!.textContent).toContain('Вернуться на страницу входа');
   });
 
   it('renders the ResetPasswordForm when a token is present', async () => {
