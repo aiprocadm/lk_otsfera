@@ -81,6 +81,13 @@ export async function sendStaffMessage(
     select: { id: true }
   });
   await prisma.staffConversation.update({ where: { id: conv.id }, data: { lastMessageAt: new Date() } });
+  // Unread считается как lastMessageAt > lastReadAt БЕЗ учёта автора — без этого
+  // upsert'а собственная отправка зажигала бы автору его же бейдж непрочитанного.
+  await prisma.staffMessageRead.upsert({
+    where: { conversationId_userId: { conversationId: conv.id, userId: session.sub } },
+    update: { lastReadAt: new Date() },
+    create: { conversationId: conv.id, userId: session.sub }
+  });
 
   // AV-скан вложения — best-effort enqueue (образец inbound_attachment; §3 degrade gracefully)
   if (args.attachmentPath) {

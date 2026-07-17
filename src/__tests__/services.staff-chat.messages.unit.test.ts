@@ -37,7 +37,7 @@ function prismaFixture(over: Record<string, unknown> = {}) {
       findMany: vi.fn().mockResolvedValue([]),
       findUnique: vi.fn()
     },
-    staffMessageRead: { findUnique: vi.fn().mockResolvedValue(null) },
+    staffMessageRead: { findUnique: vi.fn().mockResolvedValue(null), upsert: vi.fn().mockResolvedValue({}) },
     staffReaction: { create: vi.fn(), delete: vi.fn(), findUnique: vi.fn().mockResolvedValue(null) },
     user: { findMany: vi.fn().mockResolvedValue([]), findUnique: vi.fn().mockResolvedValue({ id: 'm2', role: 'manager' }) }
   };
@@ -241,10 +241,24 @@ it('DM: получатель упомянут И «первое непрочит
 
 it('sendStaffMessage: first-unread считается верно при наличии предыдущей отметки прочтения', async () => {
   const prisma = prismaFixture({
-    staffMessageRead: { findUnique: vi.fn().mockResolvedValue({ lastReadAt: new Date('2026-07-01T00:00:00Z') }) }
+    staffMessageRead: {
+      findUnique: vi.fn().mockResolvedValue({ lastReadAt: new Date('2026-07-01T00:00:00Z') }),
+      upsert: vi.fn().mockResolvedValue({})
+    }
   });
   await sendStaffMessage(prisma, manager, { conversationId: 'conv1', body: 'привет' });
   expect(createNotification).toHaveBeenCalledTimes(1);
+});
+
+it('sendStaffMessage: поднимает read-state автора (своя отправка не зажигает автору его же unread)', async () => {
+  const prisma = prismaFixture();
+  await sendStaffMessage(prisma, manager, { conversationId: 'conv1', body: 'привет' });
+  const upsert = (prisma as never as { staffMessageRead: { upsert: ReturnType<typeof vi.fn> } }).staffMessageRead.upsert;
+  expect(upsert).toHaveBeenCalledWith({
+    where: { conversationId_userId: { conversationId: 'conv1', userId: 'm1' } },
+    update: { lastReadAt: expect.any(Date) },
+    create: { conversationId: 'conv1', userId: 'm1' }
+  });
 });
 
 it('listStaffMessages: не-staff вызывающий → forbidden без обращения к prisma', async () => {

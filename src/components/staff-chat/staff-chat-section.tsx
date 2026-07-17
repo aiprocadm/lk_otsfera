@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useClientResource } from '@/hooks/useClientResource';
 import { useStaffChatPolling, type StaffPolledRow } from '@/hooks/useStaffChatPolling';
 import { errorMessageRu } from '@/lib/errors/messages';
@@ -34,6 +34,12 @@ export function StaffChatSection({ currentUserId }: { currentUserId: string }) {
   });
 
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Ref-twin of activeId for async guards (same ref-technique as the polling
+  // hooks): set synchronously in handleSelect BEFORE the first await, so an
+  // in-flight loadMessages can check at response time whether it still belongs
+  // to the active conversation — reading `activeId` inside the async closure
+  // would see the stale value it captured at call time.
+  const activeIdRef = useRef<string | null>(null);
   const [messages, setMessages] = useState<StaffThreadMessageVM[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
@@ -60,21 +66,25 @@ export function StaffChatSection({ currentUserId }: { currentUserId: string }) {
 
   async function loadMessages(conversationId: string) {
     setLoadingMessages(true);
+    let next: StaffThreadMessageVM[] = [];
     try {
       const res = await fetch(`/api/staff-chat/messages?conversationId=${encodeURIComponent(conversationId)}`);
       if (res.ok) {
         const data = (await res.json()) as { rows: StaffThreadMessageVM[] };
-        setMessages(data.rows);
+        next = data.rows;
       } else {
         clientLog.warn('[staff-chat-section] fetch messages failed', res.status);
-        setMessages([]);
       }
     } catch (err) {
       clientLog.warn('[staff-chat-section] fetch messages error', err);
-      setMessages([]);
-    } finally {
-      setLoadingMessages(false);
     }
+    // Stale-response guard (twin of the poll-batch tag check in appendNew): a
+    // slow response for conversation A landing after the user switched to B
+    // must not render A's rows (or clear/flip loading) under B — those states
+    // belong to the active conversation's own in-flight load.
+    if (activeIdRef.current !== conversationId) return;
+    setMessages(next);
+    setLoadingMessages(false);
   }
 
   async function markRead(conversationId: string) {
@@ -91,6 +101,7 @@ export function StaffChatSection({ currentUserId }: { currentUserId: string }) {
   }
 
   async function handleSelect(conversationId: string) {
+    activeIdRef.current = conversationId; // sync BEFORE the first await — see ref declaration
     setActiveId(conversationId);
     await loadMessages(conversationId);
     void markRead(conversationId);

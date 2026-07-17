@@ -659,6 +659,40 @@ describe('StaffChatSection', () => {
     await waitFor(() => expect(refetchConversations).toHaveBeenCalled());
   });
 
+  it('loadMessages drops a stale response when the user switched conversations mid-flight', async () => {
+    let resolveA!: (v: unknown) => void;
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.startsWith('/api/staff-chat/messages?conversationId=g1')) {
+        // conversation A: slow — resolved manually below, AFTER the switch
+        return new Promise((res) => {
+          resolveA = res;
+        });
+      }
+      if (typeof url === 'string' && url.startsWith('/api/staff-chat/messages?conversationId=dm1')) {
+        return Promise.resolve(
+          messagesResponse([makeMsg({ id: 'b1', authorId: 'u2', authorName: 'Коллега', body: 'сообщение B' })])
+        );
+      }
+      if (url === '/api/staff-chat/read') return Promise.resolve({ ok: true });
+      throw new Error('unexpected fetch ' + url);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<StaffChatSection currentUserId="me" />);
+    fireEvent.click(screen.getByText('# Общий')); // A = g1, fetch left pending
+    fireEvent.click(screen.getByText('Иван Смирнов')); // B = dm1, resolves immediately
+    await waitFor(() => expect(screen.getByText('сообщение B')).toBeTruthy());
+
+    // A's response lands after the switch — must be dropped, not rendered under B.
+    await act(async () => {
+      resolveA(messagesResponse([makeMsg({ id: 'a1', authorId: 'u2', authorName: 'Коллега', body: 'сообщение A' })]));
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByText('сообщение A')).toBeNull();
+    expect(screen.getByText('сообщение B')).toBeTruthy();
+  });
+
   it('loadMessages: a non-ok response clears messages (empty state) without throwing', async () => {
     const fetchMock = vi.fn().mockImplementation((url: string) => {
       if (typeof url === 'string' && url.startsWith('/api/staff-chat/messages?')) {
