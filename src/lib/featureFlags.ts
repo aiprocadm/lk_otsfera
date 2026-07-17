@@ -59,6 +59,11 @@ export const FEATURE_FLAGS = [
   // все /api/staff-chat/* хендлеры (notFoundIfDisabled), staff-бейдж непрочитанного.
   // Спека 2026-07-17-m4-staff-chat.
   'staff_chat',
+  // M5: календарь сотрудников. Route-флаг: nav (`flag:`), page-гейты
+  // /manager/calendar + /leader/calendar (notFound), server-actions calendar
+  // (isFeatureEnabled → forbidden). Middleware-точки нет — прецедент internal_tasks.
+  // Спека 2026-07-17-m5-calendar-design.
+  'staff_calendar',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -86,6 +91,7 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'staff_2fa',
   'contacts',
   'staff_chat',
+  'staff_calendar',
 ]);
 
 export class FeatureDisabledError extends Error {
