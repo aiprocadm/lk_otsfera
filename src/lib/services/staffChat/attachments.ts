@@ -143,6 +143,12 @@ export async function getStaffAttachmentSignedUrl(
     return { ok: false, error: 'not_found' };
   }
 
+  // Belt-and-suspenders (зеркало chat/attachments.ts): путь обязан жить в staff-chat/ —
+  // защита от гипотетической порчи attachmentPath в обход write-гардов.
+  if (!message.attachmentPath.startsWith('staff-chat/')) {
+    return { ok: false, error: 'not_found' };
+  }
+
   const conversation = message.conversation;
   if (!canSeeStaffConversation(session, conversation, conversation.participants.map((p) => p.userId))) {
     return { ok: false, error: 'forbidden' };

@@ -170,6 +170,20 @@ describe('getStaffAttachmentSignedUrl — unit', () => {
     expect(result).toEqual({ ok: false, error: 'not_found' });
   });
 
+  it('returns not_found when attachmentPath does not start with staff-chat/ (belt-and-suspenders)', async () => {
+    canSeeStaffConversationMock.mockReturnValue(true);
+    const msg = {
+      id: 'm1',
+      attachmentPath: 'documents/evil.pdf',
+      attachmentName: 'evil.pdf',
+      scanStatus: 'clean',
+      conversation: conv,
+    };
+    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, { messageId: 'm1' });
+    expect(result).toEqual({ ok: false, error: 'not_found' });
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
+  });
+
   it('returns forbidden when canSeeStaffConversation returns false', async () => {
     canSeeStaffConversationMock.mockReturnValue(false);
     const msg = {
