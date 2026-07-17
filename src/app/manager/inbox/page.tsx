@@ -19,6 +19,10 @@ type SearchParams = {
 
 const PAGE_SIZE = 25;
 
+// Зеркало CHANNELS из inbox-filters.tsx: бар рендерит пиллы только для этих
+// значений, поэтому `?channel=bogus` отбрасывается и не увековечивается в ссылках.
+const KNOWN_CHANNELS = new Set(['telegram', 'max', 'whatsapp', 'email']);
+
 export default async function ManagerInboxPage({
   searchParams
 }: {
@@ -36,8 +40,9 @@ export default async function ManagerInboxPage({
     sp.status === 'unresolved' || sp.status === 'bound' || sp.status === 'archived'
       ? sp.status
       : undefined;
+  const channel = sp.channel && KNOWN_CHANNELS.has(sp.channel) ? sp.channel : undefined;
   const filters: InboxFilters = {
-    ...(sp.channel ? { channel: sp.channel } : {}),
+    ...(channel ? { channel } : {}),
     ...(status ? { status } : {}),
     page,
     pageSize: PAGE_SIZE
@@ -57,7 +62,7 @@ export default async function ManagerInboxPage({
         </p>
       </div>
 
-      <InboxFiltersBar channel={sp.channel} status={sp.status} />
+      <InboxFiltersBar channel={channel} status={status} />
 
       <InboxList items={items} organizations={organizations} />
 

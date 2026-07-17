@@ -26,7 +26,11 @@ vi.mock('@/lib/services/manager/organizations', () => ({ listOrganizations }));
 
 vi.mock('@/components/manager/inbox-filters', () => ({
   InboxFiltersBar: (props: { channel?: string; status?: string }) =>
-    React.createElement('div', { 'data-testid': 'inbox-filters' }, String(props.channel), String(props.status))
+    React.createElement(
+      'div',
+      { 'data-testid': 'inbox-filters' },
+      `${String(props.channel)}|${String(props.status)}`
+    )
 }));
 
 vi.mock('@/components/manager/inbox-list', () => ({
@@ -110,7 +114,7 @@ describe('ManagerInboxPage', () => {
     listInbox.mockResolvedValue({ items: [], total: 100 });
     listOrganizations.mockResolvedValue([]);
 
-    await renderServerComponent(
+    const { getByTestId } = await renderServerComponent(
       ManagerInboxPage({
         searchParams: Promise.resolve({ status: 'bogus', channel: 'telegram', skip: '25' })
       })
@@ -120,6 +124,26 @@ describe('ManagerInboxPage', () => {
     expect(filters.status).toBeUndefined();
     expect(filters.channel).toBe('telegram');
     expect(filters.page).toBe(2);
+    // бар получает валидированные значения: канал известен, статус отброшен
+    expect(getByTestId('inbox-filters').textContent).toBe('telegram|undefined');
+  });
+
+  it('?status=bogus&channel=bogus не увековечиваются: в бар и фильтры уходит undefined', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManager.mockResolvedValue(SESSION);
+    listInbox.mockResolvedValue({ items: [], total: 0 });
+    listOrganizations.mockResolvedValue([]);
+
+    const { getByTestId } = await renderServerComponent(
+      ManagerInboxPage({
+        searchParams: Promise.resolve({ status: 'bogus', channel: 'bogus' })
+      })
+    );
+
+    const filters = listInbox.mock.calls[0][2];
+    expect(filters.status).toBeUndefined();
+    expect(filters.channel).toBeUndefined();
+    expect(getByTestId('inbox-filters').textContent).toBe('undefined|undefined');
   });
 
   it('ссылка пагинатора реально меняет выборку (total > pageSize)', async () => {
