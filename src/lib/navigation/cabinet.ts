@@ -25,6 +25,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/admin/dashboard', label: 'Главная', icon: '⌂', group: 'Платформа' },
     { href: '/admin/health', label: 'Здоровье', icon: '💚', group: 'Платформа' },
     { href: '/admin/sync', label: 'Синхронизация', icon: '🔄', group: 'Платформа' },
+    { href: '/admin/settings', label: 'Настройки', icon: '⚙', group: 'Платформа' },
     { href: '/admin/documents', label: 'Документы', icon: '📄', group: 'Операции' },
     { href: '/admin/messages', label: 'Сообщения', icon: '💬', group: 'Операции' },
     { href: '/admin/commission-statements', label: 'Комиссии', icon: '💰', group: 'Операции' },
@@ -40,8 +41,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/admin/organizations', label: 'Организации', icon: '🏛', group: 'Справочники' },
     { href: '/admin/training-directions', label: 'Направления обучения', icon: '🎯', group: 'Справочники' },
     { href: '/admin/custom-fields', label: 'Доп-поля', icon: '🧩', group: 'Справочники' },
-    { href: '/admin/roles', label: 'Роли', icon: '🎭', group: 'Справочники', flag: 'role_constructor' },
-    { href: '/admin/settings', label: 'Настройки', icon: '⚙', group: 'Платформа' }
+    { href: '/admin/roles', label: 'Роли', icon: '🎭', group: 'Справочники', flag: 'role_constructor' }
   ],
   manager: [
     { href: '/manager/dashboard', label: 'Главная', icon: '⌂', flag: 'manager_cabinet' },

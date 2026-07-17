@@ -8,12 +8,19 @@ import type { NavItem } from '@/lib/navigation/cabinet';
 export function AdminSidebar({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
 
+  // Секции с одинаковым названием склеиваются независимо от позиции пунктов
+  // в массиве — иначе разрозненная группа даёт дубль заголовка и дубль React-key.
   const groups: Array<{ title: string; items: NavItem[] }> = [];
+  const byTitle = new Map<string, { title: string; items: NavItem[] }>();
   for (const item of items) {
     const title = item.group ?? '';
-    const last = groups[groups.length - 1];
-    if (last && last.title === title) last.items.push(item);
-    else groups.push({ title, items: [item] });
+    let group = byTitle.get(title);
+    if (!group) {
+      group = { title, items: [] };
+      byTitle.set(title, group);
+      groups.push(group);
+    }
+    group.items.push(item);
   }
 
   return (
