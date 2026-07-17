@@ -187,6 +187,44 @@ export async function registerAlertSchedules(
   return results;
 }
 
+export type CalendarReminderSchedule = {
+  queueName: Extract<QueueName, 'notifications.calendarReminder'>;
+  schedulerId: string;
+  pattern: string;
+  tz: string;
+};
+
+// M5: напоминания о событиях календаря — каждые 5 минут (точечные напоминания
+// о встречах; выборка узкая по индексу remindAt, спека 2026-07-17-m5-calendar §5).
+export const CALENDAR_REMINDER_SCHEDULES: ReadonlyArray<CalendarReminderSchedule> = [
+  {
+    queueName: 'notifications.calendarReminder',
+    schedulerId: 'notifications.calendarReminder.cron',
+    pattern: '*/5 * * * *',
+    tz: DEFAULT_SYNC_TZ
+  }
+] as const;
+
+export async function registerCalendarReminderSchedules(
+  getQueueFn: GetQueueFn = getQueue
+): Promise<Array<{ schedulerId: string; queueName: string; pattern: string; tz: string }>> {
+  const results = [];
+  const triggeredAt = new Date().toISOString();
+  for (const schedule of CALENDAR_REMINDER_SCHEDULES) {
+    const queue = getQueueFn(schedule.queueName);
+    await queue.upsertJobScheduler(
+      schedule.schedulerId,
+      { pattern: schedule.pattern, tz: schedule.tz },
+      { data: { triggeredAt, reason: 'cron' } }
+    );
+    results.push({
+      schedulerId: schedule.schedulerId, queueName: schedule.queueName,
+      pattern: schedule.pattern, tz: schedule.tz
+    });
+  }
+  return results;
+}
+
 export type CertExpirySchedule = {
   queueName: Extract<QueueName, 'notifications.certificateExpiry'>;
   schedulerId: string;

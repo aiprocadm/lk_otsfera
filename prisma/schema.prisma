@@ -220,6 +220,8 @@ model User {
   staffMessagesAuthored        StaffMessage[]        @relation("StaffMessageAuthor")
   staffReadStates              StaffMessageRead[]    @relation("StaffChatReadState")
   staffReactions               StaffReaction[]       @relation("StaffReactionAuthor")
+  calendarEventsCreated        CalendarEvent[]       @relation("CalendarEventCreatedBy")
+  calendarAttendances          CalendarEventAttendee[] @relation("CalendarEventAttendee")
 }
 
 model PartnerUser {
@@ -554,6 +556,7 @@ model Organization {
   certificates                   Certificate[]
   commissionRateChanges          OrganizationCommissionRateChange[]
   tasks                          Task[]                             @relation("TaskLinkedOrganization")
+  calendarEvents                 CalendarEvent[]                    @relation("CalendarEventLinkedOrganization")
   inboundMessages                InboundMessage[]                   @relation("OrgInbound")
   calls                          Call[]                             @relation("OrgCalls")
   contacts                       Contact[]                          @relation("OrgContacts")
@@ -633,6 +636,7 @@ model Company {
   contacts              Contact[]           @relation("CompanyContacts")
   salesTargets          SalesTarget[]
   staffConversations    StaffConversation[]
+  calendarEvents        CalendarEvent[]
 }
 
 // Трек G1 (§3.2 ТЗ): роль-профиль как данные. Матрица охватов по типам объектов
@@ -792,6 +796,7 @@ model Order {
   items              OrderItem[]
   tasks              Task[]                    @relation("TaskLinkedOrder")
   dealNotes          DealNote[]                @relation("OrderDealNotes")
+  calendarEvents     CalendarEvent[]           @relation("CalendarEventLinkedOrder")
   primaryContactId   String?
   primaryContact     Contact?                  @relation("OrderPrimaryContact", fields: [primaryContactId], references: [id], onDelete: SetNull)
 
@@ -1493,4 +1498,47 @@ model StaffReaction {
   emoji     String
 
   @@unique([messageId, userId, emoji])
+}
+
+/// M5 (спека 2026-07-17): событие staff-календаря. Company-scoped (hard FK, C8).
+/// Привязки к заявке/организации — nullable SetNull (идиома Task). Напоминание:
+/// remindAt вычисляется сервисом (startsAt − remindMinutes) и «сжигается»
+/// атомарным claim'ом reminderSentAt в процессоре (идемпотентность при retry).
+model CalendarEvent {
+  id                   String                  @id @default(cuid())
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  companyId            String
+  company              Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title                String
+  description          String?
+  location             String?
+  startsAt             DateTime
+  endsAt               DateTime?
+  allDay               Boolean                 @default(false)
+  remindAt             DateTime?
+  reminderSentAt       DateTime?
+  createdById          String
+  createdBy            User                    @relation("CalendarEventCreatedBy", fields: [createdById], references: [id])
+  linkedOrderId        String?
+  linkedOrder          Order?                  @relation("CalendarEventLinkedOrder", fields: [linkedOrderId], references: [id], onDelete: SetNull)
+  linkedOrganizationId String?
+  linkedOrganization   Organization?           @relation("CalendarEventLinkedOrganization", fields: [linkedOrganizationId], references: [id], onDelete: SetNull)
+  attendees            CalendarEventAttendee[]
+
+  @@index([companyId, startsAt])
+  @@index([remindAt])
+}
+
+// M:N участники события (идиома репозитория — TaskAssignee).
+model CalendarEventAttendee {
+  id        String        @id @default(cuid())
+  createdAt DateTime      @default(now())
+  eventId   String
+  event     CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User          @relation("CalendarEventAttendee", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId])
 }
