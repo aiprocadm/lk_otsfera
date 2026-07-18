@@ -12,8 +12,8 @@ function isP2002(err: unknown): boolean {
   return (err as { code?: string })?.code === 'P2002';
 }
 
-/** Общий where бесед: general — company-scoped (sentinel), dm — только участие (зеркало canSeeStaffConversation). */
-function conversationScopeWhere(session: SessionPayload): Prisma.StaffConversationWhereInput {
+/** Общий where бесед: general — company-scoped (sentinel), dm — только участие (зеркало canSeeStaffConversation). Экспортирован для M6 (глобальный поиск). */
+export function conversationScopeWhere(session: SessionPayload): Prisma.StaffConversationWhereInput {
   if (session.role === 'admin') {
     return { OR: [{ kind: 'general' }, { participants: { some: { userId: session.sub } } }] };
   }

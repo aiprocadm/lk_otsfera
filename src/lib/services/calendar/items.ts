@@ -39,7 +39,8 @@ export type CalendarItem = {
 
 export type CalendarRange = { from: Date; to: Date };
 
-function eventScopeWhere(session: SessionPayload): Prisma.CalendarEventWhereInput {
+/** Экспортирован для M6 (глобальный поиск): единый шов видимости событий. */
+export function eventScopeWhere(session: SessionPayload): Prisma.CalendarEventWhereInput {
   const floor: Prisma.CalendarEventWhereInput = {
     companyId: session.companyId ?? NO_COMPANY_SENTINEL
   };

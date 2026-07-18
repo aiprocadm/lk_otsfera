@@ -39,7 +39,8 @@ export const PII_CONTEXTS = {
   certificates_list: { subjectType: 'student', action: 'list', labelRu: 'Удостоверения', callSite: 'src/lib/services/training/certificates.ts' },
   order_items_list: { subjectType: 'student', action: 'list', labelRu: 'Слушатели заказа', callSite: 'src/lib/services/training/orderItems.ts' },
   admin_users_list: { subjectType: 'user', action: 'list', labelRu: 'Пользователи (список)', callSite: 'src/lib/services/admin/users/queries.ts' },
-  admin_user_view: { subjectType: 'user', action: 'view', labelRu: 'Карточка пользователя', callSite: 'src/lib/services/admin/users/queries.ts' }
+  admin_user_view: { subjectType: 'user', action: 'view', labelRu: 'Карточка пользователя', callSite: 'src/lib/services/admin/users/queries.ts' },
+  global_search_students: { subjectType: 'student', action: 'list', labelRu: 'Глобальный поиск: слушатели', callSite: 'src/lib/services/search/globalSearch.ts' }
 } as const satisfies Record<string, PiiContext>;
 
 export type PiiContextKey = keyof typeof PII_CONTEXTS;

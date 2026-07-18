@@ -64,6 +64,11 @@ export const FEATURE_FLAGS = [
   // (isFeatureEnabled → forbidden). Middleware-точки нет — прецедент internal_tasks.
   // Спека 2026-07-17-m5-calendar-design.
   'staff_calendar',
+  // M6: глобальный поиск (staff). Route-флаг: nav («Поиск» manager/leader),
+  // page-гейты /manager/search + /leader/search (notFound), сервис-гейт
+  // globalSearch (forbidden). Middleware-точки нет — прецедент internal_tasks.
+  // Спека 2026-07-18-m6-global-search-design.
+  'global_search',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -92,6 +97,7 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'contacts',
   'staff_chat',
   'staff_calendar',
+  'global_search',
 ]);
 
 export class FeatureDisabledError extends Error {
