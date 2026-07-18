@@ -44,6 +44,7 @@ const OPT_IN_FLAGS = new Set([
   'contacts',
   'staff_chat',
   'staff_calendar',
+  'global_search',
 ]);
 
 describe('isFeatureEnabled', () => {

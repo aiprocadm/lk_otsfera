@@ -11,11 +11,11 @@ const SUBJECT_TYPES = new Set([
 describe('PII_CONTEXTS registry', () => {
   const entries = Object.entries(PII_CONTEXTS);
 
-  it('содержит все 14 контекстов v1+M1', () => {
+  it('содержит все 15 контекстов v1+M1+M6', () => {
     expect(entries.map(([k]) => k).sort()).toEqual([
       'admin_user_view', 'admin_users_list', 'calls_list', 'certificates_list',
       'deal_activity_calls', 'deal_activity_inbound',
-      'enrollments_list', 'inbox_list', 'manager_lead_view',
+      'enrollments_list', 'global_search_students', 'inbox_list', 'manager_lead_view',
       'manager_student_view', 'manager_students_list', 'order_items_list',
       'org_card_calls', 'org_card_inbound'
     ]);

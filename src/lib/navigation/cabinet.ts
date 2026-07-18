@@ -45,6 +45,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
   ],
   manager: [
     { href: '/manager/dashboard', label: 'Главная', icon: '⌂', flag: 'manager_cabinet' },
+    { href: '/manager/search', label: 'Поиск', icon: '🔎', flag: 'global_search' },
     { href: '/manager/orders', label: 'Заказы', icon: '📋', flag: 'manager_cabinet' },
     { href: '/manager/leads', label: 'Заявки', icon: '📬', flag: 'manager_cabinet' },
     { href: '/manager/funnel', label: 'Воронка', icon: '📈', flag: 'sales_funnel' },
@@ -71,6 +72,8 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
   // иначе эти два пункта 404-ят. На практике лидер всегда и менеджер; см. runbook.
   leader: [
     { href: '/leader/dashboard', label: 'Сводка', icon: '⌂' },
+    // global_search — отдельный флаг (как role_constructor): гейтит только пункт.
+    { href: '/leader/search', label: 'Поиск', icon: '🔎', flag: 'global_search' },
     { href: '/leader/team', label: 'Команда', icon: '⚙' },
     { href: '/leader/finance', label: 'Финансы', icon: '₽' },
     { href: '/leader/commission-corrections', label: 'Корректировки', icon: '🔁' },

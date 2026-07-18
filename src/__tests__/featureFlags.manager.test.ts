@@ -67,9 +67,10 @@ describe('manager_cabinet (opt-in flag)', () => {
 });
 
 describe('navByRole.manager — feature-flag gated', () => {
-  it('lists all nineteen manager cabinet items in the raw nav (including leader-only Команда + вход в /leader + Воронка + Задачи + Календарь + Обращения + Звонки + Настройки)', () => {
+  it('lists all twenty manager cabinet items in the raw nav (including Поиск, leader-only Команда + вход в /leader + Воронка + Задачи + Календарь + Обращения + Звонки + Настройки)', () => {
     expect(navByRole.manager.map((i) => i.href)).toEqual([
       '/manager/dashboard',
+      '/manager/search',
       '/manager/orders',
       '/manager/leads',
       '/manager/funnel',
@@ -91,10 +92,11 @@ describe('navByRole.manager — feature-flag gated', () => {
     ]);
   });
 
-  it('every manager item carries flag=manager_cabinet (so they hide together), кроме enrollments/funnel/tasks/calendar/inbox/calls (свои флаги) и входа в /leader (leader_cabinet)', () => {
+  it('every manager item carries flag=manager_cabinet (so they hide together), кроме search/enrollments/funnel/tasks/calendar/inbox/calls (свои флаги) и входа в /leader (leader_cabinet)', () => {
     const ownItems = navByRole.manager.filter(
       (i) =>
         i.href.startsWith('/manager/') &&
+        i.href !== '/manager/search' &&
         i.href !== '/manager/enrollments' &&
         i.href !== '/manager/funnel' &&
         i.href !== '/manager/tasks' &&
@@ -105,6 +107,8 @@ describe('navByRole.manager — feature-flag gated', () => {
     expect(ownItems.every((i) => i.flag === 'manager_cabinet')).toBe(true);
     const enrollment = navByRole.manager.find((i) => i.href === '/manager/enrollments');
     expect(enrollment?.flag).toBe('enrollment_requests');
+    const search = navByRole.manager.find((i) => i.href === '/manager/search');
+    expect(search?.flag).toBe('global_search');
     const funnel = navByRole.manager.find((i) => i.href === '/manager/funnel');
     expect(funnel?.flag).toBe('sales_funnel');
     const tasks = navByRole.manager.find((i) => i.href === '/manager/tasks');
