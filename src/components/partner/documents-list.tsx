@@ -46,7 +46,12 @@ export function DocumentsList({
         { method: 'POST' }
       );
       if (!res.ok) {
-        setError('Не удалось получить ссылку для скачивания');
+        // 410 Gone — карантин ClamAV (CLAUDE.md §10): повтор не поможет
+        setError(
+          res.status === 410
+            ? 'Файл в карантине: не прошёл антивирусную проверку.'
+            : 'Не удалось получить ссылку для скачивания'
+        );
         return;
       }
       const body = (await res.json()) as { downloadUrl?: string };

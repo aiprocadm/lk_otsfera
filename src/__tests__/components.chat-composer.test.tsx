@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ChatComposer } from '@/components/chat/chat-composer';
 
 describe('ChatComposer (interactive)', () => {
@@ -11,8 +11,8 @@ describe('ChatComposer (interactive)', () => {
     expect((button as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('typing enables the submit button, submitting calls onSend with trimmed text and clears the textarea', () => {
-    const onSend = vi.fn();
+  it('typing enables the submit button, submitting calls onSend with trimmed text and clears the textarea on success', async () => {
+    const onSend = vi.fn().mockResolvedValue(true);
     render(React.createElement(ChatComposer, { onSend }));
     const textarea = screen.getByLabelText('Сообщение') as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: '  привет  ' } });
@@ -21,7 +21,18 @@ describe('ChatComposer (interactive)', () => {
 
     fireEvent.click(button);
     expect(onSend).toHaveBeenCalledWith('привет');
-    expect(textarea.value).toBe('');
+    await waitFor(() => expect(textarea.value).toBe(''));
+  });
+
+  it('keeps the typed text in the textarea when onSend reports failure', async () => {
+    const onSend = vi.fn().mockResolvedValue(false);
+    render(React.createElement(ChatComposer, { onSend }));
+    const textarea = screen.getByLabelText('Сообщение') as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: 'важное сообщение' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить' }));
+    expect(onSend).toHaveBeenCalledWith('важное сообщение');
+    await waitFor(() => expect(onSend).toHaveBeenCalled());
+    expect(textarea.value).toBe('важное сообщение');
   });
 
   it('submitting whitespace-only text does not call onSend (trimmed empty guard)', () => {

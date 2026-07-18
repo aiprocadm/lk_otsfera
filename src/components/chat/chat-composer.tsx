@@ -6,7 +6,8 @@ export function ChatComposer({
   disabled,
   onAttachFile
 }: {
-  onSend: (text: string) => void | Promise<void>;
+  /** true — отправлено (поле очищается); false — ошибка, текст остаётся в поле */
+  onSend: (text: string) => boolean | Promise<boolean>;
   disabled?: boolean;
   onAttachFile?: (file: File) => void | Promise<void>;
 }) {
@@ -14,12 +15,12 @@ export function ChatComposer({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileInputId = useId();
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = text.trim();
     if (!trimmed || disabled) return;
-    void onSend(trimmed);
-    setText('');
+    const sent = await onSend(trimmed);
+    if (sent) setText('');
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {

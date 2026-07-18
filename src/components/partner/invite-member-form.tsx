@@ -4,8 +4,8 @@ import { Dialog } from '@/components/ui/dialog';
 import { useFetchSubmit } from '@/lib/ui/useFetchSubmit';
 
 const ERROR_MAP: Record<string, string> = {
-  EMAIL_TAKEN: 'Пользователь с таким email уже существует',
-  ORG_OUT_OF_SCOPE: 'Одна из организаций не входит в портфель партнёра'
+  email_taken: 'Пользователь с таким email уже существует',
+  org_out_of_scope: 'Одна из организаций не входит в портфель партнёра'
 };
 
 export function InviteMemberForm({

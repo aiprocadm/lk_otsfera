@@ -125,7 +125,7 @@ describe('POST /api/manager/documents/[id]/download', () => {
     expect(res.status).toBe(410);
   });
 
-  it('returns 302 redirect with signed URL for clean in-scope document (per-org path)', async () => {
+  it('returns 200 JSON with signed URL for clean in-scope document (per-org path)', async () => {
     getSession.mockResolvedValue(managerSession({ sub: 'u-mgr-1', managedOrgIds: ['org-a'] }));
     documentFindUnique.mockResolvedValue({
       id: 'd1',
@@ -139,13 +139,18 @@ describe('POST /api/manager/documents/[id]/download', () => {
     createSignedUrl.mockResolvedValue('https://signed.test/x');
 
     const res = await downloadGet(getReq() as never, paramsP);
-    expect(res.status).toBe(302);
-    expect(res.headers.get('location')).toBe('https://signed.test/x');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({
+      downloadUrl: 'https://signed.test/x',
+      expiresInSec: expect.any(Number),
+      fileName: 'contract.pdf'
+    });
     expect(createSignedUrl).toHaveBeenCalledWith('org-a/contract.pdf', expect.any(Number));
     expect(auditCreate).toHaveBeenCalled();
   });
 
-  it('returns 302 for per-order path (managerId matches session.sub)', async () => {
+  it('returns 200 for per-order path (managerId matches session.sub)', async () => {
     getSession.mockResolvedValue(managerSession({ sub: 'u-mgr-1', managedOrgIds: [] }));
     documentFindUnique.mockResolvedValue({
       id: 'd1',
@@ -159,11 +164,11 @@ describe('POST /api/manager/documents/[id]/download', () => {
     createSignedUrl.mockResolvedValue('https://signed.test/own');
 
     const res = await downloadGet(getReq() as never, paramsP);
-    expect(res.status).toBe(302);
+    expect(res.status).toBe(200);
     expect(commentCount).not.toHaveBeenCalled(); // hot-path skip
   });
 
-  it('returns 302 for comments-history path (per-order/org miss, comments hit)', async () => {
+  it('returns 200 for comments-history path (per-order/org miss, comments hit)', async () => {
     getSession.mockResolvedValue(managerSession({ sub: 'u-mgr-1', managedOrgIds: [] }));
     documentFindUnique.mockResolvedValue({
       id: 'd1',
@@ -178,7 +183,7 @@ describe('POST /api/manager/documents/[id]/download', () => {
     createSignedUrl.mockResolvedValue('https://signed.test/h');
 
     const res = await downloadGet(getReq() as never, paramsP);
-    expect(res.status).toBe(302);
+    expect(res.status).toBe(200);
     expect(commentCount).toHaveBeenCalled();
   });
 

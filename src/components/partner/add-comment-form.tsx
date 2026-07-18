@@ -4,11 +4,23 @@ import { useFetchSubmit } from '@/lib/ui/useFetchSubmit';
 
 const MAX_LEN = 5000;
 
+/**
+ * `POST /api/comments` отдаёт message-строки (`Invalid request`/`Not found`/
+ * `Access denied`), а не стабильные коды §3 — центральная карта их не знает,
+ * маппим здесь (та же дельта, что в manager/deal-activity-thread).
+ */
+const ERROR_MAP: Record<string, string> = {
+  'Invalid request': 'Введите текст комментария.',
+  'Not found': 'Заказ не найден.',
+  'Access denied': 'Нет доступа к заказу.'
+};
+
 export function AddCommentForm({ orderId }: { orderId: string }) {
   const [body, setBody] = useState('');
   const { formAction, pending, errorText } = useFetchSubmit({
     url: '/api/comments',
     body: () => ({ orderId, body: body.trim() }),
+    errorMap: ERROR_MAP,
     onSuccess: () => setBody(''),
     refresh: true
   });

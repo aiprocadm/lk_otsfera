@@ -10,19 +10,21 @@ import { log } from '@/lib/logging';
 /**
  * POST /api/manager/documents/[id]/download
  *
- * Returns a 302 redirect to a short-lived object-storage signed URL when
- * the manager has visibility on the document's parent order (three-way RBAC
- * via managerDocumentScopeFilter — per-order managerId, per-org assignment,
- * or historical comments) and the document is not infected.
+ * Returns a JSON body { downloadUrl, expiresInSec, fileName } with a
+ * short-lived object-storage signed URL when the manager has visibility on
+ * the document's parent order (three-way RBAC via managerDocumentScopeFilter —
+ * per-order managerId, per-org assignment, or historical comments) and the
+ * document is not infected.
  *
- * Uses POST to match the DocumentsList component caller (same pattern as org
- * and generic download routes). There are no GET-style callers.
+ * Uses POST + JSON to match the DocumentsList component caller (same contract
+ * as the org and generic download routes, which it navigates client-side).
+ * There are no GET-style callers.
  *
  * Status semantics (matches Phase 7 org route):
  *   - 404: document missing OR out-of-scope (silent; no existence leak)
  *   - 410: document quarantined by ClamAV (scanStatus === 'infected')
  *   - 502: object-storage signing failed
- *   - 302: success
+ *   - 200: success (JSON with signed URL)
  */
 
 const SIGNED_URL_TTL_SEC = 600;
@@ -70,5 +72,9 @@ export async function POST(
     after: { ttl: SIGNED_URL_TTL_SEC, viewer: 'manager' }
   });
 
-  return Response.redirect(signedUrl, 302);
+  return Response.json({
+    downloadUrl: signedUrl,
+    expiresInSec: SIGNED_URL_TTL_SEC,
+    fileName: result.name
+  });
 }

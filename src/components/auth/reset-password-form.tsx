@@ -38,6 +38,8 @@ export function ResetPasswordForm({ token }: { token: string }) {
         toast.error('Ссылка недействительна или истекла. Запросите новую.');
       } else if (body?.error === 'weak_password') {
         toast.error(`Слабый пароль (минимум ${MIN_LENGTH} символов).`);
+      } else if (res.status === 429) {
+        toast.error('Слишком много попыток. Подождите немного и попробуйте снова.');
       } else {
         toast.error('Не удалось установить пароль. Попробуйте ещё раз.');
       }

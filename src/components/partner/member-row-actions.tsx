@@ -3,6 +3,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
+import { errorMessageRu } from '@/lib/errors/messages';
 
 export function MemberRowActions({
   userId,
@@ -57,7 +58,11 @@ export function MemberRowActions({
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setError(typeof body.error === 'string' ? body.error : 'Ошибка сохранения');
+        setError(
+          typeof body.error === 'string'
+            ? errorMessageRu(body.error, 'Не удалось сохранить доступ. Попробуйте ещё раз.')
+            : 'Не удалось сохранить доступ. Попробуйте ещё раз.'
+        );
         return;
       }
       setEditOpen(false);
@@ -75,9 +80,11 @@ export function MemberRowActions({
       if (!res.ok && res.status !== 204) {
         const body = await res.json().catch(() => ({}));
         setError(
-          body.error === 'LAST_ADMIN'
-            ? 'Нельзя деактивировать последнего админа'
-            : typeof body.error === 'string' ? body.error : 'Ошибка'
+          body.error === 'last_admin_protected'
+            ? 'Нельзя деактивировать последнего админа партнёра'
+            : typeof body.error === 'string'
+              ? errorMessageRu(body.error, 'Не удалось деактивировать. Попробуйте ещё раз.')
+              : 'Не удалось деактивировать. Попробуйте ещё раз.'
         );
         return;
       }

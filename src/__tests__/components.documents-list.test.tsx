@@ -154,6 +154,18 @@ describe('DocumentsList — download (interactive, jsdom)', () => {
     expect(clickSpy).not.toHaveBeenCalled();
   });
 
+  it('410 (quarantined) response shows the quarantine message instead of the generic one', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 410 });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<DocumentsList rows={[base]} />);
+    fireEvent.click(screen.getByText('Скачать'));
+
+    await waitFor(() =>
+      expect(screen.getByText('Файл в карантине: не прошёл антивирусную проверку.')).toBeTruthy()
+    );
+    expect(clickSpy).not.toHaveBeenCalled();
+  });
+
   it('missing downloadUrl in the response body shows the retry message', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     vi.stubGlobal('fetch', fetchMock);

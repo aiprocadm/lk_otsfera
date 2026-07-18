@@ -2,6 +2,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { errorMessageRu } from '@/lib/errors/messages';
 
 export function RateOverrideForm({
   orgId,
@@ -31,7 +32,11 @@ export function RateOverrideForm({
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setError(typeof body.error === 'string' ? body.error : 'Ошибка сохранения');
+        setError(
+          typeof body.error === 'string'
+            ? errorMessageRu(body.error, 'Не удалось сохранить ставку. Попробуйте ещё раз.')
+            : 'Не удалось сохранить ставку. Попробуйте ещё раз.'
+        );
         return;
       }
       router.refresh();

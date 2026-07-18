@@ -65,7 +65,7 @@ describe('MarkPaidForm', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 409,
-      json: () => Promise.resolve({ error: 'already_paid' }),
+      json: () => Promise.resolve({ error: 'lifecycle_violation' }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -73,7 +73,7 @@ describe('MarkPaidForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Отметить как выплачено' }));
     fireEvent.click(screen.getByRole('button', { name: 'Да, отметить выплаченным' }));
 
-    await waitFor(() => expect(screen.getByText('already_paid')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Недопустимый переход статуса.')).toBeTruthy());
     expect(refresh).not.toHaveBeenCalled();
   });
 
