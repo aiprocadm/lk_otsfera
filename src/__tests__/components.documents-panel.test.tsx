@@ -91,8 +91,11 @@ describe('DocumentsPanel', () => {
     expect(screen.queryByText('doc.pdf')).toBeNull();
   });
 
-  it('upload failure: !res.ok keeps fields populated and does not refetch', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false });
+  it('upload failure: !res.ok keeps fields populated, shows the error and does not refetch', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      json: () => Promise.resolve({ code: 'FILE_TOO_LARGE' })
+    });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(DocumentsPanel));
 
@@ -105,6 +108,7 @@ describe('DocumentsPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Загрузить' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(await screen.findByText('Файл превышает допустимый размер.')).toBeTruthy();
     expect(refetch).not.toHaveBeenCalled();
     expect((orderInput as HTMLInputElement).value).toBe('order-2');
   });
@@ -124,8 +128,48 @@ describe('DocumentsPanel', () => {
     await waitFor(() => expect(openMock).toHaveBeenCalledWith('https://s3/signed', '_blank', 'noopener,noreferrer'));
   });
 
-  it('download: !res.ok does not attempt to open a window', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false });
+  it('upload failure with an unknown code falls back to the generic upload error', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      json: () => Promise.reject(new Error('not json'))
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(React.createElement(DocumentsPanel));
+
+    fireEvent.change(screen.getByPlaceholderText('ID заказа'), { target: { value: 'order-3' } });
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: [new File(['x'], 'doc3.pdf', { type: 'application/pdf' })] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Загрузить' }));
+
+    expect(
+      await screen.findByText('Не удалось загрузить документ. Попробуйте ещё раз.')
+    ).toBeTruthy();
+  });
+
+  it('download failure with a non-410 status shows the generic download error', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 502,
+      json: () => Promise.resolve({})
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const openMock = vi.fn();
+    vi.stubGlobal('open', openMock);
+
+    useClientResource.mockReturnValue({ data: docs, loading: false, error: false, refetch });
+    render(React.createElement(DocumentsPanel));
+    fireEvent.click(screen.getByRole('button', { name: 'Скачать' }));
+
+    expect(await screen.findByText('Не удалось получить ссылку для скачивания.')).toBeTruthy();
+    expect(openMock).not.toHaveBeenCalled();
+  });
+
+  it('download: !res.ok shows an error and does not attempt to open a window', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 410,
+      json: () => Promise.resolve({ code: 'INFECTED' })
+    });
     vi.stubGlobal('fetch', fetchMock);
     const openMock = vi.fn();
     vi.stubGlobal('open', openMock);
@@ -136,6 +180,7 @@ describe('DocumentsPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Скачать' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(await screen.findByText('Файл в карантине: не прошёл антивирусную проверку.')).toBeTruthy();
     expect(openMock).not.toHaveBeenCalled();
   });
 });

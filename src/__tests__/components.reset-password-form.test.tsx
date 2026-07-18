@@ -108,6 +108,25 @@ describe('ResetPasswordForm', () => {
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Слабый пароль (минимум 8 символов).'));
   });
 
+  it('error 429: shows the rate-limit message', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      json: () => Promise.resolve({ error: 'too_many_requests' })
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(React.createElement(ResetPasswordForm, { token: 't1' }));
+    const { passwordInput, confirmInput } = inputs();
+    fireEvent.change(passwordInput, { target: { value: 'longenough1' } });
+    fireEvent.change(confirmInput, { target: { value: 'longenough1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Установить пароль' }));
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'Слишком много попыток. Подождите немного и попробуйте снова.'
+      )
+    );
+  });
+
   it('error with an unmapped code: falls back to the generic message', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: () => Promise.resolve({ error: 'weird' }) });
     vi.stubGlobal('fetch', fetchMock);

@@ -77,8 +77,8 @@ describe('LeadWithdrawButton', () => {
     );
   });
 
-  it('error path: maps ALREADY_REJECTED to a Russian message and keeps the dialog open', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: () => Promise.resolve({ error: 'ALREADY_REJECTED' }) });
+  it('error path: maps already_rejected to a Russian message and keeps the dialog open', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: () => Promise.resolve({ error: 'already_rejected' }) });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(LeadWithdrawButton, { leadId: 'l1' }));
 

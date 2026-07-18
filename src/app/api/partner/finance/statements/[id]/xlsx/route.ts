@@ -16,12 +16,18 @@ export async function GET(_req: Request, { params }: Params) {
 
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const guard = requirePartner(session);
-  if (!guard.ok) return guard.response;
+  // Model A: admin скачивает отчёт из /admin-зеркала без partnerId-скоупа
+  // (та же admin-ветка, что у markPaid в ../route.ts); партнёр — только свои.
+  let partnerScope: { partnerId: string } | undefined;
+  if (session.role !== 'admin') {
+    const guard = requirePartner(session);
+    if (!guard.ok) return guard.response;
+    partnerScope = { partnerId: guard.value.partnerId };
+  }
 
   const { id } = await params;
   const statement = await prisma.commissionStatement.findFirst({
-    where: { id, partnerId: guard.value.partnerId },
+    where: { id, ...partnerScope },
     select: { xlsxPath: true }
   });
 

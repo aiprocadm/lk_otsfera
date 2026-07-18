@@ -6,6 +6,7 @@ import { ChatComposer } from '@/components/chat/chat-composer';
 import { uploadAttachment } from '@/lib/chat/upload-attachment';
 import { useThreadPolling } from '@/hooks/useThreadPolling';
 import { clientLog } from '@/lib/logging/client';
+import { errorMessageRu } from '@/lib/errors/messages';
 
 type Thread = {
   id: string;
@@ -90,6 +91,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
   );
   const [pendingAttachment, setPendingAttachment] = useState<{ path: string; name: string } | null>(null);
   const [attachError, setAttachError] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   // Derive polling inputs from current state
   const rawLatest = messages.length > 0 ? messages[messages.length - 1].createdAt : null;
@@ -117,6 +119,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
     setSelected(thread);
     setPendingAttachment(null);
     setAttachError(null);
+    setSendError(null);
     setLoadingMessages(true);
     try {
       const res = await fetch(`/api/messages?threadId=${encodeURIComponent(thread.id)}`);
@@ -175,8 +178,9 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
     }
   }
 
-  async function handleSend(text: string) {
-    if (!selected) return;
+  async function handleSend(text: string): Promise<boolean> {
+    if (!selected) return false;
+    setSendError(null);
     // v1 limitation: an attachment must accompany text because sendMessage rejects
     // an empty body. Attachment-only messages are a v1.1 follow-up.
     try {
@@ -193,7 +197,11 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
       });
       if (!res.ok) {
         clientLog.warn('[order-thread-inbox] send message failed', res.status);
-        return;
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        setSendError(
+          errorMessageRu(body?.error ?? '', 'Не удалось отправить сообщение. Попробуйте ещё раз.')
+        );
+        return false;
       }
       setPendingAttachment(null);
       // Refetch messages for the selected thread
@@ -211,8 +219,11 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
         };
         setMessages(data.rows.map(toVM));
       }
+      return true;
     } catch (err) {
       clientLog.warn('[order-thread-inbox] handleSend error', err);
+      setSendError(errorMessageRu('network'));
+      return false;
     }
   }
 
@@ -402,8 +413,8 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
                 </button>
               </div>
             )}
-            {/* Upload error feedback */}
-            {attachError && (
+            {/* Upload / send error feedback */}
+            {(attachError || sendError) && (
               <div
                 role="alert"
                 style={{
@@ -414,7 +425,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
                   color: '#DC2626'
                 }}
               >
-                {attachError}
+                {attachError ?? sendError}
               </div>
             )}
             <ChatComposer onSend={handleSend} onAttachFile={handleAttach} />

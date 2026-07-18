@@ -5,6 +5,8 @@ import { ChatThreadView, type ChatMessageVM } from '@/components/chat/chat-threa
 import { ChatComposer } from '@/components/chat/chat-composer';
 
 const noop = () => {};
+// onSend возвращает признак успеха (true → композер очищает поле)
+const sendNoop = () => true;
 
 describe('ChatThreadView', () => {
   it('renders empty state when no messages', () => {
@@ -150,7 +152,7 @@ describe('ChatThreadView', () => {
 describe('ChatComposer', () => {
   it('renders textarea with correct placeholder and submit button', () => {
     const html = renderToString(
-      React.createElement(ChatComposer, { onSend: noop })
+      React.createElement(ChatComposer, { onSend: sendNoop })
     );
     expect(html).toContain('Напишите сообщение');
     expect(html).toContain('Отправить');
@@ -158,14 +160,14 @@ describe('ChatComposer', () => {
 
   it('renders file input when onAttachFile is provided', () => {
     const html = renderToString(
-      React.createElement(ChatComposer, { onSend: noop, onAttachFile: noop })
+      React.createElement(ChatComposer, { onSend: sendNoop, onAttachFile: noop })
     );
     expect(html).toContain('type="file"');
   });
 
   it('does NOT render file input when onAttachFile is not provided', () => {
     const html = renderToString(
-      React.createElement(ChatComposer, { onSend: noop })
+      React.createElement(ChatComposer, { onSend: sendNoop })
     );
     expect(html).not.toContain('type="file"');
   });

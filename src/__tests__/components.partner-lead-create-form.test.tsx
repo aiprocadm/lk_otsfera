@@ -162,14 +162,14 @@ describe('LeadCreateForm', () => {
     expect(body.estimatedAmount).toBeNull();
   });
 
-  it('error path: maps ORG_OUT_OF_SCOPE to a Russian message', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: () => Promise.resolve({ error: 'ORG_OUT_OF_SCOPE' }) });
+  it('error path: maps org_out_of_scope to a Russian message', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: () => Promise.resolve({ error: 'org_out_of_scope' }) });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(LeadCreateForm, { orgs: [] }));
     fillRequired();
     fireEvent.click(screen.getByText('Создать заявку'));
 
-    expect(await screen.findByText('Эта организация недоступна в вашем scope')).toBeTruthy();
+    expect(await screen.findByText('Эта организация недоступна в вашем портфеле')).toBeTruthy();
     expect(push).not.toHaveBeenCalled();
   });
 });

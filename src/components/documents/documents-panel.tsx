@@ -8,8 +8,19 @@ type DocumentItem = {
   id: string;
   name: string;
   mimeType: string;
-  orderId: string;
+  orderId: string | null;
   createdAt: string;
+};
+
+// Роут /api/documents/upload отдаёт UPPER_CASE-коды с англоязычным message —
+// переводим локально (центральный словарь держит lower_snake-коды §3).
+const UPLOAD_ERROR_RU: Record<string, string> = {
+  BAD_REQUEST: 'Укажите ID заказа и выберите файл.',
+  INVALID_FILE_FORMAT: 'Неподдерживаемый формат файла. Допустимы PDF и DOCX.',
+  FILE_TOO_LARGE: 'Файл превышает допустимый размер.',
+  NOT_FOUND: 'Заказ с таким ID не найден.',
+  ORGANIZATION_CONTEXT_NOT_FOUND: 'У заказа не указана организация.',
+  STORAGE_UPLOAD_FAILED: 'Не удалось сохранить файл в хранилище. Попробуйте ещё раз.'
 };
 
 export function DocumentsPanel() {
@@ -18,10 +29,13 @@ export function DocumentsPanel() {
   const [orderId, setOrderId] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   async function onUpload(e: FormEvent) {
     e.preventDefault();
     if (!file || !orderId) return;
+    setUploadError(null);
     setUploading(true);
     const formData = new FormData();
     formData.append('orderId', orderId);
@@ -33,12 +47,26 @@ export function DocumentsPanel() {
       setFile(null);
       setOrderId('');
       refetch();
+    } else {
+      const body = (await res.json().catch(() => null)) as { code?: string } | null;
+      setUploadError(
+        (body?.code && UPLOAD_ERROR_RU[body.code]) ??
+          'Не удалось загрузить документ. Попробуйте ещё раз.'
+      );
     }
   }
 
   async function onDownload(id: string) {
+    setDownloadError(null);
     const res = await fetch(`/api/documents/${id}/download`, { method: 'POST' });
-    if (!res.ok) return;
+    if (!res.ok) {
+      setDownloadError(
+        res.status === 410
+          ? 'Файл в карантине: не прошёл антивирусную проверку.'
+          : 'Не удалось получить ссылку для скачивания.'
+      );
+      return;
+    }
     const { downloadUrl } = await res.json();
     window.open(downloadUrl, '_blank', 'noopener,noreferrer');
   }
@@ -67,6 +95,11 @@ export function DocumentsPanel() {
             />
             {file && <p className='text-xs text-[#F97316] mt-1'>{file.name}</p>}
           </div>
+          {uploadError && (
+            <div className='text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2' role='alert'>
+              {uploadError}
+            </div>
+          )}
           <button
             type='submit'
             disabled={uploading}
@@ -84,6 +117,11 @@ export function DocumentsPanel() {
           <span className='font-semibold text-[#111111]'>Документы</span>
           <span className='ml-auto text-xs text-gray-400'>{docs.length} файлов</span>
         </div>
+        {downloadError && (
+          <div className='mx-5 mt-3 text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2' role='alert'>
+            {downloadError}
+          </div>
+        )}
         {docs.length === 0 ? (
           <div className='px-5 py-10 text-center text-gray-400 text-sm'>Документов пока нет</div>
         ) : (

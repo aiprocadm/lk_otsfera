@@ -4,8 +4,8 @@ import { Dialog } from '@/components/ui/dialog';
 import { useFetchSubmit } from '@/lib/ui/useFetchSubmit';
 
 const ERROR_MAP: Record<string, string> = {
-  ALREADY_REJECTED: 'Заявка уже отклонена',
-  ALREADY_PROMOTED: 'Заявка уже конвертирована в заказ'
+  already_rejected: 'Заявка уже отклонена',
+  already_promoted: 'Заявка уже конвертирована в заказ'
 };
 
 export function LeadWithdrawButton({ leadId }: { leadId: string }) {

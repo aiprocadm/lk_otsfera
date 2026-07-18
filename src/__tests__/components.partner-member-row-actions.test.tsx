@@ -141,15 +141,15 @@ describe('MemberRowActions', () => {
     );
   });
 
-  it('saveOrgs error path (JSON body): shows the error and does not close the dialog', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: () => Promise.resolve({ error: 'boom' }) });
+  it('saveOrgs error path (JSON body): shows the translated error and does not close the dialog', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: () => Promise.resolve({ error: 'org_out_of_scope' }) });
     vi.stubGlobal('fetch', fetchMock);
     renderActions({ initialAssignedOrgIds: [] });
     fireEvent.click(screen.getByText('Доступ'));
     const dialog = await screen.findByRole('dialog', { name: 'Доступ к организациям' });
     fireEvent.submit(within(dialog).getByText('Сохранить').closest('form')!);
 
-    expect(await within(dialog).findByText('boom')).toBeTruthy();
+    expect(await within(dialog).findByText('Организация вне вашей зоны видимости.')).toBeTruthy();
     expect(refresh).not.toHaveBeenCalled();
   });
 
@@ -161,7 +161,7 @@ describe('MemberRowActions', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Доступ к организациям' });
     fireEvent.submit(within(dialog).getByText('Сохранить').closest('form')!);
 
-    expect(await within(dialog).findByText('Ошибка сохранения')).toBeTruthy();
+    expect(await within(dialog).findByText('Не удалось сохранить доступ. Попробуйте ещё раз.')).toBeTruthy();
   });
 
   it('"Отмена" in the access dialog closes it without saving', async () => {
@@ -225,19 +225,19 @@ describe('MemberRowActions', () => {
     await waitFor(() => expect(refresh).toHaveBeenCalled());
   });
 
-  it('deactivate error path: LAST_ADMIN maps to a specific Russian message', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, json: () => Promise.resolve({ error: 'LAST_ADMIN' }) });
+  it('deactivate error path: last_admin_protected maps to a specific Russian message', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, json: () => Promise.resolve({ error: 'last_admin_protected' }) });
     vi.stubGlobal('fetch', fetchMock);
     renderActions();
     fireEvent.click(screen.getByText('Удалить'));
     const dialog = await screen.findByRole('dialog', { name: 'Деактивировать сотрудника?' });
     fireEvent.click(within(dialog).getByText('Деактивировать'));
 
-    expect(await within(dialog).findByText('Нельзя деактивировать последнего админа')).toBeTruthy();
+    expect(await within(dialog).findByText('Нельзя деактивировать последнего админа партнёра')).toBeTruthy();
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it('deactivate error path: other string error code is shown verbatim', async () => {
+  it('deactivate error path: unknown error code falls back to the generic message', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, json: () => Promise.resolve({ error: 'other_error' }) });
     vi.stubGlobal('fetch', fetchMock);
     renderActions();
@@ -245,7 +245,7 @@ describe('MemberRowActions', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Деактивировать сотрудника?' });
     fireEvent.click(within(dialog).getByText('Деактивировать'));
 
-    expect(await within(dialog).findByText('other_error')).toBeTruthy();
+    expect(await within(dialog).findByText('Не удалось деактивировать. Попробуйте ещё раз.')).toBeTruthy();
   });
 
   it('deactivate error path: non-JSON body falls back to the generic message', async () => {
@@ -256,6 +256,6 @@ describe('MemberRowActions', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Деактивировать сотрудника?' });
     fireEvent.click(within(dialog).getByText('Деактивировать'));
 
-    expect(await within(dialog).findByText('Ошибка')).toBeTruthy();
+    expect(await within(dialog).findByText('Не удалось деактивировать. Попробуйте ещё раз.')).toBeTruthy();
   });
 });

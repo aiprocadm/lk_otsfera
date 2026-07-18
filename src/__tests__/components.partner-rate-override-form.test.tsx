@@ -65,7 +65,7 @@ describe('RateOverrideForm', () => {
   });
 
   it('"Сохранить" error path (JSON error body): shows the error message and does not refresh', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: () => Promise.resolve({ error: 'invalid_rate' }) });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: () => Promise.resolve({ error: 'rate_out_of_range' }) });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(RateOverrideForm, { orgId: 'o1', initialRate: null, initialNote: null }));
 
@@ -73,7 +73,7 @@ describe('RateOverrideForm', () => {
     fireEvent.change(screen.getByPlaceholderText('Например: VIP-клиент, индивидуальные условия'), { target: { value: 'VIP' } });
     fireEvent.click(screen.getByText('Сохранить'));
 
-    expect(await screen.findByText('invalid_rate')).toBeTruthy();
+    expect(await screen.findByText('Ставка должна быть в диапазоне (0, 1).')).toBeTruthy();
     expect(refresh).not.toHaveBeenCalled();
   });
 
@@ -86,7 +86,7 @@ describe('RateOverrideForm', () => {
     fireEvent.change(screen.getByPlaceholderText('Например: VIP-клиент, индивидуальные условия'), { target: { value: 'VIP' } });
     fireEvent.click(screen.getByText('Сохранить'));
 
-    expect(await screen.findByText('Ошибка сохранения')).toBeTruthy();
+    expect(await screen.findByText('Не удалось сохранить ставку. Попробуйте ещё раз.')).toBeTruthy();
   });
 
   it('"Вернуть базовую ставку" (clear): PUT rate=null + trimmed reason', async () => {

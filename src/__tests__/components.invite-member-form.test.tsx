@@ -170,7 +170,7 @@ describe('InviteMemberForm', () => {
   });
 
   it('error path shows the mapped error text and keeps the dialog open', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 409, json: async () => ({ error: 'EMAIL_TAKEN' }) });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 409, json: async () => ({ error: 'email_taken' }) });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(InviteMemberForm, { orgs }));
     fireEvent.click(screen.getByRole('button', { name: /Пригласить/ }));

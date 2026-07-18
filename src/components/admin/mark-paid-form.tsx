@@ -2,6 +2,7 @@
 
 import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { errorMessageRu } from '@/lib/errors/messages';
 
 type Props = {
   statementId: string;
@@ -38,7 +39,9 @@ export function MarkPaidForm({ statementId, status }: Props) {
         return;
       }
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      setError(data.error ?? `Ошибка ${res.status}`);
+      setError(
+        data.error ? errorMessageRu(data.error, `Ошибка ${res.status}`) : `Ошибка ${res.status}`
+      );
     });
   }
 

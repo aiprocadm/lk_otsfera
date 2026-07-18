@@ -100,7 +100,10 @@ const RU: Record<string, string> = {
   code_expired: 'Код истёк. Войдите заново.',
   too_many_attempts: 'Слишком много попыток. Войдите заново.',
   session_expired: 'Сессия входа истекла. Войдите заново.',
-  not_staff: 'Пользователь не является сотрудником.'
+  not_staff: 'Пользователь не является сотрудником.',
+  // login/2fa шлют UPPER_CASE-коды; login-form переводит их через toLowerCase()
+  account_not_activated: 'Аккаунт не активирован. Перейдите по ссылке из письма-приглашения.',
+  account_deactivated: 'Аккаунт деактивирован. Обратитесь к администратору.'
 };
 
 export function errorMessageRu(code: string, fallback = 'Произошла ошибка.'): string {

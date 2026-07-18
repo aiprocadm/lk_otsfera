@@ -69,10 +69,22 @@ describe('GET /api/partner/finance/statements/[id]/xlsx', () => {
     expect(body.error).toBe('Unauthorized');
   });
 
-  it('returns 403 when session is not a partner', async () => {
-    getSession.mockResolvedValue({ sub: 'u-admin', role: 'admin' });
+  it('returns 403 when session is neither partner nor admin', async () => {
+    getSession.mockResolvedValue({ sub: 'u-org', role: 'organization' });
     const res = await GET(getReq(), ctx('s1'));
     expect(res.status).toBe(403);
+  });
+
+  it('allows admin without partnerId scope (Model A admin mirror)', async () => {
+    getSession.mockResolvedValue({ sub: 'u-admin', role: 'admin' });
+    commissionStatementFindFirst.mockResolvedValue({ xlsxPath: 'uploads/stmt.xlsx' });
+    createSignedUrl.mockResolvedValue('https://storage.example.com/admin.xlsx');
+    const res = await GET(getReq(), ctx('s1'));
+    expect(res.status).toBe(307);
+    expect(commissionStatementFindFirst).toHaveBeenCalledWith({
+      where: { id: 's1' },
+      select: { xlsxPath: true }
+    });
   });
 
   it('returns 403 when partner has no partnerId', async () => {

@@ -13,7 +13,7 @@ const PRODUCT_OPTIONS = [
 ];
 
 const ERROR_MAP: Record<string, string> = {
-  ORG_OUT_OF_SCOPE: 'Эта организация недоступна в вашем scope',
+  org_out_of_scope: 'Эта организация недоступна в вашем портфеле',
   'Invalid payload': 'Проверьте корректность заполненных полей'
 };
 

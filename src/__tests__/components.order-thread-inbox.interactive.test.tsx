@@ -396,14 +396,18 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
     });
   });
 
-  it('handleSend: POST failing (res.ok=false) warns and does not refetch', async () => {
+  it('handleSend: POST failing (res.ok=false) warns, shows the translated error and keeps the text', async () => {
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
       if (typeof url === 'string' && url.startsWith('/api/messages?threadId=')) {
         return Promise.resolve(messagesResponse([]));
       }
       if (url === '/api/messages/read') return Promise.resolve({ ok: true });
       if (url === '/api/messages' && init?.method === 'POST') {
-        return Promise.resolve({ ok: false, status: 400 });
+        return Promise.resolve({
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({ ok: false, error: 'too_large' })
+        });
       }
       throw new Error('unexpected fetch ' + url);
     });
@@ -426,6 +430,8 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
     await waitFor(() =>
       expect(consoleWarnSpy).toHaveBeenCalledWith('[order-thread-inbox] send message failed', 400)
     );
+    expect(await screen.findByText('Файл превышает допустимый размер.')).toBeTruthy();
+    expect(textarea.value).toBe('не пройдёт');
   });
 
   it('handleSend: network error thrown is caught and warned', async () => {
@@ -461,6 +467,9 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
         expect.any(Error)
       )
     );
+    expect(
+      await screen.findByText('Сетевая ошибка. Проверьте соединение и попробуйте снова.')
+    ).toBeTruthy();
   });
 
   it('handleSend: refetch after successful send failing (res.ok=false) leaves prior messages untouched', async () => {
