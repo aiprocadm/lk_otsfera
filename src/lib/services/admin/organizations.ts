@@ -1,7 +1,7 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import { recordAudit } from '@/lib/auth/audit';
 
-export type AdminOrgErrorCode = 'forbidden' | 'not_found';
+export type AdminOrgErrorCode = 'forbidden' | 'not_found' | 'validation' | 'inn_exists';
 
 export class AdminOrgError extends Error {
   readonly code: AdminOrgErrorCode;
@@ -117,6 +117,62 @@ export async function getOrganization(prisma: PrismaClient, id: string): Promise
     partnerCommissionRate: o.partnerCommissionRate !== null ? Number(o.partnerCommissionRate) : null,
     partnerCommissionRateNote: o.partnerCommissionRateNote
   };
+}
+
+export type CreateOrgArgs = {
+  name: string;
+  inn?: string | null;
+  kpp?: string | null;
+};
+
+/**
+ * Ручное создание организации админом (вне 1С). Организация заводится с
+ * externalId=null — синхронизация матчит записи по externalId, поэтому ручную
+ * организацию она не тронет и не задублирует. Как и синк новой организации
+ * (writers.ts upsertOrgRecord), создаём для неё отдельную Company (C8: новая
+ * организация = новая компания).
+ *
+ * Дубль ИНН невозможен: поле inn @unique в БД. Проверяем заранее ради
+ * дружелюбного 'inn_exists', плюс ловим гонку через P2002.
+ */
+export async function createOrganization(
+  prisma: PrismaClient,
+  actorUserId: string,
+  args: CreateOrgArgs
+): Promise<{ ok: true; id: string } | { ok: false; error: AdminOrgErrorCode }> {
+  const name = args.name?.trim() ?? '';
+  const inn = args.inn?.trim() || null;
+  const kpp = args.kpp?.trim() || null;
+  if (!name) return { ok: false, error: 'validation' };
+
+  if (inn) {
+    const existing = await prisma.organization.findUnique({ where: { inn }, select: { id: true } });
+    if (existing) return { ok: false, error: 'inn_exists' };
+  }
+
+  try {
+    const id = await prisma.$transaction(async (tx) => {
+      const company = await tx.company.create({ data: { name } });
+      const org = await tx.organization.create({
+        data: { name, inn, kpp, externalId: null, companyId: company.id }
+      });
+      await recordAudit(tx, {
+        userId: actorUserId,
+        action: 'organization_created_manual',
+        entity: 'organization',
+        entityId: org.id,
+        after: { name, inn, kpp, source: 'manual' }
+      });
+      return org.id;
+    });
+    return { ok: true, id };
+  } catch (e) {
+    // P2002 — гонка по уникальному inn: другая транзакция успела создать.
+    if (e && typeof e === 'object' && 'code' in e && (e as { code?: string }).code === 'P2002') {
+      return { ok: false, error: 'inn_exists' };
+    }
+    throw e;
+  }
 }
 
 export type UpdateOrgArgs = {

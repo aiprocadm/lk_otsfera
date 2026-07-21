@@ -13,6 +13,11 @@ vi.mock('@/lib/db/prisma', () => ({
 const { listOrganizations } = vi.hoisted(() => ({ listOrganizations: vi.fn() }));
 vi.mock('@/lib/services/admin/organizations', () => ({ listOrganizations }));
 
+// Client-компонент диалога создания — заглушка (SSR-тест страницы его не драйвит).
+vi.mock('@/components/admin/create-organization-dialog', () => ({
+  CreateOrganizationDialog: () => null
+}));
+
 import AdminOrganizationsPage from '@/app/admin/organizations/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };

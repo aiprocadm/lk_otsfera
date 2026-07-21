@@ -5,6 +5,7 @@ import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { prisma } from '@/lib/db/prisma';
 import { listOrganizations } from '@/lib/services/admin/organizations';
 import type { OrgFilters } from '@/lib/services/admin/organizations';
+import { CreateOrganizationDialog } from '@/components/admin/create-organization-dialog';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,7 +54,10 @@ export default async function AdminOrganizationsPage({
     <div className='space-y-5'>
       <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
         <div>
-          <h1 className='text-2xl font-bold text-[#111111]'>Организации</h1>
+          <div className='flex items-center gap-3'>
+            <h1 className='text-2xl font-bold text-[#111111]'>Организации</h1>
+            <CreateOrganizationDialog />
+          </div>
           <p className='text-sm text-gray-500 mt-0.5'>
             {total} {pluralize(total)} на платформе
             {q && <span className='text-gray-400'> · по запросу «{q}»</span>}
@@ -99,9 +103,8 @@ export default async function AdminOrganizationsPage({
 
       <div className='text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3'>
         <span aria-hidden className='mr-1'>ℹ️</span>
-        Организации заводятся автоматически при синхронизации с 1С — вручную создать
-        организацию здесь нельзя. В карточке организации можно отредактировать реквизиты,
-        ставку комиссии и состав пользователей.
+        Большинство организаций приходит автоматически из 1С. Организацию без 1С можно
+        создать вручную кнопкой «Добавить организацию» — синхронизация её не изменяет.
       </div>
 
       {orgs.length === 0 ? (

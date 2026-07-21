@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const {
   requireAdmin,
   updateOrganization,
+  createOrganization,
   setOrgCommissionRate,
   clearOrgCommissionRate,
   revalidatePath,
@@ -10,6 +11,7 @@ const {
 } = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
   updateOrganization: vi.fn(),
+  createOrganization: vi.fn(),
   setOrgCommissionRate: vi.fn(),
   clearOrgCommissionRate: vi.fn(),
   revalidatePath: vi.fn(),
@@ -27,7 +29,7 @@ vi.mock('@/lib/services/admin/organizations', async () => {
     await vi.importActual<typeof import('@/lib/services/admin/organizations')>(
       '@/lib/services/admin/organizations'
     );
-  return { ...actual, updateOrganization };
+  return { ...actual, updateOrganization, createOrganization };
 });
 
 vi.mock('@/lib/services/partner/rateOverride', () => ({
@@ -36,6 +38,7 @@ vi.mock('@/lib/services/partner/rateOverride', () => ({
 }));
 
 import {
+  createOrganizationAction,
   updateOrganizationAction,
   setOrgRateOverrideAction,
   updateOrgFormAction,
@@ -51,6 +54,45 @@ function fd(data: Record<string, string>): FormData {
 beforeEach(() => {
   vi.clearAllMocks();
   requireAdmin.mockResolvedValue({ sub: 'admin-1', name: 'Admin User' });
+});
+
+describe('createOrganizationAction', () => {
+  it('returns validation when name is empty (no service call)', async () => {
+    const res = await createOrganizationAction(fd({ name: '' }));
+    expect(res).toEqual({ ok: false, error: 'validation' });
+    expect(createOrganization).not.toHaveBeenCalled();
+  });
+
+  it('happy path returns the new id and revalidates the list', async () => {
+    createOrganization.mockResolvedValue({ ok: true, id: 'org-new' });
+
+    const res = await createOrganizationAction(fd({ name: 'ООО Ромашка', inn: '7712345678', kpp: '771201001' }));
+
+    expect(res).toEqual({ ok: true, id: 'org-new' });
+    expect(createOrganization).toHaveBeenCalledWith(
+      expect.anything(),
+      'admin-1',
+      { name: 'ООО Ромашка', inn: '7712345678', kpp: '771201001' }
+    );
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/organizations');
+  });
+
+  it('propagates inn_exists from the service', async () => {
+    createOrganization.mockResolvedValue({ ok: false, error: 'inn_exists' });
+    const res = await createOrganizationAction(fd({ name: 'Дубль', inn: '7700000000' }));
+    expect(res).toEqual({ ok: false, error: 'inn_exists' });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('omits blank inn/kpp (passed as undefined to zod)', async () => {
+    createOrganization.mockResolvedValue({ ok: true, id: 'o1' });
+    await createOrganizationAction(fd({ name: 'Без реквизитов' }));
+    expect(createOrganization).toHaveBeenCalledWith(
+      expect.anything(),
+      'admin-1',
+      { name: 'Без реквизитов' }
+    );
+  });
 });
 
 describe('updateOrganizationAction', () => {
