@@ -36,6 +36,7 @@ import { navByRole } from '@/lib/navigation/cabinet';
 const EXPECTED_HREFS = [
   '/admin/dashboard',
   '/admin/health',
+  '/admin/integrations',
   '/admin/sync',
   '/admin/documents',
   '/admin/messages',
@@ -66,13 +67,13 @@ describe('AdminSidebar', () => {
     }
   });
 
-  it('renders exactly 20 nav links', () => {
+  it('renders exactly 21 nav links', () => {
     vi.mocked(usePathname).mockReturnValue('/admin/dashboard');
 
     const html = renderToString(React.createElement(AdminSidebar, { items: navByRole.admin }));
 
     const matches = html.match(/data-testid="admin-nav-/g);
-    expect(matches).toHaveLength(20);
+    expect(matches).toHaveLength(21);
   });
 
   it('marks exactly one link as active when on /admin/dashboard', () => {

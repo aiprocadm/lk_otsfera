@@ -25,6 +25,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/admin/dashboard', label: 'Главная', icon: '⌂', group: 'Платформа' },
     { href: '/admin/health', label: 'Здоровье', icon: '💚', group: 'Платформа' },
     { href: '/admin/settings', label: 'Настройки', icon: '⚙', group: 'Платформа' },
+    { href: '/admin/integrations', label: 'Интеграции', icon: '🔌', group: 'Платформа' },
     { href: '/admin/documents', label: 'Документы', icon: '📄', group: 'Операции' },
     { href: '/admin/messages', label: 'Сообщения', icon: '💬', group: 'Операции' },
     { href: '/admin/commission-statements', label: 'Комиссии', icon: '💰', group: 'Операции' },
