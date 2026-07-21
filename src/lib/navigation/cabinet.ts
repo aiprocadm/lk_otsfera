@@ -24,18 +24,21 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
   admin: [
     { href: '/admin/dashboard', label: 'Главная', icon: '⌂', group: 'Платформа' },
     { href: '/admin/health', label: 'Здоровье', icon: '💚', group: 'Платформа' },
-    { href: '/admin/sync', label: 'Синхронизация', icon: '🔄', group: 'Платформа' },
     { href: '/admin/settings', label: 'Настройки', icon: '⚙', group: 'Платформа' },
     { href: '/admin/documents', label: 'Документы', icon: '📄', group: 'Операции' },
     { href: '/admin/messages', label: 'Сообщения', icon: '💬', group: 'Операции' },
     { href: '/admin/commission-statements', label: 'Комиссии', icon: '💰', group: 'Операции' },
     { href: '/admin/commission-corrections', label: 'Корректировки', icon: '🔁', group: 'Операции' },
     { href: '/admin/finance', label: 'Финансы', icon: '₽', group: 'Операции' },
-    { href: '/admin/import', label: 'Загрузка из 1С', icon: '📥', group: 'Операции' },
-    { href: '/admin/payments-import', label: 'Импорт оплат', icon: '📥', group: 'Операции' },
     { href: '/admin/enrollments', label: 'Заявки на обучение', icon: '🎓', group: 'Операции', flag: 'enrollment_requests' },
     { href: '/admin/audit', label: 'Аудит', icon: '🧾', group: 'Операции' },
     { href: '/admin/pii-access', label: 'Доступ к ПДн', icon: '🛡️', group: 'Операции' },
+    // Все три канала обмена с 1С — в одной группе, чтобы не путались (были
+    // разбросаны: sync в «Платформе», два импорта в «Операциях»). Порядок:
+    // авто-обмен по сети → два ручных файловых импорта.
+    { href: '/admin/sync', label: 'Синхронизация (авто)', icon: '🔄', group: 'Обмен с 1С' },
+    { href: '/admin/import', label: 'Загрузка Excel', icon: '📥', group: 'Обмен с 1С' },
+    { href: '/admin/payments-import', label: 'Импорт выписки (сч. 51)', icon: '🏦', group: 'Обмен с 1С' },
     { href: '/admin/users', label: 'Пользователи', icon: '👤', group: 'Справочники' },
     { href: '/admin/partners', label: 'Партнёры', icon: '🏢', group: 'Справочники' },
     { href: '/admin/organizations', label: 'Организации', icon: '🏛', group: 'Справочники' },

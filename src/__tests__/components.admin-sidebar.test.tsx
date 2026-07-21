@@ -105,14 +105,22 @@ describe('AdminSidebar', () => {
     expect(html).toContain('data-testid="admin-nav--admin-users" data-active="true"');
   });
 
-  it('renders group titles: Платформа, Операции, Справочники', () => {
+  it('renders group titles: Платформа, Операции, Обмен с 1С, Справочники', () => {
     vi.mocked(usePathname).mockReturnValue('/admin/health');
 
     const html = renderToString(React.createElement(AdminSidebar, { items: navByRole.admin }));
 
     expect(html).toContain('Платформа');
     expect(html).toContain('Операции');
+    expect(html).toContain('Обмен с 1С');
     expect(html).toContain('Справочники');
+  });
+
+  it('groups all three 1С channels (sync + both imports) under a single "Обмен с 1С" section', () => {
+    vi.mocked(usePathname).mockReturnValue('/admin/sync');
+
+    const oneCItems = navByRole.admin.filter((i) => i.group === 'Обмен с 1С').map((i) => i.href);
+    expect(oneCItems).toEqual(['/admin/sync', '/admin/import', '/admin/payments-import']);
   });
 
   it('marks no link active when pathname does not match any item', () => {

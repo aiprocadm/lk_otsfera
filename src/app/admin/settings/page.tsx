@@ -16,6 +16,12 @@ export default async function AdminSettingsPage() {
   return (
     <div className='space-y-6'>
       <h1 className='text-2xl font-bold text-[#111111]'>Настройки</h1>
+      <div className='text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3'>
+        <span aria-hidden className='mr-1'>ℹ️</span>
+        Здесь — только ваши личные настройки уведомлений. Интеграции платформы
+        (телефония Mango, боты Telegram/Max/WhatsApp) настраиваются администратором
+        сервера в конфигурации при установке, а не через этот интерфейс.
+      </div>
       <TelegramLinkCard status={status} />
       <NotificationChannelsCard settings={settings.view} />
       {isFeatureEnabled('staff_2fa') ? <StaffBackupCodesSection /> : null}

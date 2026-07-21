@@ -97,6 +97,13 @@ export default async function AdminOrganizationsPage({
         </form>
       </div>
 
+      <div className='text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3'>
+        <span aria-hidden className='mr-1'>ℹ️</span>
+        Организации заводятся автоматически при синхронизации с 1С — вручную создать
+        организацию здесь нельзя. В карточке организации можно отредактировать реквизиты,
+        ставку комиссии и состав пользователей.
+      </div>
+
       {orgs.length === 0 ? (
         <EmptyState icon='🏛' message='По заданному фильтру организаций не нашлось.' />
       ) : (

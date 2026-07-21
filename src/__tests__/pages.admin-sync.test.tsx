@@ -80,7 +80,7 @@ describe('AdminSyncPage', () => {
     const { container } = await renderServerComponent(AdminSyncPage());
 
     expect(requireAdmin).toHaveBeenCalled();
-    expect(container.textContent).toContain('Управление синхронизацией');
+    expect(container.textContent).toContain('Синхронизация с 1С');
     expect(container.textContent).toContain('Организации');
     expect(container.textContent).toContain('выполняется');
     expect(container.textContent).toContain('—');

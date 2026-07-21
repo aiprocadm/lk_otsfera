@@ -206,7 +206,7 @@ describe('navByRole.admin — русский канон с группами (в�
     for (const item of navByRole.admin) {
       expect(item.label).toMatch(/[А-Яа-яЁё]/);
       expect(item.icon).toBeTruthy();
-      expect(['Платформа', 'Операции', 'Справочники']).toContain(item.group);
+      expect(['Платформа', 'Операции', 'Обмен с 1С', 'Справочники']).toContain(item.group);
     }
   });
 });

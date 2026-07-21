@@ -57,7 +57,7 @@ describe('AdminPaymentsImportPage', () => {
     expect(requireAdmin).toHaveBeenCalled();
     expect(listQueue).toHaveBeenCalledWith(expect.anything(), SESSION);
     expect(organizationFindMany).not.toHaveBeenCalled();
-    expect(container.textContent).toContain('Импорт оплат');
+    expect(container.textContent).toContain('Импорт выписки');
     expect(container.textContent).toContain('ext1');
   });
 
