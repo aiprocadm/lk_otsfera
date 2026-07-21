@@ -25,7 +25,7 @@ describe('AdminImportPage', () => {
     const { container } = await renderServerComponent(AdminImportPage());
 
     expect(requireAdmin).toHaveBeenCalled();
-    expect(container.textContent).toContain('Загрузка данных из 1С');
+    expect(container.textContent).toContain('Загрузка Excel из 1С');
     expect(container.querySelector('[data-testid="import-form"]')).not.toBeNull();
   });
 });

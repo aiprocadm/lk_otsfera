@@ -103,7 +103,8 @@ const RU: Record<string, string> = {
   not_staff: 'Пользователь не является сотрудником.',
   // login/2fa шлют UPPER_CASE-коды; login-form переводит их через toLowerCase()
   account_not_activated: 'Аккаунт не активирован. Перейдите по ссылке из письма-приглашения.',
-  account_deactivated: 'Аккаунт деактивирован. Обратитесь к администратору.'
+  account_deactivated: 'Аккаунт деактивирован. Обратитесь к администратору.',
+  inn_exists: 'Организация с таким ИНН уже есть в системе.'
 };
 
 export function errorMessageRu(code: string, fallback = 'Произошла ошибка.'): string {

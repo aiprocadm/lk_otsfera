@@ -187,7 +187,7 @@ describe('navByRole — Финансы (manager + admin)', () => {
   });
 });
 
-describe('navByRole.admin — русский канон с группами (все 20 страниц)', () => {
+describe('navByRole.admin — русский канон с группами (все 21 страниц)', () => {
   it('содержит все админские страницы, включая ранее потерянные documents/messages/finance + корректировки комиссии + заявки на обучение + настройки', () => {
     const hrefs = navByRole.admin.map((i) => i.href);
     for (const lost of ['/admin/documents', '/admin/messages', '/admin/finance', '/admin/enrollments']) {
@@ -200,13 +200,13 @@ describe('navByRole.admin — русский канон с группами (в�
     expect(hrefs).toContain('/admin/payments-import');
     expect(hrefs).toContain('/admin/roles');
     expect(hrefs).toContain('/admin/pii-access');
-    expect(navByRole.admin).toHaveLength(20);
+    expect(navByRole.admin).toHaveLength(21);
   });
   it('каждый пункт по-русски, с иконкой и группой', () => {
     for (const item of navByRole.admin) {
       expect(item.label).toMatch(/[А-Яа-яЁё]/);
       expect(item.icon).toBeTruthy();
-      expect(['Платформа', 'Операции', 'Справочники']).toContain(item.group);
+      expect(['Платформа', 'Операции', 'Обмен с 1С', 'Справочники']).toContain(item.group);
     }
   });
 });

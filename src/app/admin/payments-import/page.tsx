@@ -21,8 +21,14 @@ export default async function AdminPaymentsImportPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Импорт оплат (Карточка счёта 51)</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Загрузите выгрузку 1С «Карточка счёта 51». Оплаты клиентов (корр-счёт 62) импортируются; несопоставленные попадают в очередь разбора.</p>
+        <h1 className="text-2xl font-bold text-[#111111]">Импорт выписки (Карточка счёта 51)</h1>
+        <p className="text-sm text-gray-500 mt-0.5">Загрузите выгрузку 1С «Карточка счёта 51» — банковскую выписку по расчётному счёту. Оплаты клиентов (корр-счёт 62) импортируются; несопоставленные попадают в очередь разбора ниже.</p>
+      </div>
+      <div className="text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
+        <span aria-hidden className="mr-1">ℹ️</span>
+        Здесь только оплаты из банковской выписки. Для загрузки заказов и оплат «чистым»
+        файлом из 3 листов используйте «Загрузка Excel», а для автоматического обмена по
+        сети — «Синхронизация (авто)».
       </div>
       <div className="bg-white border border-gray-200 rounded-xl p-6"><PaymentImportForm /></div>
       <div className="bg-white border border-gray-200 rounded-xl p-6">

@@ -57,11 +57,18 @@ export default async function AdminSyncPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Управление синхронизацией с 1С</h1>
+        <h1 className="text-2xl font-bold text-[#111111]">Синхронизация с 1С (авто)</h1>
         <p className="text-sm text-gray-500 mt-0.5">
           Запуск, пауза расписания и перемотка курсора по сущностям. Bulk-retry упавших задач —{' '}
           <a href="/admin/health" className="text-[#F97316] hover:underline">на странице Здоровья</a>.
         </p>
+      </div>
+
+      <div className="text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
+        <span aria-hidden className="mr-1">ℹ️</span>
+        Это автоматический обмен с 1С по сети: программа сама забирает организации, заказы,
+        оплаты и документы по расписанию. Здесь файлы не загружаются — для ручной загрузки
+        файла используйте «Загрузка Excel» или «Импорт выписки (сч. 51)».
       </div>
 
       <div className="overflow-x-auto bg-white border border-gray-200 rounded-xl">

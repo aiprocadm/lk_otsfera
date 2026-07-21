@@ -18,7 +18,10 @@ const TARGET_ERROR_LABEL: Record<string, string> = {
   invalid: 'Некорректная сумма плана.',
   not_found: 'Менеджер не найден.',
   invalid_period: 'Некорректный период.',
-  forbidden: 'Нет прав на изменение плана.'
+  forbidden: 'Нет прав на изменение плана.',
+  // upsertSalesTargetAction возвращает 'disabled' при выключенном флаге
+  // leader_analytics (тот же паттерн, что 'disabled' в CALL_ERROR_LABEL)
+  disabled: 'Модуль аналитики отключён.'
 };
 
 function fmtPct(pct: number | null): string {

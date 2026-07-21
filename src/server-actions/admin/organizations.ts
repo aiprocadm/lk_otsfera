@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import {
+  createOrganization,
   updateOrganization,
   type AdminOrgErrorCode
 } from '@/lib/services/admin/organizations';
@@ -20,6 +21,12 @@ type Failure = {
 };
 type Success<T> = T extends void ? { ok: true } : { ok: true } & T;
 type ActionResult<T = void> = Success<T> | Failure;
+
+const createSchema = z.object({
+  name: z.string().min(1).max(200),
+  inn: z.string().max(20).optional(),
+  kpp: z.string().max(20).optional()
+});
 
 const updateSchema = z.object({
   id: z.string().min(1),
@@ -38,6 +45,21 @@ const overrideSchema = z.object({
 function readField(fd: FormData, key: string): string {
   const v = fd.get(key);
   return typeof v === 'string' ? v : '';
+}
+
+export async function createOrganizationAction(fd: FormData): Promise<ActionResult<{ id: string }>> {
+  const parsed = createSchema.safeParse({
+    name: readField(fd, 'name'),
+    inn: readField(fd, 'inn') || undefined,
+    kpp: readField(fd, 'kpp') || undefined
+  });
+  if (!parsed.success) return { ok: false, error: 'validation' };
+
+  const session = await requireAdmin();
+  const res = await createOrganization(prisma, session.sub, parsed.data);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/admin/organizations');
+  return { ok: true, id: res.id };
 }
 
 export async function updateOrganizationAction(fd: FormData): Promise<ActionResult> {

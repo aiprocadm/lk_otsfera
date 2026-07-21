@@ -6,6 +6,7 @@ import {
   listOrganizations,
   getOrganization,
   updateOrganization,
+  createOrganization,
   AdminOrgError
 } from '@/lib/services/admin/organizations';
 
@@ -426,5 +427,97 @@ describe('updateOrganization()', () => {
 
     const updateData = tx.organization.update.mock.calls[0][0].data;
     expect(updateData.inn).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// createOrganization()
+// ---------------------------------------------------------------------------
+describe('createOrganization()', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function makeCreatePrisma(opts: {
+    innLookup?: unknown;
+    txThrows?: unknown;
+    companyId?: string;
+    orgId?: string;
+  } = {}) {
+    const companyCreate = vi.fn().mockResolvedValue({ id: opts.companyId ?? 'company1' });
+    const orgCreate = vi.fn().mockResolvedValue({ id: opts.orgId ?? 'neworg1' });
+    const tx = {
+      company: { create: companyCreate },
+      organization: { create: orgCreate }
+    };
+    const findUnique = vi.fn().mockResolvedValue(opts.innLookup ?? null);
+    const $transaction = vi.fn().mockImplementation(async (fn: (tx: unknown) => unknown) => {
+      if (opts.txThrows) throw opts.txThrows;
+      return fn(tx);
+    });
+    const prisma = {
+      organization: { findUnique },
+      $transaction
+    } as unknown as PrismaClient;
+    return { prisma, findUnique, companyCreate, orgCreate, $transaction };
+  }
+
+  it('validation: empty name → error validation, no DB writes', async () => {
+    const { prisma, $transaction } = makeCreatePrisma();
+    expect(await createOrganization(prisma, 'actor1', { name: '   ' }))
+      .toEqual({ ok: false, error: 'validation' });
+    expect($transaction).not.toHaveBeenCalled();
+  });
+
+  it('inn_exists: existing inn short-circuits before any write', async () => {
+    const { prisma, $transaction } = makeCreatePrisma({ innLookup: { id: 'existing' } });
+    expect(await createOrganization(prisma, 'actor1', { name: 'Новая', inn: '7700000000' }))
+      .toEqual({ ok: false, error: 'inn_exists' });
+    expect($transaction).not.toHaveBeenCalled();
+  });
+
+  it('happy path: mints a Company, creates org with externalId=null, returns id', async () => {
+    const { prisma, companyCreate, orgCreate } = makeCreatePrisma({ orgId: 'org-new' });
+    const res = await createOrganization(prisma, 'actor1', { name: 'ООО Ромашка', inn: '7712345678', kpp: '771201001' });
+
+    expect(res).toEqual({ ok: true, id: 'org-new' });
+    expect(companyCreate).toHaveBeenCalledWith({ data: { name: 'ООО Ромашка' } });
+    const orgData = orgCreate.mock.calls[0][0].data;
+    expect(orgData).toMatchObject({ name: 'ООО Ромашка', inn: '7712345678', kpp: '771201001', externalId: null, companyId: 'company1' });
+  });
+
+  it('trims inputs and stores blank inn/kpp as null; skips inn lookup when absent', async () => {
+    const { prisma, findUnique, orgCreate } = makeCreatePrisma();
+    await createOrganization(prisma, 'actor1', { name: '  Без ИНН  ', inn: '  ', kpp: '' });
+
+    expect(findUnique).not.toHaveBeenCalled(); // ИНН пустой → проверки нет
+    const orgData = orgCreate.mock.calls[0][0].data;
+    expect(orgData.name).toBe('Без ИНН');
+    expect(orgData.inn).toBeNull();
+    expect(orgData.kpp).toBeNull();
+  });
+
+  it('writes a manual-source audit record', async () => {
+    const { prisma } = makeCreatePrisma();
+    await createOrganization(prisma, 'actor1', { name: 'Аудит Тест' });
+
+    expect(recordAuditMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        userId: 'actor1',
+        action: 'organization_created_manual',
+        entity: 'organization',
+        after: expect.objectContaining({ source: 'manual', name: 'Аудит Тест' })
+      })
+    );
+  });
+
+  it('P2002 race (concurrent inn insert) maps to inn_exists', async () => {
+    const { prisma } = makeCreatePrisma({ txThrows: { code: 'P2002' } });
+    expect(await createOrganization(prisma, 'actor1', { name: 'Гонка', inn: '7700000000' }))
+      .toEqual({ ok: false, error: 'inn_exists' });
+  });
+
+  it('non-P2002 errors propagate', async () => {
+    const { prisma } = makeCreatePrisma({ txThrows: new Error('db down') });
+    await expect(createOrganization(prisma, 'actor1', { name: 'Ошибка' })).rejects.toThrow('db down');
   });
 });

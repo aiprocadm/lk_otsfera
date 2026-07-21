@@ -47,7 +47,16 @@ describe('SyncScheduleToggle', () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it('error path (unknown code) falls back to the generic "Ошибка: <code>" text', async () => {
+  it('error path (unknown_schedule) shows the Russian dictionary text, not the raw code', async () => {
+    setSchedulePausedAction.mockResolvedValue({ ok: false, error: 'unknown_schedule' });
+    render(React.createElement(SyncScheduleToggle, { schedulerId: 's1', paused: false }));
+    fireEvent.click(screen.getByRole('button', { name: 'Активно — пауза' }));
+
+    await waitFor(() => expect(screen.getByText('Неизвестное расписание.')).toBeTruthy());
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('error path (truly unknown code) falls back to the generic "Ошибка: <code>" text', async () => {
     setSchedulePausedAction.mockResolvedValue({ ok: false, error: 'weird_code' });
     render(React.createElement(SyncScheduleToggle, { schedulerId: 's1', paused: true }));
     fireEvent.click(screen.getByRole('button', { name: 'На паузе — включить' }));

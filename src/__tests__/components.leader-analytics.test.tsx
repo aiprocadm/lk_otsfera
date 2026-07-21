@@ -251,6 +251,18 @@ describe('PlanFactTable', () => {
     expect(toastSuccess).not.toHaveBeenCalled();
   });
 
+  it('inline save: "disabled" code (флаг leader_analytics выключен) shows a Russian message, not the raw code', async () => {
+    upsertSalesTargetAction.mockResolvedValue({ ok: false, error: 'disabled' });
+    const row = makePlanRow();
+    render(<PlanFactTable year={2026} month={7} rows={[row]} totals={TOTALS} />);
+
+    fireEvent.change(screen.getByLabelText('План для Иван Менеджеров'), { target: { value: '5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe('Модуль аналитики отключён.');
+  });
+
   it('renders a subtle progress bar for a non-null executionPct, clamped to [0,100]', () => {
     const row = makePlanRow({ executionPct: 140 });
     const { container } = render(<PlanFactTable year={2026} month={7} rows={[row]} totals={TOTALS} />);
