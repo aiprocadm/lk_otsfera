@@ -9,6 +9,8 @@
 
 import type { Resend } from 'resend';
 import { log } from '@/lib/logging';
+import { prisma } from '@/lib/db/prisma';
+import { getSettingValue } from '@/lib/config/integrationSettings';
 
 export type EmailTransport = {
   send(input: {
@@ -20,27 +22,33 @@ export type EmailTransport = {
   }): Promise<{ id: string | null }>;
 };
 
+// Кэш клиента + ключа, на котором он собран: если ключ сменили в UI, пересобираем.
 let cachedClient: Resend | null = null;
+let cachedForKey: string | null = null;
 
 async function getResend(): Promise<Resend | null> {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
+  // Настройка из БД (панель /admin/integrations), иначе fallback на env.
+  const apiKey = (await getSettingValue(prisma, 'email.resendApiKey'))?.trim();
   if (!apiKey) return null;
-  if (cachedClient) return cachedClient;
+  if (cachedClient && cachedForKey === apiKey) return cachedClient;
   const mod = await import('resend');
   cachedClient = new mod.Resend(apiKey);
+  cachedForKey = apiKey;
   return cachedClient;
 }
 
-export function getEmailFrom(): string {
-  return process.env.EMAIL_FROM?.trim() || 'no-reply@otsfera.ru';
+export async function getEmailFrom(): Promise<string> {
+  return (await getSettingValue(prisma, 'email.from'))?.trim() || 'no-reply@otsfera.ru';
 }
 
-export function isEmailEnabled(): boolean {
-  return process.env.EMAIL_ENABLED?.trim().toLowerCase() === 'true';
+export async function isEmailEnabled(): Promise<boolean> {
+  const v = await getSettingValue(prisma, 'email.enabled');
+  return v?.trim().toLowerCase() === 'true';
 }
 
 export function resetEmailTransportCache(): void {
   cachedClient = null;
+  cachedForKey = null;
 }
 
 export async function defaultTransport(): Promise<EmailTransport | null> {

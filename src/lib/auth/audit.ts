@@ -35,7 +35,8 @@ export type AuditEntity =
   | 'contact'
   | 'call'
   | 'staff_conversation'
-  | 'calendar_event';
+  | 'calendar_event'
+  | 'integration_setting';
 
 export type AuditRecord = {
   userId: string;

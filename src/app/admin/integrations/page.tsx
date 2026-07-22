@@ -1,12 +1,21 @@
 import React from 'react';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { getIntegrationsStatus } from '@/lib/services/admin/integrations';
+import { prisma } from '@/lib/db/prisma';
+import { getSettingsView } from '@/lib/config/integrationSettings';
+import { EmailSettingsForm } from '@/components/admin/email-settings-form';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminIntegrationsPage() {
   await requireAdmin();
   const integrations = getIntegrationsStatus();
+
+  const emailView = await getSettingsView(prisma, ['email.enabled', 'email.from', 'email.resendApiKey']);
+  const byKey = (k: string) => emailView.find((r) => r.key === k)!;
+  const emailEnabled = byKey('email.enabled').value?.trim().toLowerCase() === 'true';
+  const emailFrom = byKey('email.from').value ?? '';
+  const apiKeyRow = byKey('email.resendApiKey');
 
   return (
     <div className="space-y-5">
@@ -19,9 +28,9 @@ export default async function AdminIntegrationsPage() {
 
       <div className="text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
         <span aria-hidden className="mr-1">ℹ️</span>
-        Это только просмотр статуса. Ключи и токены настраиваются администратором
-        сервера в конфигурации (env) при установке — здесь их ввести нельзя, это
-        сделано ради безопасности.
+        Секретные ключи хранятся в базе в зашифрованном виде. Если параметр задан
+        в конфиге сервера (env), он используется как запасной вариант, пока не
+        задан здесь.
       </div>
 
       <ul className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100 overflow-hidden">
@@ -46,6 +55,16 @@ export default async function AdminIntegrationsPage() {
           </li>
         ))}
       </ul>
+
+      <div className="pt-2">
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Настройки</h2>
+        <EmailSettingsForm
+          initialEnabled={emailEnabled}
+          initialFrom={emailFrom}
+          apiKeySet={apiKeyRow.isSet}
+          apiKeySource={apiKeyRow.source}
+        />
+      </div>
     </div>
   );
 }

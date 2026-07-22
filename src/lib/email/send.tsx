@@ -105,18 +105,18 @@ export async function send(
   options: SendOptions = {},
 ): Promise<SendResult> {
   if (!input.to) return { status: 'skipped', reason: 'no-recipient' };
-  if (!isEmailEnabled()) return { status: 'skipped', reason: 'disabled' };
+  if (!(await isEmailEnabled())) return { status: 'skipped', reason: 'disabled' };
 
   const transport = options.transport ?? (await defaultTransport());
   if (!transport) {
-    if (process.env.EMAIL_ENABLED?.trim().toLowerCase() === 'true') {
-      log.warn('[email] EMAIL_ENABLED=true but RESEND_API_KEY is missing — skipping send');
+    if (await isEmailEnabled()) {
+      log.warn('[email] отправка включена, но не задан ключ Resend — письмо пропущено');
     }
     return { status: 'skipped', reason: 'no-api-key' };
   }
 
   const result = await transport.send({
-    from: getEmailFrom(),
+    from: await getEmailFrom(),
     to: input.to,
     subject: input.subject,
     html: input.html,
