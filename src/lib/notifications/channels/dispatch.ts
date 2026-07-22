@@ -12,6 +12,7 @@
  * §3 CLAUDE.md: сбой очереди не блокирует основной путь).
  */
 import { isFeatureEnabled } from '@/lib/featureFlags';
+import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { getQueue } from '@/lib/jobs/queues';
 import type { NotificationDispatchPayload } from '@/lib/jobs/types';
 import { log } from '@/lib/logging';
@@ -43,6 +44,10 @@ export async function dispatchToRecipient(
   if (!isFeatureEnabled('notif_queue') || !process.env.REDIS_URL?.trim()) {
     return { mode: 'inline', results: await deliverToRecipient(user, payload, opts) };
   }
+
+  // Queued-путь сам зовёт isEnabledFor (кэш настроек) — праймим до фильтра.
+  const { prisma } = await import('@/lib/db/prisma');
+  await primeIntegrationSettingsCache(prisma);
 
   const enabled = getChannels().filter(
     (ch) =>

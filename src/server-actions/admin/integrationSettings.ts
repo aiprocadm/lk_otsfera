@@ -3,8 +3,10 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
 import { requireAdmin } from '@/lib/auth/requireRole';
-import { saveSettings, type SaveEntry } from '@/lib/config/integrationSettings';
+import { saveSettings, type SaveEntry, type SettingKey } from '@/lib/config/integrationSettings';
+import { resetIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { resetEmailTransportCache } from '@/lib/email/transport';
+import { __resetInboundEmailAdapter } from '@/lib/inbound/email';
 
 export type IntegrationSaveResult =
   | { ok: true }
@@ -38,6 +40,83 @@ export async function saveEmailSettingsAction(fd: FormData): Promise<Integration
   if (!res.ok) return res;
 
   resetEmailTransportCache();
+  resetIntegrationSettingsCache();
   revalidatePath('/admin/integrations');
+  return { ok: true };
+}
+
+/**
+ * Общий хвост actions волны 2 (спека 2026-07-22 §4): saveSettings → сброс
+ * кэша настроек (синхронные читатели — мессенджеры, Mango, IMAP — перечитают
+ * БД при следующем prime) → revalidate. Auth — в каждом action до валидации.
+ */
+async function saveGroup(actorUserId: string, entries: SaveEntry[]): Promise<IntegrationSaveResult> {
+  const res = await saveSettings(prisma, actorUserId, entries);
+  if (!res.ok) return res;
+  resetIntegrationSettingsCache();
+  revalidatePath('/admin/integrations');
+  return { ok: true };
+}
+
+/** Пара «несекретное поле + секрет»: у ботов Telegram/Max одинаковая форма. */
+function botEntries(fd: FormData, tokenKey: SettingKey, usernameKey: SettingKey, prefix: string): SaveEntry[] {
+  return [
+    { key: usernameKey, value: readField(fd, `${prefix}_botUsername`).trim() },
+    // Пустой токен → saveSettings оставит существующий как есть.
+    { key: tokenKey, value: readField(fd, `${prefix}_botToken`) }
+  ];
+}
+
+export async function saveTelegramSettingsAction(fd: FormData): Promise<IntegrationSaveResult> {
+  const session = await requireAdmin();
+  return saveGroup(session.sub, botEntries(fd, 'telegram.botToken', 'telegram.botUsername', 'telegram'));
+}
+
+export async function saveMaxSettingsAction(fd: FormData): Promise<IntegrationSaveResult> {
+  const session = await requireAdmin();
+  return saveGroup(session.sub, botEntries(fd, 'max.botToken', 'max.botUsername', 'max'));
+}
+
+export async function saveWhatsappSettingsAction(fd: FormData): Promise<IntegrationSaveResult> {
+  const session = await requireAdmin();
+  return saveGroup(session.sub, [
+    { key: 'whatsapp.apiKey', value: readField(fd, 'whatsapp_apiKey') },
+    { key: 'whatsapp.channelId', value: readField(fd, 'whatsapp_channelId') }
+  ]);
+}
+
+export async function saveMangoSettingsAction(fd: FormData): Promise<IntegrationSaveResult> {
+  const session = await requireAdmin();
+  return saveGroup(session.sub, [
+    { key: 'mango.vpbxBaseUrl', value: readField(fd, 'mango_vpbxBaseUrl').trim() },
+    { key: 'mango.apiKey', value: readField(fd, 'mango_apiKey') },
+    { key: 'mango.apiSalt', value: readField(fd, 'mango_apiSalt') }
+  ]);
+}
+
+export async function saveImapSettingsAction(fd: FormData): Promise<IntegrationSaveResult> {
+  const session = await requireAdmin();
+  const adapter = readField(fd, 'imap_adapter').trim().toLowerCase();
+  if (adapter !== 'fake' && adapter !== 'imap') {
+    return { ok: false, error: 'validation' };
+  }
+  const port = readField(fd, 'imap_port').trim();
+  if (port !== '' && !/^\d{1,5}$/.test(port)) {
+    return { ok: false, error: 'validation' };
+  }
+
+  const res = await saveGroup(session.sub, [
+    { key: 'imap.adapter', value: adapter },
+    { key: 'imap.host', value: readField(fd, 'imap_host').trim() },
+    { key: 'imap.port', value: port },
+    { key: 'imap.user', value: readField(fd, 'imap_user').trim() },
+    { key: 'imap.tls', value: fd.get('imap_tls') === 'on' || fd.get('imap_tls') === 'true' ? '1' : '0' },
+    { key: 'imap.password', value: readField(fd, 'imap_password') }
+  ]);
+  if (!res.ok) return res;
+
+  // Смена вида/конфига адаптера в этом процессе — пересборка синглтона
+  // (воркер подхватит сам через prime в poll-процессоре).
+  __resetInboundEmailAdapter();
   return { ok: true };
 }

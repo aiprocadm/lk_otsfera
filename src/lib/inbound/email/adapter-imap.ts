@@ -1,4 +1,5 @@
 import type { InboundEmailAdapter, InboundEmailFetchResult } from './adapter';
+import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
 
 export type ImapConfig = {
   host?: string;
@@ -8,30 +9,38 @@ export type ImapConfig = {
   tls: boolean;
 };
 
-function readImapConfigFromEnv(): ImapConfig {
-  const port = process.env.IMAP_PORT ? Number(process.env.IMAP_PORT) : undefined;
+/** Эффективный конфиг: настройки интеграций (БД после prime) → env fallback. */
+export function readImapConfig(): ImapConfig {
+  const rawPort = cachedIntegrationSetting('imap.port');
+  const port = rawPort ? Number(rawPort) : undefined;
+  const rawTls = (cachedIntegrationSetting('imap.tls') ?? '1').trim().toLowerCase();
   return {
-    host: process.env.IMAP_HOST,
+    host: cachedIntegrationSetting('imap.host') ?? undefined,
     port: Number.isFinite(port) ? port : undefined,
-    user: process.env.IMAP_USER,
-    password: process.env.IMAP_PASSWORD,
-    tls: (process.env.IMAP_TLS ?? '1').trim().toLowerCase() !== '0'
-      && (process.env.IMAP_TLS ?? '1').trim().toLowerCase() !== 'false'
-      && (process.env.IMAP_TLS ?? '1').trim().toLowerCase() !== 'off'
+    user: cachedIntegrationSetting('imap.user') ?? undefined,
+    password: cachedIntegrationSetting('imap.password') ?? undefined,
+    tls: rawTls !== '0' && rawTls !== 'false' && rawTls !== 'off'
   };
 }
 
 /**
- * Stub adapter — reads IMAP connection config from env at construction time
- * but performs NO network I/O. Wiring a real IMAP client is deferred; this
- * class exists only to establish the port/seam so the fake can be swapped
- * later without touching call sites.
+ * Stub adapter — performs NO network I/O. Wiring a real IMAP client is
+ * deferred; this class exists only to establish the port/seam so the fake
+ * can be swapped later without touching call sites.
+ *
+ * Config is read lazily per call (not at construction): the adapter is a
+ * cached singleton, while settings are edited in /admin/integrations — the
+ * poll processor primes the settings cache before each run.
  */
 export class ImapInboundEmailAdapter implements InboundEmailAdapter {
-  private readonly config: ImapConfig;
+  private readonly overrides: ImapConfig | null;
 
-  constructor(config: ImapConfig = readImapConfigFromEnv()) {
-    this.config = config;
+  constructor(config?: ImapConfig) {
+    this.overrides = config ?? null;
+  }
+
+  protected get config(): ImapConfig {
+    return this.overrides ?? readImapConfig();
   }
 
   async fetchNewMessages(cursor: string | null): Promise<InboundEmailFetchResult> {

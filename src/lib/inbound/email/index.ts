@@ -1,26 +1,34 @@
 import type { InboundEmailAdapter } from './adapter';
 import { FakeInboundEmailAdapter } from './adapter-fake';
 import { ImapInboundEmailAdapter } from './adapter-imap';
+import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
 
+// Синглтон кэшируется ПО ВИДУ адаптера (паттерн email/transport.ts): выбор
+// `imap.adapter` редактируется в /admin/integrations — при смене значения
+// (после prime кэша настроек) адаптер пересобирается без рестарта процесса.
 let cached: InboundEmailAdapter | null = null;
+let cachedForKind: string | null = null;
 
 export function getInboundEmailAdapter(): InboundEmailAdapter {
-  if (cached) return cached;
-  const kind = (process.env.INBOUND_EMAIL_ADAPTER ?? 'fake').trim().toLowerCase();
+  const kind = (cachedIntegrationSetting('imap.adapter') ?? 'fake').trim().toLowerCase();
+  if (cached && cachedForKind === kind) return cached;
   switch (kind) {
     case 'fake':
       cached = new FakeInboundEmailAdapter();
-      return cached;
+      break;
     case 'imap':
       cached = new ImapInboundEmailAdapter();
-      return cached;
+      break;
     default:
       throw new Error(`Unknown INBOUND_EMAIL_ADAPTER value: ${kind}`);
   }
+  cachedForKind = kind;
+  return cached;
 }
 
 export function __resetInboundEmailAdapter(): void {
   cached = null;
+  cachedForKind = null;
 }
 
 export type { InboundEmailAdapter, InboundEmailDto, InboundEmailFetchResult } from './adapter';

@@ -33,8 +33,9 @@ export const SETTING_SPECS = {
   'imap.user': { key: 'imap.user', envVar: 'IMAP_USER', isSecret: false },
   'imap.password': { key: 'imap.password', envVar: 'IMAP_PASSWORD', isSecret: true },
   'imap.tls': { key: 'imap.tls', envVar: 'IMAP_TLS', isSecret: false },
-  // Телефония Mango
-  'mango.enabled': { key: 'mango.enabled', envVar: 'FEATURE_TELEPHONY_MANGO', isSecret: false },
+  // Телефония Mango. Включение (FEATURE_TELEPHONY_MANGO) намеренно НЕ здесь:
+  // флаг читается в edge-middleware, где БД недоступна — переключатель в БД
+  // не смог бы влиять на route-гейт и создавал бы иллюзию управления.
   'mango.apiKey': { key: 'mango.apiKey', envVar: 'MANGO_API_KEY', isSecret: true },
   'mango.apiSalt': { key: 'mango.apiSalt', envVar: 'MANGO_API_SALT', isSecret: true },
   'mango.vpbxBaseUrl': { key: 'mango.vpbxBaseUrl', envVar: 'MANGO_VPBX_BASE_URL', isSecret: false },

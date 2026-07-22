@@ -1,7 +1,7 @@
 import { describe, expect, it, afterEach } from 'vitest';
 import { getMangoAdapter, __resetMangoAdapter } from '@/lib/telephony/mango';
 import { FakeMangoAdapter } from '@/lib/telephony/mango/adapter-fake';
-import { RestMangoAdapter } from '@/lib/telephony/mango/adapter-rest';
+import { RestMangoAdapter, readMangoConfig } from '@/lib/telephony/mango/adapter-rest';
 
 describe('MangoAdapter factory', () => {
   afterEach(() => {
@@ -141,14 +141,34 @@ describe('RestMangoAdapter', () => {
     );
   });
 
-  it('reads config from env at construction without performing network I/O', () => {
+  it('readMangoConfig: полный эффективный конфиг (env-fallback кэша настроек)', () => {
     process.env.MANGO_API_KEY = 'key-123';
     process.env.MANGO_API_SALT = 'salt-456';
     process.env.MANGO_VPBX_BASE_URL = 'https://example.test/vpbx/';
-    expect(() => new RestMangoAdapter()).not.toThrow();
+    expect(readMangoConfig()).toEqual({
+      apiKey: 'key-123',
+      apiSalt: 'salt-456',
+      baseUrl: 'https://example.test/vpbx/'
+    });
     delete process.env.MANGO_API_KEY;
     delete process.env.MANGO_API_SALT;
     delete process.env.MANGO_VPBX_BASE_URL;
+  });
+
+  it('readMangoConfig: незаданные креды → undefined, baseUrl → дефолт Mango', () => {
+    delete process.env.MANGO_API_KEY;
+    delete process.env.MANGO_API_SALT;
+    delete process.env.MANGO_VPBX_BASE_URL;
+    expect(readMangoConfig()).toEqual({
+      apiKey: undefined,
+      apiSalt: undefined,
+      baseUrl: 'https://app.mango-office.ru/vpbx/'
+    });
+  });
+
+  it('accepts an explicit config override without performing network I/O', async () => {
+    const adapter = new RestMangoAdapter({ apiKey: 'k', apiSalt: 's', baseUrl: 'https://x/' });
+    await expect(adapter.fetchRecording('rec-1')).rejects.toThrow('not wired');
   });
 
   it('initiateCallback rejects with the "not wired yet" error (deliberate stub)', async () => {

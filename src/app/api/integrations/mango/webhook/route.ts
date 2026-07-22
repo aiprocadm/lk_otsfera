@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma';
+import { getSettingValue } from '@/lib/config/integrationSettings';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { verifyMangoSign } from '@/lib/telephony/mango/sign';
 import { isMangoIpAllowed, clientIpFrom } from '@/lib/telephony/mango/ip';
@@ -16,7 +17,8 @@ import { log } from '@/lib/logging';
  *      NOTE: x-forwarded-for доверенен только за проксёй, которая его
  *      сама проставляет/зачищает; реальный (нефальсифицируемый) гейт — подпись ниже.
  *   2. HMAC-подобная подпись sha256(apiKey + json + salt) (`verifyMangoSign`).
- *      Отсутствие MANGO_API_KEY/MANGO_API_SALT в env — тоже 401, а не пропуск.
+ *      Креды — из настроек интеграций (БД, env — fallback); их отсутствие —
+ *      тоже 401, а не пропуск (fail-closed).
  *
  * Всегда 200 для аутентифицированных запросов (даже на malformed JSON и на
  * неизвестный/неразобранный event type) — чтобы Mango не ретраил бесконечно.
@@ -37,8 +39,11 @@ export async function POST(req: Request): Promise<Response> {
   const sign = form?.get('sign');
 
   // 2. Подпись. Отсутствующие creds или несовпадающая подпись — всегда 401.
-  const apiKey = process.env.MANGO_API_KEY?.trim();
-  const salt = process.env.MANGO_API_SALT?.trim();
+  // Креды из настроек (БД → env); сбой чтения БД деградирует на env, чтобы
+  // авария базы не превращала подписанные вебхуки в 500 (fail-closed остаётся:
+  // нет кредов нигде → 401).
+  const apiKey = (await getSettingValue(prisma, 'mango.apiKey').catch(() => process.env.MANGO_API_KEY))?.trim();
+  const salt = (await getSettingValue(prisma, 'mango.apiSalt').catch(() => process.env.MANGO_API_SALT))?.trim();
   if (
     !apiKey ||
     !salt ||

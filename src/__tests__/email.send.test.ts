@@ -1,4 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Транспорт читает настройки через getSettingValue (БД → env). Юнит-слой не
+// должен зависеть от содержимого локальной БД (сохранённые в /admin/integrations
+// значения перебивали бы env-набор теста) — пришпиливаем чтение к env-fallback.
+vi.mock('@/lib/config/integrationSettings', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('@/lib/config/integrationSettings')>();
+  return {
+    ...orig,
+    getSettingValue: async (_prisma: unknown, key: keyof typeof orig.SETTING_SPECS) =>
+      process.env[orig.SETTING_SPECS[key].envVar]?.trim() || null
+  };
+});
+
 import type { EmailTransport } from '@/lib/email/transport';
 import { resetEmailTransportCache } from '@/lib/email/transport';
 import {

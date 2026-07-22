@@ -5,6 +5,7 @@ import { getMangoAdapter } from '@/lib/telephony/mango';
 import { recordAudit } from '@/lib/auth/audit';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { isFeatureEnabled } from '@/lib/featureFlags';
+import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { log } from '@/lib/logging';
 
 export type InitiateCallResult =
@@ -20,6 +21,9 @@ export async function initiateOutboundCall(
 
   const order = await getOrder(prisma, session, args.orderId);
   if (!order) return { ok: false, error: 'not_found' };
+
+  // REST-адаптер читает креды Mango из кэша настроек — праймим перед вызовом.
+  await primeIntegrationSettingsCache(prisma);
 
   let commandId: string;
   try {

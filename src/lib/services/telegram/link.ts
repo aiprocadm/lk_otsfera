@@ -2,6 +2,7 @@ import { randomBytes } from 'crypto';
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { isTelegramEnabled, botDeepLink } from '@/lib/telegram/client';
+import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { recordAudit } from '@/lib/auth/audit';
 
 const LINK_CODE_EXPIRY_MINUTES = 15;
@@ -10,6 +11,7 @@ export async function getTelegramStatus(
   prisma: PrismaClient,
   session: SessionPayload
 ): Promise<{ ok: true; linked: boolean; enabled: boolean }> {
+  await primeIntegrationSettingsCache(prisma);
   const user = await prisma.user.findUnique({
     where: { id: session.sub },
     select: { telegramChatId: true },
@@ -25,6 +27,7 @@ export async function generateLinkCode(
   prisma: PrismaClient,
   session: SessionPayload
 ): Promise<{ ok: true; deepLink: string } | { ok: false; error: 'telegram_disabled' }> {
+  await primeIntegrationSettingsCache(prisma);
   if (!isTelegramEnabled()) {
     return { ok: false, error: 'telegram_disabled' };
   }

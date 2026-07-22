@@ -1,14 +1,19 @@
+import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
+
 const TELEGRAM_TIMEOUT_MS = 5000;
+
+// Креды бота — из настроек интеграций (БД через праймленный кэш, env — fallback);
+// вызывающие контексты синхронные, поэтому чтение через integrationSettingsCache.
 
 export function isTelegramEnabled(): boolean {
   return (
-    !!process.env.TELEGRAM_BOT_TOKEN?.trim() &&
-    !!process.env.TELEGRAM_BOT_USERNAME?.trim()
+    !!cachedIntegrationSetting('telegram.botToken') &&
+    !!cachedIntegrationSetting('telegram.botUsername')
   );
 }
 
 export function botDeepLink(code: string): string {
-  const username = process.env.TELEGRAM_BOT_USERNAME?.trim() ?? '';
+  const username = cachedIntegrationSetting('telegram.botUsername') ?? '';
   return `https://t.me/${username}?start=${code}`;
 }
 
@@ -16,7 +21,7 @@ export async function sendTelegramMessage(
   chatId: string,
   text: string
 ): Promise<{ ok: boolean }> {
-  const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
+  const token = cachedIntegrationSetting('telegram.botToken');
   if (!token) return { ok: false };
 
   const controller = new AbortController();

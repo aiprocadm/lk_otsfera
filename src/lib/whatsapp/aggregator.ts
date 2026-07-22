@@ -9,6 +9,7 @@
  * флагом `whatsapp_channel` (opt-in).
  */
 import { isFeatureEnabled } from '@/lib/featureFlags';
+import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
 
 const WHATSAPP_TIMEOUT_MS = 5000;
 
@@ -18,14 +19,14 @@ export function whatsappAggregatorBaseUrl(): string {
 
 /**
  * Канал включён при флаге + всех трёх параметрах агрегатора (URL берётся из
- * env или дефолта, но ключ и channelId обязательны). Флаг — первая точка
- * гейтинга.
+ * env или дефолта, но ключ и channelId обязательны — из настроек интеграций:
+ * кэш БД после prime, env — fallback). Флаг — первая точка гейтинга.
  */
 export function isWhatsAppEnabled(): boolean {
   return (
     isFeatureEnabled('whatsapp_channel') &&
-    !!process.env.WHATSAPP_AGGREGATOR_API_KEY?.trim() &&
-    !!process.env.WHATSAPP_AGGREGATOR_CHANNEL_ID?.trim()
+    !!cachedIntegrationSetting('whatsapp.apiKey') &&
+    !!cachedIntegrationSetting('whatsapp.channelId')
   );
 }
 
@@ -38,8 +39,8 @@ export async function sendWhatsAppMessage(
   phone: string,
   text: string
 ): Promise<{ ok: boolean }> {
-  const apiKey = process.env.WHATSAPP_AGGREGATOR_API_KEY?.trim();
-  const channelId = process.env.WHATSAPP_AGGREGATOR_CHANNEL_ID?.trim();
+  const apiKey = cachedIntegrationSetting('whatsapp.apiKey');
+  const channelId = cachedIntegrationSetting('whatsapp.channelId');
   if (!apiKey || !channelId) return { ok: false };
 
   const controller = new AbortController();

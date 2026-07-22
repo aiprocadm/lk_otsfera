@@ -1,7 +1,7 @@
 import { describe, expect, it, afterEach } from 'vitest';
 import { getInboundEmailAdapter, __resetInboundEmailAdapter } from '@/lib/inbound/email';
 import { FakeInboundEmailAdapter } from '@/lib/inbound/email/adapter-fake';
-import { ImapInboundEmailAdapter } from '@/lib/inbound/email/adapter-imap';
+import { ImapInboundEmailAdapter, readImapConfig } from '@/lib/inbound/email/adapter-imap';
 
 describe('InboundEmailAdapter factory', () => {
   afterEach(() => {
@@ -41,6 +41,15 @@ describe('InboundEmailAdapter factory', () => {
     __resetInboundEmailAdapter();
     const a3 = getInboundEmailAdapter();
     expect(a1).not.toBe(a3);
+  });
+
+  it('rebuilds the singleton when the effective adapter kind changes (settings edited in UI)', () => {
+    process.env.INBOUND_EMAIL_ADAPTER = 'fake';
+    const a1 = getInboundEmailAdapter();
+    process.env.INBOUND_EMAIL_ADAPTER = 'imap';
+    const a2 = getInboundEmailAdapter();
+    expect(a1).toBeInstanceOf(FakeInboundEmailAdapter);
+    expect(a2).toBeInstanceOf(ImapInboundEmailAdapter);
   });
 });
 
@@ -111,17 +120,53 @@ describe('ImapInboundEmailAdapter', () => {
     );
   });
 
-  it('reads config from env at construction without performing network I/O', () => {
+  it('accepts an explicit config override without performing network I/O', async () => {
+    const adapter = new ImapInboundEmailAdapter({ host: 'h', port: 993, user: 'u', password: 'p', tls: true });
+    await expect(adapter.fetchNewMessages(null)).rejects.toThrow('IMAP inbound adapter not wired');
+  });
+});
+
+describe('readImapConfig', () => {
+  const KEYS = ['IMAP_HOST', 'IMAP_PORT', 'IMAP_USER', 'IMAP_PASSWORD', 'IMAP_TLS'];
+  afterEach(() => {
+    for (const k of KEYS) delete process.env[k];
+  });
+
+  it('reads the full effective config (env fallback of the settings cache)', () => {
     process.env.IMAP_HOST = 'imap.example.com';
     process.env.IMAP_PORT = '993';
     process.env.IMAP_USER = 'bot@example.com';
     process.env.IMAP_PASSWORD = 'secret';
     process.env.IMAP_TLS = '1';
-    expect(() => new ImapInboundEmailAdapter()).not.toThrow();
-    delete process.env.IMAP_HOST;
-    delete process.env.IMAP_PORT;
-    delete process.env.IMAP_USER;
-    delete process.env.IMAP_PASSWORD;
-    delete process.env.IMAP_TLS;
+    expect(readImapConfig()).toEqual({
+      host: 'imap.example.com',
+      port: 993,
+      user: 'bot@example.com',
+      password: 'secret',
+      tls: true
+    });
+  });
+
+  it('unset values → undefined fields; tls defaults to true', () => {
+    expect(readImapConfig()).toEqual({
+      host: undefined,
+      port: undefined,
+      user: undefined,
+      password: undefined,
+      tls: true
+    });
+  });
+
+  it('non-numeric port → undefined; tls "0"/"false"/"off" → false', () => {
+    process.env.IMAP_PORT = 'abc';
+    process.env.IMAP_TLS = '0';
+    expect(readImapConfig().port).toBeUndefined();
+    expect(readImapConfig().tls).toBe(false);
+    process.env.IMAP_TLS = 'false';
+    expect(readImapConfig().tls).toBe(false);
+    process.env.IMAP_TLS = 'off';
+    expect(readImapConfig().tls).toBe(false);
+    process.env.IMAP_TLS = 'yes';
+    expect(readImapConfig().tls).toBe(true);
   });
 });
