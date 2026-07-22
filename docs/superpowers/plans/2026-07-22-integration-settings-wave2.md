@@ -18,5 +18,5 @@
 - [x] 7. UI: генерик `IntegrationSettingsForm` + 5 групп на
       /admin/integrations; статус-панель на эффективные значения.
 - [x] 8. Server-actions пяти групп + сбросы кэшей + тесты.
-- [ ] 9. Гейты: typecheck, lint, test:unit; точечные integration при
+- [x] 9. Гейты: typecheck, lint, test:unit; точечные integration при
       затронутых processors; close-out DONE.
