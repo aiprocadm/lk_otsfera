@@ -13,6 +13,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EmailTransport } from '@/lib/email/transport';
 import { resetEmailTransportCache } from '@/lib/email/transport';
+
+// Настройки почты читаются через lib/config; в unit-тесте эмулируем env-fallback.
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+vi.mock('@/lib/config/integrationSettings', () => ({
+  getSettingValue: async (_p: unknown, key: string) => {
+    const map: Record<string, string | undefined> = {
+      'email.from': process.env.EMAIL_FROM,
+      'email.enabled': process.env.EMAIL_ENABLED,
+      'email.resendApiKey': process.env.RESEND_API_KEY
+    };
+    return map[key]?.trim() || null;
+  }
+}));
 import {
   send,
   sendNotificationEmail,
@@ -95,7 +108,7 @@ describe('send() outcomes', () => {
     const result = await send({ to: 'a@b.com', subject: 'x', html: '<p>x</p>' });
     expect(result).toEqual({ status: 'skipped', reason: 'no-api-key' });
     expect(warn).toHaveBeenCalledWith(
-      '[email] EMAIL_ENABLED=true but RESEND_API_KEY is missing — skipping send',
+      '[email] отправка включена, но не задан ключ Resend — письмо пропущено',
     );
   });
 

@@ -1542,3 +1542,16 @@ model CalendarEventAttendee {
   @@unique([eventId, userId])
   @@index([userId])
 }
+
+/// Настройки интеграций, редактируемые админом в UI (телефония, мессенджеры,
+/// почта). Заменяют env-конфиг: сервис читает БД, при отсутствии ключа —
+/// fallback на process.env. Секретные значения (isSecret=true) хранятся
+/// зашифрованными (AES-256-GCM, ключ APP_ENCRYPTION_KEY из env); несекретные —
+/// открытым текстом. key — стабильный идентификатор вида 'email.resendApiKey'.
+model IntegrationSetting {
+  key       String   @id
+  value     String?
+  isSecret  Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}

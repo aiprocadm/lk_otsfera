@@ -24,6 +24,20 @@ vi.mock('resend', () => ({
   Resend: ResendConstructorMock
 }));
 
+// transport теперь читает настройки через lib/config; в этом unit-тесте
+// эмулируем «в БД пусто → env fallback», отдавая значения из process.env.
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+vi.mock('@/lib/config/integrationSettings', () => ({
+  getSettingValue: async (_prisma: unknown, key: string) => {
+    const map: Record<string, string | undefined> = {
+      'email.from': process.env.EMAIL_FROM,
+      'email.enabled': process.env.EMAIL_ENABLED,
+      'email.resendApiKey': process.env.RESEND_API_KEY
+    };
+    return map[key]?.trim() || null;
+  }
+}));
+
 beforeEach(() => {
   ResendConstructorMock.mockClear();
   sendMock.mockClear();
@@ -43,19 +57,19 @@ describe('getEmailFrom', () => {
   it('returns the default address when EMAIL_FROM is not set', async () => {
     vi.stubEnv('EMAIL_FROM', '');
     const { getEmailFrom } = await import('@/lib/email/transport');
-    expect(getEmailFrom()).toBe('no-reply@otsfera.ru');
+    expect(await getEmailFrom()).toBe('no-reply@otsfera.ru');
   });
 
   it('returns the custom address from EMAIL_FROM env', async () => {
     vi.stubEnv('EMAIL_FROM', 'custom@company.ru');
     const { getEmailFrom } = await import('@/lib/email/transport');
-    expect(getEmailFrom()).toBe('custom@company.ru');
+    expect(await getEmailFrom()).toBe('custom@company.ru');
   });
 
   it('trims whitespace from EMAIL_FROM', async () => {
     vi.stubEnv('EMAIL_FROM', '  trimmed@company.ru  ');
     const { getEmailFrom } = await import('@/lib/email/transport');
-    expect(getEmailFrom()).toBe('trimmed@company.ru');
+    expect(await getEmailFrom()).toBe('trimmed@company.ru');
   });
 });
 
@@ -66,19 +80,19 @@ describe('isEmailEnabled', () => {
   it('returns true when EMAIL_ENABLED="true"', async () => {
     vi.stubEnv('EMAIL_ENABLED', 'true');
     const { isEmailEnabled } = await import('@/lib/email/transport');
-    expect(isEmailEnabled()).toBe(true);
+    expect(await isEmailEnabled()).toBe(true);
   });
 
   it('returns false when EMAIL_ENABLED is not set', async () => {
     vi.stubEnv('EMAIL_ENABLED', '');
     const { isEmailEnabled } = await import('@/lib/email/transport');
-    expect(isEmailEnabled()).toBe(false);
+    expect(await isEmailEnabled()).toBe(false);
   });
 
   it('returns false when EMAIL_ENABLED="false"', async () => {
     vi.stubEnv('EMAIL_ENABLED', 'false');
     const { isEmailEnabled } = await import('@/lib/email/transport');
-    expect(isEmailEnabled()).toBe(false);
+    expect(await isEmailEnabled()).toBe(false);
   });
 });
 
