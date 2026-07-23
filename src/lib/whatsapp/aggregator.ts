@@ -14,7 +14,8 @@ import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache'
 const WHATSAPP_TIMEOUT_MS = 5000;
 
 export function whatsappAggregatorBaseUrl(): string {
-  return process.env.WHATSAPP_AGGREGATOR_BASE_URL?.trim() || 'https://api.wazzup24.com';
+  // Настраивается в UI (кэш: БД после prime, env — fallback), дефолт — Wazzup.
+  return cachedIntegrationSetting('whatsapp.baseUrl') || 'https://api.wazzup24.com';
 }
 
 /**

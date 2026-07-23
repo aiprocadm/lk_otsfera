@@ -6,6 +6,7 @@ const {
   resetEmailTransportCache,
   resetIntegrationSettingsCache,
   resetInboundEmailAdapter,
+  resetOneCAdapter,
   revalidatePath
 } = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
@@ -13,6 +14,7 @@ const {
   resetEmailTransportCache: vi.fn(),
   resetIntegrationSettingsCache: vi.fn(),
   resetInboundEmailAdapter: vi.fn(),
+  resetOneCAdapter: vi.fn(),
   revalidatePath: vi.fn()
 }));
 
@@ -22,6 +24,7 @@ vi.mock('@/lib/config/integrationSettings', () => ({ saveSettings }));
 vi.mock('@/lib/config/integrationSettingsCache', () => ({ resetIntegrationSettingsCache }));
 vi.mock('@/lib/email/transport', () => ({ resetEmailTransportCache }));
 vi.mock('@/lib/inbound/email', () => ({ __resetInboundEmailAdapter: resetInboundEmailAdapter }));
+vi.mock('@/lib/services/oneCSync', () => ({ resetOneCAdapter }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 
 import {
@@ -30,7 +33,9 @@ import {
   saveMaxSettingsAction,
   saveWhatsappSettingsAction,
   saveMangoSettingsAction,
-  saveImapSettingsAction
+  saveImapSettingsAction,
+  saveOnecSettingsAction,
+  saveDadataSettingsAction
 } from '@/server-actions/admin/integrationSettings';
 
 function fd(data: Record<string, string>): FormData {
@@ -92,17 +97,19 @@ describe('bot/whatsapp/mango group actions', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/admin/integrations');
   });
 
-  it('max: mirrors telegram mapping onto max.* keys', async () => {
-    await saveMaxSettingsAction(fd({ max_botUsername: 'maxbot', max_botToken: '' }));
+  it('max: mirrors telegram mapping onto max.* keys + baseUrl', async () => {
+    await saveMaxSettingsAction(fd({ max_botUsername: 'maxbot', max_botToken: '', max_baseUrl: ' https://max/ ' }));
     expect(saveSettings).toHaveBeenCalledWith(expect.anything(), 'admin-1', [
       { key: 'max.botUsername', value: 'maxbot' },
-      { key: 'max.botToken', value: '' } // пустой секрет = не менять
+      { key: 'max.botToken', value: '' }, // пустой секрет = не менять
+      { key: 'max.baseUrl', value: 'https://max/' }
     ]);
   });
 
-  it('whatsapp: forwards both secrets', async () => {
-    await saveWhatsappSettingsAction(fd({ whatsapp_apiKey: 'wk', whatsapp_channelId: 'ch' }));
+  it('whatsapp: forwards baseUrl (trimmed) + both secrets', async () => {
+    await saveWhatsappSettingsAction(fd({ whatsapp_baseUrl: ' https://agg/ ', whatsapp_apiKey: 'wk', whatsapp_channelId: 'ch' }));
     expect(saveSettings).toHaveBeenCalledWith(expect.anything(), 'admin-1', [
+      { key: 'whatsapp.baseUrl', value: 'https://agg/' },
       { key: 'whatsapp.apiKey', value: 'wk' },
       { key: 'whatsapp.channelId', value: 'ch' }
     ]);
@@ -167,5 +174,61 @@ describe('saveImapSettingsAction', () => {
     const res = await saveImapSettingsAction(fd({ imap_adapter: 'fake' }));
     expect(res).toEqual({ ok: false, error: 'secrets_key_missing' });
     expect(resetInboundEmailAdapter).not.toHaveBeenCalled();
+  });
+});
+
+describe('saveOnecSettingsAction', () => {
+  it('happy path: маппинг полей (trim), сброс адаптера 1С', async () => {
+    const res = await saveOnecSettingsAction(
+      fd({
+        onec_adapter: 'REST',
+        onec_apiUrl: ' https://1c/ ',
+        onec_healthPath: ' health ',
+        onec_apiToken: 'tok'
+      })
+    );
+    expect(res).toEqual({ ok: true });
+    expect(saveSettings).toHaveBeenCalledWith(expect.anything(), 'admin-1', [
+      { key: 'onec.adapter', value: 'rest' },
+      { key: 'onec.apiUrl', value: 'https://1c/' },
+      { key: 'onec.healthPath', value: 'health' },
+      { key: 'onec.apiToken', value: 'tok' }
+    ]);
+    expect(resetIntegrationSettingsCache).toHaveBeenCalled();
+    expect(resetOneCAdapter).toHaveBeenCalled();
+  });
+
+  it('validation: неизвестный адаптер отвергается до записи и без сброса', async () => {
+    const res = await saveOnecSettingsAction(fd({ onec_adapter: 'file' }));
+    expect(res).toEqual({ ok: false, error: 'validation' });
+    expect(saveSettings).not.toHaveBeenCalled();
+    expect(resetOneCAdapter).not.toHaveBeenCalled();
+  });
+
+  it('save error propagates and does not reset the 1С adapter', async () => {
+    saveSettings.mockResolvedValue({ ok: false, error: 'secrets_key_missing' });
+    const res = await saveOnecSettingsAction(fd({ onec_adapter: 'fake' }));
+    expect(res).toEqual({ ok: false, error: 'secrets_key_missing' });
+    expect(resetOneCAdapter).not.toHaveBeenCalled();
+  });
+});
+
+describe('saveDadataSettingsAction', () => {
+  it('checkbox on → enabled=true, ключ проброшен', async () => {
+    const res = await saveDadataSettingsAction(fd({ dadata_enabled: 'on', dadata_apiKey: 'dk' }));
+    expect(res).toEqual({ ok: true });
+    expect(saveSettings).toHaveBeenCalledWith(expect.anything(), 'admin-1', [
+      { key: 'dadata.enabled', value: 'true' },
+      { key: 'dadata.apiKey', value: 'dk' }
+    ]);
+    expect(resetIntegrationSettingsCache).toHaveBeenCalled();
+  });
+
+  it('снятый чекбокс → enabled=false, пустой ключ = не менять', async () => {
+    await saveDadataSettingsAction(fd({ dadata_apiKey: '' }));
+    expect(saveSettings).toHaveBeenCalledWith(expect.anything(), 'admin-1', [
+      { key: 'dadata.enabled', value: 'false' },
+      { key: 'dadata.apiKey', value: '' }
+    ]);
   });
 });

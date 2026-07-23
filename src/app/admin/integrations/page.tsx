@@ -11,7 +11,9 @@ import {
   saveMaxSettingsAction,
   saveWhatsappSettingsAction,
   saveMangoSettingsAction,
-  saveImapSettingsAction
+  saveImapSettingsAction,
+  saveOnecSettingsAction,
+  saveDadataSettingsAction
 } from '@/server-actions/admin/integrationSettings';
 
 export const dynamic = 'force-dynamic';
@@ -24,8 +26,10 @@ const VIEW_KEYS: SettingKey[] = [
   'telegram.botUsername',
   'max.botToken',
   'max.botUsername',
+  'max.baseUrl',
   'whatsapp.apiKey',
   'whatsapp.channelId',
+  'whatsapp.baseUrl',
   'mango.apiKey',
   'mango.apiSalt',
   'mango.vpbxBaseUrl',
@@ -34,7 +38,13 @@ const VIEW_KEYS: SettingKey[] = [
   'imap.port',
   'imap.user',
   'imap.password',
-  'imap.tls'
+  'imap.tls',
+  'onec.adapter',
+  'onec.apiUrl',
+  'onec.apiToken',
+  'onec.healthPath',
+  'dadata.enabled',
+  'dadata.apiKey'
 ];
 
 export default async function AdminIntegrationsPage() {
@@ -49,6 +59,8 @@ export default async function AdminIntegrationsPage() {
   const emailFrom = byKey('email.from').value ?? '';
   const apiKeyRow = byKey('email.resendApiKey');
   const imapTls = (byKey('imap.tls').value ?? '1').trim().toLowerCase();
+  const dadataEnabled = byKey('dadata.enabled').value?.trim().toLowerCase() === 'true';
+  const onecAdapter = (byKey('onec.adapter').value ?? 'fake').trim().toLowerCase();
 
   const secretProps = (k: SettingKey) => ({
     secretSet: byKey(k).isSet,
@@ -142,6 +154,13 @@ export default async function AdminIntegrationsPage() {
               label: 'Токен бота',
               kind: 'secret',
               ...secretProps('max.botToken')
+            },
+            {
+              name: 'max_baseUrl',
+              label: 'Базовый URL API (необязательно)',
+              kind: 'text',
+              initialValue: byKey('max.baseUrl').value ?? '',
+              placeholder: 'https://botapi.max.ru'
             }
           ]}
         />
@@ -163,6 +182,13 @@ export default async function AdminIntegrationsPage() {
               label: 'ID канала (подключённый номер)',
               kind: 'secret',
               ...secretProps('whatsapp.channelId')
+            },
+            {
+              name: 'whatsapp_baseUrl',
+              label: 'Базовый URL агрегатора (необязательно)',
+              kind: 'text',
+              initialValue: byKey('whatsapp.baseUrl').value ?? '',
+              placeholder: 'https://api.wazzup24.com'
             }
           ]}
         />
@@ -241,6 +267,65 @@ export default async function AdminIntegrationsPage() {
               label: 'Использовать TLS (шифрованное соединение)',
               kind: 'checkbox',
               initialChecked: imapTls !== '0' && imapTls !== 'false' && imapTls !== 'off'
+            }
+          ]}
+        />
+
+        <IntegrationSettingsForm
+          title="Обмен с 1С"
+          description="Синхронизация организаций, заказов, оплат и документов, отправка заявок в 1С."
+          note="Тюнинг обмена (режим, таймауты, курсор) остаётся в конфиге сервера — здесь только адрес, токен и вид адаптера."
+          action={saveOnecSettingsAction}
+          fields={[
+            {
+              name: 'onec_adapter',
+              label: 'Адаптер',
+              kind: 'select',
+              initialValue: onecAdapter === 'rest' ? 'rest' : 'fake',
+              options: [
+                { value: 'fake', label: 'Отключено (тестовый режим)' },
+                { value: 'rest', label: 'Боевой обмен по сети (REST)' }
+              ]
+            },
+            {
+              name: 'onec_apiUrl',
+              label: 'Адрес API 1С',
+              kind: 'text',
+              initialValue: byKey('onec.apiUrl').value ?? '',
+              placeholder: 'https://1c.example.ru/base/hs/exchange/'
+            },
+            {
+              name: 'onec_healthPath',
+              label: 'Путь для проверки связи (необязательно)',
+              kind: 'text',
+              initialValue: byKey('onec.healthPath').value ?? '',
+              placeholder: 'health'
+            },
+            {
+              name: 'onec_apiToken',
+              label: 'Токен доступа',
+              kind: 'secret',
+              ...secretProps('onec.apiToken')
+            }
+          ]}
+        />
+
+        <IntegrationSettingsForm
+          title="DaData (подсказки по ИНН)"
+          description="Автозаполнение реквизитов организаций по названию или ИНН. Ключ хранится на сервере и в браузер не передаётся."
+          action={saveDadataSettingsAction}
+          fields={[
+            {
+              name: 'dadata_enabled',
+              label: 'Включить подсказки DaData',
+              kind: 'checkbox',
+              initialChecked: dadataEnabled
+            },
+            {
+              name: 'dadata_apiKey',
+              label: 'API-ключ DaData',
+              kind: 'secret',
+              ...secretProps('dadata.apiKey')
             }
           ]}
         />

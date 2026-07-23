@@ -45,9 +45,20 @@ export const SETTING_SPECS = {
   // Max
   'max.botToken': { key: 'max.botToken', envVar: 'MAX_BOT_TOKEN', isSecret: true },
   'max.botUsername': { key: 'max.botUsername', envVar: 'MAX_BOT_USERNAME', isSecret: false },
+  'max.baseUrl': { key: 'max.baseUrl', envVar: 'MAX_API_BASE_URL', isSecret: false },
   // WhatsApp
   'whatsapp.apiKey': { key: 'whatsapp.apiKey', envVar: 'WHATSAPP_AGGREGATOR_API_KEY', isSecret: true },
-  'whatsapp.channelId': { key: 'whatsapp.channelId', envVar: 'WHATSAPP_AGGREGATOR_CHANNEL_ID', isSecret: true }
+  'whatsapp.channelId': { key: 'whatsapp.channelId', envVar: 'WHATSAPP_AGGREGATOR_CHANNEL_ID', isSecret: true },
+  'whatsapp.baseUrl': { key: 'whatsapp.baseUrl', envVar: 'WHATSAPP_AGGREGATOR_BASE_URL', isSecret: false },
+  // Обмен с 1С. Выбор адаптера (fake|rest), адрес API, токен и опциональный
+  // путь для проверки связи — всё настраивается в UI (env — fallback).
+  'onec.adapter': { key: 'onec.adapter', envVar: 'ONE_C_ADAPTER', isSecret: false },
+  'onec.apiUrl': { key: 'onec.apiUrl', envVar: 'ONE_C_API_URL', isSecret: false },
+  'onec.apiToken': { key: 'onec.apiToken', envVar: 'ONE_C_API_TOKEN', isSecret: true },
+  'onec.healthPath': { key: 'onec.healthPath', envVar: 'ONE_C_HEALTH_PATH', isSecret: false },
+  // DaData (подсказки по ИНН). Включение + ключ; сам ключ на клиент не уходит.
+  'dadata.enabled': { key: 'dadata.enabled', envVar: 'DADATA_ENABLED', isSecret: false },
+  'dadata.apiKey': { key: 'dadata.apiKey', envVar: 'DADATA_API_KEY', isSecret: true }
 } as const satisfies Record<string, SettingSpec>;
 
 export type SettingKey = keyof typeof SETTING_SPECS;

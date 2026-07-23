@@ -27,14 +27,16 @@ describe('getIntegrationsStatus', () => {
     delete process.env.FEATURE_TELEPHONY_MANGO;
     delete process.env.MANGO_API_KEY;
     delete process.env.MANGO_API_SALT;
+    delete process.env.DADATA_ENABLED;
+    delete process.env.DADATA_API_KEY;
   });
   afterEach(() => {
     process.env = { ...ORIGINAL_ENV };
   });
 
-  it('returns all five integrations in a stable order', () => {
+  it('returns all six integrations in a stable order', () => {
     const keys = getIntegrationsStatus().map((i) => i.key);
-    expect(keys).toEqual(['onec', 'mango', 'telegram', 'max', 'whatsapp']);
+    expect(keys).toEqual(['onec', 'mango', 'telegram', 'max', 'whatsapp', 'dadata']);
   });
 
   it('never leaks secret values — only booleans and env-hint names', () => {
@@ -62,6 +64,16 @@ describe('getIntegrationsStatus', () => {
     expect(byKey('mango').enabled).toBe(true);
     process.env.FEATURE_TELEPHONY_MANGO = 'off';
     expect(byKey('mango').enabled).toBe(false); // флаг выключен
+  });
+
+  it('DaData: enabled only when flag is truthy AND apiKey is present', () => {
+    expect(byKey('dadata').enabled).toBe(false);
+    process.env.DADATA_ENABLED = '1';
+    expect(byKey('dadata').enabled).toBe(false); // ключа ещё нет
+    process.env.DADATA_API_KEY = 'dk';
+    expect(byKey('dadata').enabled).toBe(true);
+    process.env.DADATA_ENABLED = 'off';
+    expect(byKey('dadata').enabled).toBe(false); // флаг выключен
   });
 
   it('messengers reflect their is*Enabled() helpers', () => {

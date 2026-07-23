@@ -12,7 +12,8 @@ import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache'
 const MAX_TIMEOUT_MS = 5000;
 
 export function maxApiBaseUrl(): string {
-  return process.env.MAX_API_BASE_URL?.trim() || 'https://botapi.max.ru';
+  // Настраивается в UI (кэш: БД после prime, env — fallback), дефолт — botapi.max.ru.
+  return cachedIntegrationSetting('max.baseUrl') || 'https://botapi.max.ru';
 }
 
 /**
