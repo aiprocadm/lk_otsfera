@@ -3,6 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import type { SyncJobPayload } from '@/lib/jobs/types';
 import { getOneCAdapter } from '@/lib/services/oneCSync';
+import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { OneCOrderSchema } from '@/lib/services/oneCSync/schemas';
 import type { OneCOrderDto } from '@/lib/services/oneCSync/dto';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
@@ -24,6 +25,9 @@ export async function syncOrdersProcessor(
   log.info('[worker] sync-orders job started', { id: job.id, mode });
 
   try {
+    // Конфиг адаптера 1С теперь в настройках интеграций — праймим кэш, чтобы
+    // изменения из /admin/integrations доехали до воркера без рестарта.
+    await primeIntegrationSettingsCache(db);
     const adapter = getOneCAdapter();
     const cursor = await getCursor(db, 'order');
     const raw = (await adapter.pullOrders(cursor)) as unknown[];

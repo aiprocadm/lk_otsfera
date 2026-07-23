@@ -7,6 +7,7 @@ import { saveSettings, type SaveEntry, type SettingKey } from '@/lib/config/inte
 import { resetIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { resetEmailTransportCache } from '@/lib/email/transport';
 import { __resetInboundEmailAdapter } from '@/lib/inbound/email';
+import { resetOneCAdapter } from '@/lib/services/oneCSync';
 
 export type IntegrationSaveResult =
   | { ok: true }
@@ -74,12 +75,16 @@ export async function saveTelegramSettingsAction(fd: FormData): Promise<Integrat
 
 export async function saveMaxSettingsAction(fd: FormData): Promise<IntegrationSaveResult> {
   const session = await requireAdmin();
-  return saveGroup(session.sub, botEntries(fd, 'max.botToken', 'max.botUsername', 'max'));
+  return saveGroup(session.sub, [
+    ...botEntries(fd, 'max.botToken', 'max.botUsername', 'max'),
+    { key: 'max.baseUrl', value: readField(fd, 'max_baseUrl').trim() }
+  ]);
 }
 
 export async function saveWhatsappSettingsAction(fd: FormData): Promise<IntegrationSaveResult> {
   const session = await requireAdmin();
   return saveGroup(session.sub, [
+    { key: 'whatsapp.baseUrl', value: readField(fd, 'whatsapp_baseUrl').trim() },
     { key: 'whatsapp.apiKey', value: readField(fd, 'whatsapp_apiKey') },
     { key: 'whatsapp.channelId', value: readField(fd, 'whatsapp_channelId') }
   ]);
@@ -119,4 +124,39 @@ export async function saveImapSettingsAction(fd: FormData): Promise<IntegrationS
   // (воркер подхватит сам через prime в poll-процессоре).
   __resetInboundEmailAdapter();
   return { ok: true };
+}
+
+/**
+ * Настройки обмена с 1С. Вид адаптера — только fake|rest (file не готов).
+ * После сохранения сбрасываем синглтон адаптера 1С, чтобы новый конфиг
+ * подхватился в этом процессе; воркер праймит кэш сам в sync-процессорах.
+ */
+export async function saveOnecSettingsAction(fd: FormData): Promise<IntegrationSaveResult> {
+  const session = await requireAdmin();
+  const adapter = readField(fd, 'onec_adapter').trim().toLowerCase();
+  if (adapter !== 'fake' && adapter !== 'rest') {
+    return { ok: false, error: 'validation' };
+  }
+
+  const res = await saveGroup(session.sub, [
+    { key: 'onec.adapter', value: adapter },
+    { key: 'onec.apiUrl', value: readField(fd, 'onec_apiUrl').trim() },
+    { key: 'onec.healthPath', value: readField(fd, 'onec_healthPath').trim() },
+    { key: 'onec.apiToken', value: readField(fd, 'onec_apiToken') }
+  ]);
+  if (!res.ok) return res;
+
+  resetOneCAdapter();
+  return { ok: true };
+}
+
+/** Настройки DaData: включение + ключ (секрет). */
+export async function saveDadataSettingsAction(fd: FormData): Promise<IntegrationSaveResult> {
+  const session = await requireAdmin();
+  const enabled = fd.get('dadata_enabled') === 'on' || fd.get('dadata_enabled') === 'true';
+  return saveGroup(session.sub, [
+    { key: 'dadata.enabled', value: enabled ? 'true' : 'false' },
+    // Пустой ключ → saveSettings оставит существующий как есть.
+    { key: 'dadata.apiKey', value: readField(fd, 'dadata_apiKey') }
+  ]);
 }

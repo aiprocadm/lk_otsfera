@@ -34,8 +34,14 @@ function isMangoTelephonyEnabled(): boolean {
   );
 }
 
+function isDadataEnabled(): boolean {
+  const flag = (cachedIntegrationSetting('dadata.enabled') ?? '').trim().toLowerCase();
+  const flagOn = ['1', 'true', 'on', 'yes'].includes(flag);
+  return flagOn && !!cachedIntegrationSetting('dadata.apiKey');
+}
+
 export function getIntegrationsStatus(): IntegrationStatus[] {
-  const oneCAdapter = (process.env.ONE_C_ADAPTER ?? 'fake').trim().toLowerCase();
+  const oneCAdapter = (cachedIntegrationSetting('onec.adapter') ?? 'fake').trim().toLowerCase();
   return [
     {
       key: 'onec',
@@ -45,7 +51,7 @@ export function getIntegrationsStatus(): IntegrationStatus[] {
         oneCAdapter === 'rest'
           ? 'Боевой обмен с 1С по сети включён.'
           : 'Работает тестовый (fake) адаптер — реальный обмен с 1С выключен.',
-      envHint: 'ONE_C_ADAPTER=rest'
+      envHint: 'вид адаптера и креды — в форме ниже'
     },
     {
       key: 'mango',
@@ -74,6 +80,13 @@ export function getIntegrationsStatus(): IntegrationStatus[] {
       enabled: isWhatsAppEnabled(),
       description: 'Входящие/исходящие сообщения WhatsApp через агрегатора.',
       envHint: 'FEATURE_WHATSAPP_CHANNEL=1 (на сервере) + ключи агрегатора в форме ниже'
+    },
+    {
+      key: 'dadata',
+      label: 'DaData (подсказки по ИНН)',
+      enabled: isDadataEnabled(),
+      description: 'Автозаполнение реквизитов организаций по названию/ИНН.',
+      envHint: 'включение и ключ — в форме ниже'
     }
   ];
 }

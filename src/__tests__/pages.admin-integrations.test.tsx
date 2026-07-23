@@ -33,7 +33,9 @@ vi.mock('@/server-actions/admin/integrationSettings', () => ({
   saveMaxSettingsAction: vi.fn(),
   saveWhatsappSettingsAction: vi.fn(),
   saveMangoSettingsAction: vi.fn(),
-  saveImapSettingsAction: vi.fn()
+  saveImapSettingsAction: vi.fn(),
+  saveOnecSettingsAction: vi.fn(),
+  saveDadataSettingsAction: vi.fn()
 }));
 
 import AdminIntegrationsPage from '@/app/admin/integrations/page';
@@ -48,8 +50,10 @@ const VIEW_KEYS = [
   'telegram.botUsername',
   'max.botToken',
   'max.botUsername',
+  'max.baseUrl',
   'whatsapp.apiKey',
   'whatsapp.channelId',
+  'whatsapp.baseUrl',
   'mango.apiKey',
   'mango.apiSalt',
   'mango.vpbxBaseUrl',
@@ -58,7 +62,13 @@ const VIEW_KEYS = [
   'imap.port',
   'imap.user',
   'imap.password',
-  'imap.tls'
+  'imap.tls',
+  'onec.adapter',
+  'onec.apiUrl',
+  'onec.apiToken',
+  'onec.healthPath',
+  'dadata.enabled',
+  'dadata.apiKey'
 ];
 
 describe('AdminIntegrationsPage', () => {
@@ -101,13 +111,15 @@ describe('AdminIntegrationsPage', () => {
     expect(text).toContain('Не настроено');
     // env hints are shown (they are names, not secret values)
     expect(text).toContain('HINT_MANGO');
-    // все пять новых групп настроек смонтированы
+    // все группы настроек смонтированы
     expect(formTitles).toEqual([
       'Telegram-бот',
       'Max-бот',
       'WhatsApp (агрегатор)',
       'Телефония Mango Office',
-      'Входящая почта (IMAP)'
+      'Входящая почта (IMAP)',
+      'Обмен с 1С',
+      'DaData (подсказки по ИНН)'
     ]);
   });
 });

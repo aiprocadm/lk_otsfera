@@ -3,6 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import type { PushLeadJobPayload } from '@/lib/jobs/types';
 import { pushLeadToOneC } from '@/lib/services/oneCSync/push';
+import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { log } from '@/lib/logging';
 
 export type PushLeadProcessorResult = {
@@ -16,6 +17,9 @@ export async function pushLeadProcessor(
 ): Promise<PushLeadProcessorResult> {
   log.info('[worker] push-lead job started', { id: job.id, leadId: job.data.leadId });
 
+  // Конфиг адаптера 1С — в настройках интеграций; праймим кэш перед пушем,
+  // чтобы новые креды из /admin/integrations доехали до воркера без рестарта.
+  await primeIntegrationSettingsCache(db);
   const res = await pushLeadToOneC(db, job.data.leadId);
   if (!res.ok) {
     throw new Error(res.error);
