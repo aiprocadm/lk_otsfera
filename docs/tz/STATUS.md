@@ -15,7 +15,7 @@
 
 | Этап | Состав | Статус | Спека | План | PR |
 |---|---|---|---|---|---|
-| 1 | Модуль 14 + ФТ-13.1–13.2 (интеграции в UI + DaData-настройка) | 🔨 в работе (PR-2) | [спека](../superpowers/specs/2026-07-23-stage1-integrations-admin-dadata-design.md) ✅ подтверждена | [PR-1 план](../superpowers/plans/2026-07-23-stage1-pr1-integrations-settings.md) | [#216](https://github.com/aiprocadm/lk_otsfera/pull/216) ✅ смержен; PR-2 (проверка/вебхуки/флаги) — в работе |
+| 1 | Модуль 14 + ФТ-13.1–13.2 (интеграции в UI + DaData-настройка) | 🔍 PR (PR-2) | [спека](../superpowers/specs/2026-07-23-stage1-integrations-admin-dadata-design.md) ✅ подтверждена | [PR-1](../superpowers/plans/2026-07-23-stage1-pr1-integrations-settings.md) · [PR-2](../superpowers/plans/2026-07-23-stage1-pr2-check-diagnostics.md) | [#216](https://github.com/aiprocadm/lk_otsfera/pull/216) ✅ смержен; [#217](https://github.com/aiprocadm/lk_otsfera/pull/217) (PR-2) — ждёт мержа владельцем |
 | 2 | Модуль 2 (мастер заявки на обучение) | ⬜ не начат | — | — | — |
 | 3 | Модуль 6 + экспорт удостоверений (часть Модуля 12) | ⬜ не начат | — | — | — |
 | 4 | Модуль 10 (онбординг по приглашению) | ⬜ не начат | — | — | — |
@@ -47,3 +47,4 @@
 - 2026-07-23 — этап 1: написана спека `2026-07-23-stage1-integrations-admin-dadata-design.md`, предъявлена заказчику. Ждёт подтверждения до кода (3 вопроса §9 спеки).
 - 2026-07-23 — этап 1: спека подтверждена заказчиком (разбивка на 2 PR; проверка 1С/Mango — универсальная). PR-1 (настройка 1С/WhatsApp/Max/DaData + прокси подсказок) реализован: typecheck/lint зелёные, unit-слой зелёный (6866 тестов), integration по затронутым местам зелёный (живой Postgres). Открыт PR #216 (ветка `claude/stage1-integrations-admin-dadata` от main). Ждёт мержа владельцем. PR-2 (проверка подключения, диагностика вебхуков, матрица флагов) — следующим.
 - 2026-07-23 — этап 1: PR #216 (PR-1) смержен владельцем в `main`. Начат PR-2 «Проверка и диагностика» (пункты D/E/F спеки).
+- 2026-07-23 — этап 1: PR-2 реализован (универсальная «Проверить подключение» по 8 интеграциям + SyncState-результаты, диагностика вебхуков TG/Max/WhatsApp/Mango, read-only матрица флагов на /admin/settings; новая зависимость `imapflow` для IMAP-пробы). Гейты: typecheck/lint зелёные, unit 6910 зелёные, integration по затронутым местам (живой Postgres) зелёный. Открыт PR [#217](https://github.com/aiprocadm/lk_otsfera/pull/217) (ветка `claude/stage1-pr2-check-diagnostics` от main). Ждёт мержа владельцем — после мержа этап 1 = ✅ готов.

@@ -86,7 +86,8 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development (по желанию
 
 - [x] H1. `package.json`: + `imapflow` (для IMAP-пробы; poll-адаптер остаётся stub).
 - [x] H2. `CHANGELOG.md`: запись про PR-2.
-- [ ] H3. `npm run typecheck` / `npm run lint` — зелёные.
-- [ ] H4. `npm run test:unit` — зелёный; integration по затронутым местам
+- [x] H3. `npm run typecheck` / `npm run lint` — зелёные.
+- [x] H4. `npm run test:unit` — зелёный; integration по затронутым местам
   (живой Postgres) — зелёный.
-- [ ] H5. PR открыт, STATUS.md обновлён (статус, ссылка, журнал).
+- [x] H5. PR открыт ([#217](https://github.com/aiprocadm/lk_otsfera/pull/217)),
+  STATUS.md обновлён (статус, ссылка, журнал).
