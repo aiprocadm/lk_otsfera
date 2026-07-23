@@ -113,16 +113,17 @@ describe('FakeInboundEmailAdapter', () => {
 });
 
 describe('ImapInboundEmailAdapter', () => {
-  it('rejects with the "not wired" error message', async () => {
+  // Поведение живого адаптера (курсор/парсинг/батч) — в
+  // inbound.email.adapter-imap-live.test.ts с моками imapflow. Здесь только
+  // контракт «неполный конфиг падает до любой сетевой активности».
+  it('без конфига (env пуст) падает с "imap config incomplete", не трогая сеть', async () => {
     const adapter = new ImapInboundEmailAdapter();
-    await expect(adapter.fetchNewMessages(null)).rejects.toThrow(
-      'IMAP inbound adapter not wired (set INBOUND_EMAIL_ADAPTER=fake for tests)'
-    );
+    await expect(adapter.fetchNewMessages(null)).rejects.toThrow('imap config incomplete');
   });
 
-  it('accepts an explicit config override without performing network I/O', async () => {
-    const adapter = new ImapInboundEmailAdapter({ host: 'h', port: 993, user: 'u', password: 'p', tls: true });
-    await expect(adapter.fetchNewMessages(null)).rejects.toThrow('IMAP inbound adapter not wired');
+  it('явный, но неполный override (нет пароля) — тот же понятный отказ', async () => {
+    const adapter = new ImapInboundEmailAdapter({ host: 'h', port: 993, user: 'u', tls: true });
+    await expect(adapter.fetchNewMessages(null)).rejects.toThrow('imap config incomplete');
   });
 });
 
