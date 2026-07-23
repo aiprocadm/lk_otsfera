@@ -69,7 +69,8 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development (по желанию
 - [x] E2. `npm run lint` — без ошибок/варнингов
 - [x] E3. `npm run test:unit` — 697 файлов / 6866 тестов зелёные (3 skip).
   Integration-слой (L3/gate, нужен Postgres) в этой сессии не гонялся.
-- [ ] E4. Обновить STATUS.md (PR-1 открыт), close-out при мерже.
+- [x] E4. STATUS.md обновлён (PR #216 открыт). Close-out — при мерже владельцем.
+  Также прогнан integration-слой по затронутым местам (живой Postgres): 54 теста зелёные.
 
 ## Вне PR-1 (→ PR-2)
 
