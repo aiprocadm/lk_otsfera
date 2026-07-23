@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ---- hoisted mocks (mirrors api.integrations.max.webhook.test.ts) ----
-const { linkMaxByCode, sendMaxMessage, notFoundIfDisabled, isFeatureEnabled, ingestMock } = vi.hoisted(() => ({
+const { linkMaxByCode, sendMaxMessage, notFoundIfDisabled, isFeatureEnabled, ingestMock, recordWebhookEvent } = vi.hoisted(() => ({
   linkMaxByCode: vi.fn(),
   sendMaxMessage: vi.fn(),
   notFoundIfDisabled: vi.fn(),
   isFeatureEnabled: vi.fn(),
   ingestMock: vi.fn(),
+  recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
@@ -14,6 +15,7 @@ vi.mock('@/lib/services/max/link', () => ({ linkMaxByCode }));
 vi.mock('@/lib/max/client', () => ({ sendMaxMessage }));
 vi.mock('@/lib/services/inbound/ingest', () => ({ ingestInboundMessage: ingestMock }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled, isFeatureEnabled }));
+vi.mock('@/lib/services/admin/webhookDiagnostics', () => ({ recordWebhookEvent }));
 
 import { POST } from '@/app/api/integrations/max/webhook/route';
 

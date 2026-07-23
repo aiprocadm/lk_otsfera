@@ -32,6 +32,12 @@ vi.mock('@/components/settings/staff-backup-codes-section', () => ({
     React.createElement('div', { 'data-testid': 'backup-codes-section' }, 'BACKUP')
 }));
 
+// Матрица читает FEATURE_FLAGS напрямую (featureFlags тут замокан) — заглушка;
+// сам компонент покрыт components.feature-flags-matrix.test.tsx.
+vi.mock('@/components/admin/feature-flags-matrix', () => ({
+  FeatureFlagsMatrix: () => React.createElement('div', { 'data-testid': 'flags-matrix' }, 'FLAGS')
+}));
+
 import AdminSettingsPage from '@/app/admin/settings/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
@@ -60,6 +66,9 @@ describe('AdminSettingsPage', () => {
     expect(container.textContent).toContain('email');
     // Флаг выключен → секции кодов восстановления нет
     expect(container.querySelector('[data-testid="backup-codes-section"]')).toBeNull();
+    // ФТ-14.6: read-only матрица флагов смонтирована; плашка ведёт в «Интеграции»
+    expect(container.querySelector('[data-testid="flags-matrix"]')).not.toBeNull();
+    expect(container.textContent).toContain('на странице «Интеграции»');
   });
 
   it('shows the backup-codes section when staff_2fa is enabled', async () => {

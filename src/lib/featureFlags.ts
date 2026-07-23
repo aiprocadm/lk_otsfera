@@ -100,6 +100,19 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'global_search',
 ]);
 
+/**
+ * Тип флага для read-only матрицы на /admin/settings (ФТ-14.6): opt-in флаги
+ * включаются явно (env=1), остальные включены по умолчанию (opt-out).
+ */
+export function isOptInFlag(flag: FeatureFlag): boolean {
+  return OPT_IN_FLAGS.has(flag);
+}
+
+/** Имя env-переменной флага — для отображения в матрице (значения не показываются). */
+export function featureFlagEnvVar(flag: FeatureFlag): string {
+  return envKey(flag);
+}
+
 export class FeatureDisabledError extends Error {
   constructor(public flag: FeatureFlag) {
     super(`Feature disabled: ${flag}`);

@@ -4,6 +4,7 @@ import { sendTelegramMessage } from '@/lib/telegram/client';
 import { ingestInboundMessage } from '@/lib/services/inbound/ingest';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { secretEquals } from '@/lib/security/secretCompare';
+import { recordWebhookEvent } from '@/lib/services/admin/webhookDiagnostics';
 import { log } from '@/lib/logging';
 
 export async function POST(req: Request): Promise<Response> {
@@ -22,6 +23,10 @@ export async function POST(req: Request): Promise<Response> {
     // Malformed JSON — still return 200 so Telegram doesn't retry
     return new Response(null, { status: 200 });
   }
+
+  // ФТ-14.4: отметка «последнее входящее» для диагностики в админке.
+  // Never-throws; сбой записи не влияет на ответ вебхука.
+  await recordWebhookEvent(prisma, 'telegram');
 
   // Extract message.text and message.chat.id safely
   const message = (update as Record<string, unknown>)?.message as

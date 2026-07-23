@@ -3,6 +3,7 @@ import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { parseWazzupInbound } from '@/lib/whatsapp/aggregator';
 import { ingestInboundMessage } from '@/lib/services/inbound/ingest';
 import { secretEquals } from '@/lib/security/secretCompare';
+import { recordWebhookEvent } from '@/lib/services/admin/webhookDiagnostics';
 import { log } from '@/lib/logging';
 
 /**
@@ -33,6 +34,10 @@ export async function POST(req: Request): Promise<Response> {
     // Malformed JSON — 200, чтобы агрегатор не ретраил.
     return new Response(null, { status: 200 });
   }
+
+  // ФТ-14.4: отметка «последнее входящее» для диагностики в админке.
+  // Never-throws; сбой записи не влияет на ответ вебхука.
+  await recordWebhookEvent(prisma, 'whatsapp');
 
   // Best-effort ingest per message (§3 — degrade gracefully; ошибка одного
   // сообщения не должна блокировать остальные и не должна превращаться в 500).

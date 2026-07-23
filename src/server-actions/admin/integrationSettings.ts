@@ -8,6 +8,7 @@ import { resetIntegrationSettingsCache } from '@/lib/config/integrationSettingsC
 import { resetEmailTransportCache } from '@/lib/email/transport';
 import { __resetInboundEmailAdapter } from '@/lib/inbound/email';
 import { resetOneCAdapter } from '@/lib/services/oneCSync';
+import { testIntegration } from '@/lib/services/admin/testIntegration';
 
 export type IntegrationSaveResult =
   | { ok: true }
@@ -148,6 +149,28 @@ export async function saveOnecSettingsAction(fd: FormData): Promise<IntegrationS
 
   resetOneCAdapter();
   return { ok: true };
+}
+
+export type IntegrationTestActionResult =
+  | { ok: true; success: boolean; message: string }
+  | { ok: false; error: string };
+
+/**
+ * «Проверить подключение» (ФТ-14.3): универсальная проба по данным, которые
+ * ввёл админ. Ключ интеграции привязывается на сервере через `.bind(null, key)`
+ * в page.tsx; FormData от кнопки формы игнорируется. Результат пробы пишется
+ * в SyncState — revalidate обновляет строку «последняя проверка».
+ */
+export async function testIntegrationAction(
+  key: string,
+  _fd: FormData
+): Promise<IntegrationTestActionResult> {
+  void _fd; // поля формы пробе не нужны — берём сохранённые настройки
+  const session = await requireAdmin();
+  const res = await testIntegration(prisma, session, key);
+  if (!res.ok) return res;
+  revalidatePath('/admin/integrations');
+  return res;
 }
 
 /** Настройки DaData: включение + ключ (секрет). */

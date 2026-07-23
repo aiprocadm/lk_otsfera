@@ -5,7 +5,11 @@ import { prisma } from '@/lib/db/prisma';
 import { getSettingsView, type SettingKey, type SettingViewRow } from '@/lib/config/integrationSettings';
 import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { EmailSettingsForm } from '@/components/admin/email-settings-form';
-import { IntegrationSettingsForm } from '@/components/admin/integration-settings-form';
+import {
+  IntegrationSettingsForm,
+  type IntegrationCheckInfo,
+  type WebhookDiagInfo
+} from '@/components/admin/integration-settings-form';
 import {
   saveTelegramSettingsAction,
   saveMaxSettingsAction,
@@ -13,8 +17,12 @@ import {
   saveMangoSettingsAction,
   saveImapSettingsAction,
   saveOnecSettingsAction,
-  saveDadataSettingsAction
+  saveDadataSettingsAction,
+  testIntegrationAction
 } from '@/server-actions/admin/integrationSettings';
+import { INTEGRATION_TEST_KEYS, type IntegrationTestKey } from '@/lib/services/admin/testIntegration';
+import { getAppBaseUrl } from '@/lib/notifications/shared';
+import { fmtDateTime } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,11 +55,57 @@ const VIEW_KEYS: SettingKey[] = [
   'dadata.apiKey'
 ];
 
+const WEBHOOK_NAMES = ['telegram', 'max', 'whatsapp', 'mango'] as const;
+
 export default async function AdminIntegrationsPage() {
   await requireAdmin();
   // Статус-панель читает креды через кэш настроек — праймим до вызова.
   await primeIntegrationSettingsCache(prisma);
   const integrations = getIntegrationsStatus();
+
+  // ФТ-14.3/14.4: результаты проб «Проверить подключение» и отметки вебхуков.
+  const syncStates = await prisma.syncState.findMany({
+    where: {
+      entity: {
+        in: [
+          ...INTEGRATION_TEST_KEYS.map((k) => `integration.${k}`),
+          ...WEBHOOK_NAMES.map((n) => `webhook.${n}`)
+        ]
+      }
+    },
+    select: { entity: true, lastRunAt: true, lastSuccessAt: true, lastError: true }
+  });
+  const stateOf = (entity: string) => syncStates.find((s) => s.entity === entity);
+
+  const checkOf = (key: IntegrationTestKey): IntegrationCheckInfo | null => {
+    const s = stateOf(`integration.${key}`);
+    if (!s?.lastRunAt) return null;
+    const lastOk =
+      !!s.lastSuccessAt && s.lastRunAt.getTime() === s.lastSuccessAt.getTime();
+    return {
+      lastAt: fmtDateTime(s.lastRunAt),
+      lastOk,
+      lastError: s.lastError
+    };
+  };
+
+  const appUrl = getAppBaseUrl();
+  const webhookOf = (
+    name: (typeof WEBHOOK_NAMES)[number],
+    headerName: string | null,
+    secretSet: boolean,
+    note?: string
+  ): WebhookDiagInfo => {
+    const s = stateOf(`webhook.${name}`);
+    return {
+      url: `${appUrl}/api/integrations/${name}/webhook`,
+      headerName,
+      secretSet,
+      lastEventAt: s?.lastSuccessAt ? fmtDateTime(s.lastSuccessAt) : null,
+      note
+    };
+  };
+  const testOf = (key: IntegrationTestKey) => testIntegrationAction.bind(null, key);
 
   const view = await getSettingsView(prisma, VIEW_KEYS);
   const byKey = (k: SettingKey): SettingViewRow => view.find((r) => r.key === k)!;
@@ -113,6 +167,8 @@ export default async function AdminIntegrationsPage() {
           initialFrom={emailFrom}
           apiKeySet={apiKeyRow.isSet}
           apiKeySource={apiKeyRow.source}
+          testAction={testOf('email')}
+          check={checkOf('email')}
         />
 
         <IntegrationSettingsForm
@@ -135,6 +191,13 @@ export default async function AdminIntegrationsPage() {
               ...secretProps('telegram.botToken')
             }
           ]}
+          testAction={testOf('telegram')}
+          check={checkOf('telegram')}
+          webhook={webhookOf(
+            'telegram',
+            'x-telegram-bot-api-secret-token',
+            !!process.env.TELEGRAM_WEBHOOK_SECRET?.trim()
+          )}
         />
 
         <IntegrationSettingsForm
@@ -163,6 +226,9 @@ export default async function AdminIntegrationsPage() {
               placeholder: 'https://botapi.max.ru'
             }
           ]}
+          testAction={testOf('max')}
+          check={checkOf('max')}
+          webhook={webhookOf('max', 'x-max-webhook-secret', !!process.env.MAX_WEBHOOK_SECRET?.trim())}
         />
 
         <IntegrationSettingsForm
@@ -191,6 +257,13 @@ export default async function AdminIntegrationsPage() {
               placeholder: 'https://api.wazzup24.com'
             }
           ]}
+          testAction={testOf('whatsapp')}
+          check={checkOf('whatsapp')}
+          webhook={webhookOf(
+            'whatsapp',
+            'x-wazzup-secret',
+            !!process.env.WHATSAPP_WEBHOOK_SECRET?.trim()
+          )}
         />
 
         <IntegrationSettingsForm
@@ -219,6 +292,14 @@ export default async function AdminIntegrationsPage() {
               ...secretProps('mango.apiSalt')
             }
           ]}
+          testAction={testOf('mango')}
+          check={checkOf('mango')}
+          webhook={webhookOf(
+            'mango',
+            null,
+            byKey('mango.apiKey').isSet && byKey('mango.apiSalt').isSet,
+            'Запросы аутентифицируются подписью по ключам API и IP-адресами Mango — отдельный секрет-заголовок не нужен.'
+          )}
         />
 
         <IntegrationSettingsForm
@@ -269,6 +350,8 @@ export default async function AdminIntegrationsPage() {
               initialChecked: imapTls !== '0' && imapTls !== 'false' && imapTls !== 'off'
             }
           ]}
+          testAction={testOf('imap')}
+          check={checkOf('imap')}
         />
 
         <IntegrationSettingsForm
@@ -308,6 +391,8 @@ export default async function AdminIntegrationsPage() {
               ...secretProps('onec.apiToken')
             }
           ]}
+          testAction={testOf('onec')}
+          check={checkOf('onec')}
         />
 
         <IntegrationSettingsForm
@@ -328,6 +413,8 @@ export default async function AdminIntegrationsPage() {
               ...secretProps('dadata.apiKey')
             }
           ]}
+          testAction={testOf('dadata')}
+          check={checkOf('dadata')}
         />
       </div>
     </div>

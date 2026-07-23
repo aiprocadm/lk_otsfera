@@ -3,6 +3,11 @@
 import React, { useState } from 'react';
 import { saveEmailSettingsAction } from '@/server-actions/admin/integrationSettings';
 import { useFormAction, type ActionResult } from '@/lib/ui/useFormAction';
+import {
+  IntegrationCheckPanel,
+  type IntegrationCheckInfo,
+  type IntegrationTestAction
+} from '@/components/admin/integration-settings-form';
 
 const ERROR_MAP: Record<string, string> = {
   secrets_key_missing:
@@ -14,12 +19,17 @@ export function EmailSettingsForm({
   initialEnabled,
   initialFrom,
   apiKeySet,
-  apiKeySource
+  apiKeySource,
+  testAction,
+  check
 }: {
   initialEnabled: boolean;
   initialFrom: string;
   apiKeySet: boolean;
   apiKeySource: 'db' | 'env' | 'none';
+  /** «Проверить подключение» (ФТ-14.3): тестовое письмо на email админа. */
+  testAction?: IntegrationTestAction;
+  check?: IntegrationCheckInfo | null;
 }) {
   const [enabled, setEnabled] = useState(initialEnabled);
   const { formAction, pending, errorText, success } = useFormAction<Record<string, never>>({
@@ -95,6 +105,8 @@ export function EmailSettingsForm({
           {pending ? 'Сохраняем…' : 'Сохранить'}
         </button>
       </div>
+
+      {testAction && <IntegrationCheckPanel testAction={testAction} check={check ?? null} />}
     </form>
   );
 }

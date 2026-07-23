@@ -93,3 +93,94 @@ describe('IntegrationSettingsForm', () => {
     expect(screen.getByRole('alert')).toBeTruthy();
   });
 });
+
+describe('IntegrationCheckPanel (через IntegrationSettingsForm)', () => {
+  const testAction = vi.fn();
+  beforeEach(() => {
+    testAction.mockReset();
+    action.mockReset();
+  });
+
+  it('без testAction панель не рендерится', () => {
+    renderForm();
+    expect(screen.queryByText('Проверить подключение')).toBeNull();
+  });
+
+  it('рендерит «последняя проверка: —» когда проб ещё не было', () => {
+    renderForm({ testAction, check: null });
+    expect(screen.getByText('Проверить подключение')).toBeTruthy();
+    expect(screen.getByText(/Последняя проверка:/)).toBeTruthy();
+    expect(screen.getByText(/—/)).toBeTruthy();
+  });
+
+  it('успешная последняя проверка: дата + «успешно»', () => {
+    renderForm({ testAction, check: { lastAt: '23.07.2026, 10:00', lastOk: true, lastError: null } });
+    expect(screen.getByText(/23\.07\.2026/)).toBeTruthy();
+    expect(screen.getByText('успешно')).toBeTruthy();
+  });
+
+  it('провальная последняя проверка: текст ошибки (fallback «ошибка» при null)', () => {
+    renderForm({ testAction, check: { lastAt: 'дата', lastOk: false, lastError: 'Сервер ответил HTTP 500' } });
+    expect(screen.getByText('Сервер ответил HTTP 500')).toBeTruthy();
+
+    renderForm({ testAction, check: { lastAt: 'дата2', lastOk: false, lastError: null } });
+    expect(screen.getByText('ошибка')).toBeTruthy();
+  });
+
+  it('блок вебхука: URL, заголовок, «задан», примечание и последнее входящее', () => {
+    renderForm({
+      testAction,
+      check: null,
+      webhook: {
+        url: 'https://lk.example.ru/api/integrations/telegram/webhook',
+        headerName: 'x-telegram-bot-api-secret-token',
+        secretSet: true,
+        lastEventAt: '23.07.2026, 09:30',
+        note: 'Прим.'
+      }
+    });
+    expect(screen.getByText('https://lk.example.ru/api/integrations/telegram/webhook')).toBeTruthy();
+    expect(screen.getByText('x-telegram-bot-api-secret-token')).toBeTruthy();
+    expect(screen.getByText('задан')).toBeTruthy();
+    expect(screen.getByText('Прим.')).toBeTruthy();
+    expect(screen.getByText(/Последнее входящее: 23\.07\.2026/)).toBeTruthy();
+  });
+
+  it('вебхук без секрета: «не задан»; без событий: «—»', () => {
+    renderForm({
+      testAction,
+      check: null,
+      webhook: { url: 'https://u', headerName: 'x-h', secretSet: false, lastEventAt: null }
+    });
+    expect(screen.getByText('не задан')).toBeTruthy();
+    expect(screen.getByText(/Последнее входящее: —/)).toBeTruthy();
+  });
+
+  it('клик «Проверить подключение» зовёт testAction и показывает успех (role=status)', async () => {
+    testAction.mockResolvedValue({ ok: true, success: true, message: 'Подключение успешно' });
+    renderForm({ testAction, check: null });
+    const btn = screen.getByText('Проверить подключение');
+    fireEvent.click(btn);
+    expect(await screen.findByText('Подключение успешно')).toBeTruthy();
+    expect(testAction).toHaveBeenCalled();
+    expect(action).not.toHaveBeenCalled(); // сохранение не запускалось
+  });
+
+  it('неуспешная проба → сообщение в role=alert', async () => {
+    testAction.mockResolvedValue({ ok: true, success: false, message: 'Авторизация отклонена (HTTP 401)' });
+    renderForm({ testAction, check: null });
+    const btn = screen.getByText('Проверить подключение');
+    fireEvent.click(btn);
+    expect(await screen.findByText('Авторизация отклонена (HTTP 401)')).toBeTruthy();
+    expect(screen.getByRole('alert')).toBeTruthy();
+  });
+
+  it('ошибка контракта (ok:false) маппится в русский текст', async () => {
+    testAction.mockResolvedValue({ ok: false, error: 'forbidden' });
+    renderForm({ testAction, check: null });
+    const btn = screen.getByText('Проверить подключение');
+    fireEvent.click(btn);
+    // resolveErrorText: словарь errorMessageRu даёт русское сообщение для forbidden
+    expect(await screen.findByRole('alert')).toBeTruthy();
+  });
+});

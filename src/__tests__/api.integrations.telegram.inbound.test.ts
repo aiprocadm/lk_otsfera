@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ---- hoisted mocks (mirrors api.telegram.webhook.test.ts) ----
-const { linkByCodeMock, sendTelegramMessageMock, prismaMock, ingestMock, isFeatureEnabledMock } =
+const { linkByCodeMock, sendTelegramMessageMock, prismaMock, ingestMock, isFeatureEnabledMock, recordWebhookEvent } =
   vi.hoisted(() => ({
     linkByCodeMock: vi.fn(),
     sendTelegramMessageMock: vi.fn(),
     prismaMock: {},
     ingestMock: vi.fn(),
     isFeatureEnabledMock: vi.fn(),
+    recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
   }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }));
@@ -15,6 +16,7 @@ vi.mock('@/lib/services/telegram/link', () => ({ linkByCode: linkByCodeMock }));
 vi.mock('@/lib/telegram/client', () => ({ sendTelegramMessage: sendTelegramMessageMock }));
 vi.mock('@/lib/services/inbound/ingest', () => ({ ingestInboundMessage: ingestMock }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled: isFeatureEnabledMock }));
+vi.mock('@/lib/services/admin/webhookDiagnostics', () => ({ recordWebhookEvent }));
 
 import { POST } from '@/app/api/integrations/telegram/webhook/route';
 
