@@ -2,6 +2,7 @@ import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { getMangoAdapter } from '@/lib/telephony/mango';
+import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { parseMangoEvent } from '@/lib/telephony/mango/parse';
 import { ingestCallEvent } from '@/lib/services/telephony/ingestCall';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
@@ -35,6 +36,10 @@ export async function mangoBackfillProcessor(
   now: Date = new Date(),
   pollDelayMs: number = pollDelayMsFromEnv()
 ): Promise<MangoBackfillResult> {
+  // REST-адаптер читает креды Mango из кэша настроек интеграций — праймим,
+  // чтобы значения из /admin/integrations доезжали до воркера без рестарта.
+  await primeIntegrationSettingsCache(db);
+
   const state = await db.syncState.findUnique({ where: { entity: STATE_ENTITY } });
   const to = now;
   const from = state?.cursor ? new Date(state.cursor) : new Date(now.getTime() - DEFAULT_LOOKBACK_MS);

@@ -2,20 +2,58 @@ import React from 'react';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { getIntegrationsStatus } from '@/lib/services/admin/integrations';
 import { prisma } from '@/lib/db/prisma';
-import { getSettingsView } from '@/lib/config/integrationSettings';
+import { getSettingsView, type SettingKey, type SettingViewRow } from '@/lib/config/integrationSettings';
+import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { EmailSettingsForm } from '@/components/admin/email-settings-form';
+import { IntegrationSettingsForm } from '@/components/admin/integration-settings-form';
+import {
+  saveTelegramSettingsAction,
+  saveMaxSettingsAction,
+  saveWhatsappSettingsAction,
+  saveMangoSettingsAction,
+  saveImapSettingsAction
+} from '@/server-actions/admin/integrationSettings';
 
 export const dynamic = 'force-dynamic';
 
+const VIEW_KEYS: SettingKey[] = [
+  'email.enabled',
+  'email.from',
+  'email.resendApiKey',
+  'telegram.botToken',
+  'telegram.botUsername',
+  'max.botToken',
+  'max.botUsername',
+  'whatsapp.apiKey',
+  'whatsapp.channelId',
+  'mango.apiKey',
+  'mango.apiSalt',
+  'mango.vpbxBaseUrl',
+  'imap.adapter',
+  'imap.host',
+  'imap.port',
+  'imap.user',
+  'imap.password',
+  'imap.tls'
+];
+
 export default async function AdminIntegrationsPage() {
   await requireAdmin();
+  // Статус-панель читает креды через кэш настроек — праймим до вызова.
+  await primeIntegrationSettingsCache(prisma);
   const integrations = getIntegrationsStatus();
 
-  const emailView = await getSettingsView(prisma, ['email.enabled', 'email.from', 'email.resendApiKey']);
-  const byKey = (k: string) => emailView.find((r) => r.key === k)!;
+  const view = await getSettingsView(prisma, VIEW_KEYS);
+  const byKey = (k: SettingKey): SettingViewRow => view.find((r) => r.key === k)!;
   const emailEnabled = byKey('email.enabled').value?.trim().toLowerCase() === 'true';
   const emailFrom = byKey('email.from').value ?? '';
   const apiKeyRow = byKey('email.resendApiKey');
+  const imapTls = (byKey('imap.tls').value ?? '1').trim().toLowerCase();
+
+  const secretProps = (k: SettingKey) => ({
+    secretSet: byKey(k).isSet,
+    secretSource: byKey(k).source
+  });
 
   return (
     <div className="space-y-5">
@@ -56,13 +94,155 @@ export default async function AdminIntegrationsPage() {
         ))}
       </ul>
 
-      <div className="pt-2">
+      <div className="pt-2 space-y-4">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Настройки</h2>
         <EmailSettingsForm
           initialEnabled={emailEnabled}
           initialFrom={emailFrom}
           apiKeySet={apiKeyRow.isSet}
           apiKeySource={apiKeyRow.source}
+        />
+
+        <IntegrationSettingsForm
+          title="Telegram-бот"
+          description="Уведомления и привязка аккаунтов через Telegram. Токен выдаёт @BotFather."
+          action={saveTelegramSettingsAction}
+          fields={[
+            {
+              name: 'telegram_botUsername',
+              label: 'Имя бота (username, без @)',
+              kind: 'text',
+              initialValue: byKey('telegram.botUsername').value ?? '',
+              placeholder: 'otsfera_bot'
+            },
+            {
+              name: 'telegram_botToken',
+              label: 'Токен бота',
+              kind: 'secret',
+              placeholder: '123456:ABC-…',
+              ...secretProps('telegram.botToken')
+            }
+          ]}
+        />
+
+        <IntegrationSettingsForm
+          title="Max-бот"
+          description="Уведомления через мессенджер Max."
+          note="Канал включается флагом FEATURE_MAX_CHANNEL=1 в конфиге сервера; здесь задаются только креды бота."
+          action={saveMaxSettingsAction}
+          fields={[
+            {
+              name: 'max_botUsername',
+              label: 'Имя бота (username)',
+              kind: 'text',
+              initialValue: byKey('max.botUsername').value ?? ''
+            },
+            {
+              name: 'max_botToken',
+              label: 'Токен бота',
+              kind: 'secret',
+              ...secretProps('max.botToken')
+            }
+          ]}
+        />
+
+        <IntegrationSettingsForm
+          title="WhatsApp (агрегатор)"
+          description="Входящие и исходящие сообщения WhatsApp через сервис-агрегатор (Wazzup-совместимый API)."
+          note="Канал включается флагом FEATURE_WHATSAPP_CHANNEL=1 в конфиге сервера; здесь задаются ключи агрегатора."
+          action={saveWhatsappSettingsAction}
+          fields={[
+            {
+              name: 'whatsapp_apiKey',
+              label: 'API-ключ агрегатора',
+              kind: 'secret',
+              ...secretProps('whatsapp.apiKey')
+            },
+            {
+              name: 'whatsapp_channelId',
+              label: 'ID канала (подключённый номер)',
+              kind: 'secret',
+              ...secretProps('whatsapp.channelId')
+            }
+          ]}
+        />
+
+        <IntegrationSettingsForm
+          title="Телефония Mango Office"
+          description="Ключи VPBX API: подпись вебхуков, записи разговоров, click-to-call."
+          note="Телефония включается флагом FEATURE_TELEPHONY_MANGO=1 в конфиге сервера (гейт страниц не читает базу); здесь задаются ключи."
+          action={saveMangoSettingsAction}
+          fields={[
+            {
+              name: 'mango_vpbxBaseUrl',
+              label: 'Базовый URL VPBX API',
+              kind: 'text',
+              initialValue: byKey('mango.vpbxBaseUrl').value ?? '',
+              placeholder: 'https://app.mango-office.ru/vpbx/'
+            },
+            {
+              name: 'mango_apiKey',
+              label: 'API-ключ (vpbx_api_key)',
+              kind: 'secret',
+              ...secretProps('mango.apiKey')
+            },
+            {
+              name: 'mango_apiSalt',
+              label: 'Соль подписи (api_salt)',
+              kind: 'secret',
+              ...secretProps('mango.apiSalt')
+            }
+          ]}
+        />
+
+        <IntegrationSettingsForm
+          title="Входящая почта (IMAP)"
+          description="Приём писем клиентов в омниканальный инбокс: воркер опрашивает ящик по IMAP."
+          action={saveImapSettingsAction}
+          fields={[
+            {
+              name: 'imap_adapter',
+              label: 'Источник',
+              kind: 'select',
+              initialValue: (byKey('imap.adapter').value ?? 'fake').trim().toLowerCase(),
+              options: [
+                { value: 'fake', label: 'Отключено (тестовый режим)' },
+                { value: 'imap', label: 'IMAP-ящик' }
+              ]
+            },
+            {
+              name: 'imap_host',
+              label: 'Сервер (host)',
+              kind: 'text',
+              initialValue: byKey('imap.host').value ?? '',
+              placeholder: 'imap.yandex.ru'
+            },
+            {
+              name: 'imap_port',
+              label: 'Порт',
+              kind: 'text',
+              initialValue: byKey('imap.port').value ?? '',
+              placeholder: '993'
+            },
+            {
+              name: 'imap_user',
+              label: 'Логин',
+              kind: 'text',
+              initialValue: byKey('imap.user').value ?? ''
+            },
+            {
+              name: 'imap_password',
+              label: 'Пароль',
+              kind: 'secret',
+              ...secretProps('imap.password')
+            },
+            {
+              name: 'imap_tls',
+              label: 'Использовать TLS (шифрованное соединение)',
+              kind: 'checkbox',
+              initialChecked: imapTls !== '0' && imapTls !== 'false' && imapTls !== 'off'
+            }
+          ]}
         />
       </div>
     </div>

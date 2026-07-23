@@ -6,6 +6,7 @@
  * Notification-строка уже создана и остаётся источником истины).
  */
 import { getChannels } from './registry';
+import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import type { ChannelKey, ChannelPayload, ChannelRecipient, ChannelSendResult } from './types';
 
 export type DeliveryResults = Partial<Record<ChannelKey, ChannelSendResult>>;
@@ -20,6 +21,11 @@ export async function deliverToRecipient(
   payload: ChannelPayload,
   opts?: DeliverOptions
 ): Promise<DeliveryResults> {
+  // Синхронные isEnabledFor/транспорты читают настройки из кэша — праймим
+  // (внутри TTL и при недоступной БД prime — no-op, fail-open на env).
+  const { prisma } = await import('@/lib/db/prisma');
+  await primeIntegrationSettingsCache(prisma);
+
   const results: DeliveryResults = {};
   for (const channel of getChannels()) {
     if (opts?.channels && !opts.channels.includes(channel.key)) continue;

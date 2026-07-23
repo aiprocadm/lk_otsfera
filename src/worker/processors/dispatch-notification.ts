@@ -8,6 +8,7 @@ import {
   type EmailContentRef,
 } from '@/lib/notifications/channels/types';
 import type { NotificationDispatchPayload } from '@/lib/jobs/types';
+import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { log } from '@/lib/logging';
 
 /**
@@ -52,6 +53,10 @@ export async function runDispatchNotification(
   data: NotificationDispatchPayload,
   jobId?: string
 ): Promise<DispatchNotificationResult> {
+  // Токены/ключи каналов — из кэша настроек интеграций; праймим на воркере,
+  // чтобы изменения из /admin/integrations доезжали без рестарта процесса.
+  await primeIntegrationSettingsCache(db);
+
   const user = await db.user.findUnique({
     where: { id: data.userId },
     select: CHANNEL_RECIPIENT_SELECT,

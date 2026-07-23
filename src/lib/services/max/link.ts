@@ -6,6 +6,7 @@ import { randomBytes } from 'crypto';
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { isMaxEnabled, maxDeepLink } from '@/lib/max/client';
+import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { recordAudit } from '@/lib/auth/audit';
 
 const LINK_CODE_EXPIRY_MINUTES = 15;
@@ -14,6 +15,7 @@ export async function getMaxStatus(
   prisma: PrismaClient,
   session: SessionPayload
 ): Promise<{ ok: true; linked: boolean; enabled: boolean }> {
+  await primeIntegrationSettingsCache(prisma);
   const user = await prisma.user.findUnique({
     where: { id: session.sub },
     select: { maxChatId: true },
@@ -29,6 +31,7 @@ export async function generateMaxLinkCode(
   prisma: PrismaClient,
   session: SessionPayload
 ): Promise<{ ok: true; deepLink: string } | { ok: false; error: 'max_disabled' }> {
+  await primeIntegrationSettingsCache(prisma);
   if (!isMaxEnabled()) {
     return { ok: false, error: 'max_disabled' };
   }

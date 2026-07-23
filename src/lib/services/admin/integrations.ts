@@ -1,15 +1,15 @@
 import { isTelegramEnabled } from '@/lib/telegram/client';
 import { isMaxEnabled } from '@/lib/max/client';
 import { isWhatsAppEnabled } from '@/lib/whatsapp/aggregator';
+import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
 
 /**
  * Read-only статус платформенных интеграций для /admin/integrations.
  *
- * Секреты (ключи Mango, токены ботов) настраиваются ТОЛЬКО через env при
- * установке (см. спеки omnichannel-...-telephony-design и track-d-...-channels)
- * — эта панель их НЕ показывает и НЕ редактирует, только сообщает, настроен ли
- * канал. Значения секретов сюда не попадают: используются лишь булевы
- * is*Enabled()-проверки и факт наличия ключей Mango.
+ * Значения секретов сюда не попадают: используются лишь булевы
+ * is*Enabled()-проверки и факт наличия ключей. Креды читаются через кэш
+ * настроек интеграций (страница праймит его перед вызовом) — статус отражает
+ * то, что сохранено в UI, с env как fallback. Флаги каналов остаются env.
  */
 
 export type IntegrationStatus = {
@@ -19,7 +19,7 @@ export type IntegrationStatus = {
   enabled: boolean;
   /** Что это за интеграция, коротко для админа. */
   description: string;
-  /** Какие env-переменные её включают (без значений) — подсказка для настройки. */
+  /** Как её включить (env-флаги и/или формы ниже) — подсказка без значений. */
   envHint: string;
 };
 
@@ -29,8 +29,8 @@ function isMangoTelephonyEnabled(): boolean {
   );
   return (
     flagOn &&
-    !!process.env.MANGO_API_KEY?.trim() &&
-    !!process.env.MANGO_API_SALT?.trim()
+    !!cachedIntegrationSetting('mango.apiKey') &&
+    !!cachedIntegrationSetting('mango.apiSalt')
   );
 }
 
@@ -52,28 +52,28 @@ export function getIntegrationsStatus(): IntegrationStatus[] {
       label: 'Телефония (Mango Office)',
       enabled: isMangoTelephonyEnabled(),
       description: 'Приём звонков, запись разговоров и click-to-call через Mango Office.',
-      envHint: 'FEATURE_TELEPHONY_MANGO=1 + MANGO_API_KEY + MANGO_API_SALT'
+      envHint: 'FEATURE_TELEPHONY_MANGO=1 (на сервере) + ключи в форме ниже'
     },
     {
       key: 'telegram',
       label: 'Telegram-бот',
       enabled: isTelegramEnabled(),
       description: 'Уведомления и вход через Telegram-бот.',
-      envHint: 'TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME'
+      envHint: 'токен и имя бота — в форме ниже'
     },
     {
       key: 'max',
       label: 'Max-бот',
       enabled: isMaxEnabled(),
       description: 'Уведомления через мессенджер Max.',
-      envHint: 'max_channel=on + MAX_BOT_TOKEN + MAX_BOT_USERNAME'
+      envHint: 'FEATURE_MAX_CHANNEL=1 (на сервере) + токен и имя бота в форме ниже'
     },
     {
       key: 'whatsapp',
       label: 'WhatsApp',
       enabled: isWhatsAppEnabled(),
       description: 'Входящие/исходящие сообщения WhatsApp через агрегатора.',
-      envHint: 'whatsapp_channel=on + WHATSAPP_AGGREGATOR_API_KEY + WHATSAPP_AGGREGATOR_CHANNEL_ID'
+      envHint: 'FEATURE_WHATSAPP_CHANNEL=1 (на сервере) + ключи агрегатора в форме ниже'
     }
   ];
 }

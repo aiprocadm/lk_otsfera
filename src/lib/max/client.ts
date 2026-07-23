@@ -7,6 +7,7 @@
  * `/start`). Базовый URL вынесен в env для гибкости и тестируемости.
  */
 import { isFeatureEnabled } from '@/lib/featureFlags';
+import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
 
 const MAX_TIMEOUT_MS = 5000;
 
@@ -16,18 +17,19 @@ export function maxApiBaseUrl(): string {
 
 /**
  * Канал включён, когда флаг поднят И заданы креды бота. Флаг — первая точка
- * гейтинга (§5): без него канал не активен даже при наличии кредов.
+ * гейтинга (§5): без него канал не активен даже при наличии кредов. Креды —
+ * из настроек интеграций (кэш: БД после prime, env — fallback).
  */
 export function isMaxEnabled(): boolean {
   return (
     isFeatureEnabled('max_channel') &&
-    !!process.env.MAX_BOT_TOKEN?.trim() &&
-    !!process.env.MAX_BOT_USERNAME?.trim()
+    !!cachedIntegrationSetting('max.botToken') &&
+    !!cachedIntegrationSetting('max.botUsername')
   );
 }
 
 export function maxDeepLink(code: string): string {
-  const username = process.env.MAX_BOT_USERNAME?.trim() ?? '';
+  const username = cachedIntegrationSetting('max.botUsername') ?? '';
   return `https://max.ru/${username}?start=${code}`;
 }
 
@@ -40,7 +42,7 @@ export async function sendMaxMessage(
   chatId: string,
   text: string
 ): Promise<{ ok: boolean }> {
-  const token = process.env.MAX_BOT_TOKEN?.trim();
+  const token = cachedIntegrationSetting('max.botToken');
   if (!token) return { ok: false };
 
   const controller = new AbortController();

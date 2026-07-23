@@ -2,6 +2,7 @@ import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { getInboundEmailAdapter } from '@/lib/inbound/email';
+import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { ingestInboundMessage } from '@/lib/services/inbound/ingest';
 import { log } from '@/lib/logging';
 
@@ -14,6 +15,10 @@ export async function pollInboundEmailProcessor(
   _job: Job,
   db: PrismaClient = prisma
 ): Promise<PollInboundEmailResult> {
+  // IMAP-конфиг и выбор адаптера — из кэша настроек; праймим каждый прогон,
+  // чтобы правки из /admin/integrations подхватывались без рестарта воркера.
+  await primeIntegrationSettingsCache(db);
+
   const state = await db.syncState.findUnique({ where: { entity: 'inbound.email' } });
   const { messages, cursor } = await getInboundEmailAdapter().fetchNewMessages(state?.cursor ?? null);
 

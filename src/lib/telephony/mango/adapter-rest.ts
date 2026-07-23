@@ -1,4 +1,5 @@
 import type { MangoAdapter } from './index';
+import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
 
 export type MangoRestConfig = {
   apiKey?: string;
@@ -8,11 +9,12 @@ export type MangoRestConfig = {
 
 const DEFAULT_BASE_URL = 'https://app.mango-office.ru/vpbx/';
 
-function readMangoConfigFromEnv(): MangoRestConfig {
+/** Эффективный конфиг: настройки интеграций (БД после prime) → env fallback. */
+export function readMangoConfig(): MangoRestConfig {
   return {
-    apiKey: process.env.MANGO_API_KEY,
-    apiSalt: process.env.MANGO_API_SALT,
-    baseUrl: process.env.MANGO_VPBX_BASE_URL ?? DEFAULT_BASE_URL
+    apiKey: cachedIntegrationSetting('mango.apiKey') ?? undefined,
+    apiSalt: cachedIntegrationSetting('mango.apiSalt') ?? undefined,
+    baseUrl: cachedIntegrationSetting('mango.vpbxBaseUrl') ?? DEFAULT_BASE_URL
   };
 }
 
@@ -37,10 +39,19 @@ function readMangoConfigFromEnv(): MangoRestConfig {
  * against their respective Mango endpoints.
  */
 export class RestMangoAdapter implements MangoAdapter {
-  private readonly config: MangoRestConfig;
+  private readonly overrides: MangoRestConfig | null;
 
-  constructor(config: MangoRestConfig = readMangoConfigFromEnv()) {
-    this.config = config;
+  constructor(config?: MangoRestConfig) {
+    this.overrides = config ?? null;
+  }
+
+  /**
+   * Конфиг читается лениво при каждом обращении (не в конструкторе):
+   * адаптер — кэшированный синглтон, а настройки редактируются в
+   * /admin/integrations — пересоздание не требуется.
+   */
+  protected get config(): MangoRestConfig {
+    return this.overrides ?? readMangoConfig();
   }
 
   async fetchRecording(recordingId: string): Promise<{ buffer: Buffer; contentType: string } | null> {

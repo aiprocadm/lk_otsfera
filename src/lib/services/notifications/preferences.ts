@@ -16,6 +16,7 @@ import {
 import { isTelegramEnabled } from '@/lib/telegram/client';
 import { isMaxEnabled } from '@/lib/max/client';
 import { isWhatsAppEnabled } from '@/lib/whatsapp/aggregator';
+import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { recordAudit } from '@/lib/auth/audit';
 import { normalizePhoneCanonical } from '@/lib/phone/normalize';
 
@@ -36,6 +37,8 @@ export async function getNotificationSettings(
   prisma: PrismaClient,
   session: SessionPayload
 ): Promise<{ ok: true; view: NotificationSettingsView }> {
+  // is*Enabled() читают кэш настроек интеграций — праймим (no-op внутри TTL).
+  await primeIntegrationSettingsCache(prisma);
   const user = await prisma.user.findUnique({
     where: { id: session.sub },
     select: {
