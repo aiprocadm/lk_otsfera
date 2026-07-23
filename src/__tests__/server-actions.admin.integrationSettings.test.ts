@@ -7,7 +7,8 @@ const {
   resetIntegrationSettingsCache,
   resetInboundEmailAdapter,
   resetOneCAdapter,
-  revalidatePath
+  revalidatePath,
+  testIntegration
 } = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
   saveSettings: vi.fn(),
@@ -15,7 +16,8 @@ const {
   resetIntegrationSettingsCache: vi.fn(),
   resetInboundEmailAdapter: vi.fn(),
   resetOneCAdapter: vi.fn(),
-  revalidatePath: vi.fn()
+  revalidatePath: vi.fn(),
+  testIntegration: vi.fn()
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
@@ -25,6 +27,7 @@ vi.mock('@/lib/config/integrationSettingsCache', () => ({ resetIntegrationSettin
 vi.mock('@/lib/email/transport', () => ({ resetEmailTransportCache }));
 vi.mock('@/lib/inbound/email', () => ({ __resetInboundEmailAdapter: resetInboundEmailAdapter }));
 vi.mock('@/lib/services/oneCSync', () => ({ resetOneCAdapter }));
+vi.mock('@/lib/services/admin/testIntegration', () => ({ testIntegration }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 
 import {
@@ -35,7 +38,8 @@ import {
   saveMangoSettingsAction,
   saveImapSettingsAction,
   saveOnecSettingsAction,
-  saveDadataSettingsAction
+  saveDadataSettingsAction,
+  testIntegrationAction
 } from '@/server-actions/admin/integrationSettings';
 
 function fd(data: Record<string, string>): FormData {
@@ -230,5 +234,30 @@ describe('saveDadataSettingsAction', () => {
       { key: 'dadata.enabled', value: 'false' },
       { key: 'dadata.apiKey', value: '' }
     ]);
+  });
+});
+
+describe('testIntegrationAction', () => {
+  it('requireAdmin → сервис → revalidate; результат пробы пробрасывается', async () => {
+    testIntegration.mockResolvedValue({ ok: true, success: true, message: 'Подключение успешно' });
+    const res = await testIntegrationAction('telegram', new FormData());
+    expect(res).toEqual({ ok: true, success: true, message: 'Подключение успешно' });
+    expect(requireAdmin).toHaveBeenCalled();
+    expect(testIntegration).toHaveBeenCalledWith(expect.anything(), { sub: 'admin-1' }, 'telegram');
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/integrations');
+  });
+
+  it('неуспешная проба тоже revalidate-ится (lastError записан в SyncState)', async () => {
+    testIntegration.mockResolvedValue({ ok: true, success: false, message: 'Сервер ответил HTTP 500' });
+    const res = await testIntegrationAction('onec', new FormData());
+    expect(res).toEqual({ ok: true, success: false, message: 'Сервер ответил HTTP 500' });
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/integrations');
+  });
+
+  it('ошибка сервиса (unknown_key) → без revalidate', async () => {
+    testIntegration.mockResolvedValue({ ok: false, error: 'unknown_key' });
+    const res = await testIntegrationAction('nope', new FormData());
+    expect(res).toEqual({ ok: false, error: 'unknown_key' });
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

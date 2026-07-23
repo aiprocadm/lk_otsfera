@@ -4,6 +4,7 @@ import { sendMaxMessage } from '@/lib/max/client';
 import { notFoundIfDisabled, isFeatureEnabled } from '@/lib/featureFlags';
 import { ingestInboundMessage } from '@/lib/services/inbound/ingest';
 import { secretEquals } from '@/lib/security/secretCompare';
+import { recordWebhookEvent } from '@/lib/services/admin/webhookDiagnostics';
 import { log } from '@/lib/logging';
 
 /**
@@ -29,6 +30,10 @@ export async function POST(req: Request): Promise<Response> {
     // Malformed JSON — 200, чтобы Max не ретраил.
     return new Response(null, { status: 200 });
   }
+
+  // ФТ-14.4: отметка «последнее входящее» для диагностики в админке.
+  // Never-throws; сбой записи не влияет на ответ вебхука.
+  await recordWebhookEvent(prisma, 'max');
 
   const { text, chatId, messageId, isStart } = extractStart(update);
   if (text && chatId) {

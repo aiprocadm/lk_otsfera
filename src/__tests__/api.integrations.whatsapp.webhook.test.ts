@@ -1,13 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const { ingest, notFoundIfDisabled } = vi.hoisted(() => ({
+const { ingest, notFoundIfDisabled, recordWebhookEvent } = vi.hoisted(() => ({
   ingest: vi.fn(),
   notFoundIfDisabled: vi.fn(),
+  recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/services/inbound/ingest', () => ({ ingestInboundMessage: ingest }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled }));
+vi.mock('@/lib/services/admin/webhookDiagnostics', () => ({ recordWebhookEvent }));
 
 import { POST } from '@/app/api/integrations/whatsapp/webhook/route';
 
@@ -163,5 +165,18 @@ describe('POST /api/integrations/whatsapp/webhook', () => {
     );
     expect(res.status).toBe(200);
     expect(ingest).not.toHaveBeenCalled();
+  });
+});
+
+describe('диагностика вебхука (ФТ-14.4)', () => {
+  it('well-formed body → отметка webhook.whatsapp; 401 → отметки нет', async () => {
+    const ok = await POST(req({ messages: [] }, { 'x-wazzup-secret': SECRET }));
+    expect(ok.status).toBe(200);
+    expect(recordWebhookEvent).toHaveBeenCalledWith(expect.anything(), 'whatsapp');
+
+    recordWebhookEvent.mockClear();
+    const denied = await POST(req({ messages: [] }, { 'x-wazzup-secret': 'wrong' }));
+    expect(denied.status).toBe(401);
+    expect(recordWebhookEvent).not.toHaveBeenCalled();
   });
 });

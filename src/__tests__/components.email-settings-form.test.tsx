@@ -44,3 +44,36 @@ describe('EmailSettingsForm', () => {
     expect(await screen.findByText(/ключ шифрования \(APP_ENCRYPTION_KEY\)/)).toBeTruthy();
   });
 });
+
+describe('EmailSettingsForm — панель «Проверить подключение» (ФТ-14.3)', () => {
+  beforeEach(() => saveEmailSettingsAction.mockReset());
+  it('без testAction панели нет; с testAction — кнопка и строка последней проверки', () => {
+    render(React.createElement(EmailSettingsForm, { ...BASE }));
+    expect(screen.queryByText('Проверить подключение')).toBeNull();
+
+    const testAction = vi.fn();
+    render(
+      React.createElement(EmailSettingsForm, {
+        ...BASE,
+        testAction,
+        check: { lastAt: '23.07.2026, 10:00', lastOk: true, lastError: null }
+      })
+    );
+    expect(screen.getByText('Проверить подключение')).toBeTruthy();
+    expect(screen.getByText(/Последняя проверка:/)).toBeTruthy();
+    expect(screen.getByText('успешно')).toBeTruthy();
+  });
+
+  it('клик по кнопке зовёт testAction (тестовое письмо), сохранение не запускается', async () => {
+    const testAction = vi.fn().mockResolvedValue({
+      ok: true,
+      success: true,
+      message: 'Тестовое письмо отправлено на a@x.ru'
+    });
+    render(React.createElement(EmailSettingsForm, { ...BASE, testAction, check: null }));
+    const btn = screen.getByText('Проверить подключение');
+    fireEvent.click(btn);
+    expect(await screen.findByText('Тестовое письмо отправлено на a@x.ru')).toBeTruthy();
+    expect(saveEmailSettingsAction).not.toHaveBeenCalled();
+  });
+});

@@ -1,18 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { computeMangoSign } from '@/lib/telephony/mango/sign';
 
-const { ingestCallEvent, getQueue, addMock } = vi.hoisted(() => {
+const { ingestCallEvent, getQueue, addMock, recordWebhookEvent } = vi.hoisted(() => {
   const addMock = vi.fn().mockResolvedValue(undefined);
   return {
     ingestCallEvent: vi.fn(),
     getQueue: vi.fn().mockReturnValue({ add: addMock }),
     addMock,
+    recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
   };
 });
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/services/telephony/ingestCall', () => ({ ingestCallEvent }));
 vi.mock('@/lib/jobs/queues', () => ({ getQueue }));
+vi.mock('@/lib/services/admin/webhookDiagnostics', () => ({ recordWebhookEvent }));
 
 import { POST } from '@/app/api/integrations/mango/webhook/route';
 
@@ -209,5 +211,21 @@ describe('POST /api/integrations/mango/webhook', () => {
     const res = await POST(req('https://app.local/api/integrations/mango/webhook?type=recording', json));
     expect(res.status).toBe(200);
     expect(addMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('диагностика вебхука (ФТ-14.4)', () => {
+  it('подписанное событие → отметка webhook.mango; неверная подпись → отметки нет', async () => {
+    const json = JSON.stringify({ entry_id: 'diag1' });
+    const ok = await POST(req('https://app.local/api/integrations/mango/webhook?type=summary', json));
+    expect(ok.status).toBe(200);
+    expect(recordWebhookEvent).toHaveBeenCalledWith(expect.anything(), 'mango');
+
+    recordWebhookEvent.mockClear();
+    const denied = await POST(
+      req('https://app.local/api/integrations/mango/webhook?type=summary', json, { sign: 'wrong-sign' })
+    );
+    expect(denied.status).toBe(401);
+    expect(recordWebhookEvent).not.toHaveBeenCalled();
   });
 });

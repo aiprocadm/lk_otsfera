@@ -1,15 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ---- hoisted mocks ----
-const { linkByCodeMock, sendTelegramMessageMock, prismaMock } = vi.hoisted(() => ({
+const { linkByCodeMock, sendTelegramMessageMock, prismaMock, recordWebhookEvent } = vi.hoisted(() => ({
   linkByCodeMock: vi.fn(),
   sendTelegramMessageMock: vi.fn(),
   prismaMock: {},
+  recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }));
 vi.mock('@/lib/services/telegram/link', () => ({ linkByCode: linkByCodeMock }));
 vi.mock('@/lib/telegram/client', () => ({ sendTelegramMessage: sendTelegramMessageMock }));
+vi.mock('@/lib/services/admin/webhookDiagnostics', () => ({ recordWebhookEvent }));
 
 import { POST } from '@/app/api/integrations/telegram/webhook/route';
 
@@ -238,5 +240,29 @@ describe('POST /api/integrations/telegram/webhook — non-start updates', () => 
     const res = await POST(req);
     expect(res.status).toBe(200);
     expect(linkByCodeMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('диагностика вебхука (ФТ-14.4)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    recordWebhookEvent.mockResolvedValue(undefined);
+    sendTelegramMessageMock.mockResolvedValue({ ok: true });
+    process.env.TELEGRAM_WEBHOOK_SECRET = WEBHOOK_SECRET;
+  });
+  afterEach(() => {
+    delete process.env.TELEGRAM_WEBHOOK_SECRET;
+  });
+
+  it('well-formed update → отметка webhook.telegram', async () => {
+    const res = await POST(makeRequest({ message: {} }, WEBHOOK_SECRET));
+    expect(res.status).toBe(200);
+    expect(recordWebhookEvent).toHaveBeenCalledWith(expect.anything(), 'telegram');
+  });
+
+  it('401 (неверный секрет) → отметки нет', async () => {
+    const res = await POST(makeRequest({}, 'wrong'));
+    expect(res.status).toBe(401);
+    expect(recordWebhookEvent).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
-import { useFormAction, type ActionResult } from '@/lib/ui/useFormAction';
+import React, { useActionState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useFormAction, resolveErrorText, type ActionResult } from '@/lib/ui/useFormAction';
 
 /**
  * Генерик-форма группы настроек интеграций на /admin/integrations
@@ -9,6 +10,9 @@ import { useFormAction, type ActionResult } from '@/lib/ui/useFormAction';
  * Max / WhatsApp / Mango / IMAP) — свой server-action; поля декларативные.
  * Секрет: значение никогда не приходит с сервера — только факт «задан»;
  * пустое поле при сохранении не затирает сохранённый секрет.
+ *
+ * PR-2 этапа 1 (спека §5–6): панель «Проверить подключение» (universal probe
+ * по админ-конфигу, результат в SyncState) + блок диагностики вебхука.
  */
 
 export type IntegrationFormField = {
@@ -38,12 +42,127 @@ const ERROR_MAP: Record<string, string> = {
 const inputClass =
   'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]';
 
+/** Итог последней пробы подключения (SyncState `integration.<key>`), даты отформатированы на сервере. */
+export type IntegrationCheckInfo = {
+  lastAt: string | null;
+  lastOk: boolean | null;
+  lastError: string | null;
+};
+
+/** Диагностика вебхука (SyncState `webhook.<name>`): подсказка регистрации + последнее входящее. */
+export type WebhookDiagInfo = {
+  url: string;
+  /** Имя секрет-заголовка; null — аутентификация не заголовком (например подпись Mango). */
+  headerName: string | null;
+  secretSet: boolean;
+  lastEventAt: string | null;
+  note?: string;
+};
+
+export type IntegrationTestAction = (
+  fd: FormData
+) => Promise<{ ok: true; success: boolean; message: string } | { ok: false; error: string }>;
+
+/**
+ * Панель «Проверить подключение» + диагностика вебхука. Рендерится ВНУТРИ
+ * <form> карточки: кнопка использует formAction-override, поэтому клик не
+ * сохраняет настройки, а зовёт пробу. После пробы — router.refresh(), чтобы
+ * строка «последняя проверка» перечиталась из SyncState.
+ */
+export function IntegrationCheckPanel({
+  testAction,
+  check,
+  webhook
+}: {
+  testAction: IntegrationTestAction;
+  check: IntegrationCheckInfo | null;
+  webhook?: WebhookDiagInfo | null;
+}) {
+  const router = useRouter();
+  const [result, testFormAction, testPending] = useActionState<
+    { success: boolean; message: string } | null,
+    FormData
+  >(async (_prev, fd) => {
+    const r = await testAction(fd);
+    if (!r.ok) return { success: false, message: resolveErrorText(r.error, ERROR_MAP) };
+    router.refresh();
+    return { success: r.success, message: r.message };
+  }, null);
+
+  return (
+    <div className="border-t border-gray-100 pt-3 space-y-2">
+      {webhook && (
+        <div className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 space-y-1">
+          <div className="font-medium text-gray-700">Вебхук (приём входящих событий)</div>
+          <div>
+            Адрес для регистрации: <span className="font-mono break-all">{webhook.url}</span>
+          </div>
+          {webhook.headerName && (
+            <div>
+              Секрет-заголовок: <span className="font-mono">{webhook.headerName}</span>{' '}
+              {webhook.secretSet ? (
+                <span className="text-green-700">задан</span>
+              ) : (
+                <span className="text-amber-700">не задан</span>
+              )}
+            </div>
+          )}
+          {webhook.note && <div>{webhook.note}</div>}
+          <div>Последнее входящее: {webhook.lastEventAt ?? '—'}</div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="text-xs text-gray-500">
+          Последняя проверка:{' '}
+          {check?.lastAt ? (
+            <>
+              {check.lastAt} —{' '}
+              {check.lastOk ? (
+                <span className="text-green-700">успешно</span>
+              ) : (
+                <span className="text-red-700">{check.lastError ?? 'ошибка'}</span>
+              )}
+            </>
+          ) : (
+            '—'
+          )}
+        </div>
+        <button
+          type="submit"
+          formAction={testFormAction}
+          disabled={testPending}
+          className="px-3 py-1.5 border border-[#F97316] text-[#F97316] text-sm rounded-lg hover:bg-orange-50 disabled:opacity-50"
+        >
+          {testPending ? 'Проверяем…' : 'Проверить подключение'}
+        </button>
+      </div>
+
+      {result && (
+        <div
+          role={result.success ? 'status' : 'alert'}
+          className={
+            result.success
+              ? 'text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2'
+              : 'text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2'
+          }
+        >
+          {result.message}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function IntegrationSettingsForm({
   title,
   description,
   note,
   action,
-  fields
+  fields,
+  testAction,
+  check,
+  webhook
 }: {
   title: string;
   description: string;
@@ -51,6 +170,10 @@ export function IntegrationSettingsForm({
   note?: string;
   action: (fd: FormData) => Promise<{ ok: true } | { ok: false; error: string }>;
   fields: IntegrationFormField[];
+  /** «Проверить подключение» (ФТ-14.3); без него панель проверки не рендерится. */
+  testAction?: IntegrationTestAction;
+  check?: IntegrationCheckInfo | null;
+  webhook?: WebhookDiagInfo | null;
 }) {
   const { formAction, pending, errorText, success } = useFormAction<Record<string, never>>({
     action: action as (fd: FormData) => Promise<ActionResult<Record<string, never>>>,
@@ -141,6 +264,8 @@ export function IntegrationSettingsForm({
           {pending ? 'Сохраняем…' : 'Сохранить'}
         </button>
       </div>
+
+      {testAction && <IntegrationCheckPanel testAction={testAction} check={check ?? null} webhook={webhook} />}
     </form>
   );
 }

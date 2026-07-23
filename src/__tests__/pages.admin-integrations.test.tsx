@@ -8,8 +8,11 @@ vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 const { getIntegrationsStatus } = vi.hoisted(() => ({ getIntegrationsStatus: vi.fn() }));
 vi.mock('@/lib/services/admin/integrations', () => ({ getIntegrationsStatus }));
 
-const { getSettingsView } = vi.hoisted(() => ({ getSettingsView: vi.fn() }));
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+const { getSettingsView, syncStateFindMany } = vi.hoisted(() => ({
+  getSettingsView: vi.fn(),
+  syncStateFindMany: vi.fn()
+}));
+vi.mock('@/lib/db/prisma', () => ({ prisma: { syncState: { findMany: syncStateFindMany } } }));
 vi.mock('@/lib/config/integrationSettings', () => ({ getSettingsView }));
 
 const { primeIntegrationSettingsCache } = vi.hoisted(() => ({
@@ -21,10 +24,19 @@ vi.mock('@/lib/config/integrationSettingsCache', () => ({ primeIntegrationSettin
 vi.mock('@/components/admin/email-settings-form', () => ({
   EmailSettingsForm: () => null
 }));
-const { formTitles } = vi.hoisted(() => ({ formTitles: [] as string[] }));
+type FormStubProps = {
+  title: string;
+  check?: { lastAt: string; lastOk: boolean; lastError: string | null } | null;
+  webhook?: { url: string; headerName: string | null; secretSet: boolean; lastEventAt: string | null } | null;
+};
+const { formTitles, formProps } = vi.hoisted(() => ({
+  formTitles: [] as string[],
+  formProps: [] as unknown[]
+}));
 vi.mock('@/components/admin/integration-settings-form', () => ({
-  IntegrationSettingsForm: ({ title }: { title: string }) => {
+  IntegrationSettingsForm: ({ title, check, webhook }: FormStubProps) => {
     formTitles.push(title);
+    formProps.push({ title, check, webhook });
     return null;
   }
 }));
@@ -35,7 +47,8 @@ vi.mock('@/server-actions/admin/integrationSettings', () => ({
   saveMangoSettingsAction: vi.fn(),
   saveImapSettingsAction: vi.fn(),
   saveOnecSettingsAction: vi.fn(),
-  saveDadataSettingsAction: vi.fn()
+  saveDadataSettingsAction: vi.fn(),
+  testIntegrationAction: vi.fn()
 }));
 
 import AdminIntegrationsPage from '@/app/admin/integrations/page';
@@ -77,7 +90,10 @@ describe('AdminIntegrationsPage', () => {
     getIntegrationsStatus.mockReset();
     getSettingsView.mockReset();
     primeIntegrationSettingsCache.mockClear();
+    syncStateFindMany.mockReset();
+    syncStateFindMany.mockResolvedValue([]);
     formTitles.length = 0;
+    formProps.length = 0;
     requireAdmin.mockResolvedValue(SESSION);
     getSettingsView.mockResolvedValue(
       VIEW_KEYS.map((key) => ({
@@ -121,5 +137,45 @@ describe('AdminIntegrationsPage', () => {
       'Обмен с 1С',
       'DaData (подсказки по ИНН)'
     ]);
+  });
+
+  it('прокидывает в карточки результаты проб (SyncState) и диагностику вебхуков', async () => {
+    getIntegrationsStatus.mockReturnValue([]);
+    const ranAt = new Date('2026-07-23T10:00:00Z');
+    const eventAt = new Date('2026-07-23T09:30:00Z');
+    syncStateFindMany.mockResolvedValue([
+      { entity: 'integration.telegram', lastRunAt: ranAt, lastSuccessAt: ranAt, lastError: null },
+      { entity: 'integration.onec', lastRunAt: ranAt, lastSuccessAt: null, lastError: 'Сервер ответил HTTP 500' },
+      { entity: 'webhook.telegram', lastRunAt: null, lastSuccessAt: eventAt, lastError: null }
+    ]);
+
+    await renderServerComponent(AdminIntegrationsPage());
+
+    const byTitle = (t: string) =>
+      (formProps as FormStubProps[]).find((p) => p.title === t)!;
+
+    // Успешная проба: lastOk=true, ошибок нет.
+    const tg = byTitle('Telegram-бот');
+    expect(tg.check).toMatchObject({ lastOk: true, lastError: null });
+    expect(tg.check!.lastAt).toBeTruthy();
+    // Вебхук: готовый URL + имя заголовка + последнее входящее.
+    expect(tg.webhook).toMatchObject({
+      url: expect.stringContaining('/api/integrations/telegram/webhook'),
+      headerName: 'x-telegram-bot-api-secret-token'
+    });
+    expect(tg.webhook!.lastEventAt).toBeTruthy();
+
+    // Провальная проба 1С: lastOk=false + текст ошибки.
+    const onec = byTitle('Обмен с 1С');
+    expect(onec.check).toMatchObject({ lastOk: false, lastError: 'Сервер ответил HTTP 500' });
+
+    // Проба не выполнялась → check=null; вебхука у IMAP нет.
+    const imap = byTitle('Входящая почта (IMAP)');
+    expect(imap.check).toBeNull();
+    expect(imap.webhook).toBeUndefined();
+
+    // Mango: аутентификация подписью — секрет-заголовка нет, есть note.
+    const mango = byTitle('Телефония Mango Office');
+    expect(mango.webhook).toMatchObject({ headerName: null });
   });
 });

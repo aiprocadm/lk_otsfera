@@ -161,3 +161,19 @@ describe('pii_access_log (§25.7)', () => {
     expect(isFeatureEnabled('pii_access_log')).toBe(false);
   });
 });
+
+describe('isOptInFlag / featureFlagEnvVar (ФТ-14.6 — матрица флагов)', () => {
+  it('opt-in флаги распознаются, opt-out — нет', async () => {
+    const { isOptInFlag } = await import('@/lib/featureFlags');
+    expect(isOptInFlag('chat')).toBe(true);
+    expect(isOptInFlag('staff_calendar')).toBe(true);
+    expect(isOptInFlag('partner_leads')).toBe(false);
+    expect(isOptInFlag('pii_access_log')).toBe(false);
+  });
+
+  it('featureFlagEnvVar строит FEATURE_<UPPER_SNAKE>', async () => {
+    const { featureFlagEnvVar } = await import('@/lib/featureFlags');
+    expect(featureFlagEnvVar('chat')).toBe('FEATURE_CHAT');
+    expect(featureFlagEnvVar('staff_2fa')).toBe('FEATURE_STAFF_2FA');
+  });
+});

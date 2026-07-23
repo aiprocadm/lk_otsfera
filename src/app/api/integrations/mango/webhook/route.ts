@@ -6,6 +6,7 @@ import { isMangoIpAllowed, clientIpFrom } from '@/lib/telephony/mango/ip';
 import { parseMangoEvent } from '@/lib/telephony/mango/parse';
 import { ingestCallEvent } from '@/lib/services/telephony/ingestCall';
 import { getQueue } from '@/lib/jobs/queues';
+import { recordWebhookEvent } from '@/lib/services/admin/webhookDiagnostics';
 import { log } from '@/lib/logging';
 
 /**
@@ -63,6 +64,10 @@ export async function POST(req: Request): Promise<Response> {
     // Malformed JSON (but signed) — 200, чтобы Mango не ретраил.
     return new Response(null, { status: 200 });
   }
+
+  // ФТ-14.4: отметка «последнее входящее» (аутентичное подписанное событие)
+  // для диагностики в админке. Never-throws; не влияет на ответ вебхука.
+  await recordWebhookEvent(prisma, 'mango');
 
   // event содержит только DATA от Mango, никогда не интерпретируется как код.
   const event = parseMangoEvent(eventType, payload);

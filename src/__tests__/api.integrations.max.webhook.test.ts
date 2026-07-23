@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const { linkMaxByCode, sendMaxMessage, notFoundIfDisabled, isFeatureEnabled } = vi.hoisted(() => ({
+const { linkMaxByCode, sendMaxMessage, notFoundIfDisabled, isFeatureEnabled, recordWebhookEvent } = vi.hoisted(() => ({
   linkMaxByCode: vi.fn(),
   sendMaxMessage: vi.fn(),
   notFoundIfDisabled: vi.fn(),
   isFeatureEnabled: vi.fn(),
+  recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
@@ -12,6 +13,7 @@ vi.mock('@/lib/services/max/link', () => ({ linkMaxByCode }));
 vi.mock('@/lib/max/client', () => ({ sendMaxMessage }));
 vi.mock('@/lib/services/inbound/ingest', () => ({ ingestInboundMessage: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled, isFeatureEnabled }));
+vi.mock('@/lib/services/admin/webhookDiagnostics', () => ({ recordWebhookEvent }));
 
 import { POST } from '@/app/api/integrations/max/webhook/route';
 
@@ -163,5 +165,18 @@ describe('POST /api/integrations/max/webhook', () => {
       req({ message: { text: '/start FAIL', chat: { id: 4 } } }, { 'x-max-webhook-secret': SECRET })
     );
     expect(res.status).toBe(200);
+  });
+});
+
+describe('диагностика вебхука (ФТ-14.4)', () => {
+  it('well-formed update → отметка webhook.max; 401 → отметки нет', async () => {
+    const ok = await POST(req({ any: 1 }, { 'x-max-webhook-secret': SECRET }));
+    expect(ok.status).toBe(200);
+    expect(recordWebhookEvent).toHaveBeenCalledWith(expect.anything(), 'max');
+
+    recordWebhookEvent.mockClear();
+    const denied = await POST(req({ any: 1 }, { 'x-max-webhook-secret': 'wrong' }));
+    expect(denied.status).toBe(401);
+    expect(recordWebhookEvent).not.toHaveBeenCalled();
   });
 });
