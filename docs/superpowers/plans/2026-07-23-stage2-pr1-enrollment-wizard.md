@@ -85,7 +85,8 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development (по желанию
 ## F. Ворота и поставка
 
 - [x] F1. `.env.example`/доки — не требуется (новых env нет). CHANGELOG.md — запись.
-- [ ] F2. `typecheck` / `lint` / `test:unit` зелёные; integration по затронутым
+- [x] F2. `typecheck` / `lint` / `test:unit` зелёные; integration по затронутым
   местам (живой Postgres; `prisma migrate deploy` на тестовой БД).
-- [ ] F3. PR открыт, STATUS.md обновлён. PR-2 (Excel, лента, дашборды,
-  уведомления, переходы in_training/certificates_ready) — следующим.
+- [x] F3. PR открыт ([#218](https://github.com/aiprocadm/lk_otsfera/pull/218)),
+  STATUS.md обновлён. PR-2 (Excel, лента, дашборды, уведомления, переходы
+  in_training/certificates_ready) — следующим.
