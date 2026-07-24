@@ -16,7 +16,7 @@
 | Этап | Состав | Статус | Спека | План | PR |
 |---|---|---|---|---|---|
 | 1 | Модуль 14 + ФТ-13.1–13.2 (интеграции в UI + DaData-настройка) | ✅ готов | [спека](../superpowers/specs/2026-07-23-stage1-integrations-admin-dadata-design.md) ✅ подтверждена | [PR-1](../superpowers/plans/2026-07-23-stage1-pr1-integrations-settings.md) · [PR-2](../superpowers/plans/2026-07-23-stage1-pr2-check-diagnostics.md) | [#216](https://github.com/aiprocadm/lk_otsfera/pull/216) ✅ · [#217](https://github.com/aiprocadm/lk_otsfera/pull/217) ✅ |
-| 2 | Модуль 2 (мастер заявки на обучение) | 🔍 PR (PR-1) | [спека](../superpowers/specs/2026-07-23-stage2-enrollment-wizard-design.md) ✅ подтверждена | [PR-1 план](../superpowers/plans/2026-07-23-stage2-pr1-enrollment-wizard.md) | [#218](https://github.com/aiprocadm/lk_otsfera/pull/218) — ждёт мержа; PR-2 (Excel/лента/дашборды/уведомления) следующим |
+| 2 | Модуль 2 (мастер заявки на обучение) | 🔨 в работе (PR-2) | [спека](../superpowers/specs/2026-07-23-stage2-enrollment-wizard-design.md) ✅ подтверждена | [PR-1 план](../superpowers/plans/2026-07-23-stage2-pr1-enrollment-wizard.md) · [PR-2 план](../superpowers/plans/2026-07-24-stage2-pr2-excel-status-notifications.md) | [#218](https://github.com/aiprocadm/lk_otsfera/pull/218) ✅ · PR-2 в работе |
 | 3 | Модуль 6 + экспорт удостоверений (часть Модуля 12) | ⬜ не начат | — | — | — |
 | 4 | Модуль 10 (онбординг по приглашению) | ⬜ не начат | — | — | — |
 | 5 | Модуль 1 + ФТ-13.3–13.4 (заявки клиентов + DaData в формах) | ⬜ не начат | — | — | — |
@@ -51,4 +51,5 @@
 - 2026-07-23 — этап 1: PR #217 (PR-2) смержен владельцем. **Этап 1 — ✅ готов.** Текущий этап — 2.
 - 2026-07-23 — этап 2: заказчик ответил на вопрос 5 — доп. поля слушателя: СНИЛС, должность, дата рождения + пустое свободно редактируемое поле. Начата спека этапа 2 (мастер заявки на обучение).
 - 2026-07-23 — этап 2: написана спека `2026-07-23-stage2-enrollment-wizard-design.md` (модель шапка+позиции, мастер 3 шага, Excel-импорт, статусная лента, уведомления; разбивка на 2 PR). Предъявлена заказчику — ждёт подтверждения (5 вопросов §10 спеки) до начала кода.
+- 2026-07-24 — этап 2: PR #218 (PR-1) смержен владельцем в `main`. Начат PR-2 «Excel, лента, дашборды, уведомления» (ветка `claude/stage2-pr2-excel-status-notifications`).
 - 2026-07-24 — этап 2: спека подтверждена заказчиком (все 5 решений §10: доп. поля необязательные; СНИЛС — 11 цифр без контрольной суммы; поле «Дополнительно»; статусы вручную менеджером; 2 PR). PR-1 (модель+миграция без потери данных, мастер 3 шага, students-API, адаптация списков/очереди) реализован: typecheck/lint зелёные, unit 6953 зелёные, integration на живом Postgres зелёный. Открыт PR [#218](https://github.com/aiprocadm/lk_otsfera/pull/218) (ветка `claude/stage2-enrollment-wizard`). Ждёт мержа владельцем. PR-2 (Excel-импорт, статусная лента, дашборды, уведомления, переходы in_training/certificates_ready) — следующим.

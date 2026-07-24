@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, EnrollmentStatus } from '@prisma/client';
 import { organizationChannelWhere } from '@/lib/auth/documentChannelPolicy';
 import { fmtMoney } from '@/lib/format';
 
@@ -232,4 +232,43 @@ export async function recentEvents(
 
   events.sort((a, b) => b.at.getTime() - a.at.getTime());
   return events.slice(0, take);
+}
+
+export type OrgEnrollmentSummary = {
+  id: string;
+  directionName: string;
+  studentCount: number;
+  status: EnrollmentStatus;
+  createdAt: Date;
+};
+
+/**
+ * Последние заявки на обучение организации для дашборда (этап 2 PR-2, ФТ-2.4).
+ * Только шапки (направление, счётчик, статус) — без ПДн слушателей.
+ */
+export async function recentEnrollments(
+  prisma: PrismaClient,
+  organizationId: string,
+  take = 5
+): Promise<OrgEnrollmentSummary[]> {
+  const rows = await prisma.enrollmentRequest.findMany({
+    where: { organizationId },
+    orderBy: { createdAt: 'desc' },
+    take,
+    select: {
+      id: true,
+      status: true,
+      createdAt: true,
+      legacyCourseTitle: true,
+      direction: { select: { name: true } },
+      _count: { select: { items: true } }
+    }
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    directionName: r.direction?.name ?? r.legacyCourseTitle ?? '—',
+    studentCount: r._count.items,
+    status: r.status,
+    createdAt: r.createdAt
+  }));
 }

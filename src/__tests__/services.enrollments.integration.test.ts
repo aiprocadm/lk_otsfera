@@ -55,6 +55,8 @@ afterAll(async () => {
   await prisma.organization.deleteMany({ where: { name: { startsWith: T } } });
   await prisma.trainingDirection.deleteMany({ where: { name: { startsWith: T } } });
   await prisma.auditLog.deleteMany({ where: { userId: ACTOR } });
+  // PR-2: lifecycle шлёт подателю enrollment_status_changed — чистим перед user.
+  await prisma.notification.deleteMany({ where: { userId: ACTOR } });
   await prisma.user.deleteMany({ where: { id: ACTOR } });
   await prisma.$disconnect();
 });

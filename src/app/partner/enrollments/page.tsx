@@ -25,7 +25,7 @@ export default async function PartnerEnrollmentsPage() {
     <div className='space-y-5'>
       <h1 className='text-2xl font-semibold text-[#111111]'>Заявки на обучение</h1>
       <EnrollmentWizard directions={directions} organizations={orgs} />
-      <EnrollmentList rows={rows} />
+      <EnrollmentList rows={rows} detailHrefBase='/partner/enrollments' />
     </div>
   );
 }

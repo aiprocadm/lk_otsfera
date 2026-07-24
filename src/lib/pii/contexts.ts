@@ -30,6 +30,7 @@ export const PII_CONTEXTS = {
   manager_student_view: { subjectType: 'student', action: 'view', labelRu: 'Карточка слушателя', callSite: 'src/lib/services/manager/students.ts' },
   manager_lead_view: { subjectType: 'lead', action: 'view', labelRu: 'Карточка лида (контакты)', callSite: 'src/lib/services/manager/leads.ts' },
   enrollments_list: { subjectType: 'enrollment_request', action: 'list', labelRu: 'Заявки на обучение', callSite: 'src/lib/services/enrollments/list.ts' },
+  enrollment_detail: { subjectType: 'enrollment_request', action: 'view', labelRu: 'Деталка заявки на обучение', callSite: 'src/lib/services/enrollments/detail.ts' },
   enrollment_wizard_students: { subjectType: 'student', action: 'list', labelRu: 'Мастер заявки: выбор слушателей', callSite: 'src/app/api/enrollments/students/route.ts' },
   org_card_inbound: { subjectType: 'inbound_sender', action: 'list', labelRu: 'Карточка организации: входящие', callSite: 'src/lib/services/manager/organizationCard.ts' },
   org_card_calls: { subjectType: 'caller', action: 'list', labelRu: 'Карточка организации: звонки', callSite: 'src/lib/services/manager/organizationCard.ts' },

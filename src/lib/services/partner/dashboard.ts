@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, EnrollmentStatus } from '@prisma/client';
 import { fmtMoney } from '@/lib/format';
 
 export type DashboardScope = {
@@ -272,4 +272,48 @@ export async function recentEvents(
 
   events.sort((a, b) => b.at.getTime() - a.at.getTime());
   return events.slice(0, limit);
+}
+
+export type PartnerEnrollmentSummary = {
+  id: string;
+  directionName: string;
+  studentCount: number;
+  status: EnrollmentStatus;
+  createdAt: Date;
+};
+
+/**
+ * Последние заявки на обучение партнёра для дашборда (этап 2 PR-2, ФТ-2.4).
+ * Граница — partnerId заявки (как в списке заявок), плюс scopeOrgIds-сужение
+ * как у остальных блоков дашборда. Только шапки — без ПДн слушателей.
+ */
+export async function recentEnrollments(
+  prisma: PrismaClient,
+  scope: DashboardScope,
+  take = 5
+): Promise<PartnerEnrollmentSummary[]> {
+  const where: { partnerId: string; organizationId?: { in: string[] } } = { partnerId: scope.partnerId };
+  if (scope.scopeOrgIds.length > 0) {
+    where.organizationId = { in: scope.scopeOrgIds };
+  }
+  const rows = await prisma.enrollmentRequest.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    take,
+    select: {
+      id: true,
+      status: true,
+      createdAt: true,
+      legacyCourseTitle: true,
+      direction: { select: { name: true } },
+      _count: { select: { items: true } }
+    }
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    directionName: r.direction?.name ?? r.legacyCourseTitle ?? '—',
+    studentCount: r._count.items,
+    status: r.status,
+    createdAt: r.createdAt
+  }));
 }

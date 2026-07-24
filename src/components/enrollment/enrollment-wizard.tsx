@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
+import { parseEnrollmentImportAction } from '@/server-actions/enrollment-import';
 
 /**
  * Мастер подачи заявки на обучение (этап 2, ФТ-2.1) — 3 шага:
@@ -12,9 +13,11 @@ import { toast } from '@/lib/ui/toast';
  * форма идентична по ролям, сервер сам выводит скоуп из сессии).
  *
  * Слушатели: чекбоксы из сотрудников организации (/api/enrollments/students)
- * + добавление строками. Доп. поля (должность, СНИЛС, дата рождения,
+ * + добавление строками + импорт из Excel (шаблон — /api/enrollments/import-template,
+ * разбор — server-action; валидные строки попадают в таблицу, невалидные —
+ * списком «Строка N: …»). Доп. поля (должность, СНИЛС, дата рождения,
  * «Дополнительно») — необязательные и редактируемые у любой позиции
- * (решения заказчика §10 спеки). Excel-импорт — PR-2.
+ * (решения заказчика §10 спеки).
  */
 
 export type DirectionOption = { id: string; name: string };
@@ -83,6 +86,10 @@ export function EnrollmentWizard({
   const [note, setNote] = useState('');
   const [rows, setRows] = useState<WizardRow[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [importWarnings, setImportWarnings] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Сотрудники выбранной организации для чекбоксов шага 2. Загрузка выводится
   // из «для какой организации список уже загружен» — так в эффекте нет
@@ -145,6 +152,53 @@ export function EnrollmentWizard({
 
   function removeRow(key: string) {
     setRows((prev) => prev.filter((r) => r.key !== key));
+  }
+
+  /** Импорт из Excel: валидные строки — в таблицу, ошибки/дубликаты — списками. */
+  async function importFile(file: File) {
+    setImportBusy(true);
+    setImportErrors([]);
+    setImportWarnings([]);
+    try {
+      const form = new FormData();
+      form.set('file', file);
+      const res = await parseEnrollmentImportAction(form);
+      if (!res.ok) {
+        setImportErrors(res.errors);
+        return;
+      }
+      const seen = new Set(rows.map((r) => r.email.trim().toLowerCase()).filter(Boolean));
+      const added: WizardRow[] = [];
+      const warnings = [...res.warnings];
+      for (const item of res.items) {
+        if (seen.has(item.email)) {
+          warnings.push(`${item.fullName} (${item.email}): уже в заявке — пропущен`);
+          continue;
+        }
+        seen.add(item.email);
+        added.push({
+          key: nextKey(),
+          studentId: null,
+          fullName: item.fullName,
+          email: item.email,
+          position: item.position ?? '',
+          snils: item.snils ?? '',
+          birthDate: item.birthDate ? new Date(item.birthDate).toISOString().slice(0, 10) : '',
+          extra: item.extra ?? ''
+        });
+      }
+      if (added.length) {
+        setRows((prev) => [...prev, ...added]);
+        toast.success(`Импортировано слушателей: ${added.length}`);
+      }
+      setImportErrors(res.errors);
+      setImportWarnings(warnings);
+    } catch {
+      setImportErrors(['Не удалось обработать файл — попробуйте ещё раз']);
+    } finally {
+      setImportBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   }
 
   function goToStep3() {
@@ -296,6 +350,50 @@ export function EnrollmentWizard({
               Организация не выбрана — добавьте слушателей строками ниже.
             </div>
           )}
+
+          <div className='space-y-2 border border-gray-100 rounded-lg p-3'>
+            <div className='flex flex-wrap items-center gap-3'>
+              <span className='text-sm font-medium text-gray-700'>Импорт из Excel</span>
+              <a
+                href='/api/enrollments/import-template'
+                download
+                className='text-sm text-[#F97316] hover:underline'
+              >
+                Скачать шаблон
+              </a>
+              <label className='text-sm text-[#F97316] hover:underline cursor-pointer'>
+                {importBusy ? 'Обрабатываем файл…' : 'Загрузить файл'}
+                <input
+                  ref={fileInputRef}
+                  type='file'
+                  accept='.xlsx'
+                  className='sr-only'
+                  disabled={importBusy}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) importFile(file);
+                  }}
+                />
+              </label>
+            </div>
+            <p className='text-xs text-gray-500'>
+              Заполните шаблон (обязательны ФИО и Email) и загрузите файл — слушатели добавятся в заявку.
+            </p>
+            {importErrors.length > 0 && (
+              <ul className='text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2 space-y-0.5' role='alert'>
+                {importErrors.map((e) => (
+                  <li key={e}>{e}</li>
+                ))}
+              </ul>
+            )}
+            {importWarnings.length > 0 && (
+              <ul className='text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 space-y-0.5' role='status'>
+                {importWarnings.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           <div className='space-y-3'>
             <div className='flex items-center justify-between'>
