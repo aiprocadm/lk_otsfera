@@ -32,6 +32,20 @@ import {
   sendManagerDocumentUploadedByPartnerEmail,
 } from '@/lib/email/send';
 
+// CI-джоб unit-тестов живёт без DATABASE_URL: реальный getSettingValue при
+// недоступной базе бросает PrismaClientInitializationError раньше env-fallback,
+// и send() → isEmailEnabled() ронял этот файл только в CI (локально живой
+// Postgres маскировал утечку unit-слоя в БД). Настройки здесь читаем env-only;
+// сам путь «БД → env» — предмет config.integrationSettings-тестов, не этого файла.
+vi.mock('@/lib/config/integrationSettings', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('@/lib/config/integrationSettings')>();
+  return {
+    ...mod,
+    getSettingValue: async (_prisma: unknown, key: keyof typeof mod.SETTING_SPECS) =>
+      process.env[mod.SETTING_SPECS[key].envVar]?.trim() || null,
+  };
+});
+
 function makeTransport(): EmailTransport & {
   calls: Array<Parameters<EmailTransport['send']>[0]>;
 } {
