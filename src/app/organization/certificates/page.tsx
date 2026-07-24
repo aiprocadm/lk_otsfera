@@ -28,6 +28,15 @@ function parseStatus(raw: string | undefined): CertificateStatusFilter | undefin
   return STATUSES.includes(raw as CertificateStatusFilter) ? (raw as CertificateStatusFilter) : undefined;
 }
 
+function exportHref(base: string, params: Record<string, string | undefined>): string {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v) qs.set(k, v);
+  }
+  const s = qs.toString();
+  return s ? `${base}?${s}` : base;
+}
+
 /** Реестр удостоверений организации (этап 3, ФТ-6.1). */
 export default async function OrganizationCertificatesPage({
   searchParams
@@ -68,11 +77,25 @@ export default async function OrganizationCertificatesPage({
       viewerRole={ctx.viewerRole}
     >
       <div className='space-y-4'>
-        <div>
-          <h1 className='text-2xl font-bold text-[#111111]'>Удостоверения</h1>
-          <p className='text-sm text-gray-500 mt-0.5'>
-            {result.total} всего в {ctx.activeOrgName}
-          </p>
+        <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
+          <div>
+            <h1 className='text-2xl font-bold text-[#111111]'>Удостоверения</h1>
+            <p className='text-sm text-gray-500 mt-0.5'>
+              {result.total} всего в {ctx.activeOrgName}
+            </p>
+          </div>
+          {/* ФТ-6.5: экспорт уважает активные фильтры (те же query-параметры). */}
+          <a
+            href={exportHref('/api/organization/certificates/export', {
+              org: ctx.activeOrgId,
+              direction: sp.direction,
+              status: sp.status,
+              search: sp.search
+            })}
+            className='text-sm font-medium text-[#F97316] border border-[#F97316] hover:bg-[#FFF7ED] rounded-lg px-4 py-2 self-start'
+          >
+            Выгрузить в Excel
+          </a>
         </div>
         <CertificateRegistryFilters
           directions={directions}

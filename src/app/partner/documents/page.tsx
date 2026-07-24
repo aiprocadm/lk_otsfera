@@ -4,6 +4,7 @@ import type { DocumentType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartner } from '@/lib/auth/requireRole';
 import { listPartnerDocuments } from '@/lib/services/partner/documentsList';
+import { viewedDocumentIds } from '@/lib/services/documents/viewMarks';
 import { DocumentsList } from '@/components/partner/documents-list';
 import { DocumentsSearch } from '@/components/partner/documents-search';
 import { Paginator } from '@/components/ui';
@@ -71,6 +72,13 @@ export default async function PartnerDocumentsPage({
 
   const grandTotal = Object.values(countsByType).reduce((s, n) => s + (n ?? 0), 0);
 
+  // Этап 3 PR-2 (ФТ-6.6): «новый» = не скачан текущим пользователем.
+  const viewed = await viewedDocumentIds(prisma, {
+    userId: session.sub,
+    documentIds: rows.map((r) => r.id)
+  });
+  const newDocIds = rows.filter((r) => !viewed.has(r.id)).map((r) => r.id);
+
   return (
     <div className='space-y-4'>
       <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
@@ -107,7 +115,7 @@ export default async function PartnerDocumentsPage({
         tab={tab}
       />
 
-      <DocumentsList rows={rows} />
+      <DocumentsList rows={rows} newDocIds={newDocIds} groupByOrder={tab === 'orders'} />
 
       <Paginator basePath='/partner/documents' searchParams={sp} take={take} skip={skip} total={total} />
     </div>

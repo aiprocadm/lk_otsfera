@@ -1,27 +1,19 @@
 import React from 'react';
 import { Badge } from '@/components/ui';
-import { EXPIRING_WITHIN_DAYS } from '@/lib/services/training/certificates';
+import { certificateStatus, type CertificateStatusFilter } from '@/lib/services/training/certificates';
 
 /**
  * Статус удостоверения в клиентских реестрах (этап 3, спека §4): считается
  * от `validUntil` на лету — действует (включая бессрочные) / истекает ≤ 60 дн
  * (с точным числом дней) / истекло. Не путать с CertificateBadge менеджера
- * (другая шкала формулировок).
+ * (другая шкала формулировок). Вычисление статуса живёт в сервисе (PR-2:
+ * единый источник с xlsx-экспортом); здесь — re-export для потребителей.
  */
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-export type CertificateStatus = 'active' | 'expiring' | 'expired';
-
-export function certificateStatus(validUntil: Date | null, today: Date): CertificateStatus {
-  if (!validUntil) return 'active';
-  const startOfToday = new Date(today);
-  startOfToday.setHours(0, 0, 0, 0);
-  const days = Math.ceil((validUntil.getTime() - startOfToday.getTime()) / MS_PER_DAY);
-  if (days < 0) return 'expired';
-  if (days <= EXPIRING_WITHIN_DAYS) return 'expiring';
-  return 'active';
-}
+export type CertificateStatus = CertificateStatusFilter;
+export { certificateStatus };
 
 export function CertificateStatusBadge({
   validUntil,

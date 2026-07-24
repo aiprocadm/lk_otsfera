@@ -6,6 +6,7 @@ import { resolveActiveOrgId } from '@/lib/auth/orgContext';
 import { getOrgDocumentForDownload } from '@/lib/services/organization/documents';
 import { getObjectStorage } from '@/lib/storage';
 import { recordAudit } from '@/lib/auth/audit';
+import { markDocumentViewed } from '@/lib/services/documents/viewMarks';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { log } from '@/lib/logging';
 
@@ -76,6 +77,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     userId: session.sub,
     after: { ttl, viewer: 'organization', organizationId: activeOrgId }
   });
+  // Этап 3 PR-2 (ФТ-6.6): скачивание гасит бейдж «новый» (best-effort внутри).
+  await markDocumentViewed(prisma, { documentId: id, userId: session.sub });
 
   return NextResponse.json({
     downloadUrl: signedUrl,

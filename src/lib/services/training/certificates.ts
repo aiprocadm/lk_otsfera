@@ -76,6 +76,20 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const LIST_MAX_TAKE = 200;
 
 /**
+ * Статус одного удостоверения (спека этапа 3 §4): считается от начала дня
+ * `today`. Единый источник для бейджа реестра и xlsx-экспорта (PR-2).
+ */
+export function certificateStatus(validUntil: Date | null, today: Date): CertificateStatusFilter {
+  if (!validUntil) return 'active';
+  const startOfToday = new Date(today);
+  startOfToday.setHours(0, 0, 0, 0);
+  const days = Math.ceil((validUntil.getTime() - startOfToday.getTime()) / MS_PER_DAY);
+  if (days < 0) return 'expired';
+  if (days <= EXPIRING_WITHIN_DAYS) return 'expiring';
+  return 'active';
+}
+
+/**
  * SQL-границы статуса по `validUntil` (спека этапа 3 §4): статус не хранится,
  * считается от начала текущего дня. `active` включает бессрочные (null).
  */

@@ -32,10 +32,11 @@ const { getOrgStudent, listOrgStudentTraining } = vi.hoisted(() => ({
 vi.mock('@/lib/services/organization/students', () => ({ getOrgStudent, listOrgStudentTraining }));
 
 const { listCertificates } = vi.hoisted(() => ({ listCertificates: vi.fn() }));
-vi.mock('@/lib/services/training/certificates', () => ({
-  listCertificates,
-  EXPIRING_WITHIN_DAYS: 60
-}));
+vi.mock('@/lib/services/training/certificates', async (importOriginal) => {
+  // certificateStatus нужен настоящий (его использует бейдж в таблице реестра).
+  const mod = await importOriginal<typeof import('@/lib/services/training/certificates')>();
+  return { ...mod, listCertificates };
+});
 
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: (props: { activeOrgName: string; children: React.ReactNode }) =>

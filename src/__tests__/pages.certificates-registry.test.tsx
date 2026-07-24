@@ -38,10 +38,11 @@ vi.mock('@/lib/db/prisma', () => ({
 }));
 
 const { listCertificates } = vi.hoisted(() => ({ listCertificates: vi.fn() }));
-vi.mock('@/lib/services/training/certificates', () => ({
-  listCertificates,
-  EXPIRING_WITHIN_DAYS: 60
-}));
+vi.mock('@/lib/services/training/certificates', async (importOriginal) => {
+  // certificateStatus нужен настоящий (его использует бейдж в таблице реестра).
+  const mod = await importOriginal<typeof import('@/lib/services/training/certificates')>();
+  return { ...mod, listCertificates };
+});
 
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: (props: { activeOrgName: string; children: React.ReactNode }) =>
@@ -117,6 +118,11 @@ describe('OrganizationCertificatesPage', () => {
     expect(container.textContent).toContain('Удостоверения');
     expect(container.textContent).toContain('Иванов Иван');
     expect(container.textContent).toContain('ООО Ромашка');
+    // PR-2 (ФТ-6.5): кнопка экспорта несёт те же фильтры.
+    const exportLink = container.querySelector('a[href^="/api/organization/certificates/export"]');
+    expect(exportLink?.getAttribute('href')).toBe(
+      '/api/organization/certificates/export?org=org-1&direction=d1&status=expiring&search=%D0%98%D0%B2%D0%B0%D0%BD'
+    );
   });
 
   it('неизвестный status и кривые take/skip → безопасные значения по умолчанию', async () => {
@@ -157,17 +163,24 @@ describe('PartnerCertificatesPage', () => {
       expect.objectContaining({ organizationId: 'org-9', status: 'expired', take: 50, skip: 0 })
     );
     expect(container.textContent).toContain('по вашим организациям');
+    // PR-2 (ФТ-6.5): экспорт с текущими фильтрами.
+    expect(
+      container.querySelector('a[href^="/api/partner/certificates/export"]')?.getAttribute('href')
+    ).toBe('/api/partner/certificates/export?organization=org-9&status=expired');
   });
 
-  it('partner-manager: селект организаций сужен до assignedOrgIds', async () => {
+  it('partner-manager: селект организаций сужен до assignedOrgIds; экспорт без фильтров — базовый URL', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requirePartner.mockResolvedValue(PARTNER_MANAGER);
 
-    await renderServerComponent(PartnerCertificatesPage(props()));
+    const { container } = await renderServerComponent(PartnerCertificatesPage(props()));
 
     expect(organizationFindMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { partnerId: 'pt-1', id: { in: ['org-9'] } } })
     );
+    expect(
+      container.querySelector('a[href^="/api/partner/certificates/export"]')?.getAttribute('href')
+    ).toBe('/api/partner/certificates/export');
   });
 
   it('partner-manager без assignedOrgIds → пустое сужение (?? [])', async () => {

@@ -5,6 +5,9 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requirePartner } = vi.hoisted(() => ({ requirePartner: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requirePartner }));
 
+const { viewedDocumentIds } = vi.hoisted(() => ({ viewedDocumentIds: vi.fn(async () => new Set<string>()) }));
+vi.mock('@/lib/services/documents/viewMarks', () => ({ viewedDocumentIds }));
+
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { listPartnerDocuments } = vi.hoisted(() => ({ listPartnerDocuments: vi.fn() }));
@@ -48,6 +51,40 @@ describe('PartnerDocumentsPage', () => {
     expect(container.textContent).toContain('Документы');
     // grandTotal 0 -> TypeFilter renders null
     expect(container.querySelector('nav.flex.flex-wrap')).toBeNull();
+  });
+
+  it('этап 3 (ФТ-6.6): «новый» у непросмотренных документов партнёра', async () => {
+    requirePartner.mockResolvedValue(SESSION);
+    const doc = (id: string, name: string) => ({
+      id,
+      name,
+      type: 'act',
+      direction: 'outgoing' as const,
+      signedAt: null,
+      createdAt: new Date('2026-07-01'),
+      size: 100,
+      orderId: null,
+      orderNumber: null,
+      orderTitle: null
+    });
+    listPartnerDocuments.mockResolvedValue({
+      rows: [doc('dA', 'Свежий.pdf'), doc('dB', 'Скачанный.pdf')],
+      total: 2,
+      countsByType: { act: 2 }
+    });
+    viewedDocumentIds.mockResolvedValueOnce(new Set(['dB']));
+
+    const { container } = await renderServerComponent(
+      PartnerDocumentsPage({ searchParams: Promise.resolve({}) })
+    );
+
+    expect(viewedDocumentIds).toHaveBeenCalledWith(expect.anything(), {
+      userId: 'u1',
+      documentIds: ['dA', 'dB']
+    });
+    const items = Array.from(container.querySelectorAll('li'));
+    expect(items.find((li) => li.textContent?.includes('Свежий.pdf'))?.textContent).toContain('новый');
+    expect(items.find((li) => li.textContent?.includes('Скачанный.pdf'))?.textContent).not.toContain('новый');
   });
 
   it('switches to the "general" tab, clamps take to MAX_TAKE, no org scope when assignedOrgIds empty, and shows the search-query hint', async () => {

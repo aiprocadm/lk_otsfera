@@ -29,6 +29,8 @@ vi.mock('@/lib/db/prisma', () => ({
     auditLog: { create: auditCreate }
   }
 }));
+const { markDocumentViewed } = vi.hoisted(() => ({ markDocumentViewed: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@/lib/services/documents/viewMarks', () => ({ markDocumentViewed }));
 vi.mock('@/lib/storage', () => ({
   getObjectStorage: () => ({
     createSignedUrl,
@@ -95,6 +97,11 @@ describe('POST /api/organization/documents/[id]/download', () => {
     const res = await downloadPost(postReq('?ttl=200'), paramsP);
     expect(res.status).toBe(200);
     expect(createSignedUrl).toHaveBeenCalledWith('org-a/contract.pdf', 200);
+    // Этап 3 PR-2 (ФТ-6.6): скачивание гасит бейдж «новый».
+    expect(markDocumentViewed).toHaveBeenCalledWith(expect.anything(), {
+      documentId: 'd1',
+      userId: orgSession([]).sub
+    });
   });
 
   it('clamps ?ttl= above MAX_TTL (300) to 300', async () => {
