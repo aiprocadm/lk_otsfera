@@ -23,6 +23,9 @@ import {
   orgDocumentPublishedText,
   OrgInviteTemplate,
   orgInviteSubject,
+  PartnerInviteTemplate,
+  partnerInviteSubject,
+  partnerInviteText,
   orgInviteText,
   OrgOrderStatusChangedTemplate,
   orgOrderStatusChangedSubject,
@@ -64,6 +67,7 @@ import {
   type NotificationProps,
   type OrgDocumentPublishedProps,
   type OrgInviteProps,
+  type PartnerInviteProps,
   type OrgOrderStatusChangedProps,
   type OrgPaymentReceivedProps,
   type OrgManagerRepliedProps,
@@ -200,6 +204,22 @@ export async function sendOrgInviteEmail(
       subject: orgInviteSubject(props.organizationName),
       html: await renderHtml(<OrgInviteTemplate {...props} />),
       text: orgInviteText(props),
+    },
+    options,
+  );
+}
+
+export async function sendPartnerInviteEmail(
+  args: { to: string } & PartnerInviteProps,
+  options: SendOptions = {},
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: partnerInviteSubject(props.partnerName),
+      html: await renderHtml(<PartnerInviteTemplate {...props} />),
+      text: partnerInviteText(props),
     },
     options,
   );

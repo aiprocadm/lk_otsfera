@@ -32,6 +32,13 @@ export {
 export type { OrgInviteProps } from './organization/org-invite';
 
 export {
+  PartnerInviteTemplate,
+  partnerInviteSubject,
+  partnerInviteText
+} from './partner/partner-invite';
+export type { PartnerInviteProps } from './partner/partner-invite';
+
+export {
   OrgDocumentPublishedTemplate,
   orgDocumentPublishedSubject,
   orgDocumentPublishedText

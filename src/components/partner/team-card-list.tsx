@@ -1,6 +1,7 @@
 import React from 'react';
 import type { TeamRow } from '@/lib/services/partner/team';
 import { MemberRowActions } from './member-row-actions';
+import { InviteResendButtons } from '@/components/team/invite-resend-buttons';
 
 export function TeamCardList({
   rows,
@@ -42,6 +43,17 @@ export function TeamCardList({
           <div className='mt-2 text-xs text-gray-500'>
             <ScopeSummary assignedOrgIds={row.assignedOrgIds} orgs={orgs} />
           </div>
+
+          {row.isActive && row.invitePending && (
+            <div className='mt-2'>
+              <span className='text-xs text-amber-700'>Ожидает установки пароля</span>
+              {row.userId !== currentUserId && (
+                <div className='mt-0.5'>
+                  <InviteResendButtons userId={row.userId} />
+                </div>
+              )}
+            </div>
+          )}
 
           {row.isActive && row.userId !== currentUserId && (
             <div className='mt-3 flex justify-end'>

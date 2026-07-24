@@ -2,6 +2,7 @@ import React from 'react';
 import type { TeamRow } from '@/lib/services/partner/team';
 import { MemberRowActions } from './member-row-actions';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
+import { InviteResendButtons } from '@/components/team/invite-resend-buttons';
 
 export function TeamTable({
   rows,
@@ -43,7 +44,19 @@ export function TeamTable({
               </div>
               {!row.isActive && <div className='text-xs text-gray-400'>деактивирован</div>}
             </Td>
-            <Td className='text-gray-500'>{row.email}</Td>
+            <Td className='text-gray-500'>
+              {row.email}
+              {row.isActive && row.invitePending && (
+                <div className='mt-0.5'>
+                  <span className='text-xs text-amber-700'>Ожидает установки пароля</span>
+                  {row.userId !== currentUserId && (
+                    <div className='mt-0.5'>
+                      <InviteResendButtons userId={row.userId} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </Td>
             <Td>
               <RoleBadge role={row.roleInPartner} active={row.isActive} />
             </Td>

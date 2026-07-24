@@ -5,6 +5,8 @@ import { getSession } from '@/lib/auth/session';
 import { requirePartnerAdmin } from '@/lib/auth/guard';
 import { listTeam, inviteMember } from '@/lib/services/partner/team';
 import { recordAudit } from '@/lib/auth/audit';
+import { sendPartnerInviteEmail } from '@/lib/email/send';
+import { log } from '@/lib/logging';
 
 const inviteSchema = z.object({
   email: z.string().email(),
@@ -59,8 +61,33 @@ export async function POST(req: Request) {
     },
   });
 
+  // ФТ-10.1: письмо-приглашение best-effort — сбой/отключённый email не ломает
+  // приглашение, ссылка возвращается для фолбэка «Скопировать» в форме.
+  let emailStatus: 'sent' | 'skipped' = 'skipped';
+  try {
+    const partner = await prisma.partner.findUnique({
+      where: { id: admin.value.partnerId },
+      select: { name: true }
+    });
+    const sent = await sendPartnerInviteEmail({
+      to: parsed.data.email,
+      partnerName: partner?.name ?? 'партнёр',
+      roleLabel: parsed.data.roleInPartner === 'admin' ? 'администратор' : 'менеджер',
+      inviteUrl: result.inviteUrl,
+      invitedByName: session.name ?? undefined
+    });
+    if (sent.status === 'sent') emailStatus = 'sent';
+  } catch (e) {
+    log.warn('[partner/team] send invite email failed', e);
+  }
+
   return NextResponse.json(
-    { userId: result.user.id, partnerUserId: result.partnerUser.id },
+    {
+      userId: result.user.id,
+      partnerUserId: result.partnerUser.id,
+      inviteUrl: result.inviteUrl,
+      emailStatus
+    },
     { status: 201 }
   );
 }

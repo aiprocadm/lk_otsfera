@@ -23,6 +23,7 @@ function makeMember(overrides: Partial<OrgMemberRow> = {}): OrgMemberRow {
     name: 'Анна',
     roleInOrg: 'admin',
     isActive: true,
+    invitePending: false,
     invitedAt: new Date('2026-01-01'),
     lastLoginAt: null,
     ...overrides

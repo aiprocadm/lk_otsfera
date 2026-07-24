@@ -30,6 +30,8 @@ export type OrgMemberRow = {
   isActive: boolean;
   invitedAt: Date;
   lastLoginAt: Date | null;
+  /** ФТ-10.2: true = пароль ещё не установлен — можно переотправить приглашение. */
+  invitePending: boolean;
 };
 
 export type InviteMemberInput = {
@@ -74,7 +76,8 @@ export async function listMembers(
 ): Promise<OrgMemberRow[]> {
   const rows = await prisma.organizationUser.findMany({
     where: { organizationId },
-    include: { user: { select: { id: true, email: true, name: true } } },
+    // Наружу уходит только признак наличия пароля, не сам hash.
+    include: { user: { select: { id: true, email: true, name: true, passwordHash: true } } },
     orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }]
   });
 
@@ -86,7 +89,8 @@ export async function listMembers(
     roleInOrg: normaliseRole(r.roleInOrg),
     isActive: r.isActive,
     invitedAt: r.createdAt,
-    lastLoginAt: null
+    lastLoginAt: null,
+    invitePending: r.user.passwordHash === null
   }));
 }
 

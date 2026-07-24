@@ -159,6 +159,8 @@ model User {
   name                         String
   isActive                     Boolean               @default(true)
   role                         Role                  @default(organization)
+  // Этап 4 (ФТ-10.4): одноразовый welcome-блок клиентских дашбордов; null = ещё не скрыт.
+  welcomeSeenAt                DateTime?
   managerRole                  String? // null = regular manager, 'leader' = руководитель
   companyId                    String?
   company                      Company?              @relation(fields: [companyId], references: [id])

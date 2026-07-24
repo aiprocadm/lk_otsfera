@@ -13,6 +13,16 @@ const orgs = [
   { id: 'o2', name: 'ООО Два' }
 ];
 
+/** Успешный ответ POST /api/partner/team (этап 4: ссылка + статус письма). */
+function invitePayload(emailStatus: 'sent' | 'skipped' = 'sent') {
+  return {
+    userId: 'nu1',
+    partnerUserId: 'npu1',
+    inviteUrl: 'https://lk.example/invite/tok-1',
+    emailStatus
+  };
+}
+
 describe('InviteMemberForm', () => {
   let showModal: ReturnType<typeof vi.fn>;
   let close: ReturnType<typeof vi.fn>;
@@ -128,8 +138,16 @@ describe('InviteMemberForm', () => {
     expect(screen.getByText('В портфеле нет организаций.')).toBeTruthy();
   });
 
-  it('success path: submits with assignedOrgIds=[] when "all orgs", closes dialog, refreshes', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+  it('форма подписана про письмо со ссылкой (не про временный пароль)', async () => {
+    render(React.createElement(InviteMemberForm, { orgs }));
+    fireEvent.click(screen.getByRole('button', { name: /Пригласить/ }));
+    await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
+    expect(screen.getByText(/письмо со ссылкой для установки пароля/)).toBeTruthy();
+    expect(screen.queryByText(/временн\w* парол/i)).toBeNull();
+  });
+
+  it('success (emailStatus=sent): submits assignedOrgIds=[], показывает success-вид со ссылкой, диалог НЕ закрывается, refresh вызван', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => invitePayload('sent') });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(InviteMemberForm, { orgs }));
     fireEvent.click(screen.getByRole('button', { name: /Пригласить/ }));
@@ -146,8 +164,88 @@ describe('InviteMemberForm', () => {
         body: JSON.stringify({ email: 'p@x.com', name: 'Пётр', roleInPartner: 'manager', assignedOrgIds: [] })
       })
     );
-    await waitFor(() => expect(close).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText(/Письмо приглашения отправлено/)).toBeTruthy());
+    expect(screen.getByText('p@x.com')).toBeTruthy();
+    const link = screen.getByLabelText('Ссылка приглашения') as HTMLInputElement;
+    expect(link.value).toBe('https://lk.example/invite/tok-1');
+    expect(screen.getByRole('button', { name: 'Скопировать' })).toBeTruthy();
+    expect(close).not.toHaveBeenCalled();
     expect(refresh).toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('success (emailStatus=skipped): текст «Отправка почты выключена», ссылка тоже показана', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => invitePayload('skipped') }));
+    render(React.createElement(InviteMemberForm, { orgs }));
+    fireEvent.click(screen.getByRole('button', { name: /Пригласить/ }));
+    await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Пётр' } });
+    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), { target: { value: 'p@x.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
+
+    await waitFor(() => expect(screen.getByText(/Отправка почты\s*выключена/)).toBeTruthy());
+    expect(screen.queryByText(/Письмо приглашения отправлено/)).toBeNull();
+    expect((screen.getByLabelText('Ссылка приглашения') as HTMLInputElement).value).toBe(
+      'https://lk.example/invite/tok-1'
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it('success-вид: «Скопировать» пишет ссылку в clipboard и меняет подпись на «Скопировано ✓»', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => invitePayload('sent') }));
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    render(React.createElement(InviteMemberForm, { orgs }));
+    fireEvent.click(screen.getByRole('button', { name: /Пригласить/ }));
+    await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Пётр' } });
+    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), { target: { value: 'p@x.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Скопировать' })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Скопировать' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Скопировано ✓' })).toBeTruthy());
+    expect(writeText).toHaveBeenCalledWith('https://lk.example/invite/tok-1');
+    vi.unstubAllGlobals();
+  });
+
+  it('success-вид: сбой clipboard оставляет подпись «Скопировать»', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => invitePayload('sent') }));
+    const writeText = vi.fn().mockRejectedValue(new Error('denied'));
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    render(React.createElement(InviteMemberForm, { orgs }));
+    fireEvent.click(screen.getByRole('button', { name: /Пригласить/ }));
+    await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Пётр' } });
+    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), { target: { value: 'p@x.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Скопировать' })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Скопировать' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    expect(screen.getByRole('button', { name: 'Скопировать' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Скопировано ✓' })).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
+  it('success-вид: «Готово» закрывает диалог; повторное открытие возвращает чистую форму', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => invitePayload('sent') }));
+    render(React.createElement(InviteMemberForm, { orgs }));
+    fireEvent.click(screen.getByRole('button', { name: /Пригласить/ }));
+    await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Пётр' } });
+    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), { target: { value: 'p@x.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Готово' })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Готово' }));
+    await waitFor(() => expect(close).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole('button', { name: /Пригласить/ }));
+    await waitFor(() => expect(showModal).toHaveBeenCalledTimes(2));
+    // Success-вид сброшен — снова форма с пустыми полями
+    expect(screen.queryByLabelText('Ссылка приглашения')).toBeNull();
+    expect((screen.getByPlaceholderText('Иван Иванов') as HTMLInputElement).value).toBe('');
     vi.unstubAllGlobals();
   });
 

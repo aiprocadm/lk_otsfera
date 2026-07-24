@@ -7,6 +7,8 @@ import { KpiGrid } from '@/components/partner/kpi-grid';
 import { AttentionList } from '@/components/partner/attention-list';
 import { EventsFeed } from '@/components/partner/events-feed';
 import { PartnerEnrollmentsCard } from '@/components/partner/partner-enrollments-card';
+import { WelcomeCard } from '@/components/welcome/welcome-card';
+import { welcomeActionsFor } from '@/lib/welcomeActions';
 
 export default async function PartnerDashboard() {
   const session = await requirePartner();
@@ -18,12 +20,14 @@ export default async function PartnerDashboard() {
 
   const enrollmentsEnabled = isFeatureEnabled('enrollment_requests');
   const certificatesEnabled = isFeatureEnabled('certificates_registry');
-  const [k, a, events, enrollments, expiringCerts] = await Promise.all([
+  const [k, a, events, enrollments, expiringCerts, viewer] = await Promise.all([
     kpis(prisma, scope),
     attention(prisma, scope),
     recentEvents(prisma, scope, 10),
     enrollmentsEnabled ? recentEnrollments(prisma, scope) : Promise.resolve([]),
-    certificatesEnabled ? expiringCertificates(prisma, scope) : Promise.resolve(null)
+    certificatesEnabled ? expiringCertificates(prisma, scope) : Promise.resolve(null),
+    // ФТ-10.4: одноразовый welcome-блок — пока пользователь его не скрыл.
+    prisma.user.findUnique({ where: { id: session.sub }, select: { name: true, welcomeSeenAt: true } })
   ]);
 
   return (
@@ -32,6 +36,10 @@ export default async function PartnerDashboard() {
         <h1 className='text-2xl font-bold text-[#111111]'>Кабинет партнёра</h1>
         <p className='text-sm text-gray-500 mt-0.5'>Обзор ключевых показателей и активности</p>
       </div>
+
+      {viewer && viewer.welcomeSeenAt === null && (
+        <WelcomeCard name={viewer.name} actions={welcomeActionsFor('partner')} />
+      )}
 
       <KpiGrid kpis={k} expiringCertificates={expiringCerts} />
 

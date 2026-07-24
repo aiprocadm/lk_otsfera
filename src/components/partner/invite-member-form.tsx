@@ -8,6 +8,8 @@ const ERROR_MAP: Record<string, string> = {
   org_out_of_scope: 'Одна из организаций не входит в портфель партнёра'
 };
 
+type InviteResult = { inviteUrl: string; emailStatus: 'sent' | 'skipped' };
+
 export function InviteMemberForm({
   orgs
 }: {
@@ -20,8 +22,12 @@ export function InviteMemberForm({
   const [roleInPartner, setRole] = useState<'admin' | 'manager'>('manager');
   const [allOrgs, setAllOrgs] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // ФТ-10.1/10.2: после создания показываем ссылку установки пароля —
+  // фолбэк «Скопировать» на случай не дошедшего/выключенного письма.
+  const [invite, setInvite] = useState<InviteResult | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  const { formAction, pending, errorText, reset } = useFetchSubmit({
+  const { formAction, pending, errorText, reset } = useFetchSubmit<InviteResult>({
     url: '/api/partner/team',
     body: () => ({
       email,
@@ -30,7 +36,7 @@ export function InviteMemberForm({
       assignedOrgIds: allOrgs ? [] : [...selected]
     }),
     errorMap: ERROR_MAP,
-    onSuccess: () => setOpen(false),
+    onSuccess: (data) => setInvite(data),
     refresh: true
   });
 
@@ -40,8 +46,20 @@ export function InviteMemberForm({
     setRole('manager');
     setAllOrgs(true);
     setSelected(new Set());
+    setInvite(null);
+    setCopied(false);
     reset();
     setOpen(true);
+  }
+
+  async function copyInvite() {
+    if (!invite) return;
+    try {
+      await navigator.clipboard.writeText(invite.inviteUrl);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
   }
 
   function toggleOrg(id: string) {
@@ -74,9 +92,50 @@ export function InviteMemberForm({
         busy={pending}
         error={errorText}
       >
+        {invite ? (
+          <div className='space-y-3'>
+            <p className='text-sm text-gray-700'>
+              {invite.emailStatus === 'sent' ? (
+                <>
+                  Письмо приглашения отправлено на <strong>{email}</strong>.
+                  Если письмо не дошло, перешлите ссылку вручную:
+                </>
+              ) : (
+                <>
+                  Аккаунт для <strong>{email}</strong> создан. Отправка почты
+                  выключена — передайте ссылку установки пароля вручную:
+                </>
+              )}
+            </p>
+            <div className='flex gap-2 items-center'>
+              <input
+                readOnly
+                aria-label='Ссылка приглашения'
+                value={invite.inviteUrl}
+                className='flex-1 text-xs font-mono border border-gray-200 rounded px-2 py-1.5 bg-gray-50'
+              />
+              <button
+                type='button'
+                onClick={copyInvite}
+                className='px-3 py-1.5 text-xs border border-gray-200 rounded hover:bg-gray-50 whitespace-nowrap'
+              >
+                {copied ? 'Скопировано ✓' : 'Скопировать'}
+              </button>
+            </div>
+            <div className='flex justify-end pt-2'>
+              <button
+                type='button'
+                onClick={() => setOpen(false)}
+                className='px-4 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C]'
+              >
+                Готово
+              </button>
+            </div>
+          </div>
+        ) : (
         <form action={formAction} className='space-y-4'>
           <p className='text-xs text-gray-500'>
-            Создадим аккаунт с временным паролем — отправим инструкцию по входу на email.
+            Отправим на email письмо со ссылкой для установки пароля — ссылка действует 7 дней.
           </p>
 
           <label className='block'>
@@ -176,6 +235,7 @@ export function InviteMemberForm({
             </button>
           </div>
         </form>
+        )}
       </Dialog>
     </>
   );

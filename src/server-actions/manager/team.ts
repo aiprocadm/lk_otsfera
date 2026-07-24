@@ -9,6 +9,8 @@ import {
   deactivateAssignment,
   type ManagerInviteErrorCode
 } from '@/lib/services/manager/invite';
+import { sendManagerInviteEmail } from '@/lib/email/send';
+import { log } from '@/lib/logging';
 
 function readForm(formData: FormData, key: string): string | undefined {
   const v = formData.get(key);
@@ -47,6 +49,27 @@ export async function leaderAssignManagerAction(formData: FormData): Promise<Lea
 
   const result = await createAndAssignManager(prisma, parsed.data, session.sub);
   if (!result.ok) return { ok: false, error: result.error };
+
+  // ФТ-10.1 (этап 4): leader-путь шлёт то же письмо, что и admin-путь.
+  // Best-effort: сбой транспорта не роняет приглашение — inviteUrl остаётся
+  // видимым в UI как фолбэк «Скопировать ссылку».
+  if (result.inviteUrl !== null) {
+    try {
+      const org = await prisma.organization.findUnique({
+        where: { id: parsed.data.organizationId },
+        select: { name: true }
+      });
+      await sendManagerInviteEmail({
+        to: parsed.data.email,
+        organizationName: org?.name ?? 'организация',
+        inviteUrl: result.inviteUrl,
+        invitedByName: session.name ?? undefined
+      });
+    } catch (e) {
+      log.warn('[manager/team] send invite email failed', e);
+    }
+  }
+
   revalidatePath('/manager/team');
   return { ok: true, inviteUrl: result.inviteUrl, reactivated: result.reactivated };
 }

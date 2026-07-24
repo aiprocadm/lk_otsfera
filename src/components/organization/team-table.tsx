@@ -6,6 +6,7 @@ import {
 } from '@/server-actions/organization/team';
 import type { OrgMemberRow } from '@/lib/services/organization/team';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
+import { InviteResendButtons } from '@/components/team/invite-resend-buttons';
 import { fmtDate } from '@/lib/format';
 
 type Props = {
@@ -66,6 +67,16 @@ export function TeamTable({ members, organizationId, currentUserId, viewerRole }
                     <span className='w-1.5 h-1.5 rounded-full bg-gray-400' />
                     Деактивирован
                   </span>
+                )}
+                {m.isActive && m.invitePending && (
+                  <div className='mt-0.5'>
+                    <span className='text-xs text-amber-700'>Ожидает установки пароля</span>
+                    {!isSelf && canManageTarget && (
+                      <div className='mt-0.5'>
+                        <InviteResendButtons userId={m.userId} />
+                      </div>
+                    )}
+                  </div>
                 )}
               </Td>
               <Td className='text-gray-500'>{fmtDate(m.invitedAt)}</Td>

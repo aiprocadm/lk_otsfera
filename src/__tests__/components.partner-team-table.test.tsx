@@ -7,6 +7,10 @@ vi.mock('@/components/partner/member-row-actions', () => ({
     React.createElement('button', { 'data-testid': `actions-${userId}` }, 'actions')
 }));
 
+// InviteResendButtons — 'use client' с server-action импортом; для SSR-string
+// тестов достаточно заглушить экшен, компонент рендерим настоящий.
+vi.mock('@/server-actions/invite-resend', () => ({ resendInviteAction: vi.fn() }));
+
 import { TeamTable } from '@/components/partner/team-table';
 import type { TeamRow } from '@/lib/services/partner/team';
 
@@ -27,6 +31,7 @@ function makeRow(overrides: Partial<TeamRow> = {}): TeamRow {
     roleInPartner: 'manager',
     assignedOrgIds: [],
     isActive: true,
+    invitePending: false,
     createdAt: new Date('2026-01-01'),
     ...overrides
   };
@@ -115,6 +120,40 @@ describe('TeamTable', () => {
       })
     );
     expect(html).toContain('организаций');
+  });
+
+  it('invitePending=true у активного чужого сотрудника: бейдж «Ожидает установки пароля» и кнопки переотправки', () => {
+    const html = renderToString(
+      React.createElement(TeamTable, { rows: [makeRow({ invitePending: true })], orgs, currentUserId: 'me' })
+    );
+    expect(html).toContain('Ожидает установки пароля');
+    expect(html).toContain('Отправить повторно');
+    expect(html).toContain('Скопировать ссылку');
+  });
+
+  it('invitePending=true у self: бейдж есть, кнопок переотправки нет', () => {
+    const html = renderToString(
+      React.createElement(TeamTable, { rows: [makeRow({ userId: 'me', invitePending: true })], orgs, currentUserId: 'me' })
+    );
+    expect(html).toContain('Ожидает установки пароля');
+    expect(html).not.toContain('Отправить повторно');
+    expect(html).not.toContain('Скопировать ссылку');
+  });
+
+  it('деактивированная строка с invitePending=true: ни бейджа, ни кнопок', () => {
+    const html = renderToString(
+      React.createElement(TeamTable, { rows: [makeRow({ invitePending: true, isActive: false })], orgs, currentUserId: 'me' })
+    );
+    expect(html).not.toContain('Ожидает установки пароля');
+    expect(html).not.toContain('Отправить повторно');
+  });
+
+  it('invitePending=false: бейджа и кнопок переотправки нет', () => {
+    const html = renderToString(
+      React.createElement(TeamTable, { rows: [makeRow()], orgs, currentUserId: 'me' })
+    );
+    expect(html).not.toContain('Ожидает установки пароля');
+    expect(html).not.toContain('Отправить повторно');
   });
 
   it('renders multiple rows', () => {

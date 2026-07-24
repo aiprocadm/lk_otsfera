@@ -6,11 +6,18 @@ vi.mock('@/lib/services/partner/team', () => ({
 }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
-    auditLog: { create: vi.fn().mockResolvedValue(undefined) }
+    auditLog: { create: vi.fn().mockResolvedValue(undefined) },
+    partner: { findUnique: vi.fn() }
   }
+}));
+vi.mock('@/lib/email/send', () => ({ sendPartnerInviteEmail: vi.fn() }));
+vi.mock('@/lib/logging', () => ({
+  log: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() }
 }));
 
 import { getSession } from '@/lib/auth/session';
+import { prisma } from '@/lib/db/prisma';
+import { sendPartnerInviteEmail } from '@/lib/email/send';
 import { listTeam, inviteMember, assignOrgs, deactivateMember } from '@/lib/services/partner/team';
 import { GET, POST } from '@/app/api/partner/team/route';
 import { PUT, DELETE } from '@/app/api/partner/team/[userId]/route';
@@ -85,14 +92,75 @@ describe('POST /api/partner/team', () => {
     expect(await res.json()).toEqual({ error: 'Invalid payload' });
   });
 
-  it('201 on success', async () => {
+  it('201 on success — тело содержит inviteUrl и emailStatus:sent, письмо ушло с roleLabel «менеджер»', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(inviteMember).mockResolvedValue({ ok: true, user: { id: 'u1' }, partnerUser: { id: 'pu1' } } as any);
+    vi.mocked(inviteMember).mockResolvedValue({
+      ok: true, user: { id: 'u1' }, partnerUser: { id: 'pu1' }, inviteUrl: 'https://app/reset-password?token=t1'
+    } as any);
+    vi.mocked(prisma.partner.findUnique).mockResolvedValue({ name: 'ООО Партнёр' } as any);
+    vi.mocked(sendPartnerInviteEmail).mockResolvedValue({ status: 'sent', id: 'em-1' });
 
     const res = await POST(jsonReq({ email: 'x@x.local', name: 'Имя', roleInPartner: 'manager', assignedOrgIds: ['oA'] }));
     expect(res.status).toBe(201);
     expect(inviteMember).toHaveBeenCalledWith(expect.anything(), {
       partnerId: 'p1', email: 'x@x.local', name: 'Имя', roleInPartner: 'manager', assignedOrgIds: ['oA']
+    });
+    expect(await res.json()).toEqual({
+      userId: 'u1',
+      partnerUserId: 'pu1',
+      inviteUrl: 'https://app/reset-password?token=t1',
+      emailStatus: 'sent'
+    });
+    expect(sendPartnerInviteEmail).toHaveBeenCalledWith({
+      to: 'x@x.local',
+      partnerName: 'ООО Партнёр',
+      roleLabel: 'менеджер',
+      inviteUrl: 'https://app/reset-password?token=t1',
+      invitedByName: undefined
+    });
+  });
+
+  it('roleInPartner=admin → roleLabel «администратор»; без имени партнёра — фолбэк «партнёр»', async () => {
+    vi.mocked(getSession).mockResolvedValue(adminSession);
+    vi.mocked(inviteMember).mockResolvedValue({
+      ok: true, user: { id: 'u1' }, partnerUser: { id: 'pu1' }, inviteUrl: 'https://app/reset-password?token=t2'
+    } as any);
+    vi.mocked(prisma.partner.findUnique).mockResolvedValue(null);
+    vi.mocked(sendPartnerInviteEmail).mockResolvedValue({ status: 'sent', id: null });
+
+    const res = await POST(jsonReq({ email: 'a@x.local', name: 'Админ', roleInPartner: 'admin', assignedOrgIds: [] }));
+    expect(res.status).toBe(201);
+    expect(sendPartnerInviteEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ roleLabel: 'администратор', partnerName: 'партнёр' })
+    );
+  });
+
+  it('email skipped (транспорт выключен) → 201 c emailStatus:skipped', async () => {
+    vi.mocked(getSession).mockResolvedValue(adminSession);
+    vi.mocked(inviteMember).mockResolvedValue({
+      ok: true, user: { id: 'u1' }, partnerUser: { id: 'pu1' }, inviteUrl: 'https://app/reset-password?token=t3'
+    } as any);
+    vi.mocked(prisma.partner.findUnique).mockResolvedValue({ name: 'П' } as any);
+    vi.mocked(sendPartnerInviteEmail).mockResolvedValue({ status: 'skipped', reason: 'disabled' });
+
+    const res = await POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] }));
+    expect(res.status).toBe(201);
+    expect((await res.json()).emailStatus).toBe('skipped');
+  });
+
+  it('сбой отправки письма best-effort: 201 не ломается, emailStatus:skipped, inviteUrl остаётся', async () => {
+    vi.mocked(getSession).mockResolvedValue(adminSession);
+    vi.mocked(inviteMember).mockResolvedValue({
+      ok: true, user: { id: 'u1' }, partnerUser: { id: 'pu1' }, inviteUrl: 'https://app/reset-password?token=t4'
+    } as any);
+    vi.mocked(prisma.partner.findUnique).mockResolvedValue({ name: 'П' } as any);
+    vi.mocked(sendPartnerInviteEmail).mockRejectedValue(new Error('SMTP down'));
+
+    const res = await POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] }));
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({
+      inviteUrl: 'https://app/reset-password?token=t4',
+      emailStatus: 'skipped'
     });
   });
 

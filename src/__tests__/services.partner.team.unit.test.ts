@@ -3,11 +3,16 @@
  * Covers the ternary branch in roleInPartner mapping.
  */
 import { describe, it, expect, vi } from 'vitest';
+
+// Этап 4 (ФТ-10.1): inviteMember больше не выдаёт временный bcrypt-пароль —
+// создаёт пользователя без пароля + invite-токен через createInviteToken.
+const { createInviteToken } = vi.hoisted(() => ({
+  createInviteToken: vi.fn().mockResolvedValue({ token: 'tok-unit', expiresAt: new Date() })
+}));
+vi.mock('@/lib/auth/passwordReset', () => ({ createInviteToken }));
+
 import { listTeam, inviteMember, assignOrgs, deactivateMember } from '@/lib/services/partner/team';
 import { MAX_PARTNER_USERS } from '@/lib/config/teamLimits';
-
-vi.mock('bcryptjs', () => ({ default: { hash: vi.fn().mockResolvedValue('hashed') } }));
-vi.mock('crypto', () => ({ randomBytes: vi.fn(() => Buffer.from('randombytes', 'utf8')) }));
 
 describe('listTeam — unit (roleInPartner mapping)', () => {
   it('maps roleInPartner "admin" → "admin"', async () => {
@@ -16,12 +21,14 @@ describe('listTeam — unit (roleInPartner mapping)', () => {
         findMany: vi.fn().mockResolvedValue([{
           id: 'pu1', userId: 'u1', partnerId: 'p1',
           roleInPartner: 'admin', assignedOrgIds: [], isActive: true, createdAt: new Date(),
-          user: { email: 'a@a.com', name: 'Admin' }
+          user: { email: 'a@a.com', name: 'Admin', passwordHash: 'bcrypt-hash' }
         }])
       }
     } as any;
     const team = await listTeam(prisma, 'p1');
     expect(team[0].roleInPartner).toBe('admin');
+    // Пароль установлен → приглашение уже принято.
+    expect(team[0].invitePending).toBe(false);
   });
 
   it('maps any non-admin roleInPartner → "manager"', async () => {
@@ -32,12 +39,14 @@ describe('listTeam — unit (roleInPartner mapping)', () => {
           // "supervisor" is a non-standard value — the ternary maps it to 'manager'
           roleInPartner: 'supervisor',
           assignedOrgIds: [], isActive: true, createdAt: new Date(),
-          user: { email: 'b@b.com', name: 'Bob' }
+          user: { email: 'b@b.com', name: 'Bob', passwordHash: null }
         }])
       }
     } as any;
     const team = await listTeam(prisma, 'p1');
     expect(team[0].roleInPartner).toBe('manager');
+    // ФТ-10.2: passwordHash === null → invitePending.
+    expect(team[0].invitePending).toBe(true);
   });
 
   it('maps roleInPartner "manager" → "manager"', async () => {
@@ -46,7 +55,7 @@ describe('listTeam — unit (roleInPartner mapping)', () => {
         findMany: vi.fn().mockResolvedValue([{
           id: 'pu3', userId: 'u3', partnerId: 'p1',
           roleInPartner: 'manager', assignedOrgIds: ['org1'], isActive: false, createdAt: new Date(),
-          user: { email: 'c@c.com', name: 'Mgr' }
+          user: { email: 'c@c.com', name: 'Mgr', passwordHash: 'h' }
         }])
       }
     } as any;
@@ -106,6 +115,7 @@ describe('inviteMember — unit', () => {
   });
 
   it('successfully creates user and partnerUser via transaction when no conflicts', async () => {
+    createInviteToken.mockClear();
     const newUser = { id: 'u-new', email: 'new@x.com', role: 'partner', partnerId: 'p1' };
     const newPartnerUser = { id: 'pu-new', partnerId: 'p1', userId: 'u-new', roleInPartner: 'manager' };
     const tx = {
@@ -126,9 +136,12 @@ describe('inviteMember — unit', () => {
     if (!result.ok) throw new Error('expected ok');
     expect(result.user).toEqual(newUser);
     expect(result.partnerUser).toEqual(newPartnerUser);
+    // Этап 4: пользователь без пароля + invite-токен внутри той же транзакции.
     expect(tx.user.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ email: 'new@x.com', role: 'partner' })
+      data: expect.objectContaining({ email: 'new@x.com', role: 'partner', passwordHash: null })
     }));
+    expect(createInviteToken).toHaveBeenCalledWith(tx, 'u-new');
+    expect(result.inviteUrl).toContain('/reset-password?token=tok-unit');
   });
 
   it('succeeds with empty assignedOrgIds (no scope check needed)', async () => {
@@ -137,6 +150,7 @@ describe('inviteMember — unit', () => {
       user: { create: vi.fn().mockResolvedValue(newUser) },
       partnerUser: { create: vi.fn().mockResolvedValue({ id: 'pu2' }) }
     };
+    createInviteToken.mockClear();
     const prisma = {
       organization: { count: vi.fn() },
       partnerUser: { count: vi.fn().mockResolvedValue(0) },
@@ -150,6 +164,7 @@ describe('inviteMember — unit', () => {
     // No org count check when list is empty
     expect(prisma.organization.count).not.toHaveBeenCalled();
     expect(tx.user.create).toHaveBeenCalled();
+    expect(createInviteToken).toHaveBeenCalledWith(tx, 'u2');
   });
 });
 
