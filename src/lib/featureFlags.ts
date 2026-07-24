@@ -69,6 +69,11 @@ export const FEATURE_FLAGS = [
   // globalSearch (forbidden). Middleware-точки нет — прецедент internal_tasks.
   // Спека 2026-07-18-m6-global-search-design.
   'global_search',
+  // Этап 3 (Модуль 6): реестры удостоверений клиентов. Route-флаг: middleware
+  // (/organization/certificates, /partner/certificates), nav «Удостоверения»,
+  // page-гейты реестров и карточки сотрудника, KPI-карточки дашбордов.
+  // Спека 2026-07-24-stage3-certificates-registry-design.
+  'certificates_registry',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -98,6 +103,7 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'staff_chat',
   'staff_calendar',
   'global_search',
+  'certificates_registry',
 ]);
 
 /**

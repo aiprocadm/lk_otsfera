@@ -16,7 +16,7 @@ function session(role: string, extra: Record<string, unknown> = {}) {
 }
 
 const prisma = {
-  certificate: { findMany: vi.fn(), create: vi.fn() },
+  certificate: { findMany: vi.fn(), create: vi.fn(), count: vi.fn().mockResolvedValue(0) },
   student: { findUnique: vi.fn() },
   orderItem: { findUnique: vi.fn(), update: vi.fn() },
   organization: { findMany: vi.fn() },

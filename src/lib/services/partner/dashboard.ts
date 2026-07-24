@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import type { PrismaClient, EnrollmentStatus } from '@prisma/client';
 import { fmtMoney } from '@/lib/format';
+import { EXPIRING_WITHIN_DAYS } from '@/lib/services/training/certificates';
 
 export type DashboardScope = {
   partnerId: string;
@@ -316,4 +317,22 @@ export async function recentEnrollments(
     status: r.status,
     createdAt: r.createdAt
   }));
+}
+
+/**
+ * KPI «Истекают удостоверения: N» (этап 3, ФТ-6.4): не-истёкшие со сроком
+ * ≤ 60 дней по организациям в скоупе партнёра (orgWhereForScope — та же
+ * граница, что у остальных блоков дашборда).
+ */
+export async function expiringCertificates(
+  prisma: PrismaClient,
+  scope: DashboardScope,
+  now: Date = new Date()
+): Promise<number> {
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const horizon = new Date(startOfToday.getTime() + EXPIRING_WITHIN_DAYS * 24 * 3600 * 1000);
+  return prisma.certificate.count({
+    where: { organization: orgWhereForScope(scope), validUntil: { gte: startOfToday, lte: horizon } }
+  });
 }

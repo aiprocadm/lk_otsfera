@@ -103,6 +103,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/partner/deals', label: 'Заказы' },
     { href: '/partner/leads', label: 'Заявки', flag: 'partner_leads' },
     { href: '/partner/enrollments', label: 'Заявки на обучение', flag: 'enrollment_requests' },
+    { href: '/partner/certificates', label: 'Удостоверения', flag: 'certificates_registry' },
     { href: '/partner/documents', label: 'Документы' },
     { href: '/partner/finance', label: 'Финансы' },
     { href: '/partner/team', label: 'Команда', partnerAdminOnly: true },
@@ -116,6 +117,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/organization/finance', label: 'Финансы', icon: '₽', flag: 'organization_cabinet' },
     { href: '/organization/students', label: 'Сотрудники', icon: '👥', flag: 'organization_cabinet' },
     { href: '/organization/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests' },
+    { href: '/organization/certificates', label: 'Удостоверения', icon: '📜', flag: 'certificates_registry' },
     { href: '/organization/team', label: 'Команда', icon: '⚙', orgAdminOrLeaderOnly: true, flag: 'organization_cabinet' },
     // «Сообщения» намеренно под более узким флагом chat (см. CLAUDE.md §5);
     // /student — отдельный shared-entry домен, не часть organization_cabinet.

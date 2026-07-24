@@ -211,8 +211,8 @@ describe('navByRole.admin — русский канон с группами (в�
   });
 });
 
-describe('navByRole.organization — единый источник (канон 10 пунктов)', () => {
-  it('содержит базовые пункты + Заявки на обучение + Сообщения + Кабинет слушателя + Настройки', () => {
+describe('navByRole.organization — единый источник (канон 11 пунктов)', () => {
+  it('содержит базовые пункты + Заявки на обучение + Удостоверения + Сообщения + Кабинет слушателя + Настройки', () => {
     const hrefs = navByRole.organization.map((i) => i.href);
     expect(hrefs).toEqual([
       '/organization/dashboard',
@@ -221,6 +221,7 @@ describe('navByRole.organization — единый источник (канон 1
       '/organization/finance',
       '/organization/students',
       '/organization/enrollments',
+      '/organization/certificates',
       '/organization/team',
       '/organization/messages',
       '/student',

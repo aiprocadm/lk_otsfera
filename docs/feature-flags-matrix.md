@@ -32,6 +32,7 @@
 | `inbound_messaging` | Омниканальный инбокс `/manager/inbox` | **0** на старте. Мессенджер-каналы готовы (нужны `TELEGRAM_/MAX_/WHATSAPP_WEBHOOK_SECRET`); **email-канал** — IMAP-адаптер = заглушка: `INBOUND_EMAIL_ADAPTER` держать `fake`/unset, иначе DLQ-шум каждые 2 мин | секреты вебхуков |
 | `telephony_mango` | Телефония `/manager/calls` + вебхук Mango | **0** до реализации боевого REST-адаптера записей (сейчас заглушка → recording-джобы уходили бы в DLQ). При включении fail-fast требует `MANGO_API_KEY`/`MANGO_API_SALT` | `MANGO_*`, IP-allowlist |
 | `staff_2fa` | 2FA сотрудников: email-код при логине admin/manager/leader (поведенческий флаг; точки чтения — login/2fa-роуты + секция настроек) | **1** после мержа PR и проверки доставки писем (EMAIL_ENABLED) | Resend (`EMAIL_ENABLED`, `RESEND_API_KEY`) |
+| `certificates_registry` | Этап 3: реестры удостоверений клиентов (`/organization/certificates`, `/partner/certificates`, карточка сотрудника, KPI-карточки) | **1** после мержа этапа 3 | — |
 
 ## Как флипать в проде
 

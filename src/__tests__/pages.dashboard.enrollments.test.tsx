@@ -24,7 +24,8 @@ const org = vi.hoisted(() => ({
   kpis: vi.fn(),
   attention: vi.fn(),
   recentEvents: vi.fn(),
-  recentEnrollments: vi.fn()
+  recentEnrollments: vi.fn(),
+  expiringCertificates: vi.fn()
 }));
 vi.mock('@/lib/services/organization/dashboard', () => org);
 
@@ -32,7 +33,8 @@ const partner = vi.hoisted(() => ({
   kpis: vi.fn(),
   attention: vi.fn(),
   recentEvents: vi.fn(),
-  recentEnrollments: vi.fn()
+  recentEnrollments: vi.fn(),
+  expiringCertificates: vi.fn()
 }));
 vi.mock('@/lib/services/partner/dashboard', () => partner);
 
@@ -62,6 +64,7 @@ beforeEach(() => {
   org.attention.mockResolvedValue({ items: [] });
   org.recentEvents.mockResolvedValue([]);
   org.recentEnrollments.mockResolvedValue([]);
+  org.expiringCertificates.mockResolvedValue(0);
 
   requirePartner.mockResolvedValue(PARTNER_SESSION);
   partner.kpis.mockResolvedValue({
@@ -73,6 +76,7 @@ beforeEach(() => {
   partner.attention.mockResolvedValue({ stuckOrders: [], overdueOrders: [], staleLeads: [] });
   partner.recentEvents.mockResolvedValue([]);
   partner.recentEnrollments.mockResolvedValue([]);
+  partner.expiringCertificates.mockResolvedValue(0);
 });
 
 describe('OrganizationDashboardPage — карточка заявок', () => {

@@ -10,6 +10,8 @@ type Result<T> = ({ ok: true } & T) | { ok: false; error: CertificatesError };
 const CERT_INCLUDE = {
   student: { select: { id: true, name: true } },
   direction: { select: { id: true, name: true } },
+  // Этап 3: колонка «Организация» в реестре партнёра.
+  organization: { select: { id: true, name: true } },
 } satisfies Prisma.CertificateInclude;
 
 export type CertificateRow = Prisma.CertificateGetPayload<{ include: typeof CERT_INCLUDE }>;
@@ -45,7 +47,14 @@ async function scopeOrgIds(
       where: { partnerId: session.partnerId ?? '__none__' },
       select: { id: true },
     });
-    return orgs.map((o) => o.id);
+    const ids = orgs.map((o) => o.id);
+    // Этап 3 (ФТ-6.2): partner-manager видит только закреплённые организации —
+    // пересечение организаций партнёра с assignedOrgIds сессии.
+    if (session.partnerRole === 'manager') {
+      const assigned = new Set(session.assignedOrgIds ?? []);
+      return ids.filter((id) => assigned.has(id));
+    }
+    return ids;
   }
 
   if (session.role === 'organization') {
@@ -58,30 +67,91 @@ async function scopeOrgIds(
   return [];
 }
 
+/** Порог «истекает» реестра (ФТ-6.1, ≤ 60 дней — фиксирован в ТЗ). */
+export const EXPIRING_WITHIN_DAYS = 60;
+
+export type CertificateStatusFilter = 'active' | 'expiring' | 'expired';
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const LIST_MAX_TAKE = 200;
+
+/**
+ * SQL-границы статуса по `validUntil` (спека этапа 3 §4): статус не хранится,
+ * считается от начала текущего дня. `active` включает бессрочные (null).
+ */
+function statusWhere(status: CertificateStatusFilter, now: Date): Prisma.CertificateWhereInput {
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const horizon = new Date(startOfToday.getTime() + EXPIRING_WITHIN_DAYS * MS_PER_DAY);
+  if (status === 'expired') return { validUntil: { not: null, lt: startOfToday } };
+  if (status === 'expiring') return { validUntil: { gte: startOfToday, lte: horizon } };
+  return { OR: [{ validUntil: null }, { validUntil: { gt: horizon } }] };
+}
+
+export type ListCertificatesArgs = {
+  studentId?: string;
+  expiringWithinDays?: number;
+  /** Этап 3: сузить до одной организации (активная организация кабинета).
+   *  Пересекается со скоупом сессии — чужой id даёт пустую выдачу. */
+  organizationId?: string;
+  directionId?: string;
+  status?: CertificateStatusFilter;
+  /** Поиск по ФИО сотрудника (insensitive contains). */
+  search?: string;
+  take?: number;
+  skip?: number;
+  /** Инъекция «сегодня» для детерминированных тестов границ статуса. */
+  now?: Date;
+};
+
 export async function listCertificates(
   prisma: PrismaClient,
   session: SessionPayload,
-  args: { studentId?: string; expiringWithinDays?: number },
-): Promise<Result<{ certificates: CertificateRow[] }>> {
+  args: ListCertificatesArgs,
+): Promise<Result<{ certificates: CertificateRow[]; total: number }>> {
   const orgIds = await scopeOrgIds(prisma, session);
   const where: Prisma.CertificateWhereInput = {};
-  if (orgIds !== null) where.organizationId = { in: orgIds };
-  if (args.studentId) where.studentId = args.studentId;
-  if (args.expiringWithinDays != null) {
-    const until = new Date(Date.now() + args.expiringWithinDays * 24 * 60 * 60 * 1000);
-    where.validUntil = { not: null, lte: until };
+  if (args.organizationId) {
+    // Пересечение с видимым скоупом — вне скоупа выдача пустая (не forbidden:
+    // чужая организация неотличима от организации без удостоверений).
+    where.organizationId =
+      orgIds === null
+        ? args.organizationId
+        : { in: orgIds.includes(args.organizationId) ? [args.organizationId] : [] };
+  } else if (orgIds !== null) {
+    where.organizationId = { in: orgIds };
   }
-  const certificates = await prisma.certificate.findMany({
-    where,
-    include: CERT_INCLUDE,
-    orderBy: { issuedAt: 'desc' },
-  });
+  if (args.studentId) where.studentId = args.studentId;
+  if (args.directionId) where.directionId = args.directionId;
+  if (args.expiringWithinDays != null) {
+    const until = new Date(Date.now() + args.expiringWithinDays * MS_PER_DAY);
+    where.validUntil = { not: null, lte: until };
+  } else if (args.status) {
+    Object.assign(where, statusWhere(args.status, args.now ?? new Date()));
+  }
+  if (args.search?.trim()) {
+    where.student = { name: { contains: args.search.trim(), mode: 'insensitive' } };
+  }
+
+  const paginated = args.take != null;
+  const take = paginated ? Math.min(Math.max(1, Math.floor(args.take!)), LIST_MAX_TAKE) : undefined;
+  const skip = paginated ? Math.max(0, Math.floor(args.skip ?? 0)) : undefined;
+
+  const [certificates, total] = await Promise.all([
+    prisma.certificate.findMany({
+      where,
+      include: CERT_INCLUDE,
+      orderBy: { issuedAt: 'desc' },
+      ...(paginated ? { take, skip } : {}),
+    }),
+    prisma.certificate.count({ where }),
+  ]);
   await recordPiiAccess(prisma, {
     session,
     context: 'certificates_list',
     subjectIds: certificates.map((c) => c.studentId)
   });
-  return { ok: true, certificates };
+  return { ok: true, certificates, total };
 }
 
 async function assertStudentInScope(
