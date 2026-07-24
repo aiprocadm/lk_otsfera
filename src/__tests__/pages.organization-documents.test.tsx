@@ -6,6 +6,9 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { getOrgPageContext } = vi.hoisted(() => ({ getOrgPageContext: vi.fn() }));
 vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
 
+const { viewedDocumentIds } = vi.hoisted(() => ({ viewedDocumentIds: vi.fn(async () => new Set<string>()) }));
+vi.mock('@/lib/services/documents/viewMarks', () => ({ viewedDocumentIds }));
+
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { listOrgDocuments } = vi.hoisted(() => ({ listOrgDocuments: vi.fn() }));
@@ -63,6 +66,41 @@ describe('OrganizationDocumentsPage', () => {
     expect(container.textContent).toContain('Договоры');
     expect(container.textContent).toContain('Акты');
     expect(container.textContent).toContain('Все');
+  });
+
+  it('этап 3 (ФТ-6.6): «новый» у непросмотренных, просмотренные без бейджа; группировка по заказу на вкладке orders', async () => {
+    getOrgPageContext.mockResolvedValue(CTX);
+    const doc = (id: string, name: string) => ({
+      id,
+      name,
+      type: 'contract',
+      direction: 'outgoing' as const,
+      signedAt: null,
+      createdAt: new Date('2026-07-01'),
+      size: 100,
+      orderId: 'ord1',
+      orderNumber: '42',
+      orderTitle: 'Обучение'
+    });
+    listOrgDocuments.mockResolvedValue({
+      rows: [doc('dA', 'Новый.pdf'), doc('dB', 'Старый.pdf')],
+      total: 2,
+      countsByType: { contract: 2 }
+    });
+    viewedDocumentIds.mockResolvedValue(new Set(['dB']));
+
+    const { container } = await renderServerComponent(
+      OrganizationDocumentsPage({ searchParams: Promise.resolve({ org: 'org-1' }) })
+    );
+
+    expect(viewedDocumentIds).toHaveBeenCalledWith({}, { userId: 'u1', documentIds: ['dA', 'dB'] });
+    const items = Array.from(container.querySelectorAll('li'));
+    const rowA = items.find((li) => li.textContent?.includes('Новый.pdf'));
+    const rowB = items.find((li) => li.textContent?.includes('Старый.pdf'));
+    expect(rowA?.textContent).toContain('новый');
+    expect(rowB?.textContent).not.toContain('новый');
+    // Вкладка orders → секция «Заказ № 42».
+    expect(Array.from(container.querySelectorAll('h3')).map((h) => h.textContent)).toContain('Заказ № 42');
   });
 
   it('renders the "general" tab, applies a valid type filter, and shows the order-less upload form', async () => {

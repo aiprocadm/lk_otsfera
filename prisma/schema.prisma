@@ -190,6 +190,7 @@ model User {
   twoFactorBackupCodes         TwoFactorBackupCode[]
   authoredMessages             Message[]             @relation("MessageAuthor")
   threadReadStates             ThreadReadState[]
+  documentViewMarks            DocumentViewMark[]
   enrollmentsSubmitted         EnrollmentRequest[]   @relation("EnrollmentSubmitter")
   enrollmentsReviewed          EnrollmentRequest[]   @relation("EnrollmentReviewer")
   paymentsEntered              Payment[]             @relation("PaymentEnteredBy")
@@ -851,6 +852,23 @@ model Document {
   @@index([externalId])
   @@index([scanStatus])
   @@index([companyId])
+  viewMarks DocumentViewMark[]
+}
+
+/// Этап 3 PR-2 (ФТ-6.6): отметка «пользователь видел документ» — бейдж «новый»
+/// в клиентских списках. Ставится при скачивании (download-роуты), one row per
+/// (document, user) — образец ThreadReadState.
+model DocumentViewMark {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  viewedAt   DateTime @default(now())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, userId])
+  @@index([userId])
 }
 
 model Comment {

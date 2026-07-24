@@ -7,6 +7,7 @@ import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { OrgDocumentsSearch } from '@/components/organization/org-documents-search';
 import { DocumentsList } from '@/components/partner/documents-list';
 import { listOrgDocuments } from '@/lib/services/organization/documents';
+import { viewedDocumentIds } from '@/lib/services/documents/viewMarks';
 import { OrganizationOrderLessUploadForm } from '@/components/organization/organization-order-less-upload-form';
 import { Paginator } from '@/components/ui';
 import { pluralizeRu } from '@/lib/format';
@@ -76,6 +77,13 @@ export default async function OrganizationDocumentsPage({
     orderLess: tab === 'general'
   });
 
+  // Этап 3 PR-2 (ФТ-6.6): «новый» = не скачан текущим пользователем.
+  const viewed = await viewedDocumentIds(prisma, {
+    userId: ctx.session.sub,
+    documentIds: rows.map((r) => r.id)
+  });
+  const newDocIds = rows.filter((r) => !viewed.has(r.id)).map((r) => r.id);
+
   const grandTotal = Object.values(countsByType).reduce((s, n) => s + (n ?? 0), 0);
 
   const downloadEndpointQuery = sp.org
@@ -144,6 +152,8 @@ export default async function OrganizationDocumentsPage({
           rows={rows}
           downloadEndpointBase='/api/organization/documents'
           downloadEndpointQuery={downloadEndpointQuery}
+          newDocIds={newDocIds}
+          groupByOrder={tab === 'orders'}
         />
 
         <Paginator basePath='/organization/documents' searchParams={sp} take={take} skip={skip} total={total} />

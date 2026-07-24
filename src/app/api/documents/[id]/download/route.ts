@@ -4,6 +4,7 @@ import { requireSession } from '@/lib/auth/guard';
 import { canReadDocument, forbiddenResponse } from '@/lib/auth/policy';
 import { getObjectStorage } from '@/lib/storage';
 import { recordAudit } from '@/lib/auth/audit';
+import { markDocumentViewed } from '@/lib/services/documents/viewMarks';
 import { log } from '@/lib/logging';
 
 const MIN_TTL = 60;
@@ -62,6 +63,8 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     userId: s.sub,
     after: { ttl },
   });
+  // Этап 3 PR-2 (ФТ-6.6): скачивание гасит бейдж «новый» (best-effort внутри).
+  await markDocumentViewed(prisma, { documentId: doc.id, userId: s.sub });
 
   return NextResponse.json({ downloadUrl: signedUrl, expiresInSec: ttl, fileName: doc.name });
 }

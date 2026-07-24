@@ -44,6 +44,8 @@ vi.mock('@/lib/storage', () => ({
   getObjectStorage: () => ({ upload, createSignedUrl, remove: vi.fn(), download: vi.fn() })
 }));
 vi.mock('@/lib/notifications', () => ({ notifyDocumentCreated: vi.fn().mockResolvedValue({ id: 'doc-notif' }), deliverNotificationToUser: vi.fn().mockResolvedValue({}) }));
+const { markDocumentViewed } = vi.hoisted(() => ({ markDocumentViewed: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@/lib/services/documents/viewMarks', () => ({ markDocumentViewed }));
 vi.mock('@/lib/auth/organization', () => ({ getPrimaryOrganizationId: vi.fn().mockResolvedValue('o1') }));
 vi.mock('@/lib/jobs/queues', () => ({
   getQueue: () => ({ add: enqueueAdd }),
@@ -210,6 +212,11 @@ describe('documents guards', () => {
     );
     expect(res.status).toBe(200);
     expect(createSignedUrl).toHaveBeenCalled();
+    // Этап 3 PR-2 (ФТ-6.6): успешное скачивание ставит отметку просмотра.
+    expect(markDocumentViewed).toHaveBeenCalledWith(expect.anything(), {
+      documentId: 'd1',
+      userId: 'admin1'
+    });
   });
 
   it('401 when no session for download', async () => {
