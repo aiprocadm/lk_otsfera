@@ -3,18 +3,32 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordPiiAccess } from '@/lib/pii/record';
 import { canReviewEnrollments } from './policy';
 
+export type EnrollmentItemRow = {
+  id: string;
+  studentId: string | null;
+  fullName: string;
+  email: string;
+  position: string | null;
+  snils: string | null;
+  birthDate: Date | null;
+  extra: string | null;
+  status: EnrollmentStatus;
+  externalStudentId: string | null;
+};
+
 export type EnrollmentRow = {
   id: string;
-  studentName: string;
-  studentEmail: string;
-  courseTitle: string;
+  /** Имя направления из справочника; для legacy-заявок — сохранённый текст. */
+  directionName: string;
+  studentCount: number;
+  firstStudentName: string | null;
+  items: EnrollmentItemRow[];
   status: EnrollmentStatus;
   organizationId: string | null;
   organizationName: string | null;
   partnerName: string | null;
   submitterRole: string;
   submittedByName: string;
-  externalStudentId: string | null;
   rejectedReason: string | null;
   note: string | null;
   createdAt: Date;
@@ -56,9 +70,10 @@ export async function listEnrollmentRequests(
   if (opts.search) {
     and.push({
       OR: [
-        { studentName: { contains: opts.search, mode: 'insensitive' } },
-        { studentEmail: { contains: opts.search, mode: 'insensitive' } },
-        { courseTitle: { contains: opts.search, mode: 'insensitive' } }
+        { direction: { name: { contains: opts.search, mode: 'insensitive' } } },
+        { legacyCourseTitle: { contains: opts.search, mode: 'insensitive' } },
+        { items: { some: { fullName: { contains: opts.search, mode: 'insensitive' } } } },
+        { items: { some: { email: { contains: opts.search, mode: 'insensitive' } } } }
       ]
     });
   }
@@ -71,7 +86,23 @@ export async function listEnrollmentRequests(
     include: {
       organization: { select: { name: true } },
       partner: { select: { name: true } },
-      submittedByUser: { select: { name: true } }
+      submittedByUser: { select: { name: true } },
+      direction: { select: { name: true } },
+      items: {
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          studentId: true,
+          fullName: true,
+          email: true,
+          position: true,
+          snils: true,
+          birthDate: true,
+          extra: true,
+          status: true,
+          externalStudentId: true
+        }
+      }
     }
   });
 
@@ -88,16 +119,16 @@ export async function listEnrollmentRequests(
   return {
     rows: page.map((r) => ({
       id: r.id,
-      studentName: r.studentName,
-      studentEmail: r.studentEmail,
-      courseTitle: r.courseTitle,
+      directionName: r.direction?.name ?? r.legacyCourseTitle ?? '—',
+      studentCount: r.items.length,
+      firstStudentName: r.items[0]?.fullName ?? null,
+      items: r.items,
       status: r.status,
       organizationId: r.organizationId,
       organizationName: r.organization?.name ?? null,
       partnerName: r.partner?.name ?? null,
       submitterRole: r.submitterRole,
       submittedByName: r.submittedByUser.name,
-      externalStudentId: r.externalStudentId,
       rejectedReason: r.rejectedReason,
       note: r.note,
       createdAt: r.createdAt,

@@ -602,17 +602,18 @@ model OrganizationManager {
 }
 
 model Student {
-  id                String        @id @default(cuid())
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  id                String                  @id @default(cuid())
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
   email             String
   name              String
-  status            String        @default("active")
+  status            String                  @default("active")
   organizationId    String
-  organization      Organization  @relation(fields: [organizationId], references: [id])
+  organization      Organization            @relation(fields: [organizationId], references: [id])
   externalStudentId String?
   orderItems        OrderItem[]
   certificates      Certificate[]
+  enrollmentItems   EnrollmentRequestItem[]
 
   @@unique([organizationId, email])
 }
@@ -1072,6 +1073,10 @@ enum EnrollmentStatus {
   approved
   rejected
   provisioned
+  // Этап 2 (Модуль 2): продолжение конвейера после зачисления. Русские подписи
+  // ленты: «подана → принята → зачислены → идёт обучение → удостоверения готовы».
+  in_training
+  certificates_ready
 }
 
 enum TrainingStatus {
@@ -1081,47 +1086,78 @@ enum TrainingStatus {
   cancelled
 }
 
-// T5: «заявка на обучение» — submitted by any of 5 roles, reviewed (approved/
-// rejected/provisioned) on our side. Provisioning is MANUAL into the external LMS
-// (no Student/User is created here); externalStudentId is recorded on markProvisioned.
+// T5 → Этап 2 (Модуль 2): «заявка на обучение» — шапка (податель, направление,
+// статус) + позиции EnrollmentRequestItem (слушатели). Направление — только из
+// справочника TrainingDirection (у legacy-заявок остаётся текст в legacyCourseTitle,
+// directionId NULL; при создании directionId обязателен — валидирует сервис).
+// Provisioning остаётся ручным (внешняя LMS); externalStudentId живёт на позиции.
 model EnrollmentRequest {
-  id                String           @id @default(cuid())
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  id                String                  @id @default(cuid())
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
   submittedByUserId String
-  submittedByUser   User             @relation("EnrollmentSubmitter", fields: [submittedByUserId], references: [id])
+  submittedByUser   User                    @relation("EnrollmentSubmitter", fields: [submittedByUserId], references: [id])
   submitterRole     String
   partnerId         String?
-  partner           Partner?         @relation(fields: [partnerId], references: [id])
+  partner           Partner?                @relation(fields: [partnerId], references: [id])
   organizationId    String?
-  organization      Organization?    @relation(fields: [organizationId], references: [id])
-  studentName       String
-  studentEmail      String
-  courseTitle       String
+  organization      Organization?           @relation(fields: [organizationId], references: [id])
+  directionId       String?
+  direction         TrainingDirection?      @relation(fields: [directionId], references: [id])
+  legacyCourseTitle String?
   note              String?
-  status            EnrollmentStatus @default(pending)
+  status            EnrollmentStatus        @default(pending)
   reviewedByUserId  String?
-  reviewedByUser    User?            @relation("EnrollmentReviewer", fields: [reviewedByUserId], references: [id])
+  reviewedByUser    User?                   @relation("EnrollmentReviewer", fields: [reviewedByUserId], references: [id])
   reviewedAt        DateTime?
   rejectedReason    String?
-  externalStudentId String?
   provisionedAt     DateTime?
+  items             EnrollmentRequestItem[]
 
   @@index([status])
   @@index([partnerId])
   @@index([submittedByUserId])
+  @@index([directionId])
+}
+
+// Позиция заявки на обучение: один слушатель — либо существующий Student
+// (studentId + копия ФИО/email на момент подачи), либо новый (введён строкой /
+// импортом). Доп. поля вопроса 5 ТЗ (должность, СНИЛС, дата рождения,
+// «Дополнительно») — необязательные; Student ими не расширяется намеренно
+// (данные относятся к конкретному обучению). Индивидуальный статус позиции
+// движется по тому же конвейеру EnrollmentStatus.
+model EnrollmentRequestItem {
+  id                String            @id @default(cuid())
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  requestId         String
+  request           EnrollmentRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  studentId         String?
+  student           Student?          @relation(fields: [studentId], references: [id])
+  fullName          String
+  email             String
+  position          String?
+  snils             String?
+  birthDate         DateTime?
+  extra             String?
+  status            EnrollmentStatus  @default(pending)
+  externalStudentId String?
+
+  @@index([requestId])
+  @@index([studentId])
 }
 
 model TrainingDirection {
-  id           String        @id @default(cuid())
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  name         String
-  slug         String?       @unique
-  isActive     Boolean       @default(true)
-  sortOrder    Int           @default(0)
-  orderItems   OrderItem[]
-  certificates Certificate[]
+  id                 String              @id @default(cuid())
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  name               String
+  slug               String?             @unique
+  isActive           Boolean             @default(true)
+  sortOrder          Int                 @default(0)
+  orderItems         OrderItem[]
+  certificates       Certificate[]
+  enrollmentRequests EnrollmentRequest[]
 
   @@index([isActive, sortOrder])
 }

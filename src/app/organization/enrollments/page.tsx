@@ -5,7 +5,7 @@ import { getOrgPageContext } from '@/lib/auth/orgPageContext';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { listEnrollmentRequests } from '@/lib/services/enrollments/list';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
-import { EnrollmentRequestForm } from '@/components/enrollment/enrollment-request-form';
+import { EnrollmentWizard } from '@/components/enrollment/enrollment-wizard';
 import { EnrollmentList } from '@/components/enrollment/enrollment-list';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,14 @@ export const dynamic = 'force-dynamic';
 export default async function OrganizationEnrollmentsPage() {
   if (!isFeatureEnabled('enrollment_requests')) notFound();
   const ctx = await getOrgPageContext({});
-  const { rows } = await listEnrollmentRequests(prisma, ctx.session, {});
+  const [{ rows }, directions] = await Promise.all([
+    listEnrollmentRequests(prisma, ctx.session, {}),
+    prisma.trainingDirection.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      select: { id: true, name: true }
+    })
+  ]);
   return (
     <OrgAppShell
       userEmail={ctx.session.email}
@@ -24,7 +31,7 @@ export default async function OrganizationEnrollmentsPage() {
     >
       <div className='space-y-5'>
         <h1 className='text-2xl font-semibold text-[#111111]'>Заявки на обучение</h1>
-        <EnrollmentRequestForm />
+        <EnrollmentWizard directions={directions} defaultOrganizationId={ctx.activeOrgId} />
         <EnrollmentList rows={rows} />
       </div>
     </OrgAppShell>

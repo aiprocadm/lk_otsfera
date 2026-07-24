@@ -6,7 +6,12 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+const { trainingDirectionFindMany } = vi.hoisted(() => ({
+  trainingDirectionFindMany: vi.fn().mockResolvedValue([{ id: 'd1', name: 'Охрана труда' }])
+}));
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: { trainingDirection: { findMany: trainingDirectionFindMany } }
+}));
 
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
@@ -27,8 +32,8 @@ vi.mock('@/components/enrollment/enrollment-queue', () => ({
     React.createElement('div', { 'data-testid': 'enrollment-queue' }, JSON.stringify(props.rows))
 }));
 
-vi.mock('@/components/enrollment/enrollment-request-form', () => ({
-  EnrollmentRequestForm: () => React.createElement('div', { 'data-testid': 'enrollment-form' })
+vi.mock('@/components/enrollment/enrollment-wizard', () => ({
+  EnrollmentWizard: () => React.createElement('div', { 'data-testid': 'enrollment-form' })
 }));
 
 import ManagerEnrollmentsPage from '@/app/manager/enrollments/page';
@@ -59,7 +64,7 @@ describe('ManagerEnrollmentsPage', () => {
 
     const { container } = await renderServerComponent(ManagerEnrollmentsPage());
 
-    expect(listEnrollmentRequests).toHaveBeenCalledWith({}, SESSION, {});
+    expect(listEnrollmentRequests).toHaveBeenCalledWith(expect.anything(), SESSION, {});
     expect(container.textContent).toContain('Заявки на обучение');
     expect(container.querySelector('[data-testid="enrollment-form"]')).not.toBeNull();
   });

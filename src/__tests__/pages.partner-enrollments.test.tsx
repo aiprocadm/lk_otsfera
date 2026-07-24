@@ -16,9 +16,20 @@ vi.mock('next/navigation', () => nav);
 const { requirePartner } = vi.hoisted(() => ({ requirePartner: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requirePartner }));
 
-const { organizationFindMany } = vi.hoisted(() => ({ organizationFindMany: vi.fn() }));
+const { organizationFindMany, trainingDirectionFindMany } = vi.hoisted(() => ({
+  organizationFindMany: vi.fn(),
+  trainingDirectionFindMany: vi.fn().mockResolvedValue([{ id: 'd1', name: 'Охрана труда' }])
+}));
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: { organization: { findMany: organizationFindMany } }
+  prisma: {
+    organization: { findMany: organizationFindMany },
+    trainingDirection: { findMany: trainingDirectionFindMany }
+  }
+}));
+
+import React from 'react';
+vi.mock('@/components/enrollment/enrollment-wizard', () => ({
+  EnrollmentWizard: () => React.createElement('div', { 'data-testid': 'enrollment-wizard' })
 }));
 
 const { listEnrollmentRequests } = vi.hoisted(() => ({ listEnrollmentRequests: vi.fn() }));
@@ -53,16 +64,16 @@ describe('PartnerEnrollmentsPage', () => {
       rows: [
         {
           id: 'e1',
-          studentName: 'Иванов И.И.',
-          studentEmail: 'ivanov@example.com',
-          courseTitle: 'Охрана труда',
+          directionName: 'Охрана труда',
+          studentCount: 1,
+          firstStudentName: 'Иванов И.И.',
+          items: [],
           status: 'pending' as const,
           organizationId: null,
           organizationName: null,
           partnerName: null,
           submitterRole: 'partner',
           submittedByName: 'Партнёр П.',
-          externalStudentId: null,
           rejectedReason: null,
           note: null,
           createdAt: new Date('2024-01-01'),

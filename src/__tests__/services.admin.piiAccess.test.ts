@@ -108,7 +108,8 @@ describe('listPiiAccess', () => {
       { id: 'L1', clientContactName: 'Контакт' },
       { id: 'L2', clientContactName: null }
     ]);
-    (p as any).enrollmentRequest.findMany.mockResolvedValue([{ id: 'R1', studentName: 'Слушатель' }]);
+    // Этап 2: заявка подписывается первым слушателем из позиций
+    (p as any).enrollmentRequest.findMany.mockResolvedValue([{ id: 'R1', items: [{ fullName: 'Слушатель' }] }]);
     (p as any).inboundMessage.findMany.mockResolvedValue([{ id: 'm1', senderDisplay: 'Отправитель' }]);
     (p as any).call.findMany.mockResolvedValue([{ id: 'c1', callerNumber: '+79001234567' }]);
     const res = await listPiiAccess(p, ADMIN, {});

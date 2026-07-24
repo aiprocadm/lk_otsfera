@@ -10,9 +10,9 @@ describe('EnrollmentStatusBadge', () => {
     expect(html).toContain('bg-amber-50');
   });
 
-  it('renders the "Утверждена" label and blue tone for approved', () => {
+  it('renders the "Принята" label and blue tone for approved', () => {
     const html = renderToString(React.createElement(EnrollmentStatusBadge, { status: 'approved' }));
-    expect(html).toContain('Утверждена');
+    expect(html).toContain('Принята');
     expect(html).toContain('bg-blue-50');
   });
 
@@ -22,18 +22,29 @@ describe('EnrollmentStatusBadge', () => {
     expect(html).toContain('bg-gray-100');
   });
 
-  it('renders the "Заведён в LMS" label and emerald tone for provisioned', () => {
+  it('renders the "Зачислены" label and emerald tone for provisioned', () => {
     const html = renderToString(React.createElement(EnrollmentStatusBadge, { status: 'provisioned' }));
-    expect(html).toContain('Заведён в LMS');
+    expect(html).toContain('Зачислены');
     expect(html).toContain('bg-emerald-50');
+  });
+
+  it('этап 2: новые статусы конвейера — «Идёт обучение» и «Удостоверения готовы»', () => {
+    const training = renderToString(React.createElement(EnrollmentStatusBadge, { status: 'in_training' }));
+    expect(training).toContain('Идёт обучение');
+    expect(training).toContain('bg-indigo-50');
+    const ready = renderToString(React.createElement(EnrollmentStatusBadge, { status: 'certificates_ready' }));
+    expect(ready).toContain('Удостоверения готовы');
+    expect(ready).toContain('bg-green-50');
   });
 });
 
 describe('enrollmentStatusLabel', () => {
   it('maps every EnrollmentStatus to its Russian label', () => {
     expect(enrollmentStatusLabel('pending')).toBe('На рассмотрении');
-    expect(enrollmentStatusLabel('approved')).toBe('Утверждена');
+    expect(enrollmentStatusLabel('approved')).toBe('Принята');
     expect(enrollmentStatusLabel('rejected')).toBe('Отклонена');
-    expect(enrollmentStatusLabel('provisioned')).toBe('Заведён в LMS');
+    expect(enrollmentStatusLabel('provisioned')).toBe('Зачислены');
+    expect(enrollmentStatusLabel('in_training')).toBe('Идёт обучение');
+    expect(enrollmentStatusLabel('certificates_ready')).toBe('Удостоверения готовы');
   });
 });

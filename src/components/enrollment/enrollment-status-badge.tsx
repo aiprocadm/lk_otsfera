@@ -3,16 +3,20 @@ import type { EnrollmentStatus } from '@prisma/client';
 
 const LABEL: Record<EnrollmentStatus, string> = {
   pending: 'На рассмотрении',
-  approved: 'Утверждена',
+  approved: 'Принята',
   rejected: 'Отклонена',
-  provisioned: 'Заведён в LMS'
+  provisioned: 'Зачислены',
+  in_training: 'Идёт обучение',
+  certificates_ready: 'Удостоверения готовы'
 };
 
 const TONE: Record<EnrollmentStatus, string> = {
   pending: 'bg-amber-50 text-amber-800 border-amber-200',
   approved: 'bg-blue-50 text-blue-700 border-blue-200',
   rejected: 'bg-gray-100 text-gray-600 border-gray-200',
-  provisioned: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+  provisioned: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  in_training: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  certificates_ready: 'bg-green-50 text-green-700 border-green-200'
 };
 
 export function EnrollmentStatusBadge({ status }: { status: EnrollmentStatus }) {

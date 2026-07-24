@@ -67,7 +67,11 @@ async function resolveSubjectLabels(
     for (const l of await prisma.lead.findMany({ where: { id: { in: ids('lead') } }, select: { id: true, clientContactName: true } })) put(l.id, l.clientContactName);
   }
   if (byType.has('enrollment_request')) {
-    for (const e of await prisma.enrollmentRequest.findMany({ where: { id: { in: ids('enrollment_request') } }, select: { id: true, studentName: true } })) put(e.id, e.studentName);
+    // Этап 2: слушатели живут в позициях — подписываем заявку первым слушателем.
+    for (const e of await prisma.enrollmentRequest.findMany({
+      where: { id: { in: ids('enrollment_request') } },
+      select: { id: true, items: { orderBy: { createdAt: 'asc' }, take: 1, select: { fullName: true } } }
+    })) put(e.id, e.items[0]?.fullName ?? '—');
   }
   if (byType.has('caller')) {
     for (const c of await prisma.call.findMany({ where: { id: { in: ids('caller') } }, select: { id: true, callerNumber: true } })) put(c.id, c.callerNumber);
