@@ -41,26 +41,57 @@ describe('POST /api/enrollments', () => {
     const req = new Request('http://x/', { method: 'POST', body: 'not-json', headers: { 'content-type': 'text/plain' } });
     expect((await POST(req)).status).toBe(400);
   });
-  it('201 when a partner submits', async () => {
+  it('201 when a partner submits (новый контракт: directionId + items)', async () => {
     vi.mocked(getSession).mockResolvedValue(partner);
-    vi.mocked(submitEnrollmentRequest).mockResolvedValue({ ok: true, request: { id: 'E1' } } as never);
-    const res = await POST(jsonReq({ studentName: 'И', studentEmail: 'i@x.ru', courseTitle: 'ОТ' }));
+    vi.mocked(submitEnrollmentRequest).mockResolvedValue({
+      ok: true,
+      request: { id: 'E1' },
+      itemCount: 2,
+      warnings: ['дубль склеен']
+    } as never);
+    const res = await POST(
+      jsonReq({
+        directionId: 'd1',
+        items: [
+          { fullName: 'И', email: 'i@x.ru', snils: '112-233-445 95', birthDate: '1990-01-02', notAString: 5 },
+          { studentId: 'st1' }
+        ]
+      })
+    );
     expect(res.status).toBe(201);
-    expect(await res.json()).toEqual({ id: 'E1' });
+    expect(await res.json()).toEqual({ id: 'E1', itemCount: 2, warnings: ['дубль склеен'] });
+    // Позиции прокинуты строково; не-строки → null
+    expect(vi.mocked(submitEnrollmentRequest)).toHaveBeenCalledWith(
+      {},
+      partner,
+      expect.objectContaining({
+        directionId: 'd1',
+        items: [
+          expect.objectContaining({ fullName: 'И', email: 'i@x.ru', snils: '112-233-445 95', birthDate: '1990-01-02' }),
+          expect.objectContaining({ studentId: 'st1', fullName: null, email: null })
+        ]
+      })
+    );
   });
-  it('maps validation Result → 400', async () => {
+  it('items не-массив → сервису уходит пустой список', async () => {
     vi.mocked(getSession).mockResolvedValue(partner);
-    vi.mocked(submitEnrollmentRequest).mockResolvedValue({ ok: false, error: 'validation' } as never);
+    vi.mocked(submitEnrollmentRequest).mockResolvedValue({ ok: false, error: 'validation', messages: ['Добавьте хотя бы одного слушателя'] } as never);
+    await POST(jsonReq({ directionId: 'd1', items: 'oops' }));
+    expect(vi.mocked(submitEnrollmentRequest)).toHaveBeenCalledWith({}, partner, expect.objectContaining({ items: [] }));
+  });
+  it('maps validation Result → 400 (messages пробрасываются)', async () => {
+    vi.mocked(getSession).mockResolvedValue(partner);
+    vi.mocked(submitEnrollmentRequest).mockResolvedValue({ ok: false, error: 'validation', messages: ['Выберите направление обучения'] } as never);
     const res = await POST(jsonReq({}));
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: 'validation' });
+    expect(await res.json()).toEqual({ error: 'validation', messages: ['Выберите направление обучения'] });
   });
-  it('maps forbidden Result → 403 from service', async () => {
+  it('maps forbidden Result → 403 from service (messages по умолчанию [])', async () => {
     vi.mocked(getSession).mockResolvedValue(partner);
     vi.mocked(submitEnrollmentRequest).mockResolvedValue({ ok: false, error: 'forbidden' } as never);
     const res = await POST(jsonReq({}));
     expect(res.status).toBe(403);
-    expect(await res.json()).toEqual({ error: 'forbidden' });
+    expect(await res.json()).toEqual({ error: 'forbidden', messages: [] });
   });
   it('404 when feature flag disabled', async () => {
     vi.mocked(notFoundIfDisabled).mockReturnValue(new Response('Not Found', { status: 404 }));

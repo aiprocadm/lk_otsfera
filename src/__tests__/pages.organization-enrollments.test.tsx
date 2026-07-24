@@ -17,7 +17,16 @@ vi.mock('next/navigation', () => nav);
 const { getOrgPageContext } = vi.hoisted(() => ({ getOrgPageContext: vi.fn() }));
 vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+const { trainingDirectionFindMany } = vi.hoisted(() => ({
+  trainingDirectionFindMany: vi.fn().mockResolvedValue([{ id: 'd1', name: 'Охрана труда' }])
+}));
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: { trainingDirection: { findMany: trainingDirectionFindMany } }
+}));
+
+vi.mock('@/components/enrollment/enrollment-wizard', () => ({
+  EnrollmentWizard: () => React.createElement('div', { 'data-testid': 'enrollment-wizard' })
+}));
 
 const { listEnrollmentRequests } = vi.hoisted(() => ({ listEnrollmentRequests: vi.fn() }));
 vi.mock('@/lib/services/enrollments/list', () => ({ listEnrollmentRequests }));
@@ -64,8 +73,13 @@ describe('OrganizationEnrollmentsPage', () => {
     const { container } = await renderServerComponent(OrganizationEnrollmentsPage());
 
     expect(getOrgPageContext).toHaveBeenCalledWith({});
-    expect(listEnrollmentRequests).toHaveBeenCalledWith({}, CTX.session, {});
+    expect(listEnrollmentRequests).toHaveBeenCalledWith(expect.anything(), CTX.session, {});
     expect(container.textContent).toContain('Заявки на обучение');
     expect(container.textContent).toContain('ООО Ромашка');
+    // Мастер смонтирован; направления читаются активные и по sortOrder
+    expect(container.querySelector('[data-testid="enrollment-wizard"]')).not.toBeNull();
+    expect(trainingDirectionFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { isActive: true } })
+    );
   });
 });

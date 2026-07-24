@@ -1,6 +1,7 @@
 /**
  * Unit tests extending coverage for enrollments — covers branches not hit
  * by the existing services.enrollments.test.ts (mocked prisma).
+ * Этап 2: контракт submit — { directionId, organizationId?, note?, items[] }.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -28,6 +29,8 @@ beforeEach(() => { recordAudit.mockClear(); });
 const sess = (over: Record<string, unknown> = {}) =>
   ({ sub: 'u1', role: 'manager', ...over }) as never;
 
+const ITEMS = [{ fullName: 'Иван', email: 'i@x.ru' }];
+
 // ───────────────────────────────────────────
 // submitEnrollmentRequest — uncovered branches
 // ───────────────────────────────────────────
@@ -39,66 +42,56 @@ describe('submitEnrollmentRequest — additional branches', () => {
   });
 
   function db(over: Record<string, unknown> = {}) {
-    return {
-      enrollmentRequest: {
-        create: vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
-          id: 'E1', ...data,
-        })),
-      },
+    const create = vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
+      id: 'E1', ...data,
+    }));
+    const base = {
+      trainingDirection: { findFirst: vi.fn().mockResolvedValue({ id: 'd1' }) },
       organization: { findFirst: vi.fn().mockResolvedValue({ id: 'o1' }) },
-      auditLog: { create: vi.fn().mockResolvedValue({}) },
+      student: { findMany: vi.fn().mockResolvedValue([]) },
+      $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          enrollmentRequest: { create },
+          enrollmentRequestItem: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
+        })
+      ),
       ...over,
-    } as never;
+    };
+    return Object.assign(base, { __create: create }) as never;
   }
 
   // ─── §3 Result guard branches ───
-  it('forbidden role (canSubmitEnrollments → false) → { ok:false, error:forbidden } and no create', async () => {
+  it('forbidden role (canSubmitEnrollments → false) → { ok:false, error:forbidden } and no tx', async () => {
     canSubmitEnrollments.mockReturnValue(false);
-    const create = vi.fn();
-    const d = db({ enrollmentRequest: { create } });
-    const res = await submitEnrollmentRequest(d, sess({ role: 'student' }), {
-      studentName: 'Иван',
-      studentEmail: 'i@x.ru',
-      courseTitle: 'ОТ',
-    });
+    const d = db();
+    const res = await submitEnrollmentRequest(d, sess({ role: 'student' }), { directionId: 'd1', items: ITEMS });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
-    expect(create).not.toHaveBeenCalled();
+    expect((d as { $transaction: ReturnType<typeof vi.fn> }).$transaction).not.toHaveBeenCalled();
   });
 
-  it('missing required field (empty studentEmail) → { ok:false, error:validation }', async () => {
-    const create = vi.fn();
-    const d = db({ enrollmentRequest: { create } });
+  it('validation: невалидный email позиции — русское сообщение, без tx', async () => {
+    const d = db();
     const res = await submitEnrollmentRequest(d, sess({ role: 'admin' }), {
-      studentName: 'Иван',
-      studentEmail: '',
-      courseTitle: 'ОТ',
+      directionId: 'd1',
+      items: [{ fullName: 'Иван', email: 'not-an-email' }],
     });
-    expect(res).toEqual({ ok: false, error: 'validation' });
-    expect(create).not.toHaveBeenCalled();
+    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect((res as { messages: string[] }).messages[0]).toContain('некорректный email');
+    expect((d as { $transaction: ReturnType<typeof vi.fn> }).$transaction).not.toHaveBeenCalled();
   });
 
-  it('partner with organizationId not under partner (findFirst → null) → { ok:false, error:forbidden }', async () => {
-    const create = vi.fn();
-    const d = db({
-      enrollmentRequest: { create },
-      organization: { findFirst: vi.fn().mockResolvedValue(null) },
-    });
+  it('partner with organizationId not under partner (findFirst → null) → forbidden', async () => {
+    const d = db({ organization: { findFirst: vi.fn().mockResolvedValue(null) } });
     const res = await submitEnrollmentRequest(d, sess({ role: 'partner', partnerId: 'p1' }), {
-      studentName: 'Иван',
-      studentEmail: 'i@x.ru',
-      courseTitle: 'ОТ',
+      directionId: 'd1',
       organizationId: 'o-other',
+      items: ITEMS,
     });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
-    expect(create).not.toHaveBeenCalled();
   });
 
   it('happy path → ok:true with request.id and recordAudit called', async () => {
-    const res = await submitEnrollmentRequest(db(), sess({ role: 'admin' }), {
-      studentName: 'Иван',
-      studentEmail: 'i@x.ru',
-      courseTitle: 'ОТ',
-    });
+    const res = await submitEnrollmentRequest(db(), sess({ role: 'admin' }), { directionId: 'd1', items: ITEMS });
     expect(res.ok).toBe(true);
     if (res.ok) expect(res.request.id).toBe('E1');
     expect(recordAudit).toHaveBeenCalled();
@@ -110,12 +103,7 @@ describe('submitEnrollmentRequest — additional branches', () => {
       organizationId: 'o-default',
       organizationMemberships: [{ organizationId: 'o-explicit', isActive: true }],
     });
-    const r = await submitEnrollmentRequest(db(), s, {
-      studentName: 'Иван',
-      studentEmail: 'i@x.ru',
-      courseTitle: 'ОТ',
-      organizationId: 'o-explicit',
-    });
+    const r = await submitEnrollmentRequest(db(), s, { directionId: 'd1', organizationId: 'o-explicit', items: ITEMS });
     expect(r.ok && r.request.organizationId).toBe('o-explicit');
   });
 
@@ -125,12 +113,7 @@ describe('submitEnrollmentRequest — additional branches', () => {
       organizationId: 'o-default',
       organizationMemberships: [{ organizationId: 'o-mine', isActive: true }],
     });
-    const r = await submitEnrollmentRequest(db(), s, {
-      studentName: 'Иван',
-      studentEmail: 'i@x.ru',
-      courseTitle: 'ОТ',
-      organizationId: 'o-OTHER',
-    });
+    const r = await submitEnrollmentRequest(db(), s, { directionId: 'd1', organizationId: 'o-OTHER', items: ITEMS });
     expect(r).toEqual({ ok: false, error: 'forbidden' });
   });
 
@@ -140,11 +123,7 @@ describe('submitEnrollmentRequest — additional branches', () => {
       organizationId: null,
       organizationMemberships: [{ organizationId: 'o-first', isActive: true }],
     });
-    const r = await submitEnrollmentRequest(db(), s, {
-      studentName: 'Иван',
-      studentEmail: 'i@x.ru',
-      courseTitle: 'ОТ',
-    });
+    const r = await submitEnrollmentRequest(db(), s, { directionId: 'd1', items: ITEMS });
     expect(r.ok && r.request.organizationId).toBe('o-first');
   });
 
@@ -154,61 +133,37 @@ describe('submitEnrollmentRequest — additional branches', () => {
       organizationId: null,
       organizationMemberships: [],
     });
-    const r = await submitEnrollmentRequest(db(), s, {
-      studentName: 'Иван',
-      studentEmail: 'i@x.ru',
-      courseTitle: 'ОТ',
-    });
-    // session.organizationId is null, ids[0] is undefined → null
+    const r = await submitEnrollmentRequest(db(), s, { directionId: 'd1', items: ITEMS });
     expect(r.ok && r.request.organizationId).toBeNull();
   });
 
   it('organization role with organizationMemberships=undefined → uses session.organizationId', async () => {
-    // Tests the ?? [] branch when organizationMemberships is undefined
     const s = sess({
       role: 'organization',
       organizationId: 'o-session',
       organizationMemberships: undefined,
     });
-    const r = await submitEnrollmentRequest(db(), s, {
-      studentName: 'Иван',
-      studentEmail: 'i@x.ru',
-      courseTitle: 'ОТ',
-    });
-    // ids = [] (memberships undefined → []), organizationId falls back to session.organizationId
+    const r = await submitEnrollmentRequest(db(), s, { directionId: 'd1', items: ITEMS });
     expect(r.ok && r.request.organizationId).toBe('o-session');
   });
 
   it('partner role with NO organizationId → partnerId set, organizationId null', async () => {
     const r = await submitEnrollmentRequest(db(), sess({ role: 'partner', partnerId: 'p1' }), {
-      studentName: 'Иван',
-      studentEmail: 'i@x.ru',
-      courseTitle: 'ОТ',
-      // no organizationId
+      directionId: 'd1',
+      items: ITEMS,
     });
     expect(r.ok && r.request.partnerId).toBe('p1');
     expect(r.ok && r.request.organizationId).toBeNull();
   });
 
-  it('partner role WITH organizationId and non-null partnerId → hits findFirst with partnerId (line 45 arm 0)', async () => {
-    // Branch: partnerId ?? undefined — covers arm 0 (partnerId IS defined, use it)
-    // Requires: role=partner, organizationId provided, partnerId set
+  it('partner role WITH organizationId and non-null partnerId → findFirst scoped by partnerId', async () => {
     const orgFindFirst = vi.fn().mockResolvedValue({ id: 'o-scoped' });
-    const d = {
-      enrollmentRequest: {
-        create: vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
-          id: 'E1', ...data,
-        })),
-      },
-      organization: { findFirst: orgFindFirst },
-      auditLog: { create: vi.fn().mockResolvedValue({}) },
-    } as never;
+    const d = db({ organization: { findFirst: orgFindFirst } });
     const r = await submitEnrollmentRequest(
       d,
       sess({ role: 'partner', partnerId: 'p-real' }),
-      { studentName: 'Иван', studentEmail: 'i@x.ru', courseTitle: 'ОТ', organizationId: 'o-scoped' }
+      { directionId: 'd1', organizationId: 'o-scoped', items: ITEMS }
     );
-    // findFirst was called with the real partnerId (not undefined)
     expect(orgFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ partnerId: 'p-real' }) })
     );
@@ -217,32 +172,20 @@ describe('submitEnrollmentRequest — additional branches', () => {
 
   it('partner role with no partnerId in session → partnerId=null', async () => {
     const r = await submitEnrollmentRequest(db(), sess({ role: 'partner', partnerId: undefined }), {
-      studentName: 'Иван',
-      studentEmail: 'i@x.ru',
-      courseTitle: 'ОТ',
+      directionId: 'd1',
+      items: ITEMS,
     });
     expect(r.ok && r.request.partnerId).toBeNull();
   });
 
-  it('partner WITH organizationId and null partnerId → findFirst uses undefined (covers line 45 ?? arm 0)', async () => {
-    // Branch: partnerId ?? undefined — arm 0 = partnerId IS null/undefined → uses undefined
-    // Requires: role=partner, organizationId provided, partnerId is null
+  it('partner WITH organizationId and null partnerId → findFirst uses undefined (?? arm)', async () => {
     const orgFindFirst = vi.fn().mockResolvedValue({ id: 'o-unscoped' });
-    const d = {
-      enrollmentRequest: {
-        create: vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
-          id: 'E2', ...data,
-        })),
-      },
-      organization: { findFirst: orgFindFirst },
-      auditLog: { create: vi.fn().mockResolvedValue({}) },
-    } as never;
+    const d = db({ organization: { findFirst: orgFindFirst } });
     const r = await submitEnrollmentRequest(
       d,
       sess({ role: 'partner', partnerId: null }),
-      { studentName: 'Иван', studentEmail: 'i@x.ru', courseTitle: 'ОТ', organizationId: 'o-unscoped' }
+      { directionId: 'd1', organizationId: 'o-unscoped', items: ITEMS }
     );
-    // partnerId=null → ?? undefined → findFirst called with partnerId: undefined
     expect(orgFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ partnerId: undefined }) })
     );
@@ -251,9 +194,8 @@ describe('submitEnrollmentRequest — additional branches', () => {
 
   it('note trimmed to null when empty string', async () => {
     const r = await submitEnrollmentRequest(db(), sess({ role: 'admin' }), {
-      studentName: 'Иван',
-      studentEmail: 'i@x.ru',
-      courseTitle: 'ОТ',
+      directionId: 'd1',
+      items: ITEMS,
       note: '   ',
     });
     expect(r.ok && r.request.note).toBeNull();
@@ -261,12 +203,19 @@ describe('submitEnrollmentRequest — additional branches', () => {
 
   it('note preserved when non-empty', async () => {
     const r = await submitEnrollmentRequest(db(), sess({ role: 'admin' }), {
-      studentName: 'Иван',
-      studentEmail: 'i@x.ru',
-      courseTitle: 'ОТ',
+      directionId: 'd1',
+      items: ITEMS,
       note: 'спецкурс',
     });
     expect(r.ok && r.request.note).toBe('спецкурс');
+  });
+
+  it('items=undefined трактуется как пустой список → validation', async () => {
+    const r = await submitEnrollmentRequest(db(), sess({ role: 'admin' }), {
+      directionId: 'd1',
+      items: undefined as never,
+    });
+    expect(r).toMatchObject({ ok: false, error: 'validation' });
   });
 });
 
@@ -277,16 +226,15 @@ describe('listEnrollmentRequests — additional branches', () => {
   function makeRow(id: string) {
     return {
       id,
-      studentName: 'Иван',
-      studentEmail: 'i@x.ru',
-      courseTitle: 'ОТ',
       status: 'pending' as const,
       organizationId: null,
       organization: null,
       partner: null,
+      direction: null,
+      legacyCourseTitle: 'ОТ',
+      items: [{ id: `${id}-i1`, fullName: 'Иван', email: 'i@x.ru', status: 'pending' }],
       submitterRole: 'partner',
       submittedByUser: { name: 'Сергей' },
-      externalStudentId: null,
       rejectedReason: null,
       note: null,
       createdAt: new Date(),
@@ -317,11 +265,7 @@ describe('listEnrollmentRequests — additional branches', () => {
   it('organization scope with empty memberships: OR with empty in array', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const d = { enrollmentRequest: { findMany } } as never;
-    const s = sess({
-      role: 'organization',
-      sub: 'u-org',
-      organizationMemberships: [],
-    });
+    const s = sess({ role: 'organization', sub: 'u-org', organizationMemberships: [] });
     await listEnrollmentRequests(d, s);
     const scope = findMany.mock.calls[0][0].where.AND[0];
     expect(scope.OR[0]).toEqual({ organizationId: { in: [] } });
@@ -330,11 +274,7 @@ describe('listEnrollmentRequests — additional branches', () => {
   it('organization scope with undefined memberships (??[] branch): falls back to []', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const d = { enrollmentRequest: { findMany } } as never;
-    const s = sess({
-      role: 'organization',
-      sub: 'u-org',
-      organizationMemberships: undefined,
-    });
+    const s = sess({ role: 'organization', sub: 'u-org', organizationMemberships: undefined });
     await listEnrollmentRequests(d, s);
     const scope = findMany.mock.calls[0][0].where.AND[0];
     expect(scope.OR[0]).toEqual({ organizationId: { in: [] } });
@@ -343,37 +283,32 @@ describe('listEnrollmentRequests — additional branches', () => {
   it('partner with null partnerId → scope uses __none__ sentinel', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const d = { enrollmentRequest: { findMany } } as never;
-    const s = sess({ role: 'partner', partnerId: undefined });
-    await listEnrollmentRequests(d, s);
-    const scope = findMany.mock.calls[0][0].where.AND[0];
-    expect(scope).toEqual({ partnerId: '__none__' });
+    await listEnrollmentRequests(d, sess({ role: 'partner', partnerId: undefined }));
+    expect(findMany.mock.calls[0][0].where.AND[0]).toEqual({ partnerId: '__none__' });
   });
 
   it('non-reviewer, non-partner, non-org → submittedByUserId scope', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const d = { enrollmentRequest: { findMany } } as never;
-    const s = sess({ role: 'student', sub: 'u-student' });
-    await listEnrollmentRequests(d, s);
-    const scope = findMany.mock.calls[0][0].where.AND[0];
-    expect(scope).toEqual({ submittedByUserId: 'u-student' });
+    await listEnrollmentRequests(d, sess({ role: 'student', sub: 'u-student' }));
+    expect(findMany.mock.calls[0][0].where.AND[0]).toEqual({ submittedByUserId: 'u-student' });
   });
 
   it('applies status filter when opts.status provided', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const d = { enrollmentRequest: { findMany } } as never;
     await listEnrollmentRequests(d, sess(), { status: 'approved' as never });
-    const and = findMany.mock.calls[0][0].where.AND;
-    expect(and).toContainEqual({ status: 'approved' });
+    expect(findMany.mock.calls[0][0].where.AND).toContainEqual({ status: 'approved' });
   });
 
-  it('applies search filter when opts.search provided', async () => {
+  it('applies search filter when opts.search provided (направление первым плечом)', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const d = { enrollmentRequest: { findMany } } as never;
     await listEnrollmentRequests(d, sess(), { search: 'тест' });
     const and = findMany.mock.calls[0][0].where.AND;
     const searchClause = and.find((c: Record<string, unknown>) => 'OR' in c);
     expect(searchClause).toBeDefined();
-    expect(searchClause.OR[0]).toMatchObject({ studentName: { contains: 'тест' } });
+    expect(searchClause.OR[0]).toMatchObject({ direction: { name: { contains: 'тест' } } });
   });
 
   it('uses cursor when opts.cursor provided', async () => {
@@ -386,7 +321,6 @@ describe('listEnrollmentRequests — additional branches', () => {
   });
 
   it('hasMore=true: returns nextCursor pointing to last row in page', async () => {
-    // take=2, returns 3 rows → hasMore=true
     const rows = [makeRow('r1'), makeRow('r2'), makeRow('r3')];
     const result = await listEnrollmentRequests(db(rows), sess(), { take: 2 });
     expect(result.rows).toHaveLength(2);
@@ -401,34 +335,27 @@ describe('listEnrollmentRequests — additional branches', () => {
   });
 
   it('maps organizationName from organization relation when present', async () => {
-    const row = { ...makeRow('r1'), organizationId: 'o1', organization: { name: 'Org X' }, partnerName: null };
+    const row = { ...makeRow('r1'), organizationId: 'o1', organization: { name: 'Org X' } };
     const result = await listEnrollmentRequests(db([row as never]), sess(), { take: 5 });
-    expect(result.rows[0].organizationName).toBe('Org X');
+    expect(result.rows[0]!.organizationName).toBe('Org X');
   });
 
   it('maps partnerName from partner relation when present', async () => {
     const row = { ...makeRow('r1'), partner: { name: 'Partner Y' } };
     const result = await listEnrollmentRequests(db([row as never]), sess(), { take: 5 });
-    expect(result.rows[0].partnerName).toBe('Partner Y');
+    expect(result.rows[0]!.partnerName).toBe('Partner Y');
   });
 
-  it('organizationName=null when organization relation is null', async () => {
-    const row = { ...makeRow('r1'), organization: null };
-    const result = await listEnrollmentRequests(db([row as never]), sess(), { take: 5 });
-    expect(result.rows[0].organizationName).toBeNull();
-  });
-
-  it('partnerName=null when partner relation is null', async () => {
-    const row = { ...makeRow('r1'), partner: null };
-    const result = await listEnrollmentRequests(db([row as never]), sess(), { take: 5 });
-    expect(result.rows[0].partnerName).toBeNull();
+  it('organizationName/partnerName=null when relations are null', async () => {
+    const result = await listEnrollmentRequests(db([makeRow('r1')]), sess(), { take: 5 });
+    expect(result.rows[0]!.organizationName).toBeNull();
+    expect(result.rows[0]!.partnerName).toBeNull();
   });
 
   it('default take=20 when opts not provided', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const d = { enrollmentRequest: { findMany } } as never;
     await listEnrollmentRequests(d, sess());
-    // take+1 = 21
     expect(findMany.mock.calls[0][0].take).toBe(21);
   });
 });
@@ -438,23 +365,24 @@ describe('listEnrollmentRequests — additional branches', () => {
 // ───────────────────────────────────────────
 describe('enrollment lifecycle — additional branches', () => {
   function db(status: string) {
+    const update = vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
+      id: 'E1', ...data,
+    }));
     return {
-      enrollmentRequest: {
-        findUnique: vi.fn().mockResolvedValue({ id: 'E1', status }),
-        update: vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
-          id: 'E1', ...data,
-        })),
-      },
-      auditLog: { create: vi.fn().mockResolvedValue({}) },
+      enrollmentRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'E1', status }) },
+      enrollmentRequestItem: { count: vi.fn().mockResolvedValue(1) },
+      $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          enrollmentRequest: { update },
+          enrollmentRequestItem: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+        })
+      ),
     } as never;
   }
 
   function dbNull() {
     return {
-      enrollmentRequest: {
-        findUnique: vi.fn().mockResolvedValue(null),
-        update: vi.fn(),
-      },
+      enrollmentRequest: { findUnique: vi.fn().mockResolvedValue(null) },
     } as never;
   }
 

@@ -10,21 +10,37 @@ const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), 
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { EnrollmentQueue } from '@/components/enrollment/enrollment-queue';
-import type { EnrollmentRow } from '@/lib/services/enrollments/list';
+import type { EnrollmentRow, EnrollmentItemRow } from '@/lib/services/enrollments/list';
+
+function item(overrides: Partial<EnrollmentItemRow> = {}): EnrollmentItemRow {
+  return {
+    id: 'i1',
+    studentId: null,
+    fullName: 'Иван Петров',
+    email: 'ivan@example.com',
+    position: null,
+    snils: null,
+    birthDate: null,
+    extra: null,
+    status: 'pending',
+    externalStudentId: null,
+    ...overrides
+  };
+}
 
 function row(overrides: Partial<EnrollmentRow> = {}): EnrollmentRow {
   return {
     id: 'e1',
-    studentName: 'Иван Петров',
-    studentEmail: 'ivan@example.com',
-    courseTitle: 'Охрана труда',
+    directionName: 'Охрана труда',
+    studentCount: 1,
+    firstStudentName: 'Иван Петров',
+    items: [item()],
     status: 'pending',
     organizationId: null,
     organizationName: null,
     partnerName: null,
     submitterRole: 'partner',
     submittedByName: 'Партнёр 1',
-    externalStudentId: null,
     rejectedReason: null,
     note: null,
     createdAt: new Date('2024-01-15T10:00:00Z'),
@@ -79,43 +95,69 @@ describe('EnrollmentQueue', () => {
     expect(screen.getByText('Сам подал')).toBeTruthy();
   });
 
-  it('shows the LMS externalStudentId note only when status=provisioned AND externalStudentId set', () => {
+  it('раскрытие позиций: доп. поля и LMS-id видны, повторный клик сворачивает', () => {
     render(
       React.createElement(EnrollmentQueue, {
-        rows: [row({ status: 'provisioned', externalStudentId: 'LMS-42' })]
+        rows: [
+          row({
+            status: 'provisioned',
+            note: 'спешно',
+            items: [
+              item({
+                position: 'инженер',
+                snils: '11223344595',
+                birthDate: new Date('1990-01-02T00:00:00Z'),
+                extra: 'нужна параллельная группа',
+                status: 'provisioned',
+                externalStudentId: 'LMS-42'
+              })
+            ]
+          })
+        ]
       })
     );
+    fireEvent.click(screen.getByText(/показать/));
+    expect(screen.getByText('ivan@example.com')).toBeTruthy();
+    expect(screen.getByText(/инженер/)).toBeTruthy();
+    expect(screen.getByText(/СНИЛС 11223344595/)).toBeTruthy();
+    expect(screen.getByText(/нужна параллельная группа/)).toBeTruthy();
     expect(screen.getByText('LMS: LMS-42')).toBeTruthy();
+    expect(screen.getByText(/Примечание: спешно/)).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Свернуть'));
+    expect(screen.queryByText('ivan@example.com')).toBeNull();
   });
 
-  it('does not show the LMS note when provisioned but externalStudentId is null', () => {
+  it('счётчик «и ещё N» для многопозиционной заявки', () => {
     render(
       React.createElement(EnrollmentQueue, {
-        rows: [row({ status: 'provisioned', externalStudentId: null })]
+        rows: [row({ studentCount: 3, items: [item(), item({ id: 'i2' }), item({ id: 'i3' })] })]
       })
     );
-    expect(screen.queryByText(/^LMS:/)).toBeNull();
+    expect(screen.getByText(/и ещё 2/)).toBeTruthy();
+    expect(screen.getByText(/3 слушателя — показать/)).toBeTruthy();
   });
 
-  it('pending row shows Утвердить + Отклонить, but not Заведён в LMS', () => {
+  it('pending row shows Утвердить + Отклонить, but not Зачислены', () => {
     render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'pending' })] }));
     expect(screen.getByRole('button', { name: 'Утвердить' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Отклонить' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Заведён в LMS' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Зачислены' })).toBeNull();
   });
 
-  it('approved row shows Заведён в LMS + Отклонить, but not Утвердить', () => {
+  it('approved row shows Зачислены + Отклонить, but not Утвердить', () => {
     render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'approved' })] }));
-    expect(screen.getByRole('button', { name: 'Заведён в LMS' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Зачислены' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Отклонить' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Утвердить' })).toBeNull();
   });
 
-  it('rejected/provisioned rows show no action buttons', () => {
-    render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'rejected' })] }));
+  it('rejected/provisioned rows show no action buttons (+ причина отклонения в строке)', () => {
+    render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'rejected', rejectedReason: 'Неполные данные' })] }));
     expect(screen.queryByRole('button', { name: 'Утвердить' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Отклонить' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Заведён в LMS' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Зачислены' })).toBeNull();
+    expect(screen.getByText('Неполные данные')).toBeTruthy();
   });
 
   it('approve action: PATCH success shows success toast and router.refresh()', async () => {
@@ -174,13 +216,13 @@ describe('EnrollmentQueue', () => {
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Сетевая ошибка'));
   });
 
-  it('markProvisioned: prompt with a non-empty id calls PATCH with trimmed externalStudentId', async () => {
+  it('markProvisioned (одна позиция): prompt обязателен, отправляется trimmed id', async () => {
     const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('  LMS-7  ');
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'approved' })] }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Заведён в LMS' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Зачислены' }));
 
     expect(promptSpy).toHaveBeenCalledWith('ID слушателя в LMS (externalStudentId):');
     await waitFor(() =>
@@ -192,7 +234,29 @@ describe('EnrollmentQueue', () => {
         })
       )
     );
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Отмечено: заведён в LMS'));
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Отмечено: зачислены'));
+  });
+
+  it('markProvisioned (несколько позиций): пустой ответ prompt допустим', async () => {
+    vi.spyOn(window, 'prompt').mockReturnValue('');
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [row({ status: 'approved', studentCount: 2, items: [item(), item({ id: 'i2' })] })]
+      })
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Зачислены' }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/enrollments/e1',
+        expect.objectContaining({
+          body: JSON.stringify({ action: 'markProvisioned', externalStudentId: '' })
+        })
+      )
+    );
   });
 
   it('markProvisioned: prompt cancelled (null) does not call fetch', () => {
@@ -201,17 +265,17 @@ describe('EnrollmentQueue', () => {
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'approved' })] }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Заведён в LMS' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Зачислены' }));
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('markProvisioned: prompt with whitespace-only value does not call fetch (trim guard)', () => {
+  it('markProvisioned (одна позиция): whitespace-only value does not call fetch (trim guard)', () => {
     vi.spyOn(window, 'prompt').mockReturnValue('   ');
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'approved' })] }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Заведён в LMS' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Зачислены' }));
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

@@ -13,6 +13,8 @@ import { approveEnrollment, rejectEnrollment, markProvisioned } from '@/lib/serv
 
 const s = (over: Record<string, unknown> = {}) => ({ sub: 'u1', role: 'manager', ...over }) as never;
 
+const ITEM = { fullName: 'Иван Иванов', email: 'i@x.ru' };
+
 beforeEach(() => {
   recordAudit.mockReset();
   recordPiiAccess.mockReset();
@@ -36,31 +38,131 @@ describe('enrollment policy', () => {
   });
 });
 
-describe('submitEnrollmentRequest', () => {
+describe('submitEnrollmentRequest (этап 2: шапка + позиции)', () => {
   function db(over: Record<string, unknown> = {}) {
-    return {
-      enrollmentRequest: { create: vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'E1', ...data })) },
+    const requestCreate = vi
+      .fn()
+      .mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'E1', ...data }));
+    const itemCreateMany = vi.fn().mockResolvedValue({ count: 1 });
+    const base = {
+      trainingDirection: { findFirst: vi.fn().mockResolvedValue({ id: 'd1' }) },
       organization: { findFirst: vi.fn().mockResolvedValue({ id: 'o1' }) },
+      student: { findMany: vi.fn().mockResolvedValue([]) },
+      $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({ enrollmentRequest: { create: requestCreate }, enrollmentRequestItem: { createMany: itemCreateMany } })
+      ),
       ...over
-    } as never;
+    };
+    return { d: base as never, requestCreate, itemCreateMany, base };
   }
-  it('rejects empty required fields', async () => {
-    const r = await submitEnrollmentRequest(db(), s({ role: 'admin' }), { studentName: '', studentEmail: 'a@b.c', courseTitle: 'X' });
-    expect(r).toEqual({ ok: false, error: 'validation' });
+
+  it('validation: нет направления / нет позиций — русские сообщения', async () => {
+    const { d } = db();
+    expect(await submitEnrollmentRequest(d, s({ role: 'admin' }), { directionId: '', items: [ITEM] })).toEqual({
+      ok: false,
+      error: 'validation',
+      messages: ['Выберите направление обучения']
+    });
+    const r = await submitEnrollmentRequest(d, s({ role: 'admin' }), { directionId: 'd1', items: [] });
+    expect(r).toMatchObject({ ok: false, error: 'validation' });
+    expect((r as { messages: string[] }).messages).toEqual(['Добавьте хотя бы одного слушателя']);
   });
-  it('snapshots submitterRole and partnerId for a partner', async () => {
-    const r = await submitEnrollmentRequest(db(), s({ role: 'partner', partnerId: 'p1' }), { studentName: 'Иван', studentEmail: 'i@x.ru', courseTitle: 'ОТ', organizationId: 'o1' });
-    expect(r.ok && r.request.submitterRole).toBe('partner');
-    expect(r.ok && r.request.partnerId).toBe('p1');
+
+  it('validation: направление неактивно/не найдено', async () => {
+    const { d } = db({ trainingDirection: { findFirst: vi.fn().mockResolvedValue(null) } });
+    const r = await submitEnrollmentRequest(d, s({ role: 'admin' }), { directionId: 'dX', items: [ITEM] });
+    expect(r).toMatchObject({ ok: false, error: 'validation', messages: ['Направление не найдено или неактивно'] });
   });
+
+  it('шапка+позиции создаются в транзакции; snapshot submitterRole/partnerId партнёра', async () => {
+    const { d, requestCreate, itemCreateMany } = db();
+    const r = await submitEnrollmentRequest(d, s({ role: 'partner', partnerId: 'p1' }), {
+      directionId: 'd1',
+      organizationId: 'o1',
+      items: [{ ...ITEM, position: ' инженер ', snils: '112-233-445 95', birthDate: '1990-01-02', extra: ' прим ' }]
+    });
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.request.submitterRole).toBe('partner');
+    expect(r.request.partnerId).toBe('p1');
+    expect(r.itemCount).toBe(1);
+    expect(requestCreate.mock.calls[0][0].data.directionId).toBe('d1');
+    const item = itemCreateMany.mock.calls[0][0].data[0];
+    expect(item).toMatchObject({
+      requestId: 'E1',
+      fullName: 'Иван Иванов',
+      email: 'i@x.ru',
+      position: 'инженер',
+      snils: '11223344595',
+      extra: 'прим'
+    });
+    expect(item.birthDate).toEqual(new Date('1990-01-02T00:00:00.000Z'));
+  });
+
   it('blocks a partner targeting an org outside its scope', async () => {
-    const d = db({ organization: { findFirst: vi.fn().mockResolvedValue(null) } });
-    const r = await submitEnrollmentRequest(d, s({ role: 'partner', partnerId: 'p1' }), { studentName: 'И', studentEmail: 'i@x.ru', courseTitle: 'ОТ', organizationId: 'oX' });
+    const { d } = db({ organization: { findFirst: vi.fn().mockResolvedValue(null) } });
+    const r = await submitEnrollmentRequest(d, s({ role: 'partner', partnerId: 'p1' }), {
+      directionId: 'd1',
+      organizationId: 'oX',
+      items: [ITEM]
+    });
     expect(r).toEqual({ ok: false, error: 'forbidden' });
   });
+
   it('forbids a role that cannot submit (student)', async () => {
-    const r = await submitEnrollmentRequest(db(), s({ role: 'student' }), { studentName: 'И', studentEmail: 'i@x.ru', courseTitle: 'ОТ' });
+    const { d } = db();
+    const r = await submitEnrollmentRequest(d, s({ role: 'student' }), { directionId: 'd1', items: [ITEM] });
     expect(r).toEqual({ ok: false, error: 'forbidden' });
+  });
+
+  it('studentId: чужой/несуществующий сотрудник → forbidden (IDOR)', async () => {
+    const { d } = db(); // student.findMany → []
+    const r = await submitEnrollmentRequest(d, s({ role: 'organization', organizationId: 'o1', organizationMemberships: [{ organizationId: 'o1', isActive: true }] }), {
+      directionId: 'd1',
+      items: [{ studentId: 'stX' }]
+    });
+    expect(r).toEqual({ ok: false, error: 'forbidden' });
+  });
+
+  it('studentId без организации (admin, org не выбрана) → forbidden', async () => {
+    const { d } = db();
+    const r = await submitEnrollmentRequest(d, s({ role: 'admin' }), {
+      directionId: 'd1',
+      items: [{ studentId: 'st1' }]
+    });
+    expect(r).toEqual({ ok: false, error: 'forbidden' });
+  });
+
+  it('studentId своей организации: ФИО/email снимаются со Student', async () => {
+    const { d, itemCreateMany } = db({
+      student: { findMany: vi.fn().mockResolvedValue([{ id: 'st1', name: 'Пётр Петров', email: 'p@org.ru' }]) }
+    });
+    const session = s({
+      role: 'organization',
+      organizationId: 'o1',
+      organizationMemberships: [{ organizationId: 'o1', isActive: true }]
+    });
+    const r = await submitEnrollmentRequest(d, session, { directionId: 'd1', items: [{ studentId: 'st1' }] });
+    if (!r.ok) throw new Error('expected ok');
+    expect(itemCreateMany.mock.calls[0][0].data[0]).toMatchObject({
+      studentId: 'st1',
+      fullName: 'Пётр Петров',
+      email: 'p@org.ru'
+    });
+  });
+
+  it('дубликаты склеиваются с warning; аудит без ПДн (только счётчики)', async () => {
+    const { d, itemCreateMany } = db();
+    const r = await submitEnrollmentRequest(d, s({ role: 'admin' }), {
+      directionId: 'd1',
+      items: [ITEM, { fullName: 'Дубль', email: 'I@X.RU' }]
+    });
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.itemCount).toBe(1);
+    expect(r.warnings).toHaveLength(1);
+    expect(itemCreateMany.mock.calls[0][0].data).toHaveLength(1);
+    const audit = recordAudit.mock.calls[0][1];
+    expect(audit.after).toEqual({ organizationId: null, directionId: 'd1', itemCount: 1, submitterRole: 'admin' });
+    expect(JSON.stringify(audit.after)).not.toContain('i@x.ru');
   });
 });
 
@@ -69,6 +171,15 @@ describe('listEnrollmentRequests scope', () => {
     const findMany = vi.fn().mockResolvedValue(rows);
     return { db: { enrollmentRequest: { findMany } } as never, findMany };
   }
+  const row = (id: string, over: Record<string, unknown> = {}) => ({
+    id,
+    submittedByUser: { name: 'U' },
+    direction: { name: 'Охрана труда' },
+    legacyCourseTitle: null,
+    items: [],
+    ...over
+  });
+
   it('reviewer sees the whole queue (empty scope)', async () => {
     const { db: d, findMany } = db();
     await listEnrollmentRequests(d, s({ role: 'manager' }));
@@ -79,11 +190,31 @@ describe('listEnrollmentRequests scope', () => {
     await listEnrollmentRequests(d, s({ role: 'partner', partnerId: 'p1' }));
     expect(findMany.mock.calls[0][0].where.AND[0]).toEqual({ partnerId: 'p1' });
   });
-  it('PII: журналирует состав выдачи для staff-вызова', async () => {
+  it('направление: имя из справочника, для legacy — сохранённый текст, иначе «—»', async () => {
     const rows = [
-      { id: 'R1', submittedByUser: { name: 'U' } },
-      { id: 'R2', submittedByUser: { name: 'U' } }
+      row('R1', { items: [{ id: 'i1', fullName: 'Иван' }, { id: 'i2', fullName: 'Пётр' }] }),
+      row('R2', { direction: null, legacyCourseTitle: 'Старый курс' }),
+      row('R3', { direction: null })
     ];
+    const { db: d } = db(rows);
+    const res = await listEnrollmentRequests(d, s({ role: 'manager' }), {});
+    expect(res.rows[0]).toMatchObject({ directionName: 'Охрана труда', studentCount: 2, firstStudentName: 'Иван' });
+    expect(res.rows[1]!.directionName).toBe('Старый курс');
+    expect(res.rows[2]).toMatchObject({ directionName: '—', studentCount: 0, firstStudentName: null });
+  });
+  it('поиск — по позициям и направлению', async () => {
+    const { db: d, findMany } = db();
+    await listEnrollmentRequests(d, s({ role: 'manager' }), { search: 'иван' });
+    const or = findMany.mock.calls[0][0].where.AND[1].OR;
+    expect(or).toEqual([
+      { direction: { name: { contains: 'иван', mode: 'insensitive' } } },
+      { legacyCourseTitle: { contains: 'иван', mode: 'insensitive' } },
+      { items: { some: { fullName: { contains: 'иван', mode: 'insensitive' } } } },
+      { items: { some: { email: { contains: 'иван', mode: 'insensitive' } } } }
+    ]);
+  });
+  it('PII: журналирует состав выдачи для staff-вызова', async () => {
+    const rows = [row('R1'), row('R2')];
     const { db: d } = db(rows);
     await listEnrollmentRequests(d, s({ role: 'manager' }), {});
     expect(recordPiiAccess).toHaveBeenCalledWith(d, expect.objectContaining({
@@ -93,35 +224,70 @@ describe('listEnrollmentRequests scope', () => {
   });
 });
 
-describe('enrollment lifecycle', () => {
-  function db(status: string) {
-    return {
-      enrollmentRequest: {
-        findUnique: vi.fn().mockResolvedValue({ id: 'E1', status }),
-        update: vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'E1', ...data }))
-      }
-    } as never;
+describe('enrollment lifecycle (шапка + зеркалирование позиций)', () => {
+  function db(status: string, itemCount = 1) {
+    const requestUpdate = vi
+      .fn()
+      .mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'E1', ...data }));
+    const itemUpdateMany = vi.fn().mockResolvedValue({ count: itemCount });
+    const base = {
+      enrollmentRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'E1', status }) },
+      enrollmentRequestItem: { count: vi.fn().mockResolvedValue(itemCount) },
+      $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({ enrollmentRequest: { update: requestUpdate }, enrollmentRequestItem: { updateMany: itemUpdateMany } })
+      )
+    };
+    return { d: base as never, requestUpdate, itemUpdateMany };
   }
-  it('approve: pending → approved', async () => {
-    const r = await approveEnrollment(db('pending'), { id: 'E1', reviewerId: 'm1' });
+
+  it('approve: pending → approved, pending-позиции зеркалируются', async () => {
+    const { d, itemUpdateMany } = db('pending');
+    const r = await approveEnrollment(d, { id: 'E1', reviewerId: 'm1' });
     if (!r.ok) throw new Error('expected ok');
     expect(r.request.status).toBe('approved');
+    expect(itemUpdateMany).toHaveBeenCalledWith({
+      where: { requestId: 'E1', status: 'pending' },
+      data: { status: 'approved' }
+    });
   });
   it('approve forbidden from non-pending', async () => {
-    expect(await approveEnrollment(db('approved'), { id: 'E1', reviewerId: 'm1' })).toEqual({ ok: false, error: 'lifecycle_violation' });
+    const { d } = db('approved');
+    expect(await approveEnrollment(d, { id: 'E1', reviewerId: 'm1' })).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
-  it('markProvisioned requires externalStudentId and approved status', async () => {
-    expect(await markProvisioned(db('approved'), { id: 'E1', reviewerId: 'm1', externalStudentId: '' })).toEqual({ ok: false, error: 'validation' });
-    expect(await markProvisioned(db('pending'), { id: 'E1', reviewerId: 'm1', externalStudentId: 'LMS-9' })).toEqual({ ok: false, error: 'lifecycle_violation' });
-    const r = await markProvisioned(db('approved'), { id: 'E1', reviewerId: 'm1', externalStudentId: 'LMS-9' });
+  it('markProvisioned: для одиночной заявки id из LMS обязателен и пишется в позицию', async () => {
+    expect(await markProvisioned(db('approved').d, { id: 'E1', reviewerId: 'm1', externalStudentId: '' })).toEqual({ ok: false, error: 'validation' });
+    expect(await markProvisioned(db('pending').d, { id: 'E1', reviewerId: 'm1', externalStudentId: 'LMS-9' })).toEqual({ ok: false, error: 'lifecycle_violation' });
+    const { d, itemUpdateMany } = db('approved');
+    const r = await markProvisioned(d, { id: 'E1', reviewerId: 'm1', externalStudentId: 'LMS-9' });
     if (!r.ok) throw new Error('expected ok');
     expect(r.request.status).toBe('provisioned');
-    expect(r.request.externalStudentId).toBe('LMS-9');
+    expect(itemUpdateMany).toHaveBeenCalledWith({
+      where: { requestId: 'E1', status: { not: 'rejected' } },
+      data: { status: 'provisioned', externalStudentId: 'LMS-9' }
+    });
   });
-  it('reject sets reason; cannot reject a provisioned request', async () => {
-    const r = await rejectEnrollment(db('pending'), { id: 'E1', reviewerId: 'm1', reason: 'нет мест' });
+  it('markProvisioned: многопозиционная — без общего id, позиции provisioned', async () => {
+    const { d, itemUpdateMany } = db('approved', 3);
+    const r = await markProvisioned(d, { id: 'E1', reviewerId: 'm1' });
+    if (!r.ok) throw new Error('expected ok');
+    expect(itemUpdateMany).toHaveBeenCalledWith({
+      where: { requestId: 'E1', status: { not: 'rejected' } },
+      data: { status: 'provisioned' }
+    });
+  });
+  it('reject sets reason и зеркалирует все позиции; cannot reject a provisioned request', async () => {
+    const { d, itemUpdateMany } = db('pending');
+    const r = await rejectEnrollment(d, { id: 'E1', reviewerId: 'm1', reason: 'нет мест' });
     if (!r.ok) throw new Error('expected ok');
     expect(r.request.status).toBe('rejected');
-    expect(await rejectEnrollment(db('provisioned'), { id: 'E1', reviewerId: 'm1', reason: 'x' })).toEqual({ ok: false, error: 'lifecycle_violation' });
+    expect(itemUpdateMany).toHaveBeenCalledWith({ where: { requestId: 'E1' }, data: { status: 'rejected' } });
+    expect(await rejectEnrollment(db('provisioned').d, { id: 'E1', reviewerId: 'm1', reason: 'x' })).toEqual({ ok: false, error: 'lifecycle_violation' });
+  });
+  it('not_found на отсутствующей заявке', async () => {
+    const base = db('pending');
+    (base.d as { enrollmentRequest: { findUnique: ReturnType<typeof vi.fn> } }).enrollmentRequest.findUnique = vi.fn().mockResolvedValue(null);
+    expect(await approveEnrollment(base.d, { id: 'EX', reviewerId: 'm1' })).toEqual({ ok: false, error: 'not_found' });
+    expect(await rejectEnrollment(base.d, { id: 'EX', reviewerId: 'm1', reason: 'x' })).toEqual({ ok: false, error: 'not_found' });
+    expect(await markProvisioned(base.d, { id: 'EX', reviewerId: 'm1' })).toEqual({ ok: false, error: 'not_found' });
   });
 });

@@ -2,39 +2,54 @@ import type { PrismaClient, EnrollmentRequest } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { canSubmitEnrollments, submitterRoleLabel } from './policy';
+import { validateEnrollmentItems, type EnrollmentItemInput } from './validate';
 
 export type SubmitEnrollmentInput = {
-  studentName: string;
-  studentEmail: string;
-  courseTitle: string;
+  directionId: string;
   organizationId?: string | null;
   note?: string | null;
+  items: EnrollmentItemInput[];
 };
+
+export type SubmitEnrollmentResult =
+  | { ok: true; request: EnrollmentRequest; itemCount: number; warnings: string[] }
+  | { ok: false; error: 'forbidden' | 'validation'; messages?: string[] };
 
 function activeOrgIds(session: SessionPayload): string[] {
   return (session.organizationMemberships ?? []).filter((m) => m.isActive).map((m) => m.organizationId);
 }
 
 /**
- * Submit an enrollment request. Allowed for partner/organization/manager/admin
- * (leader = manager). Result-based (§3): returns `{ ok: false, error }` with a
- * stable code (`'forbidden'` → 403, `'validation'` → 400) which the route maps to
- * HTTP. Organization linkage is scoped for partner (own orgs) and organization
- * (own memberships); manager/admin may target any org or none.
+ * Подача заявки на обучение (этап 2, ФТ-2.1–2.2): шапка (направление из
+ * справочника + примечание) и позиции-слушатели одной транзакцией.
+ *
+ * Роли — как раньше (partner/organization/manager/admin; leader = manager).
+ * Скоупы: партнёр — только свои организации, организация — свои членства.
+ * Каждый `studentId` обязан принадлежать выбранной организации — чужой id
+ * это `forbidden`, а не validation (IDOR-защита §4). `messages` — русские
+ * тексты для формы (только при validation).
  */
 export async function submitEnrollmentRequest(
   prisma: PrismaClient,
   session: SessionPayload,
   input: SubmitEnrollmentInput
-): Promise<{ ok: true; request: EnrollmentRequest } | { ok: false; error: 'forbidden' | 'validation' }> {
+): Promise<SubmitEnrollmentResult> {
   if (!canSubmitEnrollments(session)) return { ok: false, error: 'forbidden' };
 
-  const studentName = input.studentName?.trim();
-  const studentEmail = input.studentEmail?.trim();
-  const courseTitle = input.courseTitle?.trim();
-  if (!studentName || !studentEmail || !courseTitle) {
-    return { ok: false, error: 'validation' };
+  const directionId = input.directionId?.trim();
+  if (!directionId) {
+    return { ok: false, error: 'validation', messages: ['Выберите направление обучения'] };
   }
+  const direction = await prisma.trainingDirection.findFirst({
+    where: { id: directionId, isActive: true },
+    select: { id: true }
+  });
+  if (!direction) {
+    return { ok: false, error: 'validation', messages: ['Направление не найдено или неактивно'] };
+  }
+
+  const validated = validateEnrollmentItems(input.items ?? []);
+  if (!validated.ok) return { ok: false, error: 'validation', messages: validated.errors };
 
   let organizationId = input.organizationId?.trim() || null;
   let partnerId: string | null = null;
@@ -57,17 +72,47 @@ export async function submitEnrollmentRequest(
     }
   }
 
-  const created = await prisma.enrollmentRequest.create({
-    data: {
-      submittedByUserId: session.sub,
-      submitterRole: submitterRoleLabel(session),
-      partnerId,
-      organizationId,
-      studentName,
-      studentEmail,
-      courseTitle,
-      note: input.note?.trim() || null
-    }
+  // Позиции «из сотрудников»: каждый studentId принадлежит выбранной организации;
+  // ФИО/email копируются из Student на момент подачи (снимок).
+  const studentIds = validated.items.map((i) => i.studentId).filter((id): id is string => !!id);
+  const studentById = new Map<string, { name: string; email: string }>();
+  if (studentIds.length) {
+    if (!organizationId) return { ok: false, error: 'forbidden' };
+    const students = await prisma.student.findMany({
+      where: { id: { in: studentIds }, organizationId },
+      select: { id: true, name: true, email: true }
+    });
+    if (students.length !== new Set(studentIds).size) return { ok: false, error: 'forbidden' };
+    for (const s of students) studentById.set(s.id, { name: s.name, email: s.email });
+  }
+
+  const created = await prisma.$transaction(async (tx) => {
+    const request = await tx.enrollmentRequest.create({
+      data: {
+        submittedByUserId: session.sub,
+        submitterRole: submitterRoleLabel(session),
+        partnerId,
+        organizationId,
+        directionId,
+        note: input.note?.trim() || null
+      }
+    });
+    await tx.enrollmentRequestItem.createMany({
+      data: validated.items.map((item) => {
+        const snapshot = item.studentId ? studentById.get(item.studentId) : null;
+        return {
+          requestId: request.id,
+          studentId: item.studentId,
+          fullName: snapshot?.name ?? item.fullName,
+          email: snapshot?.email ?? item.email,
+          position: item.position,
+          snils: item.snils,
+          birthDate: item.birthDate,
+          extra: item.extra
+        };
+      })
+    });
+    return request;
   });
 
   await recordAudit(prisma, {
@@ -75,8 +120,14 @@ export async function submitEnrollmentRequest(
     action: 'enrollment_submitted',
     entity: 'enrollment_request',
     entityId: created.id,
-    after: { organizationId, studentEmail, courseTitle, submitterRole: created.submitterRole }
+    // Только счётчики и ссылки — ПДн слушателей в аудит не пишем.
+    after: {
+      organizationId,
+      directionId,
+      itemCount: validated.items.length,
+      submitterRole: created.submitterRole
+    }
   });
 
-  return { ok: true, request: created };
+  return { ok: true, request: created, itemCount: validated.items.length, warnings: validated.warnings };
 }
