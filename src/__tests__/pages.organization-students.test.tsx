@@ -102,6 +102,35 @@ describe('OrganizationStudentsPage', () => {
     expect(nextLink?.getAttribute('href')).toContain('skip=100');
   });
 
+  it('этап 3: при флаге certificates_registry ФИО становится ссылкой на карточку сотрудника', async () => {
+    process.env.FEATURE_CERTIFICATES_REGISTRY = '1';
+    try {
+      getOrgPageContext.mockResolvedValue(CTX);
+      listOrgStudents.mockResolvedValue({
+        rows: [
+          {
+            id: 's1',
+            name: 'Иванов Иван',
+            email: 'ivanov@example.com',
+            externalStudentId: null,
+            createdAt: new Date('2024-03-15')
+          }
+        ],
+        total: 1
+      });
+
+      const { container } = await renderServerComponent(
+        OrganizationStudentsPage({ searchParams: Promise.resolve({}) })
+      );
+
+      const link = container.querySelector('a[href="/organization/students/s1"]');
+      expect(link).not.toBeNull();
+      expect(link!.textContent).toBe('Иванов Иван');
+    } finally {
+      delete process.env.FEATURE_CERTIFICATES_REGISTRY;
+    }
+  });
+
   it('pluralizes "1 сотрудник" and "N сотрудника" (2-4) correctly', async () => {
     getOrgPageContext.mockResolvedValue(CTX);
     const oneRow = [

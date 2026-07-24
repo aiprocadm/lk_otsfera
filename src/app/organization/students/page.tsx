@@ -1,6 +1,8 @@
 import React from 'react';
+import Link from 'next/link';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { listOrgStudents, type OrgStudentRow } from '@/lib/services/organization/students';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
@@ -71,7 +73,7 @@ export default async function OrganizationStudentsPage({
             }
           />
         ) : (
-          <StudentsTable rows={rows} />
+          <StudentsTable rows={rows} linkToCard={isFeatureEnabled('certificates_registry')} />
         )}
 
         {pages > 1 && (
@@ -126,7 +128,7 @@ function SearchForm({ initial, org }: { initial: string; org: string }) {
   );
 }
 
-function StudentsTable({ rows }: { rows: OrgStudentRow[] }) {
+function StudentsTable({ rows, linkToCard }: { rows: OrgStudentRow[]; linkToCard: boolean }) {
   return (
     <TableShell>
       <THead>
@@ -138,7 +140,16 @@ function StudentsTable({ rows }: { rows: OrgStudentRow[] }) {
       <tbody>
         {rows.map((s) => (
           <Tr key={s.id}>
-            <Td className='font-medium text-[#111111]'>{s.name}</Td>
+            <Td className='font-medium text-[#111111]'>
+              {/* Этап 3 (ФТ-6.3): карточка сотрудника — под флагом реестров. */}
+              {linkToCard ? (
+                <Link href={`/organization/students/${s.id}`} className='hover:text-[#F97316] hover:underline'>
+                  {s.name}
+                </Link>
+              ) : (
+                s.name
+              )}
+            </Td>
             <Td className='text-gray-600'>{s.email}</Td>
             <Td className='text-gray-500 font-mono text-xs'>{s.externalStudentId ?? '—'}</Td>
             <Td className='text-gray-500'>{fmtDate(s.createdAt)}</Td>
