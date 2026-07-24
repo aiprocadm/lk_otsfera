@@ -1,7 +1,10 @@
-import { randomBytes } from 'crypto';
-import bcrypt from 'bcryptjs';
 import type { PrismaClient, PartnerUser, User } from '@prisma/client';
+import { createInviteToken } from '@/lib/auth/passwordReset';
 import { MAX_PARTNER_USERS } from '@/lib/config/teamLimits';
+
+function getAppBaseUrl(): string {
+  return process.env.APP_URL?.trim() || 'https://lk.otsfera.ru';
+}
 
 export type TeamRow = {
   userId: string;
@@ -12,6 +15,8 @@ export type TeamRow = {
   assignedOrgIds: string[];
   isActive: boolean;
   createdAt: Date;
+  /** ФТ-10.2: true = пароль ещё не установлен — можно переотправить приглашение. */
+  invitePending: boolean;
 };
 
 export async function listTeam(
@@ -20,7 +25,8 @@ export async function listTeam(
 ): Promise<TeamRow[]> {
   const rows = await prisma.partnerUser.findMany({
     where: { partnerId },
-    include: { user: { select: { email: true, name: true } } },
+    // Наружу уходит только признак наличия пароля, не сам hash.
+    include: { user: { select: { email: true, name: true, passwordHash: true } } },
     orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }]
   });
 
@@ -32,7 +38,8 @@ export async function listTeam(
     roleInPartner: r.roleInPartner === 'admin' ? 'admin' : 'manager',
     assignedOrgIds: r.assignedOrgIds,
     isActive: r.isActive,
-    createdAt: r.createdAt
+    createdAt: r.createdAt,
+    invitePending: r.user.passwordHash === null
   }));
 }
 
@@ -48,7 +55,7 @@ export async function inviteMember(
   prisma: PrismaClient,
   input: InviteInput
 ): Promise<
-  | { ok: true; user: User; partnerUser: PartnerUser }
+  | { ok: true; user: User; partnerUser: PartnerUser; inviteUrl: string }
   | { ok: false; error: 'org_out_of_scope' | 'email_taken' | 'member_limit_reached' }
 > {
   if (input.assignedOrgIds.length > 0) {
@@ -75,17 +82,17 @@ export async function inviteMember(
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
   if (existing) return { ok: false, error: 'email_taken' };
 
-  const tempPasswordPlain = randomBytes(12).toString('base64url');
-  const passwordHash = await bcrypt.hash(tempPasswordPlain, 10);
-
-  const { user, partnerUser } = await prisma.$transaction(async (tx) => {
+  // Этап 4 (ФТ-10.1): как и остальные точки приглашения — без пароля +
+  // invite-токен на установку пароля (раньше здесь был временный bcrypt-пароль,
+  // который никто не узнавал: ни письма, ни ссылки).
+  const { user, partnerUser, inviteUrl } = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
       data: {
         email: input.email,
         name: input.name,
         role: 'partner',
         partnerId: input.partnerId,
-        passwordHash
+        passwordHash: null
       }
     });
 
@@ -99,10 +106,11 @@ export async function inviteMember(
       }
     });
 
-    return { user, partnerUser };
+    const { token } = await createInviteToken(tx, user.id);
+    return { user, partnerUser, inviteUrl: `${getAppBaseUrl()}/reset-password?token=${token}` };
   });
 
-  return { ok: true, user, partnerUser };
+  return { ok: true, user, partnerUser, inviteUrl };
 }
 
 export async function assignOrgs(

@@ -244,6 +244,32 @@ describe('listUsers', () => {
     expect(args.where.AND).toBeUndefined();
   });
 
+  it('invitePending: true при passwordHash=null, false при установленном пароле (ФТ-10.2)', async () => {
+    const base = {
+      email: 'x@x',
+      name: 'X',
+      role: 'organization' as const,
+      isActive: true,
+      createdAt: new Date(),
+      partner: null,
+      organizationUsers: [],
+      managedOrganizations: []
+    };
+    const prisma = {
+      user: {
+        findMany: vi.fn().mockResolvedValue([
+          { ...base, id: 'u-pending', passwordHash: null },
+          { ...base, id: 'u-active', passwordHash: 'bcrypt-hash' }
+        ]),
+        count: vi.fn().mockResolvedValue(2)
+      }
+    } as unknown as Parameters<typeof listUsers>[0];
+
+    const { rows } = await listUsers(prisma, ADMIN_SESSION, {});
+    expect(rows.find((r) => r.id === 'u-pending')?.invitePending).toBe(true);
+    expect(rows.find((r) => r.id === 'u-active')?.invitePending).toBe(false);
+  });
+
   it('listUsers журналирует состав выдачи', async () => {
     recordPiiAccess.mockClear();
     const row = (id: string) => ({
@@ -388,6 +414,32 @@ describe('getUser', () => {
 
     const result = await getUser(prisma, ADMIN_SESSION, 'u3');
     expect(result!.organizationMemberships[0].roleInOrg).toBe('');
+  });
+
+  it('карточка UserDetail несёт invitePending по passwordHash (ФТ-10.2)', async () => {
+    const detail = (passwordHash: string | null) => ({
+      id: 'u-d',
+      email: 'd@x',
+      name: 'D',
+      role: 'organization',
+      isActive: true,
+      createdAt: new Date(),
+      passwordHash,
+      partnerId: null,
+      partner: null,
+      organizationUsers: [],
+      managedOrganizations: []
+    });
+
+    const prismaPending = {
+      user: { findUnique: vi.fn().mockResolvedValue(detail(null)) }
+    } as unknown as Parameters<typeof getUser>[0];
+    expect((await getUser(prismaPending, ADMIN_SESSION, 'u-d'))!.invitePending).toBe(true);
+
+    const prismaActive = {
+      user: { findUnique: vi.fn().mockResolvedValue(detail('bcrypt-hash')) }
+    } as unknown as Parameters<typeof getUser>[0];
+    expect((await getUser(prismaActive, ADMIN_SESSION, 'u-d'))!.invitePending).toBe(false);
   });
 
   it('getUser журналирует карточку; null-ветка — нет', async () => {

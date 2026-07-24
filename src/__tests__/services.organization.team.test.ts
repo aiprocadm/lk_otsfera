@@ -141,6 +141,19 @@ describe('listMembers', () => {
     expect(rows[2].isActive).toBe(false);
     expect(rows.find((r) => r.userId === memberUserId)?.roleInOrg).toBe('member');
     expect(rows.find((r) => r.userId === actorAdminUserId)?.roleInOrg).toBe('admin');
+    // Все посеянные пользователи имеют passwordHash → приглашение принято.
+    expect(rows.every((r) => r.invitePending === false)).toBe(true);
+  });
+
+  it('marks invitePending=true for members without a password (ФТ-10.2)', async () => {
+    await prisma.user.update({ where: { id: memberUserId }, data: { passwordHash: null } });
+    try {
+      const rows = await listMembers(prisma, orgId);
+      expect(rows.find((r) => r.userId === memberUserId)?.invitePending).toBe(true);
+      expect(rows.find((r) => r.userId === actorAdminUserId)?.invitePending).toBe(false);
+    } finally {
+      await prisma.user.update({ where: { id: memberUserId }, data: { passwordHash: 'x' } });
+    }
   });
 });
 
@@ -172,6 +185,10 @@ describe('inviteMember', () => {
       where: { entity: 'organization_user', entityId: orgUser!.id, action: 'org_member_invited' }
     });
     expect(audit).not.toBeNull();
+
+    // ФТ-10.2: свежеприглашённый (без пароля) виден в списке как invitePending.
+    const rows = await listMembers(prisma, orgId);
+    expect(rows.find((r) => r.userId === created!.id)?.invitePending).toBe(true);
   });
 
   it('reuses existing User with password, returns alreadyHasPassword=true', async () => {

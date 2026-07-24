@@ -5,14 +5,27 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requirePartner } = vi.hoisted(() => ({ requirePartner: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requirePartner }));
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+// Этап 4 (ФТ-10.4): страница читает welcomeSeenAt зрителя; не-null → welcome-блок
+// скрыт, старые сценарии этого файла его не касаются.
+const { userFindUnique } = vi.hoisted(() => ({ userFindUnique: vi.fn() }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: { user: { findUnique: userFindUnique } } }));
 
-const { kpis, attention, recentEvents } = vi.hoisted(() => ({
+// Флаги мокаем в off: этот файл пиннит базовый дашборд; карточки за флагами
+// (заявки/удостоверения) покрыты в pages.dashboard.enrollments.test.tsx. Без
+// мока флаг зависел бы от окружения (.env локально vs его отсутствие в CI).
+const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
+vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
+
+const { kpis, attention, recentEvents, recentEnrollments, expiringCertificates } = vi.hoisted(() => ({
   kpis: vi.fn(),
   attention: vi.fn(),
-  recentEvents: vi.fn()
+  recentEvents: vi.fn(),
+  recentEnrollments: vi.fn(),
+  expiringCertificates: vi.fn()
 }));
-vi.mock('@/lib/services/partner/dashboard', () => ({ kpis, attention, recentEvents }));
+vi.mock('@/lib/services/partner/dashboard', () => ({
+  kpis, attention, recentEvents, recentEnrollments, expiringCertificates
+}));
 
 import PartnerDashboard from '@/app/partner/dashboard/page';
 
@@ -24,6 +37,10 @@ describe('PartnerDashboard', () => {
     kpis.mockReset();
     attention.mockReset();
     recentEvents.mockReset();
+    userFindUnique.mockReset();
+    userFindUnique.mockResolvedValue({ name: 'Партнёр', welcomeSeenAt: new Date('2026-01-01') });
+    isFeatureEnabled.mockReset();
+    isFeatureEnabled.mockReturnValue(false);
   });
 
   it('renders KPIs, attention items, and events using the assigned-org scope', async () => {
@@ -53,6 +70,8 @@ describe('PartnerDashboard', () => {
       10
     );
     expect(container.textContent).toContain('Кабинет партнёра');
+    // welcomeSeenAt не-null → welcome-блока нет.
+    expect(container.textContent).not.toContain('Добро пожаловать');
   });
 
   it('falls back to an empty scope array when the session has no assignedOrgIds', async () => {

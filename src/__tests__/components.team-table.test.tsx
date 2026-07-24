@@ -8,6 +8,10 @@ vi.mock('@/server-actions/organization/team', () => ({
   reactivateOrgMemberFormAction: vi.fn()
 }));
 
+// InviteResendButtons — 'use client' с server-action импортом; для SSR-string
+// тестов достаточно заглушить экшен, компонент рендерим настоящий.
+vi.mock('@/server-actions/invite-resend', () => ({ resendInviteAction: vi.fn() }));
+
 import { TeamTable } from '@/components/organization/team-table';
 import type { OrgMemberRow } from '@/lib/services/organization/team';
 
@@ -19,6 +23,7 @@ function member(overrides: Partial<OrgMemberRow> = {}): OrgMemberRow {
     name: 'Иван Иванов',
     roleInOrg: 'member',
     isActive: true,
+    invitePending: false,
     invitedAt: new Date('2026-01-01'),
     lastLoginAt: null,
     ...overrides
@@ -117,6 +122,73 @@ describe('TeamTable', () => {
     );
     expect(html).toContain('Деактивировать');
     expect(html).not.toContain('Администратор');
+  });
+
+  it('invitePending=true у активного чужого участника: бейдж «Ожидает установки пароля» и кнопки переотправки', () => {
+    const html = renderToString(
+      React.createElement(TeamTable, {
+        members: [member({ userId: 'other', invitePending: true })],
+        organizationId: 'org1',
+        currentUserId: 'me',
+        viewerRole: 'admin'
+      })
+    );
+    expect(html).toContain('Ожидает установки пароля');
+    expect(html).toContain('Отправить повторно');
+    expect(html).toContain('Скопировать ссылку');
+  });
+
+  it('invitePending=true у self: бейдж есть, кнопок переотправки нет', () => {
+    const html = renderToString(
+      React.createElement(TeamTable, {
+        members: [member({ userId: 'me', invitePending: true })],
+        organizationId: 'org1',
+        currentUserId: 'me',
+        viewerRole: 'admin'
+      })
+    );
+    expect(html).toContain('Ожидает установки пароля');
+    expect(html).not.toContain('Отправить повторно');
+    expect(html).not.toContain('Скопировать ссылку');
+  });
+
+  it('leader-зритель не видит кнопок переотправки у admin-строки (canManageTarget=false), но бейдж видит', () => {
+    const html = renderToString(
+      React.createElement(TeamTable, {
+        members: [member({ userId: 'other', roleInOrg: 'admin', invitePending: true })],
+        organizationId: 'org1',
+        currentUserId: 'me',
+        viewerRole: 'leader'
+      })
+    );
+    expect(html).toContain('Ожидает установки пароля');
+    expect(html).not.toContain('Отправить повторно');
+  });
+
+  it('деактивированная строка с invitePending=true: ни бейджа, ни кнопок', () => {
+    const html = renderToString(
+      React.createElement(TeamTable, {
+        members: [member({ userId: 'other', invitePending: true, isActive: false })],
+        organizationId: 'org1',
+        currentUserId: 'me',
+        viewerRole: 'admin'
+      })
+    );
+    expect(html).not.toContain('Ожидает установки пароля');
+    expect(html).not.toContain('Отправить повторно');
+  });
+
+  it('invitePending=false: бейджа и кнопок переотправки нет', () => {
+    const html = renderToString(
+      React.createElement(TeamTable, {
+        members: [member({ userId: 'other' })],
+        organizationId: 'org1',
+        currentUserId: 'me',
+        viewerRole: 'admin'
+      })
+    );
+    expect(html).not.toContain('Ожидает установки пароля');
+    expect(html).not.toContain('Отправить повторно');
   });
 
   it('renders each role label correctly (admin/leader/member)', () => {

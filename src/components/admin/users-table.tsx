@@ -6,6 +6,7 @@ import {
 } from '@/server-actions/admin/users';
 import type { UserRow } from '@/lib/services/admin/users';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
+import { InviteResendButtons } from '@/components/team/invite-resend-buttons';
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Админ',
@@ -44,6 +45,16 @@ export function UsersTable({ rows, currentUserId }: { rows: UserRow[]; currentUs
                   <span className='text-green-600 text-xs'>●</span>
                 ) : (
                   <span className='text-gray-300 text-xs'>●</span>
+                )}
+                {u.isActive && u.invitePending && (
+                  <div className='mt-0.5'>
+                    <span className='text-xs text-amber-700 whitespace-nowrap'>Ожидает пароль</span>
+                    {u.id !== currentUserId && (
+                      <div className='mt-0.5'>
+                        <InviteResendButtons userId={u.id} />
+                      </div>
+                    )}
+                  </div>
                 )}
               </Td>
               <Td className='text-gray-500 text-xs'>

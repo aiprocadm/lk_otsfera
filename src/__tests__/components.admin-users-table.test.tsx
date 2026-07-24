@@ -19,6 +19,10 @@ vi.mock('@/server-actions/admin/users', () => ({
   reactivateUserFormAction: vi.fn()
 }));
 
+// InviteResendButtons — 'use client' с server-action импортом; для SSR-string
+// тестов достаточно заглушить экшен, компонент рендерим настоящий.
+vi.mock('@/server-actions/invite-resend', () => ({ resendInviteAction: vi.fn() }));
+
 import { UsersTable } from '@/components/admin/users-table';
 
 function makeRow(overrides: Partial<{
@@ -29,6 +33,7 @@ function makeRow(overrides: Partial<{
   isActive: boolean;
   createdAt: Date;
   attachmentLabel: string;
+  invitePending: boolean;
 }> = {}) {
   return {
     id: 'user-1',
@@ -38,6 +43,7 @@ function makeRow(overrides: Partial<{
     isActive: true,
     createdAt: new Date('2025-03-15'),
     attachmentLabel: 'ООО Партнёр',
+    invitePending: false,
     ...overrides
   };
 }
@@ -99,6 +105,34 @@ describe('UsersTable', () => {
     );
     expect(html).toContain('Деактивировать');
     expect(html).not.toContain('Восстановить');
+  });
+
+  it('invitePending=true у активного пользователя: бейдж «Ожидает пароль» и кнопки переотправки', () => {
+    const rows = [makeRow({ id: 'u-pending', invitePending: true })];
+    const html = renderToString(
+      React.createElement(UsersTable, { rows, currentUserId: 'other' })
+    );
+    expect(html).toContain('Ожидает пароль');
+    expect(html).toContain('Отправить повторно');
+    expect(html).toContain('Скопировать ссылку');
+  });
+
+  it('деактивированный пользователь с invitePending=true: ни бейджа, ни кнопок', () => {
+    const rows = [makeRow({ id: 'u-off', invitePending: true, isActive: false })];
+    const html = renderToString(
+      React.createElement(UsersTable, { rows, currentUserId: 'other' })
+    );
+    expect(html).not.toContain('Ожидает пароль');
+    expect(html).not.toContain('Отправить повторно');
+  });
+
+  it('invitePending=false: бейджа и кнопок переотправки нет', () => {
+    const rows = [makeRow({ id: 'u-ok' })];
+    const html = renderToString(
+      React.createElement(UsersTable, { rows, currentUserId: 'other' })
+    );
+    expect(html).not.toContain('Ожидает пароль');
+    expect(html).not.toContain('Отправить повторно');
   });
 
   it('falls back to the raw role string for an unknown role not in ROLE_LABELS', () => {

@@ -6,14 +6,27 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { getOrgPageContext } = vi.hoisted(() => ({ getOrgPageContext: vi.fn() }));
 vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+// Этап 4 (ФТ-10.4): страница читает welcomeSeenAt зрителя; не-null → welcome-блок
+// скрыт, старые сценарии этого файла его не касаются.
+const { userFindUnique } = vi.hoisted(() => ({ userFindUnique: vi.fn() }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: { user: { findUnique: userFindUnique } } }));
 
-const { kpis, attention, recentEvents } = vi.hoisted(() => ({
+// Флаги мокаем в off: этот файл пиннит базовый дашборд; карточки за флагами
+// (заявки/удостоверения) покрыты в pages.dashboard.enrollments.test.tsx. Без
+// мока флаг зависел бы от окружения (.env локально vs его отсутствие в CI).
+const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
+vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
+
+const { kpis, attention, recentEvents, recentEnrollments, expiringCertificates } = vi.hoisted(() => ({
   kpis: vi.fn(),
   attention: vi.fn(),
-  recentEvents: vi.fn()
+  recentEvents: vi.fn(),
+  recentEnrollments: vi.fn(),
+  expiringCertificates: vi.fn()
 }));
-vi.mock('@/lib/services/organization/dashboard', () => ({ kpis, attention, recentEvents }));
+vi.mock('@/lib/services/organization/dashboard', () => ({
+  kpis, attention, recentEvents, recentEnrollments, expiringCertificates
+}));
 
 // OrgAppShell renders the sidebar/nav chrome — it is a plain (non-async) function
 // component with its own dedicated coverage, so we mock it here to keep this test
@@ -39,6 +52,10 @@ describe('OrganizationDashboardPage', () => {
     kpis.mockReset();
     attention.mockReset();
     recentEvents.mockReset();
+    userFindUnique.mockReset();
+    userFindUnique.mockResolvedValue({ name: 'Иван', welcomeSeenAt: new Date('2026-01-01') });
+    isFeatureEnabled.mockReset();
+    isFeatureEnabled.mockReturnValue(false);
   });
 
   it('resolves org context from searchParams and renders KPI/attention/events sections', async () => {
@@ -52,11 +69,17 @@ describe('OrganizationDashboardPage', () => {
     );
 
     expect(getOrgPageContext).toHaveBeenCalledWith({ org: 'org-1' });
-    expect(kpis).toHaveBeenCalledWith({}, 'org-1');
-    expect(attention).toHaveBeenCalledWith({}, 'org-1');
-    expect(recentEvents).toHaveBeenCalledWith({}, 'org-1');
+    expect(kpis).toHaveBeenCalledWith(expect.anything(), 'org-1');
+    expect(attention).toHaveBeenCalledWith(expect.anything(), 'org-1');
+    expect(recentEvents).toHaveBeenCalledWith(expect.anything(), 'org-1');
+    expect(userFindUnique).toHaveBeenCalledWith({
+      where: { id: 'u1' },
+      select: { name: true, welcomeSeenAt: true }
+    });
     expect(container.textContent).toContain('Главная');
     expect(container.textContent).toContain('ООО Ромашка');
+    // welcomeSeenAt не-null → welcome-блока нет.
+    expect(container.textContent).not.toContain('Добро пожаловать');
   });
 
   it('renders with empty searchParams (no org query param)', async () => {

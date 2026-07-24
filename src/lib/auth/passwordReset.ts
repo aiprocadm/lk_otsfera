@@ -46,6 +46,26 @@ export async function createInviteToken(
   return { token, expiresAt };
 }
 
+/**
+ * Смотрит назначение токена БЕЗ погашения (этап 4, ФТ-10.3): страница
+ * `/reset-password` по нему различает «Добро пожаловать» (invite) и обычный
+ * сброс. Невалидный/просроченный/погашенный токен → valid:false — страница
+ * показывает нейтральный заголовок, а точную ошибку выдаст confirm-роут.
+ */
+export async function peekTokenPurpose(
+  prisma: PrismaLike,
+  token: string
+): Promise<{ valid: boolean; purpose: 'invite' | 'reset' | null }> {
+  const record = await prisma.passwordResetToken.findUnique({
+    where: { token: hashToken(token) },
+    select: { purpose: true, usedAt: true, expiresAt: true }
+  });
+  if (!record || record.usedAt || record.expiresAt <= new Date()) {
+    return { valid: false, purpose: null };
+  }
+  return { valid: true, purpose: record.purpose === 'invite' ? 'invite' : 'reset' };
+}
+
 export async function verifyAndConsumeToken(
   prisma: PrismaClient,
   token: string,

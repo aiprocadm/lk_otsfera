@@ -29,7 +29,7 @@ const mockPrisma = {
   $transaction: txFn
 } as unknown as import('@prisma/client').PrismaClient;
 
-import { createInviteToken, verifyAndConsumeToken } from '@/lib/auth/passwordReset';
+import { createInviteToken, peekTokenPurpose, verifyAndConsumeToken } from '@/lib/auth/passwordReset';
 
 // ---------------------------------------------------------------------------
 // createInviteToken
@@ -124,6 +124,69 @@ describe('createInviteToken', () => {
     const expectedMs = 24 * 60 * 60 * 1000;
     expect(diffMs).toBeGreaterThanOrEqual(expectedMs - 100);
     expect(result.expiresAt.getTime()).toBeLessThanOrEqual(after + expectedMs);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// peekTokenPurpose (этап 4, ФТ-10.3) — читает назначение токена БЕЗ погашения
+// ---------------------------------------------------------------------------
+describe('peekTokenPurpose', () => {
+  const FUTURE = new Date(Date.now() + 1000 * 60 * 60 * 24);
+  const PAST = new Date(Date.now() - 1000);
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("invite-токен: valid=true, purpose='invite', поиск по sha256", async () => {
+    prtFindUnique.mockResolvedValue({ purpose: 'invite', usedAt: null, expiresAt: FUTURE });
+
+    const result = await peekTokenPurpose(mockPrisma, 'tok');
+
+    expect(result).toEqual({ valid: true, purpose: 'invite' });
+    expect(prtFindUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { token: sha256('tok') } })
+    );
+  });
+
+  it("reset-токен: valid=true, purpose='reset'", async () => {
+    prtFindUnique.mockResolvedValue({ purpose: 'reset', usedAt: null, expiresAt: FUTURE });
+
+    expect(await peekTokenPurpose(mockPrisma, 'tok')).toEqual({ valid: true, purpose: 'reset' });
+  });
+
+  it('несуществующий токен → valid=false, purpose=null', async () => {
+    prtFindUnique.mockResolvedValue(null);
+
+    expect(await peekTokenPurpose(mockPrisma, 'missing')).toEqual({ valid: false, purpose: null });
+  });
+
+  it('погашенный токен (usedAt задан) → valid=false', async () => {
+    prtFindUnique.mockResolvedValue({ purpose: 'invite', usedAt: new Date(), expiresAt: FUTURE });
+
+    expect(await peekTokenPurpose(mockPrisma, 'tok')).toEqual({ valid: false, purpose: null });
+  });
+
+  it('просроченный токен → valid=false', async () => {
+    prtFindUnique.mockResolvedValue({ purpose: 'invite', usedAt: null, expiresAt: PAST });
+
+    expect(await peekTokenPurpose(mockPrisma, 'tok')).toEqual({ valid: false, purpose: null });
+  });
+
+  it('НЕ гасит токен: никаких update/транзакций ни в одной ветке', async () => {
+    for (const record of [
+      { purpose: 'invite', usedAt: null, expiresAt: FUTURE },
+      { purpose: 'reset', usedAt: null, expiresAt: FUTURE },
+      null,
+      { purpose: 'invite', usedAt: new Date(), expiresAt: FUTURE },
+      { purpose: 'invite', usedAt: null, expiresAt: PAST }
+    ]) {
+      prtFindUnique.mockResolvedValue(record);
+      await peekTokenPurpose(mockPrisma, 'tok');
+    }
+    expect(prtUpdate).not.toHaveBeenCalled();
+    expect(userUpdate).not.toHaveBeenCalled();
+    expect(txFn).not.toHaveBeenCalled();
   });
 });
 

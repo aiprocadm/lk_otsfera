@@ -8,6 +8,12 @@ let orgIds: string[];
 
 beforeAll(async () => {
   prisma = new PrismaClient();
+  // Файл использует фиксированные адреса *@x.local — вычищаем хвосты от
+  // прошлых упавших прогонов (иначе inviteMember отвечает email_taken).
+  const stale = { email: { endsWith: '@x.local' } };
+  await prisma.passwordResetToken.deleteMany({ where: { user: stale } });
+  await prisma.partnerUser.deleteMany({ where: { user: stale } });
+  await prisma.user.deleteMany({ where: stale });
   const p = await prisma.partner.create({ data: { name: 'TeamP-' + Date.now() } });
   partnerId = p.id;
   const c = await prisma.company.create({ data: { name: 'TeamC-' + Date.now() } });
@@ -17,6 +23,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // Этап 4: inviteMember создаёт invite-токен → чистим до удаления users (FK).
+  await prisma.passwordResetToken.deleteMany({ where: { user: { partnerId } } });
   await prisma.partnerUser.deleteMany({ where: { partnerId } });
   await prisma.user.deleteMany({ where: { partnerId } });
   await prisma.organization.deleteMany({ where: { partnerId } });
@@ -26,6 +34,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  await prisma.passwordResetToken.deleteMany({ where: { user: { partnerId } } });
   await prisma.partnerUser.deleteMany({ where: { partnerId } });
   await prisma.user.deleteMany({ where: { partnerId } });
 });
@@ -40,8 +49,9 @@ describe('team.listTeam', () => {
     const u1 = await prisma.user.create({
       data: { email: 't1@x.local', passwordHash: 'h', name: 'U1', role: 'partner', partnerId }
     });
+    // Пароль ещё не установлен (пригласили, но не приняли) → invitePending.
     const u2 = await prisma.user.create({
-      data: { email: 't2@x.local', passwordHash: 'h', name: 'U2', role: 'partner', partnerId }
+      data: { email: 't2@x.local', passwordHash: null, name: 'U2', role: 'partner', partnerId }
     });
     await prisma.partnerUser.create({
       data: { partnerId, userId: u1.id, roleInPartner: 'admin', assignedOrgIds: [], isActive: true }
@@ -55,6 +65,9 @@ describe('team.listTeam', () => {
     const adminRow = team.find((t) => t.email === 't1@x.local');
     expect(adminRow?.roleInPartner).toBe('admin');
     expect(adminRow?.isActive).toBe(true);
+    // ФТ-10.2: invitePending отражает отсутствие пароля.
+    expect(adminRow?.invitePending).toBe(false);
+    expect(team.find((t) => t.email === 't2@x.local')?.invitePending).toBe(true);
   });
 });
 
@@ -74,6 +87,18 @@ describe('team.inviteMember', () => {
     expect(result.user.role).toBe('partner');
     expect(result.partnerUser.roleInPartner).toBe('manager');
     expect(result.partnerUser.assignedOrgIds).toEqual([orgIds[0]]);
+
+    // Этап 4 (ФТ-10.1): без временного пароля — invite-токен + ссылка на установку.
+    expect(result.user.passwordHash).toBeNull();
+    expect(result.inviteUrl).toMatch(/\/reset-password\?token=/);
+    const token = await prisma.passwordResetToken.findFirst({
+      where: { userId: result.user.id, purpose: 'invite', usedAt: null }
+    });
+    expect(token).not.toBeNull();
+
+    // ФТ-10.2: пока пароль не установлен, listTeam помечает участника invitePending.
+    const team = await listTeam(prisma, partnerId);
+    expect(team.find((t) => t.userId === result.user.id)?.invitePending).toBe(true);
   });
 
   it('rejects duplicate email', async () => {

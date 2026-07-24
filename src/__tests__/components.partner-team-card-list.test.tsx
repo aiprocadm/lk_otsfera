@@ -7,6 +7,10 @@ vi.mock('@/components/partner/member-row-actions', () => ({
     React.createElement('button', { 'data-testid': `actions-${userId}` }, 'actions')
 }));
 
+// InviteResendButtons — 'use client' с server-action импортом; для SSR-string
+// тестов достаточно заглушить экшен, компонент рендерим настоящий.
+vi.mock('@/server-actions/invite-resend', () => ({ resendInviteAction: vi.fn() }));
+
 import { TeamCardList } from '@/components/partner/team-card-list';
 import type { TeamRow } from '@/lib/services/partner/team';
 
@@ -28,6 +32,7 @@ function makeRow(overrides: Partial<TeamRow> = {}): TeamRow {
     roleInPartner: 'manager',
     assignedOrgIds: [],
     isActive: true,
+    invitePending: false,
     createdAt: new Date('2026-01-01'),
     ...overrides
   };
@@ -124,5 +129,43 @@ describe('TeamCardList', () => {
     );
     expect(html).toContain('5');
     expect(html).toContain('организаций');
+  });
+
+  // ФТ-10.2 (этап 4): мобильная карточка тоже показывает переотправку приглашения.
+  it('invitePending у чужого активного: бейдж «Ожидает установки пароля» и кнопки', () => {
+    const html = renderToString(
+      React.createElement(TeamCardList, {
+        rows: [makeRow({ userId: 'other', invitePending: true })],
+        orgs,
+        currentUserId: 'me'
+      })
+    );
+    expect(html).toContain('Ожидает установки пароля');
+    expect(html).toContain('Отправить повторно');
+    expect(html).toContain('Скопировать ссылку');
+  });
+
+  it('invitePending у себя: бейдж есть, кнопок нет', () => {
+    const html = renderToString(
+      React.createElement(TeamCardList, {
+        rows: [makeRow({ userId: 'me', invitePending: true })],
+        orgs,
+        currentUserId: 'me'
+      })
+    );
+    expect(html).toContain('Ожидает установки пароля');
+    expect(html).not.toContain('Отправить повторно');
+  });
+
+  it('деактивированный с invitePending: ни бейджа, ни кнопок', () => {
+    const html = renderToString(
+      React.createElement(TeamCardList, {
+        rows: [makeRow({ userId: 'other', invitePending: true, isActive: false })],
+        orgs,
+        currentUserId: 'me'
+      })
+    );
+    expect(html).not.toContain('Ожидает установки пароля');
+    expect(html).not.toContain('Отправить повторно');
   });
 });

@@ -12,7 +12,10 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+// Этап 4 (ФТ-10.4): дашборды читают welcomeSeenAt зрителя; не-null → welcome-блок
+// скрыт и не мешает сценариям этого файла.
+const { userFindUnique } = vi.hoisted(() => ({ userFindUnique: vi.fn() }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: { user: { findUnique: userFindUnique } } }));
 
 const { getOrgPageContext } = vi.hoisted(() => ({ getOrgPageContext: vi.fn() }));
 vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
@@ -64,6 +67,7 @@ function flags(certificatesOn: boolean) {
 beforeEach(() => {
   vi.resetAllMocks();
 
+  userFindUnique.mockResolvedValue({ name: 'Иван', welcomeSeenAt: new Date('2026-01-01') });
   getOrgPageContext.mockResolvedValue(ORG_CTX);
   org.kpis.mockResolvedValue({ activeOrders: 1, outstandingAmount: '0', studentsCount: 2, recentDocumentsCount: 3 });
   org.attention.mockResolvedValue({ items: [] });
@@ -83,7 +87,7 @@ describe('OrganizationDashboardPage — KPI удостоверений', () => {
     const { container } = await renderServerComponent(
       OrganizationDashboardPage({ searchParams: Promise.resolve({}) })
     );
-    expect(org.expiringCertificates).toHaveBeenCalledWith({}, 'org-1');
+    expect(org.expiringCertificates).toHaveBeenCalledWith(expect.anything(), 'org-1');
     expect(container.textContent).toContain('Истекают удостоверения');
     expect(container.textContent).toContain('4');
   });
@@ -102,7 +106,7 @@ describe('PartnerDashboard — KPI удостоверений', () => {
   it('флаг on → карточка с числом, счётчик по скоупу партнёра', async () => {
     flags(true);
     const { container } = await renderServerComponent(PartnerDashboard());
-    expect(partner.expiringCertificates).toHaveBeenCalledWith({}, { partnerId: 'pt-1', scopeOrgIds: ['org-9'] });
+    expect(partner.expiringCertificates).toHaveBeenCalledWith(expect.anything(), { partnerId: 'pt-1', scopeOrgIds: ['org-9'] });
     expect(container.textContent).toContain('Истекают удостоверения');
     expect(container.textContent).toContain('6');
   });
