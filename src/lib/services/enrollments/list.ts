@@ -47,9 +47,10 @@ export type ListEnrollmentsResult = { rows: EnrollmentRow[]; nextCursor: string 
 /**
  * Visibility: reviewers (manager/leader/admin) see the whole team queue; a partner
  * sees its own (partnerId); an organization sees its orgs' requests or ones it
- * submitted; everyone else sees only what they submitted.
+ * submitted; everyone else sees only what they submitted. Экспортируется для
+ * деталки (detail.ts) — один скоуп на список и деталку.
  */
-function scopeWhere(session: SessionPayload): Prisma.EnrollmentRequestWhereInput {
+export function scopeWhere(session: SessionPayload): Prisma.EnrollmentRequestWhereInput {
   if (canReviewEnrollments(session)) return {};
   if (session.role === 'partner') return { partnerId: session.partnerId ?? '__none__' };
   if (session.role === 'organization') {

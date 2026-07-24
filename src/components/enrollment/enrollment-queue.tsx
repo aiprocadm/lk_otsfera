@@ -10,14 +10,32 @@ import { fmtDate } from '@/lib/format';
 import { pluralizeRu } from '@/lib/format';
 
 /**
- * Reviewer queue: manager/leader/admin approve / reject / mark provisioned.
- * Этап 2: заявка = шапка + позиции; строка раскрывается списком слушателей
- * (ФИО, email, должность, СНИЛС, дата рождения, «Дополнительно»).
+ * Reviewer queue: manager/leader/admin approve / reject / mark provisioned /
+ * advance items (in_training → certificates_ready). Этап 2: заявка = шапка +
+ * позиции; строка раскрывается списком слушателей (ФИО, email, должность,
+ * СНИЛС, дата рождения, «Дополнительно»). Переходы «Идёт обучение» /
+ * «Удостоверения готовы» — по отмеченным чекбоксами позициям, без отметок —
+ * по всем позициям на предыдущем шаге (решение §10-4 спеки этапа 2).
  */
 export function EnrollmentQueue({ rows }: { rows: EnrollmentRow[] }) {
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  function toggleOpen(id: string, open: boolean) {
+    setOpenId(open ? null : id);
+    setSelected(new Set());
+  }
+
+  function toggleItem(itemId: string, checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(itemId);
+      else next.delete(itemId);
+      return next;
+    });
+  }
 
   async function act(id: string, body: Record<string, unknown>, ok: string) {
     setBusyId(id);
@@ -33,6 +51,7 @@ export function EnrollmentQueue({ rows }: { rows: EnrollmentRow[] }) {
         return;
       }
       toast.success(ok);
+      setSelected(new Set());
       router.refresh();
     } catch {
       toast.error('Сетевая ошибка');
@@ -59,13 +78,20 @@ export function EnrollmentQueue({ rows }: { rows: EnrollmentRow[] }) {
         {rows.map((r) => {
           const busy = busyId === r.id;
           const open = openId === r.id;
+          // Кандидаты bulk-переходов: позиции ровно на предыдущем шаге конвейера.
+          const toTraining = r.items.filter((i) => i.status === 'provisioned').map((i) => i.id);
+          const toCerts = r.items.filter((i) => i.status === 'in_training').map((i) => i.id);
+          const advance = (eligible: string[], action: string, ok: string) => {
+            const chosen = eligible.filter((id) => selected.has(id));
+            act(r.id, { action, ...(chosen.length ? { itemIds: chosen } : {}) }, ok);
+          };
           return (
             <React.Fragment key={r.id}>
               <Tr>
                 <Td>
                   <button
                     type='button'
-                    onClick={() => setOpenId(open ? null : r.id)}
+                    onClick={() => toggleOpen(r.id, open)}
                     className='text-left'
                     aria-expanded={open}
                   >
@@ -118,6 +144,26 @@ export function EnrollmentQueue({ rows }: { rows: EnrollmentRow[] }) {
                         Зачислены
                       </Button>
                     )}
+                    {toTraining.length > 0 && (
+                      <Button
+                        size='sm'
+                        variant='primary'
+                        loading={busy}
+                        onClick={() => advance(toTraining, 'markInTraining', 'Отмечено: идёт обучение')}
+                      >
+                        Идёт обучение
+                      </Button>
+                    )}
+                    {toCerts.length > 0 && (
+                      <Button
+                        size='sm'
+                        variant='primary'
+                        loading={busy}
+                        onClick={() => advance(toCerts, 'markCertificatesReady', 'Отмечено: удостоверения готовы')}
+                      >
+                        Удостоверения готовы
+                      </Button>
+                    )}
                     {(r.status === 'pending' || r.status === 'approved') && (
                       <Button
                         size='sm'
@@ -140,6 +186,15 @@ export function EnrollmentQueue({ rows }: { rows: EnrollmentRow[] }) {
                     <ul className='space-y-1.5 py-1'>
                       {r.items.map((item, i) => (
                         <li key={item.id} className='text-sm text-gray-700'>
+                          {(item.status === 'provisioned' || item.status === 'in_training') && (
+                            <input
+                              type='checkbox'
+                              className='mr-1.5 align-middle accent-[#F97316]'
+                              checked={selected.has(item.id)}
+                              onChange={(e) => toggleItem(item.id, e.target.checked)}
+                              aria-label={`Выбрать позицию: ${item.fullName}`}
+                            />
+                          )}
                           <span className='font-medium text-[#111111]'>{i + 1}. {item.fullName}</span>{' '}
                           <span className='text-xs text-gray-500'>{item.email}</span>
                           {item.position && <span className='text-xs text-gray-500'> · {item.position}</span>}

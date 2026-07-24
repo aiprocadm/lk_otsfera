@@ -1,14 +1,6 @@
 import React from 'react';
 import type { EnrollmentStatus } from '@prisma/client';
-
-const LABEL: Record<EnrollmentStatus, string> = {
-  pending: 'На рассмотрении',
-  approved: 'Принята',
-  rejected: 'Отклонена',
-  provisioned: 'Зачислены',
-  in_training: 'Идёт обучение',
-  certificates_ready: 'Удостоверения готовы'
-};
+import { ENROLLMENT_STATUS_LABEL as LABEL } from '@/lib/services/enrollments/labels';
 
 const TONE: Record<EnrollmentStatus, string> = {
   pending: 'bg-amber-50 text-amber-800 border-amber-200',

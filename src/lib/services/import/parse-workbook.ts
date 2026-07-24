@@ -7,7 +7,7 @@ import { loadXlsxWorkbook } from './load-xlsx';
  * exceljs can return rich-text objects ({ richText: [...] }), formula results
  * ({ result: ..., formula: ... }), or plain strings/numbers — handle all cases.
  */
-function cellToString(value: ExcelJS.CellValue): string {
+export function cellToString(value: ExcelJS.CellValue): string {
   // ExcelJS serialises empty cells as null; undefined is unreachable via parseWorkbook(buffer) round-trip.
   /* v8 ignore next -- undefined arm of || is unreachable through xlsx serialisation */
   if (value === null || value === undefined) return '';

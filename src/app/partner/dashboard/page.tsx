@@ -1,10 +1,12 @@
 import React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartner } from '@/lib/auth/requireRole';
-import { kpis, attention, recentEvents } from '@/lib/services/partner/dashboard';
+import { isFeatureEnabled } from '@/lib/featureFlags';
+import { kpis, attention, recentEvents, recentEnrollments } from '@/lib/services/partner/dashboard';
 import { KpiGrid } from '@/components/partner/kpi-grid';
 import { AttentionList } from '@/components/partner/attention-list';
 import { EventsFeed } from '@/components/partner/events-feed';
+import { PartnerEnrollmentsCard } from '@/components/partner/partner-enrollments-card';
 
 export default async function PartnerDashboard() {
   const session = await requirePartner();
@@ -14,10 +16,12 @@ export default async function PartnerDashboard() {
     scopeOrgIds: session.assignedOrgIds ?? []
   };
 
-  const [k, a, events] = await Promise.all([
+  const enrollmentsEnabled = isFeatureEnabled('enrollment_requests');
+  const [k, a, events, enrollments] = await Promise.all([
     kpis(prisma, scope),
     attention(prisma, scope),
-    recentEvents(prisma, scope, 10)
+    recentEvents(prisma, scope, 10),
+    enrollmentsEnabled ? recentEnrollments(prisma, scope) : Promise.resolve([])
   ]);
 
   return (
@@ -28,6 +32,8 @@ export default async function PartnerDashboard() {
       </div>
 
       <KpiGrid kpis={k} />
+
+      {enrollmentsEnabled && <PartnerEnrollmentsCard rows={enrollments} />}
 
       <div className='grid gap-4 md:grid-cols-2'>
         <AttentionList data={a} />

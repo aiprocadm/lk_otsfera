@@ -3,7 +3,7 @@ import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { canReviewEnrollments } from '@/lib/services/enrollments/policy';
-import { approveEnrollment, rejectEnrollment, markProvisioned } from '@/lib/services/enrollments/lifecycle';
+import { advanceEnrollmentItems, approveEnrollment, rejectEnrollment, markProvisioned } from '@/lib/services/enrollments/lifecycle';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -37,5 +37,23 @@ export async function PATCH(req: Request, { params }: Params) {
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: statusFor(r.error) });
     return NextResponse.json({ request: r.request });
   }
-  return NextResponse.json({ error: 'Invalid action. Use approve|reject|markProvisioned' }, { status: 400 });
+  if (action === 'markInTraining' || action === 'markCertificatesReady') {
+    const rawIds = body?.itemIds;
+    if (rawIds !== undefined && !Array.isArray(rawIds)) {
+      return NextResponse.json({ error: 'validation' }, { status: 400 });
+    }
+    const itemIds = rawIds === undefined ? undefined : (rawIds as unknown[]).map((v) => String(v));
+    const r = await advanceEnrollmentItems(prisma, {
+      id,
+      reviewerId,
+      target: action === 'markInTraining' ? 'in_training' : 'certificates_ready',
+      itemIds
+    });
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: statusFor(r.error) });
+    return NextResponse.json({ request: r.request, movedCount: r.movedCount });
+  }
+  return NextResponse.json(
+    { error: 'Invalid action. Use approve|reject|markProvisioned|markInTraining|markCertificatesReady' },
+    { status: 400 }
+  );
 }

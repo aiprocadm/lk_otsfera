@@ -6,6 +6,13 @@ vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 const { recordPiiAccess } = vi.hoisted(() => ({ recordPiiAccess: vi.fn() }));
 vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
 
+// PR-2: lifecycle/submit шлют best-effort уведомления — здесь глушим, чтобы
+// prisma-моки без _count не сыпали warn-шум (вызовы проверяет lifecycle2/notify).
+vi.mock('@/lib/services/enrollments/notify', () => ({
+  notifySubmitterEnrollmentStatus: vi.fn(),
+  notifyManagersEnrollmentSubmitted: vi.fn()
+}));
+
 import { canReviewEnrollments, canSubmitEnrollments, submitterRoleLabel } from '@/lib/services/enrollments/policy';
 import { submitEnrollmentRequest } from '@/lib/services/enrollments/submit';
 import { listEnrollmentRequests } from '@/lib/services/enrollments/list';

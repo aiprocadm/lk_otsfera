@@ -2,6 +2,7 @@ import type { PrismaClient, EnrollmentRequest } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { canSubmitEnrollments, submitterRoleLabel } from './policy';
+import { notifyManagersEnrollmentSubmitted } from './notify';
 import { validateEnrollmentItems, type EnrollmentItemInput } from './validate';
 
 export type SubmitEnrollmentInput = {
@@ -128,6 +129,9 @@ export async function submitEnrollmentRequest(
       submitterRole: created.submitterRole
     }
   });
+
+  // ФТ-2.5: менеджерам организации о новой заявке (best-effort внутри notify.ts).
+  await notifyManagersEnrollmentSubmitted(prisma, created);
 
   return { ok: true, request: created, itemCount: validated.items.length, warnings: validated.warnings };
 }

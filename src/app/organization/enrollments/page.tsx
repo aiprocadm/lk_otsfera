@@ -32,7 +32,7 @@ export default async function OrganizationEnrollmentsPage() {
       <div className='space-y-5'>
         <h1 className='text-2xl font-semibold text-[#111111]'>Заявки на обучение</h1>
         <EnrollmentWizard directions={directions} defaultOrganizationId={ctx.activeOrgId} />
-        <EnrollmentList rows={rows} />
+        <EnrollmentList rows={rows} detailHrefBase='/organization/enrollments' />
       </div>
     </OrgAppShell>
   );

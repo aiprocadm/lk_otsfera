@@ -5,7 +5,9 @@ import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { OrgKpiGrid } from '@/components/organization/org-kpi-grid';
 import { OrgAttentionList } from '@/components/organization/org-attention-list';
 import { OrgEventsFeed } from '@/components/organization/org-events-feed';
-import { kpis, attention, recentEvents } from '@/lib/services/organization/dashboard';
+import { OrgEnrollmentsCard } from '@/components/organization/org-enrollments-card';
+import { isFeatureEnabled } from '@/lib/featureFlags';
+import { kpis, attention, recentEvents, recentEnrollments } from '@/lib/services/organization/dashboard';
 
 export default async function OrganizationDashboardPage({
   searchParams
@@ -15,10 +17,12 @@ export default async function OrganizationDashboardPage({
   const sp = await searchParams;
   const ctx = await getOrgPageContext(sp);
 
-  const [k, a, events] = await Promise.all([
+  const enrollmentsEnabled = isFeatureEnabled('enrollment_requests');
+  const [k, a, events, enrollments] = await Promise.all([
     kpis(prisma, ctx.activeOrgId),
     attention(prisma, ctx.activeOrgId),
-    recentEvents(prisma, ctx.activeOrgId)
+    recentEvents(prisma, ctx.activeOrgId),
+    enrollmentsEnabled ? recentEnrollments(prisma, ctx.activeOrgId) : Promise.resolve([])
   ]);
 
   return (
@@ -35,6 +39,7 @@ export default async function OrganizationDashboardPage({
           <p className='text-sm text-gray-500 mt-1'>Обзор по {ctx.activeOrgName}</p>
         </div>
         <OrgKpiGrid kpis={k} />
+        {enrollmentsEnabled && <OrgEnrollmentsCard rows={enrollments} />}
         <div className='grid gap-4 md:grid-cols-2'>
           <OrgAttentionList data={a} />
           <OrgEventsFeed events={events} />
