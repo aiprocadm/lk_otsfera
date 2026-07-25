@@ -25,6 +25,8 @@ function fakePrisma(over: Record<string, unknown> = {}) {
     lead: { findMany: vi.fn().mockResolvedValue([]) },
     payment: { findMany: vi.fn().mockResolvedValue([]) },
     order: { groupBy: vi.fn().mockResolvedValue([]) },
+    // Этап 6 PR-3: выигранные сделки месяца в план/факте.
+    deal: { groupBy: vi.fn().mockResolvedValue([]) },
     salesTarget: {
       findMany: vi.fn().mockResolvedValue([]),
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
@@ -322,10 +324,10 @@ describe('getPlanFact', () => {
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     expect(res.rows).toEqual([
-      { managerId: 'm1', name: 'Иванов', email: 'i@x.ru', target: '1000.00', fact: '800.00', completedOrders: 1, executionPct: 80 },
-      { managerId: 'm2', name: 'Петров', email: 'p@x.ru', target: null, fact: '0.00', completedOrders: 0, executionPct: null },
-      { managerId: 'm3', name: 'Сидоров', email: 's@x.ru', target: '0.00', fact: '0.00', completedOrders: 0, executionPct: null },
-      { managerId: null, name: 'Без менеджера', email: '', target: null, fact: '200.00', completedOrders: 0, executionPct: null }
+      { managerId: 'm1', name: 'Иванов', email: 'i@x.ru', target: '1000.00', fact: '800.00', completedOrders: 1, executionPct: 80, wonDeals: 0, wonAmount: '0.00' },
+      { managerId: 'm2', name: 'Петров', email: 'p@x.ru', target: null, fact: '0.00', completedOrders: 0, executionPct: null, wonDeals: 0, wonAmount: '0.00' },
+      { managerId: 'm3', name: 'Сидоров', email: 's@x.ru', target: '0.00', fact: '0.00', completedOrders: 0, executionPct: null, wonDeals: 0, wonAmount: '0.00' },
+      { managerId: null, name: 'Без менеджера', email: '', target: null, fact: '200.00', completedOrders: 0, executionPct: null, wonDeals: 0, wonAmount: '0.00' }
     ]);
     expect(res.totals).toEqual({ target: '1000.00', fact: '1000.00', executionPct: 100 });
   });
@@ -342,6 +344,27 @@ describe('getPlanFact', () => {
     expect(res.rows.find((r) => r.managerId === null)).toBeUndefined();
   });
 
+  it('этап 6 PR-3: выигранные сделки месяца попадают в строки (счёт+сумма, и «Без менеджера»)', async () => {
+    listCompanyManagers.mockResolvedValue([{ id: 'm1', name: 'Иванов', email: 'i@x.ru', isActive: true }]);
+    const prisma = fakePrisma({
+      deal: {
+        groupBy: vi.fn().mockResolvedValue([
+          { managerId: 'm1', _count: { _all: 2 }, _sum: { amount: '3000.50' } },
+          { managerId: null, _count: { _all: 1 }, _sum: { amount: null } }
+        ])
+      }
+    });
+    const r = await getPlanFact(prisma, leaderSession, { year: 2026, month: 7 });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const m1 = r.rows.find((x) => x.managerId === 'm1')!;
+    expect(m1.wonDeals).toBe(2);
+    expect(m1.wonAmount).toBe('3000.50');
+    const unassigned = r.rows.find((x) => x.managerId === null)!;
+    expect(unassigned.wonDeals).toBe(1);
+    expect(unassigned.wonAmount).toBe('0.00');
+  });
+
   it('unassigned row appears when only completedOrders>0 (fact stays zero)', async () => {
     listCompanyManagers.mockResolvedValue([]);
     const order = { groupBy: vi.fn().mockResolvedValue([{ managerId: null, _count: { _all: 2 } }]) };
@@ -350,7 +373,7 @@ describe('getPlanFact', () => {
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     expect(res.rows).toEqual([
-      { managerId: null, name: 'Без менеджера', email: '', target: null, fact: '0.00', completedOrders: 2, executionPct: null }
+      { managerId: null, name: 'Без менеджера', email: '', target: null, fact: '0.00', completedOrders: 2, executionPct: null, wonDeals: 0, wonAmount: '0.00' }
     ]);
   });
 

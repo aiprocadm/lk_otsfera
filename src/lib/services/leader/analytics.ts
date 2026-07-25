@@ -223,6 +223,9 @@ export type PlanFactRow = {
   fact: string;
   completedOrders: number;
   executionPct: number | null;
+  // Этап 6 PR-3 (ФТ-4.5): выигранные сделки месяца (по wonAt).
+  wonDeals: number;
+  wonAmount: string;
 };
 
 export type PlanFactTotals = {
@@ -251,7 +254,7 @@ export async function getPlanFact(
   const companyId = session.companyId;
   const { from, to } = monthRange(year, month);
 
-  const [managers, payments, completedGroups, targets] = await Promise.all([
+  const [managers, payments, completedGroups, targets, wonGroups] = await Promise.all([
     listCompanyManagers(prisma, companyId),
     prisma.payment.findMany({
       where: { paidAt: { gte: from, lt: to }, order: { companyId } },
@@ -265,6 +268,13 @@ export async function getPlanFact(
     prisma.salesTarget.findMany({
       where: { companyId, year, month },
       select: { managerId: true, targetAmount: true }
+    }),
+    // Этап 6 PR-3 (ФТ-4.5): выигранные сделки месяца по ответственным.
+    prisma.deal.groupBy({
+      by: ['managerId'],
+      where: { companyId, status: 'won', wonAt: { gte: from, lt: to } },
+      _count: { _all: true },
+      _sum: { amount: true }
     })
   ]);
 
@@ -290,6 +300,14 @@ export async function getPlanFact(
 
   const targetByManager = new Map(targets.map((t) => [t.managerId, t.targetAmount]));
 
+  const wonByManager = new Map<string, { count: number; amount: Prisma.Decimal }>();
+  let unassignedWon = { count: 0, amount: new Prisma.Decimal(0) };
+  for (const g of wonGroups) {
+    const entry = { count: g._count._all, amount: new Prisma.Decimal(g._sum.amount ?? 0) };
+    if (g.managerId) wonByManager.set(g.managerId, entry);
+    else unassignedWon = entry;
+  }
+
   const rows: PlanFactRow[] = managers.map((m) => {
     const fact = factByManager.get(m.id) ?? new Prisma.Decimal(0);
     const target = targetByManager.get(m.id) ?? null;
@@ -300,11 +318,13 @@ export async function getPlanFact(
       target: target ? target.toFixed(2) : null,
       fact: fact.toFixed(2),
       completedOrders: completedByManager.get(m.id) ?? 0,
-      executionPct: target && target.gt(0) ? pct(fact, target) : null
+      executionPct: target && target.gt(0) ? pct(fact, target) : null,
+      wonDeals: wonByManager.get(m.id)?.count ?? 0,
+      wonAmount: (wonByManager.get(m.id)?.amount ?? new Prisma.Decimal(0)).toFixed(2)
     };
   });
 
-  if (!unassignedFact.isZero() || unassignedCompleted > 0) {
+  if (!unassignedFact.isZero() || unassignedCompleted > 0 || unassignedWon.count > 0) {
     rows.push({
       managerId: null,
       name: UNASSIGNED_LABEL,
@@ -312,7 +332,9 @@ export async function getPlanFact(
       target: null,
       fact: unassignedFact.toFixed(2),
       completedOrders: unassignedCompleted,
-      executionPct: null
+      executionPct: null,
+      wonDeals: unassignedWon.count,
+      wonAmount: unassignedWon.amount.toFixed(2)
     });
   }
 

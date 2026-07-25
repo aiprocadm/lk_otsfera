@@ -133,7 +133,7 @@ function makePlanRow(overrides: Partial<PlanFactRow> = {}): PlanFactRow {
     email: 'ivan@example.com',
     target: '100000.00',
     fact: '75000.00',
-    completedOrders: 3,
+    completedOrders: 3, wonDeals: 0, wonAmount: '0.00',
     executionPct: 75,
     ...overrides
   };
@@ -168,7 +168,7 @@ describe('PlanFactTable', () => {
   });
 
   it('renders the "Без менеджера" row read-only (no email, no inline form, target dash)', () => {
-    const row = makePlanRow({ managerId: null, name: 'Без менеджера', email: '', target: null, executionPct: null, completedOrders: 1 });
+    const row = makePlanRow({ managerId: null, name: 'Без менеджера', email: '', target: null, executionPct: null, completedOrders: 1, wonDeals: 0, wonAmount: '0.00' });
     render(<PlanFactTable year={2026} month={7} rows={[row]} totals={TOTALS} />);
 
     expect(screen.getByText('Без менеджера')).toBeTruthy();
