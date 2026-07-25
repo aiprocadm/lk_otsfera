@@ -25,6 +25,15 @@ function submit() {
   fireEvent.click(screen.getByRole('button', { name: 'Отправить обращение' }));
 }
 
+// Поле «Название компании» теперь PartyAutocomplete: ввод может (после
+// debounce) дёрнуть /api/suggest/party. Ассерты по отправке формы смотрят
+// только на вызовы /api/client-requests, чтобы не флакать на таймингах.
+function requestCalls(fetchMock: ReturnType<typeof vi.fn>): [string, RequestInit][] {
+  return fetchMock.mock.calls.filter(
+    ([url]) => url === '/api/client-requests'
+  ) as [string, RequestInit][];
+}
+
 describe('ClientRequestForm', () => {
   beforeEach(() => {
     refresh.mockReset();
@@ -63,8 +72,9 @@ describe('ClientRequestForm', () => {
     await waitFor(() =>
       expect(toastSuccess).toHaveBeenCalledWith('Обращение отправлено — менеджер свяжется с вами')
     );
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const calls = requestCalls(fetchMock);
+    expect(calls).toHaveLength(1);
+    const [url, init] = calls[0];
     expect(url).toBe('/api/client-requests');
     expect(init.method).toBe('POST');
     expect(init.headers).toEqual({ 'content-type': 'application/json' });
@@ -93,8 +103,8 @@ describe('ClientRequestForm', () => {
     fillRequired();
     submit();
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    expect(JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)).toEqual({
+    await waitFor(() => expect(requestCalls(fetchMock).length).toBe(1));
+    expect(JSON.parse(requestCalls(fetchMock)[0][1].body as string)).toEqual({
       companyName: 'ООО Ромашка',
       inn: null,
       contactName: 'Иван Петров',
@@ -127,14 +137,23 @@ describe('ClientRequestForm', () => {
   });
 
   it('успешная повторная отправка убирает прежний список ошибок', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
+    // Ответы по порядку — только для POST формы: fetch подсказок автокомплита
+    // не должен «съедать» очередь mockResolvedValueOnce.
+    const responses = [
+      {
         ok: false,
         status: 400,
         json: async () => ({ messages: ['Укажите телефон или email'] })
-      })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+      },
+      { ok: true, json: async () => ({}) }
+    ];
+    const fetchMock = vi.fn((url: string) =>
+      Promise.resolve(
+        url === '/api/client-requests'
+          ? responses.shift()!
+          : { ok: true, json: async () => ({ suggestions: [] }) }
+      )
+    );
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(ClientRequestForm));
 

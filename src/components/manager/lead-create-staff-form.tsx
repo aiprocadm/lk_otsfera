@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Dialog, Field, Input, Select, Textarea } from '@/components/ui';
+import { PartyAutocomplete } from '@/components/party/party-autocomplete';
+import { InnDuplicateHint } from '@/components/party/inn-duplicate-hint';
 import { toast } from '@/lib/ui/toast';
 import { createLeadByStaffAction } from '@/server-actions/manager/create-lead';
 
@@ -96,15 +98,22 @@ export function LeadCreateStaffForm({ organizations }: { organizations: LeadCrea
         <form onSubmit={submit} className='space-y-3'>
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
             <Field htmlFor='lcs-company' label='Название компании *'>
-              <Input
+              {/* ФТ-13.3: подсказка DaData автозаполняет ИНН. */}
+              <PartyAutocomplete
                 id='lcs-company'
                 value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
+                onChange={setCompanyName}
+                onSelect={(s) => {
+                  setCompanyName(s.name);
+                  setInn(s.inn);
+                }}
                 required
               />
             </Field>
             <Field htmlFor='lcs-inn' label='ИНН'>
               <Input id='lcs-inn' value={inn} onChange={(e) => setInn(e.target.value)} />
+              {/* ФТ-13.4: информационная плашка антидублей, сабмит не блокирует. */}
+              <InnDuplicateHint inn={inn} cardHrefBase='/manager/organizations' />
             </Field>
             <Field htmlFor='lcs-contact' label='Контактное лицо *'>
               <Input

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { createOrganizationAction } from '@/server-actions/admin/organizations';
 import { useFormAction } from '@/lib/ui/useFormAction';
 import { Dialog } from '@/components/ui/dialog';
+import { PartyAutocomplete } from '@/components/party/party-autocomplete';
+import { InnDuplicateHint } from '@/components/party/inn-duplicate-hint';
 
 // Дельта поверх errorMessageRu: inn_exists и validation там покрыты, но
 // уточняем формулировки под форму создания организации.
@@ -16,6 +18,11 @@ const ERROR_MAP: Record<string, string> = {
 export function CreateOrganizationDialog() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // Контролируемые поля — чтобы подсказка DaData могла подставить ИНН/КПП
+  // (ФТ-13.3). В FormData server-action значения попадают через атрибуты name.
+  const [name, setName] = useState('');
+  const [inn, setInn] = useState('');
+  const [kpp, setKpp] = useState('');
 
   const { formAction, pending, errorText, reset } = useFormAction<{ id: string }>({
     action: createOrganizationAction,
@@ -27,15 +34,23 @@ export function CreateOrganizationDialog() {
     }
   });
 
+  const clearFields = useCallback(() => {
+    setName('');
+    setInn('');
+    setKpp('');
+  }, []);
+
   const close = useCallback(() => {
     setOpen(false);
     reset();
-  }, [reset]);
+    clearFields();
+  }, [reset, clearFields]);
 
   const openDialog = useCallback(() => {
     reset();
+    clearFields();
     setOpen(true);
-  }, [reset]);
+  }, [reset, clearFields]);
 
   return (
     <>
@@ -60,32 +75,53 @@ export function CreateOrganizationDialog() {
             Организация создаётся вручную (без 1С). Синхронизация её не изменяет.
             Партнёра и ставку комиссии можно задать позже в карточке.
           </p>
-          <label className='block'>
-            <span className='block text-sm font-medium text-gray-700 mb-1'>Название *</span>
-            <input
-              type='text'
+          <div>
+            <label
+              htmlFor='org-create-name'
+              className='block text-sm font-medium text-gray-700 mb-1'
+            >
+              Название *
+            </label>
+            {/* ФТ-13.3: подсказка DaData автозаполняет ИНН и КПП. */}
+            <PartyAutocomplete
+              id='org-create-name'
               name='name'
+              value={name}
+              onChange={setName}
+              onSelect={(s) => {
+                setName(s.name);
+                setInn(s.inn);
+                setKpp(s.kpp ?? '');
+              }}
               required
-              minLength={1}
               maxLength={200}
-              className='w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'
+              inputClassName='w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'
             />
-          </label>
-          <label className='block'>
-            <span className='block text-sm font-medium text-gray-700 mb-1'>ИНН</span>
-            <input
-              type='text'
-              name='inn'
-              maxLength={20}
-              inputMode='numeric'
-              className='w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'
-            />
-          </label>
+          </div>
+          <div>
+            <label className='block'>
+              <span className='block text-sm font-medium text-gray-700 mb-1'>ИНН</span>
+              <input
+                type='text'
+                name='inn'
+                value={inn}
+                onChange={(e) => setInn(e.target.value)}
+                maxLength={20}
+                inputMode='numeric'
+                className='w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'
+              />
+            </label>
+            {/* ФТ-13.4: информационная плашка антидублей — предупреждает до
+                сабмита; блокирующий рубеж остаётся на unique-констрейнте (inn_exists). */}
+            <InnDuplicateHint inn={inn} cardHrefBase='/admin/organizations' />
+          </div>
           <label className='block'>
             <span className='block text-sm font-medium text-gray-700 mb-1'>КПП</span>
             <input
               type='text'
               name='kpp'
+              value={kpp}
+              onChange={(e) => setKpp(e.target.value)}
               maxLength={20}
               inputMode='numeric'
               className='w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'

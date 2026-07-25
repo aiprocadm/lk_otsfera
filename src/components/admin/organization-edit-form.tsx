@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { updateOrganizationAction } from '@/server-actions/admin/organizations';
 import { useFormAction } from '@/lib/ui/useFormAction';
+import { InnDuplicateHint } from '@/components/party/inn-duplicate-hint';
 import type { OrgDetail } from '@/lib/services/admin/organizations';
 
 type Props = { org: OrgDetail };
@@ -40,6 +41,13 @@ export function OrganizationEditForm({ org }: Props) {
           type="text" name="inn" value={inn} onChange={(e) => setInn(e.target.value)}
           maxLength={20}
           className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]"
+        />
+        {/* ФТ-13.4: информационная плашка антидублей; сама организация из
+            выдачи исключается (иначе всегда «дубль» самой себя). */}
+        <InnDuplicateHint
+          inn={inn}
+          cardHrefBase='/admin/organizations'
+          excludeOrganizationId={org.id}
         />
       </div>
 

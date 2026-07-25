@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Field, Input, Textarea } from '@/components/ui';
+import { PartyAutocomplete } from '@/components/party/party-autocomplete';
 import { toast } from '@/lib/ui/toast';
 
 /**
@@ -77,10 +78,17 @@ export function ClientRequestForm() {
       <form onSubmit={submit} className='space-y-3'>
         <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
           <Field htmlFor='cr-company' label='Название компании *'>
-            <Input
+            {/* ФТ-13.3: подсказка DaData автозаполняет ИНН. Антидубли-плашки
+                здесь нет намеренно (ФТ-13.4): клиентам факт существования ИНН
+                в базе не раскрывается. */}
+            <PartyAutocomplete
               id='cr-company'
               value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
+              onChange={setCompanyName}
+              onSelect={(s) => {
+                setCompanyName(s.name);
+                setInn(s.inn);
+              }}
               required
             />
           </Field>
