@@ -7,6 +7,7 @@ import { TableShell, THead, Th, Tr, Td, EmptyState, Button } from '@/components/
 import { toast } from '@/lib/ui/toast';
 import { fmtDate } from '@/lib/format';
 import { ClientRequestStatusBadge } from './client-request-status-badge';
+import { InnDuplicateHint } from '@/components/party/inn-duplicate-hint';
 import {
   ClientRequestAttachmentsList,
   type ClientRequestAttachmentRowVM
@@ -178,6 +179,11 @@ export function ClientRequestQueue({ rows }: { rows: ClientRequestRow[] }) {
                 <Tr>
                   <Td colSpan={7}>
                     <div className='space-y-3 py-1'>
+                      {/* ФТ-13.4: антидубли по ИНН — подсказка менеджеру до
+                          «Принять → создать лид»; сабмит не блокирует. */}
+                      {r.inn && (
+                        <InnDuplicateHint inn={r.inn} cardHrefBase='/manager/organizations' />
+                      )}
                       <div className='text-sm text-gray-700 whitespace-pre-wrap'>
                         {r.body || 'Без описания'}
                       </div>
