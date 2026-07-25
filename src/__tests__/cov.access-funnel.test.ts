@@ -354,7 +354,7 @@ describe('funnel/board — getFunnelBoard branches', () => {
   it('null companyId → resolveFunnelStages("") still returns default columns', async () => {
     const nullCoSession = ({ sub: leaderAId, role: 'manager', companyId: null, managedOrgIds: [] } as unknown as SessionPayload);
     const board = await getFunnelBoard(prisma, nullCoSession);
-    expect(board.stages.map((s) => s.statusAnchor)).toEqual(['new', 'in_review', 'qualified', 'promoted_to_order', 'rejected']);
+    expect(board.stages.map((s) => s.statusAnchor)).toEqual(['new', 'in_review', 'qualified', 'promoted_to_order', 'promoted_to_deal', 'rejected']);
   });
 
   it('lead whose status anchor has no matching stage → card skipped (!stage continue)', async () => {

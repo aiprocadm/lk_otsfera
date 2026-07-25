@@ -4,7 +4,7 @@ import React from 'react';
 import { LeadStatusBadge, leadStatusLabel } from '@/components/partner/lead-status-badge';
 import type { LeadStatus } from '@prisma/client';
 
-const ALL_STATUSES: LeadStatus[] = ['new', 'in_review', 'qualified', 'promoted_to_order', 'rejected'];
+const ALL_STATUSES: LeadStatus[] = ['new', 'in_review', 'qualified', 'promoted_to_order', 'promoted_to_deal', 'rejected'];
 
 describe('LeadStatusBadge', () => {
   it('renders each status with its Russian label and tone class', () => {
