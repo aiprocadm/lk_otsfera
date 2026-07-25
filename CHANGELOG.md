@@ -12,6 +12,26 @@ UI для бэкенда, отгруженного без экранов, — 8 
 
 ### Добавлено
 
+- **Этап 5 ТЗ, PR-1 — заявки клиентов: модель, подача, триаж, запрет
+  партнёрских лидов (Модуль 1, ФТ-1.1–1.7).** Спека
+  `docs/superpowers/specs/2026-07-24-stage5-client-requests-design.md`.
+  Новые модели **`ClientRequest`** (+вложения со скан-конвейером и presigned
+  download) и путь «подача → триаж → лид»: клиентские роли подают обращения
+  в `/partner/requests` и `/organization/requests` (компания*, ИНН, контакт*,
+  телефон/email, тема*, описание; статусы «подана → в работе →
+  принята/отклонена» + уведомления подателю); staff-очередь
+  `/manager|leader|admin/requests` (C8-скоуп: организации своей компании +
+  общая очередь) с действиями «Взять в работу» / «Принять → создать лид»
+  (Lead с `source=client_request`, `sourceRequestId`) / «Отклонить».
+  Миграция `Lead`: `partnerId` nullable + `source` (существующие —
+  `partner_legacy`). **Запрет партнёрских лидов (критерий этапа)**: при
+  включённом флаге `client_requests` `POST /api/partner/leads` → 403,
+  `/partner/leads*` → redirect на `/partner/requests`; ручное создание лида
+  (`source=manual`) — только сотрудниками, кнопка «Создать лид» в «Лидах»
+  менеджера (пункт меню переименован из «Заявок»). Новый opt-in флаг
+  **`client_requests`** (middleware + nav + page/route). ПДн-журнал:
+  контексты `client_requests_list` / `client_request_view`.
+  DaData-автокомплит и антидубли-плашки — PR-2.
 - **Этап 4 ТЗ — онбординг по приглашению (Модуль 10, ФТ-10.1–10.4).**
   Спека `docs/superpowers/specs/2026-07-24-stage4-invite-onboarding-design.md`.
   **Письма всюду (ФТ-10.1)**: команда партнёра переведена с «временного пароля»

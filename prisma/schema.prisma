@@ -109,6 +109,31 @@ enum LeadStatus {
   rejected
 }
 
+// Этап 5 (Модуль 1): происхождение лида. partner_legacy — созданные партнёрами
+// до запрета ФТ-1.5; client_request — из триажа заявки; manual — сотрудником;
+// website — задел (решение §10-4 ТЗ: вебхука пока нет).
+enum LeadSource {
+  partner_legacy
+  client_request
+  manual
+  website
+}
+
+// Этап 5 (Модуль 1): заявка клиента общего вида (ClientRequest).
+enum ClientRequestSource {
+  partner_cabinet
+  organization_cabinet
+  website
+}
+
+// Русские подписи: «подана → в работе → принята/отклонена».
+enum ClientRequestStatus {
+  submitted
+  in_triage
+  converted
+  rejected
+}
+
 enum CommissionStatementStatus {
   draft
   approved
@@ -151,80 +176,83 @@ enum StaffConversationKind {
 }
 
 model User {
-  id                           String                @id @default(cuid())
-  createdAt                    DateTime              @default(now())
-  updatedAt                    DateTime              @updatedAt
-  email                        String                @unique
+  id                           String                    @id @default(cuid())
+  createdAt                    DateTime                  @default(now())
+  updatedAt                    DateTime                  @updatedAt
+  email                        String                    @unique
   passwordHash                 String?
   name                         String
-  isActive                     Boolean               @default(true)
-  role                         Role                  @default(organization)
+  isActive                     Boolean                   @default(true)
+  role                         Role                      @default(organization)
   // Этап 4 (ФТ-10.4): одноразовый welcome-блок клиентских дашбордов; null = ещё не скрыт.
   welcomeSeenAt                DateTime?
   managerRole                  String? // null = regular manager, 'leader' = руководитель
   companyId                    String?
-  company                      Company?              @relation(fields: [companyId], references: [id])
+  company                      Company?                  @relation(fields: [companyId], references: [id])
   // Трек G1: кастомный профиль доступа (nullable; null = legacy teamMode-поведение).
   accessProfileId              String?
-  accessProfile                AccessProfile?        @relation(fields: [accessProfileId], references: [id])
+  accessProfile                AccessProfile?            @relation(fields: [accessProfileId], references: [id])
   partnerId                    String?
-  partner                      Partner?              @relation(fields: [partnerId], references: [id])
+  partner                      Partner?                  @relation(fields: [partnerId], references: [id])
   organizationId               String?
-  organization                 Organization?         @relation("UserOrganization", fields: [organizationId], references: [id])
+  organization                 Organization?             @relation("UserOrganization", fields: [organizationId], references: [id])
   organizationUsers            OrganizationUser[]
-  managedOrganizations         OrganizationManager[] @relation("UserManagedOrgs")
+  managedOrganizations         OrganizationManager[]     @relation("UserManagedOrgs")
   externalStudentId            String?
-  managedOrders                Order[]               @relation("OrderManager")
+  managedOrders                Order[]                   @relation("OrderManager")
   comments                     Comment[]
   documents                    Document[]
   auditLogs                    AuditLog[]
   piiAccessEvents              PiiAccessEvent[]
   notifications                Notification[]
   studentBridgeGrants          StudentBridgeGrant[]
-  partnerMemberships           PartnerUser[]         @relation("PartnerMembership")
-  leadsAuthored                Lead[]                @relation("LeadAuthor")
-  leadsManaged                 Lead[]                @relation("LeadManager")
-  leadAttachmentsAuthored      LeadAttachment[]      @relation("LeadAttachmentAuthor")
-  commissionStatementsAuthored CommissionStatement[] @relation("CommissionAuthor")
-  savedViews                   SavedView[]           @relation("SavedViewOwner")
+  partnerMemberships           PartnerUser[]             @relation("PartnerMembership")
+  leadsAuthored                Lead[]                    @relation("LeadAuthor")
+  leadsManaged                 Lead[]                    @relation("LeadManager")
+  leadAttachmentsAuthored      LeadAttachment[]          @relation("LeadAttachmentAuthor")
+  clientRequestsSubmitted      ClientRequest[]           @relation("ClientRequestSubmitter")
+  clientRequestsTriaged        ClientRequest[]           @relation("ClientRequestTriager")
+  clientRequestAttachments     ClientRequestAttachment[] @relation("ClientRequestAttachmentAuthor")
+  commissionStatementsAuthored CommissionStatement[]     @relation("CommissionAuthor")
+  savedViews                   SavedView[]               @relation("SavedViewOwner")
   passwordResetTokens          PasswordResetToken[]
   twoFactorChallenge           TwoFactorChallenge?
   twoFactorBackupCodes         TwoFactorBackupCode[]
-  authoredMessages             Message[]             @relation("MessageAuthor")
+  authoredMessages             Message[]                 @relation("MessageAuthor")
   threadReadStates             ThreadReadState[]
   documentViewMarks            DocumentViewMark[]
-  enrollmentsSubmitted         EnrollmentRequest[]   @relation("EnrollmentSubmitter")
-  enrollmentsReviewed          EnrollmentRequest[]   @relation("EnrollmentReviewer")
-  paymentsEntered              Payment[]             @relation("PaymentEnteredBy")
-  paymentImportBatches         PaymentImportBatch[]  @relation("PaymentImportBatchBy")
-  telegramChatId               String?               @unique // null = Telegram не привязан (§18)
+  enrollmentsSubmitted         EnrollmentRequest[]       @relation("EnrollmentSubmitter")
+  enrollmentsReviewed          EnrollmentRequest[]       @relation("EnrollmentReviewer")
+  paymentsEntered              Payment[]                 @relation("PaymentEnteredBy")
+  paymentImportBatches         PaymentImportBatch[]      @relation("PaymentImportBatchBy")
+  telegramChatId               String?                   @unique // null = Telegram не привязан (§18)
   telegramLinkCode             String? // одноразовый код привязки (deep-link start param)
   telegramLinkCodeExpiresAt    DateTime?
   // Трек D: привязки каналов Max/WhatsApp (зеркало telegram-полей) +
   // пользовательские настройки каналов. Семантика opt-in: канал включён ⟺
   // привязка есть И notificationChannels[key] !== false (email всегда включён,
   // в Json не хранится). null/мусор в Json → дефолты (см. parseChannelPrefs).
-  maxChatId                    String?               @unique // null = Max не привязан
+  maxChatId                    String?                   @unique // null = Max не привязан
   maxLinkCode                  String? // одноразовый код привязки Max (deep-link)
   maxLinkCodeExpiresAt         DateTime?
-  whatsappPhone                String?               @unique // E.164; адресация в агрегаторе по номеру
+  whatsappPhone                String?                   @unique // E.164; адресация в агрегаторе по номеру
   notificationChannels         Json? // { telegram?: bool, max?: bool, whatsapp?: bool }
-  tasksCreated                 Task[]                @relation("TaskCreatedBy")
-  taskAssignments              TaskAssignee[]        @relation("TaskAssignee")
-  inboundMessages              InboundMessage[]      @relation("UserInbound")
-  calls                        Call[]                @relation("UserCalls")
-  callsInitiated               Call[]                @relation("CallInitiator")
-  dealNotesAuthored            DealNote[]            @relation("DealNoteAuthor")
+  tasksCreated                 Task[]                    @relation("TaskCreatedBy")
+  taskAssignments              TaskAssignee[]            @relation("TaskAssignee")
+  inboundMessages              InboundMessage[]          @relation("UserInbound")
+  calls                        Call[]                    @relation("UserCalls")
+  callsInitiated               Call[]                    @relation("CallInitiator")
+  dealNotesAuthored            DealNote[]                @relation("DealNoteAuthor")
   internalPhone                String?
-  contact                      Contact?              @relation("UserContact")
-  contactsCreated              Contact[]             @relation("ContactCreatedBy")
-  salesTargets                 SalesTarget[]         @relation("SalesTargetManager")
-  staffChatParticipations      StaffParticipant[]    @relation("StaffChatParticipant")
-  staffMessagesAuthored        StaffMessage[]        @relation("StaffMessageAuthor")
-  staffReadStates              StaffMessageRead[]    @relation("StaffChatReadState")
-  staffReactions               StaffReaction[]       @relation("StaffReactionAuthor")
-  calendarEventsCreated        CalendarEvent[]       @relation("CalendarEventCreatedBy")
-  calendarAttendances          CalendarEventAttendee[] @relation("CalendarEventAttendee")
+  contact                      Contact?                  @relation("UserContact")
+  contactsCreated              Contact[]                 @relation("ContactCreatedBy")
+  salesTargets                 SalesTarget[]             @relation("SalesTargetManager")
+  staffChatParticipations      StaffParticipant[]        @relation("StaffChatParticipant")
+  staffMessagesAuthored        StaffMessage[]            @relation("StaffMessageAuthor")
+  staffReadStates              StaffMessageRead[]        @relation("StaffChatReadState")
+  staffReactions               StaffReaction[]           @relation("StaffReactionAuthor")
+  calendarEventsCreated        CalendarEvent[]           @relation("CalendarEventCreatedBy")
+  calendarAttendances          CalendarEventAttendee[]   @relation("CalendarEventAttendee")
 }
 
 model PartnerUser {
@@ -248,8 +276,13 @@ model Lead {
   id                 String           @id @default(cuid())
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
-  partnerId          String
-  partner            Partner          @relation(fields: [partnerId], references: [id])
+  // Этап 5: nullable — лид из заявки организации/ручной может не иметь партнёра.
+  partnerId          String?
+  partner            Partner?         @relation(fields: [partnerId], references: [id])
+  // Этап 5: происхождение лида; существующие лиды бэкфиллятся partner_legacy.
+  source             LeadSource       @default(partner_legacy)
+  sourceRequestId    String?          @unique
+  sourceRequest      ClientRequest?   @relation("LeadFromRequest", fields: [sourceRequestId], references: [id])
   createdByUserId    String
   createdByUser      User             @relation("LeadAuthor", fields: [createdByUserId], references: [id])
   organizationId     String?
@@ -280,6 +313,61 @@ model Lead {
   @@index([partnerId, status])
   @@index([assignedManagerId])
   @@index([createdAt])
+}
+
+// Этап 5 (Модуль 1, ФТ-1.1): заявка клиента общего вида. Путь:
+// подача (partner/organization) → триаж сотрудником → лид (converted) или отказ.
+model ClientRequest {
+  id                String                    @id @default(cuid())
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  source            ClientRequestSource
+  submittedByUserId String
+  submittedByUser   User                      @relation("ClientRequestSubmitter", fields: [submittedByUserId], references: [id])
+  partnerId         String?
+  partner           Partner?                  @relation(fields: [partnerId], references: [id])
+  organizationId    String?
+  organization      Organization?             @relation(fields: [organizationId], references: [id])
+  companyName       String
+  // ИНН со слов клиента; на клиентской стороне на дубли НЕ проверяется (ФТ-13.4).
+  inn               String?
+  contactName       String
+  contactPhone      String?
+  contactEmail      String?
+  subject           String
+  body              String?
+  status            ClientRequestStatus       @default(submitted)
+  triagedByUserId   String?
+  triagedByUser     User?                     @relation("ClientRequestTriager", fields: [triagedByUserId], references: [id])
+  triagedAt         DateTime?
+  rejectedReason    String?
+  convertedLead     Lead?                     @relation("LeadFromRequest")
+  attachments       ClientRequestAttachment[]
+
+  @@index([status])
+  @@index([partnerId])
+  @@index([organizationId])
+  @@index([submittedByUserId])
+  @@index([createdAt])
+}
+
+model ClientRequestAttachment {
+  id              String        @id @default(cuid())
+  createdAt       DateTime      @default(now())
+  requestId       String
+  request         ClientRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  createdByUserId String?
+  createdByUser   User?         @relation("ClientRequestAttachmentAuthor", fields: [createdByUserId], references: [id])
+  name            String
+  path            String
+  mimeType        String
+  size            Int
+  scanStatus      String        @default("pending")
+  scanReason      String?
+  scannedAt       DateTime?
+
+  @@index([requestId])
+  @@index([scanStatus])
 }
 
 model LeadAttachment {
@@ -487,6 +575,7 @@ model Partner {
   orders                Order[]
   partnerUsers          PartnerUser[]
   leads                 Lead[]
+  clientRequests        ClientRequest[]
   commissionStatements  CommissionStatement[]
   notifications         Notification[]
   enrollmentRequests    EnrollmentRequest[]
@@ -553,6 +642,7 @@ model Organization {
   managers                       OrganizationManager[]              @relation("OrganizationManagers")
   notifications                  Notification[]
   leads                          Lead[]
+  clientRequests                 ClientRequest[]
   orders                         Order[]                            @relation("OrderOrganization")
   payments                       Payment[]
   enrollmentRequests             EnrollmentRequest[]
@@ -820,33 +910,34 @@ model Order {
 }
 
 model Document {
-  id                 String            @id @default(cuid())
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  id                 String             @id @default(cuid())
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
   name               String
   path               String
   mimeType           String
   size               Int?
-  type               DocumentType      @default(other)
-  direction          DocumentDirection @default(incoming)
-  version            Int               @default(1)
+  type               DocumentType       @default(other)
+  direction          DocumentDirection  @default(incoming)
+  version            Int                @default(1)
   replacesDocumentId String?
   signedAt           DateTime?
-  generatedBy        GenerationSource  @default(user)
-  externalId         String?           @unique
+  generatedBy        GenerationSource   @default(user)
+  externalId         String?            @unique
   orderId            String?
-  order              Order?            @relation(fields: [orderId], references: [id])
+  order              Order?             @relation(fields: [orderId], references: [id])
   companyId          String?
   // Restrict (not SetNull): an order-less doc with companyId nulled would
   // violate the XOR CHECK below. Companies are not deleted in normal ops.
-  company            Company?          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  company            Company?           @relation(fields: [companyId], references: [id], onDelete: Restrict)
   counterpartyType   CounterpartyType
   counterpartyId     String
   uploadedById       String?
-  uploadedBy         User?             @relation(fields: [uploadedById], references: [id])
-  scanStatus         String            @default("pending")
+  uploadedBy         User?              @relation(fields: [uploadedById], references: [id])
+  scanStatus         String             @default("pending")
   scanReason         String?
   scannedAt          DateTime?
+  viewMarks          DocumentViewMark[]
 
   @@index([orderId, type])
   @@index([counterpartyType, counterpartyId])
@@ -854,7 +945,6 @@ model Document {
   @@index([externalId])
   @@index([scanStatus])
   @@index([companyId])
-  viewMarks DocumentViewMark[]
 }
 
 /// Этап 3 PR-2 (ФТ-6.6): отметка «пользователь видел документ» — бейдж «новый»

@@ -23,7 +23,8 @@ function mapLeadToPayload(lead: {
   estimatedAmount: { toNumber(): number } | number | null;
   productType: string[];
   notes: string | null;
-  partner: { slug: string | null };
+  // Этап 5: лид может быть без партнёра — slug тогда не передаём.
+  partner: { slug: string | null } | null;
 }): OneCLeadPushPayload {
   const amount = lead.estimatedAmount;
   let amountNumber: number | undefined;
@@ -31,7 +32,7 @@ function mapLeadToPayload(lead: {
   else if (amount && typeof amount === 'object' && 'toNumber' in amount) amountNumber = amount.toNumber();
 
   return {
-    partnerSlug: lead.partner.slug ?? undefined,
+    partnerSlug: lead.partner?.slug ?? undefined,
     cabinetLeadId: lead.id,
     clientCompanyName: lead.clientCompanyName,
     clientInn: lead.clientInn ?? undefined,

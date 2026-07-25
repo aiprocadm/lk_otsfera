@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
 import { requirePartner } from '@/lib/auth/guard';
 import { listLeads, createLead } from '@/lib/services/partner/leads';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
+import { isFeatureEnabled, notFoundIfDisabled } from '@/lib/featureFlags';
 import { recordAudit } from '@/lib/auth/audit';
 
 const VALID_STATUS: LeadStatus[] = [
@@ -75,6 +75,14 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const disabled = notFoundIfDisabled('partner_leads');
   if (disabled) return disabled;
+
+  // Этап 5 (ФТ-1.5, критерий приёмки): при включённых заявках клиентов партнёр
+  // НЕ создаёт лиды ни через UI, ни через API — путь один: /partner/requests →
+  // триаж → лид. Гейт флагом client_requests, чтобы тёмный запуск не отнимал
+  // у партнёров функциональность до включения замены.
+  if (isFeatureEnabled('client_requests')) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
 
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

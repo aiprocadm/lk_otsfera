@@ -6,10 +6,16 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+const { findManyOrganizations } = vi.hoisted(() => ({ findManyOrganizations: vi.fn() }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: { organization: { findMany: findManyOrganizations } } }));
 
 const { listManagerLeads } = vi.hoisted(() => ({ listManagerLeads: vi.fn() }));
 vi.mock('@/lib/services/manager/leads', () => ({ listManagerLeads }));
+
+vi.mock('@/components/manager/lead-create-staff-form', () => ({
+  LeadCreateStaffForm: (props: { organizations: unknown[] }) =>
+    React.createElement('div', { 'data-testid': 'lead-create-form' }, JSON.stringify(props.organizations))
+}));
 
 vi.mock('@/components/manager/manager-leads-filter', () => ({
   ManagerLeadsFilter: (props: { query: unknown }) =>
@@ -35,6 +41,8 @@ describe('ManagerLeadsPage', () => {
   beforeEach(() => {
     requireManager.mockReset();
     listManagerLeads.mockReset();
+    findManyOrganizations.mockReset();
+    findManyOrganizations.mockResolvedValue([]);
   });
 
   it('passes an undefined status for an unrecognized status value', async () => {
@@ -46,7 +54,7 @@ describe('ManagerLeadsPage', () => {
     );
 
     expect(listManagerLeads).toHaveBeenCalledWith(
-      {},
+      expect.anything(),
       expect.objectContaining({ status: undefined, search: undefined, assignedToUserId: undefined, cursor: undefined })
     );
   });
@@ -62,11 +70,28 @@ describe('ManagerLeadsPage', () => {
     );
 
     expect(listManagerLeads).toHaveBeenCalledWith(
-      {},
+      expect.anything(),
       { status: 'new', search: 'ООО', assignedToUserId: 'u1', cursor: 'c1' }
     );
-    expect(container.textContent).toContain('Заявки');
+    expect(findManyOrganizations).toHaveBeenCalledWith({
+      where: { companyId: 'c1' },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' }
+    });
+    expect(container.textContent).toContain('Лиды');
     expect(container.textContent).toContain('l1');
+  });
+
+  it('passes an empty organizations list when the manager has no companyId', async () => {
+    requireManager.mockResolvedValue({ ...SESSION, companyId: null });
+    listManagerLeads.mockResolvedValue({ rows: [], nextCursor: null });
+
+    const { container } = await renderServerComponent(
+      ManagerLeadsPage({ searchParams: Promise.resolve({}) })
+    );
+
+    expect(findManyOrganizations).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('[]');
   });
 
   it('does not scope to assignedToUserId when assignedToMe is not "1"', async () => {
@@ -78,7 +103,7 @@ describe('ManagerLeadsPage', () => {
     );
 
     expect(listManagerLeads).toHaveBeenCalledWith(
-      {},
+      expect.anything(),
       expect.objectContaining({ assignedToUserId: undefined })
     );
   });

@@ -36,7 +36,8 @@ export async function notifyPushLeadFinalFailure(
     where: { id: args.leadId },
     select: { partnerId: true, clientCompanyName: true }
   });
-  if (!lead) return;
+  // Этап 5: лид без партнёра — уведомлять некого.
+  if (!lead || !lead.partnerId) return;
 
   const admins = await db.partnerUser.findMany({
     where: { partnerId: lead.partnerId, roleInPartner: 'admin', isActive: true },

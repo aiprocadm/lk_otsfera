@@ -5,15 +5,17 @@ import path from 'node:path';
 import { PII_CONTEXTS } from '@/lib/pii/contexts';
 
 const SUBJECT_TYPES = new Set([
-  'student', 'lead', 'enrollment_request', 'user', 'caller', 'inbound_sender'
+  'student', 'lead', 'enrollment_request', 'client_request', 'user', 'caller', 'inbound_sender'
 ]);
 
 describe('PII_CONTEXTS registry', () => {
   const entries = Object.entries(PII_CONTEXTS);
 
-  it('содержит все 17 контекстов v1+M1+M6+этап 2', () => {
+  it('содержит все 19 контекстов v1+M1+M6+этапы 2/5', () => {
     expect(entries.map(([k]) => k).sort()).toEqual([
       'admin_user_view', 'admin_users_list', 'calls_list', 'certificates_list',
+      'client_request_view', // этап 5: деталка обращения клиента
+      'client_requests_list', // этап 5: очередь/списки обращений
       'deal_activity_calls', 'deal_activity_inbound',
       'enrollment_detail', // этап 2 PR-2: деталка заявки подателя
       'enrollment_wizard_students', // этап 2: чекбоксы слушателей в мастере заявки

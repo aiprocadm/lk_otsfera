@@ -1,7 +1,9 @@
 import React from 'react';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import type { LeadStatus } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 import { requirePartner } from '@/lib/auth/requireRole';
 import { listLeads } from '@/lib/services/partner/leads';
 import { LeadsTable } from '@/components/partner/leads-table';
@@ -27,6 +29,8 @@ export default async function PartnerLeadsPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  // ФТ-1.7: при включённых обращениях клиентов партнёрские лиды закрыты.
+  if (isFeatureEnabled('client_requests')) redirect('/partner/requests');
   const session = await requirePartner();
 
   const sp = await searchParams;

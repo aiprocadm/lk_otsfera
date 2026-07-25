@@ -32,6 +32,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/admin/commission-corrections', label: 'Корректировки', icon: '🔁', group: 'Операции' },
     { href: '/admin/finance', label: 'Финансы', icon: '₽', group: 'Операции' },
     { href: '/admin/enrollments', label: 'Заявки на обучение', icon: '🎓', group: 'Операции', flag: 'enrollment_requests' },
+    { href: '/admin/requests', label: 'Обращения', icon: '📮', group: 'Операции', flag: 'client_requests' },
     { href: '/admin/audit', label: 'Аудит', icon: '🧾', group: 'Операции' },
     { href: '/admin/pii-access', label: 'Доступ к ПДн', icon: '🛡️', group: 'Операции' },
     // Все три канала обмена с 1С — в одной группе, чтобы не путались (были
@@ -51,7 +52,8 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/manager/dashboard', label: 'Главная', icon: '⌂', flag: 'manager_cabinet' },
     { href: '/manager/search', label: 'Поиск', icon: '🔎', flag: 'global_search' },
     { href: '/manager/orders', label: 'Заказы', icon: '📋', flag: 'manager_cabinet' },
-    { href: '/manager/leads', label: 'Заявки', icon: '📬', flag: 'manager_cabinet' },
+    { href: '/manager/leads', label: 'Лиды', icon: '📬', flag: 'manager_cabinet' },
+    { href: '/manager/requests', label: 'Обращения клиентов', icon: '📮', flag: 'client_requests' },
     { href: '/manager/funnel', label: 'Воронка', icon: '📈', flag: 'sales_funnel' },
     { href: '/manager/tasks', label: 'Задачи', icon: '✅', flag: 'internal_tasks' },
     { href: '/manager/calendar', label: 'Календарь', icon: '📅', flag: 'staff_calendar' },
@@ -91,6 +93,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/leader/tasks', label: 'Задачи', icon: '✅', flag: 'internal_tasks' },
     { href: '/leader/calendar', label: 'Календарь', icon: '📅', flag: 'staff_calendar' },
     { href: '/leader/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests' },
+    { href: '/leader/requests', label: 'Обращения клиентов', icon: '📮', flag: 'client_requests' },
     // Личный inbox (комментарии+чат) живёт в кабинете менеджера — см. план, «Отклонение от спеки».
     { href: '/manager/messages', label: 'Сообщения', icon: '💬' },
     // Переключатель «играющего тренера» в личный кабинет менеджера.
@@ -102,6 +105,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/partner/portfolio', label: 'Портфель' },
     { href: '/partner/deals', label: 'Заказы' },
     { href: '/partner/leads', label: 'Заявки', flag: 'partner_leads' },
+    { href: '/partner/requests', label: 'Обращения', flag: 'client_requests' },
     { href: '/partner/enrollments', label: 'Заявки на обучение', flag: 'enrollment_requests' },
     { href: '/partner/certificates', label: 'Удостоверения', flag: 'certificates_registry' },
     { href: '/partner/documents', label: 'Документы' },
@@ -117,6 +121,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/organization/finance', label: 'Финансы', icon: '₽', flag: 'organization_cabinet' },
     { href: '/organization/students', label: 'Сотрудники', icon: '👥', flag: 'organization_cabinet' },
     { href: '/organization/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests' },
+    { href: '/organization/requests', label: 'Обращения', icon: '📮', flag: 'client_requests' },
     { href: '/organization/certificates', label: 'Удостоверения', icon: '📜', flag: 'certificates_registry' },
     { href: '/organization/team', label: 'Команда', icon: '⚙', orgAdminOrLeaderOnly: true, flag: 'organization_cabinet' },
     // «Сообщения» намеренно под более узким флагом chat (см. CLAUDE.md §5);

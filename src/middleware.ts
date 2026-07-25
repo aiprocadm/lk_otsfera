@@ -17,6 +17,12 @@ const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   { prefix: '/manager/enrollments', flag: 'enrollment_requests' },
   { prefix: '/leader/enrollments', flag: 'enrollment_requests' },
   { prefix: '/admin/enrollments', flag: 'enrollment_requests' },
+  // Этап 5 (Модуль 1): заявки клиентов — единый тёмный запуск всех поверхностей.
+  { prefix: '/partner/requests', flag: 'client_requests' },
+  { prefix: '/organization/requests', flag: 'client_requests' },
+  { prefix: '/manager/requests', flag: 'client_requests' },
+  { prefix: '/leader/requests', flag: 'client_requests' },
+  { prefix: '/admin/requests', flag: 'client_requests' },
   { prefix: '/organization', flag: 'organization_cabinet' },
   { prefix: '/manager', flag: 'manager_cabinet' },
   { prefix: '/leader', flag: 'leader_cabinet' },

@@ -1,8 +1,9 @@
 import React from 'react';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { BackLink } from '@/components/ui';
 import { prisma } from '@/lib/db/prisma';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 import { requirePartner } from '@/lib/auth/requireRole';
 import { getLead } from '@/lib/services/partner/leads';
 import { listLeadAttachments } from '@/lib/services/partner/leadAttachments';
@@ -35,6 +36,8 @@ export default async function PartnerLeadDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  // ФТ-1.7: при включённых обращениях клиентов партнёрские лиды закрыты.
+  if (isFeatureEnabled('client_requests')) redirect('/partner/requests');
   const session = await requirePartner();
 
   const { id } = await params;
