@@ -222,12 +222,16 @@ export type PlanFactRow = {
   target: string | null;
   fact: string;
   completedOrders: number;
+  /** Этап 6 (ФТ-4.5): выигранные сделки месяца (wonAt) — счётчик и сумма. */
+  wonDeals: number;
+  wonAmount: string;
   executionPct: number | null;
 };
 
 export type PlanFactTotals = {
   target: string;
   fact: string;
+  wonAmount: string;
   executionPct: number | null;
 };
 
@@ -240,6 +244,10 @@ export type GetPlanFactResult =
  * границах месяца, isRefund вычитается) заказов компании, сгруппированные по
  * Order.managerId; план = SalesTarget за (year,month); плюс счётчик завершённых
  * заказов месяца. Заказы/оплаты без менеджера — отдельная строка «Без менеджера».
+ *
+ * Этап 6 (ФТ-4.5): рядом — выигранные сделки месяца (Deal.status=won, wonAt в
+ * границах месяца): счётчик и сумма Deal.amount. Факт по оплатам НЕ смешивается
+ * с суммой сделок — это две соседние метрики (§10 спеки этапа 6).
  */
 export async function getPlanFact(
   prisma: PrismaClient,
@@ -251,7 +259,7 @@ export async function getPlanFact(
   const companyId = session.companyId;
   const { from, to } = monthRange(year, month);
 
-  const [managers, payments, completedGroups, targets] = await Promise.all([
+  const [managers, payments, completedGroups, targets, wonGroups] = await Promise.all([
     listCompanyManagers(prisma, companyId),
     prisma.payment.findMany({
       where: { paidAt: { gte: from, lt: to }, order: { companyId } },
@@ -265,6 +273,12 @@ export async function getPlanFact(
     prisma.salesTarget.findMany({
       where: { companyId, year, month },
       select: { managerId: true, targetAmount: true }
+    }),
+    prisma.deal.groupBy({
+      by: ['managerId'],
+      where: { companyId, status: 'won', wonAt: { gte: from, lt: to } },
+      _sum: { amount: true },
+      _count: { _all: true }
     })
   ]);
 
@@ -288,11 +302,21 @@ export async function getPlanFact(
     else unassignedCompleted = g._count._all;
   }
 
+  // Выигранные сделки месяца: null-amount считается нулём в сумме, но в счётчик входит.
+  const wonByManager = new Map<string, { count: number; amount: Prisma.Decimal }>();
+  let unassignedWon = { count: 0, amount: new Prisma.Decimal(0) };
+  for (const g of wonGroups) {
+    const entry = { count: g._count._all, amount: new Prisma.Decimal(g._sum.amount ?? 0) };
+    if (g.managerId) wonByManager.set(g.managerId, entry);
+    else unassignedWon = entry;
+  }
+
   const targetByManager = new Map(targets.map((t) => [t.managerId, t.targetAmount]));
 
   const rows: PlanFactRow[] = managers.map((m) => {
     const fact = factByManager.get(m.id) ?? new Prisma.Decimal(0);
     const target = targetByManager.get(m.id) ?? null;
+    const won = wonByManager.get(m.id);
     return {
       managerId: m.id,
       name: m.name,
@@ -300,11 +324,13 @@ export async function getPlanFact(
       target: target ? target.toFixed(2) : null,
       fact: fact.toFixed(2),
       completedOrders: completedByManager.get(m.id) ?? 0,
+      wonDeals: won?.count ?? 0,
+      wonAmount: (won?.amount ?? new Prisma.Decimal(0)).toFixed(2),
       executionPct: target && target.gt(0) ? pct(fact, target) : null
     };
   });
 
-  if (!unassignedFact.isZero() || unassignedCompleted > 0) {
+  if (!unassignedFact.isZero() || unassignedCompleted > 0 || unassignedWon.count > 0) {
     rows.push({
       managerId: null,
       name: UNASSIGNED_LABEL,
@@ -312,20 +338,25 @@ export async function getPlanFact(
       target: null,
       fact: unassignedFact.toFixed(2),
       completedOrders: unassignedCompleted,
+      wonDeals: unassignedWon.count,
+      wonAmount: unassignedWon.amount.toFixed(2),
       executionPct: null
     });
   }
 
   let totalTarget = new Prisma.Decimal(0);
   let totalFact = new Prisma.Decimal(0);
+  let totalWon = new Prisma.Decimal(0);
   for (const r of rows) {
     if (r.target) totalTarget = totalTarget.plus(r.target);
     totalFact = totalFact.plus(r.fact);
+    totalWon = totalWon.plus(r.wonAmount);
   }
 
   const totals: PlanFactTotals = {
     target: totalTarget.toFixed(2),
     fact: totalFact.toFixed(2),
+    wonAmount: totalWon.toFixed(2),
     executionPct: totalTarget.gt(0) ? pct(totalFact, totalTarget) : null
   };
 
