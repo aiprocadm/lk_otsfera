@@ -5,14 +5,14 @@ import { useRouter } from 'next/navigation';
 import { Badge, Button, Dialog, Input } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { fmtDate, fmtMoney } from '@/lib/format';
-import { moveDealAction } from '@/server-actions/deals';
+import { moveDealAction, winDealAction } from '@/server-actions/deals';
 import type { DealBoard as DealBoardData, DealCard, DealColumn } from '@/lib/services/deals/board';
 import { DealDialog, type DealDialogOption, type DealDialogTarget } from './deal-dialog';
 
 /**
- * Этап 6 (PR-1) — канбан сделок (клон funnel-board, native dnd). Drop на
- * стадию с якорем lost открывает диалог обязательной причины, на won —
- * подтверждающий диалог (создание заказа из выигранной сделки — PR-2).
+ * Этап 6 — канбан сделок (клон funnel-board, native dnd). Drop на стадию с
+ * якорем lost открывает диалог обязательной причины, на won — подтверждающий
+ * диалог «Выиграна — создать заказ» (PR-2: winDealAction создаёт заказ).
  */
 
 const MOVE_ERRORS: Record<string, string> = {
@@ -20,6 +20,13 @@ const MOVE_ERRORS: Record<string, string> = {
   invalid_stage: 'Неизвестная стадия.',
   lifecycle_violation: 'Такой переход недопустим: сделка уже завершена.',
   reason_required: 'Укажите причину проигрыша.',
+  won_requires_order: 'Выигрыш оформляется через диалог «Выиграна — создать заказ».',
+  forbidden: 'Нет доступа.'
+};
+
+const WIN_ERRORS: Record<string, string> = {
+  not_found: 'Сделка не найдена или недоступна.',
+  lifecycle_violation: 'Такой переход недопустим: сделка уже завершена.',
   forbidden: 'Нет доступа.'
 };
 
@@ -53,6 +60,8 @@ export function DealBoard({
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [lostFor, setLostFor] = useState<{ dealId: string; toStageId: string } | null>(null);
   const [wonFor, setWonFor] = useState<{ dealId: string; toStageId: string } | null>(null);
+  const [wonError, setWonError] = useState<string | null>(null);
+  const [wonBusy, setWonBusy] = useState(false);
   const [editTarget, setEditTarget] = useState<DealDialogTarget | null>(null);
   const canEdit = organizations !== undefined && managers !== undefined && currentUserId !== undefined;
 
@@ -65,7 +74,8 @@ export function DealBoard({
       amount: card.amount,
       organizationId: card.organizationId,
       managerId: card.managerId,
-      expectedCloseAt: card.expectedCloseAt
+      expectedCloseAt: card.expectedCloseAt,
+      orderId: card.orderId
     });
   }
 
@@ -93,10 +103,41 @@ export function DealBoard({
       return;
     }
     if (col.stage.statusAnchor === 'won') {
+      setWonError(null);
       setWonFor({ dealId, toStageId: col.stage.id });
       return;
     }
     void doMove(dealId, col.stage.id);
+  }
+
+  async function doWin() {
+    if (!wonFor) return;
+    setWonBusy(true);
+    const fd = new FormData();
+    fd.set('dealId', wonFor.dealId);
+    fd.set('toStageId', wonFor.toStageId);
+    const res = await winDealAction(fd);
+    setWonBusy(false);
+    if (!res.ok) {
+      if (res.error === 'org_required') {
+        // Диалог не закрываем: пользователь должен сначала привязать организацию.
+        setWonError('У сделки не указана организация — откройте сделку и привяжите организацию.');
+        return;
+      }
+      setWonFor(null);
+      toast.error(WIN_ERRORS[res.error] ?? 'Не удалось создать заказ.');
+      return;
+    }
+    setWonFor(null);
+    toast.success(
+      <span>
+        Сделка выиграна, заказ создан —{' '}
+        <a href={`/manager/orders/${res.orderId}`} className="underline text-[#F97316]">
+          открыть заказ
+        </a>
+      </span>
+    );
+    startTransition(() => router.refresh());
   }
 
   return (
@@ -191,21 +232,18 @@ export function DealBoard({
         onClose={() => setWonFor(null)}
         title="Отметить сделку выигранной?"
         size="sm"
-        notice="Создание заказа из выигранной сделки появится со следующим обновлением."
+        busy={wonBusy}
+        error={wonError}
       >
+        <p className="text-sm text-gray-600 mb-3">
+          Из выигранной сделки сразу будет создан заказ.
+        </p>
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={() => setWonFor(null)}>
+          <Button type="button" variant="secondary" onClick={() => setWonFor(null)} disabled={wonBusy}>
             Отмена
           </Button>
-          <Button
-            type="button"
-            onClick={() => {
-              const target = wonFor;
-              setWonFor(null);
-              if (target) void doMove(target.dealId, target.toStageId);
-            }}
-          >
-            Отметить выигранной
+          <Button type="button" onClick={() => void doWin()} disabled={wonBusy}>
+            {wonBusy ? 'Создаю заказ…' : 'Выиграна — создать заказ'}
           </Button>
         </div>
       </Dialog>

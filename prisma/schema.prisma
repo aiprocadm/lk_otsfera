@@ -1612,9 +1612,11 @@ model DealNote {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  orderId   String
-  order     Order    @relation("OrderDealNotes", fields: [orderId], references: [id], onDelete: Cascade)
-  // Этап 6 (решение §10-1 ТЗ): параллельная привязка — заметка может относиться и к сделке.
+  // Этап 6 (решение §10-1 ТЗ): параллельная привязка — хотя бы одна из ссылок
+  // (orderId | dealId) обязана быть заполнена (инвариант сервиса). SetNull вместо
+  // Cascade: удаление заказа не должно уносить заметку, живущую и на сделке.
+  orderId   String?
+  order     Order?   @relation("OrderDealNotes", fields: [orderId], references: [id], onDelete: SetNull)
   dealId    String?
   deal      Deal?    @relation("DealNotes", fields: [dealId], references: [id], onDelete: SetNull)
   authorId  String

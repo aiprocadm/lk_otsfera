@@ -56,10 +56,10 @@ afterAll(async () => {
 });
 
 describe('getFunnelBoard', () => {
-  it('5 дефолтных колонок; новый лид попадает в «Новый лид»', async () => {
+  it('6 дефолтных колонок (этап 6: + «Передан в сделку»); новый лид попадает в «Новый лид»', async () => {
     const leadId = await mkLead();
     const board = await getFunnelBoard(prisma, s1('all'));
-    expect(board.stages.map((s) => s.statusAnchor)).toEqual(['new', 'in_review', 'qualified', 'promoted_to_order', 'rejected']);
+    expect(board.stages.map((s) => s.statusAnchor)).toEqual(['new', 'in_review', 'qualified', 'promoted_to_order', 'promoted_to_deal', 'rejected']);
     const newCol = board.columns.find((c) => c.stage.statusAnchor === 'new')!;
     expect(newCol.cards.some((c) => c.id === leadId)).toBe(true);
   });

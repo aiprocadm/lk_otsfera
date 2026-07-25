@@ -44,6 +44,8 @@ export type DealCard = {
   managerId: string | null;
   managerName: string | null;
   status: 'open' | 'won' | 'lost';
+  /** PR-2: заказ, созданный из выигранной сделки (ссылка в диалоге). */
+  orderId: string | null;
   expectedCloseAt: Date | null;
   createdAt: Date;
 };
@@ -70,6 +72,7 @@ export async function getDealBoard(
       amount: true,
       status: true,
       stageId: true,
+      orderId: true,
       expectedCloseAt: true,
       createdAt: true,
       organizationId: true,
@@ -94,6 +97,7 @@ export async function getDealBoard(
       managerId: d.managerId,
       managerName: d.manager?.name ?? null,
       status: d.status,
+      orderId: d.orderId,
       expectedCloseAt: d.expectedCloseAt,
       createdAt: d.createdAt
     });
@@ -107,7 +111,8 @@ export type MoveDealError =
   | 'forbidden'
   | 'invalid_stage'
   | 'lifecycle_violation'
-  | 'reason_required';
+  | 'reason_required'
+  | 'won_requires_order';
 
 export async function moveDeal(
   prisma: PrismaClient,
@@ -155,11 +160,10 @@ export async function moveDeal(
       data: { status: 'lost', lostAt: new Date(), lostReason: reason, stageId: persistStageId }
     });
   } else {
-    // won: в PR-1 — только смена статуса (создание заказа — PR-2).
-    await prisma.deal.update({
-      where: { id: deal.id },
-      data: { status: 'won', wonAt: new Date(), stageId: persistStageId }
-    });
+    // PR-2 (инвариант «выигрыш = заказ», решение §9-3): won-стадия достижима
+    // только через winDeal (создаёт заказ) — обычным перемещением сделку
+    // «выиграть без заказа» нельзя, в т.ч. прямым вызовом action.
+    return { ok: false, error: 'won_requires_order' };
   }
 
   await recordAudit(prisma, {

@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireManager } from '@/lib/auth/requireRole';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
 import { getManagerLead } from '@/lib/services/manager/leads';
 import { listCompanyManagers } from '@/lib/services/manager/team';
@@ -62,6 +63,7 @@ export default async function ManagerLeadDetailPage({ params }: { params: Promis
           hasOrganization={lead.organizationId !== null}
           promotedOrderId={lead.promotedOrderId}
           candidates={candidates}
+          dealsEnabled={isFeatureEnabled('deals_pipeline')}
         />
         {/* B3: отправлять можно лид в любом статусе (ручная кнопка, решение владельца);
             скрываем только уже отправленный. */}
@@ -70,7 +72,10 @@ export default async function ManagerLeadDetailPage({ params }: { params: Promis
             <PushLeadButton leadId={lead.id} />
           </div>
         )}
-        {lead.organizationId === null && lead.status !== 'promoted_to_order' && lead.status !== 'rejected' && (
+        {lead.organizationId === null &&
+          lead.status !== 'promoted_to_order' &&
+          lead.status !== 'promoted_to_deal' &&
+          lead.status !== 'rejected' && (
           <p className='text-xs text-gray-500 mt-2'>
             Чтобы преобразовать заявку в заказ, к ней должна быть привязана организация.
           </p>

@@ -14,6 +14,8 @@ import {
   type DealStageErrorCode
 } from '@/lib/services/access/dealStages';
 import type { DealStageView } from '@/lib/services/deals/stages';
+import { convertLeadToDeal, winDeal } from '@/lib/services/deals/convert';
+import { addNoteToDeal, listDealNotes, type DealNoteRow } from '@/lib/services/deals/notes';
 import type { DealStatus } from '@prisma/client';
 
 /**
@@ -74,6 +76,64 @@ export async function updateDealAction(fd: FormData): Promise<ActionResult<'forb
   if (!res.ok) return { ok: false, error: res.error, messages: res.messages };
   revalidate();
   return { ok: true };
+}
+
+/**
+ * Этап 6 PR-2 (ФТ-4.4) — конверсии и заметки. Сервисы энфорсят staff-гейт и
+ * скоупы; здесь — только парсинг формы и revalidate затронутых страниц.
+ */
+
+export async function winDealAction(
+  fd: FormData
+): Promise<
+  | { ok: true; orderId: string }
+  | { ok: false; error: 'forbidden' | 'not_found' | 'lifecycle_violation' | 'org_required' }
+> {
+  const session = await requireSession();
+  const dealId = str(fd, 'dealId');
+  if (!dealId) return { ok: false, error: 'not_found' };
+  const res = await winDeal(prisma, session, { dealId, toStageId: str(fd, 'toStageId') || undefined });
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidate();
+  // Выигрыш меняет и лид-источник (если был), и создаёт заказ.
+  revalidatePath('/manager/leads');
+  revalidatePath('/manager/orders');
+  return { ok: true, orderId: res.order.id };
+}
+
+export async function convertLeadToDealAction(
+  fd: FormData
+): Promise<
+  | { ok: true; dealId: string }
+  | { ok: false; error: 'forbidden' | 'not_found' | 'lifecycle_violation' }
+> {
+  const session = await requireSession();
+  const leadId = str(fd, 'leadId');
+  if (!leadId) return { ok: false, error: 'not_found' };
+  const res = await convertLeadToDeal(prisma, session, { leadId });
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidate();
+  revalidatePath('/manager/leads');
+  return { ok: true, dealId: res.deal.id };
+}
+
+export async function addDealNoteAction(
+  fd: FormData
+): Promise<ActionResult<'forbidden' | 'not_found' | 'invalid'>> {
+  const session = await requireSession();
+  const dealId = str(fd, 'dealId');
+  if (!dealId) return { ok: false, error: 'not_found' };
+  const res = await addNoteToDeal(prisma, session, { dealId, body: str(fd, 'body') });
+  if (!res.ok) return { ok: false, error: res.error };
+  // Заметки не влияют на доски — список перезагружается лениво в диалоге.
+  return { ok: true };
+}
+
+export async function listDealNotesAction(
+  dealId: string
+): Promise<{ ok: true; rows: DealNoteRow[] } | { ok: false; error: 'forbidden' | 'not_found' }> {
+  const session = await requireSession();
+  return listDealNotes(prisma, session, { dealId });
 }
 
 export async function listDealStagesAction(): Promise<
