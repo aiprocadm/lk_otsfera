@@ -80,6 +80,11 @@ export const FEATURE_FLAGS = [
   // /partner/leads → /partner/requests (ФТ-1.7).
   // Спека 2026-07-24-stage5-client-requests-design.
   'client_requests',
+  // Этап 6 (Модуль 4): канбан сделок менеджера/руководителя. Route-флаг: middleware
+  // (/manager/deals, /leader/deals), nav «Сделки» (manager, leader), page-гейты
+  // (notFound). ВНИМАНИЕ: /partner/deals — другой домен (портфолио заказов
+  // партнёра), под этим флагом НЕ живёт. Спека 2026-07-25-stage6-deals-kanban.
+  'deals_pipeline',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -111,6 +116,7 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'global_search',
   'certificates_registry',
   'client_requests',
+  'deals_pipeline',
 ]);
 
 /**

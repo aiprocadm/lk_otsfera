@@ -106,6 +106,8 @@ enum LeadStatus {
   in_review
   qualified
   promoted_to_order
+  // Этап 6 (ФТ-4.4, решение §9-1): лид передан в сделку (терминальный).
+  promoted_to_deal
   rejected
 }
 
@@ -120,6 +122,13 @@ enum LeadSource {
 }
 
 // Этап 5 (Модуль 1): заявка клиента общего вида (ClientRequest).
+// Этап 6 (Модуль 4): статус-якоря сделок; словарь стадий DealStage поверх них.
+enum DealStatus {
+  open
+  won
+  lost
+}
+
 enum ClientRequestSource {
   partner_cabinet
   organization_cabinet
@@ -209,6 +218,7 @@ model User {
   partnerMemberships           PartnerUser[]             @relation("PartnerMembership")
   leadsAuthored                Lead[]                    @relation("LeadAuthor")
   leadsManaged                 Lead[]                    @relation("LeadManager")
+  dealsManaged                 Deal[]                    @relation("DealManager")
   leadAttachmentsAuthored      LeadAttachment[]          @relation("LeadAttachmentAuthor")
   clientRequestsSubmitted      ClientRequest[]           @relation("ClientRequestSubmitter")
   clientRequestsTriaged        ClientRequest[]           @relation("ClientRequestTriager")
@@ -303,6 +313,9 @@ model Lead {
   assignedManagerId  String?
   assignedManager    User?            @relation("LeadManager", fields: [assignedManagerId], references: [id])
   promotedOrderId    String?          @unique
+  // Этап 6 (ФТ-4.4, PR-2): лид, переданный в сделку.
+  promotedDealId     String?          @unique
+  promotedDeal       Deal?            @relation("DealFromLead")
   promotedOrder      Order?           @relation("LeadPromoted", fields: [promotedOrderId], references: [id])
   rejectedReason     String?
   notes              String?
@@ -643,6 +656,7 @@ model Organization {
   notifications                  Notification[]
   leads                          Lead[]
   clientRequests                 ClientRequest[]
+  deals                          Deal[]                             @relation("OrganizationDeals")
   orders                         Order[]                            @relation("OrderOrganization")
   payments                       Payment[]
   enrollmentRequests             EnrollmentRequest[]
@@ -723,6 +737,8 @@ model Company {
   documents             Document[]
   accessProfiles        AccessProfile[]
   funnelStages          FunnelStage[]
+  deals                 Deal[]              @relation("CompanyDeals")
+  dealStages            DealStage[]         @relation("CompanyDealStages")
   taskColumns           TaskColumn[]
   tasks                 Task[]
   inboundMessages       InboundMessage[]
@@ -763,6 +779,59 @@ model AccessProfile {
 // набор у компании → используются DEFAULT_FUNNEL_STAGES (код). statusAnchor
 // связывает стадию с lifecycle-переходом лида; несколько стадий могут делить
 // один якорь (напр. «Предложение» и «Оплата» под qualified).
+// Этап 6 (Модуль 4, ФТ-4.1): сделка — внутренняя сущность продаж (клиентские
+// роли её не видят). Не путать с /partner/deals (портфолио ЗАКАЗОВ клиента).
+model Deal {
+  id              String        @id @default(cuid())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  companyId       String
+  company         Company       @relation("CompanyDeals", fields: [companyId], references: [id], onDelete: Cascade)
+  leadId          String?       @unique
+  lead            Lead?         @relation("DealFromLead", fields: [leadId], references: [id], onDelete: SetNull)
+  organizationId  String?
+  organization    Organization? @relation("OrganizationDeals", fields: [organizationId], references: [id], onDelete: SetNull)
+  contactId       String?
+  title           String
+  amount          Decimal?      @db.Decimal(14, 2)
+  managerId       String?
+  manager         User?         @relation("DealManager", fields: [managerId], references: [id], onDelete: SetNull)
+  status          DealStatus    @default(open)
+  // null → дефолтная стадия для текущего status-якоря (как Lead.funnelStageId).
+  stageId         String?
+  stage           DealStage?    @relation("DealStageDeals", fields: [stageId], references: [id], onDelete: SetNull)
+  expectedCloseAt DateTime?
+  wonAt           DateTime?
+  lostAt          DateTime?
+  lostReason      String?
+  // Заказ, созданный при выигрыше (PR-2); externalId у него null — 1С-синк не трогает.
+  orderId         String?       @unique
+  order           Order?        @relation("DealOrder", fields: [orderId], references: [id], onDelete: SetNull)
+  notes           DealNote[]    @relation("DealNotes")
+
+  @@index([companyId, status])
+  @@index([managerId])
+  @@index([stageId])
+}
+
+// Этап 6 (ФТ-4.2): словарь стадий сделок — зеркало FunnelStage.
+model DealStage {
+  id           String     @id @default(cuid())
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  companyId    String
+  company      Company    @relation("CompanyDealStages", fields: [companyId], references: [id], onDelete: Cascade)
+  name         String
+  position     Int
+  statusAnchor DealStatus
+  color        String?
+  isTerminal   Boolean    @default(false)
+  deals        Deal[]     @relation("DealStageDeals")
+
+  @@unique([companyId, position])
+  @@index([companyId])
+}
+
 model FunnelStage {
   id           String     @id @default(cuid())
   createdAt    DateTime   @default(now())
@@ -890,6 +959,7 @@ model Order {
   items              OrderItem[]
   tasks              Task[]                    @relation("TaskLinkedOrder")
   dealNotes          DealNote[]                @relation("OrderDealNotes")
+  wonDeal            Deal?                     @relation("DealOrder")
   calendarEvents     CalendarEvent[]           @relation("CalendarEventLinkedOrder")
   primaryContactId   String?
   primaryContact     Contact?                  @relation("OrderPrimaryContact", fields: [primaryContactId], references: [id], onDelete: SetNull)
@@ -1544,6 +1614,9 @@ model DealNote {
   updatedAt DateTime @updatedAt
   orderId   String
   order     Order    @relation("OrderDealNotes", fields: [orderId], references: [id], onDelete: Cascade)
+  // Этап 6 (решение §10-1 ТЗ): параллельная привязка — заметка может относиться и к сделке.
+  dealId    String?
+  deal      Deal?    @relation("DealNotes", fields: [dealId], references: [id], onDelete: SetNull)
   authorId  String
   author    User     @relation("DealNoteAuthor", fields: [authorId], references: [id])
   body      String

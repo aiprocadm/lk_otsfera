@@ -8,6 +8,7 @@ const LEAD_STATUS_RU: Record<LeadStatus, string> = {
   in_review: 'На рассмотрении',
   qualified: 'Квалифицирована',
   promoted_to_order: 'Преобразована в заказ',
+  promoted_to_deal: 'Передана в сделку',
   rejected: 'Отклонена'
 };
 

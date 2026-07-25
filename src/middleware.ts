@@ -45,6 +45,10 @@ const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   // /organization/students/[id] гейтится на странице (список живёт без флага).
   { prefix: '/organization/certificates', flag: 'certificates_registry' },
   { prefix: '/partner/certificates', flag: 'certificates_registry' },
+  // Этап 6 (Модуль 4): канбан сделок. /partner/deals — существующее портфолио
+  // заказов партнёра, оно под этот флаг НЕ попадает (префиксы не пересекаются).
+  { prefix: '/manager/deals', flag: 'deals_pipeline' },
+  { prefix: '/leader/deals', flag: 'deals_pipeline' },
 ];
 
 const MIN_JWT_SECRET_LENGTH = 32;

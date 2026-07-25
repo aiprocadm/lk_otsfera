@@ -67,7 +67,7 @@ describe('manager_cabinet (opt-in flag)', () => {
 });
 
 describe('navByRole.manager — feature-flag gated', () => {
-  it('lists all twenty-one manager cabinet items in the raw nav (including Поиск, Обращения клиентов, leader-only Команда + вход в /leader + Воронка + Задачи + Календарь + Обращения + Звонки + Настройки)', () => {
+  it('lists all twenty-two manager cabinet items in the raw nav (including Поиск, Обращения клиентов, leader-only Команда + вход в /leader + Воронка + Сделки + Задачи + Календарь + Обращения + Звонки + Настройки)', () => {
     expect(navByRole.manager.map((i) => i.href)).toEqual([
       '/manager/dashboard',
       '/manager/search',
@@ -75,6 +75,7 @@ describe('navByRole.manager — feature-flag gated', () => {
       '/manager/leads',
       '/manager/requests',
       '/manager/funnel',
+      '/manager/deals',
       '/manager/tasks',
       '/manager/calendar',
       '/manager/organizations',
@@ -93,7 +94,7 @@ describe('navByRole.manager — feature-flag gated', () => {
     ]);
   });
 
-  it('every manager item carries flag=manager_cabinet (so they hide together), кроме search/requests/enrollments/funnel/tasks/calendar/inbox/calls (свои флаги) и входа в /leader (leader_cabinet)', () => {
+  it('every manager item carries flag=manager_cabinet (so they hide together), кроме search/requests/enrollments/funnel/deals/tasks/calendar/inbox/calls (свои флаги) и входа в /leader (leader_cabinet)', () => {
     const ownItems = navByRole.manager.filter(
       (i) =>
         i.href.startsWith('/manager/') &&
@@ -101,6 +102,7 @@ describe('navByRole.manager — feature-flag gated', () => {
         i.href !== '/manager/requests' &&
         i.href !== '/manager/enrollments' &&
         i.href !== '/manager/funnel' &&
+        i.href !== '/manager/deals' &&
         i.href !== '/manager/tasks' &&
         i.href !== '/manager/calendar' &&
         i.href !== '/manager/inbox' &&
@@ -115,6 +117,8 @@ describe('navByRole.manager — feature-flag gated', () => {
     expect(search?.flag).toBe('global_search');
     const funnel = navByRole.manager.find((i) => i.href === '/manager/funnel');
     expect(funnel?.flag).toBe('sales_funnel');
+    const deals = navByRole.manager.find((i) => i.href === '/manager/deals');
+    expect(deals?.flag).toBe('deals_pipeline');
     const tasks = navByRole.manager.find((i) => i.href === '/manager/tasks');
     expect(tasks?.flag).toBe('internal_tasks');
     const calendar = navByRole.manager.find((i) => i.href === '/manager/calendar');

@@ -55,6 +55,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/manager/leads', label: 'Лиды', icon: '📬', flag: 'manager_cabinet' },
     { href: '/manager/requests', label: 'Обращения клиентов', icon: '📮', flag: 'client_requests' },
     { href: '/manager/funnel', label: 'Воронка', icon: '📈', flag: 'sales_funnel' },
+    { href: '/manager/deals', label: 'Сделки', icon: '🤝', flag: 'deals_pipeline' },
     { href: '/manager/tasks', label: 'Задачи', icon: '✅', flag: 'internal_tasks' },
     { href: '/manager/calendar', label: 'Календарь', icon: '📅', flag: 'staff_calendar' },
     { href: '/manager/organizations', label: 'Организации', icon: '🏢', flag: 'manager_cabinet' },
@@ -89,6 +90,8 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     // этот пункт, не опустошает сайдбар при выключении.
     { href: '/leader/roles', label: 'Роли', icon: '🎭', flag: 'role_constructor' },
     { href: '/leader/funnel', label: 'Воронка', icon: '📈', flag: 'sales_funnel' },
+    // deals_pipeline — свой opt-in флаг (НЕ путать с /partner/deals — «Заказы» партнёра).
+    { href: '/leader/deals', label: 'Сделки', icon: '🤝', flag: 'deals_pipeline' },
     { href: '/leader/analytics', label: 'Аналитика', icon: '📊', flag: 'leader_analytics' },
     { href: '/leader/tasks', label: 'Задачи', icon: '✅', flag: 'internal_tasks' },
     { href: '/leader/calendar', label: 'Календарь', icon: '📅', flag: 'staff_calendar' },

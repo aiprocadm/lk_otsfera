@@ -31,6 +31,8 @@ export type AuditEntity =
   | 'commission_correction'
   | 'access_profile'
   | 'funnel_stage'
+  | 'deal'
+  | 'deal_stage'
   | 'task'
   | 'task_column'
   | 'auth_2fa'
