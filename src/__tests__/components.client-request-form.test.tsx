@@ -1,0 +1,216 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+
+const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
+
+const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }));
+
+import { ClientRequestForm } from '@/components/client-requests/client-request-form';
+
+function input(label: string): HTMLInputElement {
+  return screen.getByLabelText(label) as HTMLInputElement;
+}
+
+function fillRequired() {
+  fireEvent.change(input('Название компании *'), { target: { value: 'ООО Ромашка' } });
+  fireEvent.change(input('Контактное лицо *'), { target: { value: 'Иван Петров' } });
+  fireEvent.change(input('Тема *'), { target: { value: 'Обучение ОТ' } });
+}
+
+function submit() {
+  fireEvent.click(screen.getByRole('button', { name: 'Отправить обращение' }));
+}
+
+describe('ClientRequestForm', () => {
+  beforeEach(() => {
+    refresh.mockReset();
+    toastSuccess.mockReset();
+    toastError.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('обязательные поля: компания, контактное лицо и тема с required; телефон/email/ИНН/описание — нет', () => {
+    render(React.createElement(ClientRequestForm));
+    expect(input('Название компании *').required).toBe(true);
+    expect(input('Контактное лицо *').required).toBe(true);
+    expect(input('Тема *').required).toBe(true);
+    expect(input('ИНН').required).toBe(false);
+    expect(input('Телефон').required).toBe(false);
+    expect(input('Email').required).toBe(false);
+    expect((screen.getByLabelText('Описание') as HTMLTextAreaElement).required).toBe(false);
+  });
+
+  it('happy path: POST /api/client-requests со всеми полями, тост успеха, сброс формы, router.refresh()', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: 'cr1' }) });
+    vi.stubGlobal('fetch', fetchMock);
+    render(React.createElement(ClientRequestForm));
+
+    fillRequired();
+    fireEvent.change(input('ИНН'), { target: { value: '7701234567' } });
+    fireEvent.change(input('Телефон'), { target: { value: '+79990001122' } });
+    fireEvent.change(input('Email'), { target: { value: 'ivan@example.com' } });
+    fireEvent.change(screen.getByLabelText('Описание'), { target: { value: 'Обучить 10 человек' } });
+    submit();
+
+    await waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith('Обращение отправлено — менеджер свяжется с вами')
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/client-requests');
+    expect(init.method).toBe('POST');
+    expect(init.headers).toEqual({ 'content-type': 'application/json' });
+    expect(JSON.parse(init.body as string)).toEqual({
+      companyName: 'ООО Ромашка',
+      inn: '7701234567',
+      contactName: 'Иван Петров',
+      contactPhone: '+79990001122',
+      contactEmail: 'ivan@example.com',
+      subject: 'Обучение ОТ',
+      body: 'Обучить 10 человек'
+    });
+    expect(refresh).toHaveBeenCalled();
+    // Форма сброшена
+    expect(input('Название компании *').value).toBe('');
+    expect(input('ИНН').value).toBe('');
+    expect(input('Тема *').value).toBe('');
+    expect((screen.getByLabelText('Описание') as HTMLTextAreaElement).value).toBe('');
+  });
+
+  it('пустые необязательные поля уходят как null (inn/contactPhone/contactEmail/body)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', fetchMock);
+    render(React.createElement(ClientRequestForm));
+
+    fillRequired();
+    submit();
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)).toEqual({
+      companyName: 'ООО Ромашка',
+      inn: null,
+      contactName: 'Иван Петров',
+      contactPhone: null,
+      contactEmail: null,
+      subject: 'Обучение ОТ',
+      body: null
+    });
+  });
+
+  it('400 с messages: список ошибок в role=alert, без тостов, без refresh, поля не сброшены', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: 'validation', messages: ['Укажите телефон или email', 'ИНН — 10 или 12 цифр'] })
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(React.createElement(ClientRequestForm));
+
+    fillRequired();
+    submit();
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+    expect(screen.getByText('Укажите телефон или email')).toBeTruthy();
+    expect(screen.getByText('ИНН — 10 или 12 цифр')).toBeTruthy();
+    expect(toastError).not.toHaveBeenCalled();
+    expect(toastSuccess).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(input('Название компании *').value).toBe('ООО Ромашка');
+  });
+
+  it('успешная повторная отправка убирает прежний список ошибок', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ messages: ['Укажите телефон или email'] })
+      })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', fetchMock);
+    render(React.createElement(ClientRequestForm));
+
+    fillRequired();
+    submit();
+    await waitFor(() => expect(screen.getByText('Укажите телефон или email')).toBeTruthy());
+
+    fireEvent.change(input('Телефон'), { target: { value: '+79990001122' } });
+    submit();
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
+    expect(screen.queryByText('Укажите телефон или email')).toBeNull();
+  });
+
+  it('403 без messages → тост ошибки с кодом сервера', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: async () => ({ error: 'forbidden' })
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(React.createElement(ClientRequestForm));
+
+    fillRequired();
+    submit();
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('Не удалось отправить обращение: forbidden')
+    );
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('неразбираемый json ответа → в тосте статус-код', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => {
+        throw new Error('bad json');
+      }
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(React.createElement(ClientRequestForm));
+
+    fillRequired();
+    submit();
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('Не удалось отправить обращение: 500')
+    );
+  });
+
+  it('сетевой сбой → тост «Сетевая ошибка», кнопка снова активна', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')));
+    render(React.createElement(ClientRequestForm));
+
+    fillRequired();
+    submit();
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Сетевая ошибка'));
+    const btn = screen.getByRole('button', { name: 'Отправить обращение' }) as HTMLButtonElement;
+    await waitFor(() => expect(btn.disabled).toBe(false));
+  });
+
+  it('во время запроса кнопка отправки заблокирована (loading)', async () => {
+    let resolveFetch: (v: unknown) => void = () => {};
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => new Promise((resolve) => { resolveFetch = resolve; }))
+    );
+    render(React.createElement(ClientRequestForm));
+
+    fillRequired();
+    submit();
+
+    const btn = screen.getByRole('button', { name: 'Отправить обращение' }) as HTMLButtonElement;
+    await waitFor(() => expect(btn.disabled).toBe(true));
+    resolveFetch({ ok: true, json: async () => ({}) });
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
+  });
+});

@@ -11,12 +11,15 @@ const LEAD_STATUS_RU: Record<LeadStatus, string> = {
   rejected: 'Отклонена'
 };
 
-/** S5: tell the partner their lead changed status. Best-effort (§3). */
+/** S5: tell the partner their lead changed status. Best-effort (§3).
+ * Этап 5: partnerId nullable (лиды из заявок организаций / ручные) — без
+ * партнёра уведомлять некого, тихо выходим. */
 async function notifyPartnerLeadStatus(
   prisma: PrismaClient,
-  lead: { id: string; partnerId: string; clientCompanyName: string; subject: string },
+  lead: { id: string; partnerId: string | null; clientCompanyName: string; subject: string },
   status: LeadStatus
 ): Promise<void> {
+  if (!lead.partnerId) return;
   try {
     await notifyPartnerUsers(prisma, {
       partnerId: lead.partnerId,

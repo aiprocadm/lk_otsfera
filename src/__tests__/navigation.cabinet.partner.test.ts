@@ -58,8 +58,9 @@ describe('navItemsFor (feature-flag filter)', () => {
 
   it('does not filter items without a flag annotation', () => {
     process.env.FEATURE_PARTNER_LEADS = '0';
-    process.env.FEATURE_ENROLLMENT_REQUESTS = '1'; // admin opt-in items: enrollments + roles
+    process.env.FEATURE_ENROLLMENT_REQUESTS = '1'; // admin opt-in items: enrollments + requests + roles
     process.env.FEATURE_ROLE_CONSTRUCTOR = '1';
+    process.env.FEATURE_CLIENT_REQUESTS = '1';
     const items = navItemsFor('admin');
     expect(items.length).toBe(navByRole.admin.length);
   });
@@ -200,7 +201,8 @@ describe('navByRole.admin — русский канон с группами (в�
     expect(hrefs).toContain('/admin/payments-import');
     expect(hrefs).toContain('/admin/roles');
     expect(hrefs).toContain('/admin/pii-access');
-    expect(navByRole.admin).toHaveLength(21);
+    expect(navByRole.admin).toHaveLength(22);
+    expect(hrefs).toContain('/admin/requests');
   });
   it('каждый пункт по-русски, с иконкой и группой', () => {
     for (const item of navByRole.admin) {
@@ -221,6 +223,7 @@ describe('navByRole.organization — единый источник (канон 1
       '/organization/finance',
       '/organization/students',
       '/organization/enrollments',
+      '/organization/requests',
       '/organization/certificates',
       '/organization/team',
       '/organization/messages',

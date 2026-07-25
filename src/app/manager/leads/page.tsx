@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { listManagerLeads } from '@/lib/services/manager/leads';
 import { ManagerLeadsFilter } from '@/components/manager/manager-leads-filter';
 import { ManagerLeadsTable } from '@/components/manager/manager-leads-table';
+import { LeadCreateStaffForm } from '@/components/manager/lead-create-staff-form';
 import type { LeadStatus } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
@@ -17,16 +18,30 @@ export default async function ManagerLeadsPage({ searchParams }: { searchParams:
   const sp = await searchParams;
   const status = sp.status && STATUSES.includes(sp.status) ? (sp.status as LeadStatus) : undefined;
 
-  const { rows, nextCursor } = await listManagerLeads(prisma, {
-    status,
-    search: sp.q,
-    assignedToUserId: sp.assignedToMe === '1' ? session.sub : undefined,
-    cursor: sp.cursor
-  });
+  const [{ rows, nextCursor }, organizations] = await Promise.all([
+    listManagerLeads(prisma, {
+      status,
+      search: sp.q,
+      assignedToUserId: sp.assignedToMe === '1' ? session.sub : undefined,
+      cursor: sp.cursor
+    }),
+    // Организации компании менеджера для необязательной привязки лида (C8);
+    // без companyId — пустой список (лид без организации).
+    session.companyId
+      ? prisma.organization.findMany({
+          where: { companyId: session.companyId },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' }
+        })
+      : Promise.resolve([])
+  ]);
 
   return (
     <>
-      <h1 className='mb-4 text-2xl font-semibold'>Заявки</h1>
+      <div className='mb-4 flex items-center justify-between gap-3'>
+        <h1 className='text-2xl font-semibold'>Лиды</h1>
+        <LeadCreateStaffForm organizations={organizations} />
+      </div>
       <ManagerLeadsFilter query={{ status: sp.status, q: sp.q, assignedToMe: sp.assignedToMe }} />
       <ManagerLeadsTable rows={rows} nextCursor={nextCursor} query={{ status: sp.status, q: sp.q, assignedToMe: sp.assignedToMe }} />
     </>

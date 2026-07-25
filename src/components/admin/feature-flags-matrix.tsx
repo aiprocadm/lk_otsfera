@@ -19,6 +19,7 @@ import {
 
 const FLAG_LABELS: Record<FeatureFlag, string> = {
   partner_leads: 'Заявки-лиды партнёра (с вложениями)',
+  client_requests: 'Обращения клиентов (этап 5): подача и триаж',
   commission_pdf: 'Скачивание PDF-стейтмента комиссии',
   commission_xlsx: 'Скачивание XLSX-стейтмента комиссии',
   pwa_installer: 'Подсказка установки приложения (PWA)',

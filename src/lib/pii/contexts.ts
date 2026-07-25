@@ -11,6 +11,7 @@ export type PiiSubjectType =
   | 'student'
   | 'lead'
   | 'enrollment_request'
+  | 'client_request'
   | 'user'
   | 'caller'
   | 'inbound_sender';
@@ -31,6 +32,8 @@ export const PII_CONTEXTS = {
   manager_lead_view: { subjectType: 'lead', action: 'view', labelRu: 'Карточка лида (контакты)', callSite: 'src/lib/services/manager/leads.ts' },
   enrollments_list: { subjectType: 'enrollment_request', action: 'list', labelRu: 'Заявки на обучение', callSite: 'src/lib/services/enrollments/list.ts' },
   enrollment_detail: { subjectType: 'enrollment_request', action: 'view', labelRu: 'Деталка заявки на обучение', callSite: 'src/lib/services/enrollments/detail.ts' },
+  client_requests_list: { subjectType: 'client_request', action: 'list', labelRu: 'Обращения клиентов', callSite: 'src/lib/services/clientRequests/list.ts' },
+  client_request_view: { subjectType: 'client_request', action: 'view', labelRu: 'Деталка обращения клиента', callSite: 'src/lib/services/clientRequests/list.ts' },
   enrollment_wizard_students: { subjectType: 'student', action: 'list', labelRu: 'Мастер заявки: выбор слушателей', callSite: 'src/app/api/enrollments/students/route.ts' },
   org_card_inbound: { subjectType: 'inbound_sender', action: 'list', labelRu: 'Карточка организации: входящие', callSite: 'src/lib/services/manager/organizationCard.ts' },
   org_card_calls: { subjectType: 'caller', action: 'list', labelRu: 'Карточка организации: звонки', callSite: 'src/lib/services/manager/organizationCard.ts' },

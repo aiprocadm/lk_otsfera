@@ -67,12 +67,13 @@ describe('manager_cabinet (opt-in flag)', () => {
 });
 
 describe('navByRole.manager — feature-flag gated', () => {
-  it('lists all twenty manager cabinet items in the raw nav (including Поиск, leader-only Команда + вход в /leader + Воронка + Задачи + Календарь + Обращения + Звонки + Настройки)', () => {
+  it('lists all twenty-one manager cabinet items in the raw nav (including Поиск, Обращения клиентов, leader-only Команда + вход в /leader + Воронка + Задачи + Календарь + Обращения + Звонки + Настройки)', () => {
     expect(navByRole.manager.map((i) => i.href)).toEqual([
       '/manager/dashboard',
       '/manager/search',
       '/manager/orders',
       '/manager/leads',
+      '/manager/requests',
       '/manager/funnel',
       '/manager/tasks',
       '/manager/calendar',
@@ -92,11 +93,12 @@ describe('navByRole.manager — feature-flag gated', () => {
     ]);
   });
 
-  it('every manager item carries flag=manager_cabinet (so they hide together), кроме search/enrollments/funnel/tasks/calendar/inbox/calls (свои флаги) и входа в /leader (leader_cabinet)', () => {
+  it('every manager item carries flag=manager_cabinet (so they hide together), кроме search/requests/enrollments/funnel/tasks/calendar/inbox/calls (свои флаги) и входа в /leader (leader_cabinet)', () => {
     const ownItems = navByRole.manager.filter(
       (i) =>
         i.href.startsWith('/manager/') &&
         i.href !== '/manager/search' &&
+        i.href !== '/manager/requests' &&
         i.href !== '/manager/enrollments' &&
         i.href !== '/manager/funnel' &&
         i.href !== '/manager/tasks' &&
@@ -105,6 +107,8 @@ describe('navByRole.manager — feature-flag gated', () => {
         i.href !== '/manager/calls'
     );
     expect(ownItems.every((i) => i.flag === 'manager_cabinet')).toBe(true);
+    const requests = navByRole.manager.find((i) => i.href === '/manager/requests');
+    expect(requests?.flag).toBe('client_requests');
     const enrollment = navByRole.manager.find((i) => i.href === '/manager/enrollments');
     expect(enrollment?.flag).toBe('enrollment_requests');
     const search = navByRole.manager.find((i) => i.href === '/manager/search');
@@ -134,7 +138,7 @@ describe('navByRole.manager — feature-flag gated', () => {
     expect(items.map((i) => i.label)).toEqual([
       'Главная',
       'Заказы',
-      'Заявки',
+      'Лиды',
       'Организации',
       'Финансы',
       'Загрузка из 1С',
@@ -153,7 +157,7 @@ describe('navByRole.manager — feature-flag gated', () => {
     expect(items.map((i) => i.label)).toEqual([
       'Главная',
       'Заказы',
-      'Заявки',
+      'Лиды',
       'Организации',
       'Финансы',
       'Загрузка из 1С',

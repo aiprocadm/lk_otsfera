@@ -74,6 +74,12 @@ export const FEATURE_FLAGS = [
   // page-гейты реестров и карточки сотрудника, KPI-карточки дашбордов.
   // Спека 2026-07-24-stage3-certificates-registry-design.
   'certificates_registry',
+  // Этап 5 (Модуль 1): заявки клиентов (ClientRequest). Route-флаг: middleware
+  // (/partner/requests, /organization/requests, /manager/requests, /leader/requests,
+  // /admin/requests), nav-пункты, page/route-гейты; под ним же живёт redirect
+  // /partner/leads → /partner/requests (ФТ-1.7).
+  // Спека 2026-07-24-stage5-client-requests-design.
+  'client_requests',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -104,6 +110,7 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'staff_calendar',
   'global_search',
   'certificates_registry',
+  'client_requests',
 ]);
 
 /**

@@ -25,7 +25,7 @@ export default async function ManagerLeadDetailPage({ params }: { params: Promis
     : [];
 
   const rows: Array<[string, string]> = [
-    ['Партнёр', lead.partnerName],
+    ['Партнёр', lead.partnerName ?? '— (без партнёра)'],
     ['Организация', lead.organizationName ?? '— (не привязана)'],
     ['Контакт', lead.clientContactName],
     ['Телефон', lead.clientContactPhone ?? '—'],

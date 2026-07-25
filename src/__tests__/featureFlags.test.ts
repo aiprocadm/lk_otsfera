@@ -46,6 +46,7 @@ const OPT_IN_FLAGS = new Set([
   'staff_calendar',
   'global_search',
   'certificates_registry',
+  'client_requests',
 ]);
 
 describe('isFeatureEnabled', () => {

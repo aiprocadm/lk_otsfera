@@ -10,6 +10,8 @@ export type AuditEntity =
   | 'commission_statement'
   | 'lead'
   | 'lead_attachment'
+  | 'client_request'
+  | 'client_request_attachment'
   | 'document'
   | 'partner_user'
   | 'student_bridge'

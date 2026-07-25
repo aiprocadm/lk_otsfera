@@ -22,7 +22,8 @@ export type ManagerLeadRow = {
   estimatedAmount: string | null;
   organizationId: string | null;
   organizationName: string | null;
-  partnerName: string;
+  // Этап 5: лид из заявки организации / ручной может быть без партнёра.
+  partnerName: string | null;
   assignedManagerId: string | null;
   assignedManagerName: string | null;
   promotedOrderId: string | null;
@@ -91,7 +92,7 @@ export async function listManagerLeads(
       estimatedAmount: l.estimatedAmount ? l.estimatedAmount.toFixed(2) : null,
       organizationId: l.organization?.id ?? null,
       organizationName: l.organization?.name ?? null,
-      partnerName: l.partner.name,
+      partnerName: l.partner?.name ?? null,
       assignedManagerId: l.assignedManagerId,
       assignedManagerName: l.assignedManager?.name ?? null,
       promotedOrderId: l.promotedOrderId,
@@ -144,7 +145,7 @@ export async function getManagerLead(
     estimatedAmount: l.estimatedAmount ? l.estimatedAmount.toFixed(2) : null,
     organizationId: l.organization?.id ?? null,
     organizationName: l.organization?.name ?? null,
-    partnerName: l.partner.name,
+    partnerName: l.partner?.name ?? null,
     assignedManagerId: l.assignedManagerId,
     assignedManagerName: l.assignedManager?.name ?? null,
     promotedOrderId: l.promotedOrderId,
