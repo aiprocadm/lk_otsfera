@@ -134,12 +134,14 @@ function makePlanRow(overrides: Partial<PlanFactRow> = {}): PlanFactRow {
     target: '100000.00',
     fact: '75000.00',
     completedOrders: 3,
+    wonDeals: 0,
+    wonAmount: '0.00',
     executionPct: 75,
     ...overrides
   };
 }
 
-const TOTALS: PlanFactTotals = { target: '100000.00', fact: '75000.00', executionPct: 75 };
+const TOTALS: PlanFactTotals = { target: '100000.00', fact: '75000.00', wonAmount: '0.00', executionPct: 75 };
 
 describe('PlanFactTable', () => {
   beforeEach(() => {
@@ -150,8 +152,27 @@ describe('PlanFactTable', () => {
   });
 
   it('shows the empty state when there are no rows for the period', () => {
-    render(<PlanFactTable year={2026} month={7} rows={[]} totals={{ target: '0.00', fact: '0.00', executionPct: null }} />);
+    render(<PlanFactTable year={2026} month={7} rows={[]} totals={{ target: '0.00', fact: '0.00', wonAmount: '0.00', executionPct: null }} />);
     expect(screen.getByText('Нет данных за выбранный период.')).toBeTruthy();
+  });
+
+  it('ФТ-4.5: колонка «Выиграно сделок» — счётчик · сумма; ноль → «—»; итог из totals', () => {
+    const rows = [
+      makePlanRow({ wonDeals: 2, wonAmount: '30000.00' }),
+      makePlanRow({ managerId: 'm2', name: 'Пётр Нулевой', email: 'p@example.com' })
+    ];
+    render(
+      <PlanFactTable
+        year={2026}
+        month={7}
+        rows={rows}
+        totals={{ target: '100000.00', fact: '75000.00', wonAmount: '30000.00', executionPct: 75 }}
+      />
+    );
+    expect(screen.getByText('Выиграно сделок')).toBeTruthy();
+    expect(screen.getByText(/2 ·/)).toBeTruthy();
+    // 30000.00 встречается в строке менеджера и в итоге
+    expect(screen.getAllByText(/30 000|30 000/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders a manager row (with email) and the totals row', () => {

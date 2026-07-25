@@ -115,6 +115,7 @@ export function PlanFactTable({
         <Th>Факт</Th>
         <Th>Выполнение</Th>
         <Th>Завершено заказов</Th>
+        <Th>Выиграно сделок</Th>
       </THead>
       <tbody>
         {rows.map((r) => (
@@ -135,6 +136,15 @@ export function PlanFactTable({
               <ExecutionBar pct={r.executionPct} />
             </Td>
             <Td className='text-gray-700'>{r.completedOrders}</Td>
+            <Td className='text-gray-700'>
+              {r.wonDeals > 0 ? (
+                <>
+                  {r.wonDeals} · {fmtMoney(r.wonAmount)}
+                </>
+              ) : (
+                <span className='text-gray-400'>—</span>
+              )}
+            </Td>
           </Tr>
         ))}
       </tbody>
@@ -147,6 +157,7 @@ export function PlanFactTable({
             <ExecutionBar pct={totals.executionPct} />
           </Td>
           <Td>—</Td>
+          <Td className='text-[#111111]'>{fmtMoney(totals.wonAmount)}</Td>
         </Tr>
       </tfoot>
     </TableShell>

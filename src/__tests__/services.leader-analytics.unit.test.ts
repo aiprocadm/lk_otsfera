@@ -25,6 +25,7 @@ function fakePrisma(over: Record<string, unknown> = {}) {
     lead: { findMany: vi.fn().mockResolvedValue([]) },
     payment: { findMany: vi.fn().mockResolvedValue([]) },
     order: { groupBy: vi.fn().mockResolvedValue([]) },
+    deal: { groupBy: vi.fn().mockResolvedValue([]) },
     salesTarget: {
       findMany: vi.fn().mockResolvedValue([]),
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
@@ -322,12 +323,12 @@ describe('getPlanFact', () => {
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     expect(res.rows).toEqual([
-      { managerId: 'm1', name: 'Иванов', email: 'i@x.ru', target: '1000.00', fact: '800.00', completedOrders: 1, executionPct: 80 },
-      { managerId: 'm2', name: 'Петров', email: 'p@x.ru', target: null, fact: '0.00', completedOrders: 0, executionPct: null },
-      { managerId: 'm3', name: 'Сидоров', email: 's@x.ru', target: '0.00', fact: '0.00', completedOrders: 0, executionPct: null },
-      { managerId: null, name: 'Без менеджера', email: '', target: null, fact: '200.00', completedOrders: 0, executionPct: null }
+      { managerId: 'm1', name: 'Иванов', email: 'i@x.ru', target: '1000.00', fact: '800.00', completedOrders: 1, wonDeals: 0, wonAmount: '0.00', executionPct: 80 },
+      { managerId: 'm2', name: 'Петров', email: 'p@x.ru', target: null, fact: '0.00', completedOrders: 0, wonDeals: 0, wonAmount: '0.00', executionPct: null },
+      { managerId: 'm3', name: 'Сидоров', email: 's@x.ru', target: '0.00', fact: '0.00', completedOrders: 0, wonDeals: 0, wonAmount: '0.00', executionPct: null },
+      { managerId: null, name: 'Без менеджера', email: '', target: null, fact: '200.00', completedOrders: 0, wonDeals: 0, wonAmount: '0.00', executionPct: null }
     ]);
-    expect(res.totals).toEqual({ target: '1000.00', fact: '1000.00', executionPct: 100 });
+    expect(res.totals).toEqual({ target: '1000.00', fact: '1000.00', wonAmount: '0.00', executionPct: 100 });
   });
 
   it('no unassigned facts and no unassigned completed orders → "Без менеджера" row absent', async () => {
@@ -350,8 +351,39 @@ describe('getPlanFact', () => {
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     expect(res.rows).toEqual([
-      { managerId: null, name: 'Без менеджера', email: '', target: null, fact: '0.00', completedOrders: 2, executionPct: null }
+      { managerId: null, name: 'Без менеджера', email: '', target: null, fact: '0.00', completedOrders: 2, wonDeals: 0, wonAmount: '0.00', executionPct: null }
     ]);
+  });
+
+  it('ФТ-4.5: выигранные сделки месяца — по менеджерам, null-amount=0, «Без менеджера», сумма в totals', async () => {
+    listCompanyManagers.mockResolvedValue([
+      { id: 'm1', name: 'Иванов', email: 'i@x.ru', isActive: true, managerRole: null, assignments: [] },
+      { id: 'm2', name: 'Петров', email: 'p@x.ru', isActive: true, managerRole: null, assignments: [] }
+    ]);
+    const deal = {
+      groupBy: vi.fn().mockResolvedValue([
+        { managerId: 'm1', _sum: { amount: D('30000') }, _count: { _all: 2 } },
+        { managerId: 'm2', _sum: { amount: null }, _count: { _all: 1 } }, // won без суммы → 0.00, но в счётчике
+        { managerId: null, _sum: { amount: D('5000') }, _count: { _all: 1 } }
+      ])
+    };
+    const prisma = fakePrisma({ deal });
+    const res = await getPlanFact(prisma, leaderSession, { year: 2026, month: 7 });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    // where: компания сессии, только won, wonAt в границах месяца
+    expect(deal.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        by: ['managerId'],
+        where: expect.objectContaining({ companyId: 'c1', status: 'won', wonAt: expect.anything() })
+      })
+    );
+    expect(res.rows).toEqual([
+      expect.objectContaining({ managerId: 'm1', wonDeals: 2, wonAmount: '30000.00' }),
+      expect.objectContaining({ managerId: 'm2', wonDeals: 1, wonAmount: '0.00' }),
+      expect.objectContaining({ managerId: null, name: 'Без менеджера', wonDeals: 1, wonAmount: '5000.00' })
+    ]);
+    expect(res.totals.wonAmount).toBe('35000.00');
   });
 
   it('totals.executionPct is null when no manager has a target at all', async () => {
@@ -361,7 +393,7 @@ describe('getPlanFact', () => {
     const res = await getPlanFact(fakePrisma(), leaderSession, { year: 2026, month: 7 });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
-    expect(res.totals).toEqual({ target: '0.00', fact: '0.00', executionPct: null });
+    expect(res.totals).toEqual({ target: '0.00', fact: '0.00', wonAmount: '0.00', executionPct: null });
   });
 });
 

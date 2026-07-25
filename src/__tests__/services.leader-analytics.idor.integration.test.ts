@@ -244,3 +244,41 @@ describe('M3 leader analytics — getFunnelAnalytics snapshot scope', () => {
     expect(totalSnapshotCount).toBe(2);
   });
 });
+
+describe('этап 6 ФТ-4.5 — выигранные сделки в план/факте', () => {
+  it('won-сделки месяца попадают в строку менеджера и totals; чужая компания и другой период — нет', async () => {
+    const inMonth = new Date(Date.UTC(TEST_YEAR, TEST_MONTH - 1, 10));
+    const outMonth = new Date(Date.UTC(TEST_YEAR, TEST_MONTH, 5)); // следующий месяц
+    const created = await Promise.all([
+      prisma.deal.create({
+        data: { companyId: companyA, title: `${STAMP}-dealA1`, managerId: mgrA, status: 'won', wonAt: inMonth, amount: '30000.00' }
+      }),
+      prisma.deal.create({
+        data: { companyId: companyA, title: `${STAMP}-dealA2`, managerId: mgrA, status: 'won', wonAt: inMonth, amount: null } // won без суммы
+      }),
+      prisma.deal.create({
+        data: { companyId: companyA, title: `${STAMP}-dealA3`, managerId: mgrA, status: 'won', wonAt: outMonth, amount: '999.00' } // вне периода
+      }),
+      prisma.deal.create({
+        data: { companyId: companyA, title: `${STAMP}-dealA4`, managerId: mgrA, status: 'open', amount: '111.00' } // не won
+      }),
+      prisma.deal.create({
+        data: { companyId: companyB, title: `${STAMP}-dealB1`, managerId: mgrB, status: 'won', wonAt: inMonth, amount: '50000.00' } // чужая компания
+      })
+    ]);
+    try {
+      const res = await getPlanFact(prisma, leaderSession(leaderA, companyA), { year: TEST_YEAR, month: TEST_MONTH });
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+
+      const rowA = res.rows.find((r) => r.managerId === mgrA);
+      expect(rowA).toBeDefined();
+      expect(rowA!.wonDeals).toBe(2); // A1 + A2 (без суммы), A3 вне периода, A4 не won
+      expect(rowA!.wonAmount).toBe('30000.00');
+      expect(res.totals.wonAmount).toBe('30000.00'); // B-шная сделка не просочилась
+      expect(res.rows.some((r) => r.managerId === mgrB)).toBe(false);
+    } finally {
+      await prisma.deal.deleteMany({ where: { id: { in: created.map((d) => d.id) } } });
+    }
+  });
+});
