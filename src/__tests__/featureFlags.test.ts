@@ -47,6 +47,7 @@ const OPT_IN_FLAGS = new Set([
   'global_search',
   'certificates_registry',
   'client_requests',
+  'deals_pipeline',
 ]);
 
 describe('isFeatureEnabled', () => {

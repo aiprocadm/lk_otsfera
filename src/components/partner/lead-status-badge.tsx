@@ -6,6 +6,7 @@ const STATUS_LABEL: Record<LeadStatus, string> = {
   in_review: 'На рассмотрении',
   qualified: 'Квалифицирована',
   promoted_to_order: 'Стала заказом',
+  promoted_to_deal: 'Передана в сделку',
   rejected: 'Отклонена'
 };
 
@@ -14,6 +15,7 @@ const STATUS_TONE: Record<LeadStatus, string> = {
   in_review: 'bg-amber-50 text-amber-800 border-amber-200',
   qualified: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   promoted_to_order: 'bg-[#FFF7ED] text-[#9A3412] border-[#FED7AA]',
+  promoted_to_deal: 'bg-indigo-50 text-indigo-700 border-indigo-200',
   rejected: 'bg-gray-100 text-gray-600 border-gray-200'
 };
 

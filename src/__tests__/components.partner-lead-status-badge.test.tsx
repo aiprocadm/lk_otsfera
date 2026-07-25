@@ -12,7 +12,8 @@ describe('LeadStatusBadge', () => {
       new: { label: 'Новая', tone: 'bg-blue-50' },
       in_review: { label: 'На рассмотрении', tone: 'bg-amber-50' },
       qualified: { label: 'Квалифицирована', tone: 'bg-emerald-50' },
-      promoted_to_order: { label: 'Стала заказом', tone: 'bg-[#FFF7ED]' },
+      promoted_to_deal: { label: 'Передана в сделку', tone: 'text-indigo-700' },
+    promoted_to_order: { label: 'Стала заказом', tone: 'bg-[#FFF7ED]' },
       rejected: { label: 'Отклонена', tone: 'bg-gray-100' }
     };
     for (const status of ALL_STATUSES) {
