@@ -20,7 +20,7 @@
 | 3 | Модуль 6 + экспорт удостоверений (часть Модуля 12) | ✅ готов | [спека](../superpowers/specs/2026-07-24-stage3-certificates-registry-design.md) ✅ подтверждена | [PR-1](../superpowers/plans/2026-07-24-stage3-pr1-certificates-registry.md) · [PR-2](../superpowers/plans/2026-07-24-stage3-pr2-certificates-export.md) | [#220](https://github.com/aiprocadm/lk_otsfera/pull/220) ✅ · [#221](https://github.com/aiprocadm/lk_otsfera/pull/221) ✅ |
 | 4 | Модуль 10 (онбординг по приглашению) | ✅ готов | [спека](../superpowers/specs/2026-07-24-stage4-invite-onboarding-design.md) ✅ подтверждена | [план](../superpowers/plans/2026-07-24-stage4-invite-onboarding.md) | [#223](https://github.com/aiprocadm/lk_otsfera/pull/223) ✅ |
 | 5 | Модуль 1 + ФТ-13.3–13.4 (заявки клиентов + DaData в формах) | 🔍 PR (PR-2) | [спека](../superpowers/specs/2026-07-24-stage5-client-requests-design.md) ✅ подтверждена | [PR-1 план](../superpowers/plans/2026-07-24-stage5-pr1-client-requests.md) · [PR-2 план](../superpowers/plans/2026-07-25-stage5-pr2-dadata-antidup.md) | [#224](https://github.com/aiprocadm/lk_otsfera/pull/224) ✅ · [#225](https://github.com/aiprocadm/lk_otsfera/pull/225) — ждёт мержа; после мержа этап 5 = ✅ готов |
-| 6 | Модуль 4 (сделки и канбан) | ⬜ не начат | — | — | — |
+| 6 | Модуль 4 (сделки и канбан) | 📝 спека | [спека](../superpowers/specs/2026-07-25-stage6-deals-kanban-design.md) — ждёт подтверждения (4 вопроса §9 спеки) | — | — |
 | 7 | Модули 8, 7, 3 + SLA (4.4) + карточка организации | ⬜ не начат | — | — | — |
 | 8 | Модуль 9 (реквизиты + автогенерация документов) | ⬜ не начат | — | — | — |
 | 9 | Модуль 11 + остаток Модуля 12 | ⬜ не начат | — | — | — |
@@ -37,7 +37,7 @@
 
 - [x] Вопрос 5 (блокировал этап 2) — **отвечен 23.07.2026**: доп. поля слушателя нужны — СНИЛС, должность, дата рождения + пустое свободно редактируемое поле (комментарий/дополнительно).
 - [x] Вопрос 4 (блокировал этап 5) — **решён 24.07.2026** (заказчик делегировал): `website` — задел на будущее; значение резервируется в enum, вебхук добавится отдельным PR при появлении сайта.
-- [ ] Вопрос 1 (блокирует этап 6): DealNote — перенос на Deal или параллельная привязка к Order и Deal?
+- [x] Вопрос 1 (блокировал этап 6) — **отвечен 25.07.2026**: DealNote — параллельная привязка (orderId остаётся, добавляется dealId; существующие заметки не мигрируются).
 - [ ] Вопрос 2 (блокирует этап 8): типы документов v1 (счёт + акт достаточно? договор?); формат номера счёта.
 - [ ] Вопрос 3 (блокирует этап 8): подтверждение позиционирования против 1С (оперативные документы vs бухгалтерский канон).
 
@@ -68,3 +68,4 @@
 - 2026-07-25 — этап 5: PR-1 реализован (модель ClientRequest+вложения со сканом; подача partner/organization с уведомлениями; staff-очередь /manager|leader|admin/requests с триажем «взять/принять→лид/отклонить»; миграция Lead — nullable partnerId + source с бэкфиллом partner_legacy; запрет партнёрского создания лидов + redirect /partner/leads → /partner/requests; ручной лид сотрудником; флаг client_requests; ПДн-контексты client_requests_list/view). Гейты: typecheck/lint зелёные, unit 7537 зелёные (248 новых тестов), integration на живом Postgres зелёный (2× идемпотентно). Открыт PR [#224](https://github.com/aiprocadm/lk_otsfera/pull/224). PR-2 (DaData-автокомплит + антидубли-плашки) — следующим.
 - 2026-07-25 — этап 5: PR #224 (PR-1) смержен (по поручению владельца; CI полностью зелёный). Начат PR-2 «DaData-автокомплит + антидубли-плашки» (ветка `claude/stage5-pr2-dadata-antidup`).
 - 2026-07-25 — этап 5: PR-2 реализован (PartyAutocomplete по DaData-прокси с деградацией до ручного ввода — в формах обращения/лида/организации; сервис duplicates/findByInn + staff-роут /api/duplicates/by-inn (клиентам 403, rate-limit); неблокирующая плашка «Уже есть в базе» в триаже/лиде/создании и редактировании организации; guard-тесты ФТ-13.4). Гейты: typecheck/lint зелёные, unit 7591 зелёные (59 новых), integration зелёный. Открыт PR [#225](https://github.com/aiprocadm/lk_otsfera/pull/225) — после мержа этап 5 = ✅ готов.
+- 2026-07-25 — этап 6: заказчик ответил на вопрос 1 (DealNote — параллельная привязка). Написана спека `2026-07-25-stage6-deals-kanban-design.md` (Deal+DealStage по лекалам funnel/task-канбанов, конверсии лид→сделка→заказ, лента через DealNote.dealId, флаг deals_pipeline; разбивка 2–3 PR). Предъявлена заказчику — ждёт подтверждения (4 вопроса §9) до начала кода. Ветка `claude/stage6-deals-kanban`.
