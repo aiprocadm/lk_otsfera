@@ -3,6 +3,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { leadWhereForLevel, canSeeLead } from '@/lib/auth/accessProfile';
 import { resolveFunnelStages, stageForLead, type FunnelStageView } from '@/lib/funnel/stages';
 import { promoteLead, rejectLead, setLeadStatus } from '@/lib/services/manager/leadLifecycle';
+import { convertLeadToDeal } from '@/lib/services/deals/convert';
 
 /**
  * Трек G2 — доска воронки продаж (канбан). Лиды, сгруппированные по стадиям
@@ -120,6 +121,13 @@ export async function moveFunnelLead(
     // unreachable race guard here — only lifecycle_violation is reachable.
     /* v8 ignore next */
     if (!r.ok) return { ok: false, error: r.error === 'not_found' ? 'not_found' : 'lifecycle_violation' };
+  } else if (anchor === 'promoted_to_deal') {
+    // Этап 6 (ФТ-4.4): перенос в «Передан в сделку» создаёт Deal из лида.
+    const r = await convertLeadToDeal(prisma, session, { leadId: lead.id });
+    if (!r.ok) {
+      /* v8 ignore next -- pre-checked lead → inner not_found unreachable (see above) */
+      return { ok: false, error: r.error === 'not_found' ? 'not_found' : r.error === 'forbidden' ? 'forbidden' : 'lifecycle_violation' };
+    }
   } else if (anchor === 'rejected') {
     const reason = (args.reason ?? '').trim();
     if (!reason) return { ok: false, error: 'reason_required' };

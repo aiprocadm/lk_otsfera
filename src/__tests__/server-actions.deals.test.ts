@@ -9,7 +9,11 @@ const {
   listDealStages,
   createDealStage,
   updateDealStage,
-  deleteDealStage
+  deleteDealStage,
+  convertLeadToDeal,
+  winDeal,
+  addNoteToDeal,
+  listDealNotes
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   revalidatePath: vi.fn(),
@@ -19,7 +23,11 @@ const {
   listDealStages: vi.fn(),
   createDealStage: vi.fn(),
   updateDealStage: vi.fn(),
-  deleteDealStage: vi.fn()
+  deleteDealStage: vi.fn(),
+  convertLeadToDeal: vi.fn(),
+  winDeal: vi.fn(),
+  addNoteToDeal: vi.fn(),
+  listDealNotes: vi.fn()
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
@@ -27,6 +35,8 @@ vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/services/deals/board', () => ({ moveDeal }));
 vi.mock('@/lib/services/deals/crud', () => ({ createDeal, updateDeal }));
+vi.mock('@/lib/services/deals/convert', () => ({ convertLeadToDeal, winDeal }));
+vi.mock('@/lib/services/deals/notes', () => ({ addNoteToDeal, listDealNotes }));
 vi.mock('@/lib/services/access/dealStages', () => ({
   listDealStages,
   createDealStage,
@@ -41,7 +51,11 @@ import {
   listDealStagesAction,
   createDealStageAction,
   updateDealStageAction,
-  deleteDealStageAction
+  deleteDealStageAction,
+  winDealAction,
+  convertLeadToDealAction,
+  addDealNoteAction,
+  listDealNotesAction
 } from '@/server-actions/deals';
 
 const SESSION = { sub: 'u1', role: 'manager', managerRole: 'leader', companyId: 'co-A' };
@@ -150,6 +164,84 @@ describe('updateDealAction', () => {
     updateDeal.mockResolvedValue({ ok: false, error: 'forbidden' });
     expect(await updateDealAction(form({ id: 'd7', title: 'x' }))).toEqual({ ok: false, error: 'forbidden' });
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe('winDealAction (PR-2)', () => {
+  it('forwards dealId/toStageId, returns orderId and revalidates boards + leads + orders', async () => {
+    winDeal.mockResolvedValue({ ok: true, deal: { id: 'd1' }, order: { id: 'o-9' } });
+    const res = await winDealAction(form({ dealId: 'd1', toStageId: 'st-won' }));
+    expect(res).toEqual({ ok: true, orderId: 'o-9' });
+    expect(winDeal).toHaveBeenCalledWith({}, SESSION, { dealId: 'd1', toStageId: 'st-won' });
+    expectBothPagesRevalidated();
+    expect(revalidatePath).toHaveBeenCalledWith('/manager/leads');
+    expect(revalidatePath).toHaveBeenCalledWith('/manager/orders');
+  });
+
+  it('empty toStageId becomes undefined; missing dealId → not_found without calling the service', async () => {
+    winDeal.mockResolvedValue({ ok: true, deal: { id: 'd1' }, order: { id: 'o-9' } });
+    await winDealAction(form({ dealId: 'd1' }));
+    expect(winDeal).toHaveBeenCalledWith({}, SESSION, { dealId: 'd1', toStageId: undefined });
+
+    winDeal.mockClear();
+    revalidatePath.mockClear();
+    expect(await winDealAction(new FormData())).toEqual({ ok: false, error: 'not_found' });
+    expect(winDeal).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('passes through service errors (org_required) without revalidating', async () => {
+    winDeal.mockResolvedValue({ ok: false, error: 'org_required' });
+    expect(await winDealAction(form({ dealId: 'd1' }))).toEqual({ ok: false, error: 'org_required' });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe('convertLeadToDealAction (PR-2)', () => {
+  it('forwards leadId, returns dealId and revalidates boards + leads', async () => {
+    convertLeadToDeal.mockResolvedValue({ ok: true, deal: { id: 'd-new' }, lead: { id: 'l1' } });
+    const res = await convertLeadToDealAction(form({ leadId: 'l1' }));
+    expect(res).toEqual({ ok: true, dealId: 'd-new' });
+    expect(convertLeadToDeal).toHaveBeenCalledWith({}, SESSION, { leadId: 'l1' });
+    expectBothPagesRevalidated();
+    expect(revalidatePath).toHaveBeenCalledWith('/manager/leads');
+    expect(revalidatePath).not.toHaveBeenCalledWith('/manager/orders');
+  });
+
+  it('missing leadId → not_found; service error passes through without revalidating', async () => {
+    expect(await convertLeadToDealAction(new FormData())).toEqual({ ok: false, error: 'not_found' });
+    expect(convertLeadToDeal).not.toHaveBeenCalled();
+
+    convertLeadToDeal.mockResolvedValue({ ok: false, error: 'lifecycle_violation' });
+    expect(await convertLeadToDealAction(form({ leadId: 'l1' }))).toEqual({ ok: false, error: 'lifecycle_violation' });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe('addDealNoteAction / listDealNotesAction (PR-2)', () => {
+  it('addDealNoteAction forwards dealId/body; no revalidate (список перезагружается лениво)', async () => {
+    addNoteToDeal.mockResolvedValue({ ok: true, id: 'n1' });
+    expect(await addDealNoteAction(form({ dealId: 'd1', body: 'Текст' }))).toEqual({ ok: true });
+    expect(addNoteToDeal).toHaveBeenCalledWith({}, SESSION, { dealId: 'd1', body: 'Текст' });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('addDealNoteAction: missing dealId → not_found; service error passes through', async () => {
+    expect(await addDealNoteAction(form({ body: 'x' }))).toEqual({ ok: false, error: 'not_found' });
+    expect(addNoteToDeal).not.toHaveBeenCalled();
+
+    addNoteToDeal.mockResolvedValue({ ok: false, error: 'invalid' });
+    expect(await addDealNoteAction(form({ dealId: 'd1', body: ' ' }))).toEqual({ ok: false, error: 'invalid' });
+  });
+
+  it('listDealNotesAction returns the service result as-is', async () => {
+    const rows = [{ id: 'n1', body: 'Текст', authorName: 'Иван', createdAt: new Date() }];
+    listDealNotes.mockResolvedValue({ ok: true, rows });
+    expect(await listDealNotesAction('d1')).toEqual({ ok: true, rows });
+    expect(listDealNotes).toHaveBeenCalledWith({}, SESSION, { dealId: 'd1' });
+
+    listDealNotes.mockResolvedValue({ ok: false, error: 'not_found' });
+    expect(await listDealNotesAction('d1')).toEqual({ ok: false, error: 'not_found' });
   });
 });
 

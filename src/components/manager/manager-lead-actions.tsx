@@ -3,9 +3,10 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Button, Select } from '@/components/ui';
+import { Button, Dialog, Select } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
+import { convertLeadToDealAction } from '@/server-actions/deals';
 import type { LeadStatus } from '@prisma/client';
 
 type Candidate = { id: string; name: string; email: string };
@@ -15,6 +16,13 @@ type Candidate = { id: string; name: string; email: string };
 const ERROR_LABELS: Record<string, string> = {
   invalid_manager: 'Выбранный менеджер недоступен',
   not_found: 'Заявка не найдена.'
+};
+
+// Этап 6 PR-2 (ФТ-4.4): ошибки convertLeadToDealAction.
+const CONVERT_ERRORS: Record<string, string> = {
+  lifecycle_violation: 'Лид уже передан или отклонён.',
+  not_found: 'Заявка не найдена.',
+  forbidden: 'Нет доступа.'
 };
 
 function patchErrorText(code: string | undefined, status: number): string {
@@ -28,12 +36,44 @@ type Props = {
   hasOrganization: boolean;
   promotedOrderId: string | null;
   candidates?: Candidate[];
+  /** PR-2 (ФТ-4.4): кнопка «Создать сделку» — только при включённом deals_pipeline (пробрасывается страницей). */
+  dealsEnabled?: boolean;
 };
 
-export function ManagerLeadActions({ leadId, status, hasOrganization, promotedOrderId, candidates = [] }: Props) {
+export function ManagerLeadActions({
+  leadId,
+  status,
+  hasOrganization,
+  promotedOrderId,
+  candidates = [],
+  dealsEnabled = false
+}: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [assignTo, setAssignTo] = useState('');
+  const [dealConfirmOpen, setDealConfirmOpen] = useState(false);
+
+  async function createDealFromLead() {
+    setBusy(true);
+    const fd = new FormData();
+    fd.set('leadId', leadId);
+    const res = await convertLeadToDealAction(fd);
+    setBusy(false);
+    setDealConfirmOpen(false);
+    if (!res.ok) {
+      toast.error(CONVERT_ERRORS[res.error] ?? 'Не удалось создать сделку.');
+      return;
+    }
+    toast.success(
+      <span>
+        Сделка создана —{' '}
+        <a href='/manager/deals' className='underline text-[#F97316]'>
+          открыть доску сделок
+        </a>
+      </span>
+    );
+    router.refresh();
+  }
 
   async function run(body: Record<string, unknown>, successMsg: string): Promise<boolean> {
     setBusy(true);
@@ -73,6 +113,14 @@ export function ManagerLeadActions({ leadId, status, hasOrganization, promotedOr
     );
   }
 
+  if (status === 'promoted_to_deal') {
+    return (
+      <Link href='/manager/deals' className='text-sm text-[#F97316] hover:underline'>
+        Заявка передана в сделку — открыть доску сделок
+      </Link>
+    );
+  }
+
   if (status === 'rejected') {
     return <span className='text-sm text-gray-500'>Заявка отклонена</span>;
   }
@@ -107,6 +155,11 @@ export function ManagerLeadActions({ leadId, status, hasOrganization, promotedOr
         >
           Преобразовать в заказ
         </Button>
+        {dealsEnabled && (
+          <Button variant='secondary' loading={busy} onClick={() => setDealConfirmOpen(true)}>
+            Создать сделку
+          </Button>
+        )}
         <Button
           variant='danger'
           loading={busy}
@@ -145,6 +198,27 @@ export function ManagerLeadActions({ leadId, status, hasOrganization, promotedOr
             Передать
           </Button>
         </div>
+      )}
+      {dealsEnabled && (
+        <Dialog
+          open={dealConfirmOpen}
+          onClose={() => setDealConfirmOpen(false)}
+          title='Создать сделку из лида?'
+          size='sm'
+          busy={busy}
+        >
+          <p className='text-sm text-gray-600 mb-3'>
+            Лид получит статус «Передана в сделку», карточка появится на доске сделок.
+          </p>
+          <div className='flex justify-end gap-2'>
+            <Button variant='secondary' onClick={() => setDealConfirmOpen(false)} disabled={busy}>
+              Отмена
+            </Button>
+            <Button loading={busy} onClick={() => void createDealFromLead()}>
+              Да, создать сделку
+            </Button>
+          </div>
+        </Dialog>
       )}
     </div>
   );

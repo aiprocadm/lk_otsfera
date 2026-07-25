@@ -1,18 +1,34 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Input, Select, Field, Dialog } from '@/components/ui';
+import { Button, Input, Select, Field, Dialog, Textarea } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
-import { createDealAction, updateDealAction } from '@/server-actions/deals';
+import { fmtDateTime } from '@/lib/format';
+import {
+  createDealAction,
+  updateDealAction,
+  addDealNoteAction,
+  listDealNotesAction
+} from '@/server-actions/deals';
+import type { DealNoteRow } from '@/lib/services/deals/notes';
 
 /**
- * Этап 6 (PR-1) — создание/редактирование сделки (по образцу task-dialog).
+ * Этап 6 — создание/редактирование сделки (по образцу task-dialog).
  * Валидационные сообщения сервиса показываются списком (role="alert").
+ * PR-2: в режиме редактирования — блок «Заметки» (ленивая подгрузка) и
+ * ссылка на заказ, созданный из выигранной сделки.
  */
 
 export type DealDialogOption = { id: string; name: string };
+
+// Дельты поверх errorMessageRu (контекст заметок: центральный not_found — про заказ).
+const NOTE_ERRORS: Record<string, string> = {
+  not_found: 'Сделка не найдена или недоступна.',
+  invalid: 'Заметка не может быть пустой.',
+  forbidden: 'Нет доступа.'
+};
 
 /** Минимум для префилла формы редактирования (id-поля, не имена — см. DealCard). */
 export type DealDialogTarget = {
@@ -22,6 +38,7 @@ export type DealDialogTarget = {
   organizationId: string | null;
   managerId: string | null;
   expectedCloseAt: Date | null;
+  orderId: string | null;
 };
 
 function dateValue(d: Date | null): string {
@@ -46,6 +63,41 @@ export function DealDialog({
 }) {
   const [submitting, setSubmitting] = useState(false);
   const [messages, setMessages] = useState<string[]>([]);
+  // Заметки (только редактирование): null — ещё грузятся.
+  const [notes, setNotes] = useState<DealNoteRow[] | null>(null);
+  const [noteBody, setNoteBody] = useState('');
+  const [noteBusy, setNoteBusy] = useState(false);
+  const targetId = target?.id ?? null;
+
+  useEffect(() => {
+    if (!targetId) return;
+    let cancelled = false;
+    void listDealNotesAction(targetId).then((res) => {
+      if (!cancelled) setNotes(res.ok ? res.rows : []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [targetId]);
+
+  async function handleAddNote() {
+    const body = noteBody.trim();
+    if (!body || !targetId) return;
+    setNoteBusy(true);
+    const fd = new FormData();
+    fd.set('dealId', targetId);
+    fd.set('body', body);
+    const res = await addDealNoteAction(fd);
+    if (!res.ok) {
+      setNoteBusy(false);
+      toast.error(NOTE_ERRORS[res.error] ?? 'Не удалось добавить заметку.');
+      return;
+    }
+    setNoteBody('');
+    const list = await listDealNotesAction(targetId);
+    setNotes(list.ok ? list.rows : []);
+    setNoteBusy(false);
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -116,6 +168,54 @@ export function DealDialog({
           </Button>
         </div>
       </form>
+
+      {target && (
+        <div className="mt-4 border-t border-gray-200 pt-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-[#111111]">Заметки</h3>
+            {target.orderId && (
+              <a href={`/manager/orders/${target.orderId}`} className="text-sm text-[#F97316] underline">
+                Открыть заказ
+              </a>
+            )}
+          </div>
+          {notes === null ? (
+            <p className="text-xs text-gray-400">Загружаю заметки…</p>
+          ) : notes.length === 0 ? (
+            <p className="text-xs text-gray-400">Заметок пока нет.</p>
+          ) : (
+            <ul className="space-y-2 max-h-48 overflow-y-auto">
+              {notes.map((n) => (
+                <li key={n.id}>
+                  <p className="text-xs text-gray-500">
+                    <span className="font-medium text-[#111111]">{n.authorName}</span>{' '}
+                    {fmtDateTime(n.createdAt)}
+                  </p>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{n.body}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex items-start gap-2">
+            <Textarea
+              aria-label="Новая заметка"
+              placeholder="Новая заметка"
+              rows={2}
+              value={noteBody}
+              disabled={noteBusy}
+              onChange={(e) => setNoteBody(e.target.value)}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void handleAddNote()}
+              disabled={noteBusy || !noteBody.trim()}
+            >
+              {noteBusy ? 'Добавляю…' : 'Добавить'}
+            </Button>
+          </div>
+        </div>
+      )}
     </Dialog>
   );
 }

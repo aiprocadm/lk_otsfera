@@ -6,12 +6,23 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
-const { moveDealAction, createDealAction, updateDealAction } = vi.hoisted(() => ({
-  moveDealAction: vi.fn(),
-  createDealAction: vi.fn(),
-  updateDealAction: vi.fn()
+const { moveDealAction, createDealAction, updateDealAction, winDealAction, addDealNoteAction, listDealNotesAction } =
+  vi.hoisted(() => ({
+    moveDealAction: vi.fn(),
+    createDealAction: vi.fn(),
+    updateDealAction: vi.fn(),
+    winDealAction: vi.fn(),
+    addDealNoteAction: vi.fn(),
+    listDealNotesAction: vi.fn()
+  }));
+vi.mock('@/server-actions/deals', () => ({
+  moveDealAction,
+  createDealAction,
+  updateDealAction,
+  winDealAction,
+  addDealNoteAction,
+  listDealNotesAction
 }));
-vi.mock('@/server-actions/deals', () => ({ moveDealAction, createDealAction, updateDealAction }));
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
@@ -28,6 +39,7 @@ const cardOpen: DealCard = {
   managerId: 'm-1',
   managerName: 'Иван',
   status: 'open',
+  orderId: null,
   expectedCloseAt: new Date('2026-08-15'),
   createdAt: new Date('2026-01-01')
 };
@@ -41,6 +53,7 @@ const cardNoAmount: DealCard = {
   managerId: null,
   managerName: null,
   status: 'open',
+  orderId: null,
   expectedCloseAt: null,
   createdAt: new Date('2026-02-01')
 };
@@ -54,6 +67,7 @@ const cardWon: DealCard = {
   managerId: 'm-1',
   managerName: 'Иван',
   status: 'won',
+  orderId: 'order-77',
   expectedCloseAt: null,
   createdAt: new Date('2026-03-01')
 };
@@ -100,6 +114,8 @@ function dialogOf(text: string): HTMLDialogElement {
 describe('DealBoard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Диалог редактирования лениво грузит заметки (PR-2) — пустой список по умолчанию.
+    listDealNotesAction.mockResolvedValue({ ok: true, rows: [] });
     HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
       this.setAttribute('open', '');
     });
@@ -215,28 +231,75 @@ describe('DealBoard', () => {
     });
   });
 
-  describe('dnd: drop on the won stage', () => {
-    it('opens the confirmation dialog with the order notice, confirm calls the action', async () => {
-      moveDealAction.mockResolvedValue({ ok: true });
+  describe('dnd: drop on the won stage (PR-2: winDealAction создаёт заказ)', () => {
+    it('opens the confirmation dialog; confirm calls winDealAction, toasts a link to the order and refreshes', async () => {
+      winDealAction.mockResolvedValue({ ok: true, orderId: 'order-9' });
       render(React.createElement(DealBoard, { board }));
-      fireEvent.drop(columnOf('В работе'), { dataTransfer: dataTransfer('deal-1') });
-      moveDealAction.mockClear();
 
       fireEvent.drop(columnOf('Выиграна'), { dataTransfer: dataTransfer('deal-1') });
       const dlg = dialogOf('Отметить сделку выигранной?');
       expect(dlg.hasAttribute('open')).toBe(true);
-      expect(
-        screen.getByText('Создание заказа из выигранной сделки появится со следующим обновлением.')
-      ).toBeTruthy();
+      expect(screen.getByText('Из выигранной сделки сразу будет создан заказ.')).toBeTruthy();
+      expect(winDealAction).not.toHaveBeenCalled();
       expect(moveDealAction).not.toHaveBeenCalled();
 
-      fireEvent.click(screen.getByRole('button', { name: 'Отметить выигранной' }));
-      await waitFor(() => expect(moveDealAction).toHaveBeenCalledTimes(1));
-      const fd = moveDealAction.mock.calls[0][0] as FormData;
+      fireEvent.click(screen.getByRole('button', { name: 'Выиграна — создать заказ' }));
+      await waitFor(() => expect(winDealAction).toHaveBeenCalledTimes(1));
+      const fd = winDealAction.mock.calls[0][0] as FormData;
       expect(fd.get('dealId')).toBe('deal-1');
       expect(fd.get('toStageId')).toBe('st-won');
-      expect(fd.get('lostReason')).toBeNull();
+      expect(moveDealAction).not.toHaveBeenCalled();
+
+      // Тост — JSX со ссылкой на созданный заказ.
+      await waitFor(() => expect(toastSuccess).toHaveBeenCalledTimes(1));
+      const { container } = render(React.createElement('div', null, toastSuccess.mock.calls[0][0]));
+      const link = container.querySelector('a') as HTMLAnchorElement;
+      expect(link.getAttribute('href')).toBe('/manager/orders/order-9');
+      expect(container.textContent).toContain('заказ создан');
+
+      await waitFor(() => expect(dlg.hasAttribute('open')).toBe(false));
       await waitFor(() => expect(refresh).toHaveBeenCalled());
+    });
+
+    it('org_required keeps the dialog open and shows the russian message inline (no toast)', async () => {
+      winDealAction.mockResolvedValue({ ok: false, error: 'org_required' });
+      render(React.createElement(DealBoard, { board }));
+      fireEvent.drop(columnOf('Выиграна'), { dataTransfer: dataTransfer('deal-1') });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Выиграна — создать заказ' }));
+      await waitFor(() => expect(winDealAction).toHaveBeenCalledTimes(1));
+
+      const dlg = dialogOf('Отметить сделку выигранной?');
+      await waitFor(() =>
+        expect(within(dlg).getByText('У сделки не указана организация — откройте сделку и привяжите организацию.')).toBeTruthy()
+      );
+      expect(dlg.hasAttribute('open')).toBe(true);
+      expect(toastError).not.toHaveBeenCalled();
+      expect(refresh).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['not_found', 'Сделка не найдена или недоступна.'],
+      ['lifecycle_violation', 'Такой переход недопустим: сделка уже завершена.'],
+      ['forbidden', 'Нет доступа.']
+    ])('error %s → closes the dialog and toasts "%s"', async (code, message) => {
+      winDealAction.mockResolvedValue({ ok: false, error: code });
+      render(React.createElement(DealBoard, { board }));
+      fireEvent.drop(columnOf('Выиграна'), { dataTransfer: dataTransfer('deal-1') });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Выиграна — создать заказ' }));
+      await waitFor(() => expect(toastError).toHaveBeenCalledWith(message));
+      await waitFor(() => expect(dialogOf('Отметить сделку выигранной?').hasAttribute('open')).toBe(false));
+      expect(refresh).not.toHaveBeenCalled();
+    });
+
+    it('unmapped error code falls back to the generic win message', async () => {
+      winDealAction.mockResolvedValue({ ok: false, error: 'weird_code' });
+      render(React.createElement(DealBoard, { board }));
+      fireEvent.drop(columnOf('Выиграна'), { dataTransfer: dataTransfer('deal-1') });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Выиграна — создать заказ' }));
+      await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось создать заказ.'));
     });
 
     it('cancel closes the won dialog without calling the action', async () => {
@@ -246,6 +309,7 @@ describe('DealBoard', () => {
       expect(dlg.hasAttribute('open')).toBe(true);
       fireEvent.click(within(dlg).getByRole('button', { name: 'Отмена' }));
       await waitFor(() => expect(dlg.hasAttribute('open')).toBe(false));
+      expect(winDealAction).not.toHaveBeenCalled();
       expect(moveDealAction).not.toHaveBeenCalled();
     });
   });

@@ -6,11 +6,18 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
-const { createDealAction, updateDealAction } = vi.hoisted(() => ({
+const { createDealAction, updateDealAction, addDealNoteAction, listDealNotesAction } = vi.hoisted(() => ({
   createDealAction: vi.fn(),
-  updateDealAction: vi.fn()
+  updateDealAction: vi.fn(),
+  addDealNoteAction: vi.fn(),
+  listDealNotesAction: vi.fn()
 }));
-vi.mock('@/server-actions/deals', () => ({ createDealAction, updateDealAction }));
+vi.mock('@/server-actions/deals', () => ({
+  createDealAction,
+  updateDealAction,
+  addDealNoteAction,
+  listDealNotesAction
+}));
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
@@ -29,7 +36,8 @@ const target: DealDialogTarget = {
   amount: '150.50',
   organizationId: 'org-1',
   managerId: 'm-2',
-  expectedCloseAt: new Date('2026-08-15T00:00:00.000Z')
+  expectedCloseAt: new Date('2026-08-15T00:00:00.000Z'),
+  orderId: null
 };
 
 function renderCreate(overrides: Partial<React.ComponentProps<typeof DealDialog>> = {}) {
@@ -52,6 +60,8 @@ const onSaved = vi.fn();
 describe('DealDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // PR-2: режим редактирования лениво грузит заметки — пустой список по умолчанию.
+    listDealNotesAction.mockResolvedValue({ ok: true, rows: [] });
     HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
       this.setAttribute('open', '');
     });

@@ -61,6 +61,7 @@ function makeDeal(over: Record<string, unknown> = {}) {
     amount: null,
     status: 'open',
     stageId: null,
+    orderId: null,
     expectedCloseAt: null,
     createdAt: new Date('2026-07-01T00:00:00.000Z'),
     organizationId: null,
@@ -164,6 +165,7 @@ describe('getDealBoard', () => {
         organization: { name: 'Орг' },
         managerId: 'm-1',
         manager: { name: 'Менеджер' },
+        orderId: 'ord-1',
         expectedCloseAt: closeAt,
         createdAt
       }),
@@ -182,6 +184,7 @@ describe('getDealBoard', () => {
         managerId: 'm-1',
         managerName: 'Менеджер',
         status: 'open',
+        orderId: 'ord-1',
         expectedCloseAt: closeAt,
         createdAt
       },
@@ -194,6 +197,7 @@ describe('getDealBoard', () => {
         managerId: null,
         managerName: null,
         status: 'open',
+        orderId: null,
         expectedCloseAt: null,
         createdAt
       }
@@ -327,19 +331,14 @@ describe('moveDeal — терминальные стадии', () => {
     });
   });
 
-  it('won → status won + wonAt; default:won пишет stageId=null', async () => {
-    const { prisma, dealUpdate } = makePrisma({ deal: { id: 'd-1', status: 'open', stageId: null } });
-    expect(await moveDeal(prisma, MGR, { dealId: 'd-1', toStageId: 'default:won' })).toEqual({ ok: true });
-    expect(dealUpdate).toHaveBeenCalledWith({
-      where: { id: 'd-1' },
-      data: { status: 'won', wonAt: expect.any(Date), stageId: null }
+  it('won-стадия через move запрещена (инвариант «выигрыш = заказ») → won_requires_order', async () => {
+    const { prisma, dealUpdate } = makePrisma({
+      deal: { id: 'd-1', status: 'open', stageId: null, companyId: 'c1' }
     });
-    expect(recordAudit).toHaveBeenCalledWith(prisma, {
-      userId: 'm-1',
-      action: 'deal_stage_changed',
-      entity: 'deal',
-      entityId: 'd-1',
-      after: { toStageId: 'default:won', statusAnchor: 'won' }
+    expect(await moveDeal(prisma, MGR, { dealId: 'd-1', toStageId: 'default:won' })).toEqual({
+      ok: false,
+      error: 'won_requires_order'
     });
+    expect(dealUpdate).not.toHaveBeenCalled();
   });
 });
