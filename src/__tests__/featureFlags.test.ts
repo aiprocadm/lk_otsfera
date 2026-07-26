@@ -50,6 +50,7 @@ const OPT_IN_FLAGS = new Set([
   'deals_pipeline',
   'intake_inbox',
   'document_generation',
+  'cabinet_questions',
 ]);
 
 describe('isFeatureEnabled', () => {

@@ -3,6 +3,8 @@ import { OrgSidebar, type OrgSidebarMembership } from './org-sidebar';
 import { navItemsFor } from '@/lib/navigation/cabinet';
 import { LogoutButton } from '@/components/ui';
 import { NotificationBell } from '@/components/notifications/notification-bell';
+import { isFeatureEnabled } from '@/lib/featureFlags';
+import { AskQuestionButton } from '@/components/support/ask-question-button';
 
 export function OrgAppShell(props: {
   userEmail?: string | null;
@@ -31,6 +33,10 @@ export function OrgAppShell(props: {
             ) : null}
           </div>
           <div className='flex items-center gap-2'>
+            {/* Этап 9 (ФТ-11.1): «Задать вопрос» — светлая шапка org-кабинета. */}
+            {isFeatureEnabled('cabinet_questions') ? (
+              <AskQuestionButton className='text-xs text-gray-600 hover:text-[#EA580C] transition-colors px-2 py-1 border border-gray-200 rounded hover:border-[#F97316]' />
+            ) : null}
             <NotificationBell role='organization' />
             <LogoutButton />
           </div>

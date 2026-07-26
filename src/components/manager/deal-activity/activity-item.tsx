@@ -22,7 +22,8 @@ export const CHANNEL_LABEL: Record<string, string> = {
   telegram: 'Telegram',
   max: 'MAX',
   whatsapp: 'WhatsApp',
-  email: 'Email'
+  email: 'Email',
+  cabinet: 'Вопрос из кабинета'
 };
 
 const DIRECTION_LABEL: Record<string, string> = {

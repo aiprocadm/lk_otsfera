@@ -22,7 +22,8 @@ const CHANNEL_LABEL: Record<string, string> = {
   telegram: 'Telegram',
   max: 'MAX',
   whatsapp: 'WhatsApp',
-  email: 'Email'
+  email: 'Email',
+  cabinet: 'Вопрос из кабинета'
 };
 
 const STATUS_TONE: Record<string, 'warning' | 'success' | 'neutral'> = {

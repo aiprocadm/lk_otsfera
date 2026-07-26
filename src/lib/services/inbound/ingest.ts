@@ -6,15 +6,27 @@ import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { log } from '@/lib/logging';
 
 export type InboundDto = {
-  channel: 'telegram' | 'max' | 'whatsapp' | 'email';
+  // Этап 9 (ФТ-11.1): `cabinet` — вопрос из личного кабинета клиента.
+  channel: 'telegram' | 'max' | 'whatsapp' | 'email' | 'cabinet';
   externalId: string;
   senderRef: string;
-  senderDisplay?: string;
+  senderDisplay?: string | null;
   subject?: string;
   body: string;
   attachmentPath?: string;
   attachmentName?: string;
   attachmentMime?: string;
+  /**
+   * Этап 9: отправитель уже известен (кабинет — сессия клиента), резолв по
+   * каналу не нужен. Статус остаётся `unresolved`: критерий Intake — именно
+   * неразобранные единицы (ФТ-8.1), а привязка к орг/пользователю лишь
+   * показывает сотруднику, от кого обращение.
+   */
+  sender?: {
+    userId: string;
+    organizationId: string | null;
+    companyId: string | null;
+  };
 };
 export type IngestResult =
   | { ok: true; id: string; deduped: boolean }
@@ -28,12 +40,15 @@ export async function ingestInboundMessage(prisma: PrismaClient, dto: InboundDto
     return { ok: true, id: existing.id, deduped: true };
   }
 
-  const resolved = await resolveInboundSender(prisma, {
-    channel: dto.channel,
-    chatId: dto.channel === 'telegram' || dto.channel === 'max' ? dto.senderRef : undefined,
-    phone: dto.channel === 'whatsapp' ? dto.senderRef : undefined,
-    email: dto.channel === 'email' ? dto.senderRef : undefined,
-  });
+  const resolved = dto.sender
+    ? ({ matchType: 'known-sender' } as const)
+    : await resolveInboundSender(prisma, {
+        // Сюда попадают только внешние каналы: у кабинета отправитель известен (dto.sender).
+        channel: dto.channel as 'telegram' | 'max' | 'whatsapp' | 'email',
+        chatId: dto.channel === 'telegram' || dto.channel === 'max' ? dto.senderRef : undefined,
+        phone: dto.channel === 'whatsapp' ? dto.senderRef : undefined,
+        email: dto.channel === 'email' ? dto.senderRef : undefined,
+      });
 
   let row: { id: string };
   try {
@@ -49,16 +64,24 @@ export async function ingestInboundMessage(prisma: PrismaClient, dto: InboundDto
         attachmentName: dto.attachmentName ?? null,
         attachmentMime: dto.attachmentMime ?? null,
         scanStatus: dto.attachmentPath ? 'pending' : 'none',
-        ...(resolved.matchType === 'exact'
+        ...(dto.sender
           ? {
-              resolvedOrgId: resolved.orgId,
-              resolvedUserId: resolved.userId ?? null,
-              contactId: resolved.contactId ?? null,
-              companyId: resolved.companyId,
-              status: 'bound',
-              boundAt: new Date(),
+              // Известный отправитель (кабинет): привязка есть, но разбор — за сотрудником.
+              resolvedUserId: dto.sender.userId,
+              resolvedOrgId: dto.sender.organizationId,
+              companyId: dto.sender.companyId,
+              status: 'unresolved',
             }
-          : { status: 'unresolved' }),
+          : resolved.matchType === 'exact'
+            ? {
+                resolvedOrgId: resolved.orgId,
+                resolvedUserId: resolved.userId ?? null,
+                contactId: resolved.contactId ?? null,
+                companyId: resolved.companyId,
+                status: 'bound',
+                boundAt: new Date(),
+              }
+            : { status: 'unresolved' }),
       },
       select: { id: true },
     });
@@ -73,8 +96,8 @@ export async function ingestInboundMessage(prisma: PrismaClient, dto: InboundDto
 
   await writeSyncLog({
     entity: 'inbound', externalId: dto.externalId, direction: 'inbound', operation: 'create',
-    status: resolved.matchType === 'exact' ? 'success' : 'warn',
-    errorMessage: resolved.matchType === 'exact' ? undefined : 'unresolved',
+    status: resolved.matchType === 'exact' || resolved.matchType === 'known-sender' ? 'success' : 'warn',
+    errorMessage: resolved.matchType === 'exact' || resolved.matchType === 'known-sender' ? undefined : 'unresolved',
   }, prisma);
 
   // Best-effort: enqueue ClamAV scan for the attachment. Failure leaves

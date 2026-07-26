@@ -91,6 +91,9 @@ export const FEATURE_FLAGS = [
   // точки чтения — деталка заказа менеджера (панель «Сформировать документы») и
   // server-action generateOrderDocumentAction/requestRequisitesAction.
   'document_generation',
+  // Этап 9 (ФТ-11.1): кнопка «Задать вопрос» в кабинетах. Поведенческий флаг
+  // (не route): точки чтения — шеллы partner/organization и POST /api/support/question.
+  'cabinet_questions',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -125,6 +128,7 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'deals_pipeline',
   'intake_inbox',
   'document_generation',
+  'cabinet_questions',
 ]);
 
 /**
