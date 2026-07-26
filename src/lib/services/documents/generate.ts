@@ -4,6 +4,7 @@ import { recordAudit } from '@/lib/auth/audit';
 import { canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { listMissingRequisites, type MissingRequisite } from '@/lib/documents/requisites-check';
 import { renderOrderDocumentPdf, type OrderDocumentData, type PartyBlock } from './orderDocumentPdf';
+import { renderContractDocumentPdf, type ContractDocumentData } from './contractDocumentPdf';
 import { getObjectStorage } from '@/lib/storage';
 import { notifyOrgUsers } from '@/lib/notifications';
 import { log } from '@/lib/logging';
@@ -22,15 +23,43 @@ import { log } from '@/lib/logging';
  * замер < 2 с закреплён unit-тестом).
  */
 
-export type GenerateDocType = 'invoice' | 'act';
+export type GenerateDocType = 'invoice' | 'act' | 'contract' | 'extra_agreement';
 
 export type GenerateResult =
   | { ok: true; documentId: string; number: string }
   | {
       ok: false;
-      error: 'forbidden' | 'not_found' | 'missing_requisites' | 'invoice_required' | 'no_organization' | 'storage';
+      error:
+        | 'forbidden'
+        | 'not_found'
+        | 'missing_requisites'
+        | 'invoice_required'
+        | 'contract_required'
+        | 'no_organization'
+        | 'storage';
       missing?: MissingRequisite[];
     };
+
+/** Ведущий документ пары (номер наследуется) — решение заказчика по акту, зеркально для ДС. */
+const LEADER_OF: Record<GenerateDocType, 'invoice' | 'contract' | null> = {
+  invoice: null,
+  act: 'invoice',
+  contract: null,
+  extra_agreement: 'contract'
+};
+const NUMBER_PREFIX: Record<GenerateDocType, string> = {
+  invoice: 'С',
+  act: 'А',
+  contract: 'Д',
+  extra_agreement: 'ДС'
+};
+/** Последовательность номеров: счёт и договор нумеруются независимо. */
+const COUNTER_KIND: Record<GenerateDocType, string> = {
+  invoice: 'invoice',
+  act: 'invoice',
+  contract: 'contract',
+  extra_agreement: 'contract'
+};
 
 const fmtMoney = (v: unknown): string =>
   Number(v).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -47,6 +76,7 @@ function party(row: {
   bic: string | null;
   signerName: string | null;
   signerPosition: string | null;
+  signerBasis: string | null;
   phone?: string | null;
   email?: string | null;
 }): PartyBlock {
@@ -61,6 +91,7 @@ function party(row: {
     bic: row.bic,
     signerName: row.signerName,
     signerPosition: row.signerPosition,
+    signerBasis: row.signerBasis,
     phone: row.phone ?? null,
     email: row.email ?? null
   };
@@ -77,7 +108,8 @@ const PARTY_SELECT = {
   corrAccount: true,
   bic: true,
   signerName: true,
-  signerPosition: true
+  signerPosition: true,
+  signerBasis: true
 } as const;
 
 export async function generateOrderDocument(
@@ -150,26 +182,30 @@ export async function generateOrderDocument(
   let created: { id: string; number: string };
   try {
     created = await prisma.$transaction(async (tx) => {
+      // Ведущие документы (счёт, договор) берут номер из своей последовательности;
+      // ведомые (акт, доп. соглашение) наследуют номер ведущего по заказу.
+      const leader = LEADER_OF[args.docType];
       let numeric: number;
-      if (args.docType === 'invoice') {
+      let baseDoc: { number: string; createdAt: Date } | null = null;
+      if (leader === null) {
         const counter = await tx.documentCounter.upsert({
-          where: { companyId_year: { companyId: order.companyId!, year } },
-          create: { companyId: order.companyId!, year, lastNumber: 1 },
+          where: { companyId_year_kind: { companyId: order.companyId!, year, kind: COUNTER_KIND[args.docType] } },
+          create: { companyId: order.companyId!, year, kind: COUNTER_KIND[args.docType], lastNumber: 1 },
           update: { lastNumber: { increment: 1 } }
         });
         numeric = counter.lastNumber;
       } else {
-        // Акт наследует номер последнего счёта заказа (решение заказчика).
-        const invoice = await tx.document.findFirst({
-          where: { orderId: order.id, type: 'invoice', generatedBy: 'system', number: { not: null } },
+        const found = await tx.document.findFirst({
+          where: { orderId: order.id, type: leader, generatedBy: 'system', number: { not: null } },
           orderBy: { createdAt: 'desc' },
-          select: { number: true }
+          select: { number: true, createdAt: true }
         });
-        const parsed = invoice?.number?.match(/(\d+)$/);
-        if (!parsed) throw new InvoiceRequiredError();
+        const parsed = found?.number?.match(/(\d+)$/);
+        if (!parsed) throw new LeaderRequiredError(leader);
         numeric = Number(parsed[1]);
+        baseDoc = { number: found!.number!, createdAt: found!.createdAt };
       }
-      const number = `${args.docType === 'invoice' ? 'С' : 'А'}-${year}-${numeric}`;
+      const number = `${NUMBER_PREFIX[args.docType]}-${year}-${numeric}`;
 
       const previous = await tx.document.findFirst({
         where: { orderId: order.id, type: args.docType, generatedBy: 'system' },
@@ -177,18 +213,36 @@ export async function generateOrderDocument(
         select: { id: true, version: true }
       });
 
-      const data: OrderDocumentData = {
-        docType: args.docType,
-        number,
-        date: now,
-        company: party(company),
-        organization: party(organization),
-        orderLabel: `Заказ ${order.orderNumber ? `№${order.orderNumber} ` : ''}«${order.title}»`,
-        items,
-        total,
-        vatLine
-      };
-      const buffer = await renderOrderDocumentPdf(data);
+      const isContractKind = args.docType === 'contract' || args.docType === 'extra_agreement';
+      let buffer: Buffer;
+      if (isContractKind) {
+        const contractData: ContractDocumentData = {
+          docType: args.docType as 'contract' | 'extra_agreement',
+          number,
+          date: now,
+          company: party(company),
+          organization: party(organization),
+          subject: order.title,
+          items,
+          total,
+          vatLine,
+          baseContract: baseDoc ? { number: baseDoc.number, date: baseDoc.createdAt } : null
+        };
+        buffer = await renderContractDocumentPdf(contractData);
+      } else {
+        const data: OrderDocumentData = {
+          docType: args.docType as 'invoice' | 'act',
+          number,
+          date: now,
+          company: party(company),
+          organization: party(organization),
+          orderLabel: `Заказ ${order.orderNumber ? `№${order.orderNumber} ` : ''}«${order.title}»`,
+          items,
+          total,
+          vatLine
+        };
+        buffer = await renderOrderDocumentPdf(data);
+      }
 
       const fileName = `${number}.pdf`;
       const path = `orders/${order.id}/generated/${args.docType}-v${(previous?.version ?? 0) + 1}-${number}.pdf`;
@@ -226,7 +280,9 @@ export async function generateOrderDocument(
       return { id: doc.id, number };
     });
   } catch (e) {
-    if (e instanceof InvoiceRequiredError) return { ok: false, error: 'invoice_required' };
+    if (e instanceof LeaderRequiredError) {
+      return { ok: false, error: e.leader === 'invoice' ? 'invoice_required' : 'contract_required' };
+    }
     if (e instanceof Error && e.name === 'StorageError') return { ok: false, error: 'storage' };
     throw e;
   }
@@ -251,9 +307,10 @@ export async function generateOrderDocument(
   return { ok: true, documentId: created.id, number: created.number };
 }
 
-class InvoiceRequiredError extends Error {
-  constructor() {
-    super('invoice_required');
-    this.name = 'InvoiceRequiredError';
+/** Ведомый документ (акт/допсоглашение) не может быть создан без ведущего. */
+class LeaderRequiredError extends Error {
+  constructor(readonly leader: 'invoice' | 'contract') {
+    super(`${leader}_required`);
+    this.name = 'LeaderRequiredError';
   }
 }

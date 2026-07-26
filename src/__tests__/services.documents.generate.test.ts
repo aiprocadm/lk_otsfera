@@ -7,10 +7,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
-const { recordAuditMock, uploadMock, renderMock, notifyOrgUsers, getCompanyTeamVisibility, canSeeOrderMock } = vi.hoisted(() => ({
+const { recordAuditMock, uploadMock, renderMock, renderContractMock, notifyOrgUsers, getCompanyTeamVisibility, canSeeOrderMock } = vi.hoisted(() => ({
   recordAuditMock: vi.fn(),
   uploadMock: vi.fn(),
   renderMock: vi.fn(),
+  renderContractMock: vi.fn(),
   notifyOrgUsers: vi.fn(),
   getCompanyTeamVisibility: vi.fn(),
   canSeeOrderMock: vi.fn()
@@ -18,6 +19,7 @@ const { recordAuditMock, uploadMock, renderMock, notifyOrgUsers, getCompanyTeamV
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
 vi.mock('@/lib/storage', () => ({ getObjectStorage: () => ({ upload: uploadMock }) }));
 vi.mock('@/lib/services/documents/orderDocumentPdf', () => ({ renderOrderDocumentPdf: renderMock }));
+vi.mock('@/lib/services/documents/contractDocumentPdf', () => ({ renderContractDocumentPdf: renderContractMock }));
 vi.mock('@/lib/notifications', () => ({ notifyOrgUsers }));
 vi.mock('@/lib/auth/managerPolicy', () => ({ getCompanyTeamVisibility, canSeeOrder: canSeeOrderMock }));
 vi.mock('@/lib/logging', () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
@@ -76,6 +78,7 @@ function makePrisma(over: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   renderMock.mockResolvedValue(Buffer.from('%PDF-fake'));
+  renderContractMock.mockResolvedValue(Buffer.from('%PDF-contract'));
   uploadMock.mockResolvedValue(undefined);
   notifyOrgUsers.mockResolvedValue({});
   getCompanyTeamVisibility.mockResolvedValue(false);
@@ -113,8 +116,8 @@ describe('generateOrderDocument', () => {
     expect(r).toEqual({ ok: true, documentId: 'doc-1', number: 'С-2026-7' });
 
     expect(tx.documentCounter.upsert).toHaveBeenCalledWith({
-      where: { companyId_year: { companyId: 'co-A', year: 2026 } },
-      create: { companyId: 'co-A', year: 2026, lastNumber: 1 },
+      where: { companyId_year_kind: { companyId: 'co-A', year: 2026, kind: 'invoice' } },
+      create: { companyId: 'co-A', year: 2026, kind: 'invoice', lastNumber: 1 },
       update: { lastNumber: { increment: 1 } }
     });
     const data = documentCreate.mock.calls[0]![0].data;
@@ -165,7 +168,7 @@ describe('generateOrderDocument', () => {
         document: {
           findFirst: vi
             .fn()
-            .mockResolvedValueOnce({ number: 'С-2026-17' }) // последний счёт
+            .mockResolvedValueOnce({ number: 'С-2026-17', createdAt: new Date('2026-07-01') }) // последний счёт
             .mockResolvedValueOnce({ id: 'act-old', version: 2 }), // прежний акт
           create: vi.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => Promise.resolve({ id: 'doc-2', version: data.version }))
         }
@@ -207,5 +210,48 @@ describe('generateOrderDocument', () => {
 
     const none = makePrisma({ order: null });
     expect(await generateOrderDocument(none.prisma, manager(), { orderId: 'x', docType: 'invoice' })).toEqual({ ok: false, error: 'not_found' });
+  });
+});
+
+describe('договор и доп. соглашение (PR-3)', () => {
+  it('договор: свой счётчик kind=contract, номер «Д-{год}-{N}»', async () => {
+    const now = new Date('2026-07-26T12:00:00Z');
+    const { prisma, tx } = makePrisma();
+    const r = await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'contract', now });
+    expect(r).toEqual({ ok: true, documentId: 'doc-1', number: 'Д-2026-7' });
+    expect(tx.documentCounter.upsert).toHaveBeenCalledWith({
+      where: { companyId_year_kind: { companyId: 'co-A', year: 2026, kind: 'contract' } },
+      create: { companyId: 'co-A', year: 2026, kind: 'contract', lastNumber: 1 },
+      update: { lastNumber: { increment: 1 } }
+    });
+  });
+
+  it('доп. соглашение наследует номер договора; без договора → contract_required', async () => {
+    const now = new Date('2026-07-26T12:00:00Z');
+    const withContract = makePrisma({
+      tx: {
+        documentCounter: { upsert: vi.fn() },
+        document: {
+          findFirst: vi
+            .fn()
+            .mockResolvedValueOnce({ number: 'Д-2026-4', createdAt: new Date('2026-07-02') })
+            .mockResolvedValueOnce(null),
+          create: vi.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => Promise.resolve({ id: 'doc-3', version: data.version }))
+        }
+      }
+    });
+    const r = await generateOrderDocument(withContract.prisma, manager(), { orderId: 'ord-1', docType: 'extra_agreement', now });
+    expect(r).toEqual({ ok: true, documentId: 'doc-3', number: 'ДС-2026-4' });
+    expect((withContract.tx.documentCounter.upsert as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    // Шаблон ДС получает ссылку на исходный договор.
+    expect(renderContractMock).toHaveBeenCalledWith(
+      expect.objectContaining({ docType: 'extra_agreement', baseContract: { number: 'Д-2026-4', date: new Date('2026-07-02') } })
+    );
+
+    const none = makePrisma();
+    expect(await generateOrderDocument(none.prisma, manager(), { orderId: 'ord-1', docType: 'extra_agreement', now })).toEqual({
+      ok: false,
+      error: 'contract_required'
+    });
   });
 });

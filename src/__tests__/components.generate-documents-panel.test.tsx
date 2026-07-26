@@ -21,11 +21,34 @@ import { GenerateDocumentsPanel } from '@/components/manager/generate-documents-
 describe('GenerateDocumentsPanel', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('полные реквизиты: «Счёт» активен, «Акт» без счёта заблокирован с подсказкой', () => {
+  it('полные реквизиты: «Счёт»/«Договор» активны, ведомые без ведущего заблокированы', () => {
     render(<GenerateDocumentsPanel orderId="ord-1" missing={[]} hasInvoice={false} />);
     expect((screen.getByRole('button', { name: 'Счёт' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Договор' }) as HTMLButtonElement).disabled).toBe(false);
     expect((screen.getByRole('button', { name: 'Акт' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText(/наследует его номер|наследует/)).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Доп. соглашение' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(/наследует его номер/)).toBeTruthy();
+  });
+
+  it('PR-3: договор формируется, доп. соглашение разблокируется при hasContract', async () => {
+    generateOrderDocumentAction.mockResolvedValue({ ok: true, documentId: 'd9', number: 'Д-2026-4' });
+    const { rerender } = render(<GenerateDocumentsPanel orderId="ord-1" missing={[]} hasInvoice={true} hasContract={false} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Договор' }));
+    await waitFor(() => expect(generateOrderDocumentAction).toHaveBeenCalled());
+    expect((generateOrderDocumentAction.mock.calls[0]![0] as FormData).get('docType')).toBe('contract');
+    expect(toastSuccess).toHaveBeenCalledWith('Договор № Д-2026-4 сформирован.');
+
+    rerender(<GenerateDocumentsPanel orderId="ord-1" missing={[]} hasInvoice={true} hasContract={true} />);
+    expect((screen.getByRole('button', { name: 'Доп. соглашение' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('PR-3: contract_required мапится в русский текст', async () => {
+    generateOrderDocumentAction.mockResolvedValue({ ok: false, error: 'contract_required' });
+    render(<GenerateDocumentsPanel orderId="ord-1" missing={[]} hasInvoice={true} hasContract={true} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Доп. соглашение' }));
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('Сначала сформируйте договор — доп. соглашение наследует его номер.')
+    );
   });
 
   it('клик «Счёт» вызывает action; успех → toast с номером + refresh', async () => {

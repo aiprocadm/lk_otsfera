@@ -5,6 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { renderOrderDocumentPdf, type OrderDocumentData } from '@/lib/services/documents/orderDocumentPdf';
+import { renderContractDocumentPdf, type ContractDocumentData } from '@/lib/services/documents/contractDocumentPdf';
 import { listMissingRequisites } from '@/lib/documents/requisites-check';
 
 const PARTY = {
@@ -77,5 +78,43 @@ describe('listMissingRequisites', () => {
   it('рабочее название организации закрывает отсутствие юр. названия', () => {
     const org = { ...(full as Record<string, unknown>), legalName: null, name: 'ООО Ромашка (раб.)' };
     expect(listMissingRequisites(full, org as never).some((m) => m.label.includes('название'))).toBe(false);
+  });
+});
+
+describe('renderContractDocumentPdf (PR-3)', () => {
+  const base = (docType: 'contract' | 'extra_agreement'): ContractDocumentData => ({
+    docType,
+    number: docType === 'contract' ? 'Д-2026-4' : 'ДС-2026-4',
+    date: new Date('2026-07-26T00:00:00Z'),
+    company: { ...PARTY, signerBasis: 'Устава' },
+    organization: { ...PARTY, displayName: 'ООО «Ромашка»', signerBasis: 'Доверенности № 7' },
+    subject: 'Обучение по охране труда',
+    items: [{ name: 'Обучение по охране труда', amount: '15 000,00' }],
+    total: '15 000,00',
+    vatLine: 'В том числе НДС 20%.',
+    baseContract: docType === 'extra_agreement' ? { number: 'Д-2026-4', date: new Date('2026-07-01') } : null
+  });
+
+  it('договор: валидный PDF с кириллицей, рендер < 2 с', async () => {
+    const started = Date.now();
+    const buffer = await renderContractDocumentPdf(base('contract'));
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
+    expect(buffer.length).toBeGreaterThan(1000);
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+
+  it('доп. соглашение: рендерится со ссылкой на договор', async () => {
+    const buffer = await renderContractDocumentPdf(base('extra_agreement'));
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
+  it('пустые подписанты/реквизиты не ломают рендер (фолбэки)', async () => {
+    const bare = {
+      ...base('contract'),
+      company: { ...PARTY, signerName: null, signerPosition: null, signerBasis: null, phone: null, email: null, legalAddress: null },
+      organization: { ...PARTY, displayName: 'ООО «Ромашка»', signerName: null, signerBasis: null, bankName: null, bic: null }
+    };
+    const buffer = await renderContractDocumentPdf(bare);
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
   });
 });
