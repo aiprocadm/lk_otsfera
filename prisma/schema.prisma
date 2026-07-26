@@ -1878,7 +1878,11 @@ model SlaEscalation {
 model DocumentCounter {
   companyId  String
   year       Int
+  // Этап 8 PR-3: раздельные последовательности по виду документа —
+  // 'invoice' (счёт, акт наследует его номер) и 'contract' (договор,
+  // доп. соглашение наследует его номер).
+  kind       String @default("invoice")
   lastNumber Int    @default(0)
 
-  @@id([companyId, year])
+  @@id([companyId, year, kind])
 }

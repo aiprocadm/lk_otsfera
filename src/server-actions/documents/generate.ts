@@ -21,7 +21,8 @@ export async function generateOrderDocumentAction(fd: FormData): Promise<Generat
   const session = await requireSession();
   const orderId = typeof fd.get('orderId') === 'string' ? (fd.get('orderId') as string) : '';
   const docType = fd.get('docType');
-  if (!orderId || (docType !== 'invoice' && docType !== 'act')) return { ok: false, error: 'not_found' };
+  const allowed = ['invoice', 'act', 'contract', 'extra_agreement'];
+  if (!orderId || typeof docType !== 'string' || !allowed.includes(docType)) return { ok: false, error: 'not_found' };
 
   const res = await generateOrderDocument(prisma, session, { orderId, docType: docType as GenerateDocType });
   if (res.ok) revalidatePath(`/manager/orders/${orderId}`);

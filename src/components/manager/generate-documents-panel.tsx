@@ -16,6 +16,7 @@ import type { MissingRequisite } from '@/lib/documents/requisites-check';
 
 const GENERATE_ERRORS: Record<string, string> = {
   invoice_required: 'Сначала сформируйте счёт — акт наследует его номер.',
+  contract_required: 'Сначала сформируйте договор — доп. соглашение наследует его номер.',
   missing_requisites: 'Не хватает реквизитов — заполните и попробуйте снова.',
   no_organization: 'К заказу не привязана организация.',
   storage: 'Хранилище файлов недоступно. Попробуйте позже.',
@@ -23,21 +24,33 @@ const GENERATE_ERRORS: Record<string, string> = {
   forbidden: 'Нет доступа.'
 };
 
+type DocKind = 'invoice' | 'act' | 'contract' | 'extra_agreement';
+
+const DOC_LABEL: Record<DocKind, string> = {
+  invoice: 'Счёт',
+  act: 'Акт',
+  contract: 'Договор',
+  extra_agreement: 'Доп. соглашение'
+};
+
 export function GenerateDocumentsPanel({
   orderId,
   missing,
-  hasInvoice
+  hasInvoice,
+  hasContract = false
 }: {
   orderId: string;
   missing: MissingRequisite[];
   hasInvoice: boolean;
+  /** Этап 8 PR-3: доп. соглашение наследует номер договора. */
+  hasContract?: boolean;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
   const complete = missing.length === 0;
 
-  async function generate(docType: 'invoice' | 'act') {
+  async function generate(docType: DocKind) {
     const fd = new FormData();
     fd.set('orderId', orderId);
     fd.set('docType', docType);
@@ -48,7 +61,7 @@ export function GenerateDocumentsPanel({
       toast.error(GENERATE_ERRORS[res.error] ?? 'Не удалось сформировать документ.');
       return;
     }
-    toast.success(`${docType === 'invoice' ? 'Счёт' : 'Акт'} № ${res.number} сформирован.`);
+    toast.success(`${DOC_LABEL[docType]} № ${res.number} сформирован.`);
     startTransition(() => router.refresh());
   }
 
@@ -70,7 +83,7 @@ export function GenerateDocumentsPanel({
       <h2 className='text-sm font-semibold text-[#111111] mb-2'>Сформировать документы</h2>
       <div className='flex flex-wrap gap-2'>
         <Button size='sm' disabled={!complete || busy !== null} onClick={() => void generate('invoice')}>
-          {busy === 'invoice' ? 'Формирую…' : 'Счёт'}
+          {busy === 'invoice' ? 'Формирую…' : DOC_LABEL.invoice}
         </Button>
         <Button
           size='sm'
@@ -78,11 +91,25 @@ export function GenerateDocumentsPanel({
           onClick={() => void generate('act')}
           title={hasInvoice ? undefined : 'Сначала сформируйте счёт'}
         >
-          {busy === 'act' ? 'Формирую…' : 'Акт'}
+          {busy === 'act' ? 'Формирую…' : DOC_LABEL.act}
+        </Button>
+        <Button size='sm' disabled={!complete || busy !== null} onClick={() => void generate('contract')}>
+          {busy === 'contract' ? 'Формирую…' : DOC_LABEL.contract}
+        </Button>
+        <Button
+          size='sm'
+          disabled={!complete || !hasContract || busy !== null}
+          onClick={() => void generate('extra_agreement')}
+          title={hasContract ? undefined : 'Сначала сформируйте договор'}
+        >
+          {busy === 'extra_agreement' ? 'Формирую…' : DOC_LABEL.extra_agreement}
         </Button>
       </div>
-      {!hasInvoice && complete && (
-        <p className='text-xs text-gray-500 mt-2'>Акт станет доступен после формирования счёта (наследует его номер).</p>
+      {complete && (!hasInvoice || !hasContract) && (
+        <p className='text-xs text-gray-500 mt-2'>
+          {!hasInvoice && 'Акт станет доступен после формирования счёта (наследует его номер). '}
+          {!hasContract && 'Доп. соглашение — после формирования договора.'}
+        </p>
       )}
       {!complete && (
         <div className='mt-3' data-testid='missing-requisites'>
