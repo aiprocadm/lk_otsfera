@@ -26,7 +26,8 @@ export function ManagerOrderDetailView({
   customFields = [],
   activityItems = [],
   inboundEnabled = false,
-  telephonyEnabled = false
+  telephonyEnabled = false,
+  generatePanel = null
 }: {
   data: ManagerOrderDetailData;
   backHref: string;
@@ -36,6 +37,8 @@ export function ManagerOrderDetailView({
   activityItems?: ActivityItem[];
   inboundEnabled?: boolean;
   telephonyEnabled?: boolean;
+  /** Этап 8 (PR-2): панель «Сформировать документы» (страница собирает данные). */
+  generatePanel?: React.ReactNode;
 }) {
   const { order, auditEntries, documentRows, items } = data;
 
@@ -53,6 +56,8 @@ export function ManagerOrderDetailView({
       <div className='grid gap-4 md:grid-cols-3'>
         <div className='md:col-span-2 space-y-4'>
           <ManagerOrderAmounts order={order} />
+
+          {generatePanel}
 
           <div className='bg-white border border-gray-200 rounded-xl p-5 space-y-3'>
             <h2 className='text-sm font-semibold text-[#111111]'>
