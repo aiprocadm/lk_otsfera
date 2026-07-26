@@ -8,6 +8,8 @@ import { listDirections } from '@/lib/services/training';
 import { getValuesForEntity } from '@/lib/services/customFields';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { ManagerOrderDetailView } from '@/components/manager/manager-order-detail-view';
+import { GenerateDocumentsPanel } from '@/components/manager/generate-documents-panel';
+import { listMissingRequisites, type MissingRequisite } from '@/lib/documents/requisites-check';
 
 export default async function ManagerOrderDetailPage({
   params
@@ -35,6 +37,25 @@ export default async function ManagerOrderDetailPage({
   const inboundEnabled = isFeatureEnabled('inbound_messaging');
   const telephonyEnabled = isFeatureEnabled('telephony_mango');
 
+  // Этап 8 (ФТ-9.4/9.5): панель генерации счёта/акта — за флагом; данные собирает страница.
+  let generatePanel: React.ReactNode = null;
+  if (isFeatureEnabled('document_generation') && data.order.organizationId && data.order.companyId) {
+    const REQ = {
+      name: true, legalName: true, inn: true, kpp: true, legalAddress: true, bankName: true,
+      bankAccount: true, corrAccount: true, bic: true, signerName: true, signerPosition: true
+    } as const;
+    const [company, organization, invoiceCount] = await Promise.all([
+      prisma.company.findUnique({ where: { id: data.order.companyId }, select: REQ }),
+      prisma.organization.findUnique({ where: { id: data.order.organizationId }, select: REQ }),
+      prisma.document.count({ where: { orderId: id, type: 'invoice', generatedBy: 'system' } })
+    ]);
+    const missing: MissingRequisite[] =
+      company && organization ? listMissingRequisites(company, organization) : [];
+    generatePanel = (
+      <GenerateDocumentsPanel orderId={id} missing={missing} hasInvoice={invoiceCount > 0} />
+    );
+  }
+
   return (
     <ManagerOrderDetailView
       data={data}
@@ -45,6 +66,7 @@ export default async function ManagerOrderDetailPage({
       activityItems={activityItems}
       inboundEnabled={inboundEnabled}
       telephonyEnabled={telephonyEnabled}
+      generatePanel={generatePanel}
     />
   );
 }

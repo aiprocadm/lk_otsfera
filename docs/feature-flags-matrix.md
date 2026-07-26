@@ -35,6 +35,7 @@
 | `certificates_registry` | Этап 3: реестры удостоверений клиентов (`/organization/certificates`, `/partner/certificates`, карточка сотрудника, KPI-карточки) | **1** после мержа этапа 3 | — |
 | `deals_pipeline` | Этап 6: канбан сделок (`/manager/deals`, `/leader/deals`; `/partner/deals` — другой домен, вне флага) | **1** после мержа этапа 6 | БД |
 | `intake_inbox` | Этап 7: «Входящие в работу» (`/manager/intake`, `/leader/intake`, `/admin/intake`) | **1** после мержа этапа 7 PR-2 | БД |
+| `document_generation` | Этап 8: кнопки «Сформировать счёт/акт» на деталке заказа (поведенческий) | **1** после мержа этапа 8 PR-2 | БД |
 
 ## Как флипать в проде
 

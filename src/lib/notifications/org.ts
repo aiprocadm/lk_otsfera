@@ -51,6 +51,17 @@ type OrgNotifyInput =
     }
   | {
       organizationId: string;
+      // Этап 8 (ФТ-9.5, PR-2): менеджер просит заполнить реквизиты для документов.
+      type: 'requisites_requested';
+      payload: {
+        orderId: string | null;
+        orderNumber: string | null;
+        orderTitle: string | null;
+        missingLabels: string[];
+      };
+    }
+  | {
+      organizationId: string;
       type: 'chat_message';
       payload: {
         orderId: string;
@@ -120,6 +131,15 @@ function buildOrgNotification(
       }
     };
   }
+  if (input.type === 'requisites_requested') {
+    const missing = input.payload.missingLabels.slice(0, 6).join(', ');
+    return {
+      title: 'Заполните реквизиты организации',
+      body: `Для формирования документов${input.payload.orderTitle ? ` по заказу «${input.payload.orderTitle}»` : ''} не хватает: ${missing}. Заполните реквизиты в настройках кабинета.`,
+      meta: { url: '/organization/settings' }
+    };
+  }
+
   if (input.type === 'chat_message') {
     const { orderNumber, orderTitle, excerpt } = input.payload;
     return {
@@ -208,6 +228,17 @@ function buildOrgEmailRef(
       props: {
         title: `Новое сообщение по заказу ${label}`,
         body: excerpt,
+        recipientName: organizationName,
+        url: orderUrl
+      }
+    };
+  }
+  if (input.type === 'requisites_requested') {
+    return {
+      template: 'notification',
+      props: {
+        title: 'Заполните реквизиты организации',
+        body: `Для формирования документов не хватает: ${input.payload.missingLabels.slice(0, 6).join(', ')}.`,
         recipientName: organizationName,
         url: orderUrl
       }

@@ -49,6 +49,7 @@ const OPT_IN_FLAGS = new Set([
   'client_requests',
   'deals_pipeline',
   'intake_inbox',
+  'document_generation',
 ]);
 
 describe('isFeatureEnabled', () => {

@@ -87,6 +87,10 @@ export const FEATURE_FLAGS = [
   'deals_pipeline',
   // Этап 7 (ФТ-8.1): экран «Входящие в работу» (route-флаг: middleware + nav + page).
   'intake_inbox',
+  // Этап 8 (ФТ-9.4): генерация счёта/акта по заказу. Поведенческий флаг (не route):
+  // точки чтения — деталка заказа менеджера (панель «Сформировать документы») и
+  // server-action generateOrderDocumentAction/requestRequisitesAction.
+  'document_generation',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -120,6 +124,7 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'client_requests',
   'deals_pipeline',
   'intake_inbox',
+  'document_generation',
 ]);
 
 /**
