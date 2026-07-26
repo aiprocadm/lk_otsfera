@@ -1054,6 +1054,8 @@ model Document {
   type               DocumentType       @default(other)
   direction          DocumentDirection  @default(incoming)
   version            Int                @default(1)
+  // Этап 8 (ФТ-9.4, PR-2): человекочитаемый номер сгенерированного документа («С-2026-17»).
+  number             String?
   replacesDocumentId String?
   signedAt           DateTime?
   generatedBy        GenerationSource   @default(user)
@@ -1421,6 +1423,8 @@ model OrderItem {
   direction      TrainingDirection @relation(fields: [directionId], references: [id])
   trainingStatus TrainingStatus    @default(pending)
   note           String?
+  // Этап 8 (решение §9-3): цена позиции — задел попозиционного счёта (v1 печатает одну строку).
+  amount         Decimal?  @db.Decimal(14, 2)
   certificate    Certificate?
 
   @@unique([orderId, studentId, directionId])
@@ -1866,4 +1870,15 @@ model SlaEscalation {
 
   @@unique([sourceType, sourceId])
   @@index([createdAt])
+}
+
+// Этап 8 (ФТ-9.4, PR-2): счётчик номеров СЧЕТОВ per company+год (формат
+// «С-{год}-{N}»; акт наследует номер связанного счёта — решение заказчика).
+// Конкурентная безопасность — атомарный upsert+increment в транзакции генерации.
+model DocumentCounter {
+  companyId  String
+  year       Int
+  lastNumber Int    @default(0)
+
+  @@id([companyId, year])
 }
