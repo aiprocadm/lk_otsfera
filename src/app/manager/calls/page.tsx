@@ -62,7 +62,7 @@ export default async function ManagerCallsPage({
         <CallsOrgFilter orgs={orgs} orgId={sp.orgId} direction={direction} />
       </CallsFiltersBar>
 
-      <CallsList items={items} orgs={orgs} contactsEnabled={contactsEnabled} />
+      <CallsList items={items} orgs={orgs} contactsEnabled={contactsEnabled} currentUserId={session.sub} />
 
       <Paginator
         basePath="/manager/calls"

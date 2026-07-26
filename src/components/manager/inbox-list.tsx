@@ -5,6 +5,7 @@ import { InboxBindForm } from '@/components/manager/inbox-bind-form';
 import { InboxReplyForm } from '@/components/manager/inbox-reply-form';
 import { InboxArchiveButton } from '@/components/manager/inbox-archive-button';
 import type { InboxItem } from '@/lib/services/inbound/listInbox';
+import { SourceIntakeActions } from '@/components/intake/source-intake-actions';
 import type { ManagerOrgListRow } from '@/lib/services/manager/organizations';
 
 /**
@@ -86,11 +87,14 @@ function BoundReplyControl({ item }: { item: InboxItem }) {
 export function InboxList({
   items,
   organizations,
-  contactsEnabled = false
+  contactsEnabled = false,
+  currentUserId = ''
 }: {
   items: InboxItem[];
   organizations: ManagerOrgListRow[];
   contactsEnabled?: boolean;
+  /** Этап 7 (ФТ-1.6/7.5): включает «Создать лид»/«Задача» на неразобранных. */
+  currentUserId?: string;
 }) {
   if (items.length === 0) {
     return <EmptyState icon="📨" message="Обращений нет" />;
@@ -139,6 +143,22 @@ export function InboxList({
                       contactsEnabled={contactsEnabled}
                     />
                   )}
+                  {item.status === 'unresolved' && currentUserId && (
+                    <SourceIntakeActions
+                      kind="inbound"
+                      sourceId={item.id}
+                      leadPrefill={{
+                        companyName: item.senderDisplay || item.senderRef,
+                        contactName: item.senderDisplay || item.senderRef,
+                        contactPhone: '',
+                        contactEmail: item.channel === 'email' ? item.senderRef : '',
+                        subject: item.subject || 'Обращение из внешнего канала'
+                      }}
+                      taskTitle={`Обращение: ${item.subject || excerpt(item.body)}`}
+                      organizationId={item.resolvedOrgId}
+                      currentUserId={currentUserId}
+                    />
+                  )}
                   {item.status === 'bound' && <BoundReplyControl item={item} />}
                   {(item.status === 'unresolved' || item.status === 'bound') && (
                     <InboxArchiveButton inboundMessageId={item.id} mode="archive" />
@@ -179,6 +199,22 @@ export function InboxList({
                   inboundMessageId={item.id}
                   organizations={organizations}
                   contactsEnabled={contactsEnabled}
+                />
+              )}
+              {item.status === 'unresolved' && currentUserId && (
+                <SourceIntakeActions
+                  kind="inbound"
+                  sourceId={item.id}
+                  leadPrefill={{
+                    companyName: item.senderDisplay || item.senderRef,
+                    contactName: item.senderDisplay || item.senderRef,
+                    contactPhone: '',
+                    contactEmail: item.channel === 'email' ? item.senderRef : '',
+                    subject: item.subject || 'Обращение из внешнего канала'
+                  }}
+                  taskTitle={`Обращение: ${item.subject || excerpt(item.body)}`}
+                  organizationId={item.resolvedOrgId}
+                  currentUserId={currentUserId}
                 />
               )}
               {item.status === 'bound' && <BoundReplyControl item={item} />}

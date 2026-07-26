@@ -85,6 +85,8 @@ export const FEATURE_FLAGS = [
   // (notFound). ВНИМАНИЕ: /partner/deals — другой домен (портфолио заказов
   // партнёра), под этим флагом НЕ живёт. Спека 2026-07-25-stage6-deals-kanban.
   'deals_pipeline',
+  // Этап 7 (ФТ-8.1): экран «Входящие в работу» (route-флаг: middleware + nav + page).
+  'intake_inbox',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -117,6 +119,7 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'certificates_registry',
   'client_requests',
   'deals_pipeline',
+  'intake_inbox',
 ]);
 
 /**

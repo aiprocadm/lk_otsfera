@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { NavItem } from '@/lib/navigation/cabinet';
+import { NavBadge } from '@/components/navigation/nav-badge';
 
 export function LeaderSidebar({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
@@ -31,6 +32,7 @@ export function LeaderSidebar({ items }: { items: NavItem[] }) {
               >
                 <span className='text-base'>{item.icon}</span>
                 <span>{item.label}</span>
+                {item.badgeKey && <NavBadge badgeKey={item.badgeKey} />}
               </Link>
             </li>
           );

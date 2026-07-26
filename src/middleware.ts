@@ -49,6 +49,10 @@ const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   // заказов партнёра, оно под этот флаг НЕ попадает (префиксы не пересекаются).
   { prefix: '/manager/deals', flag: 'deals_pipeline' },
   { prefix: '/leader/deals', flag: 'deals_pipeline' },
+  // Этап 7 (Модуль 8): «Входящие в работу» — единый тёмный запуск всех поверхностей.
+  { prefix: '/manager/intake', flag: 'intake_inbox' },
+  { prefix: '/leader/intake', flag: 'intake_inbox' },
+  { prefix: '/admin/intake', flag: 'intake_inbox' },
 ];
 
 const MIN_JWT_SECRET_LENGTH = 32;

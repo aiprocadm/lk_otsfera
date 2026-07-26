@@ -42,11 +42,11 @@ afterEach(() => {
 });
 
 describe('ManagerSidebar', () => {
-  it('renders 22 nav links including Поиск, Лиды, Обращения клиентов, Воронка, Сделки, Задачи, Календарь, Заявки на обучение, Обращения, Звонки, Финансы, Команда, Кабинет руководителя и Настройки (from raw canon)', () => {
+  it('renders 23 nav links including Поиск, Лиды, Обращения клиентов, Воронка, Сделки, Задачи, Календарь, Заявки на обучение, Обращения, Звонки, Финансы, Команда, Кабинет руководителя и Настройки (from raw canon)', () => {
     vi.mocked(usePathname).mockReturnValue('/manager/dashboard');
     const html = renderToString(React.createElement(ManagerSidebar, { items: navByRole.manager }));
     const matches = html.match(/data-testid="manager-nav-/g);
-    expect(matches).toHaveLength(22);
+    expect(matches).toHaveLength(23);
     expect(html).toContain('href="/manager/dashboard"');
     expect(html).toContain('href="/manager/search"');
     expect(html).toContain('href="/manager/orders"');

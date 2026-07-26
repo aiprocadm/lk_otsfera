@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 describe('канон leader', () => {
-  it('18 пунктов: сводка/поиск/команда/финансы/корректировки/заказы/организации/роли/воронка/сделки/аналитика/задачи/календарь/обучение/обращения клиентов/сообщения/мои заказы/настройки', () => {
+  it('19 пунктов: сводка/поиск/команда/финансы/корректировки/заказы/организации/роли/воронка/сделки/аналитика/задачи/календарь/обучение/обращения клиентов/сообщения/мои заказы/настройки', () => {
     expect(navByRole.leader.map((i) => i.href)).toEqual([
       '/leader/dashboard',
       '/leader/search',
@@ -30,6 +30,7 @@ describe('канон leader', () => {
       '/leader/calendar',
       '/leader/enrollments',
       '/leader/requests',
+      '/leader/intake',
       '/manager/messages',
       '/manager/dashboard',
       '/leader/settings'
@@ -46,6 +47,8 @@ describe('канон leader', () => {
         expect(item.flag).toBe('enrollment_requests');
       } else if (item.href === '/leader/requests') {
         expect(item.flag).toBe('client_requests');
+      } else if (item.href === '/leader/intake') {
+        expect(item.flag).toBe('intake_inbox');
       } else if (item.href === '/leader/roles') {
         expect(item.flag).toBe('role_constructor');
       } else if (item.href === '/leader/funnel') {
@@ -88,7 +91,8 @@ describe('канон leader', () => {
     expect(hrefs).not.toContain('/leader/tasks');
     expect(hrefs).not.toContain('/leader/calendar');
     expect(hrefs).not.toContain('/leader/search');
-    expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length - 9);
+    expect(hrefs).not.toContain('/leader/intake');
+    expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length - 10);
   });
 
   it('navItemsFor("leader") показывает opt-in пункты при включённых флагах', () => {
@@ -101,6 +105,7 @@ describe('канон leader', () => {
     process.env.FEATURE_INTERNAL_TASKS = '1';
     process.env.FEATURE_STAFF_CALENDAR = '1';
     process.env.FEATURE_GLOBAL_SEARCH = '1';
+    process.env.FEATURE_INTAKE_INBOX = '1';
     const hrefs = navItemsFor('leader').map((i) => i.href);
     expect(hrefs).toContain('/leader/enrollments');
     expect(hrefs).toContain('/leader/requests');
@@ -111,6 +116,7 @@ describe('канон leader', () => {
     expect(hrefs).toContain('/leader/tasks');
     expect(hrefs).toContain('/leader/calendar');
     expect(hrefs).toContain('/leader/search');
+    expect(hrefs).toContain('/leader/intake');
     expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length);
   });
 });

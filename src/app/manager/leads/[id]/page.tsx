@@ -31,7 +31,25 @@ export default async function ManagerLeadDetailPage({ params }: { params: Promis
         .map((m) => ({ id: m.id, name: m.name, email: m.email }))
     : [];
 
+  // Этап 7 (ФТ-3.1): происхождение лида — подпись + ссылка на экран источника.
+  const SOURCE_LABEL: Record<string, string> = {
+    partner_legacy: 'партнёрский (до этапа 5)',
+    client_request: 'заявка клиента',
+    manual: 'создан вручную',
+    website: 'сайт',
+    call: 'входящий звонок',
+    inbound_message: 'обращение из внешнего канала'
+  };
+  const sourceLink = lead.sourceRequestId
+    ? { href: '/manager/requests', label: 'открыть заявки' }
+    : lead.sourceCallId
+      ? { href: '/manager/calls', label: 'открыть звонки' }
+      : lead.sourceInboundId
+        ? { href: '/manager/inbox', label: 'открыть обращения' }
+        : null;
+
   const rows: Array<[string, string]> = [
+    ['Источник', SOURCE_LABEL[lead.source] ?? lead.source],
     ['Партнёр', lead.partnerName ?? '— (без партнёра)'],
     ['Организация', lead.organizationName ?? '— (не привязана)'],
     ['Контакт', lead.clientContactName],
@@ -95,7 +113,17 @@ export default async function ManagerLeadDetailPage({ params }: { params: Promis
         {rows.map(([k, v]) => (
           <div key={k} className='flex px-4 py-2.5 text-sm'>
             <dt className='w-44 shrink-0 text-gray-500'>{k}</dt>
-            <dd className='text-[#111111]'>{v}</dd>
+            <dd className='text-[#111111]'>
+              {v}
+              {k === 'Источник' && sourceLink && (
+                <>
+                  {' · '}
+                  <Link href={sourceLink.href} className='text-[#F97316] hover:underline'>
+                    {sourceLink.label}
+                  </Link>
+                </>
+              )}
+            </dd>
           </div>
         ))}
       </dl>

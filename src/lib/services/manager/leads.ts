@@ -114,6 +114,11 @@ export type ManagerLeadDetail = ManagerLeadRow & {
   // B3: состояние ручной отправки в 1С (строка «1С» + гейт кнопки на странице лида)
   externalIdInOneC: string | null;
   pushedToOneCAt: Date | null;
+  // Этап 7 (ФТ-3.1): происхождение лида + id источника для ссылки.
+  source: string;
+  sourceRequestId: string | null;
+  sourceCallId: string | null;
+  sourceInboundId: string | null;
 };
 
 export async function getManagerLead(
@@ -159,6 +164,10 @@ export async function getManagerLead(
     createdByUserName: l.createdByUser.name,
     updatedAt: l.updatedAt,
     externalIdInOneC: l.externalIdInOneC,
-    pushedToOneCAt: l.pushedToOneCAt
+    pushedToOneCAt: l.pushedToOneCAt,
+    source: l.source,
+    sourceRequestId: l.sourceRequestId,
+    sourceCallId: l.sourceCallId,
+    sourceInboundId: l.sourceInboundId
   };
 }

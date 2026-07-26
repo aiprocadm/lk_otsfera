@@ -2,6 +2,7 @@ import React from 'react';
 import { TableShell, THead, Th, Tr, Td, Badge, EmptyState } from '@/components/ui';
 import { fmtDateTime } from '@/lib/format';
 import { CallBindForm } from '@/components/manager/contacts/call-bind-form';
+import { SourceIntakeActions } from '@/components/intake/source-intake-actions';
 
 /**
  * Task 9b — презентационный список звонков (B4 UI). Переиспользуется в двух
@@ -76,11 +77,14 @@ function RecordingCell({ item }: { item: CallListItem }) {
 export function CallsList({
   items,
   orgs = [],
-  contactsEnabled = false
+  contactsEnabled = false,
+  currentUserId = ''
 }: {
   items: CallListItem[];
   orgs?: { id: string; name: string }[];
   contactsEnabled?: boolean;
+  /** Этап 7 (ФТ-1.6/7.5): включает «Создать лид»/«Задача» на входящих. */
+  currentUserId?: string;
 }) {
   if (items.length === 0) {
     return <EmptyState icon="📞" message="Звонков нет" />;
@@ -98,6 +102,7 @@ export function CallsList({
           <Th>Дата</Th>
           <Th>Запись</Th>
           {contactsEnabled && <Th>Привязка</Th>}
+          {currentUserId && <Th>Действия</Th>}
         </THead>
         <tbody>
           {items.map((item) => (
@@ -121,6 +126,28 @@ export function CallsList({
                     <CallBindForm callId={item.id} callerNumber={item.callerNumber} orgs={orgs} />
                   ) : (
                     <span className="text-xs text-gray-400">Привязан</span>
+                  )}
+                </Td>
+              )}
+              {currentUserId && (
+                <Td>
+                  {item.direction === 'inbound' ? (
+                    <SourceIntakeActions
+                      kind="call"
+                      sourceId={item.id}
+                      leadPrefill={{
+                        companyName: '',
+                        contactName: item.callerNumber,
+                        contactPhone: item.callerNumber,
+                        contactEmail: '',
+                        subject: 'Входящий звонок'
+                      }}
+                      taskTitle={`Перезвонить: ${item.callerNumber}`}
+                      organizationId={item.resolvedOrgId}
+                      currentUserId={currentUserId}
+                    />
+                  ) : (
+                    <span className="text-xs text-gray-400">—</span>
                   )}
                 </Td>
               )}
