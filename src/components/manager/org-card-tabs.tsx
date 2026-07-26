@@ -2,6 +2,9 @@ import React from 'react';
 import Link from 'next/link';
 import { Badge, EmptyState, TableShell, THead, Th, Tr, Td } from '@/components/ui';
 import { CallsList } from '@/components/manager/calls-list';
+import { LeadStatusBadge } from '@/components/partner/lead-status-badge';
+import { clientRequestStatusLabel } from '@/lib/services/clientRequests/labels';
+import type { LeadStatus, ClientRequestStatus } from '@prisma/client';
 import type { OrganizationCard } from '@/lib/services/manager/organizationCard';
 
 /**
@@ -19,6 +22,10 @@ export type OrgCardTab =
   | 'threads'
   | 'inbound_messages'
   | 'calls'
+  // Этап 7 (PR-3, §9 этапа 7): внутренний контур организации.
+  | 'client_requests'
+  | 'leads'
+  | 'deals'
   | 'details';
 
 export const ORG_CARD_TABS: { key: OrgCardTab; label: string }[] = [
@@ -29,6 +36,9 @@ export const ORG_CARD_TABS: { key: OrgCardTab; label: string }[] = [
   { key: 'threads', label: 'Переписка' },
   { key: 'inbound_messages', label: 'Обращения' },
   { key: 'calls', label: 'Звонки' },
+  { key: 'client_requests', label: 'Заявки клиентов' },
+  { key: 'leads', label: 'Лиды' },
+  { key: 'deals', label: 'Сделки' },
   { key: 'details', label: 'Реквизиты' }
 ];
 
@@ -106,6 +116,12 @@ function renderSection(card: OrganizationCard, tab: OrgCardTab): React.ReactNode
       return <InboundMessagesSection inboundMessages={card.inboundMessages} />;
     case 'calls':
       return <CallsList items={card.calls} />;
+    case 'client_requests':
+      return <ClientRequestsSection requests={card.clientRequests} />;
+    case 'leads':
+      return <LeadsSection leads={card.leads} />;
+    case 'deals':
+      return <DealsSection deals={card.deals} />;
     case 'details':
       return <DetailsSection card={card} />;
     case 'history':
@@ -340,5 +356,85 @@ function MiniRow({ left, right }: { left: string; right: string }) {
       <span className="text-[#111111] truncate">{left}</span>
       <span className="text-gray-400 shrink-0">{right}</span>
     </div>
+  );
+}
+
+// Этап 7 (PR-3): вкладки внутреннего контура. Клиентские роли карточку
+// не видят вовсе (страница /manager/*) — раздел 3.2 ТЗ не нарушается.
+function ClientRequestsSection({ requests }: { requests: OrganizationCard['clientRequests'] }) {
+  if (requests.length === 0) return <EmptyState message="Заявок клиентов пока нет." />;
+  return (
+    <TableShell>
+      <THead>
+        <Th>Тема</Th>
+        <Th>Статус</Th>
+        <Th>Подана</Th>
+      </THead>
+      <tbody>
+        {requests.map((r) => (
+          <Tr key={r.id}>
+            <Td className="font-medium">{r.subject}</Td>
+            <Td>
+              <Badge tone="neutral">{clientRequestStatusLabel(r.status as ClientRequestStatus)}</Badge>
+              {r.rejectedReason && <span className="ml-2 text-xs text-gray-500">{r.rejectedReason}</span>}
+            </Td>
+            <Td>{dateRu(r.createdAt)}</Td>
+          </Tr>
+        ))}
+      </tbody>
+    </TableShell>
+  );
+}
+
+function LeadsSection({ leads }: { leads: OrganizationCard['leads'] }) {
+  if (leads.length === 0) return <EmptyState message="Лидов пока нет." />;
+  return (
+    <TableShell>
+      <THead>
+        <Th>Тема</Th>
+        <Th>Статус</Th>
+        <Th>Создан</Th>
+      </THead>
+      <tbody>
+        {leads.map((l) => (
+          <Tr key={l.id}>
+            <Td className="font-medium">
+              <Link href={`/manager/leads/${l.id}`} className="text-[#EA580C] hover:underline">
+                {l.subject}
+              </Link>
+            </Td>
+            <Td><LeadStatusBadge status={l.status as LeadStatus} /></Td>
+            <Td>{dateRu(l.createdAt)}</Td>
+          </Tr>
+        ))}
+      </tbody>
+    </TableShell>
+  );
+}
+
+const DEAL_STATUS_LABEL: Record<string, string> = { open: 'В работе', won: 'Выиграна', lost: 'Проиграна' };
+const DEAL_STATUS_TONE: Record<string, 'neutral' | 'success' | 'danger'> = { open: 'neutral', won: 'success', lost: 'danger' };
+
+function DealsSection({ deals }: { deals: OrganizationCard['deals'] }) {
+  if (deals.length === 0) return <EmptyState message="Сделок пока нет." />;
+  return (
+    <TableShell>
+      <THead>
+        <Th>Название</Th>
+        <Th>Статус</Th>
+        <Th>Сумма</Th>
+        <Th>Создана</Th>
+      </THead>
+      <tbody>
+        {deals.map((d) => (
+          <Tr key={d.id}>
+            <Td className="font-medium">{d.title}</Td>
+            <Td><Badge tone={DEAL_STATUS_TONE[d.status] ?? 'neutral'}>{DEAL_STATUS_LABEL[d.status] ?? d.status}</Badge></Td>
+            <Td>{d.amount ? money(d.amount) : '—'}</Td>
+            <Td>{dateRu(d.createdAt)}</Td>
+          </Tr>
+        ))}
+      </tbody>
+    </TableShell>
   );
 }

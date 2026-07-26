@@ -23,7 +23,10 @@ export default async function ManagerOrgDetailPage({
   const visibleTabs = ORG_CARD_TABS.filter(
     (t) =>
       (t.key !== 'inbound_messages' || isFeatureEnabled('inbound_messaging')) &&
-      (t.key !== 'calls' || isFeatureEnabled('telephony_mango'))
+      (t.key !== 'calls' || isFeatureEnabled('telephony_mango')) &&
+      // Этап 7 (PR-3): внутренний контур — по флагам доменов; лиды под кабинетом (без флага).
+      (t.key !== 'client_requests' || isFeatureEnabled('client_requests')) &&
+      (t.key !== 'deals' || isFeatureEnabled('deals_pipeline'))
   );
 
   const rawTab = typeof sp.tab === 'string' ? sp.tab : undefined;

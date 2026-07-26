@@ -9,7 +9,7 @@ import { log } from '@/lib/logging';
 import { scrubSentryEvent } from '@/lib/logging/scrub';
 import { getRedisConnection, closeRedisConnection } from '@/lib/jobs/connection';
 import { closeAllQueues, getQueue, type QueueName } from '@/lib/jobs/queues';
-import { registerSyncSchedules, registerCommissionSchedules, registerAlertSchedules, registerCertExpirySchedules, registerCalendarReminderSchedules, registerTaskDueSoonSchedules, loadPausedSchedulerIds } from '@/lib/jobs/scheduling';
+import { registerSyncSchedules, registerCommissionSchedules, registerAlertSchedules, registerCertExpirySchedules, registerCalendarReminderSchedules, registerTaskDueSoonSchedules, registerSlaEscalationSchedules, loadPausedSchedulerIds } from '@/lib/jobs/scheduling';
 import { prisma } from '@/lib/db/prisma';
 import { toBullProcessor } from './to-bull-processor';
 import { syncOrdersProcessor } from './processors/sync-orders';
@@ -26,6 +26,7 @@ import { evaluateAlertsProcessor } from './processors/evaluate-alerts';
 import { certificateExpiryProcessor } from './processors/certificate-expiry';
 import { calendarReminderProcessor } from './processors/calendar-reminder';
 import { taskDueSoonProcessor } from './processors/task-due-soon';
+import { slaEscalationProcessor } from './processors/sla-escalation';
 import { dispatchNotificationProcessor } from './processors/dispatch-notification';
 import { pollInboundEmailProcessor } from './processors/poll-inbound-email';
 import { mangoRecordingProcessor } from './processors/mango-recording';
@@ -158,6 +159,7 @@ async function main() {
   startWorker('notifications.certificateExpiry', certificateExpiryProcessor as Processor);
   startWorker('notifications.calendarReminder', calendarReminderProcessor as Processor);
   startWorker('notifications.taskDueSoon', taskDueSoonProcessor as Processor);
+  startWorker('monitoring.slaEscalation', slaEscalationProcessor as Processor);
   startWorker('notifications.dispatch', dispatchNotificationProcessor as Processor);
   startWorker('inbound.email.poll', pollInboundEmailProcessor as Processor);
   startWorker('telephony.mango.recording', mangoRecordingProcessor as Processor);
@@ -171,7 +173,8 @@ async function main() {
     const certExpirySchedules = await registerCertExpirySchedules();
     const calendarReminderSchedules = await registerCalendarReminderSchedules();
     const taskDueSoonSchedules = await registerTaskDueSoonSchedules();
-    for (const r of [...syncSchedules, ...commissionSchedules, ...alertSchedules, ...certExpirySchedules, ...calendarReminderSchedules, ...taskDueSoonSchedules]) {
+    const slaEscalationSchedules = await registerSlaEscalationSchedules();
+    for (const r of [...syncSchedules, ...commissionSchedules, ...alertSchedules, ...certExpirySchedules, ...calendarReminderSchedules, ...taskDueSoonSchedules, ...slaEscalationSchedules]) {
       log.info('[worker] schedule registered', {
         schedulerId: r.schedulerId,
         queue: r.queueName,

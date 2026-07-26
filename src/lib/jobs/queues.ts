@@ -14,6 +14,7 @@ export const QUEUE_NAMES = [
   'docs.scanDocument',
   'notifications.dispatch',
   'monitoring.evaluateAlerts',
+  'monitoring.slaEscalation',
   'notifications.certificateExpiry',
   'notifications.calendarReminder',
   'notifications.taskDueSoon',

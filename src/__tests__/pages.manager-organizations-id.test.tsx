@@ -45,6 +45,9 @@ vi.mock('@/components/manager/org-card-tabs', () => ({
     { key: 'threads', label: 'Переписка' },
     { key: 'inbound_messages', label: 'Обращения' },
     { key: 'calls', label: 'Звонки' },
+    { key: 'client_requests', label: 'Заявки клиентов' },
+    { key: 'leads', label: 'Лиды' },
+    { key: 'deals', label: 'Сделки' },
     { key: 'details', label: 'Реквизиты' }
   ]
 }));
@@ -200,5 +203,26 @@ describe('ManagerOrgDetailPage', () => {
     );
 
     expect(container.textContent).toContain('active:history');
+  });
+
+  it('этап 7 PR-3: вкладки client_requests/deals гейтятся флагами, leads — всегда', async () => {
+    requireManagerForOrg.mockResolvedValue(SESSION);
+    getOrganizationCard.mockResolvedValue(CARD);
+    // Все флаги выключены → внутренние вкладки: только leads.
+    let res = await renderServerComponent(
+      ManagerOrgDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({}) })
+    );
+    let tabs = res.container.textContent ?? '';
+    expect(tabs).toContain('leads');
+    expect(tabs).not.toContain('client_requests');
+    expect(tabs).not.toContain('deals');
+
+    isFeatureEnabled.mockImplementation((f: string) => f === 'client_requests' || f === 'deals_pipeline');
+    res = await renderServerComponent(
+      ManagerOrgDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({ tab: 'deals' }) })
+    );
+    tabs = res.container.textContent ?? '';
+    expect(tabs).toContain('client_requests');
+    expect(tabs).toContain('active:deals');
   });
 });

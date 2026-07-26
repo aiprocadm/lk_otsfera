@@ -741,6 +741,10 @@ model Company {
   updatedAt             DateTime            @updatedAt
   name                  String
   managerTeamVisibility Boolean             @default(false)
+  // Этап 7 (§4.4, PR-3): пороги SLA входящих — эскалация руководителю (часы)
+  // и подсветка в Intake (часы). Настройка — карточка на /leader/team.
+  slaResponseHours      Int                 @default(24)
+  slaWarningHours       Int                 @default(4)
   users                 User[]
   orders                Order[]
   organizations         Organization[]
@@ -1812,4 +1816,17 @@ model IntegrationSetting {
   isSecret  Boolean  @default(false)
   updatedAt DateTime @updatedAt
   updatedBy String?
+}
+
+// Этап 7 (ФТ-8.5, PR-3): журнал SLA-эскалаций — дедуп «одно уведомление на
+// единицу» (решение §10-2 спеки; образец CertificateReminder + P2002-skip).
+model SlaEscalation {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  sourceType  String // client_request | enrollment | inbound | call
+  sourceId    String
+  companyId   String?
+
+  @@unique([sourceType, sourceId])
+  @@index([createdAt])
 }
