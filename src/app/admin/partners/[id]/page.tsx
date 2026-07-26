@@ -7,6 +7,9 @@ import { prisma } from '@/lib/db/prisma';
 import { getPartner } from '@/lib/services/admin/partners';
 import { listRateHistory } from '@/lib/services/commission/rateHistory';
 import { PartnerEditForm } from '@/components/admin/partner-edit-form';
+import { RequisitesCard } from '@/components/requisites/requisites-card';
+import { getPartnerRequisitesByAdmin } from '@/lib/services/admin/counterpartyRequisites';
+import { setPartnerRequisitesByAdminAction } from '@/server-actions/requisites';
 import { fmtDate } from '@/lib/format';
 
 const fmtRate = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 2 });
@@ -22,6 +25,8 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
   ]);
   if (!partner) notFound();
   const rateHistory = rateHistoryResult.ok ? rateHistoryResult.rows : [];
+  // Этап 8 (ФТ-9.2): полный набор реквизитов для автогенерации документов.
+  const requisites = await getPartnerRequisitesByAdmin(prisma, session, partner.id);
 
   return (
     <div className="space-y-4 max-w-3xl">
@@ -32,6 +37,16 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
       </div>
 
       <PartnerEditForm partner={partner} />
+      {requisites && (
+        <RequisitesCard
+          title='Реквизиты для документов'
+          description='Полный набор реквизитов партнёра для автогенерации документов (этап 8).'
+          defaults={requisites}
+          idPrefix='adm-pt-req'
+          action={setPartnerRequisitesByAdminAction}
+          hidden={{ partnerId: partner.id }}
+        />
+      )}
 
       <div>
         <h2 className="text-lg font-semibold text-[#111111] mb-3">История ставок комиссии</h2>

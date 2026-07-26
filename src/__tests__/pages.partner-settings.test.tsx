@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
@@ -13,6 +14,15 @@ vi.mock('@/lib/services/telegram/link', () => ({ getTelegramStatus }));
 const { getNotificationSettings } = vi.hoisted(() => ({ getNotificationSettings: vi.fn() }));
 vi.mock('@/lib/services/notifications/preferences', () => ({ getNotificationSettings }));
 
+// Этап 8 (PR-1): реквизиты партнёра — сервис и карточка стабятся.
+const { getPartnerRequisites } = vi.hoisted(() => ({ getPartnerRequisites: vi.fn() }));
+vi.mock('@/lib/services/partner/requisites', () => ({ getPartnerRequisites }));
+vi.mock('@/server-actions/requisites', () => ({ setPartnerRequisitesAction: vi.fn() }));
+vi.mock('@/components/requisites/requisites-card', () => ({
+  RequisitesCard: (props: { title: string; canEdit?: boolean }) =>
+    React.createElement('div', { 'data-testid': 'requisites-card' }, props.title, ` canEdit:${String(props.canEdit)}`)
+}));
+
 // TelegramLinkCard ('use client') calls useRouter().
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
@@ -25,6 +35,7 @@ const SESSION = { sub: 'u1', role: 'partner' as const, partnerId: 'p1' };
 describe('PartnerSettingsPage', () => {
   beforeEach(() => {
     requirePartner.mockReset();
+    getPartnerRequisites.mockReset().mockResolvedValue({ ok: false, error: 'forbidden' });
     getTelegramStatus.mockReset();
     getNotificationSettings.mockReset();
   });

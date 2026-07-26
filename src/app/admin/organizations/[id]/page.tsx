@@ -8,6 +8,9 @@ import { listOrgRateHistory } from '@/lib/services/commission/rateHistory';
 import { CustomerAccessSection } from '@/components/partner/customer-access-section';
 import { ManagersBlock } from '@/components/admin/managers-block';
 import { OrganizationEditForm } from '@/components/admin/organization-edit-form';
+import { RequisitesCard } from '@/components/requisites/requisites-card';
+import { getOrgRequisitesByAdmin } from '@/lib/services/admin/counterpartyRequisites';
+import { setOrgRequisitesByAdminAction } from '@/server-actions/requisites';
 import { AdminRateOverrideForm } from '@/components/admin/admin-rate-override-form';
 import { fmtDate } from '@/lib/format';
 
@@ -36,6 +39,8 @@ export default async function AdminOrganizationDetailPage({
   ]);
   if (!org || !meta) notFound();
   const rateHistory = rateHistoryResult.ok ? rateHistoryResult.rows : [];
+  // Этап 8 (ФТ-9.2): полный набор реквизитов для автогенерации документов.
+  const requisites = await getOrgRequisitesByAdmin(prisma, session, org.id);
 
   return (
     <div className='space-y-5'>
@@ -74,6 +79,18 @@ export default async function AdminOrganizationDetailPage({
       <section className='space-y-3'>
         <h2 className='text-base font-semibold text-[#111111]'>Реквизиты</h2>
         <OrganizationEditForm org={org} />
+        {requisites && (
+          <div className='mt-4'>
+            <RequisitesCard
+              title='Реквизиты для документов'
+              description='Полный набор для автогенерации счетов и актов (этап 8). Начните вводить название или ИНН — DaData подставит остальное.'
+              defaults={requisites}
+              idPrefix='adm-org-req'
+              action={setOrgRequisitesByAdminAction}
+              hidden={{ orgId: org.id }}
+            />
+          </div>
+        )}
       </section>
 
       <section className='space-y-3'>

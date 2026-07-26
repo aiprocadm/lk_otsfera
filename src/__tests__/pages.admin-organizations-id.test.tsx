@@ -8,6 +8,7 @@ vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 
 const { organizationFindUnique } = vi.hoisted(() => ({ organizationFindUnique: vi.fn() }));
 vi.mock('@/lib/db/prisma', () => ({
+
   prisma: { organization: { findUnique: organizationFindUnique } }
 }));
 
@@ -55,6 +56,21 @@ vi.mock('@/components/admin/admin-rate-override-form', () => ({
       String(props.initialRate),
       String(props.initialNote)
     )
+}));
+
+
+// Этап 8 (PR-1): реквизиты для документов — сервис и карточка стабятся.
+const { getOrgRequisitesByAdmin, getPartnerRequisitesByAdmin } = vi.hoisted(() => ({
+  getOrgRequisitesByAdmin: vi.fn().mockResolvedValue(null),
+  getPartnerRequisitesByAdmin: vi.fn().mockResolvedValue(null)
+}));
+vi.mock('@/lib/services/admin/counterpartyRequisites', () => ({ getOrgRequisitesByAdmin, getPartnerRequisitesByAdmin }));
+vi.mock('@/server-actions/requisites', () => ({
+  setOrgRequisitesByAdminAction: vi.fn(),
+  setPartnerRequisitesByAdminAction: vi.fn()
+}));
+vi.mock('@/components/requisites/requisites-card', () => ({
+  RequisitesCard: (props: { title: string }) => React.createElement('div', { 'data-testid': 'requisites-card' }, props.title)
 }));
 
 import AdminOrganizationDetailPage from '@/app/admin/organizations/[id]/page';

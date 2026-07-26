@@ -26,6 +26,11 @@ function makeCard(overrides: Partial<OrganizationCard>): OrganizationCard {
     activity: [],
     inboundMessages: [],
     calls: [],
+    // Этап 8 (PR-1): полный набор реквизитов read-only таба.
+    requisites: {
+      legalName: null, ogrn: null, legalAddress: null, bankName: null, bankAccount: null,
+      corrAccount: null, bic: null, signerName: null, signerPosition: null, signerBasis: null
+    },
     ...overrides
   } as unknown as OrganizationCard;
 }

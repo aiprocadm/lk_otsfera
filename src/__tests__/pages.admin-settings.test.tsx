@@ -27,6 +27,15 @@ vi.mock('@/components/settings/notification-channels-card', () => ({
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
+// Этап 8 (PR-1): реквизиты Company — сервис и карточка стабятся.
+const { listCompaniesRequisites } = vi.hoisted(() => ({ listCompaniesRequisites: vi.fn() }));
+vi.mock('@/lib/services/admin/companyRequisites', () => ({ listCompaniesRequisites }));
+vi.mock('@/server-actions/requisites', () => ({ setCompanyRequisitesAction: vi.fn() }));
+vi.mock('@/components/requisites/requisites-card', () => ({
+  RequisitesCard: (props: { title: string }) =>
+    React.createElement('div', { 'data-testid': 'requisites-card' }, props.title)
+}));
+
 vi.mock('@/components/settings/staff-backup-codes-section', () => ({
   StaffBackupCodesSection: () =>
     React.createElement('div', { 'data-testid': 'backup-codes-section' }, 'BACKUP')
@@ -48,6 +57,7 @@ describe('AdminSettingsPage', () => {
     getTelegramStatus.mockReset();
     getNotificationSettings.mockReset();
     isFeatureEnabled.mockReset();
+    listCompaniesRequisites.mockReset().mockResolvedValue({ ok: true, companies: [] });
     isFeatureEnabled.mockReturnValue(false);
   });
 

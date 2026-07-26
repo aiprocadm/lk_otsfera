@@ -18,6 +18,17 @@ const CARD_SELECT = {
   name: true,
   inn: true,
   kpp: true,
+  // Этап 8 (ФТ-9.2): полный набор реквизитов для read-only таба.
+  legalName: true,
+  ogrn: true,
+  legalAddress: true,
+  bankName: true,
+  bankAccount: true,
+  corrAccount: true,
+  bic: true,
+  signerName: true,
+  signerPosition: true,
+  signerBasis: true,
   companyId: true,
   partnerCommissionRate: true,
   partner: { select: { id: true, name: true } },
@@ -68,11 +79,25 @@ export type OrgCardClientRequest = { id: string; subject: string; status: string
 export type OrgCardLead = { id: string; subject: string; status: string; createdAt: Date };
 export type OrgCardDeal = { id: string; title: string; status: string; amount: string | null; createdAt: Date };
 
+export type OrgCardRequisites = {
+  legalName: string | null;
+  ogrn: string | null;
+  legalAddress: string | null;
+  bankName: string | null;
+  bankAccount: string | null;
+  corrAccount: string | null;
+  bic: string | null;
+  signerName: string | null;
+  signerPosition: string | null;
+  signerBasis: string | null;
+};
+
 export type OrganizationCard = {
   id: string;
   name: string;
   inn: string | null;
   kpp: string | null;
+  requisites: OrgCardRequisites;
   partner: { id: string; name: string } | null;
   counts: { orders: number; students: number; users: number };
   kpis: { activeOrders: number; totalPaid: string; totalRefunded: string };
@@ -197,6 +222,18 @@ export async function getOrganizationCard(
     name: org.name,
     inn: org.inn,
     kpp: org.kpp,
+    requisites: {
+      legalName: org.legalName,
+      ogrn: org.ogrn,
+      legalAddress: org.legalAddress,
+      bankName: org.bankName,
+      bankAccount: org.bankAccount,
+      corrAccount: org.corrAccount,
+      bic: org.bic,
+      signerName: org.signerName,
+      signerPosition: org.signerPosition,
+      signerBasis: org.signerBasis
+    },
     partner: org.partner,
     counts: { orders: org._count.orders, students: org._count.students, users: org._count.users },
     kpis: {
