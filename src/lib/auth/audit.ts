@@ -38,6 +38,7 @@ export type AuditEntity =
   | 'auth_2fa'
   | 'contact'
   | 'call'
+  | 'inbound_message'
   | 'staff_conversation'
   | 'calendar_event'
   | 'integration_setting';

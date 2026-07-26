@@ -119,6 +119,9 @@ enum LeadSource {
   client_request
   manual
   website
+  // Этап 7 (ФТ-1.5/1.6): лид из звонка и из обращения.
+  call
+  inbound_message
 }
 
 // Этап 5 (Модуль 1): заявка клиента общего вида (ClientRequest).
@@ -293,6 +296,11 @@ model Lead {
   source             LeadSource       @default(partner_legacy)
   sourceRequestId    String?          @unique
   sourceRequest      ClientRequest?   @relation("LeadFromRequest", fields: [sourceRequestId], references: [id])
+  // Этап 7 (ФТ-1.6/3.1): лид, созданный из звонка/обращения — ссылка на источник.
+  sourceCallId       String?          @unique
+  sourceCall         Call?            @relation("LeadFromCall", fields: [sourceCallId], references: [id])
+  sourceInboundId    String?          @unique
+  sourceInbound      InboundMessage?  @relation("LeadFromInbound", fields: [sourceInboundId], references: [id])
   createdByUserId    String
   createdByUser      User             @relation("LeadAuthor", fields: [createdByUserId], references: [id])
   organizationId     String?
@@ -1304,6 +1312,9 @@ model EnrollmentRequest {
   status            EnrollmentStatus        @default(pending)
   reviewedByUserId  String?
   reviewedByUser    User?                   @relation("EnrollmentReviewer", fields: [reviewedByUserId], references: [id])
+  // Этап 7 (ФТ-8.2): ответственный триажа Intake до approve/reject.
+  claimedByUserId   String?
+  claimedAt         DateTime?
   reviewedAt        DateTime?
   rejectedReason    String?
   provisionedAt     DateTime?
@@ -1521,6 +1532,11 @@ model InboundMessage {
   boundAt        DateTime?
   boundById      String?
   contactId      String?
+  // Этап 7 (ФТ-8.2): ответственный триажа Intake (плоский id — образец boundById).
+  claimedByUserId String?
+  claimedAt       DateTime?
+  // Этап 7 (ФТ-1.6): лид, созданный из этого обращения.
+  lead            Lead?    @relation("LeadFromInbound")
 
   resolvedOrg  Organization? @relation("OrgInbound", fields: [resolvedOrgId], references: [id])
   resolvedUser User?         @relation("UserInbound", fields: [resolvedUserId], references: [id])
@@ -1564,6 +1580,12 @@ model Call {
   resolvedUser User?         @relation("UserCalls", fields: [resolvedUserId], references: [id])
   company      Company?      @relation(fields: [companyId], references: [id])
   contact      Contact?      @relation("ContactCalls", fields: [contactId], references: [id], onDelete: SetNull)
+  // Этап 7 (ФТ-8.1/8.2): триаж Intake — ответственный и закрытие нецелевого звонка.
+  claimedByUserId  String?
+  claimedAt        DateTime?
+  intakeClosedAt   DateTime?
+  intakeClosedById String?
+  lead             Lead?    @relation("LeadFromCall")
 
   @@unique([provider, externalId])
   @@index([companyId, createdAt])

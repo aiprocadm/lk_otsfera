@@ -11,7 +11,7 @@ const SUBJECT_TYPES = new Set([
 describe('PII_CONTEXTS registry', () => {
   const entries = Object.entries(PII_CONTEXTS);
 
-  it('содержит все 19 контекстов v1+M1+M6+этапы 2/5', () => {
+  it('содержит все 20 контекстов v1+M1+M6+этапы 2/5/7', () => {
     expect(entries.map(([k]) => k).sort()).toEqual([
       'admin_user_view', 'admin_users_list', 'calls_list', 'certificates_list',
       'client_request_view', // этап 5: деталка обращения клиента
@@ -19,7 +19,9 @@ describe('PII_CONTEXTS registry', () => {
       'deal_activity_calls', 'deal_activity_inbound',
       'enrollment_detail', // этап 2 PR-2: деталка заявки подателя
       'enrollment_wizard_students', // этап 2: чекбоксы слушателей в мастере заявки
-      'enrollments_list', 'global_search_students', 'inbox_list', 'manager_lead_view',
+      'enrollments_list', 'global_search_students', 'inbox_list',
+      'intake_list', // этап 7: union-список «Входящие в работу»
+      'manager_lead_view',
       'manager_student_view', 'manager_students_list', 'order_items_list',
       'org_card_calls', 'org_card_inbound'
     ]);

@@ -61,6 +61,7 @@ describe('navItemsFor (feature-flag filter)', () => {
     process.env.FEATURE_ENROLLMENT_REQUESTS = '1'; // admin opt-in items: enrollments + requests + roles
     process.env.FEATURE_ROLE_CONSTRUCTOR = '1';
     process.env.FEATURE_CLIENT_REQUESTS = '1';
+    process.env.FEATURE_INTAKE_INBOX = '1';
     const items = navItemsFor('admin');
     expect(items.length).toBe(navByRole.admin.length);
   });
@@ -188,7 +189,7 @@ describe('navByRole — Финансы (manager + admin)', () => {
   });
 });
 
-describe('navByRole.admin — русский канон с группами (все 21 страниц)', () => {
+describe('navByRole.admin — русский канон с группами (все 23 страницы)', () => {
   it('содержит все админские страницы, включая ранее потерянные documents/messages/finance + корректировки комиссии + заявки на обучение + настройки', () => {
     const hrefs = navByRole.admin.map((i) => i.href);
     for (const lost of ['/admin/documents', '/admin/messages', '/admin/finance', '/admin/enrollments']) {
@@ -201,8 +202,9 @@ describe('navByRole.admin — русский канон с группами (в�
     expect(hrefs).toContain('/admin/payments-import');
     expect(hrefs).toContain('/admin/roles');
     expect(hrefs).toContain('/admin/pii-access');
-    expect(navByRole.admin).toHaveLength(22);
+    expect(navByRole.admin).toHaveLength(23);
     expect(hrefs).toContain('/admin/requests');
+    expect(hrefs).toContain('/admin/intake');
   });
   it('каждый пункт по-русски, с иконкой и группой', () => {
     for (const item of navByRole.admin) {

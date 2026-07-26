@@ -67,13 +67,14 @@ describe('manager_cabinet (opt-in flag)', () => {
 });
 
 describe('navByRole.manager — feature-flag gated', () => {
-  it('lists all twenty-two manager cabinet items in the raw nav (including Поиск, Обращения клиентов, leader-only Команда + вход в /leader + Воронка + Сделки + Задачи + Календарь + Обращения + Звонки + Настройки)', () => {
+  it('lists all twenty-three manager cabinet items in the raw nav (including Поиск, Обращения клиентов, leader-only Команда + вход в /leader + Воронка + Сделки + Задачи + Календарь + Обращения + Звонки + Настройки)', () => {
     expect(navByRole.manager.map((i) => i.href)).toEqual([
       '/manager/dashboard',
       '/manager/search',
       '/manager/orders',
       '/manager/leads',
       '/manager/requests',
+      '/manager/intake',
       '/manager/funnel',
       '/manager/deals',
       '/manager/tasks',
@@ -100,6 +101,7 @@ describe('navByRole.manager — feature-flag gated', () => {
         i.href.startsWith('/manager/') &&
         i.href !== '/manager/search' &&
         i.href !== '/manager/requests' &&
+        i.href !== '/manager/intake' &&
         i.href !== '/manager/enrollments' &&
         i.href !== '/manager/funnel' &&
         i.href !== '/manager/deals' &&

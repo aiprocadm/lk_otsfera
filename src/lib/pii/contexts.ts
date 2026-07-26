@@ -39,6 +39,8 @@ export const PII_CONTEXTS = {
   org_card_calls: { subjectType: 'caller', action: 'list', labelRu: 'Карточка организации: звонки', callSite: 'src/lib/services/manager/organizationCard.ts' },
   inbox_list: { subjectType: 'inbound_sender', action: 'list', labelRu: 'Инбокс: входящие', callSite: 'src/lib/services/inbound/listInbox.ts' },
   calls_list: { subjectType: 'caller', action: 'list', labelRu: 'Журнал звонков', callSite: 'src/lib/services/telephony/listCalls.ts' },
+  // Этап 7 (ФТ-8.1): union-список Intake показывает контакты обращений/звонков.
+  intake_list: { subjectType: 'inbound_sender', action: 'list', labelRu: 'Входящие в работу', callSite: 'src/lib/services/intake/list.ts' },
   deal_activity_inbound: { subjectType: 'inbound_sender', action: 'list', labelRu: 'Активность сделки: входящие', callSite: 'src/lib/services/manager/dealActivity.ts' },
   deal_activity_calls: { subjectType: 'caller', action: 'list', labelRu: 'Активность сделки: звонки', callSite: 'src/lib/services/manager/dealActivity.ts' },
   certificates_list: { subjectType: 'student', action: 'list', labelRu: 'Удостоверения', callSite: 'src/lib/services/training/certificates.ts' },

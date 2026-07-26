@@ -66,7 +66,7 @@ export default async function ManagerInboxPage({
 
       <InboxFiltersBar channel={channel} status={status} />
 
-      <InboxList items={items} organizations={organizations} contactsEnabled={contactsEnabled} />
+      <InboxList items={items} organizations={organizations} contactsEnabled={contactsEnabled} currentUserId={session.sub} />
 
       <Paginator
         basePath='/manager/inbox'

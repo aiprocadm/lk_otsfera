@@ -16,6 +16,8 @@ export type NavItem = {
   group?: string;
   /** Скрыть пункт, когда флаг ВКЛЮЧЁН (обратный гейт: «Команда» менеджера уезжает в /leader). */
   hiddenWhenFlag?: FeatureFlag;
+  /** Этап 7 (ФТ-8.4): ключ живого счётчика из GET /api/staff/badges (рендерит NavBadge). */
+  badgeKey?: 'intake' | 'tasksOverdue';
 };
 
 // 'leader' — НЕ новая JWT-роль (это manager + managerRole='leader'); ключ существует только в каноне меню.
@@ -33,6 +35,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/admin/finance', label: 'Финансы', icon: '₽', group: 'Операции' },
     { href: '/admin/enrollments', label: 'Заявки на обучение', icon: '🎓', group: 'Операции', flag: 'enrollment_requests' },
     { href: '/admin/requests', label: 'Обращения', icon: '📮', group: 'Операции', flag: 'client_requests' },
+    { href: '/admin/intake', label: 'Входящие в работу', icon: '📥', group: 'Операции', flag: 'intake_inbox' },
     { href: '/admin/audit', label: 'Аудит', icon: '🧾', group: 'Операции' },
     { href: '/admin/pii-access', label: 'Доступ к ПДн', icon: '🛡️', group: 'Операции' },
     // Все три канала обмена с 1С — в одной группе, чтобы не путались (были
@@ -54,9 +57,10 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/manager/orders', label: 'Заказы', icon: '📋', flag: 'manager_cabinet' },
     { href: '/manager/leads', label: 'Лиды', icon: '📬', flag: 'manager_cabinet' },
     { href: '/manager/requests', label: 'Обращения клиентов', icon: '📮', flag: 'client_requests' },
+    { href: '/manager/intake', label: 'Входящие в работу', icon: '📥', flag: 'intake_inbox', badgeKey: 'intake' },
     { href: '/manager/funnel', label: 'Воронка', icon: '📈', flag: 'sales_funnel' },
     { href: '/manager/deals', label: 'Сделки', icon: '🤝', flag: 'deals_pipeline' },
-    { href: '/manager/tasks', label: 'Задачи', icon: '✅', flag: 'internal_tasks' },
+    { href: '/manager/tasks', label: 'Задачи', icon: '✅', flag: 'internal_tasks', badgeKey: 'tasksOverdue' },
     { href: '/manager/calendar', label: 'Календарь', icon: '📅', flag: 'staff_calendar' },
     { href: '/manager/organizations', label: 'Организации', icon: '🏢', flag: 'manager_cabinet' },
     { href: '/manager/finance', label: 'Финансы', icon: '₽', flag: 'manager_cabinet' },
@@ -93,10 +97,11 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     // deals_pipeline — свой opt-in флаг (НЕ путать с /partner/deals — «Заказы» партнёра).
     { href: '/leader/deals', label: 'Сделки', icon: '🤝', flag: 'deals_pipeline' },
     { href: '/leader/analytics', label: 'Аналитика', icon: '📊', flag: 'leader_analytics' },
-    { href: '/leader/tasks', label: 'Задачи', icon: '✅', flag: 'internal_tasks' },
+    { href: '/leader/tasks', label: 'Задачи', icon: '✅', flag: 'internal_tasks', badgeKey: 'tasksOverdue' },
     { href: '/leader/calendar', label: 'Календарь', icon: '📅', flag: 'staff_calendar' },
     { href: '/leader/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests' },
     { href: '/leader/requests', label: 'Обращения клиентов', icon: '📮', flag: 'client_requests' },
+    { href: '/leader/intake', label: 'Входящие в работу', icon: '📥', flag: 'intake_inbox', badgeKey: 'intake' },
     // Личный inbox (комментарии+чат) живёт в кабинете менеджера — см. план, «Отклонение от спеки».
     { href: '/manager/messages', label: 'Сообщения', icon: '💬' },
     // Переключатель «играющего тренера» в личный кабинет менеджера.
