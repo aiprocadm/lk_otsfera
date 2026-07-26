@@ -12,7 +12,10 @@ import {
   addDealNoteAction,
   listDealNotesAction
 } from '@/server-actions/deals';
+import { listLinkedTasksAction } from '@/server-actions/tasks';
 import type { DealNoteRow } from '@/lib/services/deals/notes';
+import type { TaskCard } from '@/lib/services/tasks/board';
+import { LinkedTasksPanel } from '@/components/tasks/linked-tasks-panel';
 
 /**
  * Этап 6 — создание/редактирование сделки (по образцу task-dialog).
@@ -51,6 +54,7 @@ export function DealDialog({
   organizations,
   managers,
   currentUserId,
+  tasksEnabled = false,
   onClose,
   onSaved
 }: {
@@ -58,6 +62,8 @@ export function DealDialog({
   organizations: DealDialogOption[];
   managers: DealDialogOption[];
   currentUserId: string;
+  /** Этап 7 (ФТ-7.1): блок «Задачи» — только при флаге internal_tasks (пробрасывает страница). */
+  tasksEnabled?: boolean;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -67,7 +73,20 @@ export function DealDialog({
   const [notes, setNotes] = useState<DealNoteRow[] | null>(null);
   const [noteBody, setNoteBody] = useState('');
   const [noteBusy, setNoteBusy] = useState(false);
+  // Задачи сделки (ФТ-7.1): null — ещё грузятся; ленивая подгрузка как у заметок.
+  const [tasks, setTasks] = useState<TaskCard[] | null>(null);
   const targetId = target?.id ?? null;
+
+  const reloadTasks = React.useCallback((dealId: string) => {
+    void listLinkedTasksAction({ dealId }).then((res) => {
+      setTasks(res.ok ? res.rows : []);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!targetId || !tasksEnabled) return;
+    reloadTasks(targetId);
+  }, [targetId, tasksEnabled, reloadTasks]);
 
   useEffect(() => {
     if (!targetId) return;
@@ -168,6 +187,22 @@ export function DealDialog({
           </Button>
         </div>
       </form>
+
+      {target && tasksEnabled && (
+        <div className="mt-4 border-t border-gray-200 pt-3 space-y-2">
+          <h3 className="text-sm font-semibold text-[#111111]">Задачи</h3>
+          {tasks === null ? (
+            <p className="text-xs text-gray-400">Загружаю задачи…</p>
+          ) : (
+            <LinkedTasksPanel
+              link={{ dealId: target.id }}
+              tasks={tasks}
+              currentUserId={currentUserId}
+              onCreated={() => reloadTasks(target.id)}
+            />
+          )}
+        </div>
+      )}
 
       {target && (
         <div className="mt-4 border-t border-gray-200 pt-3 space-y-2">

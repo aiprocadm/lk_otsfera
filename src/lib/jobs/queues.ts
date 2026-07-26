@@ -16,6 +16,7 @@ export const QUEUE_NAMES = [
   'monitoring.evaluateAlerts',
   'notifications.certificateExpiry',
   'notifications.calendarReminder',
+  'notifications.taskDueSoon',
   'inbound.email.poll',
   'telephony.mango.recording',
   'telephony.mango.backfill'

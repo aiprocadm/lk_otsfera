@@ -43,7 +43,7 @@ export default async function ManagerDealsPage() {
         </div>
         <NewDealButton organizations={organizations} managers={managerOptions} currentUserId={session.sub} />
       </div>
-      <DealBoard board={board} organizations={organizations} managers={managerOptions} currentUserId={session.sub} />
+      <DealBoard board={board} organizations={organizations} managers={managerOptions} currentUserId={session.sub} tasksEnabled={isFeatureEnabled('internal_tasks')} />
     </div>
   );
 }

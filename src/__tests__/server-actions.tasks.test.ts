@@ -4,6 +4,7 @@ const {
   requireSession,
   revalidatePath,
   moveTask,
+  listLinkedTasks,
   createTask,
   updateTask,
   deleteTask,
@@ -15,6 +16,7 @@ const {
   requireSession: vi.fn(),
   revalidatePath: vi.fn(),
   moveTask: vi.fn(),
+  listLinkedTasks: vi.fn(),
   createTask: vi.fn(),
   updateTask: vi.fn(),
   deleteTask: vi.fn(),
@@ -27,12 +29,13 @@ const {
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
-vi.mock('@/lib/services/tasks/board', () => ({ moveTask }));
+vi.mock('@/lib/services/tasks/board', () => ({ moveTask, listLinkedTasks }));
 vi.mock('@/lib/services/tasks/tasks', () => ({ createTask, updateTask, deleteTask, assignTask }));
 vi.mock('@/lib/services/tasks/columns', () => ({ createTaskColumn, updateTaskColumn, deleteTaskColumn }));
 
 import {
   moveTaskAction,
+  listLinkedTasksAction,
   createTaskAction,
   updateTaskAction,
   deleteTaskAction,
@@ -90,6 +93,24 @@ describe('task CRUD actions', () => {
       expect.objectContaining({ title: 'Позвонить', priority: 'high', columnId: 'default:todo', assigneeIds: ['u2', 'u3'] })
     );
   });
+  it('create passes linked lead/deal ids from hidden fields (этап 7, ФТ-7.1)', async () => {
+    createTask.mockResolvedValue({ ok: true, id: 't10' });
+    await createTaskAction(form({ title: 'T', linkedLeadId: 'l1', linkedDealId: 'd1' }));
+    expect(createTask).toHaveBeenCalledWith(
+      {},
+      SESSION,
+      expect.objectContaining({ linkedLeadId: 'l1', linkedDealId: 'd1' })
+    );
+  });
+  it('create with empty linked fields maps them to null (существующие связи стираются осознанно)', async () => {
+    createTask.mockResolvedValue({ ok: true, id: 't11' });
+    await createTaskAction(form({ title: 'T' }));
+    expect(createTask).toHaveBeenCalledWith(
+      {},
+      SESSION,
+      expect.objectContaining({ linkedLeadId: null, linkedDealId: null })
+    );
+  });
   it('create maps validation error', async () => {
     createTask.mockResolvedValue({ ok: false, error: 'validation' });
     expect(await createTaskAction(form({ title: '' }))).toEqual({ ok: false, error: 'validation' });
@@ -116,6 +137,21 @@ describe('task CRUD actions', () => {
     fd.append('assigneeIds', 'u2');
     expect(await assignTaskAction(fd)).toEqual({ ok: true });
     expect(assignTask).toHaveBeenCalledWith({}, SESSION, { taskId: 't7', assigneeIds: ['u2'] });
+  });
+});
+
+describe('listLinkedTasksAction (этап 7)', () => {
+  it('лид: возвращает строки сервиса', async () => {
+    listLinkedTasks.mockResolvedValue([{ id: 't1' }]);
+    const res = await listLinkedTasksAction({ leadId: 'l1' });
+    expect(res).toEqual({ ok: true, rows: [{ id: 't1' }] });
+    expect(listLinkedTasks).toHaveBeenCalledWith({}, SESSION, { leadId: 'l1' });
+  });
+  it('сделка: прокидывает dealId', async () => {
+    listLinkedTasks.mockResolvedValue([]);
+    const res = await listLinkedTasksAction({ dealId: 'd1' });
+    expect(res).toEqual({ ok: true, rows: [] });
+    expect(listLinkedTasks).toHaveBeenCalledWith({}, SESSION, { dealId: 'd1' });
   });
 });
 

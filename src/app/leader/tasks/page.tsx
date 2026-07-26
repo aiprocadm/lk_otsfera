@@ -4,15 +4,30 @@ import { requireManagerLeader } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
 import { listTaskBoard, getTaskFormOptions } from '@/lib/services/tasks/board';
+import { parseTasksSearchParams } from '@/lib/tasks/filters';
 import { TaskBoard } from '@/components/tasks/task-board';
+import { TaskList } from '@/components/tasks/task-list';
+import { TasksToolbar } from '@/components/tasks/tasks-toolbar';
 import { ColumnConfig } from '@/components/tasks/column-config';
 
 export const dynamic = 'force-dynamic';
 
-export default async function LeaderTasksPage() {
+export default async function LeaderTasksPage({
+  searchParams
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   if (!isFeatureEnabled('internal_tasks')) notFound();
   const session = await requireManagerLeader();
-  const [board, options] = await Promise.all([listTaskBoard(prisma, session), getTaskFormOptions(prisma, session)]);
+  const state = parseTasksSearchParams(await searchParams);
+  const [board, options] = await Promise.all([
+    listTaskBoard(prisma, session, {
+      scope: state.scope,
+      overdue: state.overdue,
+      assigneeId: state.assigneeId
+    }),
+    getTaskFormOptions(prisma, session)
+  ]);
   const isDefault = board.columns.length > 0 && board.columns[0]!.id.startsWith('default:');
 
   return (
@@ -23,7 +38,8 @@ export default async function LeaderTasksPage() {
           Внутренний канбан задач. Перетаскивайте карточки между колонками; настройте колонки под процесс команды.
         </p>
       </div>
-      <TaskBoard board={board} options={options} />
+      <TasksToolbar state={state} assigneeOptions={options.users} />
+      {state.view === 'list' ? <TaskList board={board} options={options} /> : <TaskBoard board={board} options={options} />}
       <ColumnConfig columns={board.columns} isDefault={isDefault} />
     </div>
   );

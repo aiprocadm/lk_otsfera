@@ -54,7 +54,7 @@ export default async function LeaderDealsPage({
         <NewDealButton organizations={organizations} managers={managerOptions} currentUserId={session.sub} />
       </div>
       <DealsManagerFilter managers={managerOptions} managerId={managerId} />
-      <DealBoard board={board} organizations={organizations} managers={managerOptions} currentUserId={session.sub} />
+      <DealBoard board={board} organizations={organizations} managers={managerOptions} currentUserId={session.sub} tasksEnabled={isFeatureEnabled('internal_tasks')} />
       <DealStageConfig stages={board.stages} isDefault={isDefault} />
     </div>
   );

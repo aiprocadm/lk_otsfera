@@ -322,6 +322,8 @@ model Lead {
   externalIdInOneC   String?
   pushedToOneCAt     DateTime?
   attachments        LeadAttachment[]
+  // Этап 7 (ФТ-7.1): задачи, привязанные к лиду.
+  tasks              Task[]           @relation("TaskLinkedLead")
 
   @@index([partnerId, status])
   @@index([assignedManagerId])
@@ -808,6 +810,8 @@ model Deal {
   orderId         String?       @unique
   order           Order?        @relation("DealOrder", fields: [orderId], references: [id], onDelete: SetNull)
   notes           DealNote[]    @relation("DealNotes")
+  // Этап 7 (ФТ-7.1): задачи, привязанные к сделке.
+  tasks           Task[]        @relation("TaskLinkedDeal")
 
   @@index([companyId, status])
   @@index([managerId])
@@ -894,12 +898,23 @@ model Task {
   linkedOrder          Order?         @relation("TaskLinkedOrder", fields: [linkedOrderId], references: [id], onDelete: SetNull)
   linkedOrganizationId String?
   linkedOrganization   Organization?  @relation("TaskLinkedOrganization", fields: [linkedOrganizationId], references: [id], onDelete: SetNull)
+  // Этап 7 (ФТ-7.1): привязки к лиду и сделке — soft-link SetNull, как order/org.
+  linkedLeadId         String?
+  linkedLead           Lead?          @relation("TaskLinkedLead", fields: [linkedLeadId], references: [id], onDelete: SetNull)
+  linkedDealId         String?
+  linkedDeal           Deal?          @relation("TaskLinkedDeal", fields: [linkedDealId], references: [id], onDelete: SetNull)
+  // Этап 7 (ФТ-7.2): отметка «уведомление „скоро срок" отправлено» (дедуп джоба;
+  // сбрасывается при переносе dueDate — перенос срока уведомляет заново).
+  dueSoonNotifiedAt    DateTime?
   assignees            TaskAssignee[]
 
   @@index([companyId, status])
   @@index([companyId, createdAt])
   @@index([linkedOrderId])
   @@index([linkedOrganizationId])
+  @@index([linkedLeadId])
+  @@index([linkedDealId])
+  @@index([dueDate])
 }
 
 // M:N исполнители задачи (идиома репозитория — OrganizationUser/PartnerUser).

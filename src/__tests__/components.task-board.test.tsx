@@ -57,7 +57,11 @@ const board: TaskBoardData = {
           linkedOrderId: 'ord1',
           linkedOrderTitle: 'Заказ №1',
           linkedOrganizationId: 'org1',
-          linkedOrganizationName: 'ООО Ромашка'
+          linkedOrganizationName: 'ООО Ромашка',
+          linkedLeadId: null,
+          linkedLeadSubject: null,
+          linkedDealId: null,
+          linkedDealTitle: null
         },
         {
           id: 'task-2',
@@ -74,7 +78,11 @@ const board: TaskBoardData = {
           linkedOrderId: null,
           linkedOrderTitle: null,
           linkedOrganizationId: null,
-          linkedOrganizationName: null
+          linkedOrganizationName: null,
+          linkedLeadId: null,
+          linkedLeadSubject: null,
+          linkedDealId: null,
+          linkedDealTitle: null
         }
       ]
     },

@@ -22,6 +22,23 @@ vi.mock('@/server-actions/deals', () => ({
 const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
+// Этап 7 (ФТ-7.1): блок «Задачи» в режиме редактирования — экшен и панель стабятся.
+const { listLinkedTasksAction, linkedPanelSpy } = vi.hoisted(() => ({
+  listLinkedTasksAction: vi.fn(),
+  linkedPanelSpy: vi.fn()
+}));
+vi.mock('@/server-actions/tasks', () => ({ listLinkedTasksAction }));
+vi.mock('@/components/tasks/linked-tasks-panel', () => ({
+  LinkedTasksPanel: (props: { link: unknown; tasks: unknown[]; onCreated?: () => void }) => {
+    linkedPanelSpy(props);
+    return React.createElement(
+      'div',
+      { 'data-testid': 'linked-tasks-panel-stub' },
+      React.createElement('button', { onClick: props.onCreated }, 'stub-task-created')
+    );
+  }
+}));
+
 import { DealDialog, NewDealButton, type DealDialogTarget } from '@/components/deals/deal-dialog';
 
 const organizations = [{ id: 'org-1', name: 'ООО Ромашка' }];
@@ -197,6 +214,49 @@ describe('DealDialog', () => {
       expect(createDealAction).not.toHaveBeenCalled();
       await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Сделка обновлена.'));
       await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    });
+  });
+
+  describe('блок «Задачи» (этап 7, ФТ-7.1)', () => {
+    it('по умолчанию (tasksEnabled=false) блок не рендерится и экшен не зовётся', async () => {
+      renderCreate({ target });
+      expect(await screen.findByText('Заметки')).toBeTruthy();
+      expect(screen.queryByText('Задачи')).toBeNull();
+      expect(listLinkedTasksAction).not.toHaveBeenCalled();
+    });
+
+    it('create mode: даже с tasksEnabled блок скрыт (нет target)', () => {
+      renderCreate({ tasksEnabled: true });
+      expect(screen.queryByText('Задачи')).toBeNull();
+      expect(listLinkedTasksAction).not.toHaveBeenCalled();
+    });
+
+    it('edit + tasksEnabled: лениво грузит задачи и передаёт их в панель', async () => {
+      listLinkedTasksAction.mockResolvedValue({ ok: true, rows: [{ id: 't1' }] });
+      renderCreate({ target, tasksEnabled: true });
+
+      expect(await screen.findByTestId('linked-tasks-panel-stub')).toBeTruthy();
+      expect(listLinkedTasksAction).toHaveBeenCalledWith({ dealId: 'deal-1' });
+      expect(linkedPanelSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ link: { dealId: 'deal-1' }, tasks: [{ id: 't1' }] })
+      );
+    });
+
+    it('ошибка загрузки → панель с пустым списком (fail-safe)', async () => {
+      listLinkedTasksAction.mockResolvedValue({ ok: false, error: 'forbidden' });
+      renderCreate({ target, tasksEnabled: true });
+      await screen.findByTestId('linked-tasks-panel-stub');
+      expect(linkedPanelSpy).toHaveBeenCalledWith(expect.objectContaining({ tasks: [] }));
+    });
+
+    it('onCreated из панели перезагружает список задач', async () => {
+      listLinkedTasksAction.mockResolvedValue({ ok: true, rows: [] });
+      renderCreate({ target, tasksEnabled: true });
+      await screen.findByTestId('linked-tasks-panel-stub');
+      expect(listLinkedTasksAction).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByText('stub-task-created'));
+      await waitFor(() => expect(listLinkedTasksAction).toHaveBeenCalledTimes(2));
     });
   });
 

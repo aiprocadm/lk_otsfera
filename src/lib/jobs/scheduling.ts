@@ -225,6 +225,44 @@ export async function registerCalendarReminderSchedules(
   return results;
 }
 
+export type TaskDueSoonSchedule = {
+  queueName: Extract<QueueName, 'notifications.taskDueSoon'>;
+  schedulerId: string;
+  pattern: string;
+  tz: string;
+};
+
+// Этап 7 (ФТ-7.2): «скоро срок задачи» — раз в день утром (как CertExpiry).
+// Дедуп — Task.dueSoonNotifiedAt (атомарный claim в процессоре).
+export const TASK_DUE_SOON_SCHEDULES: ReadonlyArray<TaskDueSoonSchedule> = [
+  {
+    queueName: 'notifications.taskDueSoon',
+    schedulerId: 'notifications.taskDueSoon.cron',
+    pattern: '0 7 * * *',
+    tz: DEFAULT_SYNC_TZ
+  }
+] as const;
+
+export async function registerTaskDueSoonSchedules(
+  getQueueFn: GetQueueFn = getQueue
+): Promise<Array<{ schedulerId: string; queueName: string; pattern: string; tz: string }>> {
+  const results = [];
+  const triggeredAt = new Date().toISOString();
+  for (const schedule of TASK_DUE_SOON_SCHEDULES) {
+    const queue = getQueueFn(schedule.queueName);
+    await queue.upsertJobScheduler(
+      schedule.schedulerId,
+      { pattern: schedule.pattern, tz: schedule.tz },
+      { data: { triggeredAt, reason: 'cron' } }
+    );
+    results.push({
+      schedulerId: schedule.schedulerId, queueName: schedule.queueName,
+      pattern: schedule.pattern, tz: schedule.tz
+    });
+  }
+  return results;
+}
+
 export type CertExpirySchedule = {
   queueName: Extract<QueueName, 'notifications.certificateExpiry'>;
   schedulerId: string;
