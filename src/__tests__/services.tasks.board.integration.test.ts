@@ -43,6 +43,9 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // Этап 7 (ФТ-7.2): назначение исполнителя создаёт task_assigned-уведомления —
+  // чистим до пользователей (FK Notification.userId — Restrict).
+  await prisma.notification.deleteMany({ where: { userId: { in: [m1, m2, mB] } } });
   await prisma.auditLog.deleteMany({ where: { userId: { in: [m1, m2, mB] } } });
   await prisma.taskAssignee.deleteMany({ where: { task: { companyId: { in: [companyA, companyB] } } } });
   await prisma.task.deleteMany({ where: { companyId: { in: [companyA, companyB] } } });

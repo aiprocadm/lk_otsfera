@@ -35,6 +35,15 @@ vi.mock('@/components/tasks/task-board', () => ({
     )
 }));
 
+vi.mock('@/components/tasks/task-list', () => ({
+  TaskList: () => React.createElement('div', { 'data-testid': 'task-list' })
+}));
+
+vi.mock('@/components/tasks/tasks-toolbar', () => ({
+  TasksToolbar: (props: { state: unknown; assigneeOptions: unknown }) =>
+    React.createElement('div', { 'data-testid': 'tasks-toolbar' }, JSON.stringify(props.assigneeOptions))
+}));
+
 vi.mock('@/components/tasks/column-config', () => ({
   ColumnConfig: (props: { columns: unknown[]; isDefault: boolean }) =>
     React.createElement(
@@ -49,6 +58,10 @@ import LeaderTasksPage from '@/app/leader/tasks/page';
 
 const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
 
+function sp(params: Record<string, string> = {}) {
+  return { searchParams: Promise.resolve(params) };
+}
+
 describe('LeaderTasksPage', () => {
   beforeEach(() => {
     requireManagerLeader.mockReset();
@@ -61,33 +74,46 @@ describe('LeaderTasksPage', () => {
   it('calls notFound() when the internal_tasks flag is disabled (before auth check)', async () => {
     isFeatureEnabled.mockReturnValue(false);
 
-    await expect(renderServerComponent(LeaderTasksPage())).rejects.toThrow('NOT_FOUND');
+    await expect(renderServerComponent(LeaderTasksPage(sp()))).rejects.toThrow('NOT_FOUND');
 
     expect(isFeatureEnabled).toHaveBeenCalledWith('internal_tasks');
     expect(requireManagerLeader).not.toHaveBeenCalled();
   });
 
-  it('renders with default columns (isDefault: true when the first column id starts with "default:")', async () => {
+  it('renders with default columns (isDefault: true) and passes assignee filter options (ФТ-7.3)', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManagerLeader.mockResolvedValue(SESSION);
-    listTaskBoard.mockResolvedValue({ columns: [{ id: 'default:todo', name: 'К выполнению' }], tasks: [] });
-    getTaskFormOptions.mockResolvedValue({ users: [], organizations: [], orders: [] });
+    listTaskBoard.mockResolvedValue({ columns: [{ id: 'default:todo', name: 'К выполнению' }], board: [] });
+    getTaskFormOptions.mockResolvedValue({ users: [{ id: 'm1', name: 'Менеджер' }], organizations: [], orders: [] });
 
-    const { container } = await renderServerComponent(LeaderTasksPage());
+    const { container } = await renderServerComponent(LeaderTasksPage(sp()));
 
-    expect(listTaskBoard).toHaveBeenCalledWith({}, SESSION);
+    expect(listTaskBoard).toHaveBeenCalledWith({}, SESSION, { scope: 'all', overdue: false, assigneeId: null });
     expect(getTaskFormOptions).toHaveBeenCalledWith({}, SESSION);
     expect(container.textContent).toContain('Задачи');
     expect(container.textContent).toContain('true');
+    // Руководителю доступен фильтр по исполнителю.
+    expect(container.querySelector('[data-testid="tasks-toolbar"]')?.textContent).toContain('Менеджер');
+  });
+
+  it('passes assignee/scope/overdue searchParams to the service', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManagerLeader.mockResolvedValue(SESSION);
+    listTaskBoard.mockResolvedValue({ columns: [], board: [] });
+    getTaskFormOptions.mockResolvedValue({ users: [], organizations: [], orders: [] });
+
+    await renderServerComponent(LeaderTasksPage(sp({ assignee: 'm2', scope: 'mine', overdue: '1' })));
+
+    expect(listTaskBoard).toHaveBeenCalledWith({}, SESSION, { scope: 'mine', overdue: true, assigneeId: 'm2' });
   });
 
   it('renders with custom columns (isDefault: false)', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManagerLeader.mockResolvedValue(SESSION);
-    listTaskBoard.mockResolvedValue({ columns: [{ id: 'custom-1', name: 'Своя колонка' }], tasks: [] });
+    listTaskBoard.mockResolvedValue({ columns: [{ id: 'custom-1', name: 'Своя колонка' }], board: [] });
     getTaskFormOptions.mockResolvedValue({ users: [], organizations: [], orders: [] });
 
-    const { container } = await renderServerComponent(LeaderTasksPage());
+    const { container } = await renderServerComponent(LeaderTasksPage(sp()));
 
     expect(container.textContent).toContain('false');
   });
@@ -95,11 +121,23 @@ describe('LeaderTasksPage', () => {
   it('renders with an empty columns array (isDefault stays false, no crash on columns[0])', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManagerLeader.mockResolvedValue(SESSION);
-    listTaskBoard.mockResolvedValue({ columns: [], tasks: [] });
+    listTaskBoard.mockResolvedValue({ columns: [], board: [] });
     getTaskFormOptions.mockResolvedValue({ users: [], organizations: [], orders: [] });
 
-    const { container } = await renderServerComponent(LeaderTasksPage());
+    const { container } = await renderServerComponent(LeaderTasksPage(sp()));
 
     expect(container.textContent).toContain('false');
+  });
+
+  it('renders the list view when view=list (ФТ-7.4)', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManagerLeader.mockResolvedValue(SESSION);
+    listTaskBoard.mockResolvedValue({ columns: [], board: [] });
+    getTaskFormOptions.mockResolvedValue({ users: [], organizations: [], orders: [] });
+
+    const { container } = await renderServerComponent(LeaderTasksPage(sp({ view: 'list' })));
+
+    expect(container.querySelector('[data-testid="task-list"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="task-board"]')).toBeNull();
   });
 });

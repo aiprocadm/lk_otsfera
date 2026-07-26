@@ -96,9 +96,16 @@ export function TaskBoard({ board, options }: { board: TaskBoardData; options: T
                       <Badge tone={PRIORITY_TONE[card.priority] ?? 'neutral'}>{PRIORITY_LABEL[card.priority]}</Badge>
                     )}
                   </div>
-                  {(card.linkedOrganizationName || card.linkedOrderTitle) && (
+                  {(card.linkedOrganizationName || card.linkedOrderTitle || card.linkedLeadSubject || card.linkedDealTitle) && (
                     <p className="text-xs text-gray-500 mt-1">
-                      {[card.linkedOrganizationName, card.linkedOrderTitle].filter(Boolean).join(' · ')}
+                      {[
+                        card.linkedOrganizationName,
+                        card.linkedOrderTitle,
+                        card.linkedLeadSubject && `Лид: ${card.linkedLeadSubject}`,
+                        card.linkedDealTitle && `Сделка: ${card.linkedDealTitle}`
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </p>
                   )}
                   <div className="flex items-center justify-between mt-2 text-xs text-gray-500">

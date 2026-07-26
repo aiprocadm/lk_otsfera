@@ -1,4 +1,4 @@
-import type { PrismaClient, TaskPriority } from '@prisma/client';
+import type { Prisma, PrismaClient, TaskPriority } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { taskWhereForLevel, canSeeTask, NO_COMPANY_SENTINEL } from '@/lib/auth/accessProfile';
 import { resolveTaskColumns, columnForTask, type TaskColumnView } from '@/lib/tasks/columns';
@@ -28,31 +28,97 @@ export type TaskCard = {
   linkedOrderTitle: string | null;
   linkedOrganizationId: string | null;
   linkedOrganizationName: string | null;
+  linkedLeadId: string | null;
+  linkedLeadSubject: string | null;
+  linkedDealId: string | null;
+  linkedDealTitle: string | null;
 };
 
 export type TaskBoardColumn = { column: TaskColumnView; cards: TaskCard[] };
 export type TaskBoard = { columns: TaskColumnView[]; board: TaskBoardColumn[] };
 
+/** Этап 7 (ФТ-7.3): фильтры доски/списка. Всё поверх охвата профиля (не вместо). */
+export type TaskBoardFilters = {
+  scope?: 'mine' | 'all';
+  assigneeId?: string | null;
+  overdue?: boolean;
+};
+
 const CARD_INCLUDE = {
   createdBy: { select: { name: true } },
   assignees: { select: { userId: true, user: { select: { name: true } } } },
   linkedOrder: { select: { title: true } },
-  linkedOrganization: { select: { name: true } }
+  linkedOrganization: { select: { name: true } },
+  linkedLead: { select: { subject: true } },
+  linkedDeal: { select: { title: true } }
 } as const;
 
-export async function listTaskBoard(prisma: PrismaClient, session: SessionPayload): Promise<TaskBoard> {
+const CARD_SELECT = {
+  id: true, title: true, description: true, priority: true, dueDate: true, completedAt: true,
+  status: true, columnId: true, createdAt: true,
+  linkedOrderId: true, linkedOrganizationId: true, linkedLeadId: true, linkedDealId: true,
+  ...CARD_INCLUDE
+} as const;
+
+type CardRow = Prisma.TaskGetPayload<{ select: typeof CARD_SELECT }>;
+
+function toCard(t: CardRow, columnId: string): TaskCard {
+  return {
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    priority: t.priority,
+    dueDate: t.dueDate,
+    completedAt: t.completedAt,
+    createdAt: t.createdAt,
+    createdByName: t.createdBy.name,
+    columnId,
+    assigneeIds: t.assignees.map((a) => a.userId),
+    assigneeNames: t.assignees.map((a) => a.user.name),
+    linkedOrderId: t.linkedOrderId,
+    linkedOrderTitle: t.linkedOrder?.title ?? null,
+    linkedOrganizationId: t.linkedOrganizationId,
+    linkedOrganizationName: t.linkedOrganization?.name ?? null,
+    linkedLeadId: t.linkedLeadId,
+    linkedLeadSubject: t.linkedLead?.subject ?? null,
+    linkedDealId: t.linkedDealId,
+    linkedDealTitle: t.linkedDeal?.title ?? null
+  };
+}
+
+/** Композиция where: охват профиля + пользовательские фильтры ФТ-7.3. */
+export function taskFiltersWhere(
+  session: SessionPayload,
+  filters: TaskBoardFilters | undefined,
+  now: Date
+): Prisma.TaskWhereInput {
+  const base = taskWhereForLevel(session, session.accessProfile?.tasks ?? 'all');
+  const and: Prisma.TaskWhereInput[] = [base];
+  if (filters?.scope === 'mine') {
+    and.push({ OR: [{ createdById: session.sub }, { assignees: { some: { userId: session.sub } } }] });
+  }
+  if (filters?.assigneeId) {
+    and.push({ assignees: { some: { userId: filters.assigneeId } } });
+  }
+  if (filters?.overdue) {
+    and.push({ dueDate: { lt: now }, status: { not: 'done' } });
+  }
+  return and.length === 1 ? base : { AND: and };
+}
+
+export async function listTaskBoard(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  filters?: TaskBoardFilters
+): Promise<TaskBoard> {
   const columns = await resolveTaskColumns(prisma, session.companyId ?? '');
-  const where = taskWhereForLevel(session, session.accessProfile?.tasks ?? 'all');
+  const where = taskFiltersWhere(session, filters, new Date());
 
   const tasks = await prisma.task.findMany({
     where,
     orderBy: { createdAt: 'desc' },
     take: 500,
-    select: {
-      id: true, title: true, description: true, priority: true, dueDate: true, completedAt: true,
-      status: true, columnId: true, createdAt: true,
-      linkedOrderId: true, linkedOrganizationId: true, ...CARD_INCLUDE
-    }
+    select: CARD_SELECT
   });
 
   const board: TaskBoardColumn[] = columns.map((column) => ({ column, cards: [] }));
@@ -61,26 +127,40 @@ export async function listTaskBoard(prisma: PrismaClient, session: SessionPayloa
   for (const t of tasks) {
     const column = columnForTask(columns, t);
     if (!column) continue; // статус без колонки (кастомный набор не покрывает якорь) — пропускаем
-    byColumnId.get(column.id)?.cards.push({
-      id: t.id,
-      title: t.title,
-      description: t.description,
-      priority: t.priority,
-      dueDate: t.dueDate,
-      completedAt: t.completedAt,
-      createdAt: t.createdAt,
-      createdByName: t.createdBy.name,
-      columnId: column.id,
-      assigneeIds: t.assignees.map((a) => a.userId),
-      assigneeNames: t.assignees.map((a) => a.user.name),
-      linkedOrderId: t.linkedOrderId,
-      linkedOrderTitle: t.linkedOrder?.title ?? null,
-      linkedOrganizationId: t.linkedOrganizationId,
-      linkedOrganizationName: t.linkedOrganization?.name ?? null
-    });
+    byColumnId.get(column.id)?.cards.push(toCard(t, column.id));
   }
 
   return { columns, board };
+}
+
+/**
+ * Этап 7 (ФТ-7.1/3.2) — плоский список задач, привязанных к лиду или сделке,
+ * для панелей на карточках. Видимость — тот же tasks-охват профиля; сам
+ * родитель гейтится страницей/диалогом (getManagerLead / deal scope).
+ */
+export async function listLinkedTasks(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  link: { leadId: string } | { dealId: string }
+): Promise<TaskCard[]> {
+  const isStaff = session.role === 'admin' || session.role === 'manager';
+  if (!isStaff || !session.companyId) return [];
+  const columns = await resolveTaskColumns(prisma, session.companyId);
+  const base = taskWhereForLevel(session, session.accessProfile?.tasks ?? 'all');
+  const linkWhere: Prisma.TaskWhereInput = 'leadId' in link ? { linkedLeadId: link.leadId } : { linkedDealId: link.dealId };
+
+  const tasks = await prisma.task.findMany({
+    where: { AND: [base, linkWhere] },
+    orderBy: [{ completedAt: 'asc' }, { dueDate: { sort: 'asc', nulls: 'last' } }, { createdAt: 'desc' }],
+    take: 50,
+    select: CARD_SELECT
+  });
+  return tasks
+    .map((t) => {
+      const column = columnForTask(columns, t);
+      return column ? toCard(t, column.id) : null;
+    })
+    .filter((c): c is TaskCard => c !== null);
 }
 
 /** Данные для селектов диалога задачи (исполнители/организации/заявки), company-scoped. */

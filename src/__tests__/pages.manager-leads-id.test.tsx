@@ -14,6 +14,14 @@ vi.mock('@/lib/services/manager/leads', () => ({ getManagerLead }));
 const { listCompanyManagers } = vi.hoisted(() => ({ listCompanyManagers: vi.fn() }));
 vi.mock('@/lib/services/manager/team', () => ({ listCompanyManagers }));
 
+// Этап 7 (ФТ-3.2): блок задач лида — сервис и панель стабятся.
+const { listLinkedTasks } = vi.hoisted(() => ({ listLinkedTasks: vi.fn() }));
+vi.mock('@/lib/services/tasks/board', () => ({ listLinkedTasks }));
+vi.mock('@/components/tasks/linked-tasks-panel', () => ({
+  LinkedTasksPanel: (props: { link: unknown; tasks: unknown[]; currentUserId: string }) =>
+    React.createElement('div', { 'data-testid': 'linked-tasks-panel' }, JSON.stringify(props.link), JSON.stringify(props.tasks))
+}));
+
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
@@ -84,6 +92,8 @@ describe('ManagerLeadDetailPage', () => {
     getManagerLead.mockReset();
     listCompanyManagers.mockReset();
     listCompanyManagers.mockResolvedValue([]);
+    listLinkedTasks.mockReset().mockResolvedValue([]);
+    vi.unstubAllEnvs();
     nav.notFound.mockClear();
   });
 
@@ -227,4 +237,35 @@ describe('ManagerLeadDetailPage', () => {
     expect(container.textContent).not.toContain('Чтобы преобразовать заявку в заказ');
     expect(container.querySelector('[data-testid="lead-actions"]')?.textContent).toContain('order-9');
   });
+
+  it('этап 7: при выключенном internal_tasks блок «Задачи» скрыт и сервис не зовётся', async () => {
+    requireManager.mockResolvedValue(SESSION);
+    getManagerLead.mockResolvedValue({ ...BASE_LEAD });
+
+    const { container } = await renderServerComponent(
+      ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+    );
+
+    expect(container.querySelector('[data-testid="linked-tasks-panel"]')).toBeNull();
+    expect(listLinkedTasks).not.toHaveBeenCalled();
+  });
+
+  it('этап 7: при включённом internal_tasks рендерит блок «Задачи» с задачами лида', async () => {
+    vi.stubEnv('FEATURE_INTERNAL_TASKS', '1');
+    requireManager.mockResolvedValue(SESSION);
+    getManagerLead.mockResolvedValue({ ...BASE_LEAD });
+    listLinkedTasks.mockResolvedValue([{ id: 't1' }]);
+
+    const { container } = await renderServerComponent(
+      ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+    );
+
+    expect(listLinkedTasks).toHaveBeenCalledWith({}, SESSION, { leadId: 'lead-1' });
+    const panel = container.querySelector('[data-testid="linked-tasks-panel"]');
+    expect(panel).not.toBeNull();
+    expect(panel!.textContent).toContain('lead-1');
+    expect(panel!.textContent).toContain('t1');
+    expect(container.textContent).toContain('Задачи');
+  });
 });
+

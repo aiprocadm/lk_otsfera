@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
-import { moveTask, type MoveTaskError } from '@/lib/services/tasks/board';
+import { moveTask, listLinkedTasks, type MoveTaskError, type TaskCard } from '@/lib/services/tasks/board';
 import {
   createTask,
   updateTask,
@@ -50,6 +50,8 @@ function taskInput(fd: FormData): TaskInput {
     columnId: str(fd, 'columnId') || null,
     linkedOrderId: str(fd, 'linkedOrderId') || null,
     linkedOrganizationId: str(fd, 'linkedOrganizationId') || null,
+    linkedLeadId: str(fd, 'linkedLeadId') || null,
+    linkedDealId: str(fd, 'linkedDealId') || null,
     assigneeIds: fd.getAll('assigneeIds').filter((v): v is string => typeof v === 'string')
   };
 }
@@ -91,6 +93,19 @@ export async function deleteTaskAction(fd: FormData): Promise<ActionResult<TaskE
   if (!res.ok) return { ok: false, error: res.error };
   revalidate();
   return { ok: true };
+}
+
+/**
+ * Этап 7 (ФТ-7.1) — задачи, привязанные к лиду/сделке, для панелей на карточках
+ * (ленивая подгрузка в deal-dialog по образцу заметок). Сервис скоупит по
+ * tasks-охвату профиля; клиентским ролям вернёт пусто.
+ */
+export async function listLinkedTasksAction(
+  link: { leadId: string } | { dealId: string }
+): Promise<{ ok: true; rows: TaskCard[] } | { ok: false; error: 'forbidden' }> {
+  const session = await requireSession();
+  const rows = await listLinkedTasks(prisma, session, link);
+  return { ok: true, rows };
 }
 
 export async function assignTaskAction(fd: FormData): Promise<ActionResult<TaskErrorCode>> {

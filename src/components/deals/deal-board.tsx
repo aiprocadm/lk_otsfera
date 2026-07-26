@@ -47,13 +47,15 @@ export function DealBoard({
   board,
   organizations,
   managers,
-  currentUserId
+  currentUserId,
+  tasksEnabled
 }: {
   board: DealBoardData;
   /** Заданы вместе с currentUserId → клик по открытой сделке открывает редактирование. */
   organizations?: DealDialogOption[];
   managers?: DealDialogOption[];
   currentUserId?: string;
+  tasksEnabled?: boolean;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -254,6 +256,7 @@ export function DealBoard({
           organizations={organizations}
           managers={managers}
           currentUserId={currentUserId}
+          tasksEnabled={tasksEnabled}
           onClose={() => setEditTarget(null)}
           onSaved={() => {
             setEditTarget(null);

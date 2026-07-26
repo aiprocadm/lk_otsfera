@@ -22,20 +22,37 @@ function dateValue(d: Date | null): string {
   return new Date(d).toISOString().slice(0, 10);
 }
 
+/** Этап 7 (ФТ-7.1): префилл привязки при создании из карточки лида/сделки. */
+export type TaskDialogLink = { leadId?: string; dealId?: string; label: string };
+
 export function TaskDialog({
   target,
   columns,
   options,
+  link,
   onClose,
   onSaved
 }: {
   target: TaskCard | null;
   columns: TaskColumnView[];
   options: TaskFormOptions;
+  link?: TaskDialogLink;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [submitting, setSubmitting] = useState(false);
+  // Привязки к лиду/сделке задаются контекстом (link) или сохраняются с target —
+  // скрытые поля обязательны: без них редактирование стирало бы связь (taskInput → null).
+  const linkedLeadId = link?.leadId ?? target?.linkedLeadId ?? '';
+  const linkedDealId = link?.dealId ?? target?.linkedDealId ?? '';
+  const linkLabel =
+    link?.label ??
+    [
+      target?.linkedLeadSubject ? `лид «${target.linkedLeadSubject}»` : null,
+      target?.linkedDealTitle ? `сделка «${target.linkedDealTitle}»` : null
+    ]
+      .filter(Boolean)
+      .join(', ');
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -75,6 +92,9 @@ export function TaskDialog({
   return (
     <Dialog open onClose={onClose} title={target ? 'Задача' : 'Новая задача'} size="lg" busy={submitting}>
       <form onSubmit={handleSubmit} className="space-y-4">
+        <input type="hidden" name="linkedLeadId" value={linkedLeadId} />
+        <input type="hidden" name="linkedDealId" value={linkedDealId} />
+        {linkLabel && <p className="text-xs text-gray-500">Привязана: {linkLabel}</p>}
         <Field htmlFor="tk-title" label="Название">
           <Input id="tk-title" name="title" required maxLength={200} defaultValue={target?.title ?? ''} autoFocus />
         </Field>

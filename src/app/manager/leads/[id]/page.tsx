@@ -6,6 +6,8 @@ import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
 import { getManagerLead } from '@/lib/services/manager/leads';
 import { listCompanyManagers } from '@/lib/services/manager/team';
+import { listLinkedTasks } from '@/lib/services/tasks/board';
+import { LinkedTasksPanel } from '@/components/tasks/linked-tasks-panel';
 import { LeadStatusBadge } from '@/components/partner/lead-status-badge';
 import { ManagerLeadActions } from '@/components/manager/manager-lead-actions';
 import { PushLeadButton } from '@/components/manager/push-lead-button';
@@ -18,6 +20,10 @@ export default async function ManagerLeadDetailPage({ params }: { params: Promis
   const { id } = await params;
   const lead = await getManagerLead(prisma, session, id);
   if (!lead) notFound();
+
+  // Этап 7 (ФТ-3.2): блок задач лида — только при включённых внутренних задачах.
+  const tasksEnabled = isFeatureEnabled('internal_tasks');
+  const linkedTasks = tasksEnabled ? await listLinkedTasks(prisma, session, { leadId: lead.id }) : [];
 
   const candidates = session.companyId
     ? (await listCompanyManagers(prisma, session.companyId))
@@ -98,6 +104,13 @@ export default async function ManagerLeadDetailPage({ params }: { params: Promis
         <div className='rounded-xl border border-gray-200 p-4'>
           <h2 className='text-sm font-semibold text-[#111111] mb-1'>Примечания</h2>
           <p className='text-sm text-gray-700 whitespace-pre-wrap'>{lead.notes}</p>
+        </div>
+      )}
+
+      {tasksEnabled && (
+        <div className='rounded-xl border border-gray-200 p-4'>
+          <h2 className='text-sm font-semibold text-[#111111] mb-2'>Задачи</h2>
+          <LinkedTasksPanel link={{ leadId: lead.id }} tasks={linkedTasks} currentUserId={session.sub} />
         </div>
       )}
     </div>

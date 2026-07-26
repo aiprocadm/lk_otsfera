@@ -45,7 +45,11 @@ const task: TaskCard = {
   linkedOrderId: 'ord1',
   linkedOrderTitle: 'Заказ №1',
   linkedOrganizationId: 'org1',
-  linkedOrganizationName: 'ООО Ромашка'
+  linkedOrganizationName: 'ООО Ромашка',
+  linkedLeadId: null,
+  linkedLeadSubject: null,
+  linkedDealId: null,
+  linkedDealTitle: null
 };
 
 function renderDialog(props: React.ComponentProps<typeof TaskDialog>) {
@@ -70,6 +74,37 @@ describe('TaskDialog', () => {
     });
     HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
       this.removeAttribute('open');
+    });
+  });
+
+  describe('привязки к лиду/сделке (этап 7, ФТ-7.1)', () => {
+    it('create без контекста: скрытые поля пустые, подписи нет', () => {
+      const { container } = render(renderDialog({ target: null, columns, options: emptyOptions, onClose, onSaved }));
+      const lead = container.querySelector('input[name="linkedLeadId"]') as HTMLInputElement;
+      const deal = container.querySelector('input[name="linkedDealId"]') as HTMLInputElement;
+      expect(lead.value).toBe('');
+      expect(deal.value).toBe('');
+      expect(screen.queryByText(/Привязана:/)).toBeNull();
+    });
+
+    it('link prop (создание из карточки лида): id в скрытом поле + подпись', () => {
+      const { container } = render(
+        renderDialog({
+          target: null, columns, options: emptyOptions, onClose, onSaved,
+          link: { leadId: 'l1', label: 'лид «Тема»' }
+        })
+      );
+      const lead = container.querySelector('input[name="linkedLeadId"]') as HTMLInputElement;
+      expect(lead.value).toBe('l1');
+      expect(screen.getByText('Привязана: лид «Тема»')).toBeTruthy();
+    });
+
+    it('edit сохраняет связи target в скрытых полях (редактирование не стирает привязку)', () => {
+      const linked = { ...task, linkedLeadId: 'l7', linkedLeadSubject: 'Лид-тема', linkedDealId: 'd7', linkedDealTitle: 'Сделка-7' };
+      const { container } = render(renderDialog({ target: linked, columns, options: emptyOptions, onClose, onSaved }));
+      expect((container.querySelector('input[name="linkedLeadId"]') as HTMLInputElement).value).toBe('l7');
+      expect((container.querySelector('input[name="linkedDealId"]') as HTMLInputElement).value).toBe('d7');
+      expect(screen.getByText('Привязана: лид «Лид-тема», сделка «Сделка-7»')).toBeTruthy();
     });
   });
 
