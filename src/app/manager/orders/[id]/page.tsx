@@ -47,12 +47,22 @@ export default async function ManagerOrderDetailPage({
     const [company, organization, invoiceCount] = await Promise.all([
       prisma.company.findUnique({ where: { id: data.order.companyId }, select: REQ }),
       prisma.organization.findUnique({ where: { id: data.order.organizationId }, select: REQ }),
-      prisma.document.count({ where: { orderId: id, type: 'invoice', generatedBy: 'system' } })
+      prisma.document.groupBy({
+        by: ['type'],
+        where: { orderId: id, type: { in: ['invoice', 'contract'] }, generatedBy: 'system' },
+        _count: { _all: true }
+      })
     ]);
     const missing: MissingRequisite[] =
       company && organization ? listMissingRequisites(company, organization) : [];
+    const generatedTypes = new Set(invoiceCount.map((row) => row.type));
     generatePanel = (
-      <GenerateDocumentsPanel orderId={id} missing={missing} hasInvoice={invoiceCount > 0} />
+      <GenerateDocumentsPanel
+        orderId={id}
+        missing={missing}
+        hasInvoice={generatedTypes.has('invoice')}
+        hasContract={generatedTypes.has('contract')}
+      />
     );
   }
 

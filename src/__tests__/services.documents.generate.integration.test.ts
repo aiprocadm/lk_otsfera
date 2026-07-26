@@ -132,3 +132,40 @@ describe('полный путь генерации', () => {
     }
   });
 });
+
+describe('договор и доп. соглашение (PR-3)', () => {
+  it('договор нумеруется независимо от счёта; ДС наследует номер договора', async () => {
+    const now = new Date(`${YEAR}-07-26T14:00:00Z`);
+    const orderC = await prisma.order.create({
+      data: { title: `s8p3-o-${STAMP}`, companyId: companyA, organizationId: orgA, managerId: manager, totalAmount: 9000 }
+    });
+    try {
+      // ДС до договора — отказ.
+      expect(await generateOrderDocument(prisma, sManager(), { orderId: orderC.id, docType: 'extra_agreement', now })).toEqual({
+        ok: false,
+        error: 'contract_required'
+      });
+
+      const contract = await generateOrderDocument(prisma, sManager(), { orderId: orderC.id, docType: 'contract', now });
+      expect(contract.ok && contract.number).toBe(`Д-${YEAR}-1`);
+
+      const extra = await generateOrderDocument(prisma, sManager(), { orderId: orderC.id, docType: 'extra_agreement', now });
+      expect(extra.ok && extra.number).toBe(`ДС-${YEAR}-1`);
+
+      // Счёт по тому же заказу берёт номер из СВОЕЙ последовательности (не «2»).
+      const invoice = await generateOrderDocument(prisma, sManager(), { orderId: orderC.id, docType: 'invoice', now });
+      expect(invoice.ok && invoice.number).toMatch(new RegExp(`^С-${YEAR}-\\d+$`));
+
+      const counters = await prisma.documentCounter.findMany({
+        where: { companyId: companyA, year: YEAR },
+        select: { kind: true, lastNumber: true },
+        orderBy: { kind: 'asc' }
+      });
+      expect(counters.find((c) => c.kind === 'contract')!.lastNumber).toBe(1);
+      expect(counters.find((c) => c.kind === 'invoice')!.lastNumber).toBeGreaterThanOrEqual(1);
+    } finally {
+      await prisma.document.deleteMany({ where: { orderId: orderC.id } });
+      await prisma.order.delete({ where: { id: orderC.id } });
+    }
+  });
+});

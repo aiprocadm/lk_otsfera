@@ -20,6 +20,8 @@ export type PartyBlock = {
   bic: string | null;
   signerName: string | null;
   signerPosition: string | null;
+  /** Основание полномочий (устав / доверенность) — используется в договоре (PR-3). */
+  signerBasis?: string | null;
   phone?: string | null;
   email?: string | null;
 };
