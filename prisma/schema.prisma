@@ -591,6 +591,17 @@ model Partner {
   legalName             String?
   slug                  String?                @unique
   inn                   String?                @unique
+  // Этап 8 (ФТ-9.1, PR-1): реквизиты для автогенерации документов.
+  kpp            String?
+  ogrn           String?
+  legalAddress   String?
+  bankName       String?
+  bankAccount    String?
+  corrAccount    String?
+  bic            String?
+  signerName     String?
+  signerPosition String?
+  signerBasis    String?
   commissionRate        Decimal                @default(0) @db.Decimal(6, 4)
   isActive              Boolean                @default(true)
   organizations         Organization[]
@@ -650,6 +661,17 @@ model Organization {
   externalId                     String?                            @unique
   inn                            String?                            @unique
   kpp                            String?
+  // Этап 8 (ФТ-9.1, PR-1): реквизиты для автогенерации документов.
+  legalName      String?
+  ogrn           String?
+  legalAddress   String?
+  bankName       String?
+  bankAccount    String?
+  corrAccount    String?
+  bic            String?
+  signerName     String?
+  signerPosition String?
+  signerBasis    String?
   partnerId                      String?
   partner                        Partner?                           @relation(fields: [partnerId], references: [id])
   companyId                      String?
@@ -745,6 +767,21 @@ model Company {
   // и подсветка в Intake (часы). Настройка — карточка на /leader/team.
   slaResponseHours      Int                 @default(24)
   slaWarningHours       Int                 @default(4)
+  // Этап 8 (ФТ-9.1, PR-1): реквизиты для автогенерации документов.
+  legalName      String?
+  inn            String?
+  kpp            String?
+  ogrn           String?
+  phone          String?
+  email          String?
+  legalAddress   String?
+  bankName       String?
+  bankAccount    String?
+  corrAccount    String?
+  bic            String?
+  signerName     String?
+  signerPosition String?
+  signerBasis    String?
   users                 User[]
   orders                Order[]
   organizations         Organization[]

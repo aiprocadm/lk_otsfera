@@ -33,6 +33,8 @@ const SENSITIVE_KEYS = new Set([
   'clientcontactname',
   'clientcontactphone',
   'clientcontactemail',
+  // Этап 8 (PR-1): подписант в реквизитах — ПДн физлица.
+  'signername',
   'clientinn',
   'senderref',
   'senderdisplay',

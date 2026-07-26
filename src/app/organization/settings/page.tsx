@@ -6,11 +6,17 @@ import { getNotificationSettings } from '@/lib/services/notifications/preference
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { TelegramLinkCard } from '@/components/settings/telegram-link-card';
 import { NotificationChannelsCard } from '@/components/settings/notification-channels-card';
+import { RequisitesCard } from '@/components/requisites/requisites-card';
+import { getOrgRequisites } from '@/lib/services/organization/requisites';
+import { setOrgRequisitesAction } from '@/server-actions/requisites';
 
 export default async function OrganizationSettingsPage() {
   const ctx = await getOrgPageContext({});
   const status = await getTelegramStatus(prisma, ctx.session);
   const settings = await getNotificationSettings(prisma, ctx.session);
+  // Этап 8 (ФТ-9.2): реквизиты активной организации; правка — admin|leader.
+  const requisites = ctx.activeOrgId ? await getOrgRequisites(prisma, ctx.session, ctx.activeOrgId) : null;
+  const canEditRequisites = ctx.viewerRole === 'admin' || ctx.viewerRole === 'leader';
 
   return (
     <OrgAppShell
@@ -24,6 +30,17 @@ export default async function OrganizationSettingsPage() {
         <h1 className='text-2xl font-semibold text-[#111111]'>Настройки</h1>
         <TelegramLinkCard status={status} />
         <NotificationChannelsCard settings={settings.view} />
+        {requisites?.ok && ctx.activeOrgId && (
+          <RequisitesCard
+            title='Реквизиты организации'
+            description='Нужны для автоматического формирования счетов и актов. Начните вводить название или ИНН — остальное подставится само.'
+            defaults={requisites.requisites}
+            idPrefix='org-req'
+            action={setOrgRequisitesAction}
+            hidden={{ orgId: ctx.activeOrgId }}
+            canEdit={canEditRequisites}
+          />
+        )}
       </div>
     </OrgAppShell>
   );

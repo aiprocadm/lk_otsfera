@@ -14,6 +14,15 @@ vi.mock('@/lib/services/telegram/link', () => ({ getTelegramStatus }));
 const { getNotificationSettings } = vi.hoisted(() => ({ getNotificationSettings: vi.fn() }));
 vi.mock('@/lib/services/notifications/preferences', () => ({ getNotificationSettings }));
 
+// Этап 8 (PR-1): реквизиты организации — сервис и карточка стабятся.
+const { getOrgRequisites } = vi.hoisted(() => ({ getOrgRequisites: vi.fn() }));
+vi.mock('@/lib/services/organization/requisites', () => ({ getOrgRequisites }));
+vi.mock('@/server-actions/requisites', () => ({ setOrgRequisitesAction: vi.fn() }));
+vi.mock('@/components/requisites/requisites-card', () => ({
+  RequisitesCard: (props: { title: string; canEdit?: boolean }) =>
+    React.createElement('div', { 'data-testid': 'requisites-card' }, props.title, ` canEdit:${String(props.canEdit)}`)
+}));
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
 }));
@@ -36,6 +45,7 @@ const CTX = {
 describe('OrganizationSettingsPage', () => {
   beforeEach(() => {
     getOrgPageContext.mockReset();
+    getOrgRequisites.mockReset().mockResolvedValue({ ok: false, error: 'forbidden' });
     getTelegramStatus.mockReset();
     getNotificationSettings.mockReset();
   });

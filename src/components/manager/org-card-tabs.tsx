@@ -300,6 +300,17 @@ function DetailsSection({ card }: { card: OrganizationCard }) {
       <Detail label="Партнёр" value={card.partner?.name ?? '—'} />
       <Detail label="ИНН" value={card.inn ?? '—'} />
       <Detail label="КПП" value={card.kpp ?? '—'} />
+      <Detail label="Юр. название" value={card.requisites.legalName ?? '—'} />
+      <Detail label="ОГРН" value={card.requisites.ogrn ?? '—'} />
+      <Detail label="Юр. адрес" value={card.requisites.legalAddress ?? '—'} />
+      <Detail label="Банк" value={card.requisites.bankName ?? '—'} />
+      <Detail label="Р/с" value={card.requisites.bankAccount ?? '—'} />
+      <Detail label="К/с" value={card.requisites.corrAccount ?? '—'} />
+      <Detail label="БИК" value={card.requisites.bic ?? '—'} />
+      <Detail
+        label="Подписант"
+        value={card.requisites.signerName ? `${card.requisites.signerName}${card.requisites.signerPosition ? `, ${card.requisites.signerPosition}` : ''}` : '—'}
+      />
       {card.commission && (
         <Detail label="Ставка комиссии партнёра" value={card.commission.partnerCommissionRate ?? '—'} />
       )}

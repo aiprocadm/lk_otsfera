@@ -8,6 +8,20 @@ vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
+// Этап 8 (PR-1): реквизиты для документов — сервис и карточка стабятся.
+const { getOrgRequisitesByAdmin, getPartnerRequisitesByAdmin } = vi.hoisted(() => ({
+  getOrgRequisitesByAdmin: vi.fn().mockResolvedValue(null),
+  getPartnerRequisitesByAdmin: vi.fn().mockResolvedValue(null)
+}));
+vi.mock('@/lib/services/admin/counterpartyRequisites', () => ({ getOrgRequisitesByAdmin, getPartnerRequisitesByAdmin }));
+vi.mock('@/server-actions/requisites', () => ({
+  setOrgRequisitesByAdminAction: vi.fn(),
+  setPartnerRequisitesByAdminAction: vi.fn()
+}));
+vi.mock('@/components/requisites/requisites-card', () => ({
+  RequisitesCard: (props: { title: string }) => React.createElement('div', { 'data-testid': 'requisites-card' }, props.title)
+}));
+
 const { getPartner } = vi.hoisted(() => ({ getPartner: vi.fn() }));
 vi.mock('@/lib/services/admin/partners', () => ({ getPartner }));
 
