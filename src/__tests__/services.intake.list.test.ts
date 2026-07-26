@@ -30,6 +30,8 @@ const ago = (hours: number) => new Date(now - hours * H);
 
 function makePrisma(over: Record<string, unknown> = {}) {
   const base = {
+    // PR-3: пороги подсветки читаются из компании; null → фолбэк-константы.
+    company: { findUnique: vi.fn().mockResolvedValue(null) },
     clientRequest: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) },
     enrollmentRequest: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) },
     inboundMessage: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) },
@@ -150,6 +152,35 @@ describe('listIntake', () => {
     const { prisma } = makePrisma({ clientRequest: { findMany: vi.fn().mockResolvedValue(rows), count: vi.fn() } });
     const res = await listIntake(prisma, manager());
     expect(res.ok && res.result.items[0]!.responsibleUserId).toBeNull();
+  });
+});
+
+describe('пороги компании (PR-3, §4.4)', () => {
+  it('slaLevel считается по Company.slaWarningHours/slaResponseHours', async () => {
+    const rows = [
+      { id: 'r1', createdAt: ago(2), companyName: 'A', subject: 's', status: 'submitted', triagedByUserId: null, organizationId: null },
+      { id: 'r2', createdAt: ago(7), companyName: 'B', subject: 's', status: 'submitted', triagedByUserId: null, organizationId: null }
+    ];
+    const { prisma, base } = makePrisma({
+      company: { findUnique: vi.fn().mockResolvedValue({ slaResponseHours: 6, slaWarningHours: 1 }) },
+      clientRequest: { findMany: vi.fn().mockResolvedValue(rows), count: vi.fn() }
+    });
+    const res = await listIntake(prisma, manager());
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect((base.company.findUnique as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'co-A' } })
+    );
+    // 2ч при порогах 1/6 → warning; 7ч → breach.
+    expect(res.result.items.find((i) => i.id === 'r1')!.slaLevel).toBe('warning');
+    expect(res.result.items.find((i) => i.id === 'r2')!.slaLevel).toBe('breach');
+  });
+
+  it('компания не найдена → фолбэк-константы 4/24', async () => {
+    const rows = [{ id: 'r1', createdAt: ago(5), companyName: 'A', subject: 's', status: 'submitted', triagedByUserId: null, organizationId: null }];
+    const { prisma } = makePrisma({ clientRequest: { findMany: vi.fn().mockResolvedValue(rows), count: vi.fn() } });
+    const res = await listIntake(prisma, manager());
+    expect(res.ok && res.result.items[0]!.slaLevel).toBe('warning');
   });
 });
 

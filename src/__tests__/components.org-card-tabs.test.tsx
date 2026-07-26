@@ -334,3 +334,55 @@ describe('OrgCardTabs — inbound messages tab (G4, read-only)', () => {
     expect(html).not.toContain('📎');
   });
 });
+
+// Этап 7 (PR-3) — вкладки внутреннего контура: Заявки клиентов / Лиды / Сделки.
+describe('вкладки внутреннего контура (этап 7 PR-3)', () => {
+  const internal = {
+    clientRequests: [
+      { id: 'r1', subject: 'Обучение по ОТ', status: 'rejected', rejectedReason: 'Дубль', createdAt: new Date('2026-07-01') }
+    ],
+    leads: [{ id: 'l1', subject: 'Лид-тема', status: 'new', createdAt: new Date('2026-07-02') }],
+    deals: [
+      { id: 'd1', title: 'Сделка-1', status: 'won', amount: '1500.00', createdAt: new Date('2026-07-03') },
+      { id: 'd2', title: 'Сделка-2', status: 'open', amount: null, createdAt: new Date('2026-07-04') }
+    ]
+  };
+
+  it('канон табов содержит три новых ключа', () => {
+    const keys = ORG_CARD_TABS.map((t) => t.key);
+    expect(keys).toContain('client_requests');
+    expect(keys).toContain('leads');
+    expect(keys).toContain('deals');
+  });
+
+  it('заявки клиентов: тема, русский статус, причина отклонения', () => {
+    const html = renderToString(
+      React.createElement(OrgCardTabs, { card: makeCard(internal as never), activeTab: 'client_requests' })
+    );
+    expect(html).toContain('Обучение по ОТ');
+    expect(html).toContain('Дубль');
+    expect(html).toContain('Отклонена');
+  });
+
+  it('лиды: ссылка на карточку лида + статус-бейдж', () => {
+    const html = renderToString(React.createElement(OrgCardTabs, { card: makeCard(internal as never), activeTab: 'leads' }));
+    expect(html).toContain('/manager/leads/l1');
+    expect(html).toContain('Лид-тема');
+  });
+
+  it('сделки: русские статусы и сумма с прочерком для null', () => {
+    const html = renderToString(React.createElement(OrgCardTabs, { card: makeCard(internal as never), activeTab: 'deals' }));
+    expect(html).toContain('Сделка-1');
+    expect(html).toContain('Выиграна');
+    expect(html).toContain('В работе');
+    expect(html).toContain('1500.00');
+    expect(html).toContain('—');
+  });
+
+  it('пустые состояния трёх вкладок', () => {
+    const empty = makeCard({ clientRequests: [], leads: [], deals: [] } as never);
+    expect(renderToString(React.createElement(OrgCardTabs, { card: empty, activeTab: 'client_requests' }))).toContain('Заявок клиентов пока нет.');
+    expect(renderToString(React.createElement(OrgCardTabs, { card: empty, activeTab: 'leads' }))).toContain('Лидов пока нет.');
+    expect(renderToString(React.createElement(OrgCardTabs, { card: empty, activeTab: 'deals' }))).toContain('Сделок пока нет.');
+  });
+});

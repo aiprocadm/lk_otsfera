@@ -63,6 +63,11 @@ export type OrgCardCall = {
   hasRecording: boolean;
 };
 
+// Этап 7 (PR-3, §9 этапа 7): внутренний контур в карточке организации.
+export type OrgCardClientRequest = { id: string; subject: string; status: string; rejectedReason: string | null; createdAt: Date };
+export type OrgCardLead = { id: string; subject: string; status: string; createdAt: Date };
+export type OrgCardDeal = { id: string; title: string; status: string; amount: string | null; createdAt: Date };
+
 export type OrganizationCard = {
   id: string;
   name: string;
@@ -77,6 +82,9 @@ export type OrganizationCard = {
   activity: OrgCardComment[];
   inboundMessages: OrgCardInboundMessage[];
   calls: OrgCardCall[];
+  clientRequests: OrgCardClientRequest[];
+  leads: OrgCardLead[];
+  deals: OrgCardDeal[];
   // null в менеджерском контуре (нет capability see_commission).
   commission: { partnerCommissionRate: string | null } | null;
 };
@@ -95,7 +103,7 @@ export async function getOrganizationCard(
     : canSeeOrganization(session, orgId);
   if (!visible) return null;
 
-  const [orders, activeOrders, documents, payments, paidAgg, refundAgg, activity, inboundMessages, calls] = await Promise.all([
+  const [orders, activeOrders, documents, payments, paidAgg, refundAgg, activity, inboundMessages, calls, clientRequests, leads, deals] = await Promise.all([
     prisma.order.findMany({
       where: { organizationId: orgId },
       select: {
@@ -144,6 +152,25 @@ export async function getOrganizationCard(
         durationSec: true, startedAt: true, createdAt: true, resolvedOrgId: true,
         recordingScanStatus: true, recordingPath: true
       },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    }),
+    // Этап 7 (PR-3): внутренний контур — заявки клиентов / лиды / сделки организации.
+    prisma.clientRequest.findMany({
+      where: { organizationId: orgId },
+      select: { id: true, subject: true, status: true, rejectedReason: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    }),
+    prisma.lead.findMany({
+      where: { organizationId: orgId },
+      select: { id: true, subject: true, status: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    }),
+    prisma.deal.findMany({
+      where: { organizationId: orgId },
+      select: { id: true, title: true, status: true, amount: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
       take: 20
     })
@@ -205,6 +232,13 @@ export async function getOrganizationCard(
     calls: calls.map(({ recordingPath, ...c }) => ({
       ...c,
       hasRecording: recordingPath != null
+    })),
+    clientRequests: clientRequests.map((r) => ({
+      id: r.id, subject: r.subject, status: r.status, rejectedReason: r.rejectedReason, createdAt: r.createdAt
+    })),
+    leads: leads.map((l) => ({ id: l.id, subject: l.subject, status: l.status, createdAt: l.createdAt })),
+    deals: deals.map((d) => ({
+      id: d.id, title: d.title, status: d.status, amount: d.amount ? d.amount.toFixed(2) : null, createdAt: d.createdAt
     })),
     commission: can(session, 'see_commission')
       ? { partnerCommissionRate: org.partnerCommissionRate ? org.partnerCommissionRate.toFixed(4) : null }

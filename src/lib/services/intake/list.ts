@@ -10,8 +10,8 @@ import { recordPiiAccess } from '@/lib/pii/record';
  * таблицы. Каждый источник читается СВОИМ существующим scope-резолвером
  * (клиентские роли → forbidden), нормализуется в IntakeItem, merge в памяти с
  * сортировкой «дольше всех ждёт — сверху» и пагинацией после merge (cap по
- * источнику). Пороги подсветки — константы (настройка компании придёт в PR-3
- * вместе с SLA-джобом).
+ * источнику). Пороги подсветки — Company.slaWarningHours/slaResponseHours
+ * (PR-3, §4.4); константы ниже — фолбэк для сессии без компании.
  */
 
 export const INTAKE_WARNING_HOURS = 4;
@@ -93,6 +93,16 @@ export async function listIntake(
   filters: IntakeFilters = {}
 ): Promise<{ ok: true; result: IntakeResult } | { ok: false; error: 'forbidden' }> {
   if (!canTriageClientRequests(session)) return { ok: false, error: 'forbidden' };
+
+  // PR-3 (§4.4): пороги подсветки — настройка компании (фолбэк на константы).
+  const thresholds = session.companyId
+    ? await prisma.company.findUnique({
+        where: { id: session.companyId },
+        select: { slaResponseHours: true, slaWarningHours: true }
+      })
+    : null;
+  const warningHours = thresholds?.slaWarningHours ?? INTAKE_WARNING_HOURS;
+  const breachHours = thresholds?.slaResponseHours ?? INTAKE_BREACH_HOURS;
 
   const now = Date.now();
   const [requests, enrollments, inbound, calls] = await Promise.all([
@@ -238,7 +248,7 @@ export async function listIntake(
     }
   }
 
-  for (const item of items) item.slaLevel = slaLevelFor(item.waitingMs);
+  for (const item of items) item.slaLevel = slaLevelFor(item.waitingMs, warningHours, breachHours);
 
   let filtered = items;
   if (filters.onlyUnassigned) filtered = filtered.filter((i) => !i.responsibleUserId);

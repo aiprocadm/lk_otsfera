@@ -263,6 +263,44 @@ export async function registerTaskDueSoonSchedules(
   return results;
 }
 
+export type SlaEscalationSchedule = {
+  queueName: Extract<QueueName, 'monitoring.slaEscalation'>;
+  schedulerId: string;
+  pattern: string;
+  tz: string;
+};
+
+// Этап 7 (ФТ-8.5, PR-3): SLA-эскалация Intake — каждые 30 минут (дедуп —
+// журнал SlaEscalation, поэтому частота влияет только на задержку).
+export const SLA_ESCALATION_SCHEDULES: ReadonlyArray<SlaEscalationSchedule> = [
+  {
+    queueName: 'monitoring.slaEscalation',
+    schedulerId: 'monitoring.slaEscalation.cron',
+    pattern: '*/30 * * * *',
+    tz: DEFAULT_SYNC_TZ
+  }
+] as const;
+
+export async function registerSlaEscalationSchedules(
+  getQueueFn: GetQueueFn = getQueue
+): Promise<Array<{ schedulerId: string; queueName: string; pattern: string; tz: string }>> {
+  const results = [];
+  const triggeredAt = new Date().toISOString();
+  for (const schedule of SLA_ESCALATION_SCHEDULES) {
+    const queue = getQueueFn(schedule.queueName);
+    await queue.upsertJobScheduler(
+      schedule.schedulerId,
+      { pattern: schedule.pattern, tz: schedule.tz },
+      { data: { triggeredAt, reason: 'cron' } }
+    );
+    results.push({
+      schedulerId: schedule.schedulerId, queueName: schedule.queueName,
+      pattern: schedule.pattern, tz: schedule.tz
+    });
+  }
+  return results;
+}
+
 export type CertExpirySchedule = {
   queueName: Extract<QueueName, 'notifications.certificateExpiry'>;
   schedulerId: string;

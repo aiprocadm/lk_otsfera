@@ -14,6 +14,14 @@ vi.mock('@/lib/auth/managerPolicy', () => ({ getCompanyTeamVisibility }));
 const { listCompanyManagers } = vi.hoisted(() => ({ listCompanyManagers: vi.fn() }));
 vi.mock('@/lib/services/manager/team', () => ({ listCompanyManagers }));
 
+// Этап 7 (PR-3): карточка «SLA входящих» — сервис и компонент стабятся.
+const { getSlaSettings } = vi.hoisted(() => ({ getSlaSettings: vi.fn() }));
+vi.mock('@/lib/services/manager/slaSettings', () => ({ getSlaSettings }));
+vi.mock('@/components/manager/sla-settings-card', () => ({
+  SlaSettingsCard: (props: { initial: unknown }) =>
+    React.createElement('div', { 'data-testid': 'sla-settings-card' }, JSON.stringify(props.initial))
+}));
+
 vi.mock('@/components/manager/team-visibility-toggle', () => ({
   TeamVisibilityToggle: (props: { initial: boolean }) =>
     React.createElement('div', { 'data-testid': 'visibility-toggle' }, String(props.initial))
@@ -34,6 +42,7 @@ describe('LeaderTeamPage', () => {
     requireManagerLeader.mockReset();
     getCompanyTeamVisibility.mockReset();
     listCompanyManagers.mockReset();
+    getSlaSettings.mockReset().mockResolvedValue({ slaResponseHours: 24, slaWarningHours: 4 });
   });
 
   it('fetches team visibility and roster when session has a companyId', async () => {
@@ -48,6 +57,9 @@ describe('LeaderTeamPage', () => {
     expect(container.textContent).toContain('Команда');
     expect(container.textContent).toContain('true');
     expect(container.textContent).toContain('Менеджер');
+    // Этап 7 (PR-3): карточка SLA с порогами компании.
+    expect(getSlaSettings).toHaveBeenCalledWith({}, 'c1');
+    expect(container.querySelector('[data-testid="sla-settings-card"]')?.textContent).toContain('24');
   });
 
   it('short-circuits to teamMode:false and an empty roster when session has no companyId', async () => {
@@ -57,6 +69,8 @@ describe('LeaderTeamPage', () => {
 
     expect(getCompanyTeamVisibility).not.toHaveBeenCalled();
     expect(listCompanyManagers).not.toHaveBeenCalled();
+    expect(getSlaSettings).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="sla-settings-card"]')).toBeNull();
     expect(container.textContent).toContain('false');
   });
 });
