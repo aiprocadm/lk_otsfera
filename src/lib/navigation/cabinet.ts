@@ -112,7 +112,6 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/partner/dashboard', label: 'Главная' },
     { href: '/partner/portfolio', label: 'Портфель' },
     { href: '/partner/deals', label: 'Заказы' },
-    { href: '/partner/leads', label: 'Заявки', flag: 'partner_leads' },
     { href: '/partner/requests', label: 'Обращения', flag: 'client_requests' },
     { href: '/partner/enrollments', label: 'Заявки на обучение', flag: 'enrollment_requests' },
     { href: '/partner/certificates', label: 'Удостоверения', flag: 'certificates_registry' },

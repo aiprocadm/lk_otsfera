@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { PrismaClient, Prisma } from '@prisma/client';
-import { createLead } from '@/lib/services/partner/leads';
 import { moveFunnelLead } from '@/lib/services/funnel/board';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -74,21 +73,23 @@ afterAll(async () => {
 describe('E2E funnel promotion — один лид через весь journey', () => {
   it('lead → in_review → qualified → promoted (создаёт и линкует Order)', async () => {
     // 1) СОЗДАНИЕ через реальный сервис. Стартовый статус контрактно = 'new'.
-    const created = await createLead(prisma, {
-      partnerId,
-      createdByUserId: managerId,
-      organizationId: orgId,
-      clientCompanyName: `funnelE2E-client-${STAMP}`,
-      clientContactName: 'Контактное лицо',
-      subject: 'Заявка на обучение по ОТ',
-      estimatedAmount: Number(ESTIMATED)
+    // Этап 10: партнёрский сервис лидов удалён (клиент лидов не видит) —
+    // фикстуру заводим напрямую, контракт стартового состояния тот же.
+    const created = await prisma.lead.create({
+      data: {
+        partnerId,
+        createdByUserId: managerId,
+        organizationId: orgId,
+        clientCompanyName: `funnelE2E-client-${STAMP}`,
+        clientContactName: 'Контактное лицо',
+        subject: 'Заявка на обучение по ОТ',
+        estimatedAmount: new Prisma.Decimal(ESTIMATED)
+      }
     });
-    expect(created.ok).toBe(true);
-    if (!created.ok) return; // narrow для TS
-    const leadId = created.lead.id;
-    expect(created.lead.status).toBe('new');
-    expect(created.lead.organizationId).toBe(orgId);
-    expect(created.lead.promotedOrderId).toBeNull();
+    const leadId = created.id;
+    expect(created.status).toBe('new');
+    expect(created.organizationId).toBe(orgId);
+    expect(created.promotedOrderId).toBeNull();
 
     // 2) НЕЛЕГАЛЬНЫЙ пропуск стадии: new → qualified должен быть отклонён реальным
     //    кодом ошибки lifecycle-слоя, а статус лида — не измениться.

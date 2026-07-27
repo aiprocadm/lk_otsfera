@@ -53,7 +53,6 @@ describe('kpis — unit', () => {
     const result = await kpis(prisma, { partnerId: 'p1', scopeOrgIds: [] });
     expect(result.openOrders).toBe(2);
     expect(result.outstanding).toBe('800.00');
-    expect(result.activeLeads).toBe(3);
     // rate = 0, so commission = 0
     expect(result.commissionThisMonth).toBe('0.00');
   });
@@ -119,7 +118,6 @@ describe('attention — unit', () => {
     const result = await attention(prisma, { partnerId: 'p1', scopeOrgIds: [] });
     expect(result.stuckOrders).toEqual([]);
     expect(result.overdueOrders).toEqual([]);
-    expect(result.staleLeads).toEqual([]);
   });
 
   it('maps stuckOrders with formatted amounts', async () => {
@@ -190,20 +188,6 @@ describe('recentEvents — unit', () => {
     expect(events).toHaveLength(1);
     expect(events[0].kind).toBe('order_updated');
     expect(events[0].ref).toEqual({ kind: 'order', id: 'o1' });
-  });
-
-  it('generates lead_created event with ref', async () => {
-    const prisma = makePrisma({
-      order: { findMany: vi.fn().mockResolvedValue([]) },
-      lead: { findMany: vi.fn().mockResolvedValue([{
-        id: 'l1', clientCompanyName: 'ООО', subject: 'Обучение', createdAt: new Date('2024-06-01')
-      }]) },
-      payment: { findMany: vi.fn().mockResolvedValue([]) }
-    });
-    const events = await recentEvents(prisma, { partnerId: 'p1', scopeOrgIds: [] }, 10);
-    expect(events[0].kind).toBe('lead_created');
-    expect(events[0].ref).toEqual({ kind: 'lead', id: 'l1' });
-    expect(events[0].title).toContain('ООО');
   });
 
   it('generates payment_received event with order ref when order is present', async () => {

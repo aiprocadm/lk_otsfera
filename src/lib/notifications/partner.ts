@@ -39,16 +39,6 @@ export type PartnerNotifyInput =
         period: string; // e.g. "май 2026"
         amount: string; // already formatted, e.g. "125 000 ₽"
       };
-    }
-  | {
-      partnerId: string;
-      type: 'lead_status_changed';
-      payload: {
-        leadId: string;
-        clientCompanyName: string;
-        subject: string;
-        status: string; // human-readable RU status label
-      };
     };
 
 /**
@@ -69,17 +59,6 @@ function partnerNotificationView(
   input: PartnerNotifyInput,
   partnerName: string
 ): PartnerNotificationView {
-  if (input.type === 'lead_status_changed') {
-    // S5: lead status transparency — in-app only (no email template).
-    const url = `${getAppBaseUrl()}/partner/leads/${input.payload.leadId}`;
-    return {
-      title: 'Статус заявки изменён',
-      body: `Заявка «${input.payload.clientCompanyName} — ${input.payload.subject}»: ${input.payload.status}.`,
-      url,
-      meta: { ...input.payload, partnerName, url }
-    };
-  }
-
   if (input.type === 'commission_statement_ready') {
     const url = `${getAppBaseUrl()}/partner/finance`;
     return {

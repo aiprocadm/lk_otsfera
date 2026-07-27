@@ -17,7 +17,6 @@ vi.mock('@/lib/storage', () => ({
 }));
 vi.mock('jose', () => ({ jwtVerify: vi.fn() }));
 
-import { GET as leadsGet, POST as leadsPost } from '@/app/api/partner/leads/route';
 import { GET as pdfGet } from '@/app/api/partner/finance/statements/[id]/pdf/route';
 import { GET as xlsxGet } from '@/app/api/partner/finance/statements/[id]/xlsx/route';
 import { jwtVerify } from 'jose';
@@ -44,23 +43,6 @@ beforeEach(() => {
 });
 afterEach(() => {
   process.env = { ...ORIGINAL_ENV };
-});
-
-describe('api/partner/leads — partner_leads gate', () => {
-  it('GET returns 404 (text Not Found) when FEATURE_PARTNER_LEADS=0', async () => {
-    process.env.FEATURE_PARTNER_LEADS = '0';
-    const res = await leadsGet(new Request('http://t/api/partner/leads'));
-    expect(res.status).toBe(404);
-    expect(await res.text()).toBe('Not Found');
-  });
-
-  it('POST returns 404 when FEATURE_PARTNER_LEADS=off', async () => {
-    process.env.FEATURE_PARTNER_LEADS = 'off';
-    const res = await leadsPost(
-      new Request('http://t/api/partner/leads', { method: 'POST', body: '{}' }),
-    );
-    expect(res.status).toBe(404);
-  });
 });
 
 describe('api/partner/finance/statements/[id]/{pdf,xlsx} — commission_* gates', () => {

@@ -13,7 +13,6 @@
  */
 
 export const FEATURE_FLAGS = [
-  'partner_leads',
   'commission_pdf',
   'commission_xlsx',
   'pwa_installer',
@@ -77,7 +76,7 @@ export const FEATURE_FLAGS = [
   // Этап 5 (Модуль 1): заявки клиентов (ClientRequest). Route-флаг: middleware
   // (/partner/requests, /organization/requests, /manager/requests, /leader/requests,
   // /admin/requests), nav-пункты, page/route-гейты; под ним же живёт redirect
-  // /partner/leads → /partner/requests (ФТ-1.7).
+  // Этап 10: домен лидов удалён из клиентских кабинетов (ТЗ §3.2).
   // Спека 2026-07-24-stage5-client-requests-design.
   'client_requests',
   // Этап 6 (Модуль 4): канбан сделок менеджера/руководителя. Route-флаг: middleware

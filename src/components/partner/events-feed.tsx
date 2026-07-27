@@ -5,12 +5,11 @@ import { fmtDateTime } from '@/lib/format';
 
 const kindIcon: Record<DashboardEvent['kind'], string> = {
   order_updated: '📋',
-  lead_created: '👤',
   payment_received: '💰'
 };
 
 function refHref(ref: NonNullable<DashboardEvent['ref']>): string {
-  return ref.kind === 'lead' ? `/partner/leads/${ref.id}` : `/partner/deals/${ref.id}`;
+  return `/partner/deals/${ref.id}`;
 }
 
 export function EventsFeed({ events }: { events: DashboardEvent[] }) {

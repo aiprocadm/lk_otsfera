@@ -84,12 +84,12 @@ describe('assignLead', () => {
 });
 
 describe('setLeadStatus', () => {
-  it('allows in_review → qualified and notifies the partner (S5)', async () => {
+  it('allows in_review → qualified и НЕ уведомляет партнёра (§7 ТЗ, этап 10)', async () => {
     const d = db({ id: 'L1', status: 'in_review', partnerId: 'p1', organizationId: 'o1', clientCompanyName: 'Acme', subject: 'S' });
     const r = await setLeadStatus(d, { leadId: 'L1', managerId: 'm1', status: 'qualified' });
     if (!r.ok) throw new Error('expected ok');
     expect(r.lead.status).toBe('qualified');
-    expect(notifyPartnerUsers).toHaveBeenCalledWith(d, expect.objectContaining({ partnerId: 'p1', type: 'lead_status_changed' }));
+    expect(notifyPartnerUsers).not.toHaveBeenCalled();
   });
   it('forbids new → qualified (must go through in_review)', async () => {
     const d = db({ id: 'L1', status: 'new', partnerId: 'p1', organizationId: 'o1' });

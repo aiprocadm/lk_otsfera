@@ -48,10 +48,9 @@ describe('PartnerDashboard', () => {
     kpis.mockResolvedValue({
       openOrders: 5,
       outstanding: '1000.00',
-      activeLeads: 2,
       commissionThisMonth: '300.00'
     });
-    attention.mockResolvedValue({ stuckOrders: [], overdueOrders: [], staleLeads: [] });
+    attention.mockResolvedValue({ stuckOrders: [], overdueOrders: [], });
     recentEvents.mockResolvedValue([]);
 
     const { container } = await renderServerComponent(PartnerDashboard());
@@ -79,13 +78,11 @@ describe('PartnerDashboard', () => {
     kpis.mockResolvedValue({
       openOrders: 0,
       outstanding: '0.00',
-      activeLeads: 0,
       commissionThisMonth: '0.00'
     });
     attention.mockResolvedValue({
       stuckOrders: [{ id: 'o1', title: 'Заказ', updatedAt: new Date('2024-01-01') }],
       overdueOrders: [],
-      staleLeads: []
     });
     recentEvents.mockResolvedValue([
       { kind: 'lead_created', title: 'Новый лид', at: new Date('2024-01-01'), ref: { kind: 'lead', id: 'l1' } }

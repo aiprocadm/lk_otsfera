@@ -79,10 +79,9 @@ beforeEach(() => {
   partner.kpis.mockResolvedValue({
     openOrders: 5,
     outstanding: '1000.00',
-    activeLeads: 2,
     commissionThisMonth: '300.00'
   });
-  partner.attention.mockResolvedValue({ stuckOrders: [], overdueOrders: [], staleLeads: [] });
+  partner.attention.mockResolvedValue({ stuckOrders: [], overdueOrders: [], });
   partner.recentEvents.mockResolvedValue([]);
   partner.recentEnrollments.mockResolvedValue([]);
   partner.expiringCertificates.mockResolvedValue(0);

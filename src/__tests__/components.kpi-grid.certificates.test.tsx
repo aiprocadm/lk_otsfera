@@ -11,7 +11,7 @@ import { KpiGrid } from '@/components/partner/kpi-grid';
  */
 
 const ORG_KPIS = { activeOrders: 1, outstandingAmount: '0', studentsCount: 2, recentDocumentsCount: 3 };
-const PARTNER_KPIS = { openOrders: 1, outstanding: '0', activeLeads: 2, commissionThisMonth: '0' };
+const PARTNER_KPIS = { openOrders: 1, outstanding: '0', commissionThisMonth: '0' };
 
 describe('OrgKpiGrid — карточка удостоверений', () => {
   it('по умолчанию (null) карточки нет', () => {

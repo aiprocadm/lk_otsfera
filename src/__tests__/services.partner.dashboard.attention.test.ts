@@ -72,17 +72,9 @@ describe('partner.dashboard.attention', () => {
     expect(titles).toContain('Просроченный счёт');
   });
 
-  it('reports leads in state "new" older than 5 days', async () => {
-    const a = await attention(prisma, { partnerId, scopeOrgIds: [] });
-    const names = a.staleLeads.map((l) => l.clientCompanyName);
-    expect(names).toContain('Старый лид');
-    expect(names).not.toContain('Свежий');
-  });
-
   it('returns hard cap of 10 per bucket', async () => {
     const a = await attention(prisma, { partnerId, scopeOrgIds: [] });
     expect(a.stuckOrders.length).toBeLessThanOrEqual(10);
     expect(a.overdueOrders.length).toBeLessThanOrEqual(10);
-    expect(a.staleLeads.length).toBeLessThanOrEqual(10);
   });
 });

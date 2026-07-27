@@ -54,7 +54,26 @@ export async function getPartnerDealDetail(
   const order = await prisma.order.findFirst({
     // F2: visible only via the partner's own lead, not legacy Order.partnerId.
     where: { id: args.dealId, promotedFromLead: { partnerId: args.partnerId } },
-    include: {
+    // Этап 10 (§7 ТЗ): явный select — клиенту не уезжают внутренние поля заказа
+    // (managerId, companyId, 1С-курсоры и т.п.). Список ровно под `DealDetail`.
+    select: {
+      id: true,
+      orderNumber: true,
+      title: true,
+      executionStatus: true,
+      financialStatus: true,
+      totalAmount: true,
+      paidAmount: true,
+      vatIncluded: true,
+      vatRate: true,
+      productMix: true,
+      createdAt: true,
+      deadline: true,
+      contractSignedAt: true,
+      completedAt: true,
+      closedAt: true,
+      paidAt: true,
+      lastSyncedAt: true,
       manager: { select: { name: true } },
       // F8: read the order's own organization (exact), not a partner+company lookup
       // that can resolve to the wrong org when two orgs share a company.
@@ -74,8 +93,15 @@ export async function getPartnerDealDetail(
       },
       comments: {
         orderBy: { createdAt: 'asc' },
-        include: { author: { select: { name: true } } }
+        select: {
+          id: true,
+          body: true,
+          createdAt: true,
+          author: { select: { name: true } }
+        }
       },
+      // Позиции заказа целиком клиентские (слушатель, направление, статус,
+      // цена) — внутренних полей у OrderItem нет, include безопасен.
       items: {
         include: ORDER_ITEM_INCLUDE,
         orderBy: { createdAt: 'asc' }

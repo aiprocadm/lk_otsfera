@@ -7,7 +7,6 @@ import { isFeatureEnabled, type FeatureFlag } from '@/lib/featureFlags';
 import { edgeLog } from '@/lib/logging/edge';
 
 const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
-  { prefix: '/partner/leads', flag: 'partner_leads' },
   { prefix: '/partner/messages', flag: 'chat' },
   { prefix: '/organization/messages', flag: 'chat' },
   // T5: every enrollment surface dark-launches together under one flag (the

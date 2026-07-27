@@ -62,8 +62,8 @@ describe('isFeatureEnabled', () => {
   });
 
   it('returns true when the env var is empty string', () => {
-    process.env.FEATURE_PARTNER_LEADS = '';
-    expect(isFeatureEnabled('partner_leads')).toBe(true);
+    process.env.FEATURE_COMMISSION_PDF = '';
+    expect(isFeatureEnabled('commission_pdf')).toBe(true);
   });
 
   it('staff_2fa is opt-in: disabled by default, enabled by FEATURE_STAFF_2FA=1', () => {
@@ -76,16 +76,16 @@ describe('isFeatureEnabled', () => {
   it.each(['0', 'false', 'off', 'no', 'disabled', 'False', 'OFF', ' 0 '])(
     'returns false for falsy value %s',
     (val) => {
-      process.env.FEATURE_PARTNER_LEADS = val;
-      expect(isFeatureEnabled('partner_leads')).toBe(false);
+      process.env.FEATURE_COMMISSION_PDF = val;
+      expect(isFeatureEnabled('commission_pdf')).toBe(false);
     },
   );
 
   it.each(['1', 'true', 'on', 'yes', 'enabled', 'anything-else'])(
     'returns true for truthy / unknown value %s',
     (val) => {
-      process.env.FEATURE_PARTNER_LEADS = val;
-      expect(isFeatureEnabled('partner_leads')).toBe(true);
+      process.env.FEATURE_COMMISSION_PDF = val;
+      expect(isFeatureEnabled('commission_pdf')).toBe(true);
     },
   );
 
@@ -94,45 +94,45 @@ describe('isFeatureEnabled', () => {
     expect(isFeatureEnabled('commission_pdf')).toBe(false);
     // other flags untouched
     expect(isFeatureEnabled('commission_xlsx')).toBe(true);
-    expect(isFeatureEnabled('partner_leads')).toBe(true);
+    expect(isFeatureEnabled('pwa_installer')).toBe(true);
   });
 
   it('reflects runtime env mutations (re-reads on every call)', () => {
-    expect(isFeatureEnabled('partner_leads')).toBe(true);
-    process.env.FEATURE_PARTNER_LEADS = '0';
-    expect(isFeatureEnabled('partner_leads')).toBe(false);
-    delete process.env.FEATURE_PARTNER_LEADS;
-    expect(isFeatureEnabled('partner_leads')).toBe(true);
+    expect(isFeatureEnabled('commission_pdf')).toBe(true);
+    process.env.FEATURE_COMMISSION_PDF = '0';
+    expect(isFeatureEnabled('commission_pdf')).toBe(false);
+    delete process.env.FEATURE_COMMISSION_PDF;
+    expect(isFeatureEnabled('commission_pdf')).toBe(true);
   });
 });
 
 describe('requireFeature', () => {
   it('returns silently when enabled', () => {
-    expect(() => requireFeature('partner_leads')).not.toThrow();
+    expect(() => requireFeature('commission_pdf')).not.toThrow();
   });
 
   it('throws FeatureDisabledError when disabled, carrying the flag name', () => {
-    process.env.FEATURE_PARTNER_LEADS = '0';
+    process.env.FEATURE_COMMISSION_PDF = '0';
     let err: unknown;
     try {
-      requireFeature('partner_leads');
+      requireFeature('commission_pdf');
     } catch (e) {
       err = e;
     }
     expect(err).toBeInstanceOf(FeatureDisabledError);
-    expect((err as FeatureDisabledError).flag).toBe('partner_leads');
-    expect((err as Error).message).toContain('partner_leads');
+    expect((err as FeatureDisabledError).flag).toBe('commission_pdf');
+    expect((err as Error).message).toContain('commission_pdf');
   });
 });
 
 describe('notFoundIfDisabled', () => {
   it('returns null when the flag is enabled', () => {
-    expect(notFoundIfDisabled('partner_leads')).toBeNull();
+    expect(notFoundIfDisabled('commission_pdf')).toBeNull();
   });
 
   it('returns a 404 Response when disabled', async () => {
-    process.env.FEATURE_PARTNER_LEADS = 'off';
-    const res = notFoundIfDisabled('partner_leads');
+    process.env.FEATURE_COMMISSION_PDF = 'off';
+    const res = notFoundIfDisabled('commission_pdf');
     expect(res).not.toBeNull();
     expect(res!.status).toBe(404);
     expect(await res!.text()).toBe('Not Found');
@@ -173,7 +173,7 @@ describe('isOptInFlag / featureFlagEnvVar (ФТ-14.6 — матрица флаг
     const { isOptInFlag } = await import('@/lib/featureFlags');
     expect(isOptInFlag('chat')).toBe(true);
     expect(isOptInFlag('staff_calendar')).toBe(true);
-    expect(isOptInFlag('partner_leads')).toBe(false);
+    expect(isOptInFlag('commission_pdf')).toBe(false);
     expect(isOptInFlag('pii_access_log')).toBe(false);
   });
 

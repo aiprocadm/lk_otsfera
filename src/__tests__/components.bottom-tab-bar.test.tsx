@@ -20,7 +20,7 @@ describe('BottomTabBar', () => {
     const html = renderToString(React.createElement(BottomTabBar));
     expect(html).toContain('href="/partner/dashboard"');
     expect(html).toContain('href="/partner/deals"');
-    expect(html).toContain('href="/partner/leads"');
+    expect(html).toContain('href="/partner/requests"');
     expect(html).toContain('href="/partner/documents"');
     expect(html).toContain('Главная');
     expect(html).toContain('Заказы');
@@ -43,7 +43,7 @@ describe('BottomTabBar', () => {
   it('inactive tabs use the muted gray classes', () => {
     vi.mocked(usePathname).mockReturnValue('/partner/dashboard');
     const html = renderToString(React.createElement(BottomTabBar));
-    const match = html.match(/<a href="\/partner\/leads"[^>]*>/);
+    const match = html.match(/<a href="\/partner\/requests"[^>]*>/);
     expect(match).not.toBeNull();
     expect(match![0]).toContain('text-gray-600');
   });

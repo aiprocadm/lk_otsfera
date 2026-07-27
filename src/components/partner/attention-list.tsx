@@ -6,8 +6,7 @@ import { fmtDate } from '@/lib/format';
 export function AttentionList({ data }: { data: Attention }) {
   const empty =
     data.stuckOrders.length === 0 &&
-    data.overdueOrders.length === 0 &&
-    data.staleLeads.length === 0;
+    data.overdueOrders.length === 0;
 
   if (empty) {
     return (
@@ -41,17 +40,6 @@ export function AttentionList({ data }: { data: Attention }) {
               ⚠ Просрочка: «{o.title}»
             </Link>
             <span className='text-gray-400 text-xs whitespace-nowrap'>до {o.deadline ? fmtDate(o.deadline) : '—'}</span>
-          </li>
-        ))}
-        {data.staleLeads.map((l) => (
-          <li key={`lead-${l.id}`} className='flex items-center justify-between gap-3'>
-            <Link
-              href={`/partner/leads/${l.id}`}
-              className='text-gray-700 hover:text-[#F97316] flex-1 min-w-0 truncate'
-            >
-              👤 Лид «{l.clientCompanyName}» без квалификации
-            </Link>
-            <span className='text-gray-400 text-xs whitespace-nowrap'>с {fmtDate(l.createdAt)}</span>
           </li>
         ))}
       </ul>
