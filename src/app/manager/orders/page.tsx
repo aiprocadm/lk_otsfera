@@ -6,6 +6,7 @@ import { listOrganizations } from '@/lib/services/manager/organizations';
 import { ManagerOrdersFilter } from '@/components/manager/manager-orders-filter';
 import { ManagerOrdersTable } from '@/components/manager/manager-orders-table';
 import { ManagerOrdersCardList } from '@/components/manager/manager-orders-card-list';
+import { ExportLink } from '@/components/ui';
 
 type SearchParams = {
   search?: string;
@@ -29,9 +30,22 @@ export default async function ManagerOrdersPage({
   ]);
   return (
     <>
-      <div className='mb-4'>
-        <h1 className='text-2xl font-semibold text-[#111111]'>Заказы</h1>
-        <p className='text-sm text-gray-500 mt-0.5'>Заказы ваших организаций</p>
+      <div className='mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
+        <div>
+          <h1 className='text-2xl font-semibold text-[#111111]'>Заказы</h1>
+          <p className='text-sm text-gray-500 mt-0.5'>Заказы ваших организаций</p>
+        </div>
+        {/* ФТ-12.2: выгрузка уважает активные фильтры экрана. */}
+        <ExportLink
+          base='/api/manager/orders/export'
+          params={{
+            search: sp.search,
+            executionStatus: sp.executionStatus,
+            financialStatus: sp.financialStatus,
+            organizationId: sp.organizationId,
+            unassigned: sp.unassigned
+          }}
+        />
       </div>
       <ManagerOrdersFilter orgs={orgs} initial={sp} />
       <ManagerOrdersTable rows={rows} nextCursor={nextCursor} searchParams={sp} />

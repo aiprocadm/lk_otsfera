@@ -6,6 +6,7 @@ import { listOrganizations } from '@/lib/services/manager/organizations';
 import { ManagerOrdersFilter } from '@/components/manager/manager-orders-filter';
 import { ManagerOrdersTable } from '@/components/manager/manager-orders-table';
 import { ManagerOrdersCardList } from '@/components/manager/manager-orders-card-list';
+import { ExportLink } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,8 +32,24 @@ export default async function LeaderOrdersPage({
   ]);
   return (
     <>
-      <h1 className='mb-1 text-2xl font-semibold text-[#111111]'>Заказы</h1>
-      <p className='text-sm text-gray-500 mb-4'>Все заказы компании</p>
+      <div className='mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
+        <div>
+          <h1 className='text-2xl font-semibold text-[#111111]'>Заказы</h1>
+          <p className='text-sm text-gray-500 mt-0.5'>Все заказы компании</p>
+        </div>
+        {/* ФТ-12.2: `scope=company` повторяет company-wide режим экрана лидера. */}
+        <ExportLink
+          base='/api/manager/orders/export'
+          params={{
+            scope: 'company',
+            search: sp.search,
+            executionStatus: sp.executionStatus,
+            financialStatus: sp.financialStatus,
+            organizationId: sp.organizationId,
+            unassigned: sp.unassigned
+          }}
+        />
+      </div>
       <ManagerOrdersFilter orgs={orgs} initial={sp} basePath='/leader' />
       <ManagerOrdersTable rows={rows} nextCursor={nextCursor} searchParams={sp} basePath='/leader' />
       <ManagerOrdersCardList rows={rows} basePath='/leader' />

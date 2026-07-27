@@ -159,3 +159,44 @@ describe('OrganizationStudentDetailPage', () => {
     expect(container.textContent).not.toContain('EXT-9');
   });
 });
+
+// ─── Этап 9 PR-3 (ФТ-12.2): должность сотрудника в карточке ──────────────────
+
+vi.mock('@/components/organization/student-position-form', () => ({
+  StudentPositionForm: (props: {
+    organizationId: string;
+    studentId: string;
+    initialPosition: string | null;
+  }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'position-form' },
+      `${props.organizationId}|${props.studentId}|${props.initialPosition ?? 'null'}`
+    )
+}));
+
+describe('OrganizationStudentDetailPage — должность', () => {
+  it('форма получает скоуп организации и текущее значение', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    getOrgPageContext.mockResolvedValue(ORG_CTX);
+    getOrgStudent.mockResolvedValue({ ...STUDENT, position: 'Инженер' });
+
+    const { container } = await renderServerComponent(
+      OrganizationStudentDetailPage(props('s1'))
+    );
+    expect(container.querySelector('[data-testid="position-form"]')!.textContent).toBe(
+      'org-1|s1|Инженер'
+    );
+  });
+
+  it('незаполненная должность приходит как null', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    getOrgPageContext.mockResolvedValue(ORG_CTX);
+    getOrgStudent.mockResolvedValue({ ...STUDENT, position: null });
+
+    const { container } = await renderServerComponent(
+      OrganizationStudentDetailPage(props('s1'))
+    );
+    expect(container.querySelector('[data-testid="position-form"]')!.textContent).toContain('null');
+  });
+});

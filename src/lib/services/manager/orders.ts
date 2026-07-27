@@ -49,14 +49,15 @@ export type ListOrdersResult = {
   nextCursor: string | null;
 };
 
-export async function listOrders(
-  prisma: PrismaClient,
-  optsRaw: ListOrdersOptions
-): Promise<ListOrdersResult> {
-  const opts = ListOrdersOptionsSchema.parse(optsRaw);
-  const teamMode =
-    opts.teamModeOverride ?? (await getCompanyTeamVisibility(prisma, opts.session.companyId));
-  const scope = managerOrderScope(opts.session, teamMode);
+/**
+ * Фильтры списка заказов поверх RBAC-скоупа. Общие для экрана (`listOrders`) и
+ * выгрузки (`listOrdersForExport`) — ФТ-12.1 требует, чтобы файл строился той же
+ * выборкой, что и таблица, и уважал активные фильтры.
+ */
+function buildOrdersFilters(
+  opts: z.output<typeof ListOrdersOptionsSchema>,
+  scope: Prisma.OrderWhereInput
+): Prisma.OrderWhereInput[] {
   const filters: Prisma.OrderWhereInput[] = [scope];
   if (opts.executionStatus) {
     filters.push({ executionStatus: opts.executionStatus as Prisma.OrderWhereInput['executionStatus'] });
@@ -78,6 +79,18 @@ export async function listOrders(
       ]
     });
   }
+  return filters;
+}
+
+export async function listOrders(
+  prisma: PrismaClient,
+  optsRaw: ListOrdersOptions
+): Promise<ListOrdersResult> {
+  const opts = ListOrdersOptionsSchema.parse(optsRaw);
+  const teamMode =
+    opts.teamModeOverride ?? (await getCompanyTeamVisibility(prisma, opts.session.companyId));
+  const scope = managerOrderScope(opts.session, teamMode);
+  const filters = buildOrdersFilters(opts, scope);
 
   const rows = await prisma.order.findMany({
     where: { AND: filters },
@@ -91,6 +104,38 @@ export async function listOrders(
   const sliced = hasMore ? rows.slice(0, opts.take) : rows;
   const nextCursor = hasMore ? sliced[sliced.length - 1]!.id : null;
   return { rows: sliced, nextCursor };
+}
+
+/** Лимит строк выгрузки заказов (ФТ-12.1, как у реестра удостоверений). */
+export const ORDERS_EXPORT_LIMIT = 10_000;
+
+export type ListOrdersForExportOptions = Omit<ListOrdersOptions, 'take' | 'cursor'>;
+
+/**
+ * Выгрузка заказов (этап 9, ФТ-12.2): та же выборка и те же фильтры, что у
+ * экрана, но одной страницей до `ORDERS_EXPORT_LIMIT` строк. `total` нужен
+ * рендереру для хвоста «показаны первые N из M».
+ */
+export async function listOrdersForExport(
+  prisma: PrismaClient,
+  optsRaw: ListOrdersForExportOptions
+): Promise<{ rows: ManagerOrderRow[]; total: number }> {
+  const opts = ListOrdersOptionsSchema.parse(optsRaw);
+  const teamMode =
+    opts.teamModeOverride ?? (await getCompanyTeamVisibility(prisma, opts.session.companyId));
+  const scope = managerOrderScope(opts.session, teamMode);
+  const where: Prisma.OrderWhereInput = { AND: buildOrdersFilters(opts, scope) };
+
+  const [total, rows] = await Promise.all([
+    prisma.order.count({ where }),
+    prisma.order.findMany({
+      where,
+      include: LIST_INCLUDE,
+      orderBy: { id: 'desc' },
+      take: ORDERS_EXPORT_LIMIT
+    })
+  ]);
+  return { rows, total };
 }
 
 const DETAIL_INCLUDE = {

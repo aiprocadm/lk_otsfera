@@ -5,7 +5,7 @@ import { getOrgPageContext } from '@/lib/auth/orgPageContext';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { listOrgStudents, type OrgStudentRow } from '@/lib/services/organization/students';
-import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
+import { TableShell, THead, Th, Tr, Td, EmptyState, ExportLink } from '@/components/ui';
 
 type SearchParams = {
   org?: string;
@@ -60,7 +60,14 @@ export default async function OrganizationStudentsPage({
               )}
             </p>
           </div>
-          <SearchForm initial={sp.search ?? ''} org={sp.org ?? ''} />
+          <div className='flex flex-col sm:flex-row sm:items-center gap-3'>
+            <SearchForm initial={sp.search ?? ''} org={sp.org ?? ''} />
+            {/* ФТ-12.2: выгрузка уважает активный поиск. */}
+            <ExportLink
+              base='/api/organization/students/export'
+              params={{ org: ctx.activeOrgId, search: sp.search }}
+            />
+          </div>
         </div>
 
         {rows.length === 0 ? (

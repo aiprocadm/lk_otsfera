@@ -752,6 +752,10 @@ model Student {
   email             String
   name              String
   status            String                  @default("active")
+  // Этап 9 (ФТ-12.2, PR-3): должность для выгрузки сотрудников организации.
+  // Необязательная (решение заказчика §9-1 спеки: обучаться могут физлица);
+  // заполняется в карточке сотрудника и автоматически из заявки на обучение.
+  position          String?
   organizationId    String
   organization      Organization            @relation(fields: [organizationId], references: [id])
   externalStudentId String?

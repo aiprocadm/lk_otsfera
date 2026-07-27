@@ -391,3 +391,62 @@ describe('вкладки внутреннего контура (этап 7 PR-3)
     expect(renderToString(React.createElement(OrgCardTabs, { card: empty, activeTab: 'deals' }))).toContain('Сделок пока нет.');
   });
 });
+
+// ─── Этап 9 PR-3 (ФТ-12.2): вкладка «Удостоверения» + кнопки выгрузок ─────────
+
+describe('OrgCardTabs — вкладка «Удостоверения» и выгрузки', () => {
+  const CERT = {
+    id: 'c1',
+    number: 'УД-77',
+    studentName: 'Иванов Иван',
+    directionName: 'Охрана труда',
+    issuedAt: new Date('2026-01-15'),
+    validUntil: new Date('2029-01-15'),
+    hasScan: true
+  };
+
+  it('вкладка есть в списке табов', () => {
+    expect(ORG_CARD_TABS.map((t) => t.key)).toContain('certificates');
+    expect(ORG_CARD_TABS.find((t) => t.key === 'certificates')?.label).toBe('Удостоверения');
+  });
+
+  it('таблица удостоверений и ссылка на выгрузку', () => {
+    const card = makeCard({ id: 'org1', certificates: [CERT] } as never);
+    const html = renderToString(
+      React.createElement(OrgCardTabs, { card, activeTab: 'certificates' })
+    );
+    expect(html).toContain('УД-77');
+    expect(html).toContain('Иванов Иван');
+    expect(html).toContain('Охрана труда');
+    expect(html).toContain('15.01.2029');
+    expect(html).toContain('/api/manager/organizations/org1/certificates/export');
+    expect(html).toContain('Выгрузить в Excel');
+  });
+
+  it('бессрочное удостоверение и отсутствующий скан подписаны словами', () => {
+    const card = makeCard({
+      id: 'org1',
+      certificates: [{ ...CERT, validUntil: null, hasScan: false }]
+    } as never);
+    const html = renderToString(
+      React.createElement(OrgCardTabs, { card, activeTab: 'certificates' })
+    );
+    expect(html).toContain('бессрочно');
+    expect(html).toContain('готовится');
+  });
+
+  it('пустой реестр: пустое состояние, но кнопка выгрузки остаётся', () => {
+    const card = makeCard({ id: 'org1', certificates: [] } as never);
+    const html = renderToString(
+      React.createElement(OrgCardTabs, { card, activeTab: 'certificates' })
+    );
+    expect(html).toContain('Удостоверений пока нет.');
+    expect(html).toContain('/api/manager/organizations/org1/certificates/export');
+  });
+
+  it('вкладка «Оплаты» несёт свою выгрузку', () => {
+    const card = makeCard({ id: 'org1', payments: [] } as never);
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'payments' }));
+    expect(html).toContain('/api/manager/organizations/org1/payments/export');
+  });
+});

@@ -16,7 +16,10 @@ export type PiiSubjectType =
   | 'caller'
   | 'inbound_sender';
 
-export type PiiAction = 'list' | 'view';
+/** Этап 9 (ФТ-12.1, PR-3): `export` — выгрузка ПДн сотрудником в файл.
+ *  Клиентские выгрузки собственных данных сюда не попадают (фильтр `isStaff`
+ *  внутри `recordPiiAccess`). */
+export type PiiAction = 'list' | 'view' | 'export';
 
 export type PiiContext = {
   subjectType: PiiSubjectType;
@@ -47,7 +50,11 @@ export const PII_CONTEXTS = {
   order_items_list: { subjectType: 'student', action: 'list', labelRu: 'Слушатели заказа', callSite: 'src/lib/services/training/orderItems.ts' },
   admin_users_list: { subjectType: 'user', action: 'list', labelRu: 'Пользователи (список)', callSite: 'src/lib/services/admin/users/queries.ts' },
   admin_user_view: { subjectType: 'user', action: 'view', labelRu: 'Карточка пользователя', callSite: 'src/lib/services/admin/users/queries.ts' },
-  global_search_students: { subjectType: 'student', action: 'list', labelRu: 'Глобальный поиск: слушатели', callSite: 'src/lib/services/search/globalSearch.ts' }
+  global_search_students: { subjectType: 'student', action: 'list', labelRu: 'Глобальный поиск: слушатели', callSite: 'src/lib/services/search/globalSearch.ts' },
+  // Этап 9 (ФТ-12.2, PR-3): выгрузка удостоверений из карточки организации —
+  // единственная staff-выгрузка с ПДн физлиц. Клиентские реестры (organization/
+  // partner) выгружают свои данные и по ФТ-12.1 не журналируются.
+  org_card_certificates_export: { subjectType: 'student', action: 'export', labelRu: 'Карточка организации: выгрузка удостоверений', callSite: 'src/app/api/manager/organizations/[id]/certificates/export/route.ts' }
 } as const satisfies Record<string, PiiContext>;
 
 export type PiiContextKey = keyof typeof PII_CONTEXTS;

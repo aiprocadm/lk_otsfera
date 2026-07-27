@@ -99,3 +99,46 @@ describe('ManagerOrdersPage', () => {
     expect(container.textContent).toContain('"unassigned":"1"');
   });
 });
+
+// ─── Этап 9 PR-3 (ФТ-12.2): кнопка выгрузки заказов ──────────────────────────
+
+describe('ManagerOrdersPage — выгрузка в Excel', () => {
+  beforeEach(() => {
+    requireManager.mockReset();
+    listOrders.mockReset();
+    listOrganizations.mockReset();
+    requireManager.mockResolvedValue(SESSION);
+    listOrders.mockResolvedValue({ rows: [], nextCursor: null });
+    listOrganizations.mockResolvedValue([]);
+  });
+
+  it('ссылка несёт активные фильтры экрана и не несёт scope=company', async () => {
+    const { container } = await renderServerComponent(
+      ManagerOrdersPage({
+        searchParams: Promise.resolve({
+          search: 'abc',
+          executionStatus: 'pending',
+          organizationId: 'org1',
+          unassigned: '1'
+        })
+      })
+    );
+    const link = container.querySelector('a[href*="/api/manager/orders/export"]');
+    expect(link).toBeTruthy();
+    const href = link!.getAttribute('href')!;
+    expect(href).toContain('search=abc');
+    expect(href).toContain('executionStatus=pending');
+    expect(href).toContain('organizationId=org1');
+    expect(href).toContain('unassigned=1');
+    expect(href).not.toContain('scope=company');
+  });
+
+  it('без фильтров — голая ссылка', async () => {
+    const { container } = await renderServerComponent(
+      ManagerOrdersPage({ searchParams: Promise.resolve({}) })
+    );
+    expect(
+      container.querySelector('a[href="/api/manager/orders/export"]')
+    ).toBeTruthy();
+  });
+});
