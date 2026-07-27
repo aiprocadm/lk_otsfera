@@ -1,0 +1,28 @@
+# Тестовый стенд lk.ptsfera.online — фоновый воркер (BullMQ). См. docs/runbook-test-stand.md.
+# Ставится в /etc/systemd/system/lk-otsfera-worker.service.
+#
+# Работает из той же отдельной копии, что и веб. Если оставить его в папке
+# разработки, воркер будет исполнять код случайной ветки, которая там оказалась,
+# — то есть не тот, что показывает витрина стенда.
+
+[Unit]
+Description=lk_otsfera — фоновый воркер (BullMQ)
+After=network-online.target docker.service lk-otsfera-web.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aiproc
+Group=aiproc
+WorkingDirectory=/home/aiproc/stands/lk_otsfera
+EnvironmentFile=/home/aiproc/stands/lk_otsfera/.env.production
+Environment=PATH=/home/aiproc/.nvm/versions/node/v24.18.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/home/aiproc/stands/lk_otsfera/node_modules/.bin/tsx src/worker/index.ts
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=lk-worker
+
+[Install]
+WantedBy=multi-user.target

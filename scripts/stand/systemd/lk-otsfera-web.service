@@ -1,0 +1,32 @@
+# Тестовый стенд lk.ptsfera.online — веб (Next.js). См. docs/runbook-test-stand.md.
+# Ставится в /etc/systemd/system/lk-otsfera-web.service.
+#
+# WorkingDirectory — ОТДЕЛЬНАЯ копия репозитория, а не папка разработки:
+# из общей папки `npm run dev` соседней сессии затирает .next, и `next start`
+# уходит в бесконечный цикл падений (авария 2026-07-21, простой 6 суток).
+# Свежую main копия подтягивает сама: scripts/stand/update-stand.sh раз в 10 минут.
+#
+# User=aiproc принципиален: благодаря ему скрипт обновления перезапускает службу
+# через kill главного процесса, и весь цикл обходится без sudo.
+
+[Unit]
+Description=lk_otsfera — веб (Next.js) на lk.ptsfera.online
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aiproc
+Group=aiproc
+WorkingDirectory=/home/aiproc/stands/lk_otsfera
+EnvironmentFile=/home/aiproc/stands/lk_otsfera/.env.production
+Environment=PATH=/home/aiproc/.nvm/versions/node/v24.18.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/home/aiproc/stands/lk_otsfera/node_modules/.bin/next start -p 3000 -H 127.0.0.1
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=lk-web
+
+[Install]
+WantedBy=multi-user.target
