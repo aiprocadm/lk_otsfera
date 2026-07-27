@@ -33,6 +33,7 @@ function makeRow(overrides: Partial<TeamRow> = {}): TeamRow {
     isActive: true,
     invitePending: false,
     createdAt: new Date('2026-01-01'),
+    lastLoginAt: null,
     ...overrides
   };
 }
@@ -154,6 +155,29 @@ describe('TeamTable', () => {
     );
     expect(html).not.toContain('Ожидает установки пароля');
     expect(html).not.toContain('Отправить повторно');
+  });
+
+  // ФТ-11.3 (этап 9): колонка «Последний вход».
+  // Дата фикстуры намеренно в прошлом — иначе форматтер отдал бы «сегодня, HH:mm»
+  // в тот единственный день, когда прогон совпал бы с датой фикстуры.
+  it('колонка «Последний вход»: заголовок и отформатированная дата', () => {
+    const html = renderToString(
+      React.createElement(TeamTable, {
+        rows: [makeRow({ lastLoginAt: new Date('2025-11-05T10:00:00Z') })],
+        orgs,
+        currentUserId: 'me'
+      })
+    );
+    expect(html).toContain('Последний вход');
+    expect(html).toContain('05.11.2025');
+  });
+
+  it('сотрудник ни разу не входил (lastLoginAt=null): в колонке прочерк', () => {
+    const html = renderToString(
+      React.createElement(TeamTable, { rows: [makeRow({ lastLoginAt: null })], orgs, currentUserId: 'me' })
+    );
+    expect(html).toContain('Последний вход');
+    expect(html).toContain('>—<');
   });
 
   it('renders multiple rows', () => {

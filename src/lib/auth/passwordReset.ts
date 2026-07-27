@@ -77,7 +77,12 @@ export async function verifyAndConsumeToken(
     if (!record) return { ok: false, reason: 'not_found' } as const;
     if (record.usedAt) return { ok: false, reason: 'used' } as const;
     if (record.expiresAt <= new Date()) return { ok: false, reason: 'expired' } as const;
-    await tx.user.update({ where: { id: record.userId }, data: { passwordHash: newPasswordHash } });
+    // Этап 9 (ФТ-11.2): смена пароля (и активация по приглашению) отзывает все
+    // ранее выданные токены — иначе перехваченная сессия переживает сброс.
+    await tx.user.update({
+      where: { id: record.userId },
+      data: { passwordHash: newPasswordHash, sessionVersion: { increment: 1 } }
+    });
     await tx.passwordResetToken.update({ where: { token: tokenHash }, data: { usedAt: new Date() } });
     return { ok: true, userId: record.userId } as const;
   });

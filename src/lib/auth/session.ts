@@ -10,8 +10,14 @@ export async function getSession() {
     if (!payload.sub) return null;
     // Partner.isActive is intentionally not checked here — partner deactivation
     // is enforced via TTL on the next JWT issue, see admin partners flow.
-    const user = await prisma.user.findUnique({ where: { id: payload.sub }, select: { isActive: true } });
+    const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { isActive: true, sessionVersion: true }
+    });
     if (!user || !user.isActive) return null;
+    // Этап 9 (ФТ-11.2): ревокация сессий. Токены, выданные до появления клейма,
+    // читаются как версия 0 — они остаются валидными, пока версию не увеличили.
+    if ((payload.sessionVersion ?? 0) !== user.sessionVersion) return null;
     return payload;
   } catch {
     return null;

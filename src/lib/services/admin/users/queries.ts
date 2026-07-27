@@ -12,6 +12,8 @@ export type UserRow = {
   attachmentLabel: string;
   /** ФТ-10.2: true = пароль ещё не установлен — можно переотправить приглашение. */
   invitePending: boolean;
+  /** ФТ-11.3: последний успешный вход; null = пользователь ещё ни разу не входил. */
+  lastLoginAt: Date | null;
 };
 
 export type UserDetail = UserRow & {
@@ -95,6 +97,7 @@ export async function fetchUserDetail(
     createdAt: u.createdAt,
     attachmentLabel: computeAttachmentLabel(u),
     invitePending: u.passwordHash === null,
+    lastLoginAt: u.lastLoginAt,
     partnerId: u.partnerId,
     managerRole: u.managerRole ?? null,
     organizationMemberships: u.organizationUsers.map((ou) => ({
@@ -188,7 +191,8 @@ export async function listUsers(
     isActive: u.isActive,
     createdAt: u.createdAt,
     attachmentLabel: computeAttachmentLabel(u),
-    invitePending: u.passwordHash === null
+    invitePending: u.passwordHash === null,
+    lastLoginAt: u.lastLoginAt
   }));
 
   await recordPiiAccess(prisma, {

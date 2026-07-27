@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { findUserUnique, findPartnerUserUnique, compareFn, signTokenFn } = vi.hoisted(() => ({
+const { findUserUnique, updateUser, findPartnerUserUnique, compareFn, signTokenFn } = vi.hoisted(() => ({
   findUserUnique: vi.fn(),
+  // Этап 9 (ФТ-11.3): отметка lastLoginAt на успешном входе.
+  updateUser: vi.fn(),
   findPartnerUserUnique: vi.fn(),
   compareFn: vi.fn(),
   signTokenFn: vi.fn()
@@ -9,7 +11,7 @@ const { findUserUnique, findPartnerUserUnique, compareFn, signTokenFn } = vi.hoi
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
-    user: { findUnique: findUserUnique },
+    user: { findUnique: findUserUnique, update: updateUser },
     partnerUser: { findUnique: findPartnerUserUnique }
   }
 }));
@@ -37,6 +39,7 @@ describe('POST /api/auth/login partner enrichment', () => {
     vi.resetAllMocks();
     compareFn.mockResolvedValue(true);
     signTokenFn.mockResolvedValue('signed-token');
+    updateUser.mockResolvedValue({});
   });
 
   it('signs JWT with partnerRole=admin and assignedOrgIds=[] for partner admin', async () => {

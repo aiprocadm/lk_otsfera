@@ -266,6 +266,11 @@ model User {
   staffReactions               StaffReaction[]           @relation("StaffReactionAuthor")
   calendarEventsCreated        CalendarEvent[]           @relation("CalendarEventCreatedBy")
   calendarAttendances          CalendarEventAttendee[]   @relation("CalendarEventAttendee")
+  // Этап 9 (ФТ-11.2): версия сессии. Инкремент отзывает все живые 7-дневные
+  // токены пользователя — клейм sessionVersion в JWT сверяется в getSession().
+  sessionVersion               Int                       @default(0)
+  // Этап 9 (ФТ-11.3): отметка последнего успешного входа (оба пути: пароль и 2FA).
+  lastLoginAt                  DateTime?
 }
 
 model PartnerUser {

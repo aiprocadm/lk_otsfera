@@ -194,53 +194,104 @@ describe('assignOrgs — unit', () => {
 
 describe('deactivateMember — unit', () => {
   it('returns not_found when partnerUser not found', async () => {
+    const userUpdate = vi.fn();
     const prisma = {
-      partnerUser: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() }
+      partnerUser: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
+      user: { update: userUpdate }
     } as any;
     expect(
       await deactivateMember(prisma, { partnerId: 'p1', userId: 'u1' })
     ).toEqual({ ok: false, error: 'not_found' });
+    // ФТ-11.2: нечего снимать — сессии не отзываем.
+    expect(userUpdate).not.toHaveBeenCalled();
   });
 
   it('skips admin-count check when target is manager (not admin)', async () => {
     const update = vi.fn().mockResolvedValue({ id: 'pu1', isActive: false });
+    const userUpdate = vi.fn().mockResolvedValue({});
     const prisma = {
       partnerUser: {
         findUnique: vi.fn().mockResolvedValue({ id: 'pu1', roleInPartner: 'manager', isActive: true }),
         count: vi.fn(),
         update
-      }
+      },
+      user: { update: userUpdate }
     } as any;
     const result = await deactivateMember(prisma, { partnerId: 'p1', userId: 'u1' });
     expect(prisma.partnerUser.count).not.toHaveBeenCalled();
     if (!result.ok) throw new Error('expected ok');
     expect(result.partnerUser.isActive).toBe(false);
+    // ФТ-11.2: partnerRole/assignedOrgIds живут в токене → отзываем сессии
+    // снятого участника (по args.userId).
+    expect(userUpdate).toHaveBeenCalledWith({
+      where: { id: 'u1' },
+      data: { sessionVersion: { increment: 1 } }
+    });
   });
 
   it('allows deactivating an inactive admin without admin-count check', async () => {
     const update = vi.fn().mockResolvedValue({ id: 'pu1', isActive: false });
+    const userUpdate = vi.fn().mockResolvedValue({});
     const prisma = {
       partnerUser: {
         findUnique: vi.fn().mockResolvedValue({ id: 'pu1', roleInPartner: 'admin', isActive: false }),
         count: vi.fn(),
         update
-      }
+      },
+      user: { update: userUpdate }
     } as any;
     await deactivateMember(prisma, { partnerId: 'p1', userId: 'u1' });
     // isActive is false → skip count check (admin guard only fires when isActive is true)
     expect(prisma.partnerUser.count).not.toHaveBeenCalled();
+    expect(userUpdate).toHaveBeenCalledWith({
+      where: { id: 'u1' },
+      data: { sessionVersion: { increment: 1 } }
+    });
   });
 
   it('returns last_admin_protected when trying to deactivate the only active admin', async () => {
+    const userUpdate = vi.fn();
     const prisma = {
       partnerUser: {
         findUnique: vi.fn().mockResolvedValue({ id: 'pu1', roleInPartner: 'admin', isActive: true }),
         count: vi.fn().mockResolvedValue(1),
         update: vi.fn()
-      }
+      },
+      user: { update: userUpdate }
     } as any;
     expect(
       await deactivateMember(prisma, { partnerId: 'p1', userId: 'u1' })
     ).toEqual({ ok: false, error: 'last_admin_protected' });
+    // ФТ-11.2: защита последнего админа отменяет и отзыв сессий.
+    expect(userUpdate).not.toHaveBeenCalled();
+  });
+
+  it('ФТ-11.2: инкремент идёт ПОСЛЕ успешного partnerUser.update, ровно один раз', async () => {
+    const order: string[] = [];
+    const update = vi.fn().mockImplementation(async () => {
+      order.push('partnerUser.update');
+      return { id: 'pu2', isActive: false };
+    });
+    const userUpdate = vi.fn().mockImplementation(async () => {
+      order.push('user.update');
+      return {};
+    });
+    const prisma = {
+      partnerUser: {
+        findUnique: vi.fn().mockResolvedValue({ id: 'pu2', roleInPartner: 'admin', isActive: true }),
+        count: vi.fn().mockResolvedValue(2), // есть второй активный админ
+        update
+      },
+      user: { update: userUpdate }
+    } as any;
+
+    const result = await deactivateMember(prisma, { partnerId: 'p1', userId: 'u-target' });
+    expect(result.ok).toBe(true);
+    expect(order).toEqual(['partnerUser.update', 'user.update']);
+    expect(userUpdate).toHaveBeenCalledOnce();
+    expect(userUpdate).toHaveBeenCalledWith({
+      where: { id: 'u-target' },
+      data: { sessionVersion: { increment: 1 } }
+    });
   });
 });

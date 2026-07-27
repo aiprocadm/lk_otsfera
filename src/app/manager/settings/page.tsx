@@ -7,6 +7,7 @@ import { getNotificationSettings } from '@/lib/services/notifications/preference
 import { TelegramLinkCard } from '@/components/settings/telegram-link-card';
 import { NotificationChannelsCard } from '@/components/settings/notification-channels-card';
 import { StaffBackupCodesSection } from '@/components/settings/staff-backup-codes-section';
+import { SecurityCard } from '@/components/settings/security-card';
 import { InternalPhoneCard } from '@/components/manager/settings/internal-phone-card';
 
 export default async function ManagerSettingsPage() {
@@ -22,6 +23,7 @@ export default async function ManagerSettingsPage() {
       <NotificationChannelsCard settings={settings.view} />
       <InternalPhoneCard initialInternalPhone={me?.internalPhone ?? null} />
       {isFeatureEnabled('staff_2fa') ? <StaffBackupCodesSection /> : null}
+      <SecurityCard />
     </div>
   );
 }

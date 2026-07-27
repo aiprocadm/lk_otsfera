@@ -191,6 +191,37 @@ describe('TeamTable', () => {
     expect(html).not.toContain('Отправить повторно');
   });
 
+  // ФТ-11.3 (этап 9): колонка «Последний вход».
+  // Дата фикстуры намеренно в прошлом — иначе форматтер отдал бы «сегодня, HH:mm»
+  // в тот единственный день, когда прогон совпал бы с датой фикстуры.
+  it('колонка «Последний вход»: заголовок и отформатированная дата', () => {
+    const html = renderToString(
+      React.createElement(TeamTable, {
+        members: [member({ userId: 'other', lastLoginAt: new Date('2025-11-05T10:00:00Z') })],
+        organizationId: 'org1',
+        currentUserId: 'me',
+        viewerRole: 'admin'
+      })
+    );
+    expect(html).toContain('Последний вход');
+    expect(html).toContain('05.11.2025');
+    // Колонка «Приглашён» рядом — убеждаемся, что это разные ячейки, а не одна.
+    expect(html).toContain('01.01.2026');
+  });
+
+  it('участник ни разу не входил (lastLoginAt=null): в колонке прочерк', () => {
+    const html = renderToString(
+      React.createElement(TeamTable, {
+        members: [member({ userId: 'other', lastLoginAt: null })],
+        organizationId: 'org1',
+        currentUserId: 'me',
+        viewerRole: 'admin'
+      })
+    );
+    expect(html).toContain('Последний вход');
+    expect(html).toContain('>—<');
+  });
+
   it('renders each role label correctly (admin/leader/member)', () => {
     const html = renderToString(
       React.createElement(TeamTable, {

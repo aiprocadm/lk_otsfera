@@ -133,6 +133,10 @@ export async function POST(req: Request) {
     return res;
   }
 
+  // Этап 9 (ФТ-11.3): отметка входа. Best-effort (§3) — сбой апдейта не должен
+  // лишать пользователя сессии, которую он уже заслужил верным паролем.
+  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch(() => {});
+
   const token = await signToken(built.claims);
 
   const res = NextResponse.json({ ok: true });

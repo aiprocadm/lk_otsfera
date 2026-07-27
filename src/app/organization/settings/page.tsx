@@ -7,6 +7,7 @@ import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { TelegramLinkCard } from '@/components/settings/telegram-link-card';
 import { NotificationChannelsCard } from '@/components/settings/notification-channels-card';
 import { RequisitesCard } from '@/components/requisites/requisites-card';
+import { SecurityCard } from '@/components/settings/security-card';
 import { getOrgRequisites } from '@/lib/services/organization/requisites';
 import { setOrgRequisitesAction } from '@/server-actions/requisites';
 
@@ -41,6 +42,7 @@ export default async function OrganizationSettingsPage() {
             canEdit={canEditRequisites}
           />
         )}
+        <SecurityCard />
       </div>
     </OrgAppShell>
   );

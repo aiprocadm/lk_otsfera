@@ -18,6 +18,10 @@ vi.mock('@/lib/services/notifications/preferences', () => ({ getNotificationSett
 const { getOrgRequisites } = vi.hoisted(() => ({ getOrgRequisites: vi.fn() }));
 vi.mock('@/lib/services/organization/requisites', () => ({ getOrgRequisites }));
 vi.mock('@/server-actions/requisites', () => ({ setOrgRequisitesAction: vi.fn() }));
+vi.mock('@/components/settings/security-card', () => ({
+  SecurityCard: () => React.createElement('div', { 'data-testid': 'security-card' }, 'SECURITY')
+}));
+
 vi.mock('@/components/requisites/requisites-card', () => ({
   RequisitesCard: (props: { title: string; canEdit?: boolean }) =>
     React.createElement('div', { 'data-testid': 'requisites-card' }, props.title, ` canEdit:${String(props.canEdit)}`)

@@ -34,6 +34,7 @@ function makeRow(overrides: Partial<{
   createdAt: Date;
   attachmentLabel: string;
   invitePending: boolean;
+  lastLoginAt: Date | null;
 }> = {}) {
   return {
     id: 'user-1',
@@ -44,6 +45,7 @@ function makeRow(overrides: Partial<{
     createdAt: new Date('2025-03-15'),
     attachmentLabel: 'ООО Партнёр',
     invitePending: false,
+    lastLoginAt: null as Date | null,
     ...overrides
   };
 }
@@ -141,6 +143,27 @@ describe('UsersTable', () => {
       React.createElement(UsersTable, { rows, currentUserId: 'other' })
     );
     expect(html).toContain('superadmin');
+  });
+
+  // ФТ-11.3 (этап 9): колонка «Последний вход».
+  // Дата фикстуры намеренно в прошлом — иначе форматтер отдал бы «сегодня, HH:mm»
+  // в тот единственный день, когда прогон совпал бы с датой фикстуры.
+  it('колонка «Последний вход»: заголовок и отформатированная дата', () => {
+    const rows = [makeRow({ id: 'u-login', lastLoginAt: new Date('2025-11-05T10:00:00Z') })];
+    const html = renderToString(
+      React.createElement(UsersTable, { rows, currentUserId: 'other' })
+    );
+    expect(html).toContain('Последний вход');
+    expect(html).toContain('05.11.2025');
+  });
+
+  it('пользователь ни разу не входил (lastLoginAt=null): в колонке прочерк', () => {
+    const rows = [makeRow({ id: 'u-never', lastLoginAt: null })];
+    const html = renderToString(
+      React.createElement(UsersTable, { rows, currentUserId: 'other' })
+    );
+    expect(html).toContain('Последний вход');
+    expect(html).toContain('>—<');
   });
 
   it('применяет ROLE_LABELS для всех ролей', () => {

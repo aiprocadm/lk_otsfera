@@ -7,6 +7,7 @@ import { getNotificationSettings } from '@/lib/services/notifications/preference
 import { TelegramLinkCard } from '@/components/settings/telegram-link-card';
 import { NotificationChannelsCard } from '@/components/settings/notification-channels-card';
 import { StaffBackupCodesSection } from '@/components/settings/staff-backup-codes-section';
+import { SecurityCard } from '@/components/settings/security-card';
 import { FeatureFlagsMatrix } from '@/components/admin/feature-flags-matrix';
 import { RequisitesCard } from '@/components/requisites/requisites-card';
 import { Input, Field } from '@/components/ui';
@@ -32,6 +33,7 @@ export default async function AdminSettingsPage() {
       <TelegramLinkCard status={status} />
       <NotificationChannelsCard settings={settings.view} />
       {isFeatureEnabled('staff_2fa') ? <StaffBackupCodesSection /> : null}
+      <SecurityCard />
       {companies.ok &&
         companies.companies.map((c) => (
           <RequisitesCard

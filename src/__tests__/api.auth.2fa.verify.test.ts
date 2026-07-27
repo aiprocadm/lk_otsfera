@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server';
 
 const {
   findUniqueMock,
+  updateUserMock,
   notFoundIfDisabledMock,
   verifyPendingMock,
   verifyCodeMock,
@@ -12,6 +13,7 @@ const {
   isRateLimitedMock
 } = vi.hoisted(() => ({
   findUniqueMock: vi.fn(),
+  updateUserMock: vi.fn(),
   notFoundIfDisabledMock: vi.fn(),
   verifyPendingMock: vi.fn(),
   verifyCodeMock: vi.fn(),
@@ -21,7 +23,10 @@ const {
   isRateLimitedMock: vi.fn()
 }));
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: { user: { findUnique: findUniqueMock } } }));
+// update — отметка lastLoginAt на втором пути входа (этап 9, ФТ-11.3)
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: { user: { findUnique: findUniqueMock, update: updateUserMock } }
+}));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled: notFoundIfDisabledMock }));
 vi.mock('@/lib/auth/jwt', () => ({
   verifyTwoFactorPendingToken: verifyPendingMock,
@@ -59,6 +64,7 @@ function req(body: unknown, cookie?: string): NextRequest {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  updateUserMock.mockResolvedValue({});
   notFoundIfDisabledMock.mockReturnValue(null);
   isRateLimitedMock.mockResolvedValue(false);
   verifyPendingMock.mockResolvedValue({ sub: 'u1' });

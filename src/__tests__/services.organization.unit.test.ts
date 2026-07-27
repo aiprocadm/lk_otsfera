@@ -1189,6 +1189,8 @@ function makeTx() {
     user: {
       findUnique: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockResolvedValue({ id: 'u-new', email: 'new@x.com', passwordHash: null }),
+      // ФТ-11.2: deactivateMember инкрементит sessionVersion участника.
+      update: vi.fn().mockResolvedValue({}),
     },
     auditLog: { create: vi.fn().mockResolvedValue({}) },
     passwordResetToken: { create: vi.fn().mockResolvedValue({}) },
@@ -1660,6 +1662,8 @@ describe('organization/team — deactivateMember (unit)', () => {
     const res = await deactivateMember(prisma, 'org-1', 'ou1', 'actor-1');
     expect(res).toEqual({ ok: true });
     expect(tx.organizationUser.update).not.toHaveBeenCalled();
+    // ФТ-11.2: no-op не отзывает сессии — отзывать нечего.
+    expect(tx.user.update).not.toHaveBeenCalled();
   });
 
   it('deactivates non-admin member', async () => {
@@ -1677,6 +1681,12 @@ describe('organization/team — deactivateMember (unit)', () => {
     expect(tx.organizationUser.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { isActive: false } }),
     );
+    // ФТ-11.2: клеймы организации сидят в токене → отзываем сессии участника
+    // (именно target.userId, не actor'а), в той же транзакции.
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: 'u2' },
+      data: { sessionVersion: { increment: 1 } },
+    });
   });
 
   it('deactivating last admin → last_admin_protected', async () => {
@@ -1692,6 +1702,8 @@ describe('organization/team — deactivateMember (unit)', () => {
 
     const res = await deactivateMember(prisma, 'org-1', 'ou4', 'actor-1');
     expect(res).toEqual({ ok: false, error: 'last_admin_protected' });
+    // ФТ-11.2: защита последнего админа срабатывает до отзыва сессий.
+    expect(tx.user.update).not.toHaveBeenCalled();
   });
 
   it('deactivates admin when other admins exist', async () => {
@@ -1710,6 +1722,47 @@ describe('organization/team — deactivateMember (unit)', () => {
     expect(tx.organizationUser.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { isActive: false } }),
     );
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: 'u5' },
+      data: { sessionVersion: { increment: 1 } },
+    });
+  });
+
+  it('ФТ-11.2: guard-ветки (self / leader-vs-admin / чужая организация) не инкрементят sessionVersion', async () => {
+    // self_action_forbidden
+    const txSelf = makeTx();
+    txSelf.organizationUser.findUnique = vi.fn().mockResolvedValue({
+      id: 'ou0', userId: 'actor-1', organizationId: 'org-1', roleInOrg: 'member', isActive: true,
+    });
+    const prismaSelf = {
+      $transaction: vi.fn().mockImplementation((fn: (t: typeof txSelf) => unknown) => fn(txSelf)),
+    } as unknown as PrismaClient;
+    await deactivateMember(prismaSelf, 'org-1', 'ou0', 'actor-1');
+    expect(txSelf.user.update).not.toHaveBeenCalled();
+
+    // requires_admin (leader трогает admin-строку)
+    const txLeader = makeTx();
+    txLeader.organizationUser.findUnique = vi.fn().mockResolvedValue({
+      id: 'ou3', userId: 'u3', organizationId: 'org-1', roleInOrg: 'admin', isActive: true,
+    });
+    const prismaLeader = {
+      $transaction: vi.fn().mockImplementation((fn: (t: typeof txLeader) => unknown) => fn(txLeader)),
+    } as unknown as PrismaClient;
+    await deactivateMember(prismaLeader, 'org-1', 'ou3', 'actor-1', 'leader');
+    expect(txLeader.user.update).not.toHaveBeenCalled();
+
+    // not_found: строка принадлежит другой организации (cross-tenant guard)
+    const txForeign = makeTx();
+    txForeign.organizationUser.findUnique = vi.fn().mockResolvedValue({
+      id: 'ou9', userId: 'u9', organizationId: 'org-OTHER', roleInOrg: 'member', isActive: true,
+    });
+    const prismaForeign = {
+      $transaction: vi.fn().mockImplementation((fn: (t: typeof txForeign) => unknown) => fn(txForeign)),
+    } as unknown as PrismaClient;
+    expect(await deactivateMember(prismaForeign, 'org-1', 'ou9', 'actor-1')).toEqual({
+      ok: false, error: 'not_found',
+    });
+    expect(txForeign.user.update).not.toHaveBeenCalled();
   });
 
   it('non-OrgMemberError thrown inside tx re-throws (boundary-catch)', async () => {
@@ -1788,6 +1841,8 @@ describe('organization/team — reactivateMember (unit)', () => {
       expect.objectContaining({ data: { isActive: true } }),
     );
     expect(recordAuditMock).toHaveBeenCalled();
+    // ФТ-11.2: возврат участника не отзывает сессии (симметричной точки нет).
+    expect(tx.user.update).not.toHaveBeenCalled();
   });
 
   it('non-OrgMemberError thrown inside tx re-throws (boundary-catch)', async () => {

@@ -77,7 +77,7 @@ export async function listMembers(
   const rows = await prisma.organizationUser.findMany({
     where: { organizationId },
     // Наружу уходит только признак наличия пароля, не сам hash.
-    include: { user: { select: { id: true, email: true, name: true, passwordHash: true } } },
+    include: { user: { select: { id: true, email: true, name: true, passwordHash: true, lastLoginAt: true } } },
     orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }]
   });
 
@@ -89,7 +89,8 @@ export async function listMembers(
     roleInOrg: normaliseRole(r.roleInOrg),
     isActive: r.isActive,
     invitedAt: r.createdAt,
-    lastLoginAt: null,
+    // ФТ-11.3: до этапа 9 здесь стояла заглушка null — теперь реальная отметка.
+    lastLoginAt: r.user.lastLoginAt ?? null,
     invitePending: r.user.passwordHash === null
   }));
 }
@@ -311,6 +312,13 @@ export async function deactivateMember(
       await tx.organizationUser.update({
         where: { id: target.id },
         data: { isActive: false }
+      });
+
+      // Этап 9 (ФТ-11.2): гашения membership мало — клеймы организации сидят в
+      // 7-дневном токене, поэтому отзываем и сессии участника.
+      await tx.user.update({
+        where: { id: target.userId },
+        data: { sessionVersion: { increment: 1 } }
       });
 
       await recordAudit(tx, {

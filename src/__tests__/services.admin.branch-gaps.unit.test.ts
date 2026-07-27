@@ -574,7 +574,11 @@ describe('admin/users/mutations — missed branches', () => {
 
     const result = await deactivateUser(prisma, 'actor', 'u1');
     expect(result).toEqual({ ok: true });
-    expect(txMock.user.update).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { isActive: false } });
+    // Этап 9 (ФТ-11.2): вместе с деактивацией растёт версия сессии — живые токены отзываются.
+    expect(txMock.user.update).toHaveBeenCalledWith({
+      where: { id: 'u1' },
+      data: { isActive: false, sessionVersion: { increment: 1 } },
+    });
   });
 
   it('deactivateUser: non-AdminUserError thrown inside tx re-throws', async () => {

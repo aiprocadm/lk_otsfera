@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { findUniqueUser, findManyMemberships, compare, signToken } = vi.hoisted(() => ({
+const { findUniqueUser, updateUser, findManyMemberships, compare, signToken } = vi.hoisted(() => ({
   findUniqueUser: vi.fn(),
+  updateUser: vi.fn(),
   findManyMemberships: vi.fn(),
   compare: vi.fn(),
   signToken: vi.fn()
@@ -9,7 +10,8 @@ const { findUniqueUser, findManyMemberships, compare, signToken } = vi.hoisted((
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
-    user: { findUnique: findUniqueUser },
+    // updateUser — отметка lastLoginAt (этап 9, ФТ-11.3)
+    user: { findUnique: findUniqueUser, update: updateUser },
     partnerUser: { findUnique: vi.fn().mockResolvedValue(null) },
     organizationUser: { findMany: findManyMemberships }
   }
@@ -24,6 +26,7 @@ describe('auth login route — organization memberships', () => {
     vi.resetAllMocks();
     compare.mockResolvedValue(true);
     signToken.mockResolvedValue('signed-token');
+    updateUser.mockResolvedValue({});
   });
 
   function orgUser() {

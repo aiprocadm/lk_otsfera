@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { findUnique, compare, signToken, partnerUserFindUnique, orgUserFindMany, orgManagerFindMany } = vi.hoisted(() => ({
+const { findUnique, userUpdate, compare, signToken, partnerUserFindUnique, orgUserFindMany, orgManagerFindMany } = vi.hoisted(() => ({
   findUnique: vi.fn(),
+  // Этап 9 (ФТ-11.3): роут отмечает вход через prisma.user.update — без мока
+  // роут падал бы на TypeError.
+  userUpdate: vi.fn(),
   compare: vi.fn(),
   signToken: vi.fn(),
   partnerUserFindUnique: vi.fn(),
@@ -11,7 +14,7 @@ const { findUnique, compare, signToken, partnerUserFindUnique, orgUserFindMany, 
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
-    user: { findUnique },
+    user: { findUnique, update: userUpdate },
     partnerUser: { findUnique: partnerUserFindUnique },
     organizationUser: { findMany: orgUserFindMany },
     organizationManager: { findMany: orgManagerFindMany }
@@ -36,6 +39,7 @@ function makeReq(body: object, ip = `10.1.${Math.floor(ipCounter / 256)}.${(ipCo
 describe('auth login route', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    userUpdate.mockResolvedValue({});
   });
 
   it('returns 400 for invalid JSON payload (no IP headers → unknown fallback covers L43 ?? branch)', async () => {

@@ -89,6 +89,9 @@ export async function buildSessionClaims(prisma: PrismaClient, user: User): Prom
       email: user.email,
       name: user.name,
       externalStudentId: user.externalStudentId,
+      // Этап 9 (ФТ-11.2): версия сессии на момент выдачи; getSession отвергает
+      // токен, если версия пользователя с тех пор выросла.
+      sessionVersion: user.sessionVersion,
       ...(partnerRole !== undefined ? { partnerRole } : {}),
       ...(assignedOrgIds !== undefined ? { assignedOrgIds } : {}),
       ...(organizationMemberships !== undefined ? { organizationMemberships } : {}),

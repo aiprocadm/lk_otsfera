@@ -216,6 +216,12 @@ export async function deactivateAssignment(
       where: { id: row.id },
       data: { isActive: false, deactivatedAt: new Date() }
     });
+    // Этап 9 (ФТ-11.2): managedOrgIds денормализованы в токен, поэтому снятие
+    // с организации без отзыва сессий оставляло бы доступ до истечения JWT.
+    await tx.user.update({
+      where: { id: row.userId },
+      data: { sessionVersion: { increment: 1 } }
+    });
     await recordAudit(tx, {
       userId: actorUserId,
       action: 'manager_deactivated',

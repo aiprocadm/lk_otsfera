@@ -3,6 +3,7 @@
 import React, { useTransition } from 'react';
 import type { CompanyManagerRow } from '@/lib/services/manager/team';
 import { leaderDeactivateAssignmentAction } from '@/server-actions/manager/team';
+import { fmtLastLogin } from '@/lib/format';
 
 export function ManagerRosterPanel({ roster }: { roster: CompanyManagerRow[] }) {
   const [pending, startTransition] = useTransition();
@@ -26,6 +27,8 @@ export function ManagerRosterPanel({ roster }: { roster: CompanyManagerRow[] }) 
                 Организации:{' '}
                 {m.assignments.filter((a) => a.isActive).map((a) => a.organizationName).join(', ') || '—'}
               </p>
+              {/* ФТ-11.3: панель свёрстана списком, а не таблицей — колонка становится строкой. */}
+              <p className='text-xs text-gray-500'>Последний вход: {fmtLastLogin(m.lastLoginAt)}</p>
             </div>
             <div className='flex gap-2'>
               {m.assignments.filter((a) => a.isActive).map((a) => (
