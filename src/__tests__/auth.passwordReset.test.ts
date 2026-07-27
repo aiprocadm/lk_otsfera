@@ -222,9 +222,11 @@ describe('verifyAndConsumeToken', () => {
     expect(result).toEqual({ ok: true, userId: 'user-1' });
     // И поиск, и consume идут по хешу — плейнтекст в БД не попадает.
     expect(prtFindUnique).toHaveBeenCalledWith({ where: { token: sha256('tok') } });
+    // Этап 9 (ФТ-11.2): вместе со сменой пароля растёт sessionVersion — старые
+    // токены перестают проходить проверку в getSession.
     expect(userUpdate).toHaveBeenCalledWith({
       where: { id: 'user-1' },
-      data: { passwordHash: 'hash-new' }
+      data: { passwordHash: 'hash-new', sessionVersion: { increment: 1 } }
     });
     expect(prtUpdate).toHaveBeenCalledWith({
       where: { token: sha256('tok') },
@@ -268,5 +270,42 @@ describe('verifyAndConsumeToken', () => {
 
     expect(result).toEqual({ ok: false, reason: 'used' });
     expect(userUpdate).not.toHaveBeenCalled();
+  });
+
+  // ФТ-11.2: смена пароля обязана отзывать ранее выданные сессии — иначе
+  // перехваченный токен продолжает работать после сброса.
+  it('инкремент sessionVersion идёт в той же транзакции, что и погашение токена', async () => {
+    prtFindUnique.mockResolvedValue({
+      token: sha256('tok'),
+      userId: 'user-77',
+      expiresAt: FUTURE,
+      usedAt: null
+    });
+    prtUpdate.mockResolvedValue(undefined);
+    userUpdate.mockResolvedValue(undefined);
+
+    await verifyAndConsumeToken(mockPrisma, 'tok', 'hash-new');
+
+    // Ровно одна транзакция: пароль, версия сессии и usedAt — атомарно.
+    expect(txFn).toHaveBeenCalledOnce();
+    expect(userUpdate).toHaveBeenCalledOnce();
+    const arg = userUpdate.mock.calls[0][0];
+    expect(arg.where).toEqual({ id: 'user-77' });
+    expect(arg.data.sessionVersion).toEqual({ increment: 1 });
+    expect(prtUpdate).toHaveBeenCalledOnce();
+  });
+
+  it('ни одна невалидная ветка не трогает sessionVersion', async () => {
+    for (const record of [
+      null,
+      { token: sha256('tok'), userId: 'user-1', expiresAt: FUTURE, usedAt: new Date() },
+      { token: sha256('tok'), userId: 'user-1', expiresAt: PAST, usedAt: null }
+    ]) {
+      prtFindUnique.mockResolvedValue(record);
+      await verifyAndConsumeToken(mockPrisma, 'tok', 'hash');
+    }
+
+    expect(userUpdate).not.toHaveBeenCalled();
+    expect(prtUpdate).not.toHaveBeenCalled();
   });
 });

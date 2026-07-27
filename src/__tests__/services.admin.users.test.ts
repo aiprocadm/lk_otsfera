@@ -761,10 +761,69 @@ describe('deactivateUser', () => {
     } as unknown as Parameters<typeof deactivateUser>[0];
 
     await deactivateUser(prisma, 'actor', 'u1');
-    expect(txMock.user.update).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { isActive: false } });
+    // ФТ-11.2: вместе с флагом гасим и живые сессии — иначе деактивированный
+    // работает до истечения 7-дневного токена.
+    expect(txMock.user.update).toHaveBeenCalledWith({
+      where: { id: 'u1' },
+      data: { isActive: false, sessionVersion: { increment: 1 } }
+    });
     expect(txMock.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: 'user_deactivated' }) })
     );
+  });
+
+  it('ФТ-11.2: деактивация admin (при наличии второго админа) тоже инкрементит sessionVersion', async () => {
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({ role: 'admin', isActive: true }),
+        update: vi.fn().mockResolvedValue({}),
+        count: vi.fn().mockResolvedValue(1) // есть ещё один активный админ
+      },
+      auditLog: { create: vi.fn() }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof deactivateUser>[0];
+
+    expect(await deactivateUser(prisma, 'actor', 'u1')).toEqual({ ok: true });
+    expect(txMock.user.update).toHaveBeenCalledWith({
+      where: { id: 'u1' },
+      data: { isActive: false, sessionVersion: { increment: 1 } }
+    });
+  });
+
+  it('ФТ-11.2: повторная деактивация уже неактивного не инкрементит sessionVersion', async () => {
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({ role: 'partner', isActive: false }),
+        update: vi.fn(),
+        count: vi.fn()
+      },
+      auditLog: { create: vi.fn() }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof deactivateUser>[0];
+
+    expect(await deactivateUser(prisma, 'actor', 'u1')).toEqual({ ok: true });
+    expect(txMock.user.update).not.toHaveBeenCalled();
+  });
+
+  it('ФТ-11.2: last_admin_protected не доходит до инкремента', async () => {
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({ role: 'admin', isActive: true }),
+        update: vi.fn(),
+        count: vi.fn().mockResolvedValue(0)
+      },
+      auditLog: { create: vi.fn() }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof deactivateUser>[0];
+
+    expect(await deactivateUser(prisma, 'actor', 'u1')).toEqual({ ok: false, error: 'last_admin_protected' });
+    expect(txMock.user.update).not.toHaveBeenCalled();
   });
 });
 
@@ -831,6 +890,24 @@ describe('reactivateUser', () => {
 
     await reactivateUser(prisma, 'actor', 'u1');
     expect(txMock.user.count).not.toHaveBeenCalled();
+  });
+
+  it('ФТ-11.2: реактивация НЕ трогает sessionVersion (нечего отзывать)', async () => {
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({ isActive: false }),
+        update: vi.fn().mockResolvedValue({})
+      },
+      auditLog: { create: vi.fn() }
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+    } as unknown as Parameters<typeof reactivateUser>[0];
+
+    await reactivateUser(prisma, 'actor', 'u1');
+    const data = txMock.user.update.mock.calls[0][0].data;
+    expect(data).toEqual({ isActive: true });
+    expect(data).not.toHaveProperty('sessionVersion');
   });
 });
 

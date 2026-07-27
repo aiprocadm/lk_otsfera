@@ -10,15 +10,17 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { findUnique, compare, signToken } = vi.hoisted(() => ({
+const { findUnique, updateUser, compare, signToken } = vi.hoisted(() => ({
   findUnique: vi.fn(),
+  updateUser: vi.fn(),
   compare: vi.fn(),
   signToken: vi.fn()
 }));
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
-    user: { findUnique },
+    // updateUser — отметка lastLoginAt (этап 9, ФТ-11.3)
+    user: { findUnique, update: updateUser },
     partnerUser: { findUnique: vi.fn().mockResolvedValue(null) }
   }
 }));
@@ -49,6 +51,7 @@ beforeEach(() => {
   compare.mockResolvedValue(true);
   signToken.mockResolvedValue('tok');
   findUnique.mockResolvedValue(adminUser);
+  updateUser.mockResolvedValue({});
 });
 
 describe('login rate limiting', () => {

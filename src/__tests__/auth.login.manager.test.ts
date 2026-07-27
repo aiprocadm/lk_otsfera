@@ -1,8 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { findUniqueUser, findManyManagedOrgs, findManyMemberships, findUniqueAccessProfile, compare, signToken } =
+const {
+  findUniqueUser,
+  updateUser,
+  findManyManagedOrgs,
+  findManyMemberships,
+  findUniqueAccessProfile,
+  compare,
+  signToken
+} =
   vi.hoisted(() => ({
     findUniqueUser: vi.fn(),
+    updateUser: vi.fn(),
     findManyManagedOrgs: vi.fn(),
     findManyMemberships: vi.fn(),
     findUniqueAccessProfile: vi.fn(),
@@ -12,7 +21,8 @@ const { findUniqueUser, findManyManagedOrgs, findManyMemberships, findUniqueAcce
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
-    user: { findUnique: findUniqueUser },
+    // updateUser — отметка lastLoginAt (этап 9, ФТ-11.3)
+    user: { findUnique: findUniqueUser, update: updateUser },
     partnerUser: { findUnique: vi.fn().mockResolvedValue(null) },
     organizationUser: { findMany: findManyMemberships },
     organizationManager: { findMany: findManyManagedOrgs },
@@ -30,6 +40,7 @@ describe('auth login route — manager managedOrgIds', () => {
     compare.mockResolvedValue(true);
     signToken.mockResolvedValue('signed-token');
     findUniqueAccessProfile.mockResolvedValue(null);
+    updateUser.mockResolvedValue({});
   });
 
   function managerUser(overrides?: Partial<Record<string, unknown>>) {

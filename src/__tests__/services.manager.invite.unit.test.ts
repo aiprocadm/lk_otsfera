@@ -293,9 +293,11 @@ describe('createAndAssignManager — C8 company floor', () => {
 
 describe('deactivateAssignment', () => {
   it('returns not_found when assignment does not exist', async () => {
+    const userUpdate = vi.fn();
     const p = {
       $transaction: vi.fn(async (cb: (tx: unknown) => unknown) => cb({
         organizationManager: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
+        user: { update: userUpdate },
         auditLog: { create: vi.fn() }
       })),
       organizationManager: { findUnique: vi.fn(), update: vi.fn() },
@@ -303,13 +305,17 @@ describe('deactivateAssignment', () => {
     } as never;
     const result = await deactivateAssignment(p, 'nonexistent', 'admin-1');
     expect(result).toEqual({ ok: false, reason: 'not_found' });
+    // ФТ-11.2: снимать нечего → сессии не отзываем.
+    expect(userUpdate).not.toHaveBeenCalled();
   });
 
   it('idempotent: returns ok when assignment is already inactive', async () => {
     const row = { id: 'a1', isActive: false, organizationId: 'org-1', userId: 'u-1' };
+    const userUpdate = vi.fn();
     const p = {
       $transaction: vi.fn(async (cb: (tx: unknown) => unknown) => cb({
         organizationManager: { findUnique: vi.fn().mockResolvedValue(row), update: vi.fn() },
+        user: { update: userUpdate },
         auditLog: { create: vi.fn() }
       })),
       organizationManager: { findUnique: vi.fn(), update: vi.fn() },
@@ -317,14 +323,18 @@ describe('deactivateAssignment', () => {
     } as never;
     const result = await deactivateAssignment(p, 'a1', 'admin-1');
     expect(result).toEqual({ ok: true, organizationId: 'org-1' });
+    // ФТ-11.2: идемпотентный повтор не должен разлогинивать менеджера заново.
+    expect(userUpdate).not.toHaveBeenCalled();
   });
 
   it('deactivates an active assignment and records audit', async () => {
     const row = { id: 'a1', isActive: true, organizationId: 'org-1', userId: 'u-1' };
     const orgMgrUpdate = vi.fn().mockResolvedValue({ id: 'a1', organizationId: 'org-1' });
+    const userUpdate = vi.fn().mockResolvedValue({});
     const p = {
       $transaction: vi.fn(async (cb: (tx: unknown) => unknown) => cb({
         organizationManager: { findUnique: vi.fn().mockResolvedValue(row), update: orgMgrUpdate },
+        user: { update: userUpdate },
         auditLog: { create: vi.fn() }
       })),
       organizationManager: { findUnique: vi.fn(), update: vi.fn() },
@@ -335,6 +345,46 @@ describe('deactivateAssignment', () => {
     expect(orgMgrUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ isActive: false }) })
     );
+    // ФТ-11.2: managedOrgIds денормализованы в токен → снятие с организации
+    // обязано отозвать сессии именно снятого менеджера (row.userId).
+    expect(userUpdate).toHaveBeenCalledOnce();
+    expect(userUpdate).toHaveBeenCalledWith({
+      where: { id: 'u-1' },
+      data: { sessionVersion: { increment: 1 } }
+    });
+  });
+
+  it('ФТ-11.2: инкремент идёт внутри той же транзакции, что и organizationManager.update', async () => {
+    const row = { id: 'a2', isActive: true, organizationId: 'org-2', userId: 'u-2' };
+    const calls: string[] = [];
+    const orgMgrUpdate = vi.fn().mockImplementation(async () => {
+      calls.push('organizationManager.update');
+      return { id: 'a2', organizationId: 'org-2' };
+    });
+    const userUpdate = vi.fn().mockImplementation(async () => {
+      calls.push('user.update');
+      return {};
+    });
+    const tx = {
+      organizationManager: { findUnique: vi.fn().mockResolvedValue(row), update: orgMgrUpdate },
+      user: { update: userUpdate },
+      auditLog: { create: vi.fn() }
+    };
+    const transaction = vi.fn(async (cb: (t: unknown) => unknown) => cb(tx));
+    const p = {
+      $transaction: transaction,
+      organizationManager: { findUnique: vi.fn(), update: vi.fn() },
+      user: { update: vi.fn() },
+      auditLog: { create: vi.fn() }
+    } as never;
+
+    await deactivateAssignment(p, 'a2', 'admin-1');
+
+    expect(transaction).toHaveBeenCalledOnce();
+    expect(calls).toEqual(['organizationManager.update', 'user.update']);
+    // Инкремент прошёл через tx-клиент, а не через голый prisma.
+    expect((p as unknown as { user: { update: ReturnType<typeof vi.fn> } }).user.update)
+      .not.toHaveBeenCalled();
   });
 });
 
@@ -371,9 +421,11 @@ describe('reactivateAssignment', () => {
   it('reactivates an inactive assignment', async () => {
     const row = { id: 'a1', isActive: false, organizationId: 'org-1', userId: 'u-1' };
     const orgMgrUpdate = vi.fn().mockResolvedValue({ id: 'a1', organizationId: 'org-1' });
+    const userUpdate = vi.fn();
     const p = {
       $transaction: vi.fn(async (cb: (tx: unknown) => unknown) => cb({
         organizationManager: { findUnique: vi.fn().mockResolvedValue(row), update: orgMgrUpdate },
+        user: { update: userUpdate },
         auditLog: { create: vi.fn() }
       })),
       organizationManager: { findUnique: vi.fn(), update: vi.fn() },
@@ -384,5 +436,7 @@ describe('reactivateAssignment', () => {
     expect(orgMgrUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ isActive: true, deactivatedAt: null }) })
     );
+    // ФТ-11.2: возврат назначения версию сессии НЕ трогает.
+    expect(userUpdate).not.toHaveBeenCalled();
   });
 });

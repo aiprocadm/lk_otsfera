@@ -7,6 +7,7 @@ import {
 import type { UserRow } from '@/lib/services/admin/users';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { InviteResendButtons } from '@/components/team/invite-resend-buttons';
+import { fmtLastLogin } from '@/lib/format';
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Админ',
@@ -29,6 +30,7 @@ export function UsersTable({ rows, currentUserId }: { rows: UserRow[]; currentUs
         <Th>Привязка</Th>
         <Th>Активен</Th>
         <Th>Создан</Th>
+        <Th>Последний вход</Th>
         <Th className='text-right'>Действия</Th>
       </THead>
       <tbody>
@@ -60,6 +62,7 @@ export function UsersTable({ rows, currentUserId }: { rows: UserRow[]; currentUs
               <Td className='text-gray-500 text-xs'>
                 {new Intl.DateTimeFormat('ru-RU').format(u.createdAt)}
               </Td>
+              <Td className='text-gray-500 text-xs'>{fmtLastLogin(u.lastLoginAt)}</Td>
               <Td className='text-right'>
                 <div className='flex items-center justify-end gap-2'>
                   <Link href={`/admin/users/${u.id}`} className='text-[#F97316] text-xs hover:underline'>

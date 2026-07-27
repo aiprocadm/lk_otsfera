@@ -31,6 +31,10 @@ vi.mock('@/components/settings/notification-channels-card', () => ({
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
+vi.mock('@/components/settings/security-card', () => ({
+  SecurityCard: () => React.createElement('div', { 'data-testid': 'security-card' }, 'SECURITY')
+}));
+
 vi.mock('@/components/settings/staff-backup-codes-section', () => ({
   StaffBackupCodesSection: () =>
     React.createElement('div', { 'data-testid': 'backup-codes-section' }, 'BACKUP')

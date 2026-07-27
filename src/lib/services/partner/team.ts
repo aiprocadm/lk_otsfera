@@ -17,6 +17,8 @@ export type TeamRow = {
   createdAt: Date;
   /** ФТ-10.2: true = пароль ещё не установлен — можно переотправить приглашение. */
   invitePending: boolean;
+  /** ФТ-11.3: последний успешный вход; null = ещё ни разу не входил. */
+  lastLoginAt: Date | null;
 };
 
 export async function listTeam(
@@ -26,7 +28,7 @@ export async function listTeam(
   const rows = await prisma.partnerUser.findMany({
     where: { partnerId },
     // Наружу уходит только признак наличия пароля, не сам hash.
-    include: { user: { select: { email: true, name: true, passwordHash: true } } },
+    include: { user: { select: { email: true, name: true, passwordHash: true, lastLoginAt: true } } },
     orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }]
   });
 
@@ -39,7 +41,8 @@ export async function listTeam(
     assignedOrgIds: r.assignedOrgIds,
     isActive: r.isActive,
     createdAt: r.createdAt,
-    invitePending: r.user.passwordHash === null
+    invitePending: r.user.passwordHash === null,
+    lastLoginAt: r.user.lastLoginAt ?? null
   }));
 }
 
@@ -155,6 +158,12 @@ export async function deactivateMember(
   const partnerUser = await prisma.partnerUser.update({
     where: { id: target.id },
     data: { isActive: false }
+  });
+  // Этап 9 (ФТ-11.2): партнёрские клеймы (partnerRole/assignedOrgIds) живут в
+  // токене — гасим и сессии, иначе снятый участник работает до истечения JWT.
+  await prisma.user.update({
+    where: { id: args.userId },
+    data: { sessionVersion: { increment: 1 } }
   });
   return { ok: true, partnerUser };
 }

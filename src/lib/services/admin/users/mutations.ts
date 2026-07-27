@@ -220,7 +220,12 @@ export async function deactivateUser(
         await assertNotLastActiveAdmin(tx, id);
       }
 
-      await tx.user.update({ where: { id }, data: { isActive: false } });
+      // Этап 9 (ФТ-11.2): инкремент версии обрывает живые 7-дневные токены
+      // деактивированного — без него он работал бы до истечения токена.
+      await tx.user.update({
+        where: { id },
+        data: { isActive: false, sessionVersion: { increment: 1 } }
+      });
 
       await recordAudit(tx, {
         userId: actorUserId,

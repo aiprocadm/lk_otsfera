@@ -7,6 +7,7 @@ import { getNotificationSettings } from '@/lib/services/notifications/preference
 import { TelegramLinkCard } from '@/components/settings/telegram-link-card';
 import { NotificationChannelsCard } from '@/components/settings/notification-channels-card';
 import { StaffBackupCodesSection } from '@/components/settings/staff-backup-codes-section';
+import { SecurityCard } from '@/components/settings/security-card';
 
 export default async function LeaderSettingsPage() {
   const session = await requireManagerLeader();
@@ -19,6 +20,7 @@ export default async function LeaderSettingsPage() {
       <TelegramLinkCard status={status} />
       <NotificationChannelsCard settings={settings.view} />
       {isFeatureEnabled('staff_2fa') ? <StaffBackupCodesSection /> : null}
+      <SecurityCard />
     </div>
   );
 }

@@ -7,7 +7,7 @@ import {
 import type { OrgMemberRow } from '@/lib/services/organization/team';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { InviteResendButtons } from '@/components/team/invite-resend-buttons';
-import { fmtDate } from '@/lib/format';
+import { fmtDate, fmtLastLogin } from '@/lib/format';
 
 type Props = {
   members: OrgMemberRow[];
@@ -37,6 +37,7 @@ export function TeamTable({ members, organizationId, currentUserId, viewerRole }
         <Th>Роль</Th>
         <Th>Статус</Th>
         <Th>Приглашён</Th>
+        <Th>Последний вход</Th>
         <Th className='text-right'>Действия</Th>
       </THead>
       <tbody>
@@ -80,6 +81,7 @@ export function TeamTable({ members, organizationId, currentUserId, viewerRole }
                 )}
               </Td>
               <Td className='text-gray-500'>{fmtDate(m.invitedAt)}</Td>
+              <Td className='text-gray-500'>{fmtLastLogin(m.lastLoginAt)}</Td>
               <Td className='text-right'>
                 {isSelf || !canManageTarget ? (
                   <span className='text-xs text-gray-400'>—</span>

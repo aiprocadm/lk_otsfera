@@ -16,6 +16,7 @@ function makeManager(overrides: Partial<CompanyManagerRow>): CompanyManagerRow {
     name: 'Иван Иванов',
     email: 'ivan@example.com',
     managerRole: null,
+    lastLoginAt: null,
     assignments: [{ id: 'as1', organizationId: 'o1', organizationName: 'ООО Ромашка', isActive: true }],
     ...overrides
   } as CompanyManagerRow;
@@ -54,6 +55,21 @@ describe('ManagerRosterPanel (SSR structure)', () => {
     const html = renderToString(React.createElement(ManagerRosterPanel, { roster }));
     expect(html).toContain('—');
     expect(html).not.toContain('Снять с');
+  });
+
+  // ФТ-11.3 (этап 9): панель свёрстана списком — «колонка» стала строкой карточки.
+  // Дата фикстуры намеренно в прошлом — иначе форматтер отдал бы «сегодня, HH:mm»
+  // в тот единственный день, когда прогон совпал бы с датой фикстуры.
+  it('строка «Последний вход» с отформатированной датой', () => {
+    const roster = [makeManager({ lastLoginAt: new Date('2025-11-05T10:00:00Z') })];
+    const html = renderToString(React.createElement(ManagerRosterPanel, { roster }));
+    expect(html).toContain('Последний вход: <!-- -->05.11.2025');
+  });
+
+  it('менеджер ни разу не входил (lastLoginAt=null): в строке прочерк', () => {
+    const roster = [makeManager({ lastLoginAt: null })];
+    const html = renderToString(React.createElement(ManagerRosterPanel, { roster }));
+    expect(html).toContain('Последний вход: <!-- -->—');
   });
 
   it('multiple active assignments: org names joined with comma', () => {

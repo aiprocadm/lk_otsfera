@@ -68,6 +68,8 @@ export type CompanyManagerRow = {
   email: string;
   isActive: boolean;
   managerRole: string | null;
+  /** ФТ-11.3: последний успешный вход; null = ещё ни разу не входил. */
+  lastLoginAt: Date | null;
   assignments: { id: string; organizationId: string; organizationName: string; isActive: boolean }[];
 };
 
@@ -87,6 +89,7 @@ export async function listCompanyManagers(
       email: true,
       isActive: true,
       managerRole: true,
+      lastLoginAt: true,
       managedOrganizations: {
         where: { organization: { companyId } },
         select: {
@@ -104,6 +107,7 @@ export async function listCompanyManagers(
     email: u.email,
     isActive: u.isActive,
     managerRole: u.managerRole,
+    lastLoginAt: u.lastLoginAt ?? null,
     assignments: u.managedOrganizations.map((a) => ({
       id: a.id,
       organizationId: a.organization.id,

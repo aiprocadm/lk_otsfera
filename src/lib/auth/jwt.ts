@@ -55,6 +55,10 @@ export type SessionPayload = {
   // Трек G1: кастомный профиль доступа, денормализованный в JWT при логине
   // (только для менеджеров). null/undefined = legacy teamMode-поведение.
   accessProfile?: SessionAccessProfile | null;
+  // Этап 9 (ФТ-11.2): версия сессии на момент выдачи токена. Опциональна
+  // намеренно — токены, выданные до деплоя, клейма не несут и трактуются как
+  // версия 0 (иначе релиз разлогинил бы всех). Сверка — в getSession().
+  sessionVersion?: number;
 };
 
 export type StudentBridgePayload = Pick<SessionPayload, 'sub' | 'role' | 'organizationId' | 'email' | 'name' | 'externalStudentId'>;
@@ -86,7 +90,8 @@ const sessionPayloadSchema = z.object({
   email: z.string().optional(),
   name: z.string().optional(),
   externalStudentId: z.string().nullish(),
-  accessProfile: sessionAccessProfileSchema.nullish()
+  accessProfile: sessionAccessProfileSchema.nullish(),
+  sessionVersion: z.number().int().optional()
 });
 
 const studentBridgePayloadSchema = z.object({

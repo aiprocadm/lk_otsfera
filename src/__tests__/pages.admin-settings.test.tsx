@@ -36,6 +36,10 @@ vi.mock('@/components/requisites/requisites-card', () => ({
     React.createElement('div', { 'data-testid': 'requisites-card' }, props.title)
 }));
 
+vi.mock('@/components/settings/security-card', () => ({
+  SecurityCard: () => React.createElement('div', { 'data-testid': 'security-card' }, 'SECURITY')
+}));
+
 vi.mock('@/components/settings/staff-backup-codes-section', () => ({
   StaffBackupCodesSection: () =>
     React.createElement('div', { 'data-testid': 'backup-codes-section' }, 'BACKUP')

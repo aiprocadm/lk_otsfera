@@ -3,6 +3,7 @@ import type { TeamRow } from '@/lib/services/partner/team';
 import { MemberRowActions } from './member-row-actions';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { InviteResendButtons } from '@/components/team/invite-resend-buttons';
+import { fmtLastLogin } from '@/lib/format';
 
 export function TeamTable({
   rows,
@@ -26,6 +27,7 @@ export function TeamTable({
         <Th>Email</Th>
         <Th>Роль</Th>
         <Th>Доступ к организациям</Th>
+        <Th>Последний вход</Th>
         <Th className='w-32'></Th>
       </THead>
       <tbody>
@@ -63,6 +65,7 @@ export function TeamTable({
             <Td className='text-gray-500'>
               <ScopeSummary assignedOrgIds={row.assignedOrgIds} orgs={orgs} />
             </Td>
+            <Td className='text-gray-500 text-xs'>{fmtLastLogin(row.lastLoginAt)}</Td>
             <Td className='text-right'>
               {row.isActive && row.userId !== currentUserId && (
                 <MemberRowActions

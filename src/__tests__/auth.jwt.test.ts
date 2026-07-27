@@ -155,6 +155,73 @@ describe('signToken + verifyToken', () => {
     expect(verified.externalStudentId).toBe('ext-99');
   });
 
+  // -------------------------------------------------------------------------
+  // Этап 9 (ФТ-11.2): клейм sessionVersion в sessionPayloadSchema.
+  // -------------------------------------------------------------------------
+
+  it('токен без клейма sessionVersion остаётся валидным (обратная совместимость)', async () => {
+    // Токены, выданные до релиза, живут ещё 7 дней и клейма не несут —
+    // схема обязана их принимать, иначе релиз разлогинит всех разом.
+    const token = await signToken({ sub: 'legacy-1', role: 'organization' });
+
+    const verified = await verifyToken(token);
+
+    expect(verified.sub).toBe('legacy-1');
+    expect(verified.sessionVersion).toBeUndefined();
+    expect('sessionVersion' in verified).toBe(false);
+  });
+
+  it('целочисленный sessionVersion доезжает до результата verifyToken (не срезается zod)', async () => {
+    // zod strip'ает неизвестные ключи — доказываем, что клейм объявлен в схеме
+    // и переживает round-trip, иначе getSession всегда сравнивал бы с 0.
+    const token = await signToken({ sub: 'u-ver', role: 'manager', sessionVersion: 4 });
+
+    const verified = await verifyToken(token);
+
+    expect(verified.sessionVersion).toBe(4);
+  });
+
+  it('sessionVersion === 0 сохраняется как 0, а не теряется', async () => {
+    const token = await signToken({ sub: 'u-zero', role: 'admin', sessionVersion: 0 });
+
+    const verified = await verifyToken(token);
+
+    expect(verified.sessionVersion).toBe(0);
+  });
+
+  it('verifyToken отвергает нецелый sessionVersion', async () => {
+    const { SignJWT } = await import('jose');
+    const secret = new TextEncoder().encode(STRONG_SECRET);
+    const token = await new SignJWT({ sub: 'u-frac', role: 'admin', sessionVersion: 1.5 })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('7d')
+      .sign(secret);
+
+    await expect(verifyToken(token)).rejects.toThrow();
+  });
+
+  it('verifyToken отвергает строковый sessionVersion', async () => {
+    const { SignJWT } = await import('jose');
+    const secret = new TextEncoder().encode(STRONG_SECRET);
+    const token = await new SignJWT({ sub: 'u-str', role: 'admin', sessionVersion: '3' })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('7d')
+      .sign(secret);
+
+    await expect(verifyToken(token)).rejects.toThrow();
+  });
+
+  it('verifyToken отвергает null в sessionVersion (клейм optional, а не nullish)', async () => {
+    const { SignJWT } = await import('jose');
+    const secret = new TextEncoder().encode(STRONG_SECRET);
+    const token = await new SignJWT({ sub: 'u-null', role: 'admin', sessionVersion: null })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('7d')
+      .sign(secret);
+
+    await expect(verifyToken(token)).rejects.toThrow();
+  });
+
   it('verifyToken throws on an invalid (random string) token', async () => {
     await expect(verifyToken('not-a-valid-jwt')).rejects.toThrow();
   });

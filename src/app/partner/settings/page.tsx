@@ -6,6 +6,7 @@ import { getNotificationSettings } from '@/lib/services/notifications/preference
 import { TelegramLinkCard } from '@/components/settings/telegram-link-card';
 import { NotificationChannelsCard } from '@/components/settings/notification-channels-card';
 import { RequisitesCard } from '@/components/requisites/requisites-card';
+import { SecurityCard } from '@/components/settings/security-card';
 import { getPartnerRequisites } from '@/lib/services/partner/requisites';
 import { setPartnerRequisitesAction } from '@/server-actions/requisites';
 
@@ -31,6 +32,7 @@ export default async function PartnerSettingsPage() {
           canEdit={session.partnerRole === 'admin'}
         />
       )}
+      <SecurityCard />
     </div>
   );
 }

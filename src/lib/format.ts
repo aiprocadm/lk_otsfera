@@ -32,6 +32,27 @@ export function fmtDateTime(value: Date | string): string {
   });
 }
 
+/** Календарная дата в московском времени как `YYYY-MM-DD` — для сравнения «тот же день». */
+function moscowDayKey(d: Date): string {
+  return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Moscow' });
+}
+
+/**
+ * Этап 9 (ФТ-11.3): отметка последнего входа в списках пользователей.
+ * `null`/мусор → «—», сегодняшний вход → «сегодня, 14:32», остальное → «12.07.2026».
+ * «Сегодня» считается по московскому дню — как и остальные форматтеры файла.
+ */
+export function fmtLastLogin(value: Date | string | null | undefined): string {
+  if (value == null) return '—';
+  const d = typeof value === 'string' ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return '—';
+  if (moscowDayKey(d) === moscowDayKey(new Date())) {
+    const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Moscow' });
+    return `сегодня, ${time}`;
+  }
+  return fmtDate(d);
+}
+
 /**
  * Русский плюрализатор: pluralizeRu(2, 'заказ','заказа','заказов') -> 'заказа'.
  * Заменяет дословно скопированную локальную `pluralize` в partner/deals и organization/orders.

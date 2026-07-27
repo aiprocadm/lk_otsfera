@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   findUniqueMock,
+  updateUserMock,
   compareMock,
   isRateLimitedMock,
   isFeatureEnabledMock,
@@ -13,6 +14,7 @@ const {
   recordAuditMock
 } = vi.hoisted(() => ({
   findUniqueMock: vi.fn(),
+  updateUserMock: vi.fn(),
   compareMock: vi.fn(),
   isRateLimitedMock: vi.fn(),
   isFeatureEnabledMock: vi.fn(),
@@ -26,7 +28,8 @@ const {
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
-    user: { findUnique: findUniqueMock },
+    // update — отметка lastLoginAt (этап 9, ФТ-11.3)
+    user: { findUnique: findUniqueMock, update: updateUserMock },
     twoFactorChallenge: { delete: vi.fn().mockResolvedValue(undefined) }
   }
 }));
@@ -67,6 +70,7 @@ function req(body: unknown): Request {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  updateUserMock.mockResolvedValue({});
   isRateLimitedMock.mockResolvedValue(false);
   compareMock.mockResolvedValue(true);
   isFeatureEnabledMock.mockReturnValue(true);

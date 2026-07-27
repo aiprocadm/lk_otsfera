@@ -34,6 +34,7 @@ function makeRow(overrides: Partial<TeamRow> = {}): TeamRow {
     isActive: true,
     invitePending: false,
     createdAt: new Date('2026-01-01'),
+    lastLoginAt: null,
     ...overrides
   };
 }
@@ -155,6 +156,31 @@ describe('TeamCardList', () => {
     );
     expect(html).toContain('Ожидает установки пароля');
     expect(html).not.toContain('Отправить повторно');
+  });
+
+  // ФТ-11.3 (этап 9): мобильное зеркало колонки «Последний вход».
+  // Дата фикстуры намеренно в прошлом — иначе форматтер отдал бы «сегодня, HH:mm»
+  // в тот единственный день, когда прогон совпал бы с датой фикстуры.
+  it('строка «Последний вход» с отформатированной датой', () => {
+    const html = renderToString(
+      React.createElement(TeamCardList, {
+        rows: [makeRow({ lastLoginAt: new Date('2025-11-05T10:00:00Z') })],
+        orgs,
+        currentUserId: 'me'
+      })
+    );
+    expect(html).toContain('Последний вход: <!-- -->05.11.2025');
+  });
+
+  it('сотрудник ни разу не входил (lastLoginAt=null): в строке прочерк', () => {
+    const html = renderToString(
+      React.createElement(TeamCardList, {
+        rows: [makeRow({ lastLoginAt: null })],
+        orgs,
+        currentUserId: 'me'
+      })
+    );
+    expect(html).toContain('Последний вход: <!-- -->—');
   });
 
   it('деактивированный с invitePending: ни бейджа, ни кнопок', () => {

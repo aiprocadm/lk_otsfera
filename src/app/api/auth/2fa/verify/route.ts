@@ -73,6 +73,9 @@ export async function POST(req: NextRequest) {
     userId: sub
   }).catch(() => {});
 
+  // Этап 9 (ФТ-11.3): второй путь входа — отметка та же, тоже best-effort (§3).
+  await prisma.user.update({ where: { id: sub }, data: { lastLoginAt: new Date() } }).catch(() => {});
+
   const token = await signToken(built.claims);
   const res = NextResponse.json({ ok: true });
   res.cookies.set('session', token, {

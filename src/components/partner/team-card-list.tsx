@@ -2,6 +2,7 @@ import React from 'react';
 import type { TeamRow } from '@/lib/services/partner/team';
 import { MemberRowActions } from './member-row-actions';
 import { InviteResendButtons } from '@/components/team/invite-resend-buttons';
+import { fmtLastLogin } from '@/lib/format';
 
 export function TeamCardList({
   rows,
@@ -43,6 +44,9 @@ export function TeamCardList({
           <div className='mt-2 text-xs text-gray-500'>
             <ScopeSummary assignedOrgIds={row.assignedOrgIds} orgs={orgs} />
           </div>
+
+          {/* ФТ-11.3: мобильное зеркало колонки «Последний вход» из таблицы. */}
+          <div className='mt-1 text-xs text-gray-500'>Последний вход: {fmtLastLogin(row.lastLoginAt)}</div>
 
           {row.isActive && row.invitePending && (
             <div className='mt-2'>

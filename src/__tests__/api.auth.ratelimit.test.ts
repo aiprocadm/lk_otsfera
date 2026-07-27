@@ -9,16 +9,18 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { isRateLimited, findUnique, verifyAndConsumeToken } = vi.hoisted(() => ({
+const { isRateLimited, findUnique, updateUser, verifyAndConsumeToken } = vi.hoisted(() => ({
   isRateLimited: vi.fn(),
   findUnique: vi.fn(),
+  updateUser: vi.fn(),
   verifyAndConsumeToken: vi.fn()
 }));
 
 vi.mock('@/lib/rateLimit', () => ({ isRateLimited }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
-    user: { findUnique },
+    // updateUser — отметка lastLoginAt (этап 9, ФТ-11.3)
+    user: { findUnique, update: updateUser },
     partnerUser: { findUnique: vi.fn().mockResolvedValue(null) }
   }
 }));
@@ -48,6 +50,7 @@ function req(url: string, body: unknown, headers: Record<string, string> = {}): 
 beforeEach(() => {
   vi.clearAllMocks();
   isRateLimited.mockResolvedValue(false);
+  updateUser.mockResolvedValue({});
 });
 
 describe('login — общий лимитер', () => {
