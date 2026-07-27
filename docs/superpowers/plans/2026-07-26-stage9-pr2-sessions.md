@@ -81,18 +81,18 @@
 
 ## G. Тесты (порог 100%)
 
-- [ ] Unit: схема токена (старый токен без клейма валиден; несовпадение →
+- [x] Unit: схема токена (старый токен без клейма валиден; несовпадение →
       отказ), `getSession` (isActive + version), `buildSessionClaims`,
       5 точек инкремента, `revokeAllSessionsAction` (гость → forbidden, аудит,
       cookie), карточка «Безопасность», `fmtLastLogin` (граница суток в МСК),
       4 списка (сервисы + рендер), login/2fa-verify (запись + fail-open).
-- [ ] Integration (живой Postgres): после revoke прежний токен не проходит
+- [x] Integration (живой Postgres): после revoke прежний токен не проходит
       `getSession`, новый — проходит; деактивация участника организации
       обрывает его сессию; `lastLoginAt` записывается.
-- [ ] Актуализация: фикстуры `lastLoginAt` в тестах org-команды, моки карточки
+- [x] Актуализация: фикстуры `lastLoginAt` в тестах org-команды, моки карточки
       «Безопасность» на 5 страничных тестах settings.
 
 ## H. Финал
 
-- [ ] typecheck / lint / unit / integration зелёные; CHANGELOG; STATUS.md; PR
+- [x] typecheck / lint / unit / integration зелёные; CHANGELOG; STATUS.md; PR
       (`base: main`).
