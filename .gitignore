@@ -28,3 +28,6 @@ test-results/
 dev-server.log
 dev-server.err.log
 npm-ci.log
+dev.log
+worker.dev.log
+worker.dev.err.log
