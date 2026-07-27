@@ -14,7 +14,7 @@
 | Код разработки | `/home/aiproc/projects/lk_otsfera` | Отдан сессиям разработки целиком, стенда не касается |
 | Веб | служба `lk-otsfera-web` → `127.0.0.1:3000` | `next start`, `User=aiproc`, `Restart=always` |
 | Воркер | служба `lk-otsfera-worker` | `tsx src/worker/index.ts`, та же копия |
-| Витрина | nginx → `lk.ptsfera.online` | basic-auth, логин `demo`, файл `/etc/nginx/.htpasswd-lk` |
+| Витрина | nginx → `lk.ptsfera.online` | basic-auth, логин `demo`, файл `/etc/nginx/.htpasswd-stand` |
 | Хранилище | nginx → `s3.ptsfera.online` → MinIO `:9000` | basic-auth здесь НЕТ намеренно (§6) |
 | Обновление | cron `*/10 * * * *` → `scripts/stand/update-stand.sh` | Полный цикл ≈ 1 мин 50 с |
 
@@ -81,7 +81,7 @@ sudo systemctl enable --now lk-otsfera-web lk-otsfera-worker
 # 5. Витрина
 sudo cp scripts/stand/nginx/lk.ptsfera.online.conf /etc/nginx/sites-available/
 sudo ln -sf /etc/nginx/sites-available/lk.ptsfera.online.conf /etc/nginx/sites-enabled/
-sudo htpasswd -c /etc/nginx/.htpasswd-lk demo        # пароль — из менеджера секретов
+sudo htpasswd -c /etc/nginx/.htpasswd-stand demo        # пароль — из менеджера секретов
 sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d lk.ptsfera.online -d s3.ptsfera.online
 
@@ -108,7 +108,7 @@ curl -s -o /dev/null -w '%{http_code}\n' \
 
 **`systemctl is-active` ВРЁТ.** В цикле перезапусков он отвечает `active`, хотя служба на самом деле `activating (auto-restart)` и не работает ни секунды. Смотреть только полный `systemctl status`.
 
-**Быстрый разделитель «сервер или сеть»:** если часть поддоменов работает, а часть нет — виноват процесс, а не сеть. `lk` = `:3000`, `doc` = `:8000`, `law` = `:8001`.
+**Быстрый разделитель «сервер или сеть»:** на сервере опубликовано несколько стендов, каждый своим процессом на своём порту. Если часть поддоменов открывается, а часть нет — виноват процесс, а не сеть: сетевая поломка положила бы все сразу.
 
 ### Ловушки, на которые уже наступали
 
