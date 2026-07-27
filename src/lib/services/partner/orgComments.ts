@@ -24,7 +24,12 @@ export async function listOrgOrderComments(
 ): Promise<OrgCommentRow[]> {
   const rows = await prisma.comment.findMany({
     where: { order: { organizationId: args.orgId } },
-    include: {
+    // Этап 10 (§7 ТЗ): явный select вместо include — из Comment берём ровно
+    // поля OrgCommentRow, а не всю запись.
+    select: {
+      id: true,
+      body: true,
+      createdAt: true,
       author: { select: { name: true } },
       order: { select: { id: true, title: true } }
     },

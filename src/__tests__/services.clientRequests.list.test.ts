@@ -176,7 +176,6 @@ describe('getClientRequest', () => {
       organizationName: 'Орг А',
       organizationId: 'o1',
       rejectedReason: null,
-      convertedLeadId: 'L1',
       createdAt: new Date('2026-01-10T00:00:00Z'),
       triagedAt: new Date('2026-01-11T00:00:00Z'),
       attachmentCount: 3
@@ -191,7 +190,6 @@ describe('getClientRequest', () => {
     expect(r.request).toMatchObject({
       partnerName: null,
       organizationName: null,
-      convertedLeadId: null,
       attachmentCount: 0
     });
     expect(recordPiiAccess).toHaveBeenCalledWith(prisma, {

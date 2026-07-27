@@ -5,9 +5,17 @@ import type { SessionAccessProfile } from '@/lib/auth/accessProfile';
 const orgFinance = vi.hoisted(() => ({
   getOrgFinanceKpisForOrgs: vi.fn(),
   listOrgPaymentsForOrgs: vi.fn(),
+  // Этап 10 (PR-2): расчёт комиссии переехал в staff-неймспейс — мок ссылается
+  // на новый модуль, но объект общий, чтобы не переписывать ожидания ниже.
   getOrgIntermediaryCommissionForOrgs: vi.fn()
 }));
-vi.mock('@/lib/services/organization/finance', () => orgFinance);
+vi.mock('@/lib/services/organization/finance', () => ({
+  getOrgFinanceKpisForOrgs: orgFinance.getOrgFinanceKpisForOrgs,
+  listOrgPaymentsForOrgs: orgFinance.listOrgPaymentsForOrgs
+}));
+vi.mock('@/lib/services/manager/orgCommission', () => ({
+  getOrgIntermediaryCommissionForOrgs: orgFinance.getOrgIntermediaryCommissionForOrgs
+}));
 
 import { getManagerFinanceOverview } from '@/lib/services/manager/finance';
 

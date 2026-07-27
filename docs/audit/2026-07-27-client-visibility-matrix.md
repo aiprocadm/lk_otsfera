@@ -1,6 +1,6 @@
 # Матрица видимости клиентских кабинетов (ТЗ §3.2 + §7)
 
-Дата аудита: 2026-07-27 · Этап 10 ТЗ, PR-1 · Спека:
+Дата аудита: 2026-07-27 · Этап 10 ТЗ (PR-1 + PR-2) · Спека:
 [2026-07-27-stage10-visibility-audit-design.md](../superpowers/specs/2026-07-27-stage10-visibility-audit-design.md)
 
 **Живой артефакт.** Новая клиентская поверхность (API-роут, server-action,
@@ -42,8 +42,9 @@
 | `organization/finance.ts` (`listOrgPayments`, KPI) | платежи и суммы своей организации | `ok` |
 | `organization/students.ts` | сотрудники своей организации | `ok` |
 | `training/certificates.ts` (клиентский путь) | удостоверения по скоупу роли | `ok` — скоуп пересекается в `where` |
-| `partner/team.ts`, `organization/team.ts` | состав команды | `over-fetch`: тянется `passwordHash` (нужен только для флага «активирован»); наружу не уходит. **PR-2**: вычислять флаг без выборки хеша |
-| `partner/orgComments.ts` | комментарии по заказам организации | `over-fetch`: корневой `include` тянет всю запись `Comment`; наружу — 4 поля |
+| `partner/team.ts`, `organization/team.ts` | состав команды | **исправлено (PR-2)**: явный `select`; `passwordHash` выбирается только ради признака `invitePending` и не покидает сервис (закреплено guardrail-ом) |
+| `partner/orgComments.ts` | комментарии по заказам организации | **исправлено (PR-2)**: `include` → `select` ровно под `OrgCommentRow` |
+| `clientRequests/list.ts` | обращения клиента и staff | **исправлено (PR-2)**: удалено поле `convertedLeadId` — §7 запрещает клиенту видеть связь заявки с лидом; в UI оно не использовалось (**leak**) |
 | `partner/finance.ts` (`statement`) | акт по комиссии + позиции | `over-fetch` низкого риска: `include: { items }`, все поля позиций клиентские |
 | `partner/dashboard.ts` | KPI/внимание/события | `ok` после §1: лид-части удалены; связь `promotedFromLead` осталась **как фильтр** «свои заказы», наружу не отдаётся |
 | `organization/dashboard.ts` | KPI организации | `ok` |
@@ -54,23 +55,34 @@
 — callers MUST gate this to admin/leader») физически лежит в
 `services/**organization**/finance.ts` — рядом с функциями, которые импортирует
 клиентская страница финансов. Вызывающий сегодня один и корректный
-(`manager/finance.ts`), но расположение провоцирует ошибку.
-**PR-2**: перенести в `services/manager/`.
+(`manager/finance.ts`), но расположение провоцировало ошибку.
+**Исправлено (PR-2):** сервис вынесен в `services/manager/orgCommission.ts`,
+компонент — в `components/manager/org-finance-commission.tsx`. В клиентском
+неймспейсе расчёта комиссии больше нет.
 
 ## 4. Строки §7 ТЗ — статус покрытия
 
 | Строка матрицы §7 | Как обеспечено | Негативный тест |
 |---|---|---|
-| Лид: менеджер, заметки, стадия, источник | домена нет в клиентском контуре (§1) | guardrail (PR-1) + интеграционный (PR-2) |
-| Сделка целиком | `Deal` не имеет клиентских поверхностей | PR-2 |
-| Связь заявки с лидом/сделкой | `ClientRequest`-DTO клиента не содержит `leadId`/`dealId` | PR-2 |
-| Существование ИНН (антидубль) | `/api/duplicates/by-inn` — staff-only (этап 5) | подтвердить в PR-2 |
-| Удостоверения | скоуп в `where` (`listCertificates`) | есть (этап 3) + дополнить в PR-2 |
-| DealNote / внутренние заметки | клиентских поверхностей нет | PR-2 |
-| Данные других партнёров/организаций | 3 слоя RBAC | есть: `c3.idor-cross-access`, `f.list-cross-tenant`, `security.idor-{comments,calls,inbox}`; дополнить сущностями этапов 6–9 в PR-2 |
+| Лид: менеджер, заметки, стадия, источник | домена нет в клиентском контуре (§1) | ✅ `security.client-visibility.guardrail` (11 статических проверок) |
+| Сделка целиком | клиентская роль → пустая доска (даже словарь стадий не раскрывается) | ✅ `security.client-visibility.integration` |
+| Связь заявки с лидом/сделкой | поле `convertedLeadId` удалено из DTO (PR-2) | ✅ там же (+ проверка, что и staff-выдача его не содержит) |
+| Существование ИНН (антидубль) | `/api/duplicates/by-inn` — staff-only (этап 5) | ✅ регресс этапа 5 |
+| Удостоверения | скоуп в `where` (`listCertificates`) | ✅ этап 3 |
+| DealNote / внутренние заметки | чтение и запись клиентом → `forbidden` | ✅ `security.client-visibility.integration` |
+| Входящие в работу (Intake) | клиентская роль → `forbidden` | ✅ там же |
+| Данные других партнёров/организаций | 3 слоя RBAC | ✅ `c3.idor-cross-access`, `f.list-cross-tenant`, `security.idor-{comments,calls,inbox}` + cross-tenant обращений в новом тесте |
 
-## 5. Что осталось на PR-2
+## 5. Статус (после PR-2)
 
-1. Негативные интеграционные тесты по каждой строке §7 (таблица выше).
-2. `over-fetch` из §2: `team.ts` (`passwordHash`), `orgComments.ts`, `finance.ts`.
-3. Перенос `getOrgIntermediaryCommissionForOrgs` из клиентского неймспейса.
+Все пункты, поставленные PR-1, закрыты:
+
+1. ✅ Негативные интеграционные тесты по строкам §7 —
+   `security.client-visibility.integration.test.ts` (10 проверок, включая
+   позитивные контроли: staff свою сделку/заметки видит, клиент видит статус
+   своей заявки — тест не «зелёный по пустоте»).
+2. ✅ `over-fetch` из §2 переведены на явные `select`.
+3. ✅ Чувствительная комиссия вынесена из клиентского неймспейса.
+
+Оба security-теста этапа внесены в `security.suite.manifest.test.ts` — удалить
+или переименовать их молча больше нельзя.

@@ -32,6 +32,9 @@ const INTEGRATION_INVARIANTS = [
   'f.list-cross-tenant.test.ts', // manager company-scope on list services
   'f4.org-rate-history.test.ts', // per-org commission rate history
   'security.idor-comments.integration.test.ts', // partner comments cross-tenant (E2-C)
+  // Этап 10 PR-2: негативные тесты матрицы §7 ТЗ (сделки, DealNote, Intake,
+  // связь заявки с лидом, cross-tenant обращений).
+  'security.client-visibility.integration.test.ts',
   'security.partner-commission-idor.integration.test.ts', // partner↔partner commission IDOR (E2-B)
   // Новые домены (R0.7 release hardening): инварианты изоляции под защитой манифеста.
   'security.idor-calls.integration.test.ts', // telephony: listCalls C8 + recording IDOR

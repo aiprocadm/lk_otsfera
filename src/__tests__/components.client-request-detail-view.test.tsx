@@ -26,7 +26,6 @@ function row(overrides: Partial<ClientRequestRow> = {}): ClientRequestRow {
     organizationName: null,
     organizationId: null,
     rejectedReason: null,
-    convertedLeadId: null,
     createdAt: new Date('2024-01-15T10:00:00Z'),
     triagedAt: null,
     attachmentCount: 0,

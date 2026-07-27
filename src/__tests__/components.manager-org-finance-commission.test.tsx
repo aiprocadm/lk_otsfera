@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import React from 'react';
-import { OrgFinanceCommission } from '@/components/organization/org-finance-commission';
-import type { OrgIntermediaryCommission } from '@/lib/services/organization/finance';
+import { OrgFinanceCommission } from '@/components/manager/org-finance-commission';
+import type { OrgIntermediaryCommission } from '@/lib/services/manager/orgCommission';
 
 describe('OrgFinanceCommission', () => {
   it('renders total, effective rate percentage, and omits the per-order details when empty', () => {

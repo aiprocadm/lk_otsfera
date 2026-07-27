@@ -3,6 +3,12 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordPiiAccess } from '@/lib/pii/record';
 import { canTriageClientRequests } from './policy';
 
+/**
+ * DTO обращения — общий для клиента и staff, поэтому НЕ содержит связей с
+ * внутренним контуром. Этап 10 (§7 ТЗ): поле `convertedLeadId` удалено —
+ * «связь заявки с лидом/сделкой» клиенту видеть нельзя (он видит только статус
+ * и, для принятых, созданный заказ). В UI поле не использовалось.
+ */
 export type ClientRequestRow = {
   id: string;
   source: 'partner_cabinet' | 'organization_cabinet' | 'website';
@@ -19,7 +25,6 @@ export type ClientRequestRow = {
   organizationName: string | null;
   organizationId: string | null;
   rejectedReason: string | null;
-  convertedLeadId: string | null;
   createdAt: Date;
   triagedAt: Date | null;
   attachmentCount: number;
@@ -29,7 +34,6 @@ const ROW_INCLUDE = {
   submittedByUser: { select: { name: true } },
   partner: { select: { name: true } },
   organization: { select: { name: true } },
-  convertedLead: { select: { id: true } },
   _count: { select: { attachments: true } }
 } satisfies Prisma.ClientRequestInclude;
 
@@ -52,7 +56,6 @@ function toRow(r: RowSource): ClientRequestRow {
     organizationName: r.organization?.name ?? null,
     organizationId: r.organizationId,
     rejectedReason: r.rejectedReason,
-    convertedLeadId: r.convertedLead?.id ?? null,
     createdAt: r.createdAt,
     triagedAt: r.triagedAt,
     attachmentCount: r._count.attachments

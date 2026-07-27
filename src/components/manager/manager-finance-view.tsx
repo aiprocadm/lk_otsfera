@@ -1,6 +1,6 @@
 import React from 'react';
 import { OrgFinanceKpisGrid } from '@/components/organization/org-finance-kpis';
-import { OrgFinanceCommission } from '@/components/organization/org-finance-commission';
+import { OrgFinanceCommission } from '@/components/manager/org-finance-commission';
 import { ManagerFinancePayments } from './manager-finance-payments';
 import type { ManagerFinanceOverview } from '@/lib/services/manager/finance';
 import { fmtMoney } from '@/lib/format';
