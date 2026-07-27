@@ -10,6 +10,7 @@
     "dev:stack": "pwsh -File scripts/dev-stack.ps1",
     "build": "next build",
     "start": "next start",
+    "deploy:stand": "bash scripts/deploy-stand.sh",
     "lint": "next lint",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
