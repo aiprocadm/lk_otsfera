@@ -1,3 +1,7 @@
+import {
+  getOrgIntermediaryCommissionForOrgs,
+  type OrgIntermediaryCommission
+} from './orgCommission';
 import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
@@ -6,10 +10,8 @@ import { can } from '@/lib/auth/accessProfile';
 import {
   getOrgFinanceKpisForOrgs,
   listOrgPaymentsForOrgs,
-  getOrgIntermediaryCommissionForOrgs,
   type OrgFinanceKpis,
-  type OrgPaymentRow,
-  type OrgIntermediaryCommission
+  type OrgPaymentRow
 } from '@/lib/services/organization/finance';
 
 export type ManagerOrgFinanceSection = {

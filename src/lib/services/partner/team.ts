@@ -27,8 +27,19 @@ export async function listTeam(
 ): Promise<TeamRow[]> {
   const rows = await prisma.partnerUser.findMany({
     where: { partnerId },
-    // Наружу уходит только признак наличия пароля, не сам hash.
-    include: { user: { select: { email: true, name: true, passwordHash: true, lastLoginAt: true } } },
+    // Этап 10 (§7 ТЗ): явный select вместо include — из PartnerUser берём ровно
+    // поля TeamRow. `passwordHash` выбирается осознанно и ТОЛЬКО ради признака
+    // `invitePending` (пароль ещё не задан); сам hash не покидает эту функцию —
+    // закреплено guardrail-тестом на отсутствие поля в клиентских DTO.
+    select: {
+      id: true,
+      userId: true,
+      roleInPartner: true,
+      assignedOrgIds: true,
+      isActive: true,
+      createdAt: true,
+      user: { select: { email: true, name: true, passwordHash: true, lastLoginAt: true } }
+    },
     orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }]
   });
 

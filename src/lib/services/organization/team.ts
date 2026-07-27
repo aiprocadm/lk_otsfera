@@ -76,8 +76,16 @@ export async function listMembers(
 ): Promise<OrgMemberRow[]> {
   const rows = await prisma.organizationUser.findMany({
     where: { organizationId },
-    // Наружу уходит только признак наличия пароля, не сам hash.
-    include: { user: { select: { id: true, email: true, name: true, passwordHash: true, lastLoginAt: true } } },
+    // Этап 10 (§7 ТЗ): явный select. `passwordHash` — только ради признака
+    // `invitePending`, наружу не уходит (guardrail на клиентские DTO).
+    select: {
+      id: true,
+      userId: true,
+      roleInOrg: true,
+      isActive: true,
+      createdAt: true,
+      user: { select: { id: true, email: true, name: true, passwordHash: true, lastLoginAt: true } }
+    },
     orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }]
   });
 

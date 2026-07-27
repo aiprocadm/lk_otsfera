@@ -5,7 +5,7 @@
  * менеджерско-админская витрина (manager-finance-view).
  */
 import React from 'react';
-import type { OrgIntermediaryCommission } from '@/lib/services/organization/finance';
+import type { OrgIntermediaryCommission } from '@/lib/services/manager/orgCommission';
 import { THead, Th, Tr, Td } from '@/components/ui';
 import { fmtMoney } from '@/lib/format';
 

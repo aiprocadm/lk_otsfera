@@ -310,7 +310,8 @@ describe('organization/dashboard — recentEvents (unit)', () => {
 // ===========================================================================
 // src/lib/services/organization/finance.ts
 // ===========================================================================
-import { getOrgFinanceKpis, listOrgPayments, getOrgIntermediaryCommission } from '@/lib/services/organization/finance';
+import { getOrgFinanceKpis, listOrgPayments } from '@/lib/services/organization/finance';
+import { getOrgIntermediaryCommission } from '@/lib/services/manager/orgCommission';
 
 describe('organization/finance (unit)', () => {
   beforeEach(() => vi.clearAllMocks());

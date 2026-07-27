@@ -286,9 +286,11 @@ describe('этап 5: заявки клиентов — полный путь н
     const mgrIds = mgrList.rows.map((r) => r.id);
     expect(mgrIds).toContain(orgRequestId);
     expect(mgrIds).toContain(partnerRequestId);
-    // Строка листинга обогащена связями (лид из конвертации).
+    // Этап 10 (§7 ТЗ): связь заявки с лидом наружу не отдаётся НИКОМУ —
+    // DTO общий для клиента и staff, поле `convertedLeadId` удалено.
     const converted = mgrList.rows.find((r) => r.id === partnerRequestId);
-    expect(converted?.convertedLeadId).toBe(convertedLeadId);
+    expect(converted).toBeDefined();
+    expect(converted as Record<string, unknown>).not.toHaveProperty('convertedLeadId');
     expect(converted?.partnerName).toBe(`${T}-Партнёр-${RUN}`);
 
     // Журнал ПДн: staff-выдачи записаны (лист + деталка), клиентские — нет.

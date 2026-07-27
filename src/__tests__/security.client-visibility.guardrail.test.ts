@@ -106,6 +106,22 @@ describe('клиентские сервисы не отдают запрещён
     ).toEqual([]);
   });
 
+  it('passwordHash не объявлен в клиентских DTO и не возвращается наружу', () => {
+    // Выбирать hash ради признака `invitePending` можно (он не покидает
+    // сервис). Нельзя — объявлять его в типе выдачи или класть в возвращаемый
+    // объект: тогда он уедет клиенту.
+    const offenders = SERVICE_FILES.filter((f) => {
+      const src = readFileSync(path.join(ROOT, f), 'utf8');
+      const declaredInDto = /passwordHash\??:\s*(string|boolean)/.test(src);
+      const returnedRaw = /\n\s*passwordHash,/.test(src);
+      return declaredInDto || returnedRaw;
+    });
+    expect(
+      offenders,
+      `passwordHash не должен быть частью клиентского DTO:\n  ${offenders.join('\n  ')}`
+    ).toEqual([]);
+  });
+
   it('клиентские сервисы не читают внутренние заметки сделок (DealNote)', () => {
     const offenders = SERVICE_FILES.filter((f) =>
       /prisma\.dealNote\.|tx\.dealNote\./.test(readFileSync(path.join(ROOT, f), 'utf8'))

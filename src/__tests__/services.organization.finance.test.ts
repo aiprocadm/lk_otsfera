@@ -1,13 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient, Prisma } from '@prisma/client';
-import {
-  getOrgFinanceKpis,
-  getOrgFinanceKpisForOrgs,
-  listOrgPayments,
-  listOrgPaymentsForOrgs,
-  getOrgIntermediaryCommission,
-  getOrgIntermediaryCommissionForOrgs
-} from '@/lib/services/organization/finance';
+import { getOrgFinanceKpis, getOrgFinanceKpisForOrgs, listOrgPayments, listOrgPaymentsForOrgs } from '@/lib/services/organization/finance';
+import { getOrgIntermediaryCommission, getOrgIntermediaryCommissionForOrgs } from '@/lib/services/manager/orgCommission';
 
 let prisma: PrismaClient;
 let partnerId: string;
