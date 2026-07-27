@@ -4,24 +4,12 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { NavItem } from '@/lib/navigation/cabinet';
+import { groupNavItems } from '@/lib/navigation/groupItems';
 
 export function AdminSidebar({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
 
-  // Секции с одинаковым названием склеиваются независимо от позиции пунктов
-  // в массиве — иначе разрозненная группа даёт дубль заголовка и дубль React-key.
-  const groups: Array<{ title: string; items: NavItem[] }> = [];
-  const byTitle = new Map<string, { title: string; items: NavItem[] }>();
-  for (const item of items) {
-    const title = item.group ?? '';
-    let group = byTitle.get(title);
-    if (!group) {
-      group = { title, items: [] };
-      byTitle.set(title, group);
-      groups.push(group);
-    }
-    group.items.push(item);
-  }
+  const groups = groupNavItems(items);
 
   return (
     <nav className="w-60 min-h-screen bg-white border-r border-gray-200 p-4 flex-shrink-0">
