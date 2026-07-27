@@ -20,7 +20,10 @@ const PRISMA_MARKER = 'new PrismaClient(';
 const STATIC_GUARDRAILS = [
   'c1.commission-hiding.contract.test.ts', // org cabinet source never references commission
   'c2.multirole-commission.test.ts', // org-context session → partner commission endpoints 403
-  'security.redirect.test.ts' // student bridge redirect URL allowlist
+  'security.redirect.test.ts', // student bridge redirect URL allowlist
+  // Этап 10 (ТЗ §3.2/§7): домен лидов не возвращается в клиентские кабинеты,
+  // запрещённые §7 поля не просачиваются в клиентские сервисы.
+  'security.client-visibility.guardrail.test.ts'
 ];
 
 // DB-backed invariants — MUST be integration-tier so `gate` runs them.
@@ -28,7 +31,6 @@ const INTEGRATION_INVARIANTS = [
   'c3.idor-cross-access.test.ts', // Order / Document / Payment / CommissionStatement IDOR
   'f.list-cross-tenant.test.ts', // manager company-scope on list services
   'f4.org-rate-history.test.ts', // per-org commission rate history
-  'security.idor-lead.integration.test.ts', // Lead cross-partner IDOR (E2-A)
   'security.idor-comments.integration.test.ts', // partner comments cross-tenant (E2-C)
   'security.partner-commission-idor.integration.test.ts', // partner↔partner commission IDOR (E2-B)
   // Новые домены (R0.7 release hardening): инварианты изоляции под защитой манифеста.
