@@ -31,6 +31,15 @@ vi.mock('@/components/manager/order-readiness-panel', () => ({
 }));
 
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
+// Этап 12 PR-2 (ФТ-5.3): панель массовой загрузки сканов удостоверений.
+const { listCertificateScanTargets } = vi.hoisted(() => ({
+  listCertificateScanTargets: vi.fn()
+}));
+vi.mock('@/lib/services/manager/certificateScans', () => ({ listCertificateScanTargets }));
+vi.mock('@/components/manager/certificate-scans-panel', () => ({
+  CertificateScansPanel: () => React.createElement('div', { 'data-testid': 'scans-panel' })
+}));
+
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
 const nav = vi.hoisted(() => ({
@@ -51,6 +60,7 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
     activityItems?: unknown[];
     inboundEnabled?: boolean;
     telephonyEnabled?: boolean;
+    certificateScansPanel?: React.ReactNode;
   }) =>
     React.createElement(
       'div',
@@ -61,7 +71,8 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
       JSON.stringify(props.customFields),
       JSON.stringify(props.activityItems),
       String(props.inboundEnabled),
-      String(props.telephonyEnabled)
+      String(props.telephonyEnabled),
+      props.certificateScansPanel
     )
 }));
 
@@ -96,6 +107,8 @@ describe('ManagerOrderDetailPage', () => {
     listDirections.mockReset();
     getValuesForEntity.mockReset();
     isFeatureEnabled.mockReset();
+    listCertificateScanTargets.mockReset();
+    listCertificateScanTargets.mockResolvedValue({ ok: true, targets: [] });
     nav.notFound.mockClear();
   });
 
@@ -180,5 +193,58 @@ describe('ManagerOrderDetailPage', () => {
       expect.objectContaining({ where: { organizationId: undefined } })
     );
     expect(container.textContent).toContain('[]falsefalse');
+  });
+
+  // Этап 12 PR-2 (ФТ-5.3): панель сканов — только у обучения и только пока
+  // результат не передан.
+  describe('панель сканов удостоверений', () => {
+    function trainingOrder(extra: Record<string, unknown> = {}) {
+      return {
+        ...BASE_DATA,
+        order: { ...BASE_DATA.order, serviceType: 'training', resultDeliveredAt: null, ...extra }
+      };
+    }
+
+    async function renderWith(data: unknown) {
+      requireManager.mockResolvedValue(SESSION);
+      loadManagerOrderDetail.mockResolvedValue(data);
+      listDirections.mockResolvedValue({ ok: true, directions: [] });
+      studentFindMany.mockResolvedValue([]);
+      getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+      getDealActivity.mockResolvedValue({ ok: true, items: [] });
+      isFeatureEnabled.mockReturnValue(false);
+      return renderServerComponent(
+        ManagerOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+      );
+    }
+
+    it('заказ на обучение до передачи — панель собрана', async () => {
+      const { container } = await renderWith(trainingOrder());
+      expect(listCertificateScanTargets).toHaveBeenCalled();
+      expect(container.querySelector('[data-testid="scans-panel"]')).not.toBeNull();
+    });
+
+    it('после передачи результата панель не нужна', async () => {
+      const { container } = await renderWith(
+        trainingOrder({ resultDeliveredAt: new Date('2026-07-01') })
+      );
+      expect(listCertificateScanTargets).not.toHaveBeenCalled();
+      expect(container.querySelector('[data-testid="scans-panel"]')).toBeNull();
+    });
+
+    it('заказ на разработку документов — панели нет', async () => {
+      const { container } = await renderWith({
+        ...BASE_DATA,
+        order: { ...BASE_DATA.order, serviceType: 'document_development', resultDeliveredAt: null }
+      });
+      expect(listCertificateScanTargets).not.toHaveBeenCalled();
+      expect(container.querySelector('[data-testid="scans-panel"]')).toBeNull();
+    });
+
+    it('заказ вне скоупа для сервиса сканов — панель не рисуется', async () => {
+      listCertificateScanTargets.mockResolvedValue({ ok: false, error: 'forbidden' });
+      const { container } = await renderWith(trainingOrder());
+      expect(container.querySelector('[data-testid="scans-panel"]')).toBeNull();
+    });
   });
 });

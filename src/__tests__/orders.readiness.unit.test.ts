@@ -135,3 +135,47 @@ describe('русские подписи', () => {
     }
   });
 });
+
+/**
+ * Этап 12 PR-2 (ФТ-5.3): вердикт антивируса по скану. Скан асинхронный, поэтому
+ * «заражённый файл не привязывается» действует здесь — заражённый скан не
+ * закрывает пункт чек-листа, а `pending` (вердикта ещё нет) не мешает.
+ */
+describe('статус скана удостоверения (PR-2)', () => {
+  it('заражённый скан → отдельный пробел, заказ не готов', () => {
+    const res = evaluateOrderReadiness(
+      training({
+        items: [trainingItem({ certificate: { documentId: 'doc-1', scanStatus: 'infected' } })]
+      })
+    );
+    expect(res.ready).toBe(false);
+    expect(res.items[0].gaps).toEqual(['certificate_scan_infected']);
+  });
+
+  it('чистый скан готовности не мешает', () => {
+    const res = evaluateOrderReadiness(
+      training({
+        items: [trainingItem({ certificate: { documentId: 'doc-1', scanStatus: 'clean' } })]
+      })
+    );
+    expect(res.ready).toBe(true);
+  });
+
+  it('скан на проверке (pending) считается загруженным', () => {
+    const res = evaluateOrderReadiness(
+      training({
+        items: [trainingItem({ certificate: { documentId: 'doc-1', scanStatus: 'pending' } })]
+      })
+    );
+    expect(res.ready).toBe(true);
+  });
+
+  it('без скана заражение не проверяется — пробел прежний', () => {
+    const res = evaluateOrderReadiness(
+      training({
+        items: [trainingItem({ certificate: { documentId: null, scanStatus: 'infected' } })]
+      })
+    );
+    expect(res.items[0].gaps).toEqual(['certificate_scan_missing']);
+  });
+});

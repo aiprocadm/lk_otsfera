@@ -48,15 +48,18 @@ const READY_ORDER = {
   ]
 };
 
-function makePrisma(order: unknown) {
+function makePrisma(order: unknown, scanDocs: Array<{ id: string; scanStatus: string }> = []) {
   const update = vi.fn().mockResolvedValue({});
+  // Этап 12 PR-2: статусы сканов удостоверений дочитываются отдельной выборкой.
+  const findManyDocuments = vi.fn().mockResolvedValue(scanDocs);
   const prisma = {
     order: { findUnique: vi.fn().mockResolvedValue(order), update },
+    document: { findMany: findManyDocuments },
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
       fn({ order: { update }, /* аудит пишется тем же tx */ })
     )
   } as never;
-  return { prisma, update };
+  return { prisma, update, findManyDocuments };
 }
 
 beforeEach(() => {
@@ -216,5 +219,61 @@ describe('getOrderReadiness', () => {
       ok: false,
       error: 'not_found'
     });
+  });
+});
+
+/**
+ * Этап 12 PR-2 (ФТ-5.3): вердикт ClamAV по скану удостоверения. Скан
+ * асинхронный, поэтому «заражённый файл не привязывается» действует здесь —
+ * заражённый скан не закрывает чек-лист.
+ */
+describe('getOrderReadiness — статусы сканов удостоверений (PR-2)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getCompanyTeamVisibility.mockResolvedValue(false);
+    canSeeOrder.mockReturnValue(true);
+  });
+
+  it('заражённый скан → заказ не готов, пробел по слушателю', async () => {
+    const { prisma } = makePrisma(READY_ORDER, [{ id: 'd1', scanStatus: 'infected' }]);
+    const res = await getOrderReadiness(prisma, session, 'o1');
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.readiness.ready).toBe(false);
+      expect(res.readiness.items[0]?.gaps).toEqual(['certificate_scan_infected']);
+    }
+  });
+
+  it('скан ещё на проверке (pending) готовности не мешает', async () => {
+    const { prisma } = makePrisma(READY_ORDER, [{ id: 'd1', scanStatus: 'pending' }]);
+    const res = await getOrderReadiness(prisma, session, 'o1');
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.readiness.ready).toBe(true);
+  });
+
+  it('без сканов лишнего запроса к документам нет', async () => {
+    const order = {
+      ...READY_ORDER,
+      items: [
+        {
+          id: 'i1',
+          trainingStatus: 'certificate_issued',
+          student: { name: 'Иванов' },
+          certificate: { documentId: null }
+        }
+      ]
+    };
+    const { prisma, findManyDocuments } = makePrisma(order);
+    const res = await getOrderReadiness(prisma, session, 'o1');
+    expect(findManyDocuments).not.toHaveBeenCalled();
+    expect(res.ok && res.readiness.items[0]?.gaps).toEqual(['certificate_scan_missing']);
+  });
+
+  it('заражённый скан блокирует и саму передачу', async () => {
+    const { prisma, update } = makePrisma(READY_ORDER, [{ id: 'd1', scanStatus: 'infected' }]);
+    const res = await deliverOrderResult(prisma, session, 'o1');
+    expect(res).toMatchObject({ ok: false, error: 'not_ready' });
+    expect(update).not.toHaveBeenCalled();
+    expect(notifyOrgUsers).not.toHaveBeenCalled();
   });
 });

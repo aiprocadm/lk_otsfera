@@ -53,8 +53,28 @@ type OrderForReadiness = {
   }[];
 };
 
+/**
+ * Этап 12 PR-2 (ФТ-5.3): вердикты ClamAV по сканам удостоверений.
+ * `Certificate.documentId` — обычная колонка, а не связь, поэтому статусы
+ * дочитываются отдельной выборкой (одной на заказ).
+ */
+async function loadScanStatuses(
+  prisma: PrismaClient,
+  order: OrderForReadiness
+): Promise<Map<string, string>> {
+  const ids = order.items
+    .map((i) => i.certificate?.documentId)
+    .filter((id): id is string => id != null);
+  if (ids.length === 0) return new Map();
+  const docs = await prisma.document.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, scanStatus: true }
+  });
+  return new Map(docs.map((d) => [d.id, d.scanStatus]));
+}
+
 /** Приводит выборку Prisma к входу чистой функции готовности. */
-function toReadinessInput(order: OrderForReadiness) {
+function toReadinessInput(order: OrderForReadiness, scanStatuses: Map<string, string>) {
   return {
     serviceType: order.serviceType,
     deliverablesApprovedAt: order.deliverablesApprovedAt,
@@ -64,6 +84,13 @@ function toReadinessInput(order: OrderForReadiness) {
       trainingStatus: i.trainingStatus as never,
       studentName: i.student.name,
       certificate: i.certificate
+        ? {
+            documentId: i.certificate.documentId,
+            scanStatus: i.certificate.documentId
+              ? scanStatuses.get(i.certificate.documentId) ?? null
+              : null
+          }
+        : null
     }))
   };
 }
@@ -82,9 +109,10 @@ export async function getOrderReadiness(
   if (!order) return { ok: false, error: 'not_found' };
   if (!canSeeOrder(session, order, teamMode)) return { ok: false, error: 'forbidden' };
 
+  const scanStatuses = await loadScanStatuses(prisma, order as OrderForReadiness);
   return {
     ok: true,
-    readiness: evaluateOrderReadiness(toReadinessInput(order as OrderForReadiness)),
+    readiness: evaluateOrderReadiness(toReadinessInput(order as OrderForReadiness, scanStatuses)),
     deliveredAt: order.resultDeliveredAt
   };
 }
@@ -146,7 +174,8 @@ export async function deliverOrderResult(
     return { ok: true, deliveredAt: order.resultDeliveredAt, alreadyDelivered: true };
   }
 
-  const readiness = evaluateOrderReadiness(toReadinessInput(order as OrderForReadiness));
+  const scanStatuses = await loadScanStatuses(prisma, order as OrderForReadiness);
+  const readiness = evaluateOrderReadiness(toReadinessInput(order as OrderForReadiness, scanStatuses));
   if (!readiness.ready) return { ok: false, error: 'not_ready', readiness };
 
   const deliveredAt = new Date();
