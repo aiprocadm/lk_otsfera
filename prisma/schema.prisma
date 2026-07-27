@@ -212,6 +212,9 @@ model User {
   managedOrganizations         OrganizationManager[]     @relation("UserManagedOrgs")
   externalStudentId            String?
   managedOrders                Order[]                   @relation("OrderManager")
+  // Этап 12 (Модуль 5): кто согласовал результат и кто передал его клиенту.
+  approvedOrderDeliverables    Order[]                   @relation("OrderDeliverablesApprover")
+  deliveredOrderResults        Order[]                   @relation("OrderResultDeliverer")
   comments                     Comment[]
   documents                    Document[]
   auditLogs                    AuditLog[]
@@ -1011,6 +1014,17 @@ model Order {
   serviceType        ServiceType               @default(training)
   // §5.6/§21: «галочка» менеджера «бухгалтерия подписана» — условие завершения (B2).
   accountingSignedAt DateTime?
+  // Этап 12 (Модуль 5, ФТ-5.1, решение заказчика §6-2): для заказов на
+  // разработку документов готовность НЕ выводится из факта загрузки файлов —
+  // менеджер явно отмечает «работа согласована».
+  deliverablesApprovedAt   DateTime?
+  deliverablesApprovedById String?
+  deliverablesApprovedBy   User?                @relation("OrderDeliverablesApprover", fields: [deliverablesApprovedById], references: [id])
+  // Этап 12 (ФТ-5.2): момент передачи результата клиенту. Ставится один раз
+  // (решение §6-3): повторное нажатие — no-op, второго уведомления нет.
+  resultDeliveredAt        DateTime?
+  resultDeliveredById      String?
+  resultDeliveredBy        User?                @relation("OrderResultDeliverer", fields: [resultDeliveredById], references: [id])
   // §5.4: причина возврата на доработку, пока status=waiting_client (B3). Чистится при возврате в работу.
   returnReason       String?
   deadline           DateTime?

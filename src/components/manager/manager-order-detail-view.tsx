@@ -27,7 +27,8 @@ export function ManagerOrderDetailView({
   activityItems = [],
   inboundEnabled = false,
   telephonyEnabled = false,
-  generatePanel = null
+  generatePanel = null,
+  readinessPanel = null
 }: {
   data: ManagerOrderDetailData;
   backHref: string;
@@ -39,6 +40,8 @@ export function ManagerOrderDetailView({
   telephonyEnabled?: boolean;
   /** Этап 8 (PR-2): панель «Сформировать документы» (страница собирает данные). */
   generatePanel?: React.ReactNode;
+  /** Этап 12 (ФТ-5.1/5.2): блок «Готовность к передаче». */
+  readinessPanel?: React.ReactNode;
 }) {
   const { order, auditEntries, documentRows, items } = data;
 
@@ -57,6 +60,7 @@ export function ManagerOrderDetailView({
         <div className='md:col-span-2 space-y-4'>
           <ManagerOrderAmounts order={order} />
 
+          {readinessPanel}
           {generatePanel}
 
           <div className='bg-white border border-gray-200 rounded-xl p-5 space-y-3'>
