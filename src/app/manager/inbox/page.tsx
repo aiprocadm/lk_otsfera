@@ -21,7 +21,7 @@ const PAGE_SIZE = 25;
 
 // Зеркало CHANNELS из inbox-filters.tsx: бар рендерит пиллы только для этих
 // значений, поэтому `?channel=bogus` отбрасывается и не увековечивается в ссылках.
-const KNOWN_CHANNELS = new Set(['telegram', 'max', 'whatsapp', 'email']);
+const KNOWN_CHANNELS = new Set(['telegram', 'max', 'whatsapp', 'email', 'cabinet']);
 
 export default async function ManagerInboxPage({
   searchParams

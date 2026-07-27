@@ -191,7 +191,7 @@ export async function replyInboundAction(
 
   const message = await prisma.inboundMessage.findUnique({
     where: { id: args.inboundMessageId },
-    select: { id: true, channel: true, senderRef: true, subject: true, companyId: true, threadId: true }
+    select: { id: true, channel: true, senderRef: true, subject: true, companyId: true, threadId: true, resolvedUserId: true }
   });
   if (!message) return { ok: false, error: 'not_found' };
 

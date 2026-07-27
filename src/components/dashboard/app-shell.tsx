@@ -6,6 +6,8 @@ import { navItemsFor } from '@/lib/navigation/cabinet';
 import { isManagerLeader } from '@/lib/auth/managerPolicy';
 import { LogoutButton } from '@/components/ui';
 import { NotificationBell } from '@/components/notifications/notification-bell';
+import { isFeatureEnabled } from '@/lib/featureFlags';
+import { AskQuestionButton } from '@/components/support/ask-question-button';
 
 const roleLabel: Record<string, string> = {
   admin: 'Администратор',
@@ -38,6 +40,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           {session.role === 'partner' ? (
             <NotificationBell role='partner' buttonClassName='hover:bg-white/10' />
           ) : null}
+          {/* Этап 9 (ФТ-11.1): «Задать вопрос» — только клиентским ролям кабинета. */}
+          {session.role === 'partner' && isFeatureEnabled('cabinet_questions') ? <AskQuestionButton /> : null}
           <LogoutButton className='text-xs text-gray-400 hover:text-[#F97316] transition-colors px-2 py-1 border border-gray-700 rounded hover:border-[#F97316] disabled:opacity-60' />
         </div>
       </header>

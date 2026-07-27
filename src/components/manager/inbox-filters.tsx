@@ -10,7 +10,9 @@ const CHANNELS: { value: string; label: string }[] = [
   { value: 'telegram', label: 'Telegram' },
   { value: 'max', label: 'MAX' },
   { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'email', label: 'Email' }
+  { value: 'email', label: 'Email' },
+  // Этап 9 (ФТ-11.1): вопросы из кабинета клиента.
+  { value: 'cabinet', label: 'Из кабинета' }
 ];
 
 const STATUSES: { value: string; label: string }[] = [
