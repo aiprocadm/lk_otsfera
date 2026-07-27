@@ -31,8 +31,8 @@ describe('GET /api/partner/dashboard', () => {
     vi.mocked(getSession).mockResolvedValue({
       sub: 'u', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
     } as any);
-    vi.mocked(kpis).mockResolvedValue({ openOrders: 5, outstanding: '10000.00', activeLeads: 2, commissionThisMonth: '500.00' });
-    vi.mocked(attention).mockResolvedValue({ stuckOrders: [], overdueOrders: [], staleLeads: [] });
+    vi.mocked(kpis).mockResolvedValue({ openOrders: 5, outstanding: '10000.00', commissionThisMonth: '500.00' });
+    vi.mocked(attention).mockResolvedValue({ stuckOrders: [], overdueOrders: [], });
     vi.mocked(recentEvents).mockResolvedValue([]);
 
     const res = await GET();
@@ -51,8 +51,8 @@ describe('GET /api/partner/dashboard', () => {
     vi.mocked(getSession).mockResolvedValue({
       sub: 'u', role: 'partner', partnerId: 'p1', partnerRole: 'manager', assignedOrgIds: ['oA', 'oB']
     } as any);
-    vi.mocked(kpis).mockResolvedValue({ openOrders: 0, outstanding: '0.00', activeLeads: 0, commissionThisMonth: '0.00' });
-    vi.mocked(attention).mockResolvedValue({ stuckOrders: [], overdueOrders: [], staleLeads: [] });
+    vi.mocked(kpis).mockResolvedValue({ openOrders: 0, outstanding: '0.00', commissionThisMonth: '0.00' });
+    vi.mocked(attention).mockResolvedValue({ stuckOrders: [], overdueOrders: [], });
     vi.mocked(recentEvents).mockResolvedValue([]);
 
     await GET();
@@ -64,8 +64,8 @@ describe('GET /api/partner/dashboard', () => {
       sub: 'u', role: 'partner', partnerId: 'p1', partnerRole: 'admin'
       // assignedOrgIds intentionally omitted → undefined
     } as any);
-    vi.mocked(kpis).mockResolvedValue({ openOrders: 0, outstanding: '0.00', activeLeads: 0, commissionThisMonth: '0.00' });
-    vi.mocked(attention).mockResolvedValue({ stuckOrders: [], overdueOrders: [], staleLeads: [] });
+    vi.mocked(kpis).mockResolvedValue({ openOrders: 0, outstanding: '0.00', commissionThisMonth: '0.00' });
+    vi.mocked(attention).mockResolvedValue({ stuckOrders: [], overdueOrders: [], });
     vi.mocked(recentEvents).mockResolvedValue([]);
 
     await GET();

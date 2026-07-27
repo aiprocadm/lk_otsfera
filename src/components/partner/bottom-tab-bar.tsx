@@ -8,7 +8,9 @@ type Tab = { href: string; label: string; icon: string };
 const TABS: Tab[] = [
   { href: '/partner/dashboard', label: 'Главная', icon: '⌂' },
   { href: '/partner/deals', label: 'Заказы', icon: '📋' },
-  { href: '/partner/leads', label: 'Заявки', icon: '✚' },
+  // Этап 10 (ТЗ §3.2): лиды — внутренний процесс, клиентский канал подачи —
+  // обращения (этап 5).
+  { href: '/partner/requests', label: 'Обращения', icon: '✚' },
   { href: '/partner/documents', label: 'Документы', icon: '📄' }
 ];
 

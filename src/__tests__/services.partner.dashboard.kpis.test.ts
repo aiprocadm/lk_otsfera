@@ -65,11 +65,6 @@ describe('partner.dashboard.kpis', () => {
     expect(k.outstanding).toBe('150000.00');
   });
 
-  it('counts leads in active states (new, in_review, qualified)', async () => {
-    const k = await kpis(prisma, { partnerId, scopeOrgIds: [] });
-    expect(k.activeLeads).toBe(3);
-  });
-
   it('estimates commission for current month from paid orders × partner.commissionRate', async () => {
     const k = await kpis(prisma, { partnerId, scopeOrgIds: [] });
     expect(k.commissionThisMonth).toBe('20000.00');

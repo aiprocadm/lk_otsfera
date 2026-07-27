@@ -60,10 +60,11 @@ describe('assignLead — additional branches', () => {
     expect(notifyPartnerUsers).not.toHaveBeenCalled();
   });
 
-  it('notifies partner when status changes from new to in_review', async () => {
+  it('партнёра НЕ уведомляет (when status changes from new to in_review) — §7 ТЗ', async () => {
     const d = db({ id: 'L1', status: 'new', partnerId: 'p1', organizationId: 'o1', clientCompanyName: 'Acme', subject: 'S' });
     await assignLead(d, { leadId: 'L1', managerId: 'm1' });
-    expect(notifyPartnerUsers).toHaveBeenCalledWith(d, expect.objectContaining({ partnerId: 'p1', type: 'lead_status_changed' }));
+    // Этап 10 (§7 ТЗ): лиды — внутренний процесс, партнёра о них не уведомляем.
+    expect(notifyPartnerUsers).not.toHaveBeenCalled();
   });
 });
 
@@ -129,13 +130,13 @@ describe('promoteLead — additional branches', () => {
     });
   });
 
-  it('notifies partner on successful promotion', async () => {
+  it('партнёра НЕ уведомляет (on successful promotion) — §7 ТЗ', async () => {
     const lead = { id: 'L1', status: 'qualified', partnerId: 'p1', organizationId: 'o1', subject: 'S', estimatedAmount: null, promotedOrderId: null, clientCompanyName: 'A' };
     const orderCreate = vi.fn().mockResolvedValue({ id: 'ord-new' });
     const leadUpdate = vi.fn().mockResolvedValue({ ...lead, status: 'promoted_to_order', promotedOrderId: 'ord-new' });
     const d = db(lead, { order: { create: orderCreate }, lead: { update: leadUpdate } });
     await promoteLead(d, { leadId: 'L1', managerId: 'm1' });
-    expect(notifyPartnerUsers).toHaveBeenCalledWith(d, expect.objectContaining({ type: 'lead_status_changed' }));
+    expect(notifyPartnerUsers).not.toHaveBeenCalled();
   });
 });
 
@@ -155,9 +156,9 @@ describe('rejectLead — additional branches', () => {
     expect(r.lead.rejectedReason).toBe('Отклонён менеджером');
   });
 
-  it('notifies partner on rejection', async () => {
+  it('партнёра НЕ уведомляет (on rejection) — §7 ТЗ', async () => {
     const d = db({ id: 'L1', status: 'in_review', partnerId: 'p1', organizationId: 'o1', clientCompanyName: 'A', subject: 'S' });
     await rejectLead(d, { leadId: 'L1', managerId: 'm1', reason: 'not suitable' });
-    expect(notifyPartnerUsers).toHaveBeenCalledWith(d, expect.objectContaining({ type: 'lead_status_changed' }));
+    expect(notifyPartnerUsers).not.toHaveBeenCalled();
   });
 });

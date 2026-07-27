@@ -25,14 +25,6 @@ describe('EventsFeed', () => {
     expect(html).toContain('Заказ обновлён');
   });
 
-  it('lead_created event with a ref renders a Link to the lead', () => {
-    const events: DashboardEvent[] = [
-      { kind: 'lead_created', at: new Date('2026-01-01T10:00:00Z'), title: 'Новый лид', ref: { kind: 'lead', id: 'l1' } }
-    ];
-    const html = renderToString(React.createElement(EventsFeed, { events }));
-    expect(html).toContain('href="/partner/leads/l1"');
-  });
-
   it('payment_received event without a ref renders a plain span (no link)', () => {
     const events: DashboardEvent[] = [
       { kind: 'payment_received', at: new Date('2026-01-01T10:00:00Z'), title: 'Платёж получен' }

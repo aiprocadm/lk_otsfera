@@ -95,7 +95,6 @@ import OrganizationRequestDetailPage from '@/app/organization/requests/[id]/page
 import ManagerRequestsPage from '@/app/manager/requests/page';
 import LeaderRequestsPage from '@/app/leader/requests/page';
 import AdminRequestsPage from '@/app/admin/requests/page';
-import PartnerLeadsPage from '@/app/partner/leads/page';
 
 const PARTNER_SESSION = { sub: 'p1', role: 'partner' as const, partnerId: 'pt-1', email: 'p@x.ru' };
 const ORG_CTX = {
@@ -264,28 +263,4 @@ describe('очередь триажа: manager / leader / admin', () => {
       expect(svc.listClientRequests).toHaveBeenCalledWith({}, session, {});
     });
   }
-});
-
-describe('ФТ-1.7: /partner/leads при включённых client_requests', () => {
-  it('оба флага on → redirect(/partner/requests) до сессии и данных', async () => {
-    isFeatureEnabled.mockReturnValue(true); // и partner_leads, и client_requests включены
-    await expect(
-      renderServerComponent(PartnerLeadsPage({ searchParams: Promise.resolve({}) }))
-    ).rejects.toThrow('REDIRECT:/partner/requests');
-    expect(nav.redirect).toHaveBeenCalledWith('/partner/requests');
-    expect(auth.requirePartner).not.toHaveBeenCalled();
-    expect(listLeads).not.toHaveBeenCalled();
-  });
-
-  it('client_requests off → страница лидов работает по-старому (redirect не зовётся)', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-    auth.requirePartner.mockResolvedValue({ ...PARTNER_SESSION, partnerId: 'pt-1' });
-    listLeads.mockResolvedValue({ rows: [], total: 0, countsByStatus: {} });
-
-    const { container } = await renderServerComponent(PartnerLeadsPage({ searchParams: Promise.resolve({}) }));
-
-    expect(nav.redirect).not.toHaveBeenCalled();
-    expect(container.textContent).toContain('Заявки');
-    expect(listLeads).toHaveBeenCalled();
-  });
 });

@@ -11,7 +11,6 @@ export type DashboardScope = {
 export type Kpis = {
   openOrders: number;
   outstanding: string;
-  activeLeads: number;
   commissionThisMonth: string;
 };
 
@@ -64,7 +63,7 @@ export async function kpis(
   });
   const rate = partner?.commissionRate ?? new Prisma.Decimal(0);
 
-  const [openOrders, outstandingAgg, activeLeads, paidThisMonth] = await Promise.all([
+  const [openOrders, outstandingAgg, paidThisMonth] = await Promise.all([
     prisma.order.count({
       where: { ...baseWhere, executionStatus: { in: ['pending', 'in_progress'] } }
     }),
@@ -72,12 +71,6 @@ export async function kpis(
     prisma.order.aggregate({
       where: { ...baseWhere, executionStatus: { not: 'cancelled' } },
       _sum: { totalAmount: true, paidAmount: true }
-    }),
-    prisma.lead.count({
-      where: {
-        partnerId: scope.partnerId,
-        status: { in: ['new', 'in_review', 'qualified'] }
-      }
     }),
     prisma.order.findMany({
       where: {
@@ -107,7 +100,6 @@ export async function kpis(
   return {
     openOrders,
     outstanding: outstanding.toFixed(2),
-    activeLeads,
     commissionThisMonth: commission.toFixed(2)
   };
 }
@@ -115,7 +107,6 @@ export async function kpis(
 // ─── T9: Attention ─────────────────────────────────────────────────────────
 
 const FOURTEEN_DAYS_MS = 14 * 24 * 3600 * 1000;
-const FIVE_DAYS_MS = 5 * 24 * 3600 * 1000;
 const ATTENTION_CAP = 10;
 
 export type AttentionOrder = {
@@ -127,17 +118,9 @@ export type AttentionOrder = {
   paidAmount: string;
 };
 
-export type AttentionLead = {
-  id: string;
-  clientCompanyName: string;
-  subject: string;
-  createdAt: Date;
-};
-
 export type Attention = {
   stuckOrders: AttentionOrder[];
   overdueOrders: AttentionOrder[];
-  staleLeads: AttentionLead[];
 };
 
 export async function attention(
@@ -147,9 +130,8 @@ export async function attention(
   const baseWhere = orderWhereForScope(scope);
   const now = new Date();
   const fourteenDaysAgo = new Date(now.getTime() - FOURTEEN_DAYS_MS);
-  const fiveDaysAgo = new Date(now.getTime() - FIVE_DAYS_MS);
 
-  const [stuck, overdue, stale] = await Promise.all([
+  const [stuck, overdue] = await Promise.all([
     prisma.order.findMany({
       where: {
         ...baseWhere,
@@ -171,16 +153,6 @@ export async function attention(
       take: ATTENTION_CAP,
       select: { id: true, title: true, updatedAt: true, deadline: true, totalAmount: true, paidAmount: true }
     }),
-    prisma.lead.findMany({
-      where: {
-        partnerId: scope.partnerId,
-        status: 'new',
-        createdAt: { lt: fiveDaysAgo }
-      },
-      orderBy: { createdAt: 'asc' },
-      take: ATTENTION_CAP,
-      select: { id: true, clientCompanyName: true, subject: true, createdAt: true }
-    })
   ]);
 
   return {
@@ -193,21 +165,20 @@ export async function attention(
       ...o,
       totalAmount: Number(o.totalAmount).toFixed(2),
       paidAmount: Number(o.paidAmount).toFixed(2)
-    })),
-    staleLeads: stale
+    }))
   };
 }
 
 // ─── T10: Recent Events ─────────────────────────────────────────────────────
 
-export type EventKind = 'order_updated' | 'lead_created' | 'payment_received';
+export type EventKind = 'order_updated' | 'payment_received';
 
 export type DashboardEvent = {
   kind: EventKind;
   at: Date;
   title: string;
-  // Order-less payments (org-level, imported from 1C) have no order/lead target.
-  ref?: { kind: 'order' | 'lead'; id: string };
+  // Order-less payments (org-level, imported from 1C) have no order target.
+  ref?: { kind: 'order'; id: string };
 };
 
 export async function recentEvents(
@@ -217,18 +188,12 @@ export async function recentEvents(
 ): Promise<DashboardEvent[]> {
   const baseWhere = orderWhereForScope(scope);
 
-  const [orders, leads, payments] = await Promise.all([
+  const [orders, payments] = await Promise.all([
     prisma.order.findMany({
       where: baseWhere,
       orderBy: { updatedAt: 'desc' },
       take: limit,
       select: { id: true, title: true, updatedAt: true }
-    }),
-    prisma.lead.findMany({
-      where: { partnerId: scope.partnerId },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      select: { id: true, clientCompanyName: true, subject: true, createdAt: true }
     }),
     prisma.payment.findMany({
       where: { organization: orgWhereForScope(scope) },
@@ -248,12 +213,6 @@ export async function recentEvents(
       at: o.updatedAt,
       title: `Заказ «${o.title}» обновлён`,
       ref: { kind: 'order', id: o.id }
-    })),
-    ...leads.map((l): DashboardEvent => ({
-      kind: 'lead_created',
-      at: l.createdAt,
-      title: `Новый лид: ${l.clientCompanyName} — ${l.subject}`,
-      ref: { kind: 'lead', id: l.id }
     })),
     ...payments.map((p): DashboardEvent =>
       p.order

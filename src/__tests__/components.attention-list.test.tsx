@@ -10,7 +10,7 @@ vi.mock('next/link', () => ({
 import { AttentionList } from '@/components/partner/attention-list';
 import type { Attention } from '@/lib/services/partner/dashboard';
 
-const empty: Attention = { stuckOrders: [], overdueOrders: [], staleLeads: [] };
+const empty: Attention = { stuckOrders: [], overdueOrders: [], };
 
 describe('AttentionList', () => {
   it('renders the all-clear message when everything is empty', () => {
@@ -48,14 +48,4 @@ describe('AttentionList', () => {
     expect(html).toContain('до <!-- -->—');
   });
 
-  it('renders a stale lead', () => {
-    const data: Attention = {
-      ...empty,
-      staleLeads: [{ id: 'l1', clientCompanyName: 'ООО Клиент', subject: 'Тема', createdAt: new Date('2026-01-01') }]
-    };
-    const html = renderToString(React.createElement(AttentionList, { data }));
-    expect(html).toContain('/partner/leads/l1');
-    expect(html).toContain('ООО Клиент');
-    expect(html).toContain('без квалификации');
-  });
 });

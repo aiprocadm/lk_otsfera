@@ -17,7 +17,7 @@ describe('navByRole.partner', () => {
   it('contains all active items including Финансы (Phase 4 shipped)', () => {
     const labels = navByRole.partner.filter((i) => !i.disabled).map((i) => i.label);
     expect(labels).toEqual(
-      expect.arrayContaining(['Главная', 'Портфель', 'Заказы', 'Заявки', 'Документы', 'Команда', 'Финансы'])
+      expect.arrayContaining(['Главная', 'Портфель', 'Заказы', 'Документы', 'Команда', 'Финансы'])
     );
   });
 
@@ -41,21 +41,10 @@ describe('navByRole.partner', () => {
 });
 
 describe('navItemsFor (feature-flag filter)', () => {
-  it('includes flag-gated «Заявки» for partner when partner_leads default-enabled', () => {
-    const labels = navItemsFor('partner').map((i) => i.label);
-    expect(labels).toContain('Заявки');
-  });
-
-  it('hides "Заявки" when FEATURE_PARTNER_LEADS=0', () => {
-    process.env.FEATURE_PARTNER_LEADS = '0';
+  it('пункта «Заявки» (лиды) у партнёра нет — домен внутренний (§3.2 ТЗ, этап 10)', () => {
     const labels = navItemsFor('partner', { isPartnerAdmin: true }).map((i) => i.label);
     expect(labels).not.toContain('Заявки');
-    // Other items still present.
-    expect(labels).toEqual(
-      expect.arrayContaining(['Главная', 'Портфель', 'Заказы', 'Документы', 'Финансы', 'Команда']),
-    );
   });
-
   it('does not filter items without a flag annotation', () => {
     process.env.FEATURE_PARTNER_LEADS = '0';
     process.env.FEATURE_ENROLLMENT_REQUESTS = '1'; // admin opt-in items: enrollments + requests + roles

@@ -184,7 +184,27 @@ export async function getOrgOrder(
 ): Promise<OrgOrderDetail | null> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: {
+    // Этап 10 (§7 ТЗ): явный select — внутренние поля заказа (companyId,
+    // managerId, партнёрские ссылки, 1С-курсоры) клиенту не уезжают.
+    select: {
+      id: true,
+      organizationId: true,
+      orderNumber: true,
+      title: true,
+      executionStatus: true,
+      financialStatus: true,
+      totalAmount: true,
+      paidAmount: true,
+      vatIncluded: true,
+      vatRate: true,
+      productMix: true,
+      createdAt: true,
+      deadline: true,
+      contractSignedAt: true,
+      completedAt: true,
+      closedAt: true,
+      paidAt: true,
+      lastSyncedAt: true,
       manager: { select: { name: true } },
       documents: {
         where: organizationChannelWhere(organizationId),

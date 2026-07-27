@@ -75,8 +75,8 @@ beforeEach(() => {
   org.expiringCertificates.mockResolvedValue(4);
 
   requirePartner.mockResolvedValue(PARTNER_SESSION);
-  partner.kpis.mockResolvedValue({ openOrders: 1, outstanding: '0', activeLeads: 0, commissionThisMonth: '0' });
-  partner.attention.mockResolvedValue({ stuckOrders: [], overdueOrders: [], staleLeads: [] });
+  partner.kpis.mockResolvedValue({ openOrders: 1, outstanding: '0', commissionThisMonth: '0' });
+  partner.attention.mockResolvedValue({ stuckOrders: [], overdueOrders: [], });
   partner.recentEvents.mockResolvedValue([]);
   partner.expiringCertificates.mockResolvedValue(6);
 });
