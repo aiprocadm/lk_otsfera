@@ -92,6 +92,8 @@ export type OrderStageInput = {
   /** Decimal сериализуется строкой; принимаем и number. */
   amount: string | number;
   paidTotal: string | number;
+  /** Этап 12 (ФТ-5.4): момент передачи результата клиенту — финальная точка. */
+  resultDeliveredAt?: Date | string | null;
 };
 
 /**
@@ -161,6 +163,10 @@ export function orderStage(input: OrderStageInput): Stage {
 
   // Терминальные статусы исполнения: не показываем финансы
   if (executionStatus === 'cancelled') return executionStage('cancelled');
+
+  // ФТ-5.4: результат передан — финальная точка, важнее прочих формулировок.
+  // Отменённый заказ выше по приоритету (передавать там нечего).
+  if (input.resultDeliveredAt) return { label: 'Результат передан', tone: 'success' };
   if (executionStatus === 'on_hold') return executionStage('on_hold');
 
   // Возврат — финансовый приоритет над исполнением

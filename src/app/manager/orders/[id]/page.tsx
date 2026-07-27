@@ -10,6 +10,8 @@ import { isFeatureEnabled } from '@/lib/featureFlags';
 import { ManagerOrderDetailView } from '@/components/manager/manager-order-detail-view';
 import { GenerateDocumentsPanel } from '@/components/manager/generate-documents-panel';
 import { listMissingRequisites, type MissingRequisite } from '@/lib/documents/requisites-check';
+import { getOrderReadiness } from '@/lib/services/manager/orderDelivery';
+import { OrderReadinessPanel } from '@/components/manager/order-readiness-panel';
 
 export default async function ManagerOrderDetailPage({
   params
@@ -66,6 +68,18 @@ export default async function ManagerOrderDetailPage({
     );
   }
 
+  // Этап 12 (Модуль 5, ФТ-5.1/5.2): готовность к передаче + кнопка передачи.
+  const readinessResult = await getOrderReadiness(prisma, session, id);
+  const readinessPanel = readinessResult.ok ? (
+    <OrderReadinessPanel
+      orderId={id}
+      serviceType={data.order.serviceType as 'training' | 'document_development'}
+      readiness={readinessResult.readiness}
+      deliveredAt={readinessResult.deliveredAt ? readinessResult.deliveredAt.toISOString() : null}
+      deliverablesApproved={data.order.deliverablesApprovedAt != null}
+    />
+  ) : null;
+
   return (
     <ManagerOrderDetailView
       data={data}
@@ -77,6 +91,7 @@ export default async function ManagerOrderDetailPage({
       inboundEnabled={inboundEnabled}
       telephonyEnabled={telephonyEnabled}
       generatePanel={generatePanel}
+      readinessPanel={readinessPanel}
     />
   );
 }

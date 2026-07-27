@@ -58,3 +58,57 @@ describe('paymentStage — самостоятельный бейдж оплат�
     expect(s).toEqual({ label: 'Частично оплачен', tone: 'warning' });
   });
 });
+
+// ─── Этап 12 (ФТ-5.4): финальная точка «Результат передан» ────────────────────
+
+describe('orderStage — результат передан клиенту', () => {
+  const delivered = new Date('2026-07-27T10:00:00Z');
+
+  it('перебивает обычный комбинированный бейдж', () => {
+    expect(
+      orderStage({
+        executionStatus: 'completed',
+        financialStatus: 'paid',
+        amount: '100',
+        paidTotal: '100',
+        resultDeliveredAt: delivered
+      })
+    ).toEqual({ label: 'Результат передан', tone: 'success' });
+  });
+
+  it('показывается и до полной оплаты — это про исполнение, не про деньги', () => {
+    expect(
+      orderStage({
+        executionStatus: 'in_progress',
+        financialStatus: 'billed',
+        amount: '100',
+        paidTotal: '0',
+        resultDeliveredAt: delivered
+      }).label
+    ).toBe('Результат передан');
+  });
+
+  it('отменённый заказ важнее: передавать там нечего', () => {
+    expect(
+      orderStage({
+        executionStatus: 'cancelled',
+        financialStatus: 'billed',
+        amount: '100',
+        paidTotal: '0',
+        resultDeliveredAt: delivered
+      })
+    ).toEqual({ label: 'Отменён', tone: 'danger' });
+  });
+
+  it('без даты передачи поведение прежнее', () => {
+    expect(
+      orderStage({
+        executionStatus: 'completed',
+        financialStatus: 'paid',
+        amount: '100',
+        paidTotal: '100',
+        resultDeliveredAt: null
+      }).label
+    ).toBe('Завершён, оплачен');
+  });
+});

@@ -61,6 +61,18 @@ type OrgNotifyInput =
       };
     }
   | {
+      // Этап 12 (ФТ-5.2): результат заказа передан клиенту.
+      organizationId: string;
+      type: 'order_result_delivered';
+      payload: {
+        orderId: string;
+        orderNumber: string | null;
+        orderTitle: string;
+        /** 'training' → ссылка на удостоверения, иначе — на документы заказа. */
+        serviceType: string;
+      };
+    }
+  | {
       organizationId: string;
       type: 'chat_message';
       payload: {
@@ -137,6 +149,24 @@ function buildOrgNotification(
       title: 'Заполните реквизиты организации',
       body: `Для формирования документов${input.payload.orderTitle ? ` по заказу «${input.payload.orderTitle}»` : ''} не хватает: ${missing}. Заполните реквизиты в настройках кабинета.`,
       meta: { url: '/organization/settings' }
+    };
+  }
+
+  if (input.type === 'order_result_delivered') {
+    const { orderNumber, orderTitle, serviceType } = input.payload;
+    const where =
+      serviceType === 'training'
+        ? 'Удостоверения доступны в разделе «Удостоверения».'
+        : 'Итоговые документы доступны в разделе «Документы».';
+    return {
+      title: `Результат по заказу ${orderLabel(orderNumber, orderTitle)} передан`,
+      body: `Работа завершена. ${where}`,
+      meta: {
+        orderId: input.payload.orderId,
+        orderNumber,
+        organizationName,
+        url: serviceType === 'training' ? '/organization/certificates' : orderUrl
+      }
     };
   }
 
@@ -233,6 +263,21 @@ function buildOrgEmailRef(
       }
     };
   }
+  if (input.type === 'order_result_delivered') {
+    return {
+      template: 'notification',
+      props: {
+        title: `Результат по заказу ${orderLabel(input.payload.orderNumber, input.payload.orderTitle)} передан`,
+        body:
+          input.payload.serviceType === 'training'
+            ? 'Работа завершена. Удостоверения доступны в личном кабинете.'
+            : 'Работа завершена. Итоговые документы доступны в личном кабинете.',
+        recipientName: organizationName,
+        url: orderUrl
+      }
+    };
+  }
+
   if (input.type === 'requisites_requested') {
     return {
       template: 'notification',

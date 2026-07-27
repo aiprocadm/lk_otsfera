@@ -23,6 +23,13 @@ vi.mock('@/lib/services/training', () => ({ listDirections }));
 const { getValuesForEntity } = vi.hoisted(() => ({ getValuesForEntity: vi.fn() }));
 vi.mock('@/lib/services/customFields', () => ({ getValuesForEntity }));
 
+// Этап 12 (ФТ-5.1): страница собирает блок «Готовность к передаче».
+const { getOrderReadiness } = vi.hoisted(() => ({ getOrderReadiness: vi.fn() }));
+vi.mock('@/lib/services/manager/orderDelivery', () => ({ getOrderReadiness }));
+vi.mock('@/components/manager/order-readiness-panel', () => ({
+  OrderReadinessPanel: () => null
+}));
+
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
@@ -81,6 +88,7 @@ const BASE_DATA = {
 
 describe('ManagerOrderDetailPage', () => {
   beforeEach(() => {
+    getOrderReadiness.mockResolvedValue({ ok: true, readiness: { ready: true, gaps: [], items: [] }, deliveredAt: null });
     requireManager.mockReset();
     studentFindMany.mockReset();
     loadManagerOrderDetail.mockReset();
