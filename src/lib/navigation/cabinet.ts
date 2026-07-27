@@ -17,7 +17,7 @@ export type NavItem = {
   /** Скрыть пункт, когда флаг ВКЛЮЧЁН (обратный гейт: «Команда» менеджера уезжает в /leader). */
   hiddenWhenFlag?: FeatureFlag;
   /** Этап 7 (ФТ-8.4): ключ живого счётчика из GET /api/staff/badges (рендерит NavBadge). */
-  badgeKey?: 'intake' | 'tasksOverdue';
+  badgeKey?: 'intake' | 'tasksOverdue' | 'clientRequestsNew' | 'messagesUnread';
 };
 
 // 'leader' — НЕ новая JWT-роль (это manager + managerRole='leader'); ключ существует только в каноне меню.
@@ -54,27 +54,27 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
   manager: [
     { href: '/manager/dashboard', label: 'Главная', icon: '⌂', flag: 'manager_cabinet' },
     { href: '/manager/search', label: 'Поиск', icon: '🔎', flag: 'global_search' },
-    { href: '/manager/orders', label: 'Заказы', icon: '📋', flag: 'manager_cabinet' },
-    { href: '/manager/leads', label: 'Лиды', icon: '📬', flag: 'manager_cabinet' },
-    { href: '/manager/requests', label: 'Обращения клиентов', icon: '📮', flag: 'client_requests' },
-    { href: '/manager/intake', label: 'Входящие в работу', icon: '📥', flag: 'intake_inbox', badgeKey: 'intake' },
-    { href: '/manager/funnel', label: 'Воронка', icon: '📈', flag: 'sales_funnel' },
-    { href: '/manager/deals', label: 'Сделки', icon: '🤝', flag: 'deals_pipeline' },
-    { href: '/manager/tasks', label: 'Задачи', icon: '✅', flag: 'internal_tasks', badgeKey: 'tasksOverdue' },
-    { href: '/manager/calendar', label: 'Календарь', icon: '📅', flag: 'staff_calendar' },
-    { href: '/manager/organizations', label: 'Организации', icon: '🏢', flag: 'manager_cabinet' },
-    { href: '/manager/finance', label: 'Финансы', icon: '₽', flag: 'manager_cabinet' },
-    { href: '/manager/import', label: 'Загрузка из 1С', icon: '📥', flag: 'manager_cabinet' },
-    { href: '/manager/payments-import', label: 'Импорт оплат', icon: '📥', flag: 'manager_cabinet' },
-    { href: '/manager/documents', label: 'Документы', icon: '📄', flag: 'manager_cabinet' },
-    { href: '/manager/students', label: 'Сотрудники', icon: '👥', flag: 'manager_cabinet' },
-    { href: '/manager/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests' },
-    { href: '/manager/messages', label: 'Сообщения', icon: '💬', flag: 'manager_cabinet' },
-    { href: '/manager/inbox', label: 'Обращения', icon: '📨', flag: 'inbound_messaging' },
-    { href: '/manager/calls', label: 'Звонки', icon: '☎️', flag: 'telephony_mango' },
-    { href: '/manager/team', label: 'Команда', icon: '⚙', flag: 'manager_cabinet', leaderOnly: true, hiddenWhenFlag: 'leader_cabinet' },
-    { href: '/leader/dashboard', label: 'Кабинет руководителя', icon: '⚙', flag: 'leader_cabinet', leaderOnly: true },
-    { href: '/manager/settings', label: 'Настройки', icon: '⚙', flag: 'manager_cabinet' }
+    { href: '/manager/orders', label: 'Заказы', icon: '📋', flag: 'manager_cabinet', group: 'Работа' },
+    { href: '/manager/leads', label: 'Лиды', icon: '📬', flag: 'manager_cabinet', group: 'Продажи' },
+    { href: '/manager/requests', label: 'Обращения клиентов', icon: '📮', flag: 'client_requests', badgeKey: 'clientRequestsNew', group: 'Продажи' },
+    { href: '/manager/intake', label: 'Входящие в работу', icon: '📥', flag: 'intake_inbox', badgeKey: 'intake', group: 'Работа' },
+    { href: '/manager/funnel', label: 'Воронка', icon: '📈', flag: 'sales_funnel', group: 'Продажи' },
+    { href: '/manager/deals', label: 'Сделки', icon: '🤝', flag: 'deals_pipeline', group: 'Продажи' },
+    { href: '/manager/tasks', label: 'Задачи', icon: '✅', flag: 'internal_tasks', badgeKey: 'tasksOverdue', group: 'Работа' },
+    { href: '/manager/calendar', label: 'Календарь', icon: '📅', flag: 'staff_calendar', group: 'Работа' },
+    { href: '/manager/organizations', label: 'Организации', icon: '🏢', flag: 'manager_cabinet', group: 'Клиенты' },
+    { href: '/manager/finance', label: 'Финансы', icon: '₽', flag: 'manager_cabinet', group: 'Финансы' },
+    { href: '/manager/import', label: 'Загрузка из 1С', icon: '📥', flag: 'manager_cabinet', group: 'Данные' },
+    { href: '/manager/payments-import', label: 'Импорт оплат', icon: '📥', flag: 'manager_cabinet', group: 'Финансы' },
+    { href: '/manager/documents', label: 'Документы', icon: '📄', flag: 'manager_cabinet', group: 'Данные' },
+    { href: '/manager/students', label: 'Сотрудники', icon: '👥', flag: 'manager_cabinet', group: 'Клиенты' },
+    { href: '/manager/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests', group: 'Клиенты' },
+    { href: '/manager/messages', label: 'Сообщения', icon: '💬', flag: 'manager_cabinet', badgeKey: 'messagesUnread', group: 'Коммуникации' },
+    { href: '/manager/inbox', label: 'Обращения', icon: '📨', flag: 'inbound_messaging', group: 'Коммуникации' },
+    { href: '/manager/calls', label: 'Звонки', icon: '☎️', flag: 'telephony_mango', group: 'Коммуникации' },
+    { href: '/manager/team', label: 'Команда', icon: '⚙', flag: 'manager_cabinet', leaderOnly: true, hiddenWhenFlag: 'leader_cabinet', group: 'Настройки' },
+    { href: '/leader/dashboard', label: 'Кабинет руководителя', icon: '⚙', flag: 'leader_cabinet', leaderOnly: true, group: 'Настройки' },
+    { href: '/manager/settings', label: 'Настройки', icon: '⚙', flag: 'manager_cabinet', group: 'Настройки' }
   ],
   // Пункты leader-меню намеренно БЕЗ flag: внутрь пускает middleware+layout;
   // флаг на каждом пункте дал бы пустой сайдбар при выключении.
@@ -85,28 +85,28 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/leader/dashboard', label: 'Сводка', icon: '⌂' },
     // global_search — отдельный флаг (как role_constructor): гейтит только пункт.
     { href: '/leader/search', label: 'Поиск', icon: '🔎', flag: 'global_search' },
-    { href: '/leader/team', label: 'Команда', icon: '⚙' },
-    { href: '/leader/finance', label: 'Финансы', icon: '₽' },
-    { href: '/leader/commission-corrections', label: 'Корректировки', icon: '🔁' },
-    { href: '/leader/orders', label: 'Заказы', icon: '📋' },
-    { href: '/leader/organizations', label: 'Организации', icon: '🏢' },
+    { href: '/leader/team', label: 'Команда', icon: '⚙', group: 'Настройки' },
+    { href: '/leader/finance', label: 'Финансы', icon: '₽', group: 'Финансы' },
+    { href: '/leader/commission-corrections', label: 'Корректировки', icon: '🔁', group: 'Финансы' },
+    { href: '/leader/orders', label: 'Заказы', icon: '📋', group: 'Работа' },
+    { href: '/leader/organizations', label: 'Организации', icon: '🏢', group: 'Клиенты' },
     // role_constructor — отдельный feature-флаг (НЕ leader_cabinet): гейтит только
     // этот пункт, не опустошает сайдбар при выключении.
-    { href: '/leader/roles', label: 'Роли', icon: '🎭', flag: 'role_constructor' },
-    { href: '/leader/funnel', label: 'Воронка', icon: '📈', flag: 'sales_funnel' },
+    { href: '/leader/roles', label: 'Роли', icon: '🎭', flag: 'role_constructor', group: 'Настройки' },
+    { href: '/leader/funnel', label: 'Воронка', icon: '📈', flag: 'sales_funnel', group: 'Продажи' },
     // deals_pipeline — свой opt-in флаг (НЕ путать с /partner/deals — «Заказы» партнёра).
-    { href: '/leader/deals', label: 'Сделки', icon: '🤝', flag: 'deals_pipeline' },
-    { href: '/leader/analytics', label: 'Аналитика', icon: '📊', flag: 'leader_analytics' },
-    { href: '/leader/tasks', label: 'Задачи', icon: '✅', flag: 'internal_tasks', badgeKey: 'tasksOverdue' },
-    { href: '/leader/calendar', label: 'Календарь', icon: '📅', flag: 'staff_calendar' },
-    { href: '/leader/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests' },
-    { href: '/leader/requests', label: 'Обращения клиентов', icon: '📮', flag: 'client_requests' },
-    { href: '/leader/intake', label: 'Входящие в работу', icon: '📥', flag: 'intake_inbox', badgeKey: 'intake' },
+    { href: '/leader/deals', label: 'Сделки', icon: '🤝', flag: 'deals_pipeline', group: 'Продажи' },
+    { href: '/leader/analytics', label: 'Аналитика', icon: '📊', flag: 'leader_analytics', group: 'Аналитика' },
+    { href: '/leader/tasks', label: 'Задачи', icon: '✅', flag: 'internal_tasks', badgeKey: 'tasksOverdue', group: 'Работа' },
+    { href: '/leader/calendar', label: 'Календарь', icon: '📅', flag: 'staff_calendar', group: 'Работа' },
+    { href: '/leader/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests', group: 'Клиенты' },
+    { href: '/leader/requests', label: 'Обращения клиентов', icon: '📮', flag: 'client_requests', badgeKey: 'clientRequestsNew', group: 'Продажи' },
+    { href: '/leader/intake', label: 'Входящие в работу', icon: '📥', flag: 'intake_inbox', badgeKey: 'intake', group: 'Работа' },
     // Личный inbox (комментарии+чат) живёт в кабинете менеджера — см. план, «Отклонение от спеки».
     { href: '/manager/messages', label: 'Сообщения', icon: '💬' },
     // Переключатель «играющего тренера» в личный кабинет менеджера.
     { href: '/manager/dashboard', label: 'Мои заказы', icon: '↩' },
-    { href: '/leader/settings', label: 'Настройки', icon: '⚙' }
+    { href: '/leader/settings', label: 'Настройки', icon: '⚙', group: 'Настройки' }
   ],
   partner: [
     { href: '/partner/dashboard', label: 'Главная' },

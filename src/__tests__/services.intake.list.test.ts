@@ -10,6 +10,10 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 const { recordPiiAccess } = vi.hoisted(() => ({ recordPiiAccess: vi.fn() }));
 vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
 
+// ФТ-15.2: счётчик непрочитанной переписки берётся готовым сервисом чата.
+const { unreadCount } = vi.hoisted(() => ({ unreadCount: vi.fn() }));
+vi.mock('@/lib/services/chat/threads', () => ({ unreadCount }));
+
 import {
   listIntake,
   countIntake,
@@ -23,6 +27,10 @@ import { getStaffBadges } from '@/lib/services/intake/badges';
 
 const manager = (): SessionPayload => ({ sub: 'm1', role: 'manager', companyId: 'co-A' } as unknown as SessionPayload);
 const partner = (): SessionPayload => ({ sub: 'p1', role: 'partner' } as unknown as SessionPayload);
+
+beforeEach(() => {
+  unreadCount.mockResolvedValue({ ok: true, count: 3 });
+});
 
 const H = 3_600_000;
 const now = Date.now();
@@ -196,13 +204,40 @@ describe('countIntake / getStaffBadges', () => {
     expect(await countIntake(prisma, partner())).toBe(0);
   });
 
-  it('getStaffBadges собирает intake + просроченные задачи', async () => {
+  it('getStaffBadges собирает все четыре счётчика меню (ФТ-8.4 + ФТ-15.2)', async () => {
     const { prisma, base } = makePrisma({
-      clientRequest: { findMany: vi.fn(), count: vi.fn().mockResolvedValue(1) },
+      // count вызывается дважды: Intake-часть и «новые обращения» (ФТ-15.2).
+      clientRequest: {
+        findMany: vi.fn(),
+        count: vi.fn().mockResolvedValueOnce(1).mockResolvedValueOnce(5)
+      },
       task: { count: vi.fn().mockResolvedValue(7) }
     });
-    expect(await getStaffBadges(prisma, manager())).toEqual({ intake: 1, tasksOverdue: 7 });
+    expect(await getStaffBadges(prisma, manager())).toEqual({
+      intake: 1,
+      tasksOverdue: 7,
+      clientRequestsNew: 5,
+      messagesUnread: 3
+    });
     const where = (base.task.count as ReturnType<typeof vi.fn>).mock.calls[0]![0].where;
     expect(JSON.stringify(where)).toContain('dueDate');
+
+    // «новые обращения» — только статус submitted, поверх скоупа роли.
+    const reqWhere = (base.clientRequest.count as ReturnType<typeof vi.fn>).mock.calls[1]![0].where;
+    expect(JSON.stringify(reqWhere)).toContain('submitted');
+  });
+
+  it('getStaffBadges: непрочитанные вне скоупа дают 0, а не падение', async () => {
+    unreadCount.mockResolvedValueOnce({ ok: true, count: 0 });
+    const { prisma } = makePrisma({
+      clientRequest: {
+        findMany: vi.fn(),
+        count: vi.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(0)
+      },
+      task: { count: vi.fn().mockResolvedValue(0) }
+    });
+    const badges = await getStaffBadges(prisma, partner());
+    expect(badges.messagesUnread).toBe(0);
+    expect(badges.intake).toBe(0);
   });
 });
