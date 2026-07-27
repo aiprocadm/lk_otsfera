@@ -2,7 +2,7 @@
 
 **Owner**: ops / тех.лид Промтехносфера
 **Scope**: как устроен демо-стенд, как он сам обновляется до `main`, как его поднять с нуля и что проверять, когда «сайт не открывается».
-**Контекст**: стенд нужен, чтобы смотреть результат разработки в браузере глазами пользователя и показывать его заказчику. Поэтому он не заморожен на релизе, а догоняет `main` автоматически. Это **не production**: база, Redis и хранилище — общие с локальной разработкой, данные тестовые.
+**Контекст**: стенд нужен, чтобы смотреть результат разработки в браузере глазами пользователя и показывать его заказчику. Поэтому он не заморожен на релизе, а догоняет `main` автоматически. Это **не production**: данные тестовые. При этом стенд не делит с разработкой **ничего** — ни папку кода, ни базу, ни очереди, ни хранилище (см. §1).
 
 ---
 
@@ -16,9 +16,26 @@
 | Воркер | служба `lk-otsfera-worker` | `tsx src/worker/index.ts`, та же копия |
 | Витрина | nginx → `lk.ptsfera.online` | basic-auth, логин `demo`, файл `/etc/nginx/.htpasswd-stand` |
 | Хранилище | nginx → `s3.ptsfera.online` → MinIO `:9000` | basic-auth здесь НЕТ намеренно (§6) |
+| База | `lk_otsfera_stand` | **Своя**, отдельная от разработки |
+| Очереди | Redis, база `1` | **Своя**, задачи стенда и разработки не смешиваются |
+| Файлы | бакет `lk-otsfera-stand` | **Свой**, отдельный от разработки |
 | Обновление | cron `*/10 * * * *` → `scripts/stand/update-stand.sh` | Полный цикл ≈ 1 мин 50 с |
 
 Файлы-образцы лежат в репозитории: [`scripts/stand/`](../scripts/stand/) — скрипт обновления, юниты systemd, конфиг nginx.
+
+### У стенда всё своё
+
+| Ресурс | Разработка | Стенд |
+|---|---|---|
+| Папка кода | `~/projects/lk_otsfera` | `~/stands/lk_otsfera` |
+| База | `lk_otsfera` | **`lk_otsfera_stand`** |
+| Очереди (Redis) | база `0` | **база `1`** |
+| Бакет файлов | `documents` | **`lk-otsfera-stand`** |
+| Ключ подписи сессий | свой | **свой, другой** |
+
+Разные ключи подписи — не формальность: сессия, выданная стендом, не должна приниматься в разработке и наоборот.
+
+**Общая очередь была не только вопросом чистоты.** Пока Redis был общим, воркер стенда разбирал задачи, поставленные в другой базе, и валился на каждой с `NOT_FOUND` — журнал был красным постоянно. После разделения задачи проходят штатно.
 
 ### Почему копия отдельная
 
@@ -38,7 +55,7 @@
 
 Порядок шагов не случаен:
 
-- **Миграции после сборки.** База общая с разработкой; менять её ради кода, который даже не собрался, нельзя.
+- **Миграции после сборки.** Незачем трогать схему ради кода, который даже не собрался. База у стенда своя, разработку это не заденет.
 - **Перезапуск через `kill`, а не `systemctl restart`.** Службы объявлены с `User=aiproc`, поэтому сигнал своему же процессу проходит без прав root, а `Restart=always` возвращает службу через 5 секунд. Весь цикл обходится без sudo.
 - **Скрипт переезжает на временную копию себя** и только потом делает `git reset --hard`. Он лежит внутри той же копии, которую перезаписывает, а bash дочитывает файл по ходу выполнения — подмена на середине привела бы к непредсказуемому поведению.
 - **Проверка `.next/BUILD_ID` сразу после сборки.** «Собралось, но результата нет» — не теоретический случай: без `BUILD_ID` команда `next start` не находит боевую сборку, служба падает, `Restart=always` поднимает её снова — и так по кругу. Снаружи это выглядит как «сайт лежит», и причину ищут в сети, а не в сборке.
@@ -68,34 +85,45 @@ npm run deploy:stand -- --help       # все флаги и переменные
 ## 3. Развернуть с нуля
 
 ```bash
-# 1. Отдельная копия кода
+# 1. Свои ресурсы — стенд ничего не делит с разработкой
+docker exec test-postgres psql -U testuser -d postgres -c "CREATE DATABASE lk_otsfera_stand OWNER testuser"
+docker exec infra-minio-1 sh -c 'mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" && mc mb --ignore-existing local/lk-otsfera-stand'
+
+# 2. Отдельная копия кода
 mkdir -p /home/aiproc/stands
 git clone --depth=1 --branch main https://github.com/aiprocadm/lk_otsfera.git \
           /home/aiproc/stands/lk_otsfera
 cd /home/aiproc/stands/lk_otsfera
 
-# 2. Настройки (из менеджера секретов владельца; в git их нет)
+# 3. Настройки (из менеджера секретов владельца; в git их нет)
 cp /путь/к/.env.production .   &&  chmod 600 .env.production
+# ОБЯЗАТЕЛЬНО указать СВОИ ресурсы, а не ресурсы разработки:
+#   DATABASE_URL и DIRECT_URL — на lk_otsfera_stand
+#   REDIS_URL  — с номером базы: redis://localhost:6379/1
+#   S3_BUCKET  — lk-otsfera-stand
+#   JWT_SECRET — свой (openssl rand -hex 32)
 
-# 3. Зависимости и первая сборка
+# 4. Зависимости и первая сборка
 export PATH=/home/aiproc/.nvm/versions/node/v24.18.0/bin:$PATH
 npm ci
 set -a && . ./.env.production && set +a
 npx prisma generate && npm run build
+npx prisma migrate deploy
+SEED_ALLOW_PROD=1 npx tsx prisma/seed.ts   # демо-данные; сид намеренно закрыт в production
 
-# 4. Службы
+# 5. Службы
 sudo cp scripts/stand/systemd/lk-otsfera-*.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now lk-otsfera-web lk-otsfera-worker
 
-# 5. Витрина
+# 6. Витрина
 sudo cp scripts/stand/nginx/lk.ptsfera.online.conf /etc/nginx/sites-available/
 sudo ln -sf /etc/nginx/sites-available/lk.ptsfera.online.conf /etc/nginx/sites-enabled/
 sudo htpasswd -c /etc/nginx/.htpasswd-stand demo        # пароль — из менеджера секретов
 sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d lk.ptsfera.online -d s3.ptsfera.online
 
-# 6. Автообновление
+# 7. Автообновление
 crontab -l 2>/dev/null | { cat; \
   echo '*/10 * * * * /home/aiproc/stands/lk_otsfera/scripts/stand/update-stand.sh'; } | crontab -
 ```
