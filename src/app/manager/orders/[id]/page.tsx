@@ -12,6 +12,8 @@ import { GenerateDocumentsPanel } from '@/components/manager/generate-documents-
 import { listMissingRequisites, type MissingRequisite } from '@/lib/documents/requisites-check';
 import { getOrderReadiness } from '@/lib/services/manager/orderDelivery';
 import { OrderReadinessPanel } from '@/components/manager/order-readiness-panel';
+import { listCertificateScanTargets } from '@/lib/services/manager/certificateScans';
+import { CertificateScansPanel } from '@/components/manager/certificate-scans-panel';
 
 export default async function ManagerOrderDetailPage({
   params
@@ -80,6 +82,18 @@ export default async function ManagerOrderDetailPage({
     />
   ) : null;
 
+  // Этап 12 PR-2 (ФТ-5.3): массовая загрузка сканов — только для заказов обучения,
+  // у документов на разработку удостоверений нет.
+  let certificateScansPanel: React.ReactNode = null;
+  if (data.order.serviceType === 'training' && !data.order.resultDeliveredAt) {
+    const targetsResult = await listCertificateScanTargets(prisma, session, id);
+    if (targetsResult.ok) {
+      certificateScansPanel = (
+        <CertificateScansPanel orderId={id} targets={targetsResult.targets} />
+      );
+    }
+  }
+
   return (
     <ManagerOrderDetailView
       data={data}
@@ -92,6 +106,7 @@ export default async function ManagerOrderDetailPage({
       telephonyEnabled={telephonyEnabled}
       generatePanel={generatePanel}
       readinessPanel={readinessPanel}
+      certificateScansPanel={certificateScansPanel}
     />
   );
 }

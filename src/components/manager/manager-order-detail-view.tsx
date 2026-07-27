@@ -28,7 +28,8 @@ export function ManagerOrderDetailView({
   inboundEnabled = false,
   telephonyEnabled = false,
   generatePanel = null,
-  readinessPanel = null
+  readinessPanel = null,
+  certificateScansPanel = null
 }: {
   data: ManagerOrderDetailData;
   backHref: string;
@@ -42,6 +43,8 @@ export function ManagerOrderDetailView({
   generatePanel?: React.ReactNode;
   /** Этап 12 (ФТ-5.1/5.2): блок «Готовность к передаче». */
   readinessPanel?: React.ReactNode;
+  /** Этап 12 PR-2 (ФТ-5.3): массовая загрузка сканов удостоверений (только обучение). */
+  certificateScansPanel?: React.ReactNode;
 }) {
   const { order, auditEntries, documentRows, items } = data;
 
@@ -61,6 +64,7 @@ export function ManagerOrderDetailView({
           <ManagerOrderAmounts order={order} />
 
           {readinessPanel}
+          {certificateScansPanel}
           {generatePanel}
 
           <div className='bg-white border border-gray-200 rounded-xl p-5 space-y-3'>

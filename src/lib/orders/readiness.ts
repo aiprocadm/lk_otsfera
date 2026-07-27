@@ -21,7 +21,8 @@ import type { ServiceType, TrainingStatus } from '@prisma/client';
 export type ItemGap =
   | 'training_incomplete'
   | 'certificate_missing'
-  | 'certificate_scan_missing';
+  | 'certificate_scan_missing'
+  | 'certificate_scan_infected';
 
 export type ItemReadiness = {
   itemId: string;
@@ -44,7 +45,11 @@ export type ReadinessInput = {
     id: string;
     trainingStatus: TrainingStatus;
     studentName: string;
-    certificate: { documentId: string | null } | null;
+    certificate: {
+      documentId: string | null;
+      /** Этап 12 PR-2: вердикт ClamAV по скану; `undefined` — статус не читали. */
+      scanStatus?: string | null;
+    } | null;
   }>;
 };
 
@@ -60,6 +65,11 @@ function itemGaps(item: ReadinessInput['items'][number]): ItemGap[] {
   if (item.trainingStatus !== 'certificate_issued') gaps.push('training_incomplete');
   if (!item.certificate) gaps.push('certificate_missing');
   else if (item.certificate.documentId === null) gaps.push('certificate_scan_missing');
+  // Этап 12 PR-2 (ФТ-5.3): скан ClamAV асинхронный, поэтому «заражённый файл не
+  // привязывается» действует здесь — заражённый скан не закрывает чек-лист.
+  // `pending` пробелом не считается: вердикта ещё нет, а клиенту файл всё равно
+  // не отдадут (download → 410) до вердикта.
+  else if (item.certificate.scanStatus === 'infected') gaps.push('certificate_scan_infected');
   return gaps;
 }
 
@@ -100,5 +110,6 @@ export const ORDER_GAP_RU: Record<OrderGap, string> = {
 export const ITEM_GAP_RU: Record<ItemGap, string> = {
   training_incomplete: 'обучение не завершено',
   certificate_missing: 'удостоверение не создано',
-  certificate_scan_missing: 'не загружен скан удостоверения'
+  certificate_scan_missing: 'не загружен скан удостоверения',
+  certificate_scan_infected: 'скан удостоверения заражён — загрузите другой файл'
 };
