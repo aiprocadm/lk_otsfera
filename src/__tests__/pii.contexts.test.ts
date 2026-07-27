@@ -11,7 +11,7 @@ const SUBJECT_TYPES = new Set([
 describe('PII_CONTEXTS registry', () => {
   const entries = Object.entries(PII_CONTEXTS);
 
-  it('содержит все 20 контекстов v1+M1+M6+этапы 2/5/7', () => {
+  it('содержит все 22 контекста v1+M1+M6+этапы 2/5/7/9', () => {
     expect(entries.map(([k]) => k).sort()).toEqual([
       'admin_user_view', 'admin_users_list', 'calls_list', 'certificates_list',
       'client_request_view', // этап 5: деталка обращения клиента
@@ -23,13 +23,15 @@ describe('PII_CONTEXTS registry', () => {
       'intake_list', // этап 7: union-список «Входящие в работу»
       'manager_lead_view',
       'manager_student_view', 'manager_students_list', 'order_items_list',
-      'org_card_calls', 'org_card_inbound'
+      'org_card_calls',
+      'org_card_certificates_export', // этап 9 PR-3: выгрузка удостоверений из карточки
+      'org_card_inbound'
     ]);
   });
 
   it.each(entries)('%s: валидные subjectType/action/labelRu/callSite', (_key, ctx) => {
     expect(SUBJECT_TYPES.has(ctx.subjectType)).toBe(true);
-    expect(['list', 'view']).toContain(ctx.action);
+    expect(['list', 'view', 'export']).toContain(ctx.action);
     expect(ctx.labelRu.length).toBeGreaterThan(0);
     expect(existsSync(path.join(process.cwd(), ctx.callSite))).toBe(true);
   });

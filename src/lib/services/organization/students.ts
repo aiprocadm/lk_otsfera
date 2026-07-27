@@ -8,6 +8,12 @@ export type OrgStudentRow = {
   createdAt: Date;
 };
 
+/** Строка выгрузки сотрудников (ФТ-12.2): + должность и счётчик удостоверений. */
+export type OrgStudentExportRow = OrgStudentRow & {
+  position: string | null;
+  activeCertificates: number;
+};
+
 export type ListOrgStudentsOptions = {
   organizationId: string;
   search?: string;
@@ -35,14 +41,9 @@ function normalizeSkip(skip: number | undefined): number {
   return Math.floor(skip);
 }
 
-export async function listOrgStudents(
-  prisma: PrismaClient,
-  opts: ListOrgStudentsOptions
-): Promise<ListOrgStudentsResult> {
-  const take = normalizeTake(opts.take);
-  const skip = normalizeSkip(opts.skip);
-
-  const where = {
+/** Фильтр списка сотрудников — общий для экрана и выгрузки (ФТ-12.1). */
+function orgStudentsWhere(opts: { organizationId: string; search?: string }) {
+  return {
     organizationId: opts.organizationId,
     ...(opts.search
       ? {
@@ -53,6 +54,16 @@ export async function listOrgStudents(
         }
       : {})
   };
+}
+
+export async function listOrgStudents(
+  prisma: PrismaClient,
+  opts: ListOrgStudentsOptions
+): Promise<ListOrgStudentsResult> {
+  const take = normalizeTake(opts.take);
+  const skip = normalizeSkip(opts.skip);
+
+  const where = orgStudentsWhere(opts);
 
   const [total, students] = await Promise.all([
     prisma.student.count({ where }),
@@ -74,10 +85,61 @@ export async function listOrgStudents(
   return { rows: students, total };
 }
 
+/**
+ * Выгрузка сотрудников организации (этап 9 PR-3, ФТ-12.2): тот же фильтр, что
+ * у экрана, + должность и счётчик **действующих** удостоверений на дату
+ * выгрузки. «Действующее» = бессрочное (`validUntil = null`) или срок не истёк
+ * — та же граница, что у `certificateStatus` (истёкшие не считаем).
+ */
+export async function listOrgStudentsForExport(
+  prisma: PrismaClient,
+  opts: { organizationId: string; search?: string; limit: number; now?: Date }
+): Promise<{ rows: OrgStudentExportRow[]; total: number }> {
+  const where = orgStudentsWhere(opts);
+  const startOfToday = new Date(opts.now ?? new Date());
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const [total, students] = await Promise.all([
+    prisma.student.count({ where }),
+    prisma.student.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }],
+      take: opts.limit,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        position: true,
+        externalStudentId: true,
+        createdAt: true
+      }
+    })
+  ]);
+
+  const studentIds = students.map((s) => s.id);
+  const counts = studentIds.length
+    ? await prisma.certificate.groupBy({
+        by: ['studentId'],
+        where: {
+          studentId: { in: studentIds },
+          OR: [{ validUntil: null }, { validUntil: { gte: startOfToday } }]
+        },
+        _count: { _all: true }
+      })
+    : [];
+  const countByStudent = new Map(counts.map((c) => [c.studentId, c._count._all]));
+
+  return {
+    rows: students.map((s) => ({ ...s, activeCertificates: countByStudent.get(s.id) ?? 0 })),
+    total
+  };
+}
+
 export type OrgStudentCard = {
   id: string;
   name: string;
   email: string;
+  position: string | null;
   externalStudentId: string | null;
   createdAt: Date;
 };
@@ -97,10 +159,35 @@ export async function getOrgStudent(
       id: true,
       name: true,
       email: true,
+      position: true,
       externalStudentId: true,
       createdAt: true
     }
   });
+}
+
+/**
+ * Правка должности сотрудника (этап 9 PR-3, ФТ-12.2). Скоуп — активная
+ * организация кабинета: чужой сотрудник = `forbidden` (как и несуществующий —
+ * существование чужой записи не подтверждаем). Пустая строка очищает поле:
+ * должность необязательна (решение заказчика §9-1 спеки).
+ */
+export async function updateOrgStudentPosition(
+  prisma: PrismaClient,
+  args: { organizationId: string; studentId: string; position: string }
+): Promise<{ ok: true; position: string | null } | { ok: false; error: 'forbidden' | 'validation' }> {
+  const position = args.position.trim();
+  if (position.length > 200) return { ok: false, error: 'validation' };
+
+  const student = await prisma.student.findFirst({
+    where: { id: args.studentId, organizationId: args.organizationId },
+    select: { id: true }
+  });
+  if (!student) return { ok: false, error: 'forbidden' };
+
+  const next = position || null;
+  await prisma.student.update({ where: { id: student.id }, data: { position: next } });
+  return { ok: true, position: next };
 }
 
 export type OrgStudentTrainingRow = {

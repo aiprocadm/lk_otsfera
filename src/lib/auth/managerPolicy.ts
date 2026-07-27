@@ -147,3 +147,24 @@ export async function getCompanyTeamVisibility(
   });
   return company?.managerTeamVisibility ?? false;
 }
+
+/**
+ * Mode-aware предикат «менеджер имеет доступ к организации» (C8): при
+ * `managerTeamVisibility=ON` граница — компания, при OFF — персональный скоуп
+ * `managedOrgIds`. Тот же вывод, что у страничного гарда `requireManagerForOrg`,
+ * но без redirect — для API-роутов (этап 9 PR-3: выгрузки из карточки).
+ */
+export async function canManagerAccessOrg(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  orgId: string
+): Promise<boolean> {
+  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+  if (!teamMode) return isOrgInScope(session, orgId);
+  if (!session.companyId) return false;
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { companyId: true }
+  });
+  return !!org && org.companyId === session.companyId;
+}

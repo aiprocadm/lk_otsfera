@@ -177,3 +177,25 @@ describe('OrganizationStudentsPage', () => {
     expect(container.textContent).not.toContain('Страница');
   });
 });
+
+// ─── Этап 9 PR-3 (ФТ-12.2): кнопка выгрузки сотрудников ──────────────────────
+
+describe('OrganizationStudentsPage — выгрузка в Excel', () => {
+  beforeEach(() => {
+    getOrgPageContext.mockReset();
+    listOrgStudents.mockReset();
+    getOrgPageContext.mockResolvedValue(CTX);
+    listOrgStudents.mockResolvedValue({ rows: [], total: 0 });
+  });
+
+  it('ссылка несёт активную организацию и текущий поиск', async () => {
+    const { container } = await renderServerComponent(
+      OrganizationStudentsPage({ searchParams: Promise.resolve({ search: 'Иван' }) })
+    );
+    const href = container
+      .querySelector('a[href*="/api/organization/students/export"]')!
+      .getAttribute('href')!;
+    expect(href).toContain('org=org-1');
+    expect(href).toContain('search=');
+  });
+});

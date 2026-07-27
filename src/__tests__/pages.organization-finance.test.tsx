@@ -64,3 +64,26 @@ describe('OrganizationFinancePage', () => {
     expect(getOrgPageContext).toHaveBeenCalledWith({});
   });
 });
+
+// ─── Этап 9 PR-3 (ФТ-12.2): кнопка выгрузки платежей клиентом ────────────────
+
+describe('OrganizationFinancePage — выгрузка в Excel', () => {
+  beforeEach(() => {
+    getOrgPageContext.mockReset();
+    getOrgFinanceKpis.mockReset();
+    listOrgPayments.mockReset();
+    getOrgPageContext.mockResolvedValue(CTX);
+    getOrgFinanceKpis.mockResolvedValue({ billed: '1000', paid: '500', outstanding: '500' });
+    listOrgPayments.mockResolvedValue([]);
+  });
+
+  it('ссылка ведёт на клиентский роут и несёт активную организацию', async () => {
+    const { container } = await renderServerComponent(
+      OrganizationFinancePage({ searchParams: Promise.resolve({ org: 'org-1' }) })
+    );
+    const href = container
+      .querySelector('a[href*="/api/organization/finance/export"]')!
+      .getAttribute('href')!;
+    expect(href).toContain('org=org-1');
+  });
+});

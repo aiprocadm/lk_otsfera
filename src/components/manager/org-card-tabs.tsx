@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { Badge, EmptyState, TableShell, THead, Th, Tr, Td } from '@/components/ui';
+import { Badge, EmptyState, ExportLink, TableShell, THead, Th, Tr, Td } from '@/components/ui';
 import { CallsList } from '@/components/manager/calls-list';
 import { LeadStatusBadge } from '@/components/partner/lead-status-badge';
 import { clientRequestStatusLabel } from '@/lib/services/clientRequests/labels';
@@ -26,6 +26,8 @@ export type OrgCardTab =
   | 'client_requests'
   | 'leads'
   | 'deals'
+  // Этап 9 (ФТ-12.2, PR-3): реестр удостоверений организации + его выгрузка.
+  | 'certificates'
   | 'details';
 
 export const ORG_CARD_TABS: { key: OrgCardTab; label: string }[] = [
@@ -39,6 +41,7 @@ export const ORG_CARD_TABS: { key: OrgCardTab; label: string }[] = [
   { key: 'client_requests', label: 'Заявки клиентов' },
   { key: 'leads', label: 'Лиды' },
   { key: 'deals', label: 'Сделки' },
+  { key: 'certificates', label: 'Удостоверения' },
   { key: 'details', label: 'Реквизиты' }
 ];
 
@@ -109,7 +112,9 @@ function renderSection(card: OrganizationCard, tab: OrgCardTab): React.ReactNode
     case 'documents':
       return <DocumentsSection documents={card.documents} />;
     case 'payments':
-      return <PaymentsSection payments={card.payments} kpis={card.kpis} />;
+      return <PaymentsSection payments={card.payments} kpis={card.kpis} orgId={card.id} />;
+    case 'certificates':
+      return <CertificatesSection certificates={card.certificates} orgId={card.id} />;
     case 'threads':
       return <ThreadsSection activity={card.activity} />;
     case 'inbound_messages':
@@ -182,12 +187,24 @@ function DocumentsSection({ documents }: { documents: OrganizationCard['document
   );
 }
 
-function PaymentsSection({ payments, kpis }: { payments: OrganizationCard['payments']; kpis: OrganizationCard['kpis'] }) {
+function PaymentsSection({
+  payments,
+  kpis,
+  orgId
+}: {
+  payments: OrganizationCard['payments'];
+  kpis: OrganizationCard['kpis'];
+  orgId: string;
+}) {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 max-w-md">
-        <Tile label="Оплачено (нетто)" value={money(kpis.totalPaid)} />
-        <Tile label="Возвраты" value={money(kpis.totalRefunded)} />
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+        <div className="grid grid-cols-2 gap-3 max-w-md flex-1">
+          <Tile label="Оплачено (нетто)" value={money(kpis.totalPaid)} />
+          <Tile label="Возвраты" value={money(kpis.totalRefunded)} />
+        </div>
+        {/* ФТ-12.2: платежи/задолженность клиента в Excel (staff-путь). */}
+        <ExportLink base={`/api/manager/organizations/${orgId}/payments/export`} />
       </div>
       {payments.length === 0 ? (
         <EmptyState message="Оплат пока нет." />
@@ -204,6 +221,60 @@ function PaymentsSection({ payments, kpis }: { payments: OrganizationCard['payme
                 <Td>{dateRu(p.paidAt)}</Td>
                 <Td>{money(p.amount)}</Td>
                 <Td>{p.isRefund ? <Badge tone="danger">Возврат</Badge> : <Badge tone="success">Оплата</Badge>}</Td>
+              </Tr>
+            ))}
+          </tbody>
+        </TableShell>
+      )}
+    </div>
+  );
+}
+
+/** Этап 9 (ФТ-12.2): реестр удостоверений организации в карточке + выгрузка. */
+function CertificatesSection({
+  certificates,
+  orgId
+}: {
+  certificates: OrganizationCard['certificates'];
+  orgId: string;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <p className="text-sm text-gray-500">
+          {certificates.length === 0
+            ? 'Удостоверений пока нет.'
+            : `Последние ${certificates.length} — полный реестр в выгрузке.`}
+        </p>
+        <ExportLink base={`/api/manager/organizations/${orgId}/certificates/export`} />
+      </div>
+      {certificates.length === 0 ? (
+        <EmptyState message="Удостоверений пока нет." />
+      ) : (
+        <TableShell>
+          <THead>
+            <Th>Номер</Th>
+            <Th>Сотрудник</Th>
+            <Th>Направление</Th>
+            <Th>Выдано</Th>
+            <Th>Действует до</Th>
+            <Th>Скан</Th>
+          </THead>
+          <tbody>
+            {certificates.map((c) => (
+              <Tr key={c.id}>
+                <Td className="font-medium">{c.number}</Td>
+                <Td>{c.studentName}</Td>
+                <Td>{c.directionName}</Td>
+                <Td>{dateRu(c.issuedAt)}</Td>
+                <Td>{c.validUntil ? dateRu(c.validUntil) : 'бессрочно'}</Td>
+                <Td>
+                  {c.hasScan ? (
+                    <Badge tone="success">есть</Badge>
+                  ) : (
+                    <Badge tone="neutral">готовится</Badge>
+                  )}
+                </Td>
               </Tr>
             ))}
           </tbody>

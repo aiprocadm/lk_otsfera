@@ -8,6 +8,7 @@ import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { CertificateRegistryTable } from '@/components/certificates/certificate-registry-table';
 import { CertificateRegistryFilters } from '@/components/certificates/certificate-registry-filters';
 import { Paginator } from '@/components/ui/paginator';
+import { exportHref } from '@/lib/ui/exportHref';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,15 +27,6 @@ const STATUSES: CertificateStatusFilter[] = ['active', 'expiring', 'expired'];
 
 function parseStatus(raw: string | undefined): CertificateStatusFilter | undefined {
   return STATUSES.includes(raw as CertificateStatusFilter) ? (raw as CertificateStatusFilter) : undefined;
-}
-
-function exportHref(base: string, params: Record<string, string | undefined>): string {
-  const qs = new URLSearchParams();
-  for (const [k, v] of Object.entries(params)) {
-    if (v) qs.set(k, v);
-  }
-  const s = qs.toString();
-  return s ? `${base}?${s}` : base;
 }
 
 /** Реестр удостоверений организации (этап 3, ФТ-6.1). */

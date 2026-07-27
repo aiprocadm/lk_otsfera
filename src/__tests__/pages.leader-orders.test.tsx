@@ -110,3 +110,28 @@ describe('LeaderOrdersPage', () => {
     expect(container.textContent).toContain('"unassigned":"1"');
   });
 });
+
+// ─── Этап 9 PR-3 (ФТ-12.2): кнопка выгрузки заказов у руководителя ───────────
+
+describe('LeaderOrdersPage — выгрузка в Excel', () => {
+  beforeEach(() => {
+    requireManagerLeader.mockReset();
+    listOrders.mockReset();
+    listOrganizations.mockReset();
+    requireManagerLeader.mockResolvedValue(SESSION);
+    listOrders.mockResolvedValue({ rows: [], nextCursor: null });
+    listOrganizations.mockResolvedValue([]);
+  });
+
+  it('ссылка несёт scope=company (company-wide режим кабинета) и фильтры', async () => {
+    const { container } = await renderServerComponent(
+      LeaderOrdersPage({ searchParams: Promise.resolve({ search: 'abc', financialStatus: 'paid' }) })
+    );
+    const href = container
+      .querySelector('a[href*="/api/manager/orders/export"]')!
+      .getAttribute('href')!;
+    expect(href).toContain('scope=company');
+    expect(href).toContain('search=abc');
+    expect(href).toContain('financialStatus=paid');
+  });
+});

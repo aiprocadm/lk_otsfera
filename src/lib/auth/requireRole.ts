@@ -2,7 +2,13 @@ import { notFound, redirect } from 'next/navigation';
 import { getSession } from './session';
 import type { SessionPayload } from './jwt';
 import { prisma } from '@/lib/db/prisma';
-import { canSeeOrder, isOrgInScope, getCompanyTeamVisibility, isLeaderSameCompany } from '@/lib/auth/managerPolicy';
+import {
+  canSeeOrder,
+  canManagerAccessOrg,
+  isOrgInScope,
+  getCompanyTeamVisibility,
+  isLeaderSameCompany
+} from '@/lib/auth/managerPolicy';
 
 export async function requireSession(): Promise<SessionPayload> {
   const session = await getSession();
@@ -103,18 +109,8 @@ export async function requireManagerLeader(): Promise<SessionPayload> {
 
 export async function requireManagerForOrg(orgId: string): Promise<SessionPayload> {
   const session = await requireManager();
-  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
-  if (teamMode) {
-    const org = await prisma.organization.findUnique({
-      where: { id: orgId },
-      select: { companyId: true }
-    });
-    if (!org || !session.companyId || org.companyId !== session.companyId) {
-      redirect('/manager/dashboard');
-    }
-    return session;
-  }
-  if (!isOrgInScope(session, orgId)) redirect('/manager/dashboard');
+  // Mode-aware решение (C8) — общий предикат с API-роутами выгрузок (§4).
+  if (!(await canManagerAccessOrg(prisma, session, orgId))) redirect('/manager/dashboard');
   return session;
 }
 

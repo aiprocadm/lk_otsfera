@@ -48,6 +48,7 @@ vi.mock('@/components/manager/org-card-tabs', () => ({
     { key: 'client_requests', label: 'Заявки клиентов' },
     { key: 'leads', label: 'Лиды' },
     { key: 'deals', label: 'Сделки' },
+    { key: 'certificates', label: 'Удостоверения' },
     { key: 'details', label: 'Реквизиты' }
   ]
 }));
@@ -224,5 +225,42 @@ describe('ManagerOrgDetailPage', () => {
     tabs = res.container.textContent ?? '';
     expect(tabs).toContain('client_requests');
     expect(tabs).toContain('active:deals');
+  });
+});
+
+// ─── Этап 9 PR-3 (ФТ-12.2): вкладка «Удостоверения» под флагом реестра ───────
+
+describe('ManagerOrgDetailPage — вкладка удостоверений', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    isFeatureEnabled.mockReturnValue(false);
+  });
+
+  it('видна при certificates_registry=on и её можно выбрать через ?tab=', async () => {
+    requireManagerForOrg.mockResolvedValue(SESSION);
+    getOrganizationCard.mockResolvedValue(CARD);
+    isFeatureEnabled.mockImplementation((f: string) => f === 'certificates_registry');
+
+    const { container } = await renderServerComponent(
+      ManagerOrgDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({ tab: 'certificates' })
+      })
+    );
+    expect(container.textContent).toContain('certificates');
+    expect(container.textContent).toContain('active:certificates');
+  });
+
+  it('скрыта при выключенном флаге — ?tab=certificates падает на «Историю»', async () => {
+    requireManagerForOrg.mockResolvedValue(SESSION);
+    getOrganizationCard.mockResolvedValue(CARD);
+
+    const { container } = await renderServerComponent(
+      ManagerOrgDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({ tab: 'certificates' })
+      })
+    );
+    expect(container.textContent).toContain('active:history');
   });
 });

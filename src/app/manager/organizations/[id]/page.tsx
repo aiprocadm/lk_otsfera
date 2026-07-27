@@ -26,7 +26,9 @@ export default async function ManagerOrgDetailPage({
       (t.key !== 'calls' || isFeatureEnabled('telephony_mango')) &&
       // Этап 7 (PR-3): внутренний контур — по флагам доменов; лиды под кабинетом (без флага).
       (t.key !== 'client_requests' || isFeatureEnabled('client_requests')) &&
-      (t.key !== 'deals' || isFeatureEnabled('deals_pipeline'))
+      (t.key !== 'deals' || isFeatureEnabled('deals_pipeline')) &&
+      // Этап 9 (ФТ-12.2): вкладка удостоверений живёт под тем же флагом, что и реестры.
+      (t.key !== 'certificates' || isFeatureEnabled('certificates_registry'))
   );
 
   const rawTab = typeof sp.tab === 'string' ? sp.tab : undefined;

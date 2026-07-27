@@ -107,6 +107,21 @@ export async function listOrgPayments(
   }));
 }
 
+/**
+ * Выгрузка леджера платежей (этап 9 PR-3, ФТ-12.2): та же выборка, что у
+ * экрана, но до `limit` строк + `total` для хвоста «показаны первые N из M».
+ */
+export async function listOrgPaymentsForExport(
+  prisma: PrismaClient,
+  opts: { organizationId: string; limit: number }
+): Promise<{ rows: OrgPaymentRow[]; total: number }> {
+  const [rows, total] = await Promise.all([
+    listOrgPayments(prisma, { organizationId: opts.organizationId, take: opts.limit }),
+    prisma.payment.count({ where: { organizationId: opts.organizationId } })
+  ]);
+  return { rows, total };
+}
+
 type RawOrgPaymentRow = {
   id: string;
   organizationId: string;

@@ -113,6 +113,19 @@ export async function submitEnrollmentRequest(
         };
       })
     });
+
+    // Этап 9 (ФТ-12.2): должность из заявки подхватывается в карточку
+    // сотрудника — но НЕ затирает уже заполненную (`position: null` в фильтре):
+    // актуальное значение из карточки старше по приоритету, чем присланное.
+    // Принадлежность студентов организации проверена выше при загрузке снапшота.
+    for (const item of validated.items) {
+      if (!item.studentId || !item.position) continue;
+      await tx.student.updateMany({
+        where: { id: item.studentId, position: null },
+        data: { position: item.position }
+      });
+    }
+
     return request;
   });
 

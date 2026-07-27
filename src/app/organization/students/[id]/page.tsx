@@ -8,6 +8,7 @@ import { getOrgStudent, listOrgStudentTraining } from '@/lib/services/organizati
 import { listCertificates } from '@/lib/services/training/certificates';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { CertificateRegistryTable } from '@/components/certificates/certificate-registry-table';
+import { StudentPositionForm } from '@/components/organization/student-position-form';
 import { TRAINING_STATUS_RU } from '@/components/training/order-items-section';
 import { Badge, TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { fmtDate } from '@/lib/format';
@@ -66,6 +67,14 @@ export default async function OrganizationStudentDetailPage({
               {student.externalStudentId && <>ID студента {student.externalStudentId} · </>}
               Добавлен {fmtDate(student.createdAt)}
             </p>
+            {/* ФТ-12.2: должность попадает в выгрузку сотрудников. */}
+            <div className='pt-3'>
+              <StudentPositionForm
+                organizationId={ctx.activeOrgId}
+                studentId={student.id}
+                initialPosition={student.position}
+              />
+            </div>
           </div>
         </div>
 

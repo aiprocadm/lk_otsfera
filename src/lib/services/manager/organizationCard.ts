@@ -3,6 +3,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeOrganization, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { can } from '@/lib/auth/accessProfile';
 import { recordPiiAccessMany } from '@/lib/pii/record';
+import { listCertificates } from '@/lib/services/training/certificates';
 
 /**
  * G4 — CRM-карточка организации: центральный накопитель истории (заявки,
@@ -79,6 +80,17 @@ export type OrgCardClientRequest = { id: string; subject: string; status: string
 export type OrgCardLead = { id: string; subject: string; status: string; createdAt: Date };
 export type OrgCardDeal = { id: string; title: string; status: string; amount: string | null; createdAt: Date };
 
+// Этап 9 (ФТ-12.2, PR-3): вкладка «Удостоверения» карточки + её выгрузка.
+export type OrgCardCertificate = {
+  id: string;
+  number: string;
+  studentName: string;
+  directionName: string;
+  issuedAt: Date;
+  validUntil: Date | null;
+  hasScan: boolean;
+};
+
 export type OrgCardRequisites = {
   legalName: string | null;
   ogrn: string | null;
@@ -110,6 +122,7 @@ export type OrganizationCard = {
   clientRequests: OrgCardClientRequest[];
   leads: OrgCardLead[];
   deals: OrgCardDeal[];
+  certificates: OrgCardCertificate[];
   // null в менеджерском контуре (нет capability see_commission).
   commission: { partnerCommissionRate: string | null } | null;
 };
@@ -128,7 +141,7 @@ export async function getOrganizationCard(
     : canSeeOrganization(session, orgId);
   if (!visible) return null;
 
-  const [orders, activeOrders, documents, payments, paidAgg, refundAgg, activity, inboundMessages, calls, clientRequests, leads, deals] = await Promise.all([
+  const [orders, activeOrders, documents, payments, paidAgg, refundAgg, activity, inboundMessages, calls, clientRequests, leads, deals, certificatesRes] = await Promise.all([
     prisma.order.findMany({
       where: { organizationId: orgId },
       select: {
@@ -198,7 +211,11 @@ export async function getOrganizationCard(
       select: { id: true, title: true, status: true, amount: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
       take: 20
-    })
+    }),
+    // Этап 9 (ФТ-12.2): вкладка «Удостоверения». Идём через сервис реестра, а
+    // не прямым запросом — он пересекает orgId со скоупом сессии и сам пишет
+    // PiiAccessEvent `certificates_list` (§12: ФИО слушателей — ПДн).
+    listCertificates(prisma, session, { organizationId: orgId, take: 20 })
   ]);
 
   const paid = paidAgg._sum.amount ?? new Prisma.Decimal(0);
@@ -274,6 +291,17 @@ export async function getOrganizationCard(
       id: r.id, subject: r.subject, status: r.status, rejectedReason: r.rejectedReason, createdAt: r.createdAt
     })),
     leads: leads.map((l) => ({ id: l.id, subject: l.subject, status: l.status, createdAt: l.createdAt })),
+    certificates: certificatesRes.ok
+      ? certificatesRes.certificates.map((c) => ({
+          id: c.id,
+          number: c.number,
+          studentName: c.student.name,
+          directionName: c.direction.name,
+          issuedAt: c.issuedAt,
+          validUntil: c.validUntil,
+          hasScan: c.documentId != null
+        }))
+      : /* v8 ignore next -- listCertificates не возвращает ошибок для read-скоупа */ [],
     deals: deals.map((d) => ({
       id: d.id, title: d.title, status: d.status, amount: d.amount ? d.amount.toFixed(2) : null, createdAt: d.createdAt
     })),
