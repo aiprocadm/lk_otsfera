@@ -5,6 +5,7 @@ import { LogoutButton } from '@/components/ui';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { AskQuestionButton } from '@/components/support/ask-question-button';
+import { OrganizationBottomTabBar } from './bottom-tab-bar';
 
 export function OrgAppShell(props: {
   userEmail?: string | null;
@@ -42,9 +43,13 @@ export function OrgAppShell(props: {
           </div>
         </header>
         <main className='flex-1 px-6 py-6'>
-          <div className='max-w-[1280px] mx-auto'>{props.children}</div>
+          {/* Отступ снизу — чтобы нижняя панель не накрывала контент на телефоне. */}
+          <div className='max-w-[1280px] mx-auto pb-16 md:pb-0'>{props.children}</div>
         </main>
       </div>
+      {/* Этап 11 PR-3 (ФТ-15.5): у org-кабинета нет общего layout-shell —
+          страницы оборачиваются сами, поэтому панель монтируется здесь. */}
+      <OrganizationBottomTabBar />
     </div>
   );
 }

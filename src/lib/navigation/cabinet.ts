@@ -112,7 +112,9 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/partner/dashboard', label: 'Главная' },
     { href: '/partner/portfolio', label: 'Портфель' },
     { href: '/partner/deals', label: 'Заказы' },
-    { href: '/partner/requests', label: 'Обращения', flag: 'client_requests' },
+    // Этап 11 PR-3 (ФТ-15.4, решение заказчика §5-1): пункт называется «Мои
+    // заявки» — так в ТЗ. Роут, коды и модель ClientRequest не трогаем.
+    { href: '/partner/requests', label: 'Мои заявки', flag: 'client_requests' },
     { href: '/partner/enrollments', label: 'Заявки на обучение', flag: 'enrollment_requests' },
     { href: '/partner/certificates', label: 'Удостоверения', flag: 'certificates_registry' },
     { href: '/partner/documents', label: 'Документы' },
@@ -121,15 +123,19 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/partner/messages', label: 'Сообщения', flag: 'chat' },
     { href: '/partner/settings', label: 'Настройки' }
   ],
+  // Этап 11 PR-3 (ФТ-15.4): состав и ПОРЯДОК заданы ТЗ дословно — Главная ·
+  // Заказы · Мои заявки · Заявки на обучение · Удостоверения · Документы ·
+  // Финансы · Сотрудники · Команда · Сообщения · Кабинет слушателя ·
+  // Настройки. Не переставляй без правки ТЗ: порядок проверяется тестом.
   organization: [
     { href: '/organization/dashboard', label: 'Главная', icon: '⌂', flag: 'organization_cabinet' },
     { href: '/organization/orders', label: 'Заказы', icon: '📋', flag: 'organization_cabinet' },
+    { href: '/organization/requests', label: 'Мои заявки', icon: '📮', flag: 'client_requests' },
+    { href: '/organization/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests' },
+    { href: '/organization/certificates', label: 'Удостоверения', icon: '📜', flag: 'certificates_registry' },
     { href: '/organization/documents', label: 'Документы', icon: '📄', flag: 'organization_cabinet' },
     { href: '/organization/finance', label: 'Финансы', icon: '₽', flag: 'organization_cabinet' },
     { href: '/organization/students', label: 'Сотрудники', icon: '👥', flag: 'organization_cabinet' },
-    { href: '/organization/enrollments', label: 'Заявки на обучение', icon: '🎓', flag: 'enrollment_requests' },
-    { href: '/organization/requests', label: 'Обращения', icon: '📮', flag: 'client_requests' },
-    { href: '/organization/certificates', label: 'Удостоверения', icon: '📜', flag: 'certificates_registry' },
     { href: '/organization/team', label: 'Команда', icon: '⚙', orgAdminOrLeaderOnly: true, flag: 'organization_cabinet' },
     // «Сообщения» намеренно под более узким флагом chat (см. CLAUDE.md §5);
     // /student — отдельный shared-entry домен, не часть organization_cabinet.

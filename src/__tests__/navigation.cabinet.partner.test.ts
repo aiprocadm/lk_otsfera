@@ -205,22 +205,33 @@ describe('navByRole.admin — русский канон с группами (в�
 });
 
 describe('navByRole.organization — единый источник (канон 11 пунктов)', () => {
-  it('содержит базовые пункты + Заявки на обучение + Удостоверения + Сообщения + Кабинет слушателя + Настройки', () => {
+  // Этап 11 PR-3 (ФТ-15.4): порядок задан ТЗ дословно и проверяется здесь —
+  // Главная · Заказы · Мои заявки · Заявки на обучение · Удостоверения ·
+  // Документы · Финансы · Сотрудники · Команда · Сообщения · Кабинет
+  // слушателя · Настройки.
+  it('состав и ПОРЯДОК пунктов совпадают с ФТ-15.4', () => {
     const hrefs = navByRole.organization.map((i) => i.href);
     expect(hrefs).toEqual([
       '/organization/dashboard',
       '/organization/orders',
+      '/organization/requests',
+      '/organization/enrollments',
+      '/organization/certificates',
       '/organization/documents',
       '/organization/finance',
       '/organization/students',
-      '/organization/enrollments',
-      '/organization/requests',
-      '/organization/certificates',
       '/organization/team',
       '/organization/messages',
       '/student',
       '/organization/settings'
     ]);
+  });
+
+  it('раздел обращений называется «Мои заявки» (термин ТЗ, решение §5-1)', () => {
+    const requests = navByRole.organization.find((i) => i.href === '/organization/requests');
+    expect(requests?.label).toBe('Мои заявки');
+    // Роут и флаг не переименовываются — только user-facing строка.
+    expect(requests?.flag).toBe('client_requests');
   });
 
   it('«Команда» помечена orgAdminOrLeaderOnly', () => {
@@ -236,5 +247,31 @@ describe('navByRole.organization — единый источник (канон 1
     const student = navByRole.organization.find((i) => i.href === '/student');
     expect(student?.label).toBe('Кабинет слушателя');
     expect(student?.flag).toBeUndefined();
+  });
+});
+
+// Этап 11 PR-3 (ФТ-15.4): партнёрское меню уже в целевом порядке — фиксируем
+// его и новое название раздела обращений.
+describe('navByRole.partner — состав по ФТ-15.4', () => {
+  it('порядок пунктов совпадает с ТЗ', () => {
+    expect(navByRole.partner.map((i) => i.href)).toEqual([
+      '/partner/dashboard',
+      '/partner/portfolio',
+      '/partner/deals',
+      '/partner/requests',
+      '/partner/enrollments',
+      '/partner/certificates',
+      '/partner/documents',
+      '/partner/finance',
+      '/partner/team',
+      '/partner/messages',
+      '/partner/settings'
+    ]);
+  });
+
+  it('раздел обращений называется «Мои заявки», роут не тронут', () => {
+    const requests = navByRole.partner.find((i) => i.href === '/partner/requests');
+    expect(requests?.label).toBe('Мои заявки');
+    expect(requests?.flag).toBe('client_requests');
   });
 });
