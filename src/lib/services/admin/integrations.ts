@@ -10,6 +10,14 @@ import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache'
  * is*Enabled()-проверки и факт наличия ключей. Креды читаются через кэш
  * настроек интеграций (страница праймит его перед вызовом) — статус отражает
  * то, что сохранено в UI, с env как fallback. Флаги каналов остаются env.
+ *
+ * ФТ-14.2: точки чтения кредов переведены с `process.env` на настройки
+ * (`cachedIntegrationSetting` / `getSettingValue`, env — fallback) — здесь и в
+ * `telegram/client.ts`, `max/client.ts`, `whatsapp/aggregator.ts`, воркере.
+ * Применение без рестарта обеспечивает сброс кэша при сохранении
+ * (`resetIntegrationSettingsCache` в server-actions). Env остаются только
+ * рубильники фич (`FEATURE_TELEPHONY_MANGO`) и выбор адаптеров — это
+ * деплой-решения, а не настройки из UI.
  */
 
 export type IntegrationStatus = {

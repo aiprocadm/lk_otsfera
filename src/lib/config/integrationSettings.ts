@@ -187,6 +187,8 @@ export async function saveSettings(
     changedKeys.push(entry.key);
   }
 
+  // ФТ-14.5: мутации настроек попадают в AuditLog — только перечень
+  // изменённых ключей, БЕЗ значений (среди них секреты).
   if (changedKeys.length > 0) {
     await recordAudit(prisma, {
       userId: actorUserId,
