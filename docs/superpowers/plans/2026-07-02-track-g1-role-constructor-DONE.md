@@ -1,5 +1,12 @@
 # Track G1 — Конструктор ролей — PARTIAL close-out
 
+> **✅ ЗАКРЫТО (подтверждено сверкой кода 2026-07-28).** Файл был помечен
+> `PARTIAL` из-за неприменённой миграции `AccessProfile` (в том worktree не
+> было живого Postgres). Проверено: модель `AccessProfile` в `schema.prisma`,
+> миграция в `prisma/migrations`, `prisma migrate status` — «up to date».
+> Оставшееся в разделе «Осталось (опционально)» — belt-and-suspenders-прогон и
+> треки G2/отделы, которые в объём G1 не входили. Ниже — срез на 2026-07-02.
+
 **Дата:** 2026-07-02
 **Plan:** [2026-07-02-track-g1-role-constructor.md](2026-07-02-track-g1-role-constructor.md) · **Spec:** [../specs/2026-07-02-track-g1-role-constructor-design.md](../specs/2026-07-02-track-g1-role-constructor-design.md)
 **Branch:** `claude/mystifying-raman-96e2e5`

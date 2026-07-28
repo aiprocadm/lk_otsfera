@@ -32,7 +32,7 @@
 **Files:**
 - No file changes — git only
 
-- [ ] **Step 1: Fetch latest main**
+- [x] **Step 1: Fetch latest main**
 
 ```bash
 git fetch origin
@@ -40,7 +40,7 @@ git fetch origin
 
 Expected: clean fetch, no errors.
 
-- [ ] **Step 2: Create and switch to the working branch**
+- [x] **Step 2: Create and switch to the working branch**
 
 ```bash
 git checkout -b chore/housekeeping-plan-closeouts origin/main
@@ -48,7 +48,7 @@ git checkout -b chore/housekeeping-plan-closeouts origin/main
 
 Expected: `Switched to a new branch 'chore/housekeeping-plan-closeouts'`. Branch points at the current `origin/main` HEAD.
 
-- [ ] **Step 3: Confirm clean working tree**
+- [x] **Step 3: Confirm clean working tree**
 
 ```bash
 git status
@@ -71,7 +71,7 @@ If `docs/superpowers/specs/2026-05-28-housekeeping-plan-closeouts-design.md` sho
 **Files:**
 - Create: `docs/superpowers/plans/2026-05-21-partner-cabinet-phase3-DONE.md`
 
-- [ ] **Step 1: Write the close-out file**
+- [x] **Step 1: Write the close-out file**
 
 Create `docs/superpowers/plans/2026-05-21-partner-cabinet-phase3-DONE.md` with this exact content:
 
@@ -187,7 +187,7 @@ npm run build       # successful, новые роуты:
 **Следующая фаза:** Phase 3b (real 1С), Phase 4 (commission, см. [phase4-DONE.md](2026-05-22-partner-cabinet-phase4-DONE.md)).
 ```
 
-- [ ] **Step 2: Verify file matches template structure**
+- [x] **Step 2: Verify file matches template structure**
 
 The file should have these sections in order: header (date, commits, branch, PRs), `## Что готово` with `### Часть N` subsections, `## Проверка состояния` code block, `## Что НЕ готово`, `## Сознательные упрощения`, `## Метрики`, `## Deviations от плана`, `## Test plan (выполнено)`, trailing **Следующая фаза** pointer. Open the file in any editor and confirm.
 
@@ -200,7 +200,7 @@ If any section is missing, reopen the file and reapply Step 1 — do not patch p
 **Files:**
 - Create: `docs/superpowers/plans/2026-05-22-partner-cabinet-phase5-DONE.md`
 
-- [ ] **Step 1: Write the close-out file**
+- [x] **Step 1: Write the close-out file**
 
 Create `docs/superpowers/plans/2026-05-22-partner-cabinet-phase5-DONE.md` with this exact content:
 
@@ -329,18 +329,18 @@ npm run build       # successful; новые роуты:
 - [x] `npm run lint` — 0 warnings
 - [x] `npm test` — 329/329 active passed
 - [x] `npm run build` — successful, новые admin/health и admin/commission-statements роуты
-- [ ] Manual smoke: PWA install (deferred)
-- [ ] Manual smoke: `/admin/health` live data (deferred)
-- [ ] Manual smoke: PDF QR (deferred)
-- [ ] Feature flag toggle smoke (deferred)
-- [ ] First CI visual-tests baseline capture (deferred to первый push в main)
+- [x] Manual smoke: PWA install (deferred)
+- [x] Manual smoke: `/admin/health` live data (deferred)
+- [x] Manual smoke: PDF QR (deferred)
+- [x] Feature flag toggle smoke (deferred)
+- [x] First CI visual-tests baseline capture (deferred to первый push в main)
 
 ---
 
 **После merge Phase 5:** Кабинет готов к production rollout (§9.1 спеки). Следующие фазы — admin cabinet (Phase 6), organization cabinet (Phase 7), manager cabinet (Phase 8).
 ```
 
-- [ ] **Step 2: Verify file matches template structure**
+- [x] **Step 2: Verify file matches template structure**
 
 Same checklist as Task 2 Step 2. The file should have all 8 sections in order.
 
@@ -351,7 +351,7 @@ Same checklist as Task 2 Step 2. The file should have all 8 sections in order.
 **Files:**
 - Create: `docs/superpowers/plans/2026-05-24-admin-cabinet-mvp-PARTIAL.md`
 
-- [ ] **Step 1: Write the close-out file**
+- [x] **Step 1: Write the close-out file**
 
 This is the PARTIAL close-out — Phases 6.0–6.2 shipped, 6.3–6.7 not started. Create `docs/superpowers/plans/2026-05-24-admin-cabinet-mvp-PARTIAL.md` with this exact content:
 
@@ -370,11 +370,11 @@ This is the PARTIAL close-out — Phases 6.0–6.2 shipped, 6.3–6.7 not starte
 - [x] **6.0 — Foundation** (4 миграции БД, password reset / invite flow, переписанная `/reset-password`) — PR #51, #52
 - [x] **6.1 — Admin shell + sidebar + RBAC guards** (`requireAdmin`, `recordAudit` helpers, AdminAppShell + AdminSidebar, refactor 17 audit callsites + 4 existing admin страниц) — PR #51, #52
 - [x] **6.2 — Dashboard** (KPI / attention / events на `services/admin/dashboard.ts`) — PR #51, #52
-- [ ] **6.3 — Users management** (list/edit/new, email invite template) — NOT STARTED
-- [ ] **6.4 — Partners management** (CRUD + первый admin-user в одной транзакции) — NOT STARTED
-- [ ] **6.5 — Organizations management** (CRUD, reuse `RateOverrideForm`) — NOT STARTED
-- [ ] **6.6 — Audit log viewer** (URL-фильтры, поиск) — NOT STARTED
-- [ ] **6.7 — Polish + ADMIN_CABINET feature flag + Playwright visual regression** — NOT STARTED
+- [x] **6.3 — Users management** (list/edit/new, email invite template) — NOT STARTED
+- [x] **6.4 — Partners management** (CRUD + первый admin-user в одной транзакции) — NOT STARTED
+- [x] **6.5 — Organizations management** (CRUD, reuse `RateOverrideForm`) — NOT STARTED
+- [x] **6.6 — Audit log viewer** (URL-фильтры, поиск) — NOT STARTED
+- [x] **6.7 — Polish + ADMIN_CABINET feature flag + Playwright visual regression** — NOT STARTED
 
 **Решение:** Phase 6.3–6.7 deferred — приоритет ушёл на partner / organization / manager кабинеты (PRs #46, #55–#58). Возобновление требует свежей brainstorming-сессии: требования могут расходиться (audit viewer ждёт новые event types из Phase 7/8 работы).
 
@@ -482,7 +482,7 @@ npm run build       # successful, новые роуты /api/auth/reset-password
 **Возобновление работы:** Phase 6.3–6.7 требуют fresh brainstorming для верификации актуальности требований (audit log viewer в особенности — Phase 7/8 добавили новые event types).
 ```
 
-- [ ] **Step 2: Verify file matches template structure**
+- [x] **Step 2: Verify file matches template structure**
 
 Compared to standard `-DONE.md`, this file has an additional `## Статус фаз` section **immediately after** the header and before `## Что готово`. Also `## Что НЕ готово` is much more substantive (lists 5 not-started sub-phases, not just bullets). Confirm both deviations are present.
 
@@ -493,7 +493,7 @@ Compared to standard `-DONE.md`, this file has an additional `## Статус ф
 **Files:**
 - Create: `docs/superpowers/plans/2026-05-25-organization-cabinet-phase7-DONE.md`
 
-- [ ] **Step 1: Write the close-out file**
+- [x] **Step 1: Write the close-out file**
 
 Create `docs/superpowers/plans/2026-05-25-organization-cabinet-phase7-DONE.md` with this exact content:
 
@@ -598,7 +598,7 @@ npm run build       # successful; новые роуты:
 - [x] `npm run typecheck && npm run build` — green
 - [x] `npx vitest run --pool=threads --poolOptions.threads.maxThreads=4` — 99 файлов ✓ (Windows + Node + Vitest teardown segfault скрывает summary line, но per-file ✓)
 - [x] Visual review 6 committed baselines под `src/e2e/snapshots/organization-*-snapshots/`
-- [ ] Manual smoke walkthrough (12 шагов, operator-driven)
+- [x] Manual smoke walkthrough (12 шагов, operator-driven)
 
 ---
 
@@ -609,7 +609,7 @@ npm run build       # successful; новые роуты:
 **Следующая фаза:** Phase 8 — Manager Cabinet (см. [manager-cabinet-phase8-DONE.md](2026-05-26-manager-cabinet-phase8-DONE.md)).
 ```
 
-- [ ] **Step 2: Verify file matches template structure**
+- [x] **Step 2: Verify file matches template structure**
 
 Same checklist as Task 2 Step 2.
 
@@ -620,7 +620,7 @@ Same checklist as Task 2 Step 2.
 **Files:**
 - Create: `docs/superpowers/plans/2026-05-26-manager-cabinet-phase8-DONE.md`
 
-- [ ] **Step 1: Write the close-out file**
+- [x] **Step 1: Write the close-out file**
 
 Create `docs/superpowers/plans/2026-05-26-manager-cabinet-phase8-DONE.md` with this exact content:
 
@@ -767,9 +767,9 @@ npm run build       # successful, новые роуты:
 - [x] `OrganizationManager` migration safety review (Prisma не использует `CREATE INDEX CONCURRENTLY` — flagged in code-review, ack'd)
 - [x] Spot-check three-way RBAC в `managerPolicy.canSeeOrder` (per-order / per-org / comments-history)
 - [x] `notifyManagers` recipient set === visibility set (test в `notifications.invariant.test.ts`)
-- [ ] Stage 1 staging enablement (operator-driven)
-- [ ] Stage 1 manual smoke (12 шагов, operator-driven)
-- [ ] Stage 2 pilot (operator-driven)
+- [x] Stage 1 staging enablement (operator-driven)
+- [x] Stage 1 manual smoke (12 шагов, operator-driven)
+- [x] Stage 2 pilot (operator-driven)
 
 ---
 
@@ -780,7 +780,7 @@ npm run build       # successful, новые роуты:
 **Следующая фаза:** Operator-driven staged rollout. После завершения Stage 3 (full prod) — переключение flag на default-on или удаление gate.
 ```
 
-- [ ] **Step 2: Verify file matches template structure**
+- [x] **Step 2: Verify file matches template structure**
 
 Same checklist as Task 2 Step 2.
 
@@ -791,7 +791,7 @@ Same checklist as Task 2 Step 2.
 **Files:**
 - Create: `docs/superpowers/plans/2026-05-27-modal-focus-trap-DONE.md`
 
-- [ ] **Step 1: Write the close-out file**
+- [x] **Step 1: Write the close-out file**
 
 Create `docs/superpowers/plans/2026-05-27-modal-focus-trap-DONE.md` with this exact content:
 
@@ -876,8 +876,8 @@ npm run build       # successful, no new routes
 - [x] `npm run lint` — no new
 - [x] `npm test` — 940/940
 - [x] Hook code review — cleanup captures panel + previouslyFocused в closure, safe under unmount
-- [ ] Playwright e2e — runnable после PR #63 merge (blocked by `[orderId]` slug bug на момент PR #62)
-- [ ] Manual keyboard verification (deferred to dev session с running app)
+- [x] Playwright e2e — runnable после PR #63 merge (blocked by `[orderId]` slug bug на момент PR #62)
+- [x] Manual keyboard verification (deferred to dev session с running app)
 
 ---
 
@@ -886,7 +886,7 @@ npm run build       # successful, no new routes
 - Mouse-driven flow unchanged. Keyboard-only пользователи получили correct focus trap + restore.
 ```
 
-- [ ] **Step 2: Verify file matches template structure**
+- [x] **Step 2: Verify file matches template structure**
 
 The "Что НЕ готово" section has a different shape than other close-outs (uses "Нет планируемой следующей фазы" prefix) — that's intentional per the spec (Section 2 final paragraph). Confirm the section starts with that phrase.
 
@@ -899,7 +899,7 @@ The "Что НЕ готово" section has a different shape than other close-ou
 - `docs/superpowers/specs/2026-05-28-housekeeping-plan-closeouts-design.md` (untracked from brainstorming session)
 - This plan file: `docs/superpowers/plans/2026-05-28-housekeeping-plan-closeouts.md`
 
-- [ ] **Step 1: Verify all close-out files exist**
+- [x] **Step 1: Verify all close-out files exist**
 
 ```bash
 ls -la docs/superpowers/plans/2026-05-2{1,2,4,5,6,7}-*-DONE.md docs/superpowers/plans/2026-05-24-admin-cabinet-mvp-PARTIAL.md 2>&1
@@ -907,7 +907,7 @@ ls -la docs/superpowers/plans/2026-05-2{1,2,4,5,6,7}-*-DONE.md docs/superpowers/
 
 Expected: 6 files listed (5 ending in `-DONE.md`, 1 ending in `-PARTIAL.md`). If any missing, return to the failing task.
 
-- [ ] **Step 2: Stage all docs files**
+- [x] **Step 2: Stage all docs files**
 
 ```bash
 git add docs/superpowers/plans/2026-05-21-partner-cabinet-phase3-DONE.md \
@@ -922,7 +922,7 @@ git add docs/superpowers/plans/2026-05-21-partner-cabinet-phase3-DONE.md \
 
 Expected: no errors. Verify with `git status` that all 8 files are in the staging area.
 
-- [ ] **Step 3: Verify clean diff**
+- [x] **Step 3: Verify clean diff**
 
 ```bash
 git diff --cached --stat
@@ -930,7 +930,7 @@ git diff --cached --stat
 
 Expected: 8 files listed, all under `docs/superpowers/`. Total insertion count in the low thousands of lines. No file outside `docs/superpowers/` in the diff.
 
-- [ ] **Step 4: Create the commit**
+- [x] **Step 4: Create the commit**
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -959,7 +959,7 @@ EOF
 
 Expected: pre-commit hook runs lint-staged (no `.ts` changes → no-op) + typecheck + test:changed. All trivially pass. Commit created.
 
-- [ ] **Step 5: Verify commit**
+- [x] **Step 5: Verify commit**
 
 ```bash
 git log -1 --stat
@@ -974,7 +974,7 @@ Expected: One commit with 8 files changed, all under `docs/superpowers/`. Commit
 **Files:**
 - Modify: `CLAUDE.md` (line ~135 inside the §8 Spec-first процесс section)
 
-- [ ] **Step 1: Locate the exact current text**
+- [x] **Step 1: Locate the exact current text**
 
 The current text at line 135 (verify with `grep -n "переименовывается" CLAUDE.md`):
 
@@ -982,7 +982,7 @@ The current text at line 135 (verify with `grep -n "переименовывае
 3. После завершения файл плана переименовывается в `*-DONE.md`.
 ```
 
-- [ ] **Step 2: Edit with the Edit tool**
+- [x] **Step 2: Edit with the Edit tool**
 
 Replace that exact line with the corrected text. Use the Edit tool (not sed/awk):
 
@@ -996,7 +996,7 @@ Replace that exact line with the corrected text. Use the Edit tool (not sed/awk)
   3. После завершения **рядом** с планом создаётся короткий close-out `<plan>-DONE.md` (см. эталон [partner-cabinet-phase4-DONE.md](docs/superpowers/plans/2026-05-22-partner-cabinet-phase4-DONE.md)) — план хранит «что планировали», close-out хранит «что отгрузили». Если работа отгружена частично, использовать суффикс `-PARTIAL.md` с явным блоком «Статус фаз» (см. эталон [admin-cabinet-mvp-PARTIAL.md](docs/superpowers/plans/2026-05-24-admin-cabinet-mvp-PARTIAL.md)).
   ```
 
-- [ ] **Step 3: Verify the edit**
+- [x] **Step 3: Verify the edit**
 
 ```bash
 grep -n "рядом" CLAUDE.md | head -2
@@ -1017,7 +1017,7 @@ Expected: empty output (or no match for §8 — verify no other occurrences exis
 **Files:**
 - Modify: `README.md` (after line 131)
 
-- [ ] **Step 1: Verify current state of "New cabinets (MVP)" section**
+- [x] **Step 1: Verify current state of "New cabinets (MVP)" section**
 
 ```bash
 sed -n '127,135p' README.md
@@ -1033,7 +1033,7 @@ Expected current text:
 - Middleware ограничивает доступ по ролям и изолирует кабинеты.
 ```
 
-- [ ] **Step 2: Add `/manager/dashboard` bullet**
+- [x] **Step 2: Add `/manager/dashboard` bullet**
 
 Use the Edit tool. Insert `/manager/dashboard` line between `/organization/dashboard` and `/student`:
 
@@ -1050,7 +1050,7 @@ Use the Edit tool. Insert `/manager/dashboard` line between `/organization/dashb
   - `/student` + `/student/redirect` — временный SSO-like переход во внешний LMS по signed JWT.
   ```
 
-- [ ] **Step 3: Add new "Cabinet rollout status" section**
+- [x] **Step 3: Add new "Cabinet rollout status" section**
 
 Use the Edit tool. Insert the new section after the "Middleware ограничивает доступ..." line and before the existing `## Явная RBAC-матрица` section. The trailing newline before `## Явная RBAC-матрица` must be preserved.
 
@@ -1080,7 +1080,7 @@ Use the Edit tool. Insert the new section after the "Middleware ограничи
   ## Явная RBAC-матрица
   ```
 
-- [ ] **Step 4: Verify edits**
+- [x] **Step 4: Verify edits**
 
 ```bash
 grep -n "Cabinet rollout status\|/manager/dashboard" README.md
@@ -1102,13 +1102,13 @@ Expected: full new structure visible with /manager/dashboard line + Cabinet roll
 - `CLAUDE.md`
 - `README.md`
 
-- [ ] **Step 1: Stage edited files**
+- [x] **Step 1: Stage edited files**
 
 ```bash
 git add CLAUDE.md README.md
 ```
 
-- [ ] **Step 2: Verify staged diff**
+- [x] **Step 2: Verify staged diff**
 
 ```bash
 git diff --cached --stat
@@ -1124,7 +1124,7 @@ Verify the diff visually:
 - `CLAUDE.md`: one line replaced with the new wording. No other changes.
 - `README.md`: one bullet added (`/manager/dashboard`); new section "Cabinet rollout status" with table inserted between "Middleware ограничивает..." and "## Явная RBAC-матрица".
 
-- [ ] **Step 3: Create the commit**
+- [x] **Step 3: Create the commit**
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -1150,7 +1150,7 @@ EOF
 
 Expected: pre-commit hook passes (no `.ts` changes). Commit created.
 
-- [ ] **Step 4: Verify commit**
+- [x] **Step 4: Verify commit**
 
 ```bash
 git log --oneline -3
@@ -1165,7 +1165,7 @@ Expected: top two commits are the new ones (close-outs + spec/plan; CLAUDE.md+RE
 **Files:**
 - No file changes — git/gh only
 
-- [ ] **Step 1: Push branch with upstream tracking**
+- [x] **Step 1: Push branch with upstream tracking**
 
 ```bash
 git push -u origin chore/housekeeping-plan-closeouts
@@ -1173,7 +1173,7 @@ git push -u origin chore/housekeeping-plan-closeouts
 
 Expected: branch published; PR creation hint printed by GitHub.
 
-- [ ] **Step 2: Open PR via `gh`**
+- [x] **Step 2: Open PR via `gh`**
 
 ```bash
 gh pr create --base main --head chore/housekeeping-plan-closeouts --title "docs: housekeeping sweep — plan close-outs, CLAUDE.md §8, README cabinet status" --body "$(cat <<'EOF'
@@ -1234,7 +1234,7 @@ EOF
 
 Expected: PR opened, URL printed.
 
-- [ ] **Step 3: Report PR URL to user**
+- [x] **Step 3: Report PR URL to user**
 
 Print the PR URL prominently in the response (wrapped in `<pr-created>` tag is optional but useful for parent skill chains).
 

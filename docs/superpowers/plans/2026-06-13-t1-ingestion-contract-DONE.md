@@ -1,5 +1,11 @@
 # T1 — Единый контракт ингестии 1С: close-out (PARTIAL)
 
+> **✅ ЗАКРЫТО (подтверждено сверкой кода 2026-07-28).** Файл был помечен
+> `PARTIAL` из-за двух незакрытых пунктов — прогона integration на живом
+> Postgres и PR в main. Оба закрыты: в `main` лежат `src/lib/services/import/`
+> и `src/__tests__/import.unified.integration.test.ts`. Ниже — исторический
+> срез на 2026-06-13, статусы отдельных задач в нём не обновлялись.
+
 **Дата:** 2026-06-14
 **Ветка:** `claude/t1-ingestion-spec`
 **План:** [2026-06-13-t1-ingestion-contract.md](2026-06-13-t1-ingestion-contract.md) · **Спека:** [../specs/2026-06-13-t1-ingestion-contract-design.md](../specs/2026-06-13-t1-ingestion-contract-design.md)

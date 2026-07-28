@@ -56,4 +56,4 @@
 
 ## Отгрузка
 
-- [ ] typecheck/lint/unit/integration зелёные; CHANGELOG, STATUS, PR `base: main`.
+- [x] typecheck/lint/unit/integration зелёные; CHANGELOG, STATUS, PR `base: main`.
