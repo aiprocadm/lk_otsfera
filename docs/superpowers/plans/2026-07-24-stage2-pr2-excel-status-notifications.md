@@ -105,5 +105,5 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development (по желанию
   (сбой канала не валит переход), enrollment_submitted при подаче.
 - [x] F5. UI: импорт-блок мастера, ribbon, деталки (renderServerComponent),
   дашборд-карточки, кнопки очереди; обновить существующие тесты queue/list.
-- [ ] F6. `typecheck` / `lint` / `test:unit` зелёные; integration по затронутым
+- [x] F6. `typecheck` / `lint` / `test:unit` зелёные; integration по затронутым
   местам на живом Postgres. CHANGELOG.md; STATUS.md; PR.

@@ -33,8 +33,11 @@ export function getOneCAdapter(): OneCAdapter {
       cachedKey = key;
       return cached;
     }
-    case 'file':
-      throw new Error('File 1C adapter is not implemented yet (Phase 3)');
+    // Ветка 'file' убрана 2026-07-28: файлового адаптера ТЗ не требует, из UI
+    // он невыбираем (настройки принимают только fake|rest), а как значение env
+    // он был ловушкой — обмен падал с «not implemented» вместо понятного
+    // «неизвестный адаптер». Файловый обмен с 1С живёт отдельно — ручной
+    // импорт Excel (/admin/import, спека 2026-06-09-1c-file-import).
     default:
       throw new Error(`Unknown ONE_C_ADAPTER value: ${kind}`);
   }

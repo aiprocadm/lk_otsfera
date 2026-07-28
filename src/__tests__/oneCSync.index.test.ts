@@ -89,10 +89,12 @@ describe('getOneCAdapter / resetOneCAdapter', () => {
     expect(typeof adapter.pushLead).toBe('function');
   });
 
-  it('throws "File 1C adapter is not implemented yet" for ONE_C_ADAPTER=file', async () => {
+  // Ветка 'file' убрана: теперь это обычное неизвестное значение, а не
+  // отдельная ловушка с «not implemented».
+  it('ONE_C_ADAPTER=file трактуется как неизвестный адаптер', async () => {
     setEnv('ONE_C_ADAPTER', 'file');
     const { getOneCAdapter } = await import('@/lib/services/oneCSync/index');
-    expect(() => getOneCAdapter()).toThrow('File 1C adapter is not implemented yet');
+    expect(() => getOneCAdapter()).toThrow('Unknown ONE_C_ADAPTER value: file');
   });
 
   it('throws for unknown ONE_C_ADAPTER value', async () => {

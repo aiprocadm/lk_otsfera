@@ -28,5 +28,5 @@
   фикстуры rows/totals, рендер колонки.
 - [x] C3. Integration: в существующий deals/analytics-файл — won-сделка месяца
   попадает в план/факт (живой Postgres).
-- [ ] C4. typecheck/lint/test:unit зелёные; CHANGELOG; PR; STATUS.md
+- [x] C4. typecheck/lint/test:unit зелёные; CHANGELOG; PR; STATUS.md
   (после мержа этап 6 = ✅ готов).

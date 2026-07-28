@@ -40,4 +40,4 @@
 
 ## Отгрузка
 
-- [ ] typecheck/lint/unit зелёные; CHANGELOG, STATUS, PR с `base: main`.
+- [x] typecheck/lint/unit зелёные; CHANGELOG, STATUS, PR с `base: main`.

@@ -40,4 +40,4 @@
 - [x] C3. Воронка: канон 6 стадий, ветка promoted_to_deal; обновить
   существующие funnel-тесты.
 - [x] C4. UI: won-диалог, кнопка лида, заметки.
-- [ ] C5. Ворота + CHANGELOG + STATUS + PR (после мержа #227 — rebase).
+- [x] C5. Ворота + CHANGELOG + STATUS + PR (после мержа #227 — rebase).
