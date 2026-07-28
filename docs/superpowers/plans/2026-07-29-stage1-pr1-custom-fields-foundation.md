@@ -82,9 +82,12 @@
 - [x] `npm run typecheck` · `npm run lint` · `npm run test:unit` — зелёные.
 - [x] `npm run test:integration` (живой Postgres на :5432) по затронутым файлам.
 - [x] CHANGELOG.md.
-- [ ] PR с `base: main`; после мержа — проверить, что код реально в `main`
+- [x] PR с `base: main` — [#268](https://github.com/aiprocadm/lk_otsfera/pull/268).
+      После мержа проверить, что код реально в `main`
       (`git cat-file -e origin/main:src/lib/services/customFields/coerce.ts`).
-- [ ] Обновить STATUS.md (этап 1 → `🔍 PR`, ссылка на PR, запись в журнал).
+- [x] Обновить STATUS.md (этап 1 → в работе, ссылка на PR, запись в журнал).
+- [x] Полный `npm run test:integration` на живой базе — **зелёный: 1137 тестов
+      в 150 файлах**, 0 падений (адресный прогон по домену — 203 теста).
 
 ## Найдено по ходу (факты для следующих PR, не решения)
 
