@@ -50,14 +50,13 @@ describe('Schema enums (parsed from prisma/schema.prisma)', () => {
     );
   });
 
-  it('NotificationType covers expected events', () => {
-    expect(enumValues('NotificationType')).toEqual(
-      expect.arrayContaining([
-        'lead_status_changed', 'order_status_changed', 'payment_received',
-        'document_uploaded', 'commission_statement_ready', 'mention_in_comment',
-        'partner_assignment_changed', 'sync_error'
-      ])
-    );
+  // Этап 11 PR-3 (ФТ-15.7): enum NotificationType удалён из схемы. Он был
+  // мёртвым — `Notification.type` всегда был String, enum не был связан ни с
+  // одной колонкой и не упоминался в коде, а его состав давно разошёлся с
+  // реальностью (19+ реальных типов против 8 в enum). Источник правды —
+  // реестр src/lib/notifications/registry.ts (см. notifications.registry.*).
+  it('NotificationType больше не объявлен в схеме', () => {
+    expect(() => enumValues('NotificationType')).toThrow(/not found/);
   });
 
   it('LeadStatus has full lifecycle', () => {

@@ -90,16 +90,11 @@ enum GenerationSource {
   system
 }
 
-enum NotificationType {
-  lead_status_changed
-  order_status_changed
-  payment_received
-  document_uploaded
-  commission_statement_ready
-  mention_in_comment
-  partner_assignment_changed
-  sync_error
-}
+// Этап 11 PR-3 (ФТ-15.7): enum NotificationType удалён — он был мёртвым.
+// `Notification.type` объявлен как String и всегда им был; enum не был связан
+// ни с одной колонкой и не упоминался в коде ни разу, а его состав давно
+// разошёлся с реальностью (19+ типов). Единый источник правды теперь —
+// реестр `src/lib/notifications/registry.ts` (контракт кода, не тип БД).
 
 enum LeadStatus {
   new
