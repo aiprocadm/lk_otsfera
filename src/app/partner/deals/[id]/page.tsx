@@ -30,7 +30,7 @@ export default async function PartnerDealDetailPage({
 
   if (!deal) notFound();
 
-  const customFieldsResult = await getValuesForEntity(prisma, 'order', deal.id);
+  const customFieldsResult = await getValuesForEntity(prisma, session, 'order', deal.id);
   const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
 
   if (deal.organization) {

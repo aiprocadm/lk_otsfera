@@ -33,7 +33,7 @@ export default async function ManagerOrderDetailPage({
       select: { id: true, name: true, email: true },
       orderBy: { name: 'asc' }
     }),
-    getValuesForEntity(prisma, 'order', id),
+    getValuesForEntity(prisma, session, 'order', id),
     getDealActivity(prisma, session, id, { view: 'all' })
   ]);
   const directions = directionsResult.ok ? directionsResult.directions : [];

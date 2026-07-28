@@ -116,18 +116,21 @@ beforeAll(async () => {
 
   const dText = await createDefinition(prisma, adminSession, {
     entityType: ET, key: 'contract_number', label: 'Номер договора', fieldType: 'text', sortOrder: 1,
+    editableByRoles: ['admin', 'leader', 'manager'],
   });
   if (!dText.ok) throw new Error('Failed to create text def');
   defTextId = dText.definition.id;
 
   const dNum = await createDefinition(prisma, adminSession, {
     entityType: ET, key: 'amount_override', label: 'Сумма', fieldType: 'number', sortOrder: 2,
+    editableByRoles: ['admin', 'leader', 'manager'],
   });
   if (!dNum.ok) throw new Error('Failed to create number def');
   defNumberId = dNum.definition.id;
 
   const dDate = await createDefinition(prisma, adminSession, {
     entityType: ET, key: 'deadline', label: 'Срок', fieldType: 'date', sortOrder: 3,
+    editableByRoles: ['admin', 'leader', 'manager'],
   });
   if (!dDate.ok) throw new Error('Failed to create date def');
   defDateId = dDate.definition.id;
@@ -135,12 +138,14 @@ beforeAll(async () => {
   const dSelect = await createDefinition(prisma, adminSession, {
     entityType: ET, key: 'priority', label: 'Приоритет', fieldType: 'select',
     options: ['low', 'medium', 'high'], sortOrder: 4,
+    editableByRoles: ['admin', 'leader', 'manager'],
   });
   if (!dSelect.ok) throw new Error('Failed to create select def');
   defSelectId = dSelect.definition.id;
 
   const dBool = await createDefinition(prisma, adminSession, {
     entityType: ET, key: 'is_urgent', label: 'Срочно', fieldType: 'boolean', sortOrder: 5,
+    editableByRoles: ['admin', 'leader', 'manager'],
   });
   if (!dBool.ok) throw new Error('Failed to create boolean def');
   defBooleanId = dBool.definition.id;
@@ -178,7 +183,7 @@ afterAll(async () => {
 
 describe('values service', () => {
   it('getValuesForEntity: returns all active defs with null values when none set', async () => {
-    const res = await getValuesForEntity(prisma, ET, orderId);
+    const res = await getValuesForEntity(prisma, makeSession(adminUserId, 'admin'), ET, orderId);
     expect(res.ok).toBe(true);
     if (!res.ok) throw new Error('unexpected');
     // Should have our 5 defs
@@ -210,7 +215,7 @@ describe('values service', () => {
   });
 
   it('getValuesForEntity: values appear after setValues', async () => {
-    const res = await getValuesForEntity(prisma, ET, orderId);
+    const res = await getValuesForEntity(prisma, makeSession(adminUserId, 'admin'), ET, orderId);
     expect(res.ok).toBe(true);
     if (!res.ok) throw new Error('unexpected');
     const byKey = Object.fromEntries(res.fields.map((f) => [f.definition.key, f.value]));
@@ -255,7 +260,7 @@ describe('values service', () => {
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 
-  it('setValues: partner role → forbidden', async () => {
+  it('setValues: partner role → not_found (заказ не его)', async () => {
     // Create a temp partner user for this test
     const partnerUser = await prisma.user.create({
       data: { email: `cfv-ptr-${stamp}@t.local`, passwordHash: 'x', name: 'CFV Ptr', role: 'partner' },
@@ -264,7 +269,9 @@ describe('values service', () => {
     const res = await setValues(prisma, pSession, ET, orderId, {
       [defTextId]: 'should-fail',
     });
-    expect(res).toEqual({ ok: false, error: 'forbidden' });
+    // Этап 1 ТЗ v0.5: чужая карточка неотличима от несуществующей — не
+    // раскрываем существование чужого заказа (см. resolveEntityAccess).
+    expect(res).toEqual({ ok: false, error: 'not_found' });
     // Cleanup
     await prisma.user.delete({ where: { id: partnerUser.id } });
   });
@@ -329,7 +336,8 @@ describe('values service', () => {
     // Create a definition for a different entityType
     const adminSession = makeSession(adminUserId, 'admin');
     const wrongDef = await createDefinition(prisma, adminSession, {
-      entityType: 'other_entity',
+      // Другая сущность из закрытого списка (этап 1 ТЗ v0.5).
+      entityType: 'partner',
       key: 'wrong_key',
       label: 'Wrong',
       fieldType: 'text',

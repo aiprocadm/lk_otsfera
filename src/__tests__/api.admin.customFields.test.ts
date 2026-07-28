@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { requireSession, requireAdmin } = vi.hoisted(() => ({
+const { requireSession, requireFieldsAdmin } = vi.hoisted(() => ({
   requireSession: vi.fn(),
-  requireAdmin: vi.fn()
+  requireFieldsAdmin: vi.fn()
 }));
 const { createDefinition, updateDefinition, deactivateDefinition } = vi.hoisted(() => ({
   createDefinition: vi.fn(),
@@ -10,7 +10,7 @@ const { createDefinition, updateDefinition, deactivateDefinition } = vi.hoisted(
   deactivateDefinition: vi.fn()
 }));
 
-vi.mock('@/lib/auth/guard', () => ({ requireSession, requireAdmin }));
+vi.mock('@/lib/auth/guard', () => ({ requireSession, requireFieldsAdmin }));
 vi.mock('@/lib/services/customFields', () => ({ createDefinition, updateDefinition, deactivateDefinition }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
@@ -26,7 +26,7 @@ function idCtx(id: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   requireSession.mockResolvedValue({ ok: true, value: adminSession });
-  requireAdmin.mockReturnValue({ ok: true, value: adminSession });
+  requireFieldsAdmin.mockReturnValue({ ok: true, value: adminSession });
 });
 
 // ─── POST /api/admin/custom-fields ───────────────────────────────────────────
@@ -42,7 +42,7 @@ describe('POST /api/admin/custom-fields', () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.definition.id).toBe('cf1');
-    expect(requireAdmin).toHaveBeenCalled();
+    expect(requireFieldsAdmin).toHaveBeenCalled();
   });
 
   it('403 если сервис вернул forbidden', async () => {
@@ -105,7 +105,7 @@ describe('POST /api/admin/custom-fields', () => {
   });
 
   it('403 если не admin (guard)', async () => {
-    requireAdmin.mockReturnValue({ ok: false, response: new Response('Forbidden', { status: 403 }) });
+    requireFieldsAdmin.mockReturnValue({ ok: false, response: new Response('Forbidden', { status: 403 }) });
     const req = new Request('http://x', {
       method: 'POST',
       body: JSON.stringify({ entityType: 'order', key: 'x', label: 'X', fieldType: 'text' })

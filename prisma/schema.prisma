@@ -1488,15 +1488,27 @@ model CertificateReminder {
   @@unique([certificateId, thresholdDays])
 }
 
+/// §11 ТЗ v0.5: 12 типов данных. Первые пять — исходные (этап «поля заказа»),
+/// семь нижних добавлены этапом 1 ТЗ v0.5. Значения enum НЕ переименовывать:
+/// они лежат в CustomFieldDefinition.fieldType боевых строк.
 enum CustomFieldType {
   text
   number
   date
   select
   boolean
+  textarea
+  money
+  datetime
+  multiselect
+  phone
+  email
+  url
 }
 
-/// §11: настраиваемое (доп.) поле сущности. Конфигурит admin. Полиморфно по entityType (v1='order').
+/// §11: настраиваемое (доп.) поле сущности. Конфигурит admin или leader.
+/// Полиморфно по entityType — допустимые значения перечислены в
+/// CUSTOM_FIELD_ENTITIES (src/lib/services/customFields/entities.ts).
 model CustomFieldDefinition {
   id         String             @id @default(cuid())
   createdAt  DateTime           @default(now())
@@ -1509,6 +1521,19 @@ model CustomFieldDefinition {
   required   Boolean            @default(false)
   sortOrder  Int                @default(0)
   isActive   Boolean            @default(true)
+  /// §11: подсказка под полем в карточке сущности.
+  helpText   String?
+  /// §11: роли, которые ВИДЯТ поле. Пустой массив = видят все, кому доступна
+  /// сама карточка (дефолт; НЕ означает «никто»).
+  visibleToRoles String[]
+  /// §11: роли, которые ПРАВЯТ поле. Пустой массив = admin + leader
+  /// (решение заказчика Q1 от 29.07.2026; НЕ означает «никто»).
+  /// Строки, созданные до этапа 1, получили явный ['admin','leader','manager']
+  /// в миграции — иначе менеджеры потеряли бы право правки полей заказа.
+  editableByRoles String[]
+  /// Задел: системное поле нельзя удалить/деактивировать. Системные поля §11 —
+  /// это колонки Prisma, их реестр в systemFields.ts, поэтому сейчас всегда false.
+  isSystem   Boolean            @default(false)
   values     CustomFieldValue[]
 
   @@unique([entityType, key])

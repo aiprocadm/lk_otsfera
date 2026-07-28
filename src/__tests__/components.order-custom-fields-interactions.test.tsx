@@ -16,32 +16,32 @@ import { OrderCustomFields } from '@/components/orders/order-custom-fields';
 import type { FieldWithValue } from '@/lib/services/customFields';
 
 const textField: FieldWithValue = {
-  definition: { id: 'def-text', key: 'project_code', label: 'Код проекта', fieldType: 'text', options: [], required: false, sortOrder: 1 },
+  definition: { id: 'def-text', key: 'project_code', label: 'Код проекта', fieldType: 'text', options: [], required: false, sortOrder: 1, helpText: null, editable: true },
   value: 'ABC-123'
 };
 
 const boolField: FieldWithValue = {
-  definition: { id: 'def-bool', key: 'urgent', label: 'Срочный', fieldType: 'boolean', options: [], required: false, sortOrder: 2 },
+  definition: { id: 'def-bool', key: 'urgent', label: 'Срочный', fieldType: 'boolean', options: [], required: false, sortOrder: 2, helpText: null, editable: true },
   value: 'false'
 };
 
 const selectField: FieldWithValue = {
-  definition: { id: 'def-select', key: 'priority', label: 'Приоритет', fieldType: 'select', options: ['Низкий', 'Высокий'], required: true, sortOrder: 4 },
+  definition: { id: 'def-select', key: 'priority', label: 'Приоритет', fieldType: 'select', options: ['Низкий', 'Высокий'], required: true, sortOrder: 4, helpText: null, editable: true },
   value: ''
 };
 
 const nullTextField: FieldWithValue = {
-  definition: { id: 'def-null', key: 'note', label: 'Заметка', fieldType: 'text', options: [], required: false, sortOrder: 5 },
+  definition: { id: 'def-null', key: 'note', label: 'Заметка', fieldType: 'text', options: [], required: false, sortOrder: 5, helpText: null, editable: true },
   value: null
 };
 
 const requiredBoolFieldEmpty: FieldWithValue = {
-  definition: { id: 'def-bool-req', key: 'confirmed', label: 'Подтверждено', fieldType: 'boolean', options: [], required: true, sortOrder: 6 },
+  definition: { id: 'def-bool-req', key: 'confirmed', label: 'Подтверждено', fieldType: 'boolean', options: [], required: true, sortOrder: 6, helpText: null, editable: true },
   value: null
 };
 
 const numberField: FieldWithValue = {
-  definition: { id: 'def-number', key: 'qty', label: 'Количество', fieldType: 'number', options: [], required: true, sortOrder: 7 },
+  definition: { id: 'def-number', key: 'qty', label: 'Количество', fieldType: 'number', options: [], required: true, sortOrder: 7, helpText: null, editable: true },
   value: '5'
 };
 

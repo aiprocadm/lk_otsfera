@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin, requireSession } from '@/lib/auth/guard';
+import { requireFieldsAdmin, requireSession } from '@/lib/auth/guard';
 import { prisma } from '@/lib/db/prisma';
 import { updateDefinition, deactivateDefinition } from '@/lib/services/customFields';
 
@@ -14,7 +14,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function PATCH(req: Request, ctx: Ctx) {
   const sessionResult = await requireSession();
   if (!sessionResult.ok) return sessionResult.response;
-  const adminGuard = requireAdmin(sessionResult.value);
+  const adminGuard = requireFieldsAdmin(sessionResult.value);
   if (!adminGuard.ok) return adminGuard.response;
 
   const { id } = await ctx.params;
@@ -24,7 +24,10 @@ export async function PATCH(req: Request, ctx: Ctx) {
     options: body.options,
     required: body.required,
     sortOrder: body.sortOrder,
-    isActive: body.isActive
+    isActive: body.isActive,
+    helpText: body.helpText,
+    visibleToRoles: body.visibleToRoles,
+    editableByRoles: body.editableByRoles
   });
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: mapErr(res.error) });
   return NextResponse.json({ definition: res.definition });
@@ -33,7 +36,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
 export async function DELETE(req: Request, ctx: Ctx) {
   const sessionResult = await requireSession();
   if (!sessionResult.ok) return sessionResult.response;
-  const adminGuard = requireAdmin(sessionResult.value);
+  const adminGuard = requireFieldsAdmin(sessionResult.value);
   if (!adminGuard.ok) return adminGuard.response;
 
   const { id } = await ctx.params;

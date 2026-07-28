@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin, requireSession } from '@/lib/auth/guard';
+import { requireFieldsAdmin, requireSession } from '@/lib/auth/guard';
 import { prisma } from '@/lib/db/prisma';
 import { createDefinition } from '@/lib/services/customFields';
 
@@ -12,7 +12,7 @@ function mapErr(e: string): number {
 export async function POST(req: Request) {
   const sessionResult = await requireSession();
   if (!sessionResult.ok) return sessionResult.response;
-  const adminGuard = requireAdmin(sessionResult.value);
+  const adminGuard = requireFieldsAdmin(sessionResult.value);
   if (!adminGuard.ok) return adminGuard.response;
 
   const body = await req.json();
@@ -23,7 +23,10 @@ export async function POST(req: Request) {
     fieldType: body.fieldType,
     options: body.options,
     required: body.required,
-    sortOrder: body.sortOrder
+    sortOrder: body.sortOrder,
+    helpText: body.helpText,
+    visibleToRoles: body.visibleToRoles,
+    editableByRoles: body.editableByRoles
   });
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: mapErr(res.error) });
   return NextResponse.json({ definition: res.definition }, { status: 201 });

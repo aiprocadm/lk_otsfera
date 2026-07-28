@@ -24,7 +24,7 @@ export default async function LeaderOrderDetailPage({ params }: { params: Promis
       select: { id: true, name: true, email: true },
       orderBy: { name: 'asc' }
     }),
-    getValuesForEntity(prisma, 'order', id),
+    getValuesForEntity(prisma, session, 'order', id),
     getDealActivity(prisma, session, id, { view: 'all' }),
     // A3: кандидаты для формы назначения — активные менеджеры компании
     // руководителя (C8: граница — компания; без companyId кандидатов нет).

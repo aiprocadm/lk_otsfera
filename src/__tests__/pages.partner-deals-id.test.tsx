@@ -138,7 +138,12 @@ describe('PartnerDealDetailPage', () => {
     );
 
     expect(canPartnerAccessOrg).not.toHaveBeenCalled();
-    expect(getValuesForEntity).toHaveBeenCalledWith(expect.anything(), 'order', 'deal-1');
+    expect(getValuesForEntity).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(), // сессия: этап 1 ТЗ v0.5 фильтрует поля по ролям на сервере
+      'order',
+      'deal-1'
+    );
     expect(container.textContent).toContain('Все заказы');
     expect(container.textContent).toContain('Документы');
     expect(container.textContent).toContain('(1)');

@@ -1,41 +1,29 @@
 /**
- * Coverage-closure tests (Track E / E2) for the customFields domain — the two
- * branches left open after cov.customfields.test.ts:
+ * Coverage-closure tests (Track E / E2) для домена customFields.
  *
- *   1. src/lib/services/customFields/values.ts @34-35
- *      `default: return false` in the field-type switch of validateFieldValue.
- *      validateFieldValue is module-private and only reachable through setValues,
- *      which reads `fieldType` off rows returned by prisma.customFieldDefinition
- *      .findMany. Against a REAL Postgres the column is an enum constrained to the
- *      5 known cases, so no genuine row can carry an out-of-enum value — which is
- *      why cov.customfields.test.ts declared this arm unreachable. Here we reach it
- *      with a *stub* Prisma (same fake-prisma pattern as the rethrow tests in that
- *      file): the stub's findMany yields a definition whose fieldType is an
- *      unsupported value (cast), driving the switch into its default arm so
- *      setValues returns invalid_value.
+ *   1. Default-ветка `validateFieldValue`. До этапа 1 ТЗ v0.5 функция была
+ *      приватной в values.ts и доставалась только через setValues со стабом
+ *      Prisma. Этап 1 вынес её в coerce.ts и экспортировал — ветка проверяется
+ *      прямым вызовом, стаб больше не нужен.
  *
- *   2. src/lib/services/customFields/definitions.ts @146
- *      `if (patch.options !== undefined) data.options = patch.options` — the TRUE
- *      side. cov.customfields.test.ts only exercised the FALSE side (a patch that
- *      omits options). Here we call updateDefinition with a patch that INCLUDES
- *      options on a real `select` definition and assert the new options persist.
+ *   2. `updateDefinition` с патчем, СОДЕРЖАЩИМ options (TRUE-сторона ветки):
+ *      cov.customfields.test.ts закрывает только FALSE-сторону.
  *
- * Integration-tier (constructs `new PrismaClient()`): branch 2 runs the REAL
- * updateDefinition service against a live Postgres. Branch 1 uses a fully-stubbed
- * Prisma and needs no DB, but lives here so the whole file is one integration
- * unit. Requires live Postgres. Run: npm run test:integration -- cov2.customfields
+ * Integration-уровень (`new PrismaClient()`), нужен живой Postgres.
+ * Запуск: npm run test:integration -- cov2.customfields
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import type { CustomFieldType } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { createDefinition, updateDefinition } from '@/lib/services/customFields/definitions';
-import { setValues } from '@/lib/services/customFields/values';
+import { validateFieldValue } from '@/lib/services/customFields/coerce';
 
 let prisma: PrismaClient;
 
 const STAMP = Date.now();
-const ET = `cov2_cf_${STAMP}`;
+// Этап 1 ТЗ v0.5: entityType — закрытый список (CUSTOM_FIELD_ENTITIES).
+const ET = 'student';
 
 let adminUserId: string;
 let selectDefId: string;
@@ -75,41 +63,13 @@ afterAll(async () => {
 
 // ─── values.ts @34-35 — default arm of validateFieldValue ────────────────────
 
-describe('values service — validateFieldValue default arm (branch @34)', () => {
-  it('setValues: unsupported fieldType → invalid_value (default: return false)', async () => {
-    // Stub Prisma: admin scope-resolve succeeds (order.findUnique returns a row),
-    // and the definition lookup yields a fieldType outside the 5 enum cases so
-    // validateFieldValue falls through to `default: return false`.
-    const DEF_ID = 'stub-def-unknown-type';
-    const upsert = vi.fn();
-    const stubPrisma = {
-      order: {
-        findUnique: vi.fn().mockResolvedValue({
-          id: 'stub-order',
-          managerId: null,
-          organizationId: null,
-          companyId: null,
-        }),
-      },
-      customFieldDefinition: {
-        findMany: vi.fn().mockResolvedValue([
-          // fieldType is an out-of-enum value — cast to satisfy the signature.
-          { id: DEF_ID, fieldType: 'quantum' as unknown as CustomFieldType, options: [] },
-        ]),
-      },
-      // Not reached: invalid_value returns before any upsert/audit.
-      customFieldValue: { upsert },
-    } as unknown as PrismaClient;
-
-    const adminSession = makeSession('admin-stub', 'admin');
-    const res = await setValues(stubPrisma, adminSession, ET, 'stub-order', {
-      // Non-null / non-empty so validation is actually invoked for this def.
-      [DEF_ID]: 'anything',
-    });
-
-    expect(res).toEqual({ ok: false, error: 'invalid_value' });
-    // No write happened — validation rejected before the upsert loop.
-    expect(upsert).not.toHaveBeenCalled();
+describe('coerce — default arm of validateFieldValue', () => {
+  it('validateFieldValue: тип вне enum → false (default-ветка)', () => {
+    // Этап 1 ТЗ v0.5: валидация переехала из values.ts в coerce.ts и стала
+    // экспортируемой — стаб Prisma для этой ветки больше не нужен. Реальная
+    // строка такого fieldType не несёт (колонка — enum), поэтому зовём напрямую.
+    const bogus = 'quantum' as unknown as CustomFieldType;
+    expect(validateFieldValue(bogus, [], 'anything')).toBe(false);
   });
 });
 
