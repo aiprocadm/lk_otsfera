@@ -267,5 +267,30 @@ describe('ManagerLeadDetailPage', () => {
     expect(panel!.textContent).toContain('t1');
     expect(container.textContent).toContain('Задачи');
   });
-});
 
+  // Этап 11 PR-2 (ФТ-15.6): цепочка обращение → лид.
+  describe('хлебные крошки', () => {
+    async function renderLead(extra: Record<string, unknown>) {
+      requireManager.mockResolvedValue(SESSION);
+      getManagerLead.mockResolvedValue({ ...BASE_LEAD, source: 'client_request', ...extra });
+      return renderServerComponent(
+        ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+      );
+    }
+
+    it('лид из обращения ведёт цепочку от обращений', async () => {
+      const { container } = await renderLead({ sourceRequestId: 'req-1' });
+      const nav = container.querySelector('nav[aria-label="Хлебные крошки"]');
+      expect(nav).not.toBeNull();
+      expect(nav!.textContent).toContain('Обращения клиентов');
+      expect(nav!.textContent).toContain('ООО Ромашка');
+    });
+
+    it('лид без обращения ведёт цепочку от списка лидов', async () => {
+      const { container } = await renderLead({ sourceRequestId: null, source: 'manual' });
+      const nav = container.querySelector('nav[aria-label="Хлебные крошки"]');
+      expect(nav!.textContent).toContain('Лиды');
+      expect(nav!.textContent).not.toContain('Обращения клиентов');
+    });
+  });
+});

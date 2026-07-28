@@ -6,9 +6,12 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
-const { studentFindMany } = vi.hoisted(() => ({ studentFindMany: vi.fn() }));
+const { studentFindMany, dealFindUnique } = vi.hoisted(() => ({
+  studentFindMany: vi.fn(),
+  dealFindUnique: vi.fn()
+}));
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: { student: { findMany: studentFindMany } }
+  prisma: { student: { findMany: studentFindMany }, deal: { findUnique: dealFindUnique } }
 }));
 
 const { loadManagerOrderDetail } = vi.hoisted(() => ({ loadManagerOrderDetail: vi.fn() }));
@@ -61,6 +64,7 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
     inboundEnabled?: boolean;
     telephonyEnabled?: boolean;
     certificateScansPanel?: React.ReactNode;
+    breadcrumbs?: Array<{ label: string; href: string | null }>;
   }) =>
     React.createElement(
       'div',
@@ -72,7 +76,8 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
       JSON.stringify(props.activityItems),
       String(props.inboundEnabled),
       String(props.telephonyEnabled),
-      props.certificateScansPanel
+      props.certificateScansPanel,
+      JSON.stringify(props.breadcrumbs ?? [])
     )
 }));
 
@@ -107,6 +112,8 @@ describe('ManagerOrderDetailPage', () => {
     listDirections.mockReset();
     getValuesForEntity.mockReset();
     isFeatureEnabled.mockReset();
+    dealFindUnique.mockReset();
+    dealFindUnique.mockResolvedValue(null);
     listCertificateScanTargets.mockReset();
     listCertificateScanTargets.mockResolvedValue({ ok: true, targets: [] });
     nav.notFound.mockClear();
@@ -245,6 +252,59 @@ describe('ManagerOrderDetailPage', () => {
       listCertificateScanTargets.mockResolvedValue({ ok: false, error: 'forbidden' });
       const { container } = await renderWith(trainingOrder());
       expect(container.querySelector('[data-testid="scans-panel"]')).toBeNull();
+    });
+  });
+
+  // Этап 11 PR-2 (ФТ-15.6): цепочка обращение → лид → сделка → заказ.
+  describe('хлебные крошки', () => {
+    async function renderOrder() {
+      requireManager.mockResolvedValue(SESSION);
+      loadManagerOrderDetail.mockResolvedValue({
+        ...BASE_DATA,
+        order: { ...BASE_DATA.order, title: 'Обучение по ОТ' }
+      });
+      listDirections.mockResolvedValue({ ok: true, directions: [] });
+      studentFindMany.mockResolvedValue([]);
+      getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+      getDealActivity.mockResolvedValue({ ok: true, items: [] });
+      return renderServerComponent(
+        ManagerOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+      );
+    }
+
+    it('со сделками выключенными флагом цепочка не дочитывается', async () => {
+      isFeatureEnabled.mockReturnValue(false);
+      const { container } = await renderOrder();
+      expect(dealFindUnique).not.toHaveBeenCalled();
+      expect(container.textContent).toContain('Заказы');
+    });
+
+    it('заказ из сделки с лидом и обращением разворачивает всю цепочку', async () => {
+      isFeatureEnabled.mockImplementation((flag: string) => flag === 'deals_pipeline');
+      dealFindUnique.mockResolvedValue({
+        title: 'Сделка с Ромашкой',
+        lead: {
+          id: 'l1',
+          clientCompanyName: 'ООО «Ромашка»',
+          sourceRequest: { id: 'r1', subject: 'Нужно обучение' }
+        }
+      });
+      const { container } = await renderOrder();
+      expect(dealFindUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { orderId: 'order-1' } })
+      );
+      expect(container.textContent).toContain('Обращения клиентов');
+      expect(container.textContent).toContain('Нужно обучение');
+      expect(container.textContent).toContain('/manager/leads/l1');
+      expect(container.textContent).toContain('Заказ №2024-001');
+    });
+
+    it('сделка без лида даёт цепочку без обращения', async () => {
+      isFeatureEnabled.mockImplementation((flag: string) => flag === 'deals_pipeline');
+      dealFindUnique.mockResolvedValue({ title: 'Прямая сделка', lead: null });
+      const { container } = await renderOrder();
+      expect(container.textContent).toContain('Прямая сделка');
+      expect(container.textContent).not.toContain('Обращения клиентов');
     });
   });
 });

@@ -1,5 +1,6 @@
 import React from 'react';
-import { BackLink } from '@/components/ui';
+import { BackLink, Breadcrumbs } from '@/components/ui';
+import type { Crumb } from '@/lib/navigation/breadcrumbs';
 import { ManagerOrderHeader } from '@/components/manager/manager-order-header';
 import { ClaimOrderButton } from '@/components/manager/claim-order-button';
 import { ManagerOrderAmounts } from '@/components/manager/manager-order-amounts';
@@ -29,7 +30,8 @@ export function ManagerOrderDetailView({
   telephonyEnabled = false,
   generatePanel = null,
   readinessPanel = null,
-  certificateScansPanel = null
+  certificateScansPanel = null,
+  breadcrumbs = []
 }: {
   data: ManagerOrderDetailData;
   backHref: string;
@@ -45,11 +47,14 @@ export function ManagerOrderDetailView({
   readinessPanel?: React.ReactNode;
   /** Этап 12 PR-2 (ФТ-5.3): массовая загрузка сканов удостоверений (только обучение). */
   certificateScansPanel?: React.ReactNode;
+  /** Этап 11 PR-2 (ФТ-15.6): цепочка обращение → лид → сделка → заказ. */
+  breadcrumbs?: Crumb[];
 }) {
   const { order, auditEntries, documentRows, items } = data;
 
   return (
     <div className='space-y-4'>
+      {breadcrumbs.length > 0 && <Breadcrumbs items={breadcrumbs} />}
       <div className='text-sm'>
         <BackLink href={backHref} label='Все заказы' />
       </div>

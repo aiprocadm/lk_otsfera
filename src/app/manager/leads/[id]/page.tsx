@@ -11,6 +11,8 @@ import { LinkedTasksPanel } from '@/components/tasks/linked-tasks-panel';
 import { LeadStatusBadge } from '@/components/partner/lead-status-badge';
 import { ManagerLeadActions } from '@/components/manager/manager-lead-actions';
 import { PushLeadButton } from '@/components/manager/push-lead-button';
+import { Breadcrumbs } from '@/components/ui';
+import { buildLeadBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { fmtDate, fmtMoney } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -70,6 +72,15 @@ export default async function ManagerLeadDetailPage({ params }: { params: Promis
 
   return (
     <div className='space-y-5'>
+      {/* Этап 11 PR-2 (ФТ-15.6): цепочка обращение → лид. */}
+      <Breadcrumbs
+        items={buildLeadBreadcrumbs({
+          title: lead.clientCompanyName,
+          sourceRequest: lead.sourceRequestId
+            ? { id: lead.sourceRequestId, subject: null }
+            : null
+        })}
+      />
       <div>
         <Link href='/manager/leads' className='text-sm text-gray-500 hover:text-[#F97316]'>← Все заявки</Link>
         <div className='mt-1 flex items-center gap-3'>

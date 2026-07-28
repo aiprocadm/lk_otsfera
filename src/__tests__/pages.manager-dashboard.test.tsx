@@ -18,6 +18,14 @@ const { kpis, attention, recentEvents } = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/services/manager/dashboard', () => ({ kpis, attention, recentEvents }));
 
+// Этап 11 PR-2 (ФТ-15.3): «Мой день» — первый блок «Главной».
+const { getMyDay } = vi.hoisted(() => ({ getMyDay: vi.fn() }));
+vi.mock('@/lib/services/manager/myDay', () => ({ getMyDay }));
+vi.mock('@/components/manager/my-day-cards', () => ({
+  MyDayCards: (props: { data: unknown }) =>
+    React.createElement('div', { 'data-testid': 'my-day' }, JSON.stringify(props.data))
+}));
+
 vi.mock('@/components/manager/manager-kpi-grid', () => ({
   ManagerKpiGrid: (props: { data: unknown }) =>
     React.createElement('div', { 'data-testid': 'kpi-grid' }, JSON.stringify(props.data))
@@ -45,6 +53,8 @@ describe('ManagerDashboard', () => {
     kpis.mockReset();
     attention.mockReset();
     recentEvents.mockReset();
+    getMyDay.mockReset();
+    getMyDay.mockResolvedValue({ tasksToday: 0 });
   });
 
   it('fetches kpis/attention/events in parallel, resolving teamMode ONCE for all three', async () => {
@@ -63,6 +73,9 @@ describe('ManagerDashboard', () => {
     expect(kpis).toHaveBeenCalledWith({}, SESSION, true);
     expect(attention).toHaveBeenCalledWith({}, SESSION, true);
     expect(recentEvents).toHaveBeenCalledWith({}, SESSION, undefined, true);
+    // «Мой день» получает тот же единожды прочитанный teamMode.
+    expect(getMyDay).toHaveBeenCalledWith({}, SESSION, true);
+    expect(container.textContent).toContain('tasksToday');
     expect(container.textContent).toContain('Главная');
     expect(container.textContent).toContain('activeOrders');
     expect(container.textContent).toContain('a1');

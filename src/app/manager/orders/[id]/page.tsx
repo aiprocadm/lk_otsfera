@@ -14,6 +14,7 @@ import { getOrderReadiness } from '@/lib/services/manager/orderDelivery';
 import { OrderReadinessPanel } from '@/components/manager/order-readiness-panel';
 import { listCertificateScanTargets } from '@/lib/services/manager/certificateScans';
 import { CertificateScansPanel } from '@/components/manager/certificate-scans-panel';
+import { buildOrderBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
 export default async function ManagerOrderDetailPage({
   params
@@ -94,8 +95,44 @@ export default async function ManagerOrderDetailPage({
     }
   }
 
+  // Этап 11 PR-2 (ФТ-15.6): цепочка обращение → лид → сделка → заказ.
+  // Дочитывается одним запросом и только когда сделки включены — иначе крошка
+  // вела бы на выключенный флагом раздел.
+  const deal = isFeatureEnabled('deals_pipeline')
+    ? await prisma.deal.findUnique({
+        where: { orderId: id },
+        select: {
+          title: true,
+          lead: {
+            select: {
+              id: true,
+              clientCompanyName: true,
+              sourceRequest: { select: { id: true, subject: true } }
+            }
+          }
+        }
+      })
+    : null;
+  const breadcrumbs = buildOrderBreadcrumbs({
+    orderNumber: data.order.orderNumber,
+    title: data.order.title,
+    deal: deal
+      ? {
+          title: deal.title,
+          lead: deal.lead
+            ? {
+                id: deal.lead.id,
+                title: deal.lead.clientCompanyName,
+                sourceRequest: deal.lead.sourceRequest
+              }
+            : null
+        }
+      : null
+  });
+
   return (
     <ManagerOrderDetailView
+      breadcrumbs={breadcrumbs}
       data={data}
       backHref='/manager/orders'
       directions={directions}
