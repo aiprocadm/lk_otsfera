@@ -26,6 +26,9 @@ export default defineConfig({
   },
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
+    // Полный Chrome for Testing, а не chrome-headless-shell: shell иначе
+    // обрабатывает фокус (`toBeFocused` → `inactive`) и валит focus-trap-спеки.
+    channel: 'chromium',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     locale: 'ru-RU',
@@ -52,6 +55,10 @@ export default defineConfig({
       name: 'mobile',
       use: {
         ...devices['iPhone 13'],
+        // Мобильный ВЬЮПОРТ на chromium: пресет iPhone тянет за собой WebKit, а он
+        // требует системных библиотек, недоступных без root на тестовом сервере.
+        // Проверяем адаптив (375×667, isMobile), а не движок Safari.
+        browserName: 'chromium',
         viewport: { width: 375, height: 667 },
         storageState: 'playwright-report/.auth/partner.json',
       },
@@ -74,6 +81,10 @@ export default defineConfig({
       name: 'org-mobile',
       use: {
         ...devices['iPhone 13'],
+        // Мобильный ВЬЮПОРТ на chromium: пресет iPhone тянет за собой WebKit, а он
+        // требует системных библиотек, недоступных без root на тестовом сервере.
+        // Проверяем адаптив (375×667, isMobile), а не движок Safari.
+        browserName: 'chromium',
         viewport: { width: 375, height: 667 },
         storageState: 'playwright-report/.auth/organization.json',
       },
@@ -96,6 +107,10 @@ export default defineConfig({
       name: 'mgr-mobile',
       use: {
         ...devices['iPhone 13'],
+        // Мобильный ВЬЮПОРТ на chromium: пресет iPhone тянет за собой WebKit, а он
+        // требует системных библиотек, недоступных без root на тестовом сервере.
+        // Проверяем адаптив (375×667, isMobile), а не движок Safari.
+        browserName: 'chromium',
         viewport: { width: 375, height: 667 },
         storageState: 'playwright-report/.auth/manager.json',
       },
@@ -118,6 +133,10 @@ export default defineConfig({
       name: 'admin-mobile',
       use: {
         ...devices['iPhone 13'],
+        // Мобильный ВЬЮПОРТ на chromium: пресет iPhone тянет за собой WebKit, а он
+        // требует системных библиотек, недоступных без root на тестовом сервере.
+        // Проверяем адаптив (375×667, isMobile), а не движок Safari.
+        browserName: 'chromium',
         viewport: { width: 375, height: 667 },
         storageState: 'playwright-report/.auth/admin.json',
       },
@@ -140,6 +159,10 @@ export default defineConfig({
       name: 'leader-mobile',
       use: {
         ...devices['iPhone 13'],
+        // Мобильный ВЬЮПОРТ на chromium: пресет iPhone тянет за собой WebKit, а он
+        // требует системных библиотек, недоступных без root на тестовом сервере.
+        // Проверяем адаптив (375×667, isMobile), а не движок Safari.
+        browserName: 'chromium',
         viewport: { width: 375, height: 667 },
         storageState: 'playwright-report/.auth/leader.json',
       },
@@ -163,6 +186,10 @@ export default defineConfig({
       name: 'student-mobile',
       use: {
         ...devices['iPhone 13'],
+        // Мобильный ВЬЮПОРТ на chromium: пресет iPhone тянет за собой WebKit, а он
+        // требует системных библиотек, недоступных без root на тестовом сервере.
+        // Проверяем адаптив (375×667, isMobile), а не движок Safari.
+        browserName: 'chromium',
         viewport: { width: 375, height: 667 },
         storageState: 'playwright-report/.auth/student.json',
       },

@@ -6,7 +6,11 @@ const FOCUSABLE_SELECTOR = [
   'a[href]',
   'button:not([disabled])',
   'textarea:not([disabled])',
-  'input:not([disabled])',
+  // input[type=hidden] НЕ фокусируем: он матчится как input, попадает первым в
+  // pickInitialFocus (первый form control), а .focus() по нему — no-op. Фокус
+  // тогда остаётся там, куда его поставил showModal() — на кнопке «Закрыть».
+  // Ловится e2e organization-team-modal-focus-trap.
+  'input:not([disabled]):not([type="hidden"])',
   'select:not([disabled])',
   '[tabindex]:not([tabindex="-1"])'
 ].join(',');

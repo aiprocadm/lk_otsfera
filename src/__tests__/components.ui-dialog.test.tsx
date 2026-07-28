@@ -27,6 +27,26 @@ describe('pickInitialFocus', () => {
     expect(pickInitialFocus([make('A'), input, make('BUTTON', 'submit')], panel)).toBe(input);
   });
 
+  // Регресс: скрытое поле матчилось селектором как input и забирало «первый
+  // form control», а .focus() по нему — no-op. Фокус оставался на кнопке
+  // «Закрыть» вопреки контракту §9 CLAUDE.md.
+  it('скрытое поле не считается формой — фокус идёт на видимое', () => {
+    const dialog = document.createElement('dialog');
+    dialog.innerHTML =
+      '<button aria-label="Закрыть"></button>' +
+      '<input type="hidden" name="organizationId" />' +
+      '<input type="email" name="email" />' +
+      '<button type="submit"></button>';
+    document.body.appendChild(dialog);
+    const focusables = Array.from(
+      dialog.querySelectorAll<HTMLElement>(
+        'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'
+      )
+    );
+    expect(pickInitialFocus(focusables, dialog).getAttribute('name')).toBe('email');
+    dialog.remove();
+  });
+
   it('falls back to the submit button when there is no form control', () => {
     const submit = make('BUTTON', 'submit');
     expect(pickInitialFocus([make('A'), submit, make('BUTTON', 'button')], panel)).toBe(submit);
