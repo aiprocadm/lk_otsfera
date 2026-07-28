@@ -18,7 +18,12 @@ export function submitterRequestUrl(request: Pick<ClientRequest, 'id' | 'source'
 }
 
 /**
- * `client_request_submitted` менеджерам: для заявки организации — её
+ * ФТ-1.8 (первая половина): `client_request_submitted` менеджерам при подаче.
+ * В ТЗ тип назван `new_client_request` — см. `tzAlias` в
+ * `lib/notifications/registry.ts`: код исторический, переименование осиротило
+ * бы прошлые строки `Notification.type`.
+ *
+ * Для заявки организации — её
  * менеджерам; для партнёрской — менеджерам организаций партнёра (distinct).
  * Некому адресовать → без fan-out (заявка ждёт в общей очереди /manager/requests).
  */
@@ -78,7 +83,11 @@ export async function notifyManagersClientRequestSubmitted(
   }
 }
 
-/** `client_request_status_changed` подателю на смену статуса (триаж/итог). */
+/**
+ * ФТ-1.8 (вторая половина): подателю — на КАЖДУЮ смену статуса его заявки.
+ * Вызывается из всех переходов триажа (`clientRequests/triage.ts`): взятие в
+ * работу, принятие и отклонение.
+ */
 export async function notifySubmitterClientRequestStatus(
   prisma: PrismaClient,
   request: ClientRequest
