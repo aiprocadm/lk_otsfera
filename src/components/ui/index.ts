@@ -1,5 +1,6 @@
 export { ActionToastButton } from './action-toast-button';
 export { BackLink } from './back-link';
+export { Breadcrumbs } from './breadcrumbs';
 export { Button, type ButtonProps } from './button';
 export { Input, type InputProps } from './input';
 export { Textarea, type TextareaProps } from './textarea';

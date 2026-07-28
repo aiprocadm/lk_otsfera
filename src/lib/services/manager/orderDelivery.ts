@@ -19,7 +19,12 @@ import { evaluateOrderReadiness, type OrderReadiness } from '@/lib/orders/readin
 
 export type DeliveryError = 'not_found' | 'forbidden' | 'not_ready';
 
-const READINESS_SELECT = {
+/**
+ * Поля, которых хватает чистой `evaluateOrderReadiness`. Экспортируется, чтобы
+ * «Мой день» (этап 11 PR-2, ФТ-15.3) считал «Готово к передаче» **той же**
+ * логикой и на тех же данных, а не своей копией.
+ */
+export const READINESS_SELECT = {
   id: true,
   orderNumber: true,
   title: true,
@@ -41,7 +46,7 @@ const READINESS_SELECT = {
   }
 } as const;
 
-type OrderForReadiness = {
+export type OrderForReadiness = {
   serviceType: 'training' | 'document_development';
   deliverablesApprovedAt: Date | null;
   documents: { direction: string; scanStatus: string }[];
@@ -60,10 +65,10 @@ type OrderForReadiness = {
  */
 async function loadScanStatuses(
   prisma: PrismaClient,
-  order: OrderForReadiness
+  orders: OrderForReadiness[]
 ): Promise<Map<string, string>> {
-  const ids = order.items
-    .map((i) => i.certificate?.documentId)
+  const ids = orders
+    .flatMap((o) => o.items.map((i) => i.certificate?.documentId))
     .filter((id): id is string => id != null);
   if (ids.length === 0) return new Map();
   const docs = await prisma.document.findMany({
@@ -95,6 +100,20 @@ function toReadinessInput(order: OrderForReadiness, scanStatuses: Map<string, st
   };
 }
 
+/**
+ * Готовность **пачки** заказов: статусы сканов дочитываются одной выборкой на
+ * всю пачку. Единственная точка, где готовность считается из БД — и деталка
+ * заказа (ФТ-5.1/5.2), и «Мой день» (ФТ-15.3) ходят сюда.
+ */
+export async function evaluateReadinessBatch(
+  prisma: PrismaClient,
+  orders: OrderForReadiness[]
+): Promise<OrderReadiness[]> {
+  if (orders.length === 0) return [];
+  const scanStatuses = await loadScanStatuses(prisma, orders);
+  return orders.map((o) => evaluateOrderReadiness(toReadinessInput(o, scanStatuses)));
+}
+
 /** ФТ-5.1: блок «Готовность к передаче» на деталке заказа. */
 export async function getOrderReadiness(
   prisma: PrismaClient,
@@ -109,12 +128,8 @@ export async function getOrderReadiness(
   if (!order) return { ok: false, error: 'not_found' };
   if (!canSeeOrder(session, order, teamMode)) return { ok: false, error: 'forbidden' };
 
-  const scanStatuses = await loadScanStatuses(prisma, order as OrderForReadiness);
-  return {
-    ok: true,
-    readiness: evaluateOrderReadiness(toReadinessInput(order as OrderForReadiness, scanStatuses)),
-    deliveredAt: order.resultDeliveredAt
-  };
+  const [readiness] = await evaluateReadinessBatch(prisma, [order as OrderForReadiness]);
+  return { ok: true, readiness, deliveredAt: order.resultDeliveredAt };
 }
 
 /**
@@ -174,8 +189,7 @@ export async function deliverOrderResult(
     return { ok: true, deliveredAt: order.resultDeliveredAt, alreadyDelivered: true };
   }
 
-  const scanStatuses = await loadScanStatuses(prisma, order as OrderForReadiness);
-  const readiness = evaluateOrderReadiness(toReadinessInput(order as OrderForReadiness, scanStatuses));
+  const [readiness] = await evaluateReadinessBatch(prisma, [order as OrderForReadiness]);
   if (!readiness.ready) return { ok: false, error: 'not_ready', readiness };
 
   const deliveredAt = new Date();
