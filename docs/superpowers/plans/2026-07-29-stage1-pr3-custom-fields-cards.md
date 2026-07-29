@@ -59,8 +59,8 @@ PR-2 [#269](https://github.com/aiprocadm/lk_otsfera/pull/269) ✅ · Ветка 
 - [x] `npm run typecheck` · `npm run lint` · `npm run test:unit`.
 - [x] `npm run test:integration` (живой Postgres) — **зелёный: 1137 тестов в 150 файлах**.
 - [x] CHANGELOG.md.
-- [ ] PR с `base: main`; после мержа проверить код в `main`.
-- [ ] STATUS.md: строка этапа, журнал.
+- [x] PR с `base: main` — [#270](https://github.com/aiprocadm/lk_otsfera/pull/270). После мержа проверить код в `main`.
+- [x] STATUS.md: строка этапа, журнал.
 
 ## Найдено по ходу
 
