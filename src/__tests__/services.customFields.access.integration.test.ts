@@ -373,20 +373,20 @@ describe('setValues — скоуп и роль перемножаются', () =
     expect(res).toEqual({ ok: true });
   });
 
-  it('ЗАФИКСИРОВАНО: карточка организации руководителю без закреплённых орг. недоступна', async () => {
-    // Это НЕ решение этапа 1, а действующее поведение платформы:
-    // canManagerAccessOrg (тот же предикат, что у гарда карточки организации)
-    // лидер-инвариант C8 не применяет — при managerTeamVisibility=OFF доступ
-    // даёт только закрепление. Меняем политику отдельной спекой, не здесь.
+  it('руководитель правит поля организации своей компании без закрепления', async () => {
+    // Решение заказчика 29.07.2026: лидер-инвариант C8 распространён с заказов
+    // на организации. До этого руководитель без закреплённых организаций не мог
+    // ни открыть карточку, ни заполнить поля §11, хотя §4 ТЗ даёт ему настройку
+    // полей. Граница компании при этом сохраняется — см. следующую проверку.
     const leader = sess(leaderAId, 'manager', { companyId: companyA, managerRole: 'leader' });
     const res = await setValues(prisma, leader, 'organization', orgA, { [defOrgId]: 'от руководителя' });
-    expect(res).toEqual({ ok: false, error: 'not_found' });
+    expect(res).toEqual({ ok: true });
   });
 
-  it('организация правит поле сотрудника, если ей разрешено явно', async () => {
-    const org = sess(orgAUserId, 'organization', { organizationId: orgA });
-    const res = await setValues(prisma, org, 'student', studentA, { [defStudentId]: 'стажёр' });
-    expect(res).toEqual({ ok: true });
+  it('руководитель НЕ дотягивается до организации чужой компании', async () => {
+    const leader = sess(leaderAId, 'manager', { companyId: companyA, managerRole: 'leader' });
+    const res = await setValues(prisma, leader, 'organization', orgB, { [defOrgId]: 'чужое' });
+    expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('ИЗОЛЯЦИЯ: партнёр B не пишет в карточку организации контура A', async () => {
@@ -398,7 +398,7 @@ describe('setValues — скоуп и роль перемножаются', () =
     const row = await prisma.customFieldValue.findUnique({
       where: { definitionId_entityId: { definitionId: defOrgId, entityId: orgA } }
     });
-    expect(row?.value).toBe('проверено');
+    expect(row?.value).toBe('от руководителя');
   });
 
   it('деактивированное поле не пишется, но и не роняет сохранение', async () => {

@@ -61,3 +61,39 @@ describe('canManagerAccessOrg', () => {
     );
   });
 });
+
+/**
+ * Решение заказчика 29.07.2026: лидер-инвариант C8 распространён с заказов на
+ * организации. Руководитель открывает карточку любой организации СВОЕЙ компании
+ * без закрепления — иначе он не мог заполнить настраиваемые поля §11, хотя §4
+ * ТЗ даёт ему настройку полей. Граница компании остаётся жёсткой.
+ */
+describe('canManagerAccessOrg — руководитель (лидер-инвариант C8)', () => {
+  const leader = (over: Partial<SessionPayload> = {}): SessionPayload =>
+    session({ managerRole: 'leader', managedOrgIds: [], ...over });
+
+  it('teamMode=OFF: руководитель всё равно проходит в организацию своей компании', async () => {
+    const p = fakePrisma({ teamMode: false, orgCompanyId: 'co-1' });
+    expect(await canManagerAccessOrg(p, leader(), 'org-9')).toBe(true);
+  });
+
+  it('teamMode=OFF: обычный менеджер по-прежнему не проходит', async () => {
+    const p = fakePrisma({ teamMode: false, orgCompanyId: 'co-1' });
+    expect(await canManagerAccessOrg(p, session({ managedOrgIds: [] }), 'org-9')).toBe(false);
+  });
+
+  it('чужая компания руководителю закрыта', async () => {
+    const p = fakePrisma({ teamMode: false, orgCompanyId: 'co-2' });
+    expect(await canManagerAccessOrg(p, leader(), 'org-9')).toBe(false);
+  });
+
+  it('несуществующая организация — отказ', async () => {
+    const p = fakePrisma({ teamMode: false });
+    expect(await canManagerAccessOrg(p, leader(), 'ghost')).toBe(false);
+  });
+
+  it('руководитель без компании в сессии — отказ (fail-safe)', async () => {
+    const p = fakePrisma({ teamMode: false, orgCompanyId: 'co-1' });
+    expect(await canManagerAccessOrg(p, leader({ companyId: null }), 'org-9')).toBe(false);
+  });
+});

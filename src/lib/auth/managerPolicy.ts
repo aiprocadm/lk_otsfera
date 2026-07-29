@@ -153,6 +153,16 @@ export async function getCompanyTeamVisibility(
  * `managerTeamVisibility=ON` граница — компания, при OFF — персональный скоуп
  * `managedOrgIds`. Тот же вывод, что у страничного гарда `requireManagerForOrg`,
  * но без redirect — для API-роутов (этап 9 PR-3: выгрузки из карточки).
+ *
+ * **Лидер-инвариант C8 (решение заказчика 29.07.2026).** Руководитель
+ * открывает карточку ЛЮБОЙ организации своей компании независимо от
+ * закрепления — так же, как он уже открывает любой её заказ
+ * (`requireManagerForOrder`). До этого правило применялось только к заказам, и
+ * руководитель без закреплённых организаций не мог ни открыть карточку, ни
+ * заполнить настраиваемые поля §11, хотя §4 ТЗ даёт ему настройку полей.
+ *
+ * Граница компании держится в обоих режимах: `companyId=null` в сессии или
+ * чужая компания у организации → отказ.
  */
 export async function canManagerAccessOrg(
   prisma: PrismaClient,
@@ -160,7 +170,8 @@ export async function canManagerAccessOrg(
   orgId: string
 ): Promise<boolean> {
   const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
-  if (!teamMode) return isOrgInScope(session, orgId);
+  const companyWide = teamMode || isManagerLeader(session);
+  if (!companyWide) return isOrgInScope(session, orgId);
   if (!session.companyId) return false;
   const org = await prisma.organization.findUnique({
     where: { id: orgId },
