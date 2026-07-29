@@ -178,7 +178,7 @@ describe('navByRole — Финансы (manager + admin)', () => {
   });
 });
 
-describe('navByRole.admin — русский канон с группами (все 23 страницы)', () => {
+describe('navByRole.admin — русский канон с группами (все 24 страницы)', () => {
   it('содержит все админские страницы, включая ранее потерянные documents/messages/finance + корректировки комиссии + заявки на обучение + настройки', () => {
     const hrefs = navByRole.admin.map((i) => i.href);
     for (const lost of ['/admin/documents', '/admin/messages', '/admin/finance', '/admin/enrollments']) {
@@ -187,11 +187,13 @@ describe('navByRole.admin — русский канон с группами (в�
     expect(hrefs).toContain('/admin/commission-corrections');
     expect(hrefs).toContain('/admin/training-directions');
     expect(hrefs).toContain('/admin/custom-fields');
+    // §10 ТЗ v0.5: справочник рабочих статусов заявки
+    expect(hrefs).toContain('/admin/order-statuses');
     expect(hrefs).toContain('/admin/settings');
     expect(hrefs).toContain('/admin/payments-import');
     expect(hrefs).toContain('/admin/roles');
     expect(hrefs).toContain('/admin/pii-access');
-    expect(navByRole.admin).toHaveLength(23);
+    expect(navByRole.admin).toHaveLength(24);
     expect(hrefs).toContain('/admin/requests');
     expect(hrefs).toContain('/admin/intake');
   });

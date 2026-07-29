@@ -49,6 +49,8 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/admin/organizations', label: 'Организации', icon: '🏛', group: 'Справочники' },
     { href: '/admin/training-directions', label: 'Направления обучения', icon: '🎯', group: 'Справочники' },
     { href: '/admin/custom-fields', label: 'Доп-поля', icon: '🧩', group: 'Справочники' },
+    // §10 ТЗ v0.5: настраиваемый справочник рабочих статусов заявки.
+    { href: '/admin/order-statuses', label: 'Статусы заявок', icon: '🚦', group: 'Справочники' },
     { href: '/admin/roles', label: 'Роли', icon: '🎭', group: 'Справочники', flag: 'role_constructor' }
   ],
   manager: [
@@ -109,7 +111,9 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/leader/settings', label: 'Настройки', icon: '⚙', group: 'Настройки' },
     // §11 ТЗ v0.5: настройку полей ведёт и руководитель — зеркало админского
     // экрана в его кабинете (в /admin/* руководителя не пускаем, Model A).
-    { href: '/leader/settings/custom-fields', label: 'Доп-поля', icon: '🧩', group: 'Настройки' }
+    { href: '/leader/settings/custom-fields', label: 'Доп-поля', icon: '🧩', group: 'Настройки' },
+    // §10 ТЗ v0.5: зеркало справочника статусов — руководителя в /admin/* не пускаем.
+    { href: '/leader/settings/order-statuses', label: 'Статусы заявок', icon: '🚦', group: 'Настройки' }
   ],
   partner: [
     { href: '/partner/dashboard', label: 'Главная' },
