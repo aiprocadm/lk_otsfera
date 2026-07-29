@@ -6,8 +6,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
-const { saveOrderCustomFieldsAction } = vi.hoisted(() => ({ saveOrderCustomFieldsAction: vi.fn() }));
-vi.mock('@/server-actions/customFields', () => ({ saveOrderCustomFieldsAction }));
+const { saveCustomFieldsAction } = vi.hoisted(() => ({ saveCustomFieldsAction: vi.fn() }));
+vi.mock('@/server-actions/customFields', () => ({ saveCustomFieldsAction }));
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
@@ -48,7 +48,7 @@ const numberField: FieldWithValue = {
 describe('OrderCustomFields — EditForm interactions (Pattern I)', () => {
   beforeEach(() => {
     refresh.mockClear();
-    saveOrderCustomFieldsAction.mockReset();
+    saveCustomFieldsAction.mockReset();
     toastSuccess.mockClear();
     toastError.mockClear();
   });
@@ -76,7 +76,7 @@ describe('OrderCustomFields — EditForm interactions (Pattern I)', () => {
   });
 
   it('submit success: converts empty string to null, shows busy label, toasts success, and refreshes', async () => {
-    saveOrderCustomFieldsAction.mockResolvedValue({ ok: true });
+    saveCustomFieldsAction.mockResolvedValue({ ok: true });
     render(React.createElement(OrderCustomFields, { fields: [textField], orderId: 'order-1', editable: true }));
 
     const input = screen.getByDisplayValue('ABC-123') as HTMLInputElement;
@@ -84,22 +84,22 @@ describe('OrderCustomFields — EditForm interactions (Pattern I)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить поля' }));
 
     expect(await screen.findByRole('button', { name: 'Сохранение…' })).toBeTruthy();
-    await waitFor(() => expect(saveOrderCustomFieldsAction).toHaveBeenCalledWith('order-1', { 'def-text': null }));
+    await waitFor(() => expect(saveCustomFieldsAction).toHaveBeenCalledWith('order', 'order-1', { 'def-text': null }));
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Дополнительные поля сохранены.'));
     await waitFor(() => expect(refresh).toHaveBeenCalled());
   });
 
   it('submit with a non-empty value sends the trimmed string as-is', async () => {
-    saveOrderCustomFieldsAction.mockResolvedValue({ ok: true });
+    saveCustomFieldsAction.mockResolvedValue({ ok: true });
     render(React.createElement(OrderCustomFields, { fields: [textField], orderId: 'order-2', editable: true }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить поля' }));
 
-    await waitFor(() => expect(saveOrderCustomFieldsAction).toHaveBeenCalledWith('order-2', { 'def-text': 'ABC-123' }));
+    await waitFor(() => expect(saveCustomFieldsAction).toHaveBeenCalledWith('order', 'order-2', { 'def-text': 'ABC-123' }));
   });
 
   it('submit error: toasts the mapped error message and does not refresh', async () => {
-    saveOrderCustomFieldsAction.mockResolvedValue({ ok: false, error: 'forbidden' });
+    saveCustomFieldsAction.mockResolvedValue({ ok: false, error: 'forbidden' });
     render(React.createElement(OrderCustomFields, { fields: [textField], orderId: 'order-3', editable: true }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить поля' }));

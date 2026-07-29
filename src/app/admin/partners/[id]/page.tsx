@@ -11,6 +11,8 @@ import { RequisitesCard } from '@/components/requisites/requisites-card';
 import { getPartnerRequisitesByAdmin } from '@/lib/services/admin/counterpartyRequisites';
 import { setPartnerRequisitesByAdminAction } from '@/server-actions/requisites';
 import { fmtDate } from '@/lib/format';
+import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
+import { getValuesForEntity } from '@/lib/services/customFields';
 
 const fmtRate = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 2 });
 
@@ -27,6 +29,9 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
   const rateHistory = rateHistoryResult.ok ? rateHistoryResult.rows : [];
   // Этап 8 (ФТ-9.2): полный набор реквизитов для автогенерации документов.
   const requisites = await getPartnerRequisitesByAdmin(prisma, session, partner.id);
+  // §11 ТЗ v0.5: настраиваемые поля партнёра.
+  const customFieldsResult = await getValuesForEntity(prisma, session, 'partner', partner.id);
+  const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
 
   return (
     <div className="space-y-4 max-w-3xl">
@@ -120,6 +125,8 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
           </TableShell>
         )}
       </div>
+
+      <EntityCustomFields fields={customFields} entityType='partner' entityId={partner.id} />
     </div>
   );
 }

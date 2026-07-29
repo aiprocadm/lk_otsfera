@@ -10,6 +10,13 @@ import { renderServerComponent } from './helpers/renderServerComponent';
  */
 
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
+// §11 ТЗ v0.5 (этап 1 PR-3): страница подтягивает настраиваемые поля — мокаем
+// сервис, иначе он полезет в реальный prisma. Обычная функция, а не vi.fn:
+// в файле есть resetAllMocks, он снёс бы заготовленный ответ.
+vi.mock('@/lib/services/customFields', () => ({
+  getValuesForEntity: async () => ({ ok: true, fields: [] })
+}));
+
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
 const nav = vi.hoisted(() => ({

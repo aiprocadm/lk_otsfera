@@ -7,6 +7,8 @@ import { listCertificates } from '@/lib/services/training';
 import { getStudent } from '@/lib/services/manager/students';
 import { CertificateList } from '@/components/training/certificate-list';
 import { fmtDate } from '@/lib/format';
+import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
+import { getValuesForEntity } from '@/lib/services/customFields';
 
 export default async function ManagerStudentDetailPage({
   params,
@@ -22,6 +24,10 @@ export default async function ManagerStudentDetailPage({
 
   const certsResult = await listCertificates(prisma, session, { studentId: id });
   const certificates = certsResult.ok ? certsResult.certificates : [];
+
+  // §11 ТЗ v0.5: настраиваемые поля сотрудника организации.
+  const customFieldsResult = await getValuesForEntity(prisma, session, 'student', id);
+  const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
 
   return (
     <div className='space-y-6'>
@@ -50,6 +56,8 @@ export default async function ManagerStudentDetailPage({
         <h2 className='text-xl font-semibold text-[#111111]'>Удостоверения</h2>
         <CertificateList certificates={certificates} />
       </div>
+
+      <EntityCustomFields fields={customFields} entityType='student' entityId={id} />
     </div>
   );
 }
