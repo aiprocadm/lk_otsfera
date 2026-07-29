@@ -59,8 +59,8 @@
       тестов в 150 файлах**. Docker-гейт pre-push на этом сервере не работает
       (см. журнал STATUS 29.07), поэтому прогон ручной.
 - [x] CHANGELOG.md.
-- [ ] PR с `base: main`; после мержа проверить код в `main`.
-- [ ] STATUS.md: строка этапа, журнал.
+- [x] PR с `base: main` — [#269](https://github.com/aiprocadm/lk_otsfera/pull/269). После мержа проверить код в `main`.
+- [x] STATUS.md: строка этапа, журнал.
 
 ## Найдено по ходу
 
