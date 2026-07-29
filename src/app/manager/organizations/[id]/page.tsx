@@ -5,6 +5,8 @@ import { prisma } from '@/lib/db/prisma';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { getOrganizationCard } from '@/lib/services/manager/organizationCard';
 import { OrgCardTabs, ORG_CARD_TABS, type OrgCardTab } from '@/components/manager/org-card-tabs';
+import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
+import { getValuesForEntity } from '@/lib/services/customFields';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,5 +40,16 @@ export default async function ManagerOrgDetailPage({
   const card = await getOrganizationCard(prisma, session, id);
   if (!card) notFound();
 
-  return <OrgCardTabs card={card} activeTab={activeTab} tabs={visibleTabs} />;
+  // §11 ТЗ v0.5: настраиваемые поля организации — под вкладками, чтобы были
+  // видны на любой из них (вкладки переключают историю/удостоверения, а поля
+  // относятся к самой организации).
+  const customFieldsResult = await getValuesForEntity(prisma, session, 'organization', id);
+  const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
+
+  return (
+    <div className='space-y-5'>
+      <OrgCardTabs card={card} activeTab={activeTab} tabs={visibleTabs} />
+      <EntityCustomFields fields={customFields} entityType='organization' entityId={id} />
+    </div>
+  );
 }

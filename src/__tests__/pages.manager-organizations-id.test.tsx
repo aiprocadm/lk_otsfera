@@ -4,6 +4,13 @@ import React from 'react';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManagerForOrg } = vi.hoisted(() => ({ requireManagerForOrg: vi.fn() }));
+// §11 ТЗ v0.5 (этап 1 PR-3): страница подтягивает настраиваемые поля — мокаем
+// сервис, иначе он полезет в реальный prisma. Обычная функция, а не vi.fn:
+// в файле есть resetAllMocks, он снёс бы заготовленный ответ.
+vi.mock('@/lib/services/customFields', () => ({
+  getValuesForEntity: async () => ({ ok: true, fields: [] })
+}));
+
 vi.mock('@/lib/auth/requireRole', () => ({ requireManagerForOrg }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));

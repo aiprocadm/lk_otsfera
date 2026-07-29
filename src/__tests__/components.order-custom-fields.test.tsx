@@ -5,7 +5,7 @@ import { renderToString } from 'react-dom/server';
 // Client component uses Next.js hooks — stub them for server-render test harness
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 // Stub server-action (not exercised in render tests)
-vi.mock('@/server-actions/customFields', () => ({ saveOrderCustomFieldsAction: vi.fn() }));
+vi.mock('@/server-actions/customFields', () => ({ saveCustomFieldsAction: vi.fn() }));
 // Stub sonner toast
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 

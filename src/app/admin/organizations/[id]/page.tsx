@@ -13,6 +13,8 @@ import { getOrgRequisitesByAdmin } from '@/lib/services/admin/counterpartyRequis
 import { setOrgRequisitesByAdminAction } from '@/server-actions/requisites';
 import { AdminRateOverrideForm } from '@/components/admin/admin-rate-override-form';
 import { fmtDate } from '@/lib/format';
+import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
+import { getValuesForEntity } from '@/lib/services/customFields';
 
 const fmtRate = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 2 });
 
@@ -41,6 +43,10 @@ export default async function AdminOrganizationDetailPage({
   const rateHistory = rateHistoryResult.ok ? rateHistoryResult.rows : [];
   // Этап 8 (ФТ-9.2): полный набор реквизитов для автогенерации документов.
   const requisites = await getOrgRequisitesByAdmin(prisma, session, org.id);
+  // §11 ТЗ v0.5: настраиваемые поля организации (видимость и право правки —
+  // на сервере, см. getValuesForEntity).
+  const customFieldsResult = await getValuesForEntity(prisma, session, 'organization', org.id);
+  const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
 
   return (
     <div className='space-y-5'>
@@ -134,6 +140,12 @@ export default async function AdminOrganizationDetailPage({
           </TableShell>
         )}
       </section>
+
+      <EntityCustomFields
+        fields={customFields}
+        entityType='organization'
+        entityId={org.id}
+      />
 
       <CustomerAccessSection organizationId={org.id} canInvite={true} source='admin' />
 
