@@ -47,7 +47,7 @@ export default async function OrganizationOrderDetailPage({
       orderBy: { createdAt: 'asc' },
       include: { author: { select: { name: true } } }
     }),
-    getValuesForEntity(prisma, 'order', order.id)
+    getValuesForEntity(prisma, ctx.session, 'order', order.id)
   ]);
   const comments: DealCommentRow[] = commentRows.map((c) => ({
     id: c.id,

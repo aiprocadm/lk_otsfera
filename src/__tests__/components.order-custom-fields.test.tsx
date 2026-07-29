@@ -22,7 +22,7 @@ const textField: FieldWithValue = {
     fieldType: 'text',
     options: [],
     required: false,
-    sortOrder: 1,
+    sortOrder: 1, helpText: null, editable: true
   },
   value: 'ABC-123',
 };
@@ -35,7 +35,7 @@ const boolField: FieldWithValue = {
     fieldType: 'boolean',
     options: [],
     required: false,
-    sortOrder: 2,
+    sortOrder: 2, helpText: null, editable: true
   },
   value: 'true',
 };
@@ -50,7 +50,7 @@ const dateField: FieldWithValue = {
     fieldType: 'date',
     options: [],
     required: false,
-    sortOrder: 3,
+    sortOrder: 3, helpText: null, editable: true
   },
   value: '2026-07-01',
 };
@@ -63,7 +63,7 @@ const selectField: FieldWithValue = {
     fieldType: 'select',
     options: ['Низкий', 'Высокий'],
     required: true,
-    sortOrder: 4,
+    sortOrder: 4, helpText: null, editable: true
   },
   value: 'Высокий',
 };

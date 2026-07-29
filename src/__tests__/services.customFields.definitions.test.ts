@@ -72,7 +72,99 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-const ET = `test_cfd_${stamp}`;
+// Этап 1 ТЗ v0.5: entityType — закрытый список из пяти сущностей
+// (CUSTOM_FIELD_ENTITIES), синтетические строки больше не принимаются.
+// Файлам тестов выданы разные сущности, чтобы они не мешали друг другу.
+const ET = 'partner';
+
+describe('definitions service — этап 1 ТЗ v0.5', () => {
+  it('createDefinition: сущность вне закрытого списка → invalid_entity_type', async () => {
+    const res = await createDefinition(prisma, adminSession, {
+      entityType: 'invoice',
+      key: 'some_key',
+      label: 'Счёт',
+      fieldType: 'text'
+    });
+    expect(res).toEqual({ ok: false, error: 'invalid_entity_type' });
+  });
+
+  it('createDefinition: ключ системного поля занят → reserved_key', async () => {
+    // §11: у организации «Статус» — системное поле (колонка БД). Второе поле
+    // с тем же ключом дало бы два «Статуса» из разных источников.
+    const res = await createDefinition(prisma, adminSession, {
+      entityType: 'organization',
+      key: 'status',
+      label: 'Статус (дубль)',
+      fieldType: 'text'
+    });
+    expect(res).toEqual({ ok: false, error: 'reserved_key' });
+  });
+
+  it('createDefinition: тот же ключ у сущности без системных полей — разрешён', async () => {
+    const res = await createDefinition(prisma, adminSession, {
+      entityType: 'order',
+      key: `status_note_${stamp}`,
+      label: 'Пометка о статусе',
+      fieldType: 'text'
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('unexpected');
+    await prisma.customFieldDefinition.delete({ where: { id: res.definition.id } });
+  });
+
+  it('createDefinition: множественный выбор без вариантов → options_required', async () => {
+    const res = await createDefinition(prisma, adminSession, {
+      entityType: ET,
+      key: `multi_no_opts_${stamp}`,
+      label: 'Множественный без вариантов',
+      fieldType: 'multiselect'
+    });
+    expect(res).toEqual({ ok: false, error: 'options_required' });
+  });
+
+  it('updateDefinition: подсказка и роли сохраняются, мусор в ролях отбрасывается', async () => {
+    const created = await createDefinition(prisma, adminSession, {
+      entityType: ET,
+      key: `roles_patch_${stamp}`,
+      label: 'Поле с ролями',
+      fieldType: 'text'
+    });
+    if (!created.ok) throw new Error('unexpected');
+
+    const res = await updateDefinition(prisma, adminSession, created.definition.id, {
+      helpText: 'Заполняет бухгалтерия',
+      visibleToRoles: ['admin', 'organization'],
+      editableByRoles: ['manager', 'root'] // 'root' — мусор, обязан отвалиться
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('unexpected');
+    expect(res.definition.helpText).toBe('Заполняет бухгалтерия');
+    expect(res.definition.visibleToRoles).toEqual(['admin', 'organization']);
+    expect(res.definition.editableByRoles).toEqual(['manager']);
+
+    // Подсказку можно снять, передав null.
+    const cleared = await updateDefinition(prisma, adminSession, created.definition.id, {
+      helpText: null
+    });
+    if (!cleared.ok) throw new Error('unexpected');
+    expect(cleared.definition.helpText).toBeNull();
+
+    await prisma.customFieldDefinition.delete({ where: { id: created.definition.id } });
+  });
+
+  it('createDefinition: руководитель тоже настраивает поля (§4 ТЗ)', async () => {
+    const leaderSession = makeSession(managerSession.sub, 'manager', { managerRole: 'leader' });
+    const res = await createDefinition(prisma, leaderSession, {
+      entityType: ET,
+      key: `by_leader_${stamp}`,
+      label: 'Поле от руководителя',
+      fieldType: 'text'
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('unexpected');
+    await prisma.customFieldDefinition.delete({ where: { id: res.definition.id } });
+  });
+});
 
 describe('definitions service', () => {
   it('admin-only: manager → forbidden on create', async () => {

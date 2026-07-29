@@ -35,6 +35,19 @@ export function requireAdmin(session: SessionPayload): GuardResult<SessionPayloa
   return { ok: true, value: session };
 }
 
+/**
+ * §4 ТЗ v0.5, строка «Настройка полей и статусов»: администратор ИЛИ
+ * руководитель. Руководитель — суб-роль менеджера (`managerRole='leader'`),
+ * а не top-level Role, поэтому обычной проверки роли мало. Обычный менеджер — 403.
+ */
+export function requireFieldsAdmin(session: SessionPayload): GuardResult<SessionPayload> {
+  if (session.role === 'admin') return { ok: true, value: session };
+  if (session.role === 'manager' && session.managerRole === 'leader') {
+    return { ok: true, value: session };
+  }
+  return { ok: false, response: forbiddenResponse('Admin or leader access only') };
+}
+
 export function requirePartner(session: SessionPayload): GuardResult<SessionPayload & { partnerId: string }> {
   if (session.role !== 'partner' || !session.partnerId) {
     return { ok: false, response: forbiddenResponse('Partner access only') };

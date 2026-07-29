@@ -109,7 +109,12 @@ describe('AdminOrderDetailPage', () => {
     expect(userFindMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { role: 'manager', isActive: true } })
     );
-    expect(getValuesForEntity).toHaveBeenCalledWith(expect.anything(), 'order', 'order-1');
+    expect(getValuesForEntity).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(), // сессия: этап 1 ТЗ v0.5 фильтрует поля по ролям на сервере
+      'order',
+      'order-1'
+    );
     expect(container.textContent).toContain('2024-001');
     expect(container.textContent).toContain('Заказ на обучение');
     const orgLink = container.querySelector('a[href="/admin/organizations/org-1"]');

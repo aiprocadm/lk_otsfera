@@ -26,7 +26,7 @@ export default async function AdminOrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireAdmin();
+  const session = await requireAdmin();
   const { id } = await params;
 
   const [order, candidates, customFieldsResult] = await Promise.all([
@@ -46,7 +46,7 @@ export default async function AdminOrderDetailPage({
       select: { id: true, name: true, email: true },
       orderBy: { email: 'asc' }
     }) as Promise<ManagerCandidate[]>,
-    getValuesForEntity(prisma, 'order', id)
+    getValuesForEntity(prisma, session, 'order', id)
   ]);
   if (!order) notFound();
 

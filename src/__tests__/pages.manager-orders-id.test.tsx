@@ -162,6 +162,7 @@ describe('ManagerOrderDetailPage', () => {
     );
     expect(getValuesForEntity).toHaveBeenCalledWith(
       expect.objectContaining({ student: expect.anything() }),
+      expect.anything(), // сессия: этап 1 ТЗ v0.5 фильтрует поля по ролям на сервере
       'order',
       'order-1'
     );

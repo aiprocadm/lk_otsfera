@@ -31,9 +31,9 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 // The routes import the BARREL `@/lib/services/customFields` + `@/lib/auth/guard`
 // + `@/lib/db/prisma`. Mocking these does NOT touch the real submodule imports
 // used by the service integration tests (different module specifiers).
-const { requireSession, requireAdmin } = vi.hoisted(() => ({
+const { requireSession, requireFieldsAdmin } = vi.hoisted(() => ({
   requireSession: vi.fn(),
-  requireAdmin: vi.fn(),
+  requireFieldsAdmin: vi.fn(),
 }));
 const { createDefinitionMock, updateDefinitionMock, deactivateDefinitionMock } = vi.hoisted(() => ({
   createDefinitionMock: vi.fn(),
@@ -41,7 +41,7 @@ const { createDefinitionMock, updateDefinitionMock, deactivateDefinitionMock } =
   deactivateDefinitionMock: vi.fn(),
 }));
 
-vi.mock('@/lib/auth/guard', () => ({ requireSession, requireAdmin }));
+vi.mock('@/lib/auth/guard', () => ({ requireSession, requireFieldsAdmin }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/services/customFields', () => ({
   createDefinition: createDefinitionMock,
@@ -65,8 +65,9 @@ import { PATCH, DELETE } from '@/app/api/admin/custom-fields/[id]/route';
 let prisma: PrismaClient;
 
 const STAMP = Date.now();
-const ET = `cov_cf_${STAMP}`; // entityType with definitions
-const ET_EMPTY = `cov_cf_empty_${STAMP}`; // entityType with NO active definitions
+// Этап 1 ТЗ v0.5: entityType — закрытый список (CUSTOM_FIELD_ENTITIES).
+const ET = 'order'; // entityType with definitions (entityId ниже — реальный заказ)
+const ET_EMPTY = 'document'; // entityType с определениями, невидимыми для этого entityId
 
 // Created ids
 let adminUserId: string;
@@ -139,7 +140,12 @@ afterAll(async () => {
   if (testOrderIds.length > 0) {
     await prisma.customFieldValue.deleteMany({ where: { entityId: { in: testOrderIds } } });
   }
-  await prisma.customFieldDefinition.deleteMany({ where: { entityType: { in: [ET, ET_EMPTY] } } });
+  // Чистим только СВОИ определения: entityType теперь общий для всех тестов
+  // (закрытый список из пяти сущностей), удаление по нему снесло бы чужие.
+  await prisma.customFieldDefinition.deleteMany({
+    where: { entityType: { in: [ET, ET_EMPTY] }, key: { startsWith: 'cov_' } }
+  });
+  await prisma.customFieldDefinition.deleteMany({ where: { key: { in: ['valid_key'] } } });
   await prisma.order.deleteMany({ where: { title: { startsWith: 'CovCF-' } } });
   await prisma.organization.deleteMany({ where: { name: { startsWith: 'CovCF-' } } });
   await prisma.partner.deleteMany({ where: { name: { startsWith: 'CovCF-' } } });
@@ -193,7 +199,9 @@ describe('definitions service — non-Prisma errors rethrow', () => {
 
     await expect(
       createDefinition(fakePrisma, adminSession, {
-        entityType: 'x',
+        // entityType обязан быть из закрытого списка (этап 1 ТЗ v0.5), иначе
+        // сервис вернёт invalid_entity_type раньше обращения к БД.
+        entityType: 'order',
         key: 'valid_key',
         label: 'L',
         fieldType: 'text',
@@ -228,7 +236,7 @@ describe('definitions service — non-Prisma errors rethrow', () => {
 
 describe('values service — coverage closure', () => {
   it('getValuesForEntity: entityType with no active defs → empty fields (branch @137 true, lines 138-139)', async () => {
-    const res = await getValuesForEntity(prisma, ET_EMPTY, orderId);
+    const res = await getValuesForEntity(prisma, makeSession(adminUserId, 'admin'), ET_EMPTY, orderId);
     expect(res).toEqual({ ok: true, fields: [] });
   });
 
@@ -285,7 +293,7 @@ describe('custom-fields routes — error-mapping coverage', () => {
   // Clear the route mocks between route tests (integration tests above never call them).
   beforeEach(() => {
     requireSession.mockReset();
-    requireAdmin.mockReset();
+    requireFieldsAdmin.mockReset();
     createDefinitionMock.mockReset();
     updateDefinitionMock.mockReset();
     deactivateDefinitionMock.mockReset();
@@ -293,7 +301,7 @@ describe('custom-fields routes — error-mapping coverage', () => {
 
   it('POST: service not_found maps to 404 (route.ts mapErr branch @8 not_found true)', async () => {
     requireSession.mockResolvedValue({ ok: true, value: adminSession });
-    requireAdmin.mockReturnValue({ ok: true, value: adminSession });
+    requireFieldsAdmin.mockReturnValue({ ok: true, value: adminSession });
     createDefinitionMock.mockResolvedValue({ ok: false, error: 'not_found' });
 
     const req = new Request('http://x', {
@@ -308,7 +316,7 @@ describe('custom-fields routes — error-mapping coverage', () => {
 
   it('PATCH: non-forbidden/non-not_found error maps to 400 ([id] mapErr lines 9-10, branch @8 false)', async () => {
     requireSession.mockResolvedValue({ ok: true, value: adminSession });
-    requireAdmin.mockReturnValue({ ok: true, value: adminSession });
+    requireFieldsAdmin.mockReturnValue({ ok: true, value: adminSession });
     // updateDefinition never returns this in prod, but the route mapper must still
     // fall through to the 400 default for any non-{forbidden,not_found} code.
     updateDefinitionMock.mockResolvedValue({ ok: false, error: 'invalid_key' });
@@ -322,7 +330,7 @@ describe('custom-fields routes — error-mapping coverage', () => {
 
   it('PATCH: admin guard failure returns its response ([id] branch @18 true)', async () => {
     requireSession.mockResolvedValue({ ok: true, value: adminSession });
-    requireAdmin.mockReturnValue({ ok: false, response: new Response('Forbidden', { status: 403 }) });
+    requireFieldsAdmin.mockReturnValue({ ok: false, response: new Response('Forbidden', { status: 403 }) });
 
     const req = new Request('http://x', { method: 'PATCH', body: JSON.stringify({ label: 'X' }) });
     const res = await PATCH(req as Request, { params: Promise.resolve({ id: 'cf1' }) });
@@ -332,7 +340,7 @@ describe('custom-fields routes — error-mapping coverage', () => {
 
   it('DELETE: admin guard failure returns its response ([id] branch @37 true)', async () => {
     requireSession.mockResolvedValue({ ok: true, value: adminSession });
-    requireAdmin.mockReturnValue({ ok: false, response: new Response('Forbidden', { status: 403 }) });
+    requireFieldsAdmin.mockReturnValue({ ok: false, response: new Response('Forbidden', { status: 403 }) });
 
     const req = new Request('http://x', { method: 'DELETE' });
     const res = await DELETE(req as Request, { params: Promise.resolve({ id: 'cf1' }) });
