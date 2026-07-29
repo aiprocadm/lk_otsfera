@@ -21,7 +21,9 @@ function db(lead: LeadRow | null, over: Record<string, unknown> = {}) {
     order: { create: vi.fn().mockResolvedValue({ id: 'ord-new' }) },
     $transaction: vi.fn(async (cb: (tx: unknown) => unknown) => cb({
       order: { create: vi.fn().mockResolvedValue({ id: 'ord-new' }) },
-      lead: { update: vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ ...lead, ...data })) }
+      lead: { update: vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ ...lead, ...data })) },
+      // §10 ТЗ v0.5 (PR-3): заявка спрашивает начальный статус у справочника
+      orderStatusDefinition: { findFirst: vi.fn().mockResolvedValue({ id: 'oss_draft' }) }
     })),
     ...over
   } as never;
@@ -107,7 +109,14 @@ describe('promoteLead', () => {
     const orderCreate = vi.fn().mockResolvedValue({ id: 'ord-new' });
     const leadUpdate = vi.fn().mockResolvedValue({ ...lead, status: 'promoted_to_order', promotedOrderId: 'ord-new' });
     const d = db(lead, {
-      $transaction: vi.fn(async (cb: (tx: unknown) => unknown) => cb({ order: { create: orderCreate }, lead: { update: leadUpdate } }))
+      $transaction: vi.fn(async (cb: (tx: unknown) => unknown) =>
+        cb({
+          order: { create: orderCreate },
+          lead: { update: leadUpdate },
+          // §10 ТЗ v0.5 (PR-3): заявка спрашивает начальный статус у справочника
+          orderStatusDefinition: { findFirst: vi.fn().mockResolvedValue({ id: 'oss_draft' }) }
+        })
+      )
     });
     const r = await promoteLead(d, { leadId: 'L1', managerId: 'm1' });
     if (!r.ok) throw new Error('expected ok');

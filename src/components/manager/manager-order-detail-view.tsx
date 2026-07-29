@@ -7,6 +7,7 @@ import { ManagerOrderAmounts } from '@/components/manager/manager-order-amounts'
 import { ManagerOrderTimeline } from '@/components/manager/manager-order-timeline';
 import { ManagerStatusChangeForm } from '@/components/manager/manager-status-change-form';
 import { OrderLifecyclePanel } from '@/components/manager/order-lifecycle-panel';
+import { OrderStatusPanel, type OrderStatusPanelProps } from '@/components/orders/order-status-panel';
 import { ManagerPaymentsList } from '@/components/manager/manager-payments-list';
 import { DocumentsList } from '@/components/partner/documents-list';
 import { OrderItemsSection } from '@/components/training/order-items-section';
@@ -31,6 +32,7 @@ export function ManagerOrderDetailView({
   generatePanel = null,
   readinessPanel = null,
   certificateScansPanel = null,
+  statusPanel = null,
   breadcrumbs = []
 }: {
   data: ManagerOrderDetailData;
@@ -43,6 +45,8 @@ export function ManagerOrderDetailView({
   telephonyEnabled?: boolean;
   /** Этап 8 (PR-2): панель «Сформировать документы» (страница собирает данные). */
   generatePanel?: React.ReactNode;
+  /** §10 ТЗ v0.5: данные панели рабочего статуса (страница считает их сервером). */
+  statusPanel?: Omit<OrderStatusPanelProps, 'orderId'> | null;
   /** Этап 12 (ФТ-5.1/5.2): блок «Готовность к передаче». */
   readinessPanel?: React.ReactNode;
   /** Этап 12 PR-2 (ФТ-5.3): массовая загрузка сканов удостоверений (только обучение). */
@@ -118,10 +122,12 @@ export function ManagerOrderDetailView({
                 | 'on_hold'
             }
           />
-          {/* A4: ось Order.status (жизненный цикл) — не путать с executionStatus выше. */}
+          {/* §10 ТЗ v0.5: рабочий статус из справочника. Не путать с
+              операционным executionStatus выше — тот остаётся внутренним
+              (решение заказчика Q3) и уедет из интерфейса отдельно. */}
+          {statusPanel && <OrderStatusPanel orderId={order.id} {...statusPanel} />}
           <OrderLifecyclePanel
             orderId={order.id}
-            status={order.status}
             accountingSigned={order.accountingSignedAt != null}
             returnReason={order.returnReason}
           />

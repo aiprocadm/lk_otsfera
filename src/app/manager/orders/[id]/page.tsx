@@ -15,6 +15,7 @@ import { OrderReadinessPanel } from '@/components/manager/order-readiness-panel'
 import { listCertificateScanTargets } from '@/lib/services/manager/certificateScans';
 import { CertificateScansPanel } from '@/components/manager/certificate-scans-panel';
 import { buildOrderBreadcrumbs } from '@/lib/navigation/breadcrumbs';
+import { getOrderStatusPanel } from '@/lib/services/orderStatuses';
 
 export default async function ManagerOrderDetailPage({
   params
@@ -72,6 +73,10 @@ export default async function ManagerOrderDetailPage({
   }
 
   // Этап 12 (Модуль 5, ФТ-5.1/5.2): готовность к передаче + кнопка передачи.
+  // §10 ТЗ v0.5: данные панели рабочего статуса — считает сервер, чтобы
+  // кнопки совпадали с тем, что реально разрешит сервис перехода.
+  const statusPanel = await getOrderStatusPanel(prisma, session, id);
+
   const readinessResult = await getOrderReadiness(prisma, session, id);
   const readinessPanel = readinessResult.ok ? (
     <OrderReadinessPanel
@@ -132,6 +137,7 @@ export default async function ManagerOrderDetailPage({
 
   return (
     <ManagerOrderDetailView
+      statusPanel={statusPanel}
       breadcrumbs={breadcrumbs}
       data={data}
       backHref='/manager/orders'

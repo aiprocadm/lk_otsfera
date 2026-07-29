@@ -85,7 +85,13 @@ function makeWinPrisma(opts: { deal?: unknown; stages?: unknown[] } = {}) {
   const stageFindMany = vi.fn().mockResolvedValue(opts.stages ?? []);
   const txOrderCreate = vi.fn().mockResolvedValue({ id: 'ord-1' });
   const txDealUpdate = vi.fn().mockResolvedValue({ id: 'd-1', status: 'won', orderId: 'ord-1' });
-  const tx = { order: { create: txOrderCreate }, deal: { update: txDealUpdate } };
+  // §10 ТЗ v0.5 (PR-3): создание заявки спрашивает у справочника начальный
+  // статус — в транзакционном стабе он тоже должен быть.
+  const tx = {
+    order: { create: txOrderCreate },
+    deal: { update: txDealUpdate },
+    orderStatusDefinition: { findFirst: vi.fn().mockResolvedValue({ id: 'oss_draft' }) }
+  };
   const $transaction = vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx));
   const prisma = {
     deal: { findFirst: dealFindFirst },
@@ -309,6 +315,8 @@ describe('winDeal — транзакция и аудит', () => {
     expect(stageFindMany).not.toHaveBeenCalled(); // без toStageId словарь не нужен
     expect(txOrderCreate).toHaveBeenCalledWith({
       data: {
+        // §10 ТЗ v0.5 (PR-3): новая заявка сразу получает рабочий статус
+        statusId: 'oss_draft',
         title: 'Сделка',
         companyId: 'c1',
         organizationId: 'org-1',

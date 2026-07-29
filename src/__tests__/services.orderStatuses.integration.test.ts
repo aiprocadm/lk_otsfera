@@ -87,6 +87,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await prisma.orderStatusChange.deleteMany({ where: { order: { title: { startsWith: 'OSS-' } } } });
+  await prisma.document.deleteMany({ where: { name: { startsWith: 'OSS-' } } });
   await prisma.order.deleteMany({ where: { title: { startsWith: 'OSS-' } } });
   await prisma.organizationManager.deleteMany({ where: { userId: managerId } });
   await prisma.organization.deleteMany({ where: { name: { startsWith: 'OSS-' } } });
@@ -518,9 +519,15 @@ describe('автоперевод по якорю', () => {
   });
 
   it('факт НЕ откатывает заявку назад', async () => {
-    // Заявка уже «Заявка закрыта»; пришедшая позже оплата не должна вернуть её.
+    // Заявка ушла дальше по порядку; пришедшая позже оплата не должна вернуть
+    // её на шаг назад. Берём «Бухгалтерия подписана», а не «Заявка закрыта»:
+    // закрытие теперь требует выполненных условий §5.6 (PR-3), и тест про
+    // якорь не должен зависеть от них.
     const admin = sess(adminId, 'admin');
-    await transitionOrderStatus(prisma, admin, { orderId: anchorOrderId, toId: closed });
+    const all = await getOrderedStatuses(prisma);
+    const signed = all.find((x) => x.key === 'accounting_signed')!.id;
+
+    await transitionOrderStatus(prisma, admin, { orderId: anchorOrderId, toId: signed });
     const res = await applyStatusAnchor(prisma, anchorOrderId, 'paid');
     expect(res).toEqual({ ok: true, changed: false });
 
@@ -528,7 +535,7 @@ describe('автоперевод по якорю', () => {
       where: { id: anchorOrderId },
       select: { statusId: true }
     });
-    expect(order?.statusId).toBe(closed);
+    expect(order?.statusId).toBe(signed);
   });
 
   it('отменённую заявку факты не воскрешают', async () => {
@@ -644,5 +651,117 @@ describe('нештатные ошибки БД пробрасываются на
 
     await prisma.orderStatusChange.deleteMany({ where: { orderId: own.id } });
     await prisma.order.delete({ where: { id: own.id } });
+  });
+});
+
+// ─── PR-3: связь со старым полем и условия закрытия ─────────────────────────
+
+describe('старое поле Order.status остаётся заполненным (решение Q3)', () => {
+  let syncOrderId: string;
+
+  beforeAll(async () => {
+    syncOrderId = (await prisma.order.create({
+      data: {
+        title: `OSS-Sync-${S}`,
+        orderNumber: `OSS-SY-${S}`,
+        companyId,
+        organizationId: orgId,
+        executionStatus: 'pending',
+        statusId: draft
+      }
+    })).id;
+  });
+
+  it('переход в «Принято в работу» ставит старому полю in_progress', async () => {
+    const admin = sess(adminId, 'admin');
+    await transitionOrderStatus(prisma, admin, { orderId: syncOrderId, toId: accepted });
+
+    const row = await prisma.order.findUnique({
+      where: { id: syncOrderId },
+      select: { status: true, statusId: true }
+    });
+    expect(row?.status).toBe('in_progress');
+    expect(row?.statusId).toBe(accepted);
+  });
+
+  it('отмена старое поле НЕ трогает — в enum нет такого значения', async () => {
+    const admin = sess(adminId, 'admin');
+    const before = await prisma.order.findUnique({
+      where: { id: syncOrderId },
+      select: { status: true }
+    });
+
+    await transitionOrderStatus(prisma, admin, { orderId: syncOrderId, toId: cancelled });
+
+    const after = await prisma.order.findUnique({
+      where: { id: syncOrderId },
+      select: { status: true, statusId: true }
+    });
+    expect(after?.status).toBe(before?.status);
+    expect(after?.statusId).toBe(cancelled);
+  });
+});
+
+describe('закрыть заявку можно только при выполненных условиях (§5.6)', () => {
+  let closeOrderId: string;
+
+  beforeAll(async () => {
+    closeOrderId = (await prisma.order.create({
+      data: {
+        title: `OSS-Close-${S}`,
+        orderNumber: `OSS-CL-${S}`,
+        companyId,
+        organizationId: orgId,
+        executionStatus: 'in_progress',
+        serviceType: 'document_development',
+        statusId: accepted
+      }
+    })).id;
+  });
+
+  it('без документа и подписи бухгалтерии закрыть нельзя — со списком причин', async () => {
+    const admin = sess(adminId, 'admin');
+    const res = await transitionOrderStatus(prisma, admin, {
+      orderId: closeOrderId,
+      toId: closed
+    });
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error('unexpected');
+    expect(res.error).toBe('completion_conditions_unmet');
+    if (res.error !== 'completion_conditions_unmet') throw new Error('unexpected');
+    expect(res.unmet).toContain('documents_uploaded');
+    expect(res.unmet).toContain('accounting_signed');
+  });
+
+  it('когда условия выполнены — закрывается', async () => {
+    const admin = sess(adminId, 'admin');
+    await prisma.document.create({
+      data: {
+        name: `OSS-Doc-${S}`,
+        path: `p/${S}/close`,
+        mimeType: 'application/pdf',
+        counterpartyType: 'organization',
+        counterpartyId: orgId,
+        orderId: closeOrderId,
+        scanStatus: 'clean'
+      }
+    });
+    await prisma.order.update({
+      where: { id: closeOrderId },
+      data: { accountingSignedAt: new Date('2026-07-01T00:00:00Z') }
+    });
+
+    const res = await transitionOrderStatus(prisma, admin, {
+      orderId: closeOrderId,
+      toId: closed
+    });
+    expect(res.ok).toBe(true);
+
+    const row = await prisma.order.findUnique({
+      where: { id: closeOrderId },
+      select: { status: true }
+    });
+    // старое поле тоже доехало до completed
+    expect(row?.status).toBe('completed');
   });
 });

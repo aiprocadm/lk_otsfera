@@ -4,6 +4,18 @@ import React from 'react';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManagerLeader } = vi.hoisted(() => ({ requireManagerLeader: vi.fn() }));
+// §10 ТЗ v0.5 (этап 2 PR-3): страница подтягивает панель рабочего статуса —
+// мокаем сервис обычной функцией (в файле есть сброс моков).
+vi.mock('@/lib/services/orderStatuses', () => ({
+  getOrderStatusPanel: async () => ({
+    current: null,
+    forward: [],
+    backward: [],
+    terminal: null,
+    history: []
+  })
+}));
+
 vi.mock('@/lib/auth/requireRole', () => ({ requireManagerLeader }));
 
 const { studentFindMany } = vi.hoisted(() => ({ studentFindMany: vi.fn() }));

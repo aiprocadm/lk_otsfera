@@ -3,6 +3,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { dealScopeWhere } from './board';
 import { resolveDealStages } from './stages';
+import { getInitialStatusId } from '@/lib/services/orderStatuses';
 
 /**
  * Этап 6 PR-2 (ФТ-4.4) — конверсии: Лид → Сделка и Сделка → Заказ (выигрыш).
@@ -135,8 +136,11 @@ export async function winDeal(
 
   const organizationId = deal.organizationId;
   const { order, updatedDeal } = await prisma.$transaction(async (tx) => {
+    // §10 ТЗ v0.5: новая заявка получает рабочий статус из справочника.
+    const initialStatusId = await getInitialStatusId(tx);
     const order = await tx.order.create({
       data: {
+        statusId: initialStatusId,
         title: deal.title,
         companyId: deal.companyId,
         organizationId,
