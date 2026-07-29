@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 describe('канон leader', () => {
-  it('19 пунктов: сводка/поиск/команда/финансы/корректировки/заказы/организации/роли/воронка/сделки/аналитика/задачи/календарь/обучение/обращения клиентов/сообщения/мои заказы/настройки', () => {
+  it('20 пунктов: сводка/поиск/команда/финансы/корректировки/заказы/организации/роли/воронка/сделки/аналитика/задачи/календарь/обучение/обращения клиентов/сообщения/мои заказы/настройки/доп-поля', () => {
     expect(navByRole.leader.map((i) => i.href)).toEqual([
       '/leader/dashboard',
       '/leader/search',
@@ -33,7 +33,9 @@ describe('канон leader', () => {
       '/leader/intake',
       '/manager/messages',
       '/manager/dashboard',
-      '/leader/settings'
+      '/leader/settings',
+      // §11 ТЗ v0.5: зеркало настройки полей — руководителя в /admin/* не пускаем
+      '/leader/settings/custom-fields'
     ]);
   });
 
@@ -63,6 +65,16 @@ describe('канон leader', () => {
         expect(item.flag).toBeUndefined();
       }
     }
+  });
+
+  it('«Доп-поля» ведут в кабинет руководителя, без флага (§11 ТЗ v0.5)', () => {
+    const item = navByRole.leader.find((i) => i.href === '/leader/settings/custom-fields');
+    expect(item).toBeDefined();
+    expect(item!.label).toBe('Доп-поля');
+    expect(item!.group).toBe('Настройки');
+    expect(item!.flag).toBeUndefined();
+    // ключевое: ссылка НЕ в админский кабинет
+    expect(item!.href.startsWith('/admin')).toBe(false);
   });
 
   it('«Настройки» указывает на /leader/settings и имеет иконку', () => {

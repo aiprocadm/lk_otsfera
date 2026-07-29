@@ -9,11 +9,25 @@ vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { listDefinitions } = vi.hoisted(() => ({ listDefinitions: vi.fn() }));
-vi.mock('@/lib/services/customFields', () => ({ listDefinitions }));
+vi.mock('@/lib/services/customFields/definitions', () => ({ listDefinitions }));
 
 vi.mock('@/components/admin/custom-fields-admin', () => ({
-  CustomFieldsAdmin: (props: { definitions: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'custom-fields-admin' }, JSON.stringify(props.definitions))
+  CustomFieldsAdmin: (props: {
+    definitions: unknown[];
+    entity: string;
+    systemFields: { key: string }[];
+    basePath: string;
+  }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'custom-fields-admin' },
+      JSON.stringify({
+        definitions: props.definitions,
+        entity: props.entity,
+        systemKeys: props.systemFields.map((f) => f.key),
+        basePath: props.basePath
+      })
+    )
 }));
 
 import AdminCustomFieldsPage from '@/app/admin/custom-fields/page';
@@ -26,23 +40,55 @@ describe('AdminCustomFieldsPage', () => {
     listDefinitions.mockReset();
   });
 
-  it('renders definitions when the service call succeeds', async () => {
+  it('по умолчанию показывает заявку', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     listDefinitions.mockResolvedValue({ ok: true, rows: [{ id: 'f1', key: 'k1' }] });
 
-    const { container } = await renderServerComponent(AdminCustomFieldsPage());
+    const { container } = await renderServerComponent(
+      AdminCustomFieldsPage({ searchParams: Promise.resolve({}) })
+    );
 
     expect(requireAdmin).toHaveBeenCalled();
     expect(listDefinitions).toHaveBeenCalledWith({}, SESSION, 'order');
     expect(container.textContent).toContain('f1');
+    expect(container.textContent).toContain('"entity":"order"');
+    expect(container.textContent).toContain('"basePath":"/admin/custom-fields"');
   });
 
-  it('falls back to an empty array when the service call fails', async () => {
+  it('открывает выбранную сущность и отдаёт её системные поля', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    listDefinitions.mockResolvedValue({ ok: true, rows: [] });
+
+    const { container } = await renderServerComponent(
+      AdminCustomFieldsPage({ searchParams: Promise.resolve({ entity: 'organization' }) })
+    );
+
+    expect(listDefinitions).toHaveBeenCalledWith({}, SESSION, 'organization');
+    expect(container.textContent).toContain('"entity":"organization"');
+    // §11: пять системных полей организации показываются отдельным блоком
+    expect(container.textContent).toContain('assigned_manager');
+  });
+
+  it('мусор в адресе не роняет страницу — показывается заявка', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    listDefinitions.mockResolvedValue({ ok: true, rows: [] });
+
+    const { container } = await renderServerComponent(
+      AdminCustomFieldsPage({ searchParams: Promise.resolve({ entity: 'invoice' }) })
+    );
+
+    expect(listDefinitions).toHaveBeenCalledWith({}, SESSION, 'order');
+    expect(container.textContent).toContain('"entity":"order"');
+  });
+
+  it('отказ сервиса даёт пустой список, а не падение', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     listDefinitions.mockResolvedValue({ ok: false, error: 'forbidden' });
 
-    const { container } = await renderServerComponent(AdminCustomFieldsPage());
+    const { container } = await renderServerComponent(
+      AdminCustomFieldsPage({ searchParams: Promise.resolve({}) })
+    );
 
-    expect(container.textContent).toContain('[]');
+    expect(container.textContent).toContain('"definitions":[]');
   });
 });

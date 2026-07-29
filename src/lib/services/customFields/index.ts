@@ -46,3 +46,6 @@ export type { SystemFieldDescriptor } from './systemFields';
 
 export { resolveEntityAccess } from './access';
 export type { EntityAccess } from './access';
+
+export { getCustomFieldsScreen, parseEntityParam, DEFAULT_ENTITY } from './screen';
+export type { CustomFieldsScreenData } from './screen';
