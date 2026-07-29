@@ -77,7 +77,11 @@ export default async function AdminDocumentsPage({
       <div className='space-y-4'>
         <h1 className='text-2xl font-semibold text-[#111111]'>Документы</h1>
         <TabChips activeTab='general' />
-        <DocumentsList rows={documentRows} downloadEndpointBase='/api/documents' />
+        <DocumentsList
+          rows={documentRows}
+          downloadEndpointBase='/api/documents'
+          cardHrefBase='/admin/documents'
+        />
       </div>
     );
   }

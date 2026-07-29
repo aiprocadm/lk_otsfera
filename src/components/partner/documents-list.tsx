@@ -1,5 +1,6 @@
 'use client';
 import React, { useState } from 'react';
+import Link from 'next/link';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -30,11 +31,18 @@ export function DocumentsList({
   downloadEndpointBase = '/api/documents',
   downloadEndpointQuery = '',
   newDocIds = [],
-  groupByOrder = false
+  groupByOrder = false,
+  cardHrefBase
 }: {
   rows: OrgDocumentRow[];
   downloadEndpointBase?: string;
   downloadEndpointQuery?: string;
+  /**
+   * §11 ТЗ v0.5 (этап 1 PR-4): база ссылки на карточку документа в текущем
+   * кабинете, например `/manager/documents`. Не передан — имя остаётся
+   * текстом (списки без карточки, например портфель партнёра).
+   */
+  cardHrefBase?: string;
   /** Этап 3 PR-2 (ФТ-6.6): id непросмотренных документов — бейдж «новый». */
   newDocIds?: string[];
   /** Этап 3 PR-2 (ФТ-6.6): секции «Заказ №…» / «Без заказа» вместо плоского списка. */
@@ -102,7 +110,13 @@ export function DocumentsList({
 
       <div className='flex-1 min-w-0'>
         <div className='font-medium text-[#111111] text-sm truncate'>
-          {doc.name}
+          {cardHrefBase ? (
+            <Link href={`${cardHrefBase}/${doc.id}`} className='hover:underline'>
+              {doc.name}
+            </Link>
+          ) : (
+            doc.name
+          )}
           {isNew(doc.id) && (
             <span className='ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-[#FFF7ED] text-[#9A3412]'>
               новый

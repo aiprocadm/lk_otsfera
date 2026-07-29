@@ -6,14 +6,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
-const { listDefinitions } = vi.hoisted(() => ({ listDefinitions: vi.fn() }));
-vi.mock('@/lib/services/customFields/definitions', () => ({ listDefinitions }));
+const { listDefinitions, getActiveDefinitions } = vi.hoisted(() => ({
+  listDefinitions: vi.fn(),
+  // getFieldsForEntity ходит сюда через getValuesForEntity — без этого мока
+  // тест падает на «No export is defined».
+  getActiveDefinitions: vi.fn().mockResolvedValue([])
+}));
+vi.mock('@/lib/services/customFields/definitions', () => ({
+  listDefinitions,
+  getActiveDefinitions
+}));
 
 import {
   parseEntityParam,
   getCustomFieldsScreen,
   DEFAULT_ENTITY
 } from '@/lib/services/customFields/screen';
+import { getFieldsForEntity } from '@/lib/services/customFields/values';
 
 const prisma = {} as PrismaClient;
 const session = { sub: 'a1', role: 'admin' } as SessionPayload;
@@ -71,5 +80,22 @@ describe('getCustomFieldsScreen', () => {
     const screen = await getCustomFieldsScreen(prisma, session, 'partner');
     expect(screen.definitions).toEqual([]);
     expect(screen.entity).toBe('partner');
+  });
+});
+
+describe('getFieldsForEntity — обёртка для страниц', () => {
+  beforeEach(() => {
+    listDefinitions.mockReset();
+  });
+
+  it('успех отдаёт массив полей', async () => {
+    listDefinitions.mockResolvedValue({ ok: true, rows: [] });
+    const fields = await getFieldsForEntity(prisma, session, 'organization', 'o1');
+    expect(Array.isArray(fields)).toBe(true);
+  });
+
+  it('неизвестная сущность даёт пустой массив, а не падение страницы', async () => {
+    const fields = await getFieldsForEntity(prisma, session, 'invoice', 'o1');
+    expect(fields).toEqual([]);
   });
 });

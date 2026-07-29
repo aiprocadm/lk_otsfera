@@ -154,6 +154,7 @@ export default async function OrganizationDocumentsPage({
           downloadEndpointQuery={downloadEndpointQuery}
           newDocIds={newDocIds}
           groupByOrder={tab === 'orders'}
+          cardHrefBase='/organization/documents'
         />
 
         <Paginator basePath='/organization/documents' searchParams={sp} take={take} skip={skip} total={total} />

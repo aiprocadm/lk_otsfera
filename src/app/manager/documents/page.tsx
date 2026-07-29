@@ -85,7 +85,11 @@ export default async function ManagerDocumentsPage({
         <h1 className='text-2xl font-semibold text-[#111111]'>Документы</h1>
         <TabChips activeTab='general' ordersHref='/manager/documents' />
         <ManagerOrderLessUploadForm organizations={cps.organizations} partners={cps.partners} />
-        <DocumentsList rows={documentRows} downloadEndpointBase='/api/manager/documents' />
+        <DocumentsList
+          rows={documentRows}
+          downloadEndpointBase='/api/manager/documents'
+          cardHrefBase='/manager/documents'
+        />
       </div>
     );
   }
@@ -168,7 +172,11 @@ export default async function ManagerDocumentsPage({
         </button>
       </form>
 
-      <DocumentsList rows={documentRows} downloadEndpointBase='/api/manager/documents' />
+      <DocumentsList
+          rows={documentRows}
+          downloadEndpointBase='/api/manager/documents'
+          cardHrefBase='/manager/documents'
+        />
 
       {nextCursor && (
         <div>

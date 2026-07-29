@@ -8,7 +8,7 @@ const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 // сервис, иначе он полезет в реальный prisma. Обычная функция, а не vi.fn:
 // в файле есть resetAllMocks, он снёс бы заготовленный ответ.
 vi.mock('@/lib/services/customFields', () => ({
-  getValuesForEntity: async () => ({ ok: true, fields: [] })
+  getFieldsForEntity: async () => []
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));

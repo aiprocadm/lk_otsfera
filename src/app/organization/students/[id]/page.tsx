@@ -13,7 +13,7 @@ import { TRAINING_STATUS_RU } from '@/components/training/order-items-section';
 import { Badge, TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { fmtDate } from '@/lib/format';
 import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
-import { getValuesForEntity } from '@/lib/services/customFields';
+import { getFieldsForEntity } from '@/lib/services/customFields';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,8 +51,7 @@ export default async function OrganizationStudentDetailPage({
 
   // §11 ТЗ v0.5: настраиваемые поля сотрудника. Клиент правит их только если
   // администратор явно отметил роль «Организация» — решает сервер.
-  const customFieldsResult = await getValuesForEntity(prisma, ctx.session, 'student', id);
-  const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
+  const customFields = await getFieldsForEntity(prisma, ctx.session, 'student', id);
 
   return (
     <OrgAppShell

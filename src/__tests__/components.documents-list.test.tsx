@@ -44,6 +44,19 @@ describe('DocumentsList — empty and formatting', () => {
     expect(mb).toContain('5.0 МБ');
   });
 
+  it('§11 PR-4: с cardHrefBase имя документа становится ссылкой на карточку', () => {
+    const withCard = renderToString(
+      <DocumentsList rows={[base]} cardHrefBase='/manager/documents' />
+    );
+    expect(withCard).toContain(`href="/manager/documents/${base.id}"`);
+  });
+
+  it('§11 PR-4: без cardHrefBase имя остаётся текстом (списки без карточки)', () => {
+    const plain = renderToString(<DocumentsList rows={[base]} />);
+    expect(plain).not.toContain('/documents/');
+    expect(plain).toContain(base.name);
+  });
+
   it('shows the incoming/outgoing direction label with distinct styling', () => {
     const incoming = renderToString(<DocumentsList rows={[{ ...base, direction: 'incoming' }]} />);
     const outgoing = renderToString(<DocumentsList rows={[{ ...base, direction: 'outgoing' }]} />);
