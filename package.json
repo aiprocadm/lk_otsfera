@@ -18,7 +18,7 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "db:recreate-local": "tsx scripts/recreate-local-db.ts",
     "db:create-admin": "tsx scripts/create-admin.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run --mode=unit",
     "test:integration": "vitest run --mode=integration",

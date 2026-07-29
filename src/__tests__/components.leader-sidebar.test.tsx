@@ -32,11 +32,11 @@ import { LeaderSidebar } from '@/components/leader/leader-sidebar';
 import { navByRole } from '@/lib/navigation/cabinet';
 
 describe('LeaderSidebar', () => {
-  it('renders 19 nav links from the leader canon, including manager-cabinet bridges and Настройки', () => {
+  it('renders 20 nav links from the leader canon, including manager-cabinet bridges, Настройки и Доп-поля', () => {
     vi.mocked(usePathname).mockReturnValue('/leader/dashboard');
     const html = renderToString(React.createElement(LeaderSidebar, { items: navByRole.leader }));
     const matches = html.match(/data-testid="leader-nav-/g);
-    expect(matches).toHaveLength(19);
+    expect(matches).toHaveLength(20);
     expect(html).toContain('href="/leader/dashboard"');
     expect(html).toContain('href="/leader/team"');
     expect(html).toContain('href="/leader/finance"');
@@ -53,6 +53,8 @@ describe('LeaderSidebar', () => {
     expect(html).toContain('href="/leader/requests"');
     expect(html).toContain('href="/manager/messages"');
     expect(html).toContain('href="/manager/dashboard"');
+    // §11 ТЗ v0.5: зеркало настройки полей в кабинете руководителя
+    expect(html).toContain('href="/leader/settings/custom-fields"');
     expect(html).toContain('href="/leader/settings"');
   });
 

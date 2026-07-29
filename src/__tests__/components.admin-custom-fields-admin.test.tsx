@@ -10,7 +10,24 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }) }));
 const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
-import { CustomFieldsAdmin } from '@/components/admin/custom-fields-admin';
+import { CustomFieldsAdmin as CustomFieldsAdminReal } from '@/components/admin/custom-fields-admin';
+
+// Этап 1 PR-2: у экрана появились обязательные пропсы (сущность, системные поля,
+// базовый путь). Шим подставляет их по умолчанию, чтобы существующие проверки
+// поведения диалогов остались как есть.
+function CustomFieldsAdmin(props: {
+  definitions: CustomFieldDefinition[];
+  entity?: 'order' | 'organization' | 'partner' | 'student' | 'document';
+  systemFields?: { key: string; label: string; source: string }[];
+  basePath?: string;
+}) {
+  return React.createElement(CustomFieldsAdminReal, {
+    entity: props.entity ?? 'order',
+    systemFields: props.systemFields ?? [],
+    basePath: props.basePath ?? '/admin/custom-fields',
+    definitions: props.definitions
+  });
+}
 
 function field(overrides: Partial<CustomFieldDefinition> = {}): CustomFieldDefinition {
   return {
@@ -25,6 +42,10 @@ function field(overrides: Partial<CustomFieldDefinition> = {}): CustomFieldDefin
     sortOrder: 1,
     createdAt: new Date('2024-01-01T00:00:00Z'),
     updatedAt: new Date('2024-01-01T00:00:00Z'),
+    helpText: null,
+    visibleToRoles: [],
+    editableByRoles: [],
+    isSystem: false,
     ...overrides
   } as CustomFieldDefinition;
 }
@@ -49,7 +70,7 @@ describe('CustomFieldsAdmin', () => {
   });
 
   // Both the add and edit <dialog>s are always mounted (only `open` toggles),
-  // and both contain "Название"/"Ключ"/"Порядок сортировки" labels with the
+  // and both contain "Название"/"Ключ"/"Порядок отображения" labels with the
   // same text — scope queries to the currently-open <dialog> to disambiguate.
   function openDialog(): HTMLElement {
     return document.querySelector('dialog[open]') as HTMLElement;
@@ -78,13 +99,19 @@ describe('CustomFieldsAdmin', () => {
     expect(screen.getByText('Число', { selector: 'td' })).toBeTruthy();
   });
 
-  it('falls back to the raw fieldType string when it is not in FIELD_TYPE_OPTIONS', () => {
+  it('falls back to the raw fieldType string when it is not in FIELD_TYPE_OPTIONS', async () => {
     render(
       React.createElement(CustomFieldsAdmin, {
         definitions: [field({ fieldType: 'weird' as CustomFieldDefinition['fieldType'] })]
       })
     );
     expect(screen.getByText('weird')).toBeTruthy();
+
+    // тот же фолбэк в диалоге правки (тип показан только для чтения)
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
+    await screen.findByText('Изменить поле');
+    const dialogEl = document.querySelector('dialog[open]') as HTMLElement;
+    expect((within(dialogEl).getByLabelText('Тип поля') as HTMLInputElement).value).toBe('weird');
   });
 
   it('only active fields show the "Деактивировать" button', () => {
@@ -124,7 +151,10 @@ describe('CustomFieldsAdmin', () => {
             label: 'Комментарий',
             fieldType: 'text',
             required: false,
-            sortOrder: 0
+            sortOrder: 0,
+            helpText: null,
+            visibleToRoles: [],
+            editableByRoles: []
           })
         })
       )
@@ -151,7 +181,7 @@ describe('CustomFieldsAdmin', () => {
       target: { value: ' a, b ,, c ' }
     });
     fireEvent.click(within(dialogEl).getByRole('checkbox', { name: 'Обязательное поле' }));
-    fireEvent.change(within(dialogEl).getByLabelText('Порядок сортировки'), { target: { value: '3' } });
+    fireEvent.change(within(dialogEl).getByLabelText('Порядок отображения'), { target: { value: '3' } });
     fireEvent.click(within(dialogEl).getByRole('button', { name: 'Создать' }));
 
     await waitFor(() =>
@@ -165,7 +195,10 @@ describe('CustomFieldsAdmin', () => {
             fieldType: 'select',
             options: ['a', 'b', 'c'],
             required: true,
-            sortOrder: 3
+            sortOrder: 3,
+            helpText: null,
+            visibleToRoles: [],
+            editableByRoles: []
           })
         })
       )
@@ -181,7 +214,7 @@ describe('CustomFieldsAdmin', () => {
     const dialogEl = openDialog();
     fireEvent.change(within(dialogEl).getByLabelText('Название'), { target: { value: 'X' } });
     fireEvent.change(within(dialogEl).getByLabelText('Ключ (латиница, a-z0-9_)'), { target: { value: 'x' } });
-    fireEvent.change(within(dialogEl).getByLabelText('Порядок сортировки'), { target: { value: '' } });
+    fireEvent.change(within(dialogEl).getByLabelText('Порядок отображения'), { target: { value: '' } });
     fireEvent.click(within(dialogEl).getByRole('button', { name: 'Создать' }));
 
     await waitFor(() =>
@@ -263,7 +296,7 @@ describe('CustomFieldsAdmin', () => {
     expect((within(dialogEl).getByLabelText('Ключ') as HTMLInputElement).value).toBe('oldkey');
     expect((within(dialogEl).getByLabelText('Ключ') as HTMLInputElement).readOnly).toBe(true);
     expect((within(dialogEl).getByRole('checkbox', { name: 'Обязательное поле' }) as HTMLInputElement).checked).toBe(true);
-    expect((within(dialogEl).getByLabelText('Порядок сортировки') as HTMLInputElement).value).toBe('9');
+    expect((within(dialogEl).getByLabelText('Порядок отображения') as HTMLInputElement).value).toBe('9');
     expect(within(dialogEl).queryByLabelText('Варианты (через запятую)')).toBeNull();
   });
 
@@ -300,7 +333,15 @@ describe('CustomFieldsAdmin', () => {
         '/api/admin/custom-fields/f9',
         expect.objectContaining({
           method: 'PATCH',
-          body: JSON.stringify({ label: 'Новая метка', options: ['x', 'y'], required: false, sortOrder: 1 })
+          body: JSON.stringify({
+            label: 'Новая метка',
+            options: ['x', 'y'],
+            required: false,
+            sortOrder: 1,
+            helpText: null,
+            visibleToRoles: [],
+            editableByRoles: []
+          })
         })
       )
     );
@@ -322,7 +363,15 @@ describe('CustomFieldsAdmin', () => {
         '/api/admin/custom-fields/f9',
         expect.objectContaining({
           // JSON.stringify drops keys whose value is `undefined` entirely.
-          body: JSON.stringify({ label: 'Срочно', options: undefined, required: false, sortOrder: 1 })
+          body: JSON.stringify({
+            label: 'Срочно',
+            options: undefined,
+            required: false,
+            sortOrder: 1,
+            helpText: null,
+            visibleToRoles: [],
+            editableByRoles: []
+          })
         })
       )
     );
@@ -335,7 +384,7 @@ describe('CustomFieldsAdmin', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
     await screen.findByText('Изменить поле');
     const dialogEl = openDialog();
-    fireEvent.change(within(dialogEl).getByLabelText('Порядок сортировки'), { target: { value: '' } });
+    fireEvent.change(within(dialogEl).getByLabelText('Порядок отображения'), { target: { value: '' } });
     fireEvent.click(within(dialogEl).getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() =>
@@ -426,5 +475,236 @@ describe('CustomFieldsAdmin', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Деактивировать' }));
 
     await waitFor(() => expect(toastError).toHaveBeenCalled());
+  });
+});
+
+// ─── Этап 1 PR-2 (§11 ТЗ v0.5): сущности, роли, подсказка, системные поля ────
+
+describe('CustomFieldsAdmin — экран настройки §11', () => {
+  beforeEach(() => {
+    push.mockClear();
+    refresh.mockClear();
+    toastSuccess.mockClear();
+    toastError.mockClear();
+
+    HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+      this.setAttribute('open', '');
+    });
+    HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+      this.removeAttribute('open');
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function openDialog(): HTMLElement {
+    return document.querySelector('dialog[open]') as HTMLElement;
+  }
+
+  it('вкладки ведут на все пять сущностей и знают текущую', () => {
+    render(
+      React.createElement(CustomFieldsAdmin, {
+        definitions: [],
+        entity: 'partner',
+        basePath: '/leader/settings/custom-fields'
+      })
+    );
+
+    const tab = screen.getByRole('link', { name: 'Партнёр' });
+    expect(tab.getAttribute('href')).toBe('/leader/settings/custom-fields?entity=partner');
+    // ссылки строятся от переданного basePath — у руководителя это его кабинет
+    expect(screen.getByRole('link', { name: 'Заявка' }).getAttribute('href')).toBe(
+      '/leader/settings/custom-fields?entity=order'
+    );
+    for (const label of ['Заявка', 'Организация', 'Партнёр', 'Сотрудник организации', 'Документ']) {
+      expect(screen.getByRole('link', { name: label })).toBeTruthy();
+    }
+  });
+
+  it('блок системных полей показывается и не даёт кнопок', () => {
+    render(
+      React.createElement(CustomFieldsAdmin, {
+        definitions: [],
+        entity: 'organization',
+        systemFields: [
+          { key: 'name', label: 'Название', source: 'Карточка организации' },
+          { key: 'status', label: 'Статус', source: 'Карточка организации' }
+        ]
+      })
+    );
+
+    expect(screen.getByText('Системные поля')).toBeTruthy();
+    expect(screen.getAllByText('системное').length).toBe(2);
+    // «Название» есть и в заголовке таблицы — ищем внутри блока системных полей
+    const systemBlock = screen.getByText('Системные поля').parentElement as HTMLElement;
+    expect(within(systemBlock).getByText('Название')).toBeTruthy();
+    expect(within(systemBlock).getByText('status')).toBeTruthy();
+    // у системных полей нет ни «Изменить», ни «Деактивировать»
+    expect(screen.queryByRole('button', { name: 'Изменить' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Деактивировать' })).toBeNull();
+  });
+
+  it('без системных полей блок не рендерится вовсе', () => {
+    render(React.createElement(CustomFieldsAdmin, { definitions: [], entity: 'order' }));
+    expect(screen.queryByText('Системные поля')).toBeNull();
+  });
+
+  it('пустые списки ролей в таблице читаются как «по умолчанию», а не «никому»', () => {
+    render(React.createElement(CustomFieldsAdmin, { definitions: [field()] }));
+    expect(screen.getByText('Все, кто видит карточку')).toBeTruthy();
+    expect(screen.getByText('Администратор, руководитель')).toBeTruthy();
+  });
+
+  it('заданные роли и подсказка выводятся русскими подписями', () => {
+    render(
+      React.createElement(CustomFieldsAdmin, {
+        definitions: [
+          field({
+            helpText: 'Заполняет бухгалтерия',
+            visibleToRoles: ['admin', 'leader'],
+            editableByRoles: ['manager']
+          })
+        ]
+      })
+    );
+
+    expect(screen.getByText('Заполняет бухгалтерия')).toBeTruthy();
+    expect(screen.getByText('Администратор, Руководитель')).toBeTruthy();
+    // «Менеджер» встречается ещё и в чекбоксах диалогов — берём ячейку таблицы
+    const editableCell = screen
+      .getAllByText('Менеджер')
+      .find((el) => el.tagName === 'TD');
+    expect(editableCell).toBeTruthy();
+  });
+
+  it('в списке типов все 12 значений §11', async () => {
+    render(React.createElement(CustomFieldsAdmin, { definitions: [] }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Добавить' }));
+    await screen.findByText('Новое настраиваемое поле');
+    const dialogEl = openDialog();
+
+    const select = within(dialogEl).getByLabelText('Тип поля') as HTMLSelectElement;
+    expect(select.options.length).toBe(12);
+    const labels = Array.from(select.options).map((o) => o.textContent);
+    expect(labels).toContain('Денежная сумма');
+    expect(labels).toContain('Множественный выбор');
+    expect(labels).toContain('Ссылка');
+  });
+
+  it('множественный выбор тоже требует список вариантов', async () => {
+    render(React.createElement(CustomFieldsAdmin, { definitions: [] }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Добавить' }));
+    await screen.findByText('Новое настраиваемое поле');
+    const dialogEl = openDialog();
+
+    expect(within(dialogEl).queryByLabelText('Варианты (через запятую)')).toBeNull();
+    fireEvent.change(within(dialogEl).getByLabelText('Тип поля'), {
+      target: { value: 'multiselect' }
+    });
+    expect(within(dialogEl).getByLabelText('Варианты (через запятую)')).toBeTruthy();
+  });
+
+  it('создание поля отправляет подсказку и отмеченные роли', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    render(React.createElement(CustomFieldsAdmin, { definitions: [], entity: 'student' }));
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Добавить' }));
+    await screen.findByText('Новое настраиваемое поле');
+    const dialogEl = openDialog();
+
+    fireEvent.change(within(dialogEl).getByLabelText('Название'), { target: { value: 'Табельный номер' } });
+    fireEvent.change(within(dialogEl).getByLabelText('Ключ (латиница, a-z0-9_)'), {
+      target: { value: 'tab_number' }
+    });
+    fireEvent.change(within(dialogEl).getByLabelText('Подсказка под полем (необязательно)'), {
+      target: { value: '  Из кадрового учёта  ' }
+    });
+
+    // чекбоксы ролей: две группы с одинаковыми подписями — берём по id
+    fireEvent.click(dialogEl.querySelector('#add-visible-organization') as HTMLElement);
+    fireEvent.click(dialogEl.querySelector('#add-editable-manager') as HTMLElement);
+
+    fireEvent.click(within(dialogEl).getByRole('button', { name: 'Создать' }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/admin/custom-fields',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({
+            entityType: 'student',
+            key: 'tab_number',
+            label: 'Табельный номер',
+            fieldType: 'text',
+            required: false,
+            sortOrder: 0,
+            helpText: 'Из кадрового учёта',
+            visibleToRoles: ['organization'],
+            editableByRoles: ['manager']
+          })
+        })
+      )
+    );
+  });
+
+  it('правка поля предзаполняет роли и подсказку, тип показан только для чтения', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    render(
+      React.createElement(CustomFieldsAdmin, {
+        definitions: [
+          field({
+            id: 'f7',
+            fieldType: 'money',
+            helpText: 'В рублях',
+            visibleToRoles: ['admin'],
+            editableByRoles: ['leader']
+          })
+        ]
+      })
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
+    await screen.findByText('Изменить поле');
+    const dialogEl = openDialog();
+
+    expect((within(dialogEl).getByLabelText('Тип поля') as HTMLInputElement).value).toBe(
+      'Денежная сумма'
+    );
+    expect((within(dialogEl).getByLabelText('Тип поля') as HTMLInputElement).readOnly).toBe(true);
+    expect(
+      (within(dialogEl).getByLabelText('Подсказка под полем (необязательно)') as HTMLInputElement)
+        .value
+    ).toBe('В рублях');
+    expect((dialogEl.querySelector('#edit-visible-admin') as HTMLInputElement).checked).toBe(true);
+    expect((dialogEl.querySelector('#edit-editable-leader') as HTMLInputElement).checked).toBe(true);
+    expect((dialogEl.querySelector('#edit-editable-manager') as HTMLInputElement).checked).toBe(false);
+
+    // снимаем подсказку — уходит null, а не пустая строка
+    fireEvent.change(within(dialogEl).getByLabelText('Подсказка под полем (необязательно)'), {
+      target: { value: '   ' }
+    });
+    fireEvent.click(within(dialogEl).getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/admin/custom-fields/f7',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({
+            label: 'Срочно',
+            options: undefined,
+            required: false,
+            sortOrder: 1,
+            helpText: null,
+            visibleToRoles: ['admin'],
+            editableByRoles: ['leader']
+          })
+        })
+      )
+    );
   });
 });

@@ -106,7 +106,10 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/manager/messages', label: 'Сообщения', icon: '💬' },
     // Переключатель «играющего тренера» в личный кабинет менеджера.
     { href: '/manager/dashboard', label: 'Мои заказы', icon: '↩' },
-    { href: '/leader/settings', label: 'Настройки', icon: '⚙', group: 'Настройки' }
+    { href: '/leader/settings', label: 'Настройки', icon: '⚙', group: 'Настройки' },
+    // §11 ТЗ v0.5: настройку полей ведёт и руководитель — зеркало админского
+    // экрана в его кабинете (в /admin/* руководителя не пускаем, Model A).
+    { href: '/leader/settings/custom-fields', label: 'Доп-поля', icon: '🧩', group: 'Настройки' }
   ],
   partner: [
     { href: '/partner/dashboard', label: 'Главная' },
