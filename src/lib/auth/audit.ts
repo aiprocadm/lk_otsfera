@@ -41,7 +41,9 @@ export type AuditEntity =
   | 'inbound_message'
   | 'staff_conversation'
   | 'calendar_event'
-  | 'integration_setting';
+  | 'integration_setting'
+  // §10 ТЗ v0.5 (этап 2): справочник рабочих статусов заявки.
+  | 'order_status_definition';
 
 export type AuditRecord = {
   userId: string;

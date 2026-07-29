@@ -38,6 +38,60 @@ enum OrderStatus {
   completed
 }
 
+/// §10 ТЗ v0.5 (этап 2): настраиваемый справочник рабочих статусов заявки.
+/// Заменяет enum OrderStatus как источник правды; сам enum остаётся заполненным
+/// до PR-4, чтобы обмен с 1С и отчёты не сломались в день релиза.
+model OrderStatusDefinition {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  /// Задел на пер-компанийные наборы (решение заказчика Q2: сейчас всегда null).
+  companyId String?
+  /// Машинный ключ — неизменяем после создания.
+  key       String
+  /// Название: переименовывается заказчиком.
+  label     String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  /// Семь статусов §10 — удалить и деактивировать нельзя.
+  isSystem  Boolean  @default(false)
+  /// Терминальный («Отменена»): доступен с любой стадии, в порядок не входит.
+  isTerminal Boolean @default(false)
+  /// Привязка к производному факту: 'paid' | 'documents_issued' |
+  /// 'accounting_signed' | 'closed'. Система сама переводит заявку в такой
+  /// статус, когда факт наступил; оторвать якорь у системной строки нельзя.
+  anchor    String?
+
+  orders       Order[]
+  changesFrom  OrderStatusChange[] @relation("StatusChangeFrom")
+  changesTo    OrderStatusChange[] @relation("StatusChangeTo")
+
+  @@unique([companyId, key])
+  // Составной unique выше не ловит дубли общесистемных строк: в Postgres два
+  // NULL не равны. Частичный индекс для companyId IS NULL создан миграцией
+  // 20260729163000 (Prisma partial-индексы в схеме не выражает).
+  @@index([companyId, isActive, sortOrder])
+}
+
+/// §10 ТЗ v0.5: журнал смен рабочего статуса. Отдельная таблица, а не поиск по
+/// аудиту: история статусов нужна карточке и выгрузкам быстрым запросом.
+model OrderStatusChange {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromId    String?
+  from      OrderStatusDefinition? @relation("StatusChangeFrom", fields: [fromId], references: [id])
+  toId      String
+  to        OrderStatusDefinition  @relation("StatusChangeTo", fields: [toId], references: [id])
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  /// Причина/комментарий: обязательна при отмене менеджером и возврате назад.
+  reason    String?
+
+  @@index([orderId, createdAt])
+}
+
 enum ExecutionStatus {
   pending
   in_progress
@@ -269,6 +323,8 @@ model User {
   sessionVersion               Int                       @default(0)
   // Этап 9 (ФТ-11.3): отметка последнего успешного входа (оба пути: пароль и 2FA).
   lastLoginAt                  DateTime?
+  /// §10 ТЗ v0.5: кто менял рабочий статус заявки.
+  orderStatusChanges OrderStatusChange[]
 }
 
 model PartnerUser {
@@ -994,6 +1050,11 @@ model Order {
   orderNumber        String?
   title              String
   status             OrderStatus               @default(new)
+  /// §10 ТЗ v0.5 (этап 2): рабочий статус из справочника. Nullable на время
+  /// перехода — старый enum остаётся источником для 1С и отчётов до PR-4.
+  statusId           String?
+  statusDefinition   OrderStatusDefinition?    @relation(fields: [statusId], references: [id])
+  statusChanges      OrderStatusChange[]
   executionStatus    ExecutionStatus           @default(pending)
   financialStatus    FinancialStatus           @default(not_billed)
   totalAmount        Decimal                   @default(0) @db.Decimal(14, 2)
