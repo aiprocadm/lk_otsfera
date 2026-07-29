@@ -115,7 +115,12 @@ export default async function PartnerDocumentsPage({
         tab={tab}
       />
 
-      <DocumentsList rows={rows} newDocIds={newDocIds} groupByOrder={tab === 'orders'} />
+      <DocumentsList
+        rows={rows}
+        newDocIds={newDocIds}
+        groupByOrder={tab === 'orders'}
+        cardHrefBase='/partner/documents'
+      />
 
       <Paginator basePath='/partner/documents' searchParams={sp} take={take} skip={skip} total={total} />
     </div>

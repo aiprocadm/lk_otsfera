@@ -91,6 +91,22 @@ export async function getValuesForEntity(
 }
 
 /**
+ * Удобная обёртка для страниц: сразу массив полей, без разбора Result.
+ *
+ * Ветка «сервис отказал» живёт здесь, а не в каждой карточке: иначе один и тот
+ * же тернарник копируется по девяти страницам и в каждой требует своего теста.
+ */
+export async function getFieldsForEntity(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  entityType: string,
+  entityId: string
+): Promise<FieldWithValue[]> {
+  const res = await getValuesForEntity(prisma, session, entityType, entityId);
+  return res.ok ? res.fields : [];
+}
+
+/**
  * Upsert значений настраиваемых полей записи.
  *
  * Право записи = доступ к карточке (`resolveEntityAccess`) ∧ роль сессии

@@ -12,7 +12,7 @@ import { getPartnerRequisitesByAdmin } from '@/lib/services/admin/counterpartyRe
 import { setPartnerRequisitesByAdminAction } from '@/server-actions/requisites';
 import { fmtDate } from '@/lib/format';
 import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
-import { getValuesForEntity } from '@/lib/services/customFields';
+import { getFieldsForEntity } from '@/lib/services/customFields';
 
 const fmtRate = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 2 });
 
@@ -30,8 +30,7 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
   // Этап 8 (ФТ-9.2): полный набор реквизитов для автогенерации документов.
   const requisites = await getPartnerRequisitesByAdmin(prisma, session, partner.id);
   // §11 ТЗ v0.5: настраиваемые поля партнёра.
-  const customFieldsResult = await getValuesForEntity(prisma, session, 'partner', partner.id);
-  const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
+  const customFields = await getFieldsForEntity(prisma, session, 'partner', partner.id);
 
   return (
     <div className="space-y-4 max-w-3xl">

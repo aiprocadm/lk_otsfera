@@ -6,7 +6,7 @@ import { isFeatureEnabled } from '@/lib/featureFlags';
 import { getOrganizationCard } from '@/lib/services/manager/organizationCard';
 import { OrgCardTabs, ORG_CARD_TABS, type OrgCardTab } from '@/components/manager/org-card-tabs';
 import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
-import { getValuesForEntity } from '@/lib/services/customFields';
+import { getFieldsForEntity } from '@/lib/services/customFields';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,8 +43,7 @@ export default async function ManagerOrgDetailPage({
   // §11 ТЗ v0.5: настраиваемые поля организации — под вкладками, чтобы были
   // видны на любой из них (вкладки переключают историю/удостоверения, а поля
   // относятся к самой организации).
-  const customFieldsResult = await getValuesForEntity(prisma, session, 'organization', id);
-  const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
+  const customFields = await getFieldsForEntity(prisma, session, 'organization', id);
 
   return (
     <div className='space-y-5'>
