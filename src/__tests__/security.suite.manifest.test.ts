@@ -18,6 +18,10 @@ const PRISMA_MARKER = 'new PrismaClient(';
 
 // Static/mock-level guardrails — run in the unit tier (pre-push) and the full run.
 const STATIC_GUARDRAILS = [
+  // Матрица «роль × доступ»: падает, когда появился предикат доступа, для
+  // которого не решили, что он отвечает руководителю (решение заказчика
+  // 30.07.2026 вместо выделения роли).
+  'security.role-access-matrix.guardrail.test.ts',
   'c1.commission-hiding.contract.test.ts', // org cabinet source never references commission
   'c2.multirole-commission.test.ts', // org-context session → partner commission endpoints 403
   'security.redirect.test.ts', // student bridge redirect URL allowlist

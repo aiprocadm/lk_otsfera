@@ -6,16 +6,20 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { getCompanyTeamVisibility, managerOrgScope, canSeeOrganization } = vi.hoisted(() => ({
+const { getCompanyTeamVisibility, managerOrgScope, canSeeOrganization, isLeaderSameCompany } = vi.hoisted(() => ({
   getCompanyTeamVisibility: vi.fn(),
   managerOrgScope: vi.fn(),
-  canSeeOrganization: vi.fn()
+  canSeeOrganization: vi.fn(),
+  isLeaderSameCompany: vi.fn(() => false)
 }));
 
 vi.mock('@/lib/auth/managerPolicy', () => ({
   getCompanyTeamVisibility,
   managerOrgScope,
-  canSeeOrganization
+  canSeeOrganization,
+  // Лидер-инвариант C8 в деталке организации (фикс 30.07.2026): по умолчанию
+  // выключен, отдельная проверка ниже включает его точечно.
+  isLeaderSameCompany
 }));
 
 import { listOrganizations, getOrganization } from '@/lib/services/manager/organizations';

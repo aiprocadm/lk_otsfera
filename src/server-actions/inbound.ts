@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import type { ContactChannelType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireManager } from '@/lib/auth/requireRole';
-import { getCompanyTeamVisibility, isOrgInScope } from '@/lib/auth/managerPolicy';
+import { getCompanyTeamVisibility, isOrgInScope, isManagerLeader } from '@/lib/auth/managerPolicy';
 import { recordAudit } from '@/lib/auth/audit';
 import { notifyOrgUsers } from '@/lib/notifications';
 import { replyToInbound } from '@/lib/services/inbound/reply';
@@ -91,7 +91,9 @@ export async function bindInboundMessageAction(
   }
   // managedOrgIds only further narrows within teamMode OFF (company already
   // enforced above).
-  if (!teamMode && !isOrgInScope(session, args.organizationId)) {
+  // Руководителя сужение по закреплению не касается (лидер-инвариант C8):
+  // компания проверена выше.
+  if (!teamMode && !isManagerLeader(session) && !isOrgInScope(session, args.organizationId)) {
     return { ok: false, error: 'forbidden' };
   }
 
