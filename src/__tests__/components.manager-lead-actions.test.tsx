@@ -15,6 +15,9 @@ vi.mock('next/link', () => ({
     React.createElement('a', { href, className }, children)
 }));
 
+const { convertLeadToDealAction } = vi.hoisted(() => ({ convertLeadToDealAction: vi.fn() }));
+vi.mock('@/server-actions/deals', () => ({ convertLeadToDealAction }));
+
 import { ManagerLeadActions } from '@/components/manager/manager-lead-actions';
 
 describe('ManagerLeadActions (SSR structure)', () => {
@@ -490,5 +493,102 @@ describe('ManagerLeadActions (interactive, jsdom)', () => {
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Создан заказ из заявки'));
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
     expect(body).toEqual({ action: 'promote' });
+  });
+
+});
+
+describe('ManagerLeadActions — сделки (deals_pipeline, ФТ-4.4)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+      this.setAttribute('open', '');
+    });
+    HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+      this.removeAttribute('open');
+    });
+  });
+
+  it('promoted_to_deal: ссылка «Открыть сделки» вместо кнопок действий', () => {
+    const html = renderToString(
+      React.createElement(ManagerLeadActions, {
+        leadId: 'l1',
+        status: 'promoted_to_deal',
+        hasOrganization: true,
+        promotedOrderId: null,
+        dealsEnabled: true
+      })
+    );
+    expect(html).toContain('href="/manager/deals"');
+    expect(html).not.toContain('Преобразовать в заказ');
+  });
+
+  it('кнопка «Создать сделку» есть только при включённом deals_pipeline', () => {
+    const on = renderToString(
+      React.createElement(ManagerLeadActions, { leadId: 'l1', status: 'new', hasOrganization: true, promotedOrderId: null, dealsEnabled: true })
+    );
+    expect(on).toContain('Создать сделку');
+
+    const off = renderToString(
+      React.createElement(ManagerLeadActions, { leadId: 'l1', status: 'new', hasOrganization: true, promotedOrderId: null })
+    );
+    expect(off).not.toContain('Создать сделку');
+  });
+
+  it('создание сделки: подтверждение → экшен → toast со ссылкой → refresh', async () => {
+    // Конверсия лида в сделку необратима (лид уходит в терминальный статус),
+    // поэтому стоит подтверждение. Успех должен вести менеджера на доску.
+    convertLeadToDealAction.mockResolvedValue({ ok: true, dealId: 'd1' });
+    render(
+      React.createElement(ManagerLeadActions, { leadId: 'l1', status: 'new', hasOrganization: true, promotedOrderId: null, dealsEnabled: true })
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Создать сделку' }));
+    expect(screen.getByText('Создать сделку из лида?')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Да, создать сделку' }));
+    await waitFor(() => expect(convertLeadToDealAction).toHaveBeenCalled());
+    const fd = convertLeadToDealAction.mock.calls[0]![0] as FormData;
+    expect(fd.get('leadId')).toBe('l1');
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it('отказ конверсии: русский текст по коду, незнакомый код → общий текст', async () => {
+    convertLeadToDealAction.mockResolvedValue({ ok: false, error: 'lifecycle_violation' });
+    render(
+      React.createElement(ManagerLeadActions, { leadId: 'l1', status: 'new', hasOrganization: true, promotedOrderId: null, dealsEnabled: true })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Создать сделку' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Да, создать сделку' }));
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Лид уже передан или отклонён.'));
+    expect(refresh).not.toHaveBeenCalled();
+
+    toastError.mockClear();
+    convertLeadToDealAction.mockResolvedValue({ ok: false, error: 'quota' });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать сделку' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Да, создать сделку' }));
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось создать сделку.'));
+  });
+
+  it('Escape закрывает подтверждение так же, как «Отмена»', async () => {
+    render(
+      React.createElement(ManagerLeadActions, { leadId: 'l1', status: 'new', hasOrganization: true, promotedOrderId: null, dealsEnabled: true })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Создать сделку' }));
+    const dialog = document.querySelector('dialog') as HTMLDialogElement;
+    fireEvent(dialog, new Event('cancel', { bubbles: false, cancelable: true }));
+    await waitFor(() => expect(dialog.hasAttribute('open')).toBe(false));
+    expect(convertLeadToDealAction).not.toHaveBeenCalled();
+  });
+
+  it('«Отмена» в подтверждении закрывает диалог без вызова экшена', async () => {
+    render(
+      React.createElement(ManagerLeadActions, { leadId: 'l1', status: 'new', hasOrganization: true, promotedOrderId: null, dealsEnabled: true })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Создать сделку' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+    const dialog = document.querySelector('dialog') as HTMLDialogElement;
+    await waitFor(() => expect(dialog.hasAttribute('open')).toBe(false));
+    expect(convertLeadToDealAction).not.toHaveBeenCalled();
   });
 });

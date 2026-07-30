@@ -101,6 +101,10 @@ export function DealDialog({
 
   async function handleAddNote() {
     const body = noteBody.trim();
+    // Причина ignore: половинка `!targetId` недостижима — блок заметок с этой
+    // кнопкой рендерится только в режиме редактирования (target есть). Проверка
+    // оставлена ради сужения типа targetId: string | null.
+    /* v8 ignore next */
     if (!body || !targetId) return;
     setNoteBusy(true);
     const fd = new FormData();
