@@ -1,6 +1,11 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { managerOrgScope, canSeeOrganization, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import {
+  managerOrgScope,
+  canSeeOrganization,
+  getCompanyTeamVisibility,
+  isLeaderSameCompany
+} from '@/lib/auth/managerPolicy';
 
 /**
  * Manager-facing organizations service.
@@ -74,5 +79,8 @@ export async function getOrganization(
   if (teamMode) {
     return !!session.companyId && org.companyId === session.companyId ? org : null;
   }
-  return canSeeOrganization(session, orgId) ? org : null;
+  // Лидер-инвариант C8 — тот же, что в карточке организации (см. комментарий там).
+  return canSeeOrganization(session, orgId) || isLeaderSameCompany(session, org.companyId)
+    ? org
+    : null;
 }

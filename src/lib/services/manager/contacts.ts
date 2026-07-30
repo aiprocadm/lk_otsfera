@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import type { PrismaClient, ContactChannelType } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { getCompanyTeamVisibility, isOrgInScope } from '@/lib/auth/managerPolicy';
+import { getCompanyTeamVisibility, isOrgInScope, isManagerLeader } from '@/lib/auth/managerPolicy';
 import { normalizeChannelValue } from '@/lib/services/contacts/resolveContactByChannel';
 import { recordAudit } from '@/lib/auth/audit';
 
@@ -36,7 +36,9 @@ export async function createContact(
     });
     if (!org || org.companyId !== session.companyId) return { ok: false, error: 'forbidden' };
     const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
-    if (!teamMode && !isOrgInScope(session, args.organizationId)) return { ok: false, error: 'forbidden' };
+    // Руководителя сужение по закреплению не касается (лидер-инвариант C8):
+    // компания проверена выше.
+    if (!teamMode && !isManagerLeader(session) && !isOrgInScope(session, args.organizationId)) return { ok: false, error: 'forbidden' };
   }
 
   // isPrimary is assigned AFTER filtering out channels that normalize to '' so the

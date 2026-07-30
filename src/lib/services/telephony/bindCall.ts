@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { getCompanyTeamVisibility, isOrgInScope } from '@/lib/auth/managerPolicy';
+import { getCompanyTeamVisibility, isOrgInScope, isManagerLeader } from '@/lib/auth/managerPolicy';
 import { captureChannel } from '@/lib/services/manager/contacts';
 import { recordAudit } from '@/lib/auth/audit';
 
@@ -50,7 +50,9 @@ export async function bindCall(
   if (!session.companyId || org.companyId !== session.companyId) {
     return { ok: false, error: 'forbidden' };
   }
-  if (!teamMode && !isOrgInScope(session, args.organizationId)) {
+  // Руководителя сужение по закреплению не касается (лидер-инвариант C8):
+  // компания проверена выше.
+  if (!teamMode && !isManagerLeader(session) && !isOrgInScope(session, args.organizationId)) {
     return { ok: false, error: 'forbidden' };
   }
 

@@ -1,6 +1,10 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { canSeeOrganization, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import {
+  canSeeOrganization,
+  getCompanyTeamVisibility,
+  isLeaderSameCompany
+} from '@/lib/auth/managerPolicy';
 import { can } from '@/lib/auth/accessProfile';
 import { recordPiiAccessMany } from '@/lib/pii/record';
 import { listCertificates } from '@/lib/services/training/certificates';
@@ -136,9 +140,14 @@ export async function getOrganizationCard(
   const org = await prisma.organization.findUnique({ where: { id: orgId }, select: CARD_SELECT });
   if (!org) return null;
   // Scope-guard (не leak-аем существование чужой орг).
+  // Лидер-инвариант C8: руководитель видит организацию СВОЕЙ компании без
+  // закрепления. В PR #273 правило добавили только в гард страницы, а сервис
+  // карточки продолжал фильтровать по закреплению — гард пускал, карточка
+  // отдавала null, и страница показывала «не найдено». Поймано живой проверкой
+  // на стенде 30.07.2026.
   const visible = teamMode
     ? !!session.companyId && org.companyId === session.companyId
-    : canSeeOrganization(session, orgId);
+    : canSeeOrganization(session, orgId) || isLeaderSameCompany(session, org.companyId);
   if (!visible) return null;
 
   const [orders, activeOrders, documents, payments, paidAgg, refundAgg, activity, inboundMessages, calls, clientRequests, leads, deals, certificatesRes] = await Promise.all([

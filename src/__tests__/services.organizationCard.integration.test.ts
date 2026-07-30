@@ -134,3 +134,46 @@ describe('getOrganizationCard — изоляция', () => {
     expect(await getOrganizationCard(prisma, leaderSession(), orgB)).toBeNull();
   });
 });
+
+/**
+ * Лидер-инвариант C8 в САМОЙ карточке, а не только в гарде страницы.
+ *
+ * Дефект, найденный живой проверкой стенда 30.07.2026: PR #273 добавил правило
+ * в `canManagerAccessOrg` (гард страницы), но `getOrganizationCard` продолжал
+ * фильтровать по закреплению. Гард пускал, карточка отдавала null — страница
+ * показывала «не найдено». Автотесты этого не видели: гард и карточку они
+ * проверяли по отдельности.
+ *
+ * Берём companyB — там `managerTeamVisibility` ВЫКЛЮЧЕН, значит доступ может
+ * дать только лидер-инвариант, а не company-режим.
+ */
+describe('карточка организации — руководитель без закрепления (teamMode OFF)', () => {
+  it('видит организацию своей компании', async () => {
+    const leaderB = {
+      sub: mB,
+      role: 'manager',
+      managerRole: 'leader',
+      companyId: companyB,
+      managedOrgIds: []
+    } as unknown as SessionPayload;
+
+    const card = await getOrganizationCard(prisma, leaderB, orgB);
+    expect(card).not.toBeNull();
+  });
+
+  it('НЕ видит организацию чужой компании', async () => {
+    const leaderB = {
+      sub: mB,
+      role: 'manager',
+      managerRole: 'leader',
+      companyId: companyB,
+      managedOrgIds: []
+    } as unknown as SessionPayload;
+
+    expect(await getOrganizationCard(prisma, leaderB, orgA)).toBeNull();
+  });
+
+  it('обычный менеджер без закрепления по-прежнему не видит', async () => {
+    expect(await getOrganizationCard(prisma, mBSession(), orgB)).toBeNull();
+  });
+});
