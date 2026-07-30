@@ -265,6 +265,27 @@ describe('services/manager/orders — listOrders filters', () => {
     expect(ids).not.toContain(orderForeignId); // completed
   });
 
+  it('filters by statusId — рабочий статус из справочника (этап 2 §10)', async () => {
+    // Фильтр по статусу справочника появился вместе с самим справочником и до
+    // сих пор ни разу не проверялся: заявки в списке отбирались по старому
+    // операционному полю. Заводим статус, вешаем на одну заявку и убеждаемся,
+    // что выборка сузилась именно по нему, не потеряв скоуп.
+    const statusDef = await prisma.orderStatusDefinition.create({
+      data: { key: `flt-${Date.now()}`, label: 'Фильтр-статус', sortOrder: 900 }
+    });
+    await prisma.order.update({ where: { id: orderOrgBId }, data: { statusId: statusDef.id } });
+
+    const session = managerSession(userBId, [orgBId]);
+    const { rows } = await listOrders(prisma, { session, statusId: statusDef.id, take: 100 });
+    const ids = rows.map((r) => r.id);
+    expect(ids).toContain(orderOrgBId);
+    expect(ids).not.toContain(orderManagerCId);
+    expect(ids).not.toContain(orderForeignId);
+
+    await prisma.order.update({ where: { id: orderOrgBId }, data: { statusId: null } });
+    await prisma.orderStatusDefinition.delete({ where: { id: statusDef.id } });
+  });
+
   it('filters by financialStatus within scope', async () => {
     const session = managerSession(userAId, [orgAId]);
     const { rows } = await listOrders(prisma, {

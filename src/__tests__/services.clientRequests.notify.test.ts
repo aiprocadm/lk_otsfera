@@ -164,6 +164,20 @@ describe('notifyManagersClientRequestSubmitted — партнёрская зая
       expect.objectContaining({ requestId: 'R1', error: 'db down' })
     );
   });
+
+  it('best-effort: отказ не-Error значением логируется текстом, а не undefined', async () => {
+    // Драйвер/сеть могут отвергнуть промис строкой. Без String(err) в лог ушло бы
+    // `error: undefined`, и разбирать инцидент было бы нечем.
+    resolveOrgManagerRecipients.mockRejectedValue('соединение закрыто');
+    const { prisma } = db();
+    await expect(
+      notifyManagersClientRequestSubmitted(prisma, request({ organizationId: 'o1' }))
+    ).resolves.toBeUndefined();
+    expect(logWarn).toHaveBeenCalledWith(
+      '[clientRequests/notify] submit notify failed',
+      expect.objectContaining({ requestId: 'R1', error: 'соединение закрыто' })
+    );
+  });
 });
 
 // ─── notifySubmitterClientRequestStatus ───────────────────────────────────────
@@ -235,6 +249,18 @@ describe('notifySubmitterClientRequestStatus', () => {
     expect(logWarn).toHaveBeenCalledWith(
       '[clientRequests/notify] status notify failed',
       expect.objectContaining({ requestId: 'R1', error: 'insert failed' })
+    );
+  });
+
+  it('best-effort: отказ не-Error значением логируется текстом', async () => {
+    createNotification.mockRejectedValue('соединение закрыто');
+    const { prisma } = db();
+    await expect(
+      notifySubmitterClientRequestStatus(prisma, request({ status: 'in_triage' }))
+    ).resolves.toBeUndefined();
+    expect(logWarn).toHaveBeenCalledWith(
+      '[clientRequests/notify] status notify failed',
+      expect.objectContaining({ requestId: 'R1', error: 'соединение закрыто' })
     );
   });
 });

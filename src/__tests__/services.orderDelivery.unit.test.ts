@@ -141,6 +141,17 @@ describe('deliverOrderResult', () => {
     expect(res.ok).toBe(true);
     expect(update).toHaveBeenCalled();
   });
+
+  it('сбой уведомления не-Error значением тоже не откатывает передачу', async () => {
+    // Канал уведомлений может отвергнуть промис строкой; ветка String(err) в
+    // логировании обязана отработать, иначе падение внутри catch отменило бы
+    // уже совершённую передачу результата.
+    notifyOrgUsers.mockRejectedValue('канал закрыт');
+    const { prisma, update } = makePrisma(READY_ORDER);
+    const res = await deliverOrderResult(prisma, session, 'o1');
+    expect(res.ok).toBe(true);
+    expect(update).toHaveBeenCalled();
+  });
 });
 
 describe('approveDeliverables (решение §6-2)', () => {

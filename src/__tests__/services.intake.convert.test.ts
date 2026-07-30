@@ -70,6 +70,46 @@ describe('createLeadFromInbound', () => {
     expect(recordAuditMock).toHaveBeenCalledWith(prisma, expect.objectContaining({ action: 'lead_created_from_inbound' }));
   });
 
+  it('заметка из формы сохраняется обрезанной; компания берётся с самого обращения', async () => {
+    // Обращение уже привязано к компании — её и оставляем, а не подменяем
+    // компанией сотрудника (иначе перевесили бы обращение в другую компанию).
+    const { prisma, leadCreate, sourceUpdate } = makePrisma('inboundMessage', { ...MSG, companyId: 'co-A' });
+    const r = await createLeadFromInbound(prisma, manager(), {
+      inboundId: 'i1',
+      input: { ...INPUT, notes: '  Просили перезвонить после обеда  ' }
+    });
+    expect(r.ok).toBe(true);
+    expect(leadCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ notes: 'Просили перезвонить после обеда' })
+      })
+    );
+    expect(sourceUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ companyId: 'co-A' }) })
+    );
+  });
+
+  it('ни у обращения, ни у сотрудника нет компании → остаётся без компании', async () => {
+    const noCompany = { sub: 'm1', role: 'manager' } as unknown as SessionPayload;
+    const { prisma, sourceUpdate } = makePrisma('inboundMessage', MSG);
+    const r = await createLeadFromInbound(prisma, noCompany, { inboundId: 'i1', input: INPUT });
+    expect(r.ok).toBe(true);
+    expect(sourceUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ companyId: null }) })
+    );
+  });
+
+  it('пустая заметка (одни пробелы) не сохраняется как пустая строка', async () => {
+    const { prisma, leadCreate } = makePrisma('inboundMessage', MSG);
+    await createLeadFromInbound(prisma, manager(), {
+      inboundId: 'i1',
+      input: { ...INPUT, notes: '   ' }
+    });
+    expect(leadCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ notes: null }) })
+    );
+  });
+
   it('уже сконвертировано → already_converted', async () => {
     const { prisma } = makePrisma('inboundMessage', { ...MSG, lead: { id: 'lead-9' } });
     expect(await createLeadFromInbound(prisma, manager(), { inboundId: 'i1', input: INPUT })).toEqual({ ok: false, error: 'already_converted' });
@@ -116,6 +156,17 @@ describe('createLeadFromCall', () => {
       expect.objectContaining({ data: expect.objectContaining({ claimedByUserId: 'm1' }) })
     );
     expect(recordAuditMock).toHaveBeenCalledWith(prisma, expect.objectContaining({ action: 'lead_created_from_call' }));
+  });
+
+  it('заметка из формы сохраняется обрезанной', async () => {
+    const { prisma, leadCreate } = makePrisma('call', CALL);
+    await createLeadFromCall(prisma, manager(), {
+      callId: 'c1',
+      input: { ...INPUT, notes: '  Перезвонить в понедельник  ' }
+    });
+    expect(leadCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ notes: 'Перезвонить в понедельник' }) })
+    );
   });
 
   it('already_converted / not_found (чужая компания) / forbidden / validation', async () => {

@@ -47,6 +47,26 @@ describe('parseEnrollmentImportWorkbook (Excel-импорт слушателей
     ]);
   });
 
+  it('файл только с обязательными колонками: необязательные поля берутся как пустые', async () => {
+    // Заказчик может прислать свой файл, где есть только ФИО и Email. Импорт
+    // обязан пройти: недостающие колонки — это не ошибка, а отсутствие данных.
+    const buf = await buildXlsx([['Иван Иванов', 'i@x.ru']], ['ФИО', 'Email']);
+    const r = await parseEnrollmentImportWorkbook(buf);
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.errors).toEqual([]);
+    expect(r.items).toEqual([
+      {
+        studentId: null,
+        fullName: 'Иван Иванов',
+        email: 'i@x.ru',
+        position: null,
+        snils: null,
+        birthDate: null,
+        extra: null
+      }
+    ]);
+  });
+
   it('ошибки «Строка N: …» адресные; валидные строки того же файла возвращаются', async () => {
     const buf = await buildXlsx([
       ['', 'a@b.ru'], // строка 2: нет ФИО

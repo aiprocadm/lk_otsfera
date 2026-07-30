@@ -40,7 +40,9 @@ export async function getStaffBadges(
     intake,
     tasksOverdue,
     clientRequestsNew,
-    // unreadCount никогда не бросает: вне скоупа возвращает { ok: true, count: 0 }.
-    messagesUnread: unread.ok ? unread.count : 0
+    // unreadCount не умеет отказывать: его тип — только { ok: true; count },
+    // вне скоупа он возвращает count: 0. Прежняя проверка `unread.ok ? … : 0`
+    // была недостижимой веткой (Ф2 программы покрытия — такое удаляем).
+    messagesUnread: unread.count
   };
 }

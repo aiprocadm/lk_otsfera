@@ -146,10 +146,10 @@ export default defineConfig(({ mode }) => ({
       ...(mode !== 'unit' && mode !== 'integration'
         ? {
             thresholds: {
-              'src/lib/**/!(*.tsx)': { lines: 99.56, branches: 98.59, functions: 99.72, statements: 99.56 },
+              'src/lib/**/!(*.tsx)': { lines: 99.61, branches: 99.03, functions: 99.73, statements: 99.61 },
               // Ф1: закрыт `server-actions/manager/create-lead.ts` (был 0%) — набор вышел
               // на 100% по строкам/операторам/функциям, остались только ветки.
-              'src/server-actions/**': { lines: 100, branches: 98.13, functions: 100, statements: 100 },
+              'src/server-actions/**': { lines: 100, branches: 98.14, functions: 100, statements: 100 },
               'src/app/api/**': { lines: 99.92, branches: 99.38, functions: 100, statements: 99.92 },
               'src/worker/**': { lines: 99.44, branches: 97.82, functions: 97.86, statements: 99.44 },
               'src/middleware.ts': { lines: 100, branches: 100, functions: 100, statements: 100 },
@@ -171,7 +171,7 @@ export default defineConfig(({ mode }) => ({
               // `files`). Барель `ui/index.ts` — в exclude выше. Каждый `/* v8 ignore */` —
               // structurally-unreachable defensive guard с причиной-комментарием. Широкий glob
               // (а не подоменный) ловит и будущие компоненты в новых подкаталогах.
-              'src/components/**': { lines: 99.19, branches: 98.51, functions: 96.36, statements: 99.19 },
+              'src/components/**': { lines: 99.2, branches: 98.52, functions: 96.37, statements: 99.2 },
               // PHASE-3 W2 (app-страницы) — весь `src/app/**/*.tsx` (серверные `page.tsx`) под
               // порогом 100%. Harness `renderServerComponent` (jsdom): async-страница вызывается
               // напрямую (`await Page({ params/searchParams: Promise.resolve(...) })`), вложенные

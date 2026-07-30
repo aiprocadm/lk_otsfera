@@ -192,6 +192,15 @@ describe('globalSearch — маппинг выдачи', () => {
         email: 'ivanov@example.com',
         createdAt: new Date('2026-07-04'),
         organization: { name: 'ООО Ромашка' }
+      },
+      // Слушатель без почты и без названия организации: подписи нет вовсе —
+      // на экране не должно появиться висящего разделителя « · ».
+      {
+        id: 's2',
+        name: 'Петров Пётр',
+        email: null,
+        createdAt: new Date('2026-07-04'),
+        organization: { name: '' }
       }
     ]);
     message.mockResolvedValue([
@@ -202,7 +211,10 @@ describe('globalSearch — маппинг выдачи', () => {
         createdAt: new Date('2026-07-05'),
         author: { name: 'Мария' }
       },
-      { id: 'msg2', body: '', attachmentName: 'план.pdf', createdAt: new Date('2026-07-06'), author: { name: 'Пётр' } }
+      { id: 'msg2', body: '', attachmentName: 'план.pdf', createdAt: new Date('2026-07-06'), author: { name: 'Пётр' } },
+      // Сообщение без текста и без вложения: в выдаче должна остаться пустая
+      // строка, а не «undefined» на экране.
+      { id: 'msg3', body: '', attachmentName: null, createdAt: new Date('2026-07-07'), author: { name: 'Ольга' } }
     ]);
 
     const res = await globalSearch(prisma, manager, { q: 'охрана' });
@@ -234,6 +246,7 @@ describe('globalSearch — маппинг выдачи', () => {
     const students = res.groups.find((g) => g.key === 'students')!;
     expect(students.hits[0]!.subtitle).toBe('ivanov@example.com · ООО Ромашка');
     expect(students.hits[0]!.href).toBe('/manager/students/s1');
+    expect(students.hits[1]!.subtitle).toBeNull();
 
     const messages = res.groups.find((g) => g.key === 'messages')!;
     expect(messages.hits[0]!.title.length).toBeLessThanOrEqual(120);
@@ -242,6 +255,7 @@ describe('globalSearch — маппинг выдачи', () => {
     expect(messages.hits[0]!.subtitle).toBe('Мария');
     expect(messages.hits[1]!.title).toBe('план.pdf'); // attachment-only сообщение
     expect(messages.hits[1]!.href).toBe('/manager/messages');
+    expect(messages.hits[2]!.title).toBe(''); // ни текста, ни вложения — пусто, не undefined
   });
 
   it('задачи/события/документы: сниппеты и ссылки на разделы', async () => {

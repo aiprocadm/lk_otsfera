@@ -95,6 +95,14 @@ describe('claimCall / closeCallIntake', () => {
     expect(await claimCall(fake('call', { ...ROW, claimedByUserId: 'm1' }).prisma, manager(), { id: 'c1' })).toEqual({ ok: true, changed: false });
   });
 
+  it('claim: клиентская роль → forbidden, БД не читаем', async () => {
+    // Звонки — внутренний контур: партнёр не должен даже узнать, существует ли
+    // звонок с таким id. Гейт стоит до любого запроса.
+    const f = fake('call', ROW);
+    expect(await claimCall(f.prisma, partner(), { id: 'c1' })).toEqual({ ok: false, error: 'forbidden' });
+    expect(f.findUnique).not.toHaveBeenCalled();
+  });
+
   it('claim: сессия без companyId видит только общую корзину', async () => {
     const row = { ...ROW, companyId: 'co-A' };
     expect(await claimCall(fake('call', row).prisma, manager({ companyId: null }), { id: 'c1' })).toEqual({ ok: false, error: 'not_found' });

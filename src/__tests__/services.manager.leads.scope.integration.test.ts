@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import { listManagerLeads } from '@/lib/services/manager/leads';
+import { listManagerLeads, getManagerLead } from '@/lib/services/manager/leads';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import type { SessionAccessProfile } from '@/lib/auth/accessProfile';
 
@@ -15,6 +15,7 @@ const STAMP = Date.now();
 let companyId: string, partnerId: string;
 let m1: string, m2: string, orgManaged: string;
 let leadOwnM1: string, leadOwnM2: string, leadManagedOrg: string, leadUnassigned: string;
+let leadNoPartner: string;
 
 const profile = (leads: SessionAccessProfile['leads']): SessionAccessProfile => ({
   id: 'p', name: 'Продажи', orders: 'own', organizations: 'own', threads: 'own',
@@ -50,10 +51,21 @@ beforeAll(async () => {
   leadOwnM2 = await mkLead({ assignedManagerId: m2, name: `own-m2-${STAMP}` });
   leadManagedOrg = await mkLead({ organizationId: orgManaged, name: `org-${STAMP}` });
   leadUnassigned = await mkLead({ name: `unassigned-${STAMP}` });
+
+  // Лид, заведённый сотрудником вручную: партнёра у него нет вовсе (ФТ-1.6).
+  leadNoPartner = (await prisma.lead.create({
+    data: {
+      createdByUserId: m1,
+      assignedManagerId: m1,
+      clientCompanyName: `no-partner-${STAMP}`,
+      clientContactName: 'Контакт',
+      subject: 'Запрос без партнёра'
+    }
+  })).id;
 });
 
 afterAll(async () => {
-  const ids = [leadOwnM1, leadOwnM2, leadManagedOrg, leadUnassigned];
+  const ids = [leadOwnM1, leadOwnM2, leadManagedOrg, leadUnassigned, leadNoPartner];
   await prisma.lead.deleteMany({ where: { id: { in: ids } } });
   await prisma.organizationManager.deleteMany({ where: { organizationId: orgManaged } });
   await prisma.organization.deleteMany({ where: { id: orgManaged } });
@@ -95,5 +107,25 @@ describe('listManagerLeads — G2 leads-scope', () => {
     const { rows } = await listManagerLeads(prisma, { session: m1Session('own'), status: 'new', take: 100 });
     const ids = rows.map((r) => r.id).filter((id) => id === leadOwnM1 || id === leadOwnM2);
     expect(ids).toEqual([leadOwnM1]);
+  });
+});
+
+/**
+ * Лид без партнёра — обычный случай: сотрудник заводит лид вручную (ФТ-1.6),
+ * партнёрской привязки у такого лида нет. И список, и карточка обязаны отдать
+ * пустую подпись партнёра, а не упасть и не показать «undefined».
+ */
+describe('лид без партнёра', () => {
+  it('в списке: partnerName = null', async () => {
+    const { rows } = await listManagerLeads(prisma, { session: m1Session('all'), take: 100 });
+    const row = rows.find((r) => r.id === leadNoPartner);
+    expect(row).toBeDefined();
+    expect(row?.partnerName).toBeNull();
+  });
+
+  it('в карточке: partnerName = null', async () => {
+    const res = await getManagerLead(prisma, m1Session('all'), leadNoPartner);
+    expect(res).not.toBeNull();
+    expect(res?.partnerName).toBeNull();
   });
 });

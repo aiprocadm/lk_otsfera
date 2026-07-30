@@ -102,6 +102,20 @@ describe('testIntegration — контракт', () => {
     expect(warn).toHaveBeenCalled();
   });
 
+  it('сбой записи SyncState не-Error значением тоже логируется текстом', async () => {
+    // Prisma/драйвер может отвергнуть промис строкой, а не Error (так уже было с
+    // imap-клиентом ниже). Тогда `err.message` не существует — нужен String(err),
+    // иначе в лог уйдёт undefined и разбирать инцидент будет нечем.
+    settings({ 'telegram.botToken': 'tok' });
+    prisma.syncState.upsert.mockRejectedValue('соединение закрыто');
+    const res = await run('telegram');
+    expect(res).toEqual({ ok: true, success: true, message: 'Подключение успешно' });
+    expect(warn).toHaveBeenCalledWith(
+      '[testIntegration] SyncState write failed',
+      expect.objectContaining({ error: 'соединение закрыто' })
+    );
+  });
+
   it('каждый ключ реестра выполняется без throw', async () => {
     // Всё «не настроено» → пробы возвращают вежливый отказ, не исключение.
     for (const key of INTEGRATION_TEST_KEYS) {

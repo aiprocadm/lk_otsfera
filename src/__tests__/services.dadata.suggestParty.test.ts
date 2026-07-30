@@ -103,4 +103,16 @@ describe('suggestParty', () => {
     expect(await suggestParty(prisma, 'сбер')).toEqual([]);
     expect(warn).toHaveBeenCalled();
   });
+
+  it('отказ не-Error значением тоже даёт [] и осмысленный текст в логе', async () => {
+    // AbortController отвергает промис DOMException-подобным объектом, а не Error.
+    // Без String(err) в лог ушло бы `error: undefined`.
+    settings({ 'dadata.enabled': 'true', 'dadata.apiKey': 'k' });
+    (fetch as ReturnType<typeof vi.fn>).mockRejectedValue('The operation was aborted');
+    expect(await suggestParty(prisma, 'сбер')).toEqual([]);
+    expect(warn).toHaveBeenCalledWith(
+      '[dadata] suggest party failed — degrading to empty',
+      expect.objectContaining({ error: 'The operation was aborted' })
+    );
+  });
 });

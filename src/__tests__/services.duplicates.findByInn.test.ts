@@ -81,6 +81,18 @@ describe('findByInn — валидация ИНН', () => {
     expect(orgFindMany).not.toHaveBeenCalled();
     expect(leadFindMany).not.toHaveBeenCalled();
   });
+
+  it('ИНН вообще не передан → validation, а не падение', async () => {
+    // Поиск дублей зовётся из формы триажа: поле может отсутствовать в теле
+    // запроса. Ожидаем вежливый отказ, не TypeError на `.replace` у undefined.
+    const { prisma, orgFindMany, leadFindMany } = makePrisma();
+    expect(await findByInn(prisma, MANAGER, {} as never)).toEqual({
+      ok: false,
+      error: 'validation'
+    });
+    expect(orgFindMany).not.toHaveBeenCalled();
+    expect(leadFindMany).not.toHaveBeenCalled();
+  });
 });
 
 // ─── нормализация ─────────────────────────────────────────────────────────────

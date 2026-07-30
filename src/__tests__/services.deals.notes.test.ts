@@ -51,6 +51,18 @@ describe('addNoteToDeal', () => {
     expect(noteCreate).not.toHaveBeenCalled();
   });
 
+  it('тело вообще не передано → invalid, а не падение', async () => {
+    // Сервис зовётся из route-хендлера с JSON-телом: типы там не действуют, поле
+    // может просто отсутствовать. Ожидаем вежливый отказ, не TypeError.
+    const { prisma, dealFindFirst, noteCreate } = makePrisma({ deal: { id: 'd-1' } });
+    expect(await addNoteToDeal(prisma, MGR, { dealId: 'd-1' } as never)).toEqual({
+      ok: false,
+      error: 'invalid'
+    });
+    expect(dealFindFirst).not.toHaveBeenCalled();
+    expect(noteCreate).not.toHaveBeenCalled();
+  });
+
   it.each([['пустое тело', ''], ['одни пробелы', '   \n\t ']])(
     '%s → invalid, в БД не ходим',
     async (_label, body) => {

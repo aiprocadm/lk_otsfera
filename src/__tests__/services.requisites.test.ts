@@ -124,6 +124,26 @@ describe('компания (админ)', () => {
     expect(await setCompanyRequisites(prisma, orgMember('admin'), 'c1', VALID)).toEqual({ ok: false, error: 'forbidden' });
     expect(await setCompanyRequisites(prisma, adminSession(), 'cX', VALID)).toEqual({ ok: false, error: 'not_found' });
   });
+
+  it('кривые реквизиты → validation с причинами; в базу ничего не пишем', async () => {
+    // Реквизиты компании-исполнителя попадают в шапку документов, поэтому отказ
+    // валидатора обязан останавливать запись, а не «дописывать как есть».
+    const { prisma, update } = fake('company');
+    const res = await setCompanyRequisites(prisma, adminSession(), 'c1', {
+      ...VALID,
+      inn: '123',
+      kpp: '77'
+    });
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.error).toBe('validation');
+    expect(res.messages).toEqual([
+      'ИНН должен содержать 10 или 12 цифр',
+      'КПП должен содержать 9 цифр'
+    ]);
+    expect(update).not.toHaveBeenCalled();
+    expect(recordAuditMock).not.toHaveBeenCalled();
+  });
 });
 
 describe('админ-правка контрагентов', () => {

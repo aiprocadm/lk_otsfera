@@ -134,6 +134,29 @@ describe('getDealBoard', () => {
     expect(board.columns.map((c) => c.cards.length)).toEqual([0, 0, 0, 0, 0]);
   });
 
+  it('сотрудник без компании в сессии → словарь стадий запрашивается пустым companyId, доска не падает', async () => {
+    // У админа компании в сессии может не быть вовсе (Model A — он над компаниями).
+    // Резолвер стадий обязан получить пустую строку, а не undefined, иначе
+    // выборка словаря сломается и доска не откроется.
+    const { prisma, stageFindMany } = makePrisma();
+    const board = await getDealBoard(prisma, ADMIN_NO_CO);
+    expect(stageFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ companyId: '' }) })
+    );
+    expect(board.columns.map((c) => c.cards.length)).toEqual([0, 0, 0, 0, 0]);
+  });
+
+  it('статус сделки без стадии в словаре → карточка не показывается (а не падает)', async () => {
+    // Словарь можно настроить так, что для какого-то статуса стадии нет вовсе
+    // (например, все терминальные стадии деактивировали). Такая сделка просто
+    // не попадает на доску — доска остаётся рабочей.
+    const openOnly = CUSTOM_STAGES.filter((s) => s.statusAnchor === 'open');
+    const deals = [makeDeal({ id: 'd-open' }), makeDeal({ id: 'd-won-no-stage', status: 'won' })];
+    const { prisma } = makePrisma({ stages: openOnly, deals });
+    const board = await getDealBoard(prisma, LEADER);
+    expect(board.columns.flatMap((c) => c.cards.map((x) => x.id))).toEqual(['d-open']);
+  });
+
   it('группировка: явная stageId, фолбэк по статусу, битая stageId → первая open-стадия', async () => {
     const deals = [
       makeDeal({ id: 'd-explicit', stageId: 'st-b' }),

@@ -124,6 +124,19 @@ describe('listPiiAccess', () => {
     });
   });
 
+  it('заявка без позиций подписывается прочерком, а не падает', async () => {
+    // Слушатели живут в позициях заявки. Позиций может не быть (заявка старого
+    // формата или все позиции удалены) — журнал доступа к ПДн обязан всё равно
+    // показать строку, иначе расследование инцидента упрётся в пустоту.
+    const p = makePrisma([
+      eventRow('e1', { subjectType: 'enrollment_request', subjectIds: ['R9'], context: 'enrollments_list' })
+    ]);
+    (p as any).enrollmentRequest.findMany.mockResolvedValue([{ id: 'R9', items: [] }]);
+    const res = await listPiiAccess(p, ADMIN, {});
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.rows[0].subjects).toEqual([{ id: 'R9', label: '—' }]);
+  });
+
   it('неизвестный реестру context → labelRu = сам context (fallback)', async () => {
     const p = makePrisma([eventRow('ev1', { context: 'ghost_ctx', subjectType: 'student' })]);
     const res = await listPiiAccess(p, ADMIN, {});
