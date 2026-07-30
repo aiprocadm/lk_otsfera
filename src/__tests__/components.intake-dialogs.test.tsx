@@ -87,6 +87,16 @@ describe('CreateLeadFromSourceDialog', () => {
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Из этого источника лид уже создан.'));
   });
 
+  it('незнакомый код ошибки → общий русский текст, а не пустой toast', async () => {
+    // У диалога свой словарь понятных сообщений. Если сервис вернёт код, которого
+    // там нет, пользователь всё равно должен увидеть осмысленную фразу.
+    createLeadFromInboundAction.mockResolvedValue({ ok: false, error: 'storage' });
+    render(<CreateLeadFromSourceDialog kind="inbound" sourceId="i1" prefill={PREFILL} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    expect(String(toastError.mock.calls[0][0]).length).toBeGreaterThan(0);
+  });
+
   it('«Отмена» зовёт onClose', () => {
     const onClose = vi.fn();
     render(<CreateLeadFromSourceDialog kind="inbound" sourceId="i1" prefill={PREFILL} onClose={onClose} />);
@@ -135,6 +145,13 @@ describe('IntakeFilters', () => {
     expect(replace).toHaveBeenCalledWith('/leader/intake?assignee=m2');
   });
 
+  it('«Все ответственные» снимает фильтр по менеджеру из адреса', () => {
+    // Пустое значение в списке — это «показать всех», а не менеджер с пустым id.
+    render(<IntakeFilters managers={managers} assigneeId="m2" onlyUnassigned={false} />);
+    fireEvent.change(screen.getByLabelText('Ответственный'), { target: { value: '' } });
+    expect(replace).toHaveBeenCalledWith('/leader/intake');
+  });
+
   it('«Без ответственного» включается, глушит фильтр менеджера и убирается', () => {
     const { rerender } = render(<IntakeFilters managers={managers} assigneeId="m2" onlyUnassigned={false} />);
     fireEvent.click(screen.getByLabelText('Без ответственного'));
@@ -155,6 +172,22 @@ describe('SourceIntakeActions', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
     expect(screen.getByLabelText('Компания клиента')).toBeTruthy();
+  });
+
+  it('закрытие диалогов снимает их с экрана (лид и задача)', () => {
+    // Диалоги монтируются условно. Их onClose обязан вернуть кнопку в исходное
+    // состояние, иначе второй раз создать лид уже не получится.
+    render(
+      <SourceIntakeActions kind="call" sourceId="c1" leadPrefill={PREFILL} taskTitle="Перезвонить" organizationId={null} currentUserId="m1" />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+    expect(screen.queryByLabelText('Компания клиента')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Задача' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+    expect(screen.queryByLabelText('Название')).toBeNull();
   });
 
   it('showLead=false прячет «Создать лид»; «Задача» открывает quick-диалог', () => {

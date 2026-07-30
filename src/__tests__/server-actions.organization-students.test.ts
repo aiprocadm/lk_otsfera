@@ -60,6 +60,20 @@ describe('updateStudentPositionAction', () => {
     });
   });
 
+  it('поля вообще нет в форме — validation, а не строка «null»', async () => {
+    // Экшены зовутся из форм: поле может отсутствовать (старый клиент, ручной
+    // вызов). Без запасного значения в сервис ушла бы строка «null».
+    getSession.mockResolvedValue(orgSession);
+    const noStudent = new FormData();
+    noStudent.set('organizationId', 'orgA');
+    expect(await updateStudentPositionAction(noStudent)).toEqual({ ok: false, error: 'validation' });
+
+    const noOrg = new FormData();
+    noOrg.set('studentId', 's1');
+    expect(await updateStudentPositionAction(noOrg)).toEqual({ ok: false, error: 'validation' });
+    expect(updateOrgStudentPosition).not.toHaveBeenCalled();
+  });
+
   it('чужая организация — forbidden до вызова сервиса', async () => {
     getSession.mockResolvedValue(orgSession);
     const res = await updateStudentPositionAction(fd({ organizationId: 'orgZ' }));

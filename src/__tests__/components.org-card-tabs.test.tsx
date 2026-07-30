@@ -201,6 +201,26 @@ describe('OrgCardTabs — details section', () => {
     expect(html).toContain('—');
   });
 
+  it('подписант: должность добавляется через запятую, без неё — только ФИО', () => {
+    // Подписант уходит в шапку документов. Если должности нет, в строке не
+    // должно оставаться висящей запятой.
+    const withPosition = makeCard({
+      requisites: { signerName: 'Иванов И.И.', signerPosition: 'Директор' }
+    } as never);
+    expect(
+      renderToString(React.createElement(OrgCardTabs, { card: withPosition, activeTab: 'details' }))
+    ).toContain('Иванов И.И., Директор');
+
+    const withoutPosition = makeCard({
+      requisites: { signerName: 'Иванов И.И.', signerPosition: null }
+    } as never);
+    const html = renderToString(
+      React.createElement(OrgCardTabs, { card: withoutPosition, activeTab: 'details' })
+    );
+    expect(html).toContain('Иванов И.И.');
+    expect(html).not.toContain('Иванов И.И.,');
+  });
+
   it('renders commission rate detail when card.commission is present', () => {
     const card = makeCard({ commission: { partnerCommissionRate: '10%' } as never });
     const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'details' }));
@@ -382,6 +402,20 @@ describe('вкладки внутреннего контура (этап 7 PR-3)
     expect(html).toContain('В работе');
     expect(html).toContain('1500.00');
     expect(html).toContain('—');
+  });
+
+  it('незнакомый статус сделки показывается как есть, нейтральным бейджем', () => {
+    // Набор статусов сделок расширяем — карточка обязана показать сырое значение,
+    // а не пустой бейдж: иначе менеджер не поймёт, в каком состоянии сделка.
+    const odd = {
+      ...internal,
+      deals: [{ id: 'd9', title: 'Сделка-9', status: 'frozen', amount: null, createdAt: new Date('2026-07-05') }]
+    };
+    const html = renderToString(
+      React.createElement(OrgCardTabs, { card: makeCard(odd as never), activeTab: 'deals' })
+    );
+    expect(html).toContain('Сделка-9');
+    expect(html).toContain('frozen');
   });
 
   it('пустые состояния трёх вкладок', () => {

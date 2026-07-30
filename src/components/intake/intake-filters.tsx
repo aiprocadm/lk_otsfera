@@ -21,10 +21,13 @@ export function IntakeFilters({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  function apply(patch: { assigneeId?: string | null; onlyUnassigned?: boolean }): void {
+  // `assigneeId` в патче обязателен: оба обработчика ниже всегда передают его
+  // явно (список — выбранное значение, чекбокс — null). Прежняя развилка
+  // «не передали → взять текущее» была недостижима (Ф2 программы покрытия).
+  function apply(patch: { assigneeId: string | null; onlyUnassigned?: boolean }): void {
     const q = new URLSearchParams(searchParams.toString());
     q.delete('skip'); // смена фильтра сбрасывает пагинацию
-    const nextAssignee = patch.assigneeId !== undefined ? patch.assigneeId : assigneeId;
+    const nextAssignee = patch.assigneeId;
     const nextUnassigned = patch.onlyUnassigned !== undefined ? patch.onlyUnassigned : onlyUnassigned;
     if (nextAssignee) q.set('assignee', nextAssignee);
     else q.delete('assignee');
