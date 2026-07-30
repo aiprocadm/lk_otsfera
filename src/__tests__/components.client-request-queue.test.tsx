@@ -116,6 +116,71 @@ describe('ClientRequestQueue', () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
+  it('сервер ответил ошибкой на список вложений → пустой список, обращение читается', async () => {
+    // Отказ (403/500) — не то же самое, что обрыв сети. И там, и там вложения
+    // просто не показываем: само обращение важнее и должно открыться.
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }));
+    render(React.createElement(ClientRequestQueue, { rows: [row({ body: 'Текст обращения' })] }));
+
+    fireEvent.click(screen.getByText('Подробнее'));
+
+    expect(screen.getByText('Текст обращения')).toBeTruthy();
+    await waitFor(() => expect(screen.getByText('Пока нет вложений')).toBeTruthy());
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it('подпись подателя: организация, если партнёра нет; имя пользователя, если нет и её', () => {
+    // Обращение приходит из трёх контуров. Подпись в очереди — единственное, по
+    // чему менеджер понимает, от кого оно; пустая ячейка сделала бы очередь
+    // бесполезной.
+    render(
+      React.createElement(ClientRequestQueue, {
+        rows: [
+          row({ id: 'cr-org', partnerName: null, organizationName: 'ООО Заказчик' }),
+          row({ id: 'cr-self', partnerName: null, organizationName: null, submittedByName: 'Пётр Сидоров' })
+        ]
+      })
+    );
+    expect(screen.getByText('ООО Заказчик')).toBeTruthy();
+    expect(screen.getByText('Пётр Сидоров')).toBeTruthy();
+  });
+
+  it('контакты: телефон и почта склеиваются, при полном отсутствии — прочерк', () => {
+    render(
+      React.createElement(ClientRequestQueue, {
+        rows: [
+          row({ id: 'cr-both', contactPhone: '+79990001122', contactEmail: 'i@x.ru' }),
+          row({ id: 'cr-none', contactPhone: null, contactEmail: null })
+        ]
+      })
+    );
+    expect(screen.getByText('+79990001122 · i@x.ru')).toBeTruthy();
+    expect(screen.getByText('—')).toBeTruthy();
+  });
+
+  it('раскрытие обращения с ИНН показывает подсказку о дублях', async () => {
+    // ФТ-13.4: до «Принять → создать лид» менеджер должен видеть, что такая
+    // организация уже есть в базе — иначе появится дубль.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ rows: [], duplicates: null }) })
+    );
+    render(React.createElement(ClientRequestQueue, { rows: [row({ inn: '7707083893' })] }));
+
+    fireEvent.click(screen.getByText('Подробнее'));
+
+    await waitFor(() => expect(screen.getByText('Пока нет вложений')).toBeTruthy());
+    // Подсказка сама решает, показывать ли плашку; нам важно, что она
+    // смонтирована и получила ИНН — запрос по нему ушёл.
+    await waitFor(() =>
+      expect(
+        (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([u]) =>
+          String(u).includes('/api/duplicates/by-inn')
+        )
+      ).toBe(true)
+    );
+  });
+
   it('submitted: все три кнопки — «Взять в работу», «Принять → создать лид», «Отклонить»', () => {
     render(React.createElement(ClientRequestQueue, { rows: [row({ status: 'submitted' })] }));
     expect(screen.getByRole('button', { name: 'Взять в работу' })).toBeTruthy();

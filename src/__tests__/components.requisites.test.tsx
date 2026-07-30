@@ -72,6 +72,25 @@ describe('RequisitesFields', () => {
     fireEvent.change(screen.getByLabelText('ИНН'), { target: { value: '123' } });
     expect((screen.getByLabelText('ИНН') as HTMLInputElement).value).toBe('123');
   });
+
+  it('каждое поле правится руками после автозаполнения', () => {
+    // Подсказка ДаДаты может ошибиться или устареть — человек обязан иметь
+    // возможность поправить любое поле вручную. Если бы обработчик ввода
+    // потерялся, поле «залипло» бы на значении из подсказки.
+    render(<RequisitesFields defaults={DEFAULTS} idPrefix="t" />);
+    fireEvent.click(screen.getByText('stub-suggest'));
+
+    for (const [label, value] of [
+      ['КПП', '997950001'],
+      ['ОГРН', '1234567890123'],
+      ['Юридический адрес', 'г. Тверь, ул. Советская, 1'],
+      ['Банк', 'Сбербанк']
+    ] as const) {
+      const field = screen.getByLabelText(label) as HTMLInputElement;
+      fireEvent.change(field, { target: { value } });
+      expect((screen.getByLabelText(label) as HTMLInputElement).value).toBe(value);
+    }
+  });
 });
 
 describe('RequisitesCard', () => {

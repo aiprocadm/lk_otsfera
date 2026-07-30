@@ -191,14 +191,14 @@ export function ClientRequestQueue({ rows }: { rows: ClientRequestRow[] }) {
                         <div className='text-xs font-medium text-gray-500 mb-1'>
                           Вложения ({r.attachmentCount})
                         </div>
-                        {attachmentsByRequest[r.id] === undefined ? (
-                          <div className='text-sm text-gray-500'>Загружаем вложения…</div>
-                        ) : (
-                          <ClientRequestAttachmentsList
-                            requestId={r.id}
-                            rows={attachmentsByRequest[r.id] ?? []}
-                          />
-                        )}
+                        {/* Значение читаем один раз: после проверки на undefined
+                            запасной `?? []` был недостижим (Ф3 программы покрытия). */}
+                        {((loaded) =>
+                          loaded === undefined ? (
+                            <div className='text-sm text-gray-500'>Загружаем вложения…</div>
+                          ) : (
+                            <ClientRequestAttachmentsList requestId={r.id} rows={loaded} />
+                          ))(attachmentsByRequest[r.id])}
                       </div>
                     </div>
                   </Td>

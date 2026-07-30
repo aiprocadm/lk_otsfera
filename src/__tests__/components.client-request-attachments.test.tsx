@@ -203,6 +203,47 @@ describe('ClientRequestAttachmentsList', () => {
     expect(screen.getByText(/5\.0 МБ/)).toBeTruthy();
   });
 
+  it('размеры и типы файлов подписываются по-человечески во всех диапазонах', () => {
+    // Размер показывается в байтах, килобайтах или мегабайтах — по величине.
+    // Тип берётся из MIME: у офисных форматов он длинный и нечитаемый, поэтому
+    // рядом стоит короткая метка. Незнакомый формат — нейтральное «FILE».
+    render(
+      React.createElement(ClientRequestAttachmentsList, {
+        requestId: 'req-1',
+        rows: [
+          attachment({ id: 'b1', name: 'записка.txt', mimeType: 'text/plain', size: 512 }),
+          attachment({
+            id: 'b2',
+            name: 'договор.docx',
+            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            size: 3000
+          }),
+          attachment({
+            id: 'b3',
+            name: 'смета.xlsx',
+            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            size: 4000
+          }),
+          attachment({ id: 'b4', name: 'скан.jpg', mimeType: 'image/jpeg', size: 6000 })
+        ]
+      })
+    );
+    expect(screen.getByText(/512 Б/)).toBeTruthy();
+    expect(screen.getByText('FILE')).toBeTruthy(); // text/plain — вне списка
+    expect(screen.getByText('DOC')).toBeTruthy();
+    expect(screen.getByText('XLS')).toBeTruthy();
+    expect(screen.getByText('IMG')).toBeTruthy();
+  });
+
+  it('сбой скачивания не-Error значением показывается сообщением «Ошибка сети»', async () => {
+    // fetch может отвергнуть промис не-Error значением (обрыв соединения в
+    // некоторых окружениях). Пользователю нужно увидеть причину, а не пустоту.
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue('connection reset'));
+    render(React.createElement(ClientRequestAttachmentsList, { requestId: 'req-1', rows: [attachment()] }));
+    fireEvent.click(screen.getByText('договор.pdf'));
+    await waitFor(() => expect(screen.getByText('Ошибка сети')).toBeTruthy());
+  });
+
   it('скачивание: POST download-роут → window.open(downloadUrl)', async () => {
     const fetchMock = vi
       .fn()

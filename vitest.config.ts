@@ -173,7 +173,7 @@ export default defineConfig(({ mode }) => ({
               // `files`). Барель `ui/index.ts` — в exclude выше. Каждый `/* v8 ignore */` —
               // structurally-unreachable defensive guard с причиной-комментарием. Широкий glob
               // (а не подоменный) ловит и будущие компоненты в новых подкаталогах.
-              'src/components/**': { lines: 99.21, branches: 99.02, functions: 96.84, statements: 99.21 },
+              'src/components/**': { lines: 99.34, branches: 99.32, functions: 97.89, statements: 99.34 },
               // PHASE-3 W2 (app-страницы) — весь `src/app/**/*.tsx` (серверные `page.tsx`) под
               // порогом 100%. Harness `renderServerComponent` (jsdom): async-страница вызывается
               // напрямую (`await Page({ params/searchParams: Promise.resolve(...) })`), вложенные
@@ -182,7 +182,7 @@ export default defineConfig(({ mode }) => ({
               // featureFlags — `vi.mock`. Next-шеллы (layout/loading/error/…) — в exclude выше;
               // api-роуты (`.ts`) держит отдельный `src/app/api/**`. Каждый `/* v8 ignore */` —
               // single-line на structurally-unreachable defensive fallback (Paginator/TypeFilter).
-              'src/app/**/*.tsx': { lines: 98.46, branches: 97.59, functions: 100, statements: 98.46 }
+              'src/app/**/*.tsx': { lines: 98.89, branches: 99.14, functions: 100, statements: 98.89 }
             }
           }
         : {})

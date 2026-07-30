@@ -79,6 +79,37 @@ describe('EditPartnerPage', () => {
     ).rejects.toThrow('NOT_FOUND');
   });
 
+  it('карточка реквизитов появляется, когда они заведены', async () => {
+    // Админ правит реквизиты партнёра для автогенерации документов. Если бы
+    // карточка не отрисовалась, поправить их было бы негде — а без реквизитов
+    // договор и счёт не собираются.
+    requireAdmin.mockResolvedValue(SESSION);
+    getPartner.mockResolvedValue(PARTNER);
+    listRateHistory.mockResolvedValue({ ok: true, rows: [] });
+    getPartnerRequisitesByAdmin.mockResolvedValue({
+      legalName: 'ООО Партнёр',
+      inn: '7707083893',
+      kpp: null,
+      ogrn: null,
+      legalAddress: null,
+      bankName: null,
+      bankAccount: null,
+      corrAccount: null,
+      bic: null,
+      signerName: null,
+      signerPosition: null,
+      signerBasis: null
+    });
+
+    const { container } = await renderServerComponent(
+      EditPartnerPage({ params: Promise.resolve({ id: 'p1' }) })
+    );
+
+    expect(container.querySelector('[data-testid="requisites-card"]')?.textContent).toContain(
+      'Реквизиты для документов'
+    );
+  });
+
   it('renders partner details, rate history rows (with oldRate set), and admins table', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getPartner.mockResolvedValue(PARTNER);

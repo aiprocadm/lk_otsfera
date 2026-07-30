@@ -183,6 +183,35 @@ describe('PartnerCertificatesPage', () => {
     ).toBe('/api/partner/certificates/export');
   });
 
+  it('партнёрский реестр: кривые take/skip в адресе → безопасные значения', async () => {
+    // Адрес правят руками. Ни отрицательный сдвиг, ни текст вместо числа не
+    // должны ломать реестр — иначе партнёр увидит ошибку вместо своих
+    // удостоверений.
+    isFeatureEnabled.mockReturnValue(true);
+    requirePartner.mockResolvedValue({ sub: 'p1', role: 'partner', partnerId: 'pt-1', partnerRole: 'admin' });
+
+    await renderServerComponent(PartnerCertificatesPage(props({ take: 'много', skip: '-10' })));
+
+    expect(listCertificates).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ take: 50, skip: 0 })
+    );
+  });
+
+  it('партнёрский реестр: разумные take/skip из адреса уважаются', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requirePartner.mockResolvedValue({ sub: 'p1', role: 'partner', partnerId: 'pt-1', partnerRole: 'admin' });
+
+    await renderServerComponent(PartnerCertificatesPage(props({ take: '10', skip: '20' })));
+
+    expect(listCertificates).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ take: 10, skip: 20 })
+    );
+  });
+
   it('partner-manager без assignedOrgIds → пустое сужение (?? [])', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requirePartner.mockResolvedValue({ ...PARTNER_MANAGER, assignedOrgIds: undefined });
