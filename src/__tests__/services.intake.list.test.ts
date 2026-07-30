@@ -127,6 +127,74 @@ describe('listIntake', () => {
     expect(recordPiiAccess).toHaveBeenCalledWith(prisma, expect.objectContaining({ context: 'intake_list', subjectIds: ['c1', 'i1'] }));
   });
 
+  it('неполные данные каждого источника подписываются читаемо', async () => {
+    // Реальный интейк полон дыр: обучение без справочника и организации,
+    // обращение без темы и имени, telegram-канал, ответственный, чьё имя не
+    // нашлось. Каждая строка обязана остаться читаемой — по подписи сотрудник
+    // решает, что брать в работу.
+    const { prisma } = makePrisma({
+      enrollmentRequest: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: 'e-legacy', createdAt: ago(2), claimedByUserId: 'ghost', organizationId: null, legacyCourseTitle: 'Старый курс', organization: null, partner: { name: 'ООО Партнёр' }, direction: null, items: [] },
+          { id: 'e-bare', createdAt: ago(1), claimedByUserId: null, organizationId: null, legacyCourseTitle: null, organization: null, partner: null, direction: null, items: [] }
+        ]),
+        count: vi.fn()
+      },
+      inboundMessage: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: 'i-tg', createdAt: ago(3), channel: 'telegram', senderDisplay: '  ', senderRef: 'tg:123', subject: null, body: 'Длинный текст обращения без темы', claimedByUserId: null, resolvedOrgId: null },
+          { id: 'i-sms', createdAt: ago(4), channel: 'sms', senderDisplay: 'Аноним', senderRef: 'sms:1', subject: '  ', body: 'Текст', claimedByUserId: null, resolvedOrgId: null }
+        ]),
+        count: vi.fn()
+      },
+      user: { findMany: vi.fn().mockResolvedValue([]) } // имя ghost не нашлось
+    });
+
+    const res = await listIntake(prisma, manager());
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    const by = Object.fromEntries(res.result.items.map((i) => [i.id, i]));
+
+    // Обучение: legacy-название; партнёр как отправитель; прочерк, когда нет никого.
+    expect(by['e-legacy']).toMatchObject({ essence: 'Старый курс · слушателей: 0', from: 'ООО Партнёр' });
+    expect(by['e-bare']).toMatchObject({ essence: 'Заявка на обучение · слушателей: 0', from: '—' });
+    // Имя ответственного не нашлось → null, не падение.
+    expect(by['e-legacy']!.responsibleName).toBeNull();
+
+    // Обращение: пустое имя → senderRef; без темы → срез тела; канал по словарю.
+    expect(by['i-tg']).toMatchObject({ from: 'tg:123' });
+    expect(by['i-tg']!.essence).toBe('Telegram: Длинный текст обращения без темы');
+    expect(by['i-tg']!.leadPrefill).toMatchObject({ contactEmail: '', subject: 'Обращение из внешнего канала' });
+    // Незнакомый канал показывается как есть.
+    expect(by['i-sms']!.essence).toContain('sms:');
+  });
+
+  it('звонок без длительности (пропущенный) подписывается статусом', async () => {
+    // У пропущенного звонка нет длительности — по статусу сотрудник видит, что
+    // человеку не ответили и надо перезвонить в первую очередь.
+    const { prisma } = makePrisma({
+      call: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: 'c-missed', createdAt: ago(1), callerNumber: '+79991112233', durationSec: null, status: 'missed', claimedByUserId: null }
+        ]),
+        count: vi.fn()
+      }
+    });
+    const res = await listIntake(prisma, manager());
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.result.items[0]!.essence).toBe('Входящий звонок · missed');
+  });
+
+  it('сотрудник без компании: звонки — только общая корзина (companyId=null)', async () => {
+    const calls = vi.fn().mockResolvedValue([]);
+    const { prisma } = makePrisma({ call: { findMany: calls, count: vi.fn() } });
+    const res = await listIntake(prisma, { ...manager(), companyId: undefined } as never);
+    expect(res.ok).toBe(true);
+    const where = calls.mock.calls[0][0].where;
+    expect(JSON.stringify(where)).toContain('__no_company__');
+  });
+
   it('фильтры лидера: onlyUnassigned и assigneeId', async () => {
     const rows = [
       { id: 'r1', createdAt: ago(3), companyName: 'A', subject: 's', status: 'in_triage', triagedByUserId: 'm2', organizationId: null },
