@@ -56,6 +56,13 @@ describe('GET /api/enrollments/students', () => {
     expect((await GET(req('?organizationId=oX'))).status).toBe(403);
   });
 
+  it('организация без списка членств вовсе → 403, а не падение', async () => {
+    // Старый токен мог прийти без поля членств. Тогда доступа нет — но ответ
+    // должен быть вежливым 403, а не ошибкой сервера.
+    getSession.mockResolvedValue({ sub: 'u', role: 'organization' });
+    expect((await GET(req('?organizationId=o1'))).status).toBe(403);
+  });
+
   it('partner: только организации партнёра (scoped findFirst)', async () => {
     getSession.mockResolvedValue({ sub: 'u', role: 'partner', partnerId: 'p1' });
     orgFindFirst.mockResolvedValue({ id: 'o1' });

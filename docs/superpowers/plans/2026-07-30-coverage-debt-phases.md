@@ -83,9 +83,16 @@
 - [x] `lib/services/{organization,partner}/requisites.ts`, `lib/services/team/resend.ts`
 - [x] Пороги подняты; **`src/worker/**` вышел на честные 100 % — первый набор закрыт полностью**
 
-Осталось (≈20 файлов): страницы кабинетов, диалоги, генерация PDF
-(`documents/{contract,order}DocumentPdf.ts`), `inbound/cabinetQuestion.ts`,
-`manager/organizationCard.ts`, `clientRequests/attachments.ts`.
+Логика закрыта полностью (вторая половина):
+
+- [x] `documents/{contract,order}DocumentPdf.ts`, `server-actions/documents/generate.ts`
+- [x] `inbound/cabinetQuestion.ts`, `clientRequests/attachments.ts`, `manager/organizationCard.ts`
+- [x] `api/enrollments/students/route.ts`
+
+**Три набора из девяти закрыты честными 100 %:** `src/worker/**`,
+`src/server-actions/**`, `src/app/api/**`.
+
+Осталось (UI): ~14 файлов — страницы кабинетов и диалоги.
 
 ### Найдено в Ф3
 
@@ -96,6 +103,9 @@
 | «Почта выключена» проверялась только для партнёра | `team/resend.ts` | у организации/менеджера/слушателя статус мог остаться «отправлено» при выключенной почте |
 | Вид `client_request_attachment` не проверялся вовсе | `worker/scan-document.ts` | его не было даже в тестовом моке БД |
 | Обёртка BullMQ без теста | `worker/calendar-reminder.ts` | её поломка тихо выключила бы напоминания |
+| Вкладки «сделки» и «удостоверения» карточки организации не проверялись | `manager/organizationCard.ts` | сломайся маппинг — менеджер увидел бы пустые вкладки и решил, что данных нет |
+| Отказ хранилища/очереди не-Error значением | `clientRequests/attachments.ts` | S3 и Redis так умеют; без `String(err)` в лог уходит `undefined` вместо причины |
+| Хвостовой `return false` недостижим | `api/enrollments/students/route.ts` | гейт выше пускает ровно четыре роли, все разобраны → удалён |
 
 ## Ф4 — тяжёлые >10 единиц (16–24 ч), 18 файлов
 

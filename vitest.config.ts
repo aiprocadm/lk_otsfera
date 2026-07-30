@@ -146,11 +146,11 @@ export default defineConfig(({ mode }) => ({
       ...(mode !== 'unit' && mode !== 'integration'
         ? {
             thresholds: {
-              'src/lib/**/!(*.tsx)': { lines: 99.63, branches: 99.2, functions: 99.73, statements: 99.63 },
-              // Ф1: закрыт `server-actions/manager/create-lead.ts` (был 0%) — набор вышел
-              // на 100% по строкам/операторам/функциям, остались только ветки.
-              'src/server-actions/**': { lines: 100, branches: 99.58, functions: 100, statements: 100 },
-              'src/app/api/**': { lines: 99.93, branches: 99.87, functions: 100, statements: 99.93 },
+              'src/lib/**/!(*.tsx)': { lines: 99.66, branches: 99.52, functions: 99.73, statements: 99.66 },
+              // Ф3: набор закрыт ПОЛНОСТЬЮ и честно — 100% по всем метрикам.
+              'src/server-actions/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              // Ф3: набор закрыт ПОЛНОСТЬЮ и честно — 100% по всем метрикам.
+              'src/app/api/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
               // Ф3: набор закрыт ПОЛНОСТЬЮ и честно — 100% по всем метрикам
               // (последними легли processors/{scan-document,sla-escalation,calendar-reminder}).
               'src/worker/**': { lines: 100, branches: 100, functions: 100, statements: 100 },

@@ -120,6 +120,35 @@ describe('requestRequisitesAction', () => {
     expect(payload.payload.missingLabels).toEqual(['ИНН заказчика', 'юр. адрес заказчика']);
   });
 
+  it('без orderId в форме → not_found, в базу не ходим', async () => {
+    expect(await requestRequisitesAction(new FormData())).toEqual({ ok: false, error: 'not_found' });
+    expect(orderFindUnique).not.toHaveBeenCalled();
+  });
+
+  it('заказ без организации или компании → not_found: запрашивать реквизиты не у кого', async () => {
+    // Заказ может быть заведён без клиента (черновик из 1С). Слать уведомление
+    // некуда — честный not_found вместо падения на пустом organizationId.
+    orderFindUnique.mockResolvedValue({ id: 'ord-1', title: 'З', orderNumber: '1', companyId: 'c1', organizationId: null, managerId: 'm1' });
+    expect(await requestRequisitesAction(form({ orderId: 'ord-1' }))).toEqual({ ok: false, error: 'not_found' });
+
+    orderFindUnique.mockResolvedValue({ id: 'ord-1', title: 'З', orderNumber: '1', companyId: null, organizationId: 'org-1', managerId: 'm1' });
+    expect(await requestRequisitesAction(form({ orderId: 'ord-1' }))).toEqual({ ok: false, error: 'not_found' });
+
+    orderFindUnique.mockResolvedValue(null);
+    expect(await requestRequisitesAction(form({ orderId: 'ord-1' }))).toEqual({ ok: false, error: 'not_found' });
+    expect(notifyOrgUsers).not.toHaveBeenCalled();
+  });
+
+  it('карточка компании или организации исчезла → not_found, а не падение', async () => {
+    companyFindUnique.mockResolvedValue(null);
+    expect(await requestRequisitesAction(form({ orderId: 'ord-1' }))).toEqual({ ok: false, error: 'not_found' });
+
+    companyFindUnique.mockResolvedValue(FULL);
+    organizationFindUnique.mockResolvedValue(null);
+    expect(await requestRequisitesAction(form({ orderId: 'ord-1' }))).toEqual({ ok: false, error: 'not_found' });
+    expect(notifyOrgUsers).not.toHaveBeenCalled();
+  });
+
   it('флаг/роль/скоуп: off → forbidden; клиент → forbidden; чужой заказ → not_found; сбой notify не ломает', async () => {
     isFeatureEnabled.mockReturnValue(false);
     expect(await requestRequisitesAction(form({ orderId: 'o' }))).toEqual({ ok: false, error: 'forbidden' });

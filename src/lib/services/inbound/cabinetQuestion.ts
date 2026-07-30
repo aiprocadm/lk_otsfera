@@ -47,6 +47,10 @@ export function questionCode(id: string): string {
 }
 
 function sanitizeFilename(name: string): string {
+  // Причина ignore ниже: `split` всегда возвращает минимум один элемент, поэтому
+  // `pop()` не может дать undefined. `?? 'file'` оставлен только ради типа (TS
+  // выводит `string | undefined`) — ветка структурно недостижима.
+  /* v8 ignore next */
   const base = name.split(/[\\/]/).pop() ?? 'file';
   return base.replace(/[^\p{L}\p{N}._-]+/gu, '_').slice(0, 120) || 'file';
 }

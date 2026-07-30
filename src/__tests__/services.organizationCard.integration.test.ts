@@ -13,6 +13,7 @@ let prisma: PrismaClient;
 const STAMP = Date.now();
 let companyA: string, companyB: string, leaderA: string, plainA: string, mB: string;
 let orgA: string, orgB: string, orderA: string, inboundA: string, callA: string;
+let dealA: string, certA: string, studentA: string, directionA: string;
 
 // companyA — teamMode ON (граница изоляции = компания); companyB — OFF (по умолчанию).
 const leaderSession = (): SessionPayload =>
@@ -49,6 +50,27 @@ beforeAll(async () => {
       status: 'bound'
     }
   })).id;
+  // Сделка и удостоверение: вкладки карточки, которые до Ф3 не проверялись —
+  // маппинг рядов не исполнялся ни одним тестом.
+  dealA = (await prisma.deal.create({
+    data: { companyId: companyA, organizationId: orgA, title: `g4deal-${STAMP}`, amount: new Prisma.Decimal('2500.00') }
+  })).id;
+  directionA = (await prisma.trainingDirection.create({
+    data: { name: `g4dir-${STAMP}` }
+  })).id;
+  studentA = (await prisma.student.create({
+    data: { name: `g4stu-${STAMP}`, email: `g4stu-${STAMP}@t.local`, organizationId: orgA }
+  })).id;
+  certA = (await prisma.certificate.create({
+    data: {
+      studentId: studentA,
+      organizationId: orgA,
+      directionId: directionA,
+      number: `g4cert-${STAMP}`,
+      issuedAt: new Date('2026-06-01')
+    }
+  })).id;
+
   callA = (await prisma.call.create({
     data: {
       provider: 'mango',
@@ -66,6 +88,10 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await prisma.certificate.deleteMany({ where: { id: certA } });
+  await prisma.student.deleteMany({ where: { id: studentA } });
+  await prisma.trainingDirection.deleteMany({ where: { id: directionA } });
+  await prisma.deal.deleteMany({ where: { id: dealA } });
   await prisma.call.deleteMany({ where: { id: callA } });
   await prisma.inboundMessage.deleteMany({ where: { id: inboundA } });
   await prisma.comment.deleteMany({ where: { orderId: orderA } });
@@ -122,6 +148,23 @@ describe('getOrganizationCard — агрегация', () => {
     const card = await getOrganizationCard(prisma, plainSession(), orgA);
     expect(card).not.toBeNull();
     expect(card?.commission).toBeNull();
+  });
+  it('лидер: карточка агрегирует сделки и удостоверения', async () => {
+    // Эти две вкладки карточки собирались без единого теста: если бы маппинг
+    // сломался, менеджер увидел бы пустые списки и решил, что данных нет.
+    const card = await getOrganizationCard(prisma, leaderSession(), orgA);
+    expect(card).not.toBeNull();
+    if (!card) return;
+
+    const deal = card.deals.find((d) => d.id === dealA);
+    expect(deal).toBeDefined();
+    expect(deal?.amount).toBe('2500.00');
+
+    const cert = card.certificates.find((c) => c.id === certA);
+    expect(cert).toBeDefined();
+    expect(cert?.studentName).toContain('g4stu');
+    expect(cert?.directionName).toContain('g4dir');
+    expect(cert?.hasScan).toBe(false);
   });
 });
 

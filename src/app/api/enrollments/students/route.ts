@@ -20,14 +20,15 @@ async function canAccessOrg(session: SessionPayload, organizationId: string): Pr
       (m) => m.isActive && m.organizationId === organizationId
     );
   }
-  if (session.role === 'partner') {
-    const org = await prisma.organization.findFirst({
-      where: { id: organizationId, partnerId: session.partnerId ?? '__none__' },
-      select: { id: true }
-    });
-    return !!org;
-  }
-  return false;
+  // Сюда доходит только партнёр: гейт `canSubmitEnrollments` в GET выше пускает
+  // ровно четыре роли, три из них разобраны. Отдельная проверка `role ===
+  // 'partner'` и хвостовой `return false` были недостижимы (Ф3 программы
+  // покрытия — недостижимое удаляем, а не «покрываем»).
+  const org = await prisma.organization.findFirst({
+    where: { id: organizationId, partnerId: session.partnerId ?? '__none__' },
+    select: { id: true }
+  });
+  return !!org;
 }
 
 export async function GET(req: Request) {
