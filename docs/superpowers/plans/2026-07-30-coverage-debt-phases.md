@@ -74,10 +74,28 @@
 
 **Единственный `v8 ignore` за фазу** — тот, что в таблице выше.
 
-## Ф3 — средние 4–10 единиц (10–14 ч), 30 файлов
+## Ф3 — средние 4–10 единиц (в работе), 29 файлов
 
-- [ ] Разбор по областям, тот же порядок
-- [ ] Поднять пороги
+Логические слои — закрыты:
+
+- [x] `server-actions/requisites.ts`, `server-actions/intake/index.ts`
+- [x] `worker/processors/{sla-escalation,scan-document,calendar-reminder}.ts`
+- [x] `lib/services/{organization,partner}/requisites.ts`, `lib/services/team/resend.ts`
+- [x] Пороги подняты; **`src/worker/**` вышел на честные 100 % — первый набор закрыт полностью**
+
+Осталось (≈20 файлов): страницы кабинетов, диалоги, генерация PDF
+(`documents/{contract,order}DocumentPdf.ts`), `inbound/cabinetQuestion.ts`,
+`manager/organizationCard.ts`, `clientRequests/attachments.ts`.
+
+### Найдено в Ф3
+
+| Что | Где | Почему важно |
+|---|---|---|
+| Отказ сервиса ревалидировал страницу | `server-actions/{requisites,intake}` | сброс кэша после неудачной записи показывает «обновлённый» экран со старыми данными — человек уходит уверенным, что сохранил |
+| Ошибка базы маскировалась под валидацию | `{organization,partner}/requisites.ts` | сбой хранилища выглядел бы ошибкой пользователя и не попал бы в мониторинг (ветка `throw` не проверялась) |
+| «Почта выключена» проверялась только для партнёра | `team/resend.ts` | у организации/менеджера/слушателя статус мог остаться «отправлено» при выключенной почте |
+| Вид `client_request_attachment` не проверялся вовсе | `worker/scan-document.ts` | его не было даже в тестовом моке БД |
+| Обёртка BullMQ без теста | `worker/calendar-reminder.ts` | её поломка тихо выключила бы напоминания |
 
 ## Ф4 — тяжёлые >10 единиц (16–24 ч), 18 файлов
 
