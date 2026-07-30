@@ -372,3 +372,40 @@ describe('OrderStatusesAdmin — ошибки сервера показываю�
     await waitFor(() => expect(toastError).toHaveBeenCalled());
   });
 });
+
+describe('OrderStatusesAdmin — закрытие диалогов', () => {
+  // Три обработчика закрытия (Escape у окна добавления, кнопка «Отмена» и
+  // закрытие окна переименования) не исполнялись ни одним тестом — найдено
+  // полным прогоном покрытия 30.07.2026 по метрике «функции».
+  it('окно добавления закрывается кнопкой «Отмена» и по Escape', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    render(<OrderStatusesAdmin rows={[row({ id: 'x', label: 'Своё' })]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Добавить' }));
+    await screen.findByText('Новый статус');
+    fireEvent.click(within(openDialog()).getByRole('button', { name: 'Отмена' }));
+    await waitFor(() => expect(HTMLDialogElement.prototype.close).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Добавить' }));
+    await screen.findByText('Новый статус');
+    const dialog = openDialog() as HTMLDialogElement;
+    fireEvent(dialog, new Event('cancel', { bubbles: false, cancelable: true }));
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('окно переименования закрывается по Escape без запроса', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    render(<OrderStatusesAdmin rows={[row({ id: 'x', label: 'Своё' })]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Переименовать' }));
+    await screen.findByText('Переименовать статус');
+    const dialog = openDialog() as HTMLDialogElement;
+    fireEvent(dialog, new Event('cancel', { bubbles: false, cancelable: true }));
+
+    await waitFor(() => expect(HTMLDialogElement.prototype.close).toHaveBeenCalled());
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
