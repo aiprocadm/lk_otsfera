@@ -193,6 +193,34 @@ describe('InnDuplicateHint — смена ИНН', () => {
     expect(screen.queryByText('Уже есть в базе:')).toBeNull();
   });
 
+  it('опоздавший ответ по старому ИНН игнорируется (гонка запросов)', async () => {
+    // Пользователь допечатывает ИНН быстрее, чем отвечает сервер. Ответ на
+    // предыдущий ИНН приходит последним — и не должен подменить плашку чужими
+    // дублями. Именно так пользователю показали бы «дубли» несуществующей
+    // организации.
+    let resolveStale: ((v: unknown) => void) | null = null;
+    fetchMock.mockImplementationOnce(
+      () => new Promise((resolve) => { resolveStale = resolve; })
+    );
+
+    const { rerender } = render(
+      <InnDuplicateHint inn='7707083893' cardHrefBase='/manager/organizations' />
+    );
+    await settle(400); // запрос по первому ИНН ушёл и завис
+
+    // Второй ИНН: его ответ подвешиваем, чтобы плашку не рисовал он.
+    fetchMock.mockImplementation(() => new Promise(() => {}));
+    rerender(<InnDuplicateHint inn='770708389312' cardHrefBase='/manager/organizations' />);
+    await settle(400);
+
+    // Теперь отвечает ПЕРВЫЙ, уже неактуальный запрос.
+    await act(async () => {
+      resolveStale?.(okJson({ duplicates: DUPLICATES }));
+    });
+
+    expect(screen.queryByText('Уже есть в базе:')).toBeNull();
+  });
+
   it('нормализация не гасит плашку: «7707083893» → «7707 083-893» остаётся той же', async () => {
     const { rerender } = render(
       <InnDuplicateHint inn='7707083893' cardHrefBase='/manager/organizations' />

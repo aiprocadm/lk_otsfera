@@ -27,6 +27,10 @@ vi.mock('@/components/manager/manager-payments-list', () => ({ ManagerPaymentsLi
 vi.mock('@/components/partner/documents-list', () => ({ DocumentsList: () => null }));
 vi.mock('@/components/training/order-items-section', () => ({ OrderItemsSection: () => null }));
 vi.mock('@/components/orders/order-custom-fields', () => ({ OrderCustomFields: () => null }));
+vi.mock('@/components/orders/order-status-panel', () => ({
+  OrderStatusPanel: (props: { orderId: string }) =>
+    React.createElement('div', { 'data-testid': 'status-panel' }, props.orderId)
+}));
 vi.mock('@/components/manager/claim-order-button', () => ({
   ClaimOrderButton: (props: { orderId: string; managerId: string | null }) =>
     React.createElement(
@@ -94,6 +98,57 @@ describe('ManagerOrderDetailView', () => {
     );
     expect(html).toContain('href="/leader/orders"');
     expect(html).toContain('Все заказы');
+  });
+
+  it('хлебные крошки показываются, только если их передали', () => {
+    // Крошки нужны не везде: в кабинете менеджера заказ открывается из списка,
+    // а из карточки организации — с цепочкой. Пустой список не должен рисовать
+    // пустую полосу над заголовком.
+    const withCrumbs = renderToString(
+      React.createElement(ManagerOrderDetailView, {
+        data: makeData({}),
+        backHref: '/manager/orders',
+        directions: [],
+        students: [],
+        breadcrumbs: [{ href: '/manager/organizations/g1', label: 'ООО Ромашка' }]
+      })
+    );
+    expect(withCrumbs).toContain('ООО Ромашка');
+
+    const without = renderToString(
+      React.createElement(ManagerOrderDetailView, {
+        data: makeData({}),
+        backHref: '/manager/orders',
+        directions: [],
+        students: []
+      })
+    );
+    expect(without).not.toContain('ООО Ромашка');
+  });
+
+  it('панель рабочего статуса монтируется, только когда её данные переданы', () => {
+    // §10 ТЗ v0.5: у заявки один видимый статус — из справочника. Панель
+    // появляется, лишь если сервер отдал по ней данные.
+    const withPanel = renderToString(
+      React.createElement(ManagerOrderDetailView, {
+        data: makeData({}),
+        backHref: '/manager/orders',
+        directions: [],
+        students: [],
+        statusPanel: { current: null, forward: [], backward: [], terminal: null, history: [] }
+      })
+    );
+    expect(withPanel).toContain('status-panel');
+
+    const withoutPanel = renderToString(
+      React.createElement(ManagerOrderDetailView, {
+        data: makeData({}),
+        backHref: '/manager/orders',
+        directions: [],
+        students: []
+      })
+    );
+    expect(withoutPanel).not.toContain('status-panel');
   });
 
   it('documentRows count is shown in the "Документы" header when non-empty', () => {

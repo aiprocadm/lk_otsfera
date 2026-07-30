@@ -128,6 +128,24 @@ describe('OrderReadinessPanel', () => {
     expect(screen.getByText('Отметить работу согласованной')).toBeTruthy();
   });
 
+  it('отметка «согласовано» не прошла → видна ошибка, отметка не ставится', async () => {
+    // Экшен может отказать (заказ перевели, права изменились). Панель обязана
+    // сказать об этом вслух, а не молча притвориться, что отметка стоит.
+    approveDeliverablesAction.mockResolvedValue({ ok: false, error: 'forbidden' });
+    render(
+      React.createElement(OrderReadinessPanel, {
+        ...props,
+        serviceType: 'document_development',
+        readiness: { ready: false, gaps: ['deliverables_not_approved'], items: [] }
+      })
+    );
+    fireEvent.click(screen.getByText('Отметить работу согласованной'));
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toContain('Не удалось поставить отметку')
+    );
+    expect(screen.getByText('Отметить работу согласованной')).toBeTruthy();
+  });
+
   it('согласование уже стоит — кнопки отметки нет', () => {
     render(
       React.createElement(OrderReadinessPanel, {

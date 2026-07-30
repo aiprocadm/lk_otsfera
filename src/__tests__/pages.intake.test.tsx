@@ -86,6 +86,73 @@ describe('ManagerIntakePage', () => {
   });
 });
 
+describe('пагинация и фильтры из адреса — крайние случаи', () => {
+  it.each([
+    ['параметра нет вовсе', {}],
+    ['skip повторён (массив)', { skip: ['10', '20'] as unknown as string }],
+    ['skip не число', { skip: 'abc' }],
+    ['skip отрицательный', { skip: '-40' }]
+  ])('%s → первая страница, а не падение', async (_label, params) => {
+    // Адрес правят руками и присылают в мессенджерах. Любой мусор в ?skip=
+    // должен означать «первая страница», а не ошибку и не отрицательный сдвиг.
+    await renderServerComponent(ManagerIntakePage(sp(params)));
+    expect(listIntake).toHaveBeenCalledWith(expect.anything(), SESSION, { page: 1, pageSize: 50 });
+  });
+
+  it.each([
+    ['руководитель', 'leader'],
+    ['админ', 'admin']
+  ])('%s: мусор в ?skip= → первая страница', async (_label, who) => {
+    const page = who === 'leader' ? LeaderIntakePage : AdminIntakePage;
+    await renderServerComponent(page(sp({ skip: 'abc' })));
+    expect(listIntake).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ page: 1, pageSize: 50 })
+    );
+  });
+
+  it.each([
+    ['админ', 'admin'],
+    ['руководитель', 'leader']
+  ])('%s: ?assignee= повторён (массив) → трактуется как «все»', async (_label, who) => {
+    const page = who === 'admin' ? AdminIntakePage : LeaderIntakePage;
+    await renderServerComponent(page(sp({ assignee: ['m2', 'm3'] as unknown as string })));
+    expect(listIntake).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ assigneeId: null })
+    );
+  });
+
+  it('пустой ?assignee= у лидера означает «все», а не менеджера с пустым id', async () => {
+    await renderServerComponent(LeaderIntakePage(sp({ assignee: '' })));
+    expect(listIntake).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ managerRole: 'leader' }),
+      expect.objectContaining({ assigneeId: null })
+    );
+  });
+
+  it('админ: ?assignee=<id> сужает список до одного менеджера', async () => {
+    await renderServerComponent(AdminIntakePage(sp({ assignee: 'm2' })));
+    expect(listIntake).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ role: 'admin' }),
+      expect.objectContaining({ assigneeId: 'm2' })
+    );
+  });
+
+  it('пустой ?assignee= у админа означает «все»', async () => {
+    await renderServerComponent(AdminIntakePage(sp({ assignee: '' })));
+    expect(listIntake).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ role: 'admin' }),
+      expect.objectContaining({ assigneeId: null })
+    );
+  });
+});
+
 describe('LeaderIntakePage', () => {
   it('фильтры: только активные менеджеры; assignee/unassigned прокидываются', async () => {
     const { container } = await renderServerComponent(LeaderIntakePage(sp({ assignee: 'm2', unassigned: '1' })));
@@ -127,5 +194,17 @@ describe('AdminIntakePage', () => {
   it('сервис вернул forbidden → notFound', async () => {
     listIntake.mockResolvedValue({ ok: false, error: 'forbidden' });
     await expect(renderServerComponent(AdminIntakePage(sp()))).rejects.toThrow('NOT_FOUND');
+  });
+});
+
+describe('отказ сервиса в остальных кабинетах', () => {
+  it('менеджер: forbidden → notFound (а не пустая страница)', async () => {
+    listIntake.mockResolvedValue({ ok: false, error: 'forbidden' });
+    await expect(renderServerComponent(ManagerIntakePage(sp()))).rejects.toThrow('NOT_FOUND');
+  });
+
+  it('руководитель: forbidden → notFound', async () => {
+    listIntake.mockResolvedValue({ ok: false, error: 'forbidden' });
+    await expect(renderServerComponent(LeaderIntakePage(sp()))).rejects.toThrow('NOT_FOUND');
   });
 });

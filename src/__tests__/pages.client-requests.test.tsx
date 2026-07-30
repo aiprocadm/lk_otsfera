@@ -211,6 +211,20 @@ describe('PartnerRequestDetailPage (/partner/requests/[id])', () => {
     expect(container.textContent).toContain('Обучение ОТ');
     expect(container.textContent).toContain('скан.pdf');
   });
+  it('сбой листинга вложений деградирует в пустой список, страница открывается', async () => {
+    // Вложения — не главное на странице. Если их сервис отказал, заявка всё
+    // равно должна открыться (принцип §3: fan-out деградирует, а не роняет).
+    isFeatureEnabled.mockReturnValue(true);
+    auth.requirePartner.mockResolvedValue(PARTNER_SESSION);
+    svc.getClientRequest.mockResolvedValue({ ok: true, request: REQUEST });
+    listClientRequestAttachments.mockResolvedValue({ ok: false, error: 'NOT_FOUND', message: 'нет' });
+
+    const { container } = await renderServerComponent(PartnerRequestDetailPage(props('R1')));
+
+    const detail = container.querySelector('[data-testid="cr-detail"]');
+    expect(detail?.getAttribute('data-attachments')).toBe('0');
+    expect(container.textContent).toContain('Обучение ОТ');
+  });
 });
 
 describe('OrganizationRequestDetailPage (/organization/requests/[id])', () => {

@@ -105,6 +105,20 @@ describe('ManagerDealsPage', () => {
     expect(getByTestId('new-deal-button').getAttribute('data-user')).toBe('u1');
   });
 
+  it('сотрудник без компании: списки организаций и менеджеров пустые, БД не опрашивается', async () => {
+    // Компании в сессии может не быть (например, сотрудник ещё не привязан).
+    // Страница обязана открыться с пустыми списками, а не упасть на запросе
+    // «организации компании undefined».
+    isFeatureEnabled.mockReturnValue(true);
+    requireManager.mockResolvedValue({ ...MANAGER_SESSION, companyId: null });
+
+    const { getByTestId } = await renderServerComponent(ManagerDealsPage());
+
+    expect(prismaMock.organization.findMany).not.toHaveBeenCalled();
+    expect(listCompanyManagers).not.toHaveBeenCalled();
+    expect(getByTestId('new-deal-button').textContent).not.toContain('Иван');
+  });
+
   it('a requireManager rejection (non-staff viewer) propagates — the page never renders', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManager.mockRejectedValue(new Error('REDIRECT'));
@@ -162,6 +176,16 @@ describe('LeaderDealsPage', () => {
     const { getByTestId } = await renderLeader();
 
     expect(getByTestId('stage-config').textContent).toBe('false');
+  });
+
+  it('руководитель без компании: списки пустые, БД не опрашивается', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManagerLeader.mockResolvedValue({ ...LEADER_SESSION, companyId: null });
+
+    await renderServerComponent(LeaderDealsPage({ searchParams: Promise.resolve({}) }));
+
+    expect(prismaMock.organization.findMany).not.toHaveBeenCalled();
+    expect(listCompanyManagers).not.toHaveBeenCalled();
   });
 
   it('a requireManagerLeader rejection propagates — the page never renders', async () => {

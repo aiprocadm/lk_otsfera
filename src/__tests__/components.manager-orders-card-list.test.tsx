@@ -36,4 +36,17 @@ describe('ManagerOrdersCardList', () => {
     const html = renderToString(React.createElement(ManagerOrdersCardList, { rows: [rowNoNumber as never], basePath: '/manager' }));
     expect(html).toContain('—');
   });
+  it('заявка без статуса из справочника → бейдж «Без статуса»', () => {
+    // Статуса может не быть: заявка создана до справочника (§10) или её статус
+    // деактивировали. Показываем честное «Без статуса», а не пустой бейдж.
+    const noStatus = { ...row, statusDefinition: null };
+    const html = renderToString(React.createElement(ManagerOrdersCardList, { rows: [noStatus as never], basePath: '/manager' }));
+    expect(html).toContain('Без статуса');
+  });
+
+  it('терминальный статус («Отменена») выделяется предупреждающим тоном', () => {
+    const terminal = { ...row, statusDefinition: { id: 'st-x', label: 'Отменена', isTerminal: true } };
+    const html = renderToString(React.createElement(ManagerOrdersCardList, { rows: [terminal as never], basePath: '/manager' }));
+    expect(html).toContain('Отменена');
+  });
 });

@@ -105,6 +105,21 @@ describe('AppShell', () => {
     expect(html).toContain('data-button-class="hover:bg-white/10"');
   });
 
+  it('«Задать вопрос» показывается партнёру только при включённом флаге', async () => {
+    // cabinet_questions включают явно (staged rollout). Кнопка предназначена
+    // клиентским ролям кабинета — партнёру, и только когда функция раскатана.
+    getSession.mockResolvedValue({ sub: 'u5', role: 'partner', name: 'P', partnerRole: null });
+    const prev = process.env.FEATURE_CABINET_QUESTIONS;
+    process.env.FEATURE_CABINET_QUESTIONS = '1';
+    try {
+      const html = renderToString(await AppShell({ children: 'c' }));
+      expect(html).toContain('Задать вопрос');
+    } finally {
+      if (prev === undefined) delete process.env.FEATURE_CABINET_QUESTIONS;
+      else process.env.FEATURE_CABINET_QUESTIONS = prev;
+    }
+  });
+
   it('non-partner session (student fallback of /student) does not render NotificationBell', async () => {
     getSession.mockResolvedValue({ sub: 'u6', role: 'student', name: 'S' });
 

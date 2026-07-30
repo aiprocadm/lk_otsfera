@@ -78,6 +78,34 @@ describe('OrgAppShell', () => {
     expect(html).toContain('data-role="organization"');
   });
 
+  it.each([
+    ['выключен', undefined, false],
+    ['включён', '1', true]
+  ])('кнопка «Задать вопрос»: флаг %s → показана=%s', (_label, envValue, expected) => {
+    // cabinet_questions — флаг с явным включением (по умолчанию выключен,
+    // staged rollout). Шапка обязана оставаться рабочей в обоих состояниях.
+    const prev = process.env.FEATURE_CABINET_QUESTIONS;
+    if (envValue === undefined) delete process.env.FEATURE_CABINET_QUESTIONS;
+    else process.env.FEATURE_CABINET_QUESTIONS = envValue as string;
+    try {
+      const html = renderToString(
+        renderShell({
+          userEmail: 'org@example.com',
+          activeOrgName: 'ООО Заря',
+          memberships: MEMBERSHIPS,
+          activeOrgId: 'org-A',
+          viewerRole: 'admin',
+          children: null
+        })
+      );
+      expect(html.includes('Задать вопрос')).toBe(expected);
+      expect(html).toContain('Выйти');
+    } finally {
+      if (prev === undefined) delete process.env.FEATURE_CABINET_QUESTIONS;
+      else process.env.FEATURE_CABINET_QUESTIONS = prev;
+    }
+  });
+
   it('omits the email span when userEmail is null/undefined', () => {
     const html = renderToString(
       renderShell({

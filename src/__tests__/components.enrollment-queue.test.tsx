@@ -138,6 +138,17 @@ describe('EnrollmentQueue', () => {
     expect(screen.getByText(/3 слушателя — показать/)).toBeTruthy();
   });
 
+  it('заявка без имени первого слушателя показывает прочерк, а не пустую строку', () => {
+    // Имя может отсутствовать: заявка старого формата или позиции ещё не
+    // заполнены. Строка очереди обязана остаться кликабельной и читаемой.
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [row({ firstStudentName: null, studentCount: 1 })]
+      })
+    );
+    expect(screen.getByText('—')).toBeTruthy();
+  });
+
   it('pending row shows Утвердить + Отклонить, but not Зачислены', () => {
     render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'pending' })] }));
     expect(screen.getByRole('button', { name: 'Утвердить' })).toBeTruthy();

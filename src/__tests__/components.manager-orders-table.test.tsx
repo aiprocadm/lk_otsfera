@@ -105,4 +105,21 @@ describe('ManagerOrdersTable', () => {
     );
     expect(html).not.toContain('Дальше');
   });
+  it('заявка без статуса из справочника → бейдж «Без статуса»', () => {
+    // Статуса может не быть: заявка создана до справочника (§10) или её статус
+    // деактивировали. Показываем честное «Без статуса», а не пустой бейдж.
+    const rows = [makeRow({ statusDefinition: null } as never)];
+    const html = renderToString(
+      React.createElement(ManagerOrdersTable, { rows, nextCursor: null, searchParams: {} })
+    );
+    expect(html).toContain('Без статуса');
+  });
+
+  it('терминальный статус («Отменена») выделяется предупреждающим тоном', () => {
+    const rows = [makeRow({ statusDefinition: { id: 'st-x', label: 'Отменена', isTerminal: true } } as never)];
+    const html = renderToString(
+      React.createElement(ManagerOrdersTable, { rows, nextCursor: null, searchParams: {} })
+    );
+    expect(html).toContain('Отменена');
+  });
 });

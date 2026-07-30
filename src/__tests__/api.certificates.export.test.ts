@@ -105,6 +105,19 @@ describe('GET /api/partner/certificates/export', () => {
     expect(listCertificates).not.toHaveBeenCalled();
   });
 
+  it('партнёрская выгрузка без фильтров: пустые query-параметры не уходят в сервис', async () => {
+    // Пустой параметр в адресе (?organization=) означает «все», а не поиск
+    // организации с пустым названием. И незнакомый статус тоже игнорируется.
+    getSession.mockResolvedValue(partnerSession);
+    await partnerExport(req('http://x/export?organization=&status=bogus'));
+    expect(listCertificates).toHaveBeenCalledWith({}, partnerSession, {
+      organizationId: undefined,
+      directionId: undefined,
+      status: undefined,
+      search: undefined
+    });
+  });
+
   it('успех: фильтр organization уходит в сервис, xlsx содержит колонку «Организация»', async () => {
     getSession.mockResolvedValue(partnerSession);
     const res = await partnerExport(req('http://x/export?organization=org1&status=expired'));
