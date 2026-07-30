@@ -91,8 +91,36 @@ describe('GenerateDocumentsPanel', () => {
     expect(toastSuccess).toHaveBeenCalledWith('Запрос реквизитов отправлен организации.');
   });
 
-  it('только company-недостающее — кнопки запроса нет; ошибка запроса → toast', async () => {
+  it('только company-недостающее — кнопки запроса нет', async () => {
     render(<GenerateDocumentsPanel orderId="ord-1" missing={[{ side: 'company', label: 'БИК исполнителя' }]} hasInvoice={false} />);
     expect(screen.queryByRole('button', { name: 'Запросить у клиента' })).toBeNull();
+  });
+
+  it('отказ запроса реквизитов показывается ошибкой, а не молчаливым успехом', async () => {
+    // Запрос уходит уведомлением клиенту. Если экшен отказал (заказ передали,
+    // права изменились), менеджер должен это увидеть — иначе он будет ждать
+    // реквизитов, которых никто не просил.
+    requestRequisitesAction.mockResolvedValue({ ok: false, error: 'not_found' });
+    render(
+      <GenerateDocumentsPanel
+        orderId="ord-1"
+        missing={[{ side: 'organization', label: 'ИНН заказчика' }]}
+        hasInvoice={false}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Запросить у клиента' }));
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось отправить запрос.'));
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('незнакомый код ошибки генерации → общий русский текст', async () => {
+    // У панели свой словарь понятных сообщений. Новый код из сервиса не должен
+    // оставлять пользователя с пустым toast.
+    generateOrderDocumentAction.mockResolvedValue({ ok: false, error: 'quota_exceeded' });
+    render(<GenerateDocumentsPanel orderId="ord-1" missing={[]} hasInvoice={false} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Счёт' }));
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('Не удалось сформировать документ.')
+    );
   });
 });
