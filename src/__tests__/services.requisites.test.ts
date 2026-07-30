@@ -76,6 +76,57 @@ describe('организация (самообслуживание)', () => {
     expect(r).toEqual({ ok: false, error: 'validation', messages: ['Организация с таким ИНН уже существует'] });
   });
 
+  it('сессия вообще без членств и чужая роль → forbidden, БД не трогаем', async () => {
+    const noMemberships = { sub: 'u1', role: 'organization' } as never;
+    const { prisma, findUnique, update } = fake('organization');
+    expect(await getOrgRequisites(prisma, noMemberships, 'org-1')).toEqual({ ok: false, error: 'forbidden' });
+    expect(await setOrgRequisites(prisma, adminSession(), 'org-1', VALID)).toEqual({ ok: false, error: 'forbidden' });
+    expect(findUnique).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('без банковского счёта в аудит уходит null, а не обрезок пустой строки', async () => {
+    // В аудите хранится только хвост счёта. Если счёта нет вовсе, там должен
+    // быть null — иначе в журнале появится пустая строка, похожая на данные.
+    const { prisma } = fake('organization');
+    await setOrgRequisites(prisma, orgMember('admin'), 'org-1', { legalName: 'ООО Тест', inn: '7707083893' });
+    expect(recordAuditMock.mock.calls[0]![1].after.bankAccountTail).toBeNull();
+
+    recordAuditMock.mockReset();
+    const pt = fake('partner');
+    await setPartnerRequisites(pt.prisma, partnerSession('admin'), { legalName: 'ООО Тест', inn: '7707083893' });
+    expect(recordAuditMock.mock.calls[0]![1].after.bankAccountTail).toBeNull();
+  });
+
+  it('организация: чтение при отсутствии карточки → not_found; не-P2002 ошибка пробрасывается', async () => {
+    const gone = fake('organization', null);
+    expect(await getOrgRequisites(gone.prisma, orgMember('admin'), 'org-1')).toEqual({
+      ok: false,
+      error: 'not_found'
+    });
+
+    const broken = fake('organization');
+    broken.update.mockRejectedValue(new Error('connection reset'));
+    await expect(setOrgRequisites(broken.prisma, orgMember('admin'), 'org-1', VALID)).rejects.toThrow(
+      'connection reset'
+    );
+  });
+
+  it('членство неактивно → forbidden, будто организации нет', async () => {
+    // Сотрудника отключили от организации, но сессия ещё жива. Он не должен
+    // ни увидеть реквизиты, ни тем более их поменять.
+    const inactive = {
+      sub: 'u1',
+      role: 'organization',
+      organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'admin', isActive: false }]
+    } as never;
+    const { prisma, findUnique, update } = fake('organization');
+    expect(await getOrgRequisites(prisma, inactive, 'org-1')).toEqual({ ok: false, error: 'forbidden' });
+    expect(await setOrgRequisites(prisma, inactive, 'org-1', VALID)).toEqual({ ok: false, error: 'forbidden' });
+    expect(findUnique).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it('not_found когда организации нет', async () => {
     const { prisma } = fake('organization', null);
     expect(await setOrgRequisites(prisma, orgMember('admin'), 'org-1', VALID)).toEqual({ ok: false, error: 'not_found' });
@@ -89,6 +140,51 @@ describe('партнёр (самообслуживание)', () => {
     expect(await setPartnerRequisites(prisma, partnerSession('manager'), VALID)).toEqual({ ok: false, error: 'forbidden' });
     expect((await setPartnerRequisites(prisma, partnerSession('admin'), VALID)).ok).toBe(true);
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'pt-1' } }));
+  });
+
+  it('партнёра нет в базе → not_found и при чтении, и при записи', async () => {
+    // Партнёра могли удалить, пока сессия жива. Тогда сервис обязан честно
+    // сказать «не найдено», а не создать реквизиты у несуществующего партнёра.
+    const gone = fake('partner', null);
+    expect(await getPartnerRequisites(gone.prisma, partnerSession('manager'))).toEqual({
+      ok: false,
+      error: 'not_found'
+    });
+    expect(await setPartnerRequisites(gone.prisma, partnerSession('admin'), VALID)).toEqual({
+      ok: false,
+      error: 'not_found'
+    });
+    expect(gone.update).not.toHaveBeenCalled();
+  });
+
+  it('кривые реквизиты партнёра → validation с причинами, запись не идёт', async () => {
+    const { prisma, update } = fake('partner');
+    const res = await setPartnerRequisites(prisma, partnerSession('admin'), { ...VALID, ogrn: '123' });
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.error).toBe('validation');
+    expect(res.messages).toEqual(['ОГРН должен содержать 13 цифр (или 15 для ИП)']);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('не-партнёрская роль и партнёр без partnerId → forbidden до запроса в БД', async () => {
+    const { prisma, findUnique } = fake('partner');
+    expect(await setPartnerRequisites(prisma, adminSession(), VALID)).toEqual({ ok: false, error: 'forbidden' });
+    expect(
+      await getPartnerRequisites(prisma, { sub: 'u', role: 'partner' } as never)
+    ).toEqual({ ok: false, error: 'forbidden' });
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+
+  it('не-P2002 ошибка базы пробрасывается наружу, а не маскируется валидацией', async () => {
+    // Понятное сообщение мы придумываем только для дубля ИНН. Любая другая
+    // ошибка базы должна дойти до логов и мониторинга, а не превратиться в
+    // «проверьте реквизиты» — иначе сбой хранилища останется незамеченным.
+    const broken = fake('partner');
+    broken.update.mockRejectedValue(new Error('connection reset'));
+    await expect(setPartnerRequisites(broken.prisma, partnerSession('admin'), VALID)).rejects.toThrow(
+      'connection reset'
+    );
   });
 
   it('P2002 → русская валидация; клиентская организация → forbidden', async () => {
