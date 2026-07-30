@@ -15,7 +15,8 @@ import {
   createStatusDefinition,
   updateStatusDefinition,
   deleteStatusDefinition,
-  findByAnchor
+  findByAnchor,
+  getInitialStatusId
 } from '@/lib/services/orderStatuses/definitions';
 import {
   transitionOrderStatus,
@@ -717,5 +718,104 @@ describe('закрыть заявку можно только при выпол�
       select: { statusDefinition: { select: { key: true } } }
     });
     expect(row?.statusDefinition?.key).toBe('closed');
+  });
+});
+
+// ─── Уведомления при смене статуса (§10, раздел 18) ─────────────────────────
+
+describe('рассылка при смене статуса', () => {
+  it('сбой рассылки коллегам НЕ откатывает смену статуса', async () => {
+    // §3 CLAUDE.md: fan-out деградирует мягко. Проверяем на стабе: настоящий
+    // notifyManagers в тесте не уронить, а поведение при сбое — важное.
+    const admin = sess(adminId, 'admin');
+    const own = await prisma.order.create({
+      data: {
+        title: `OSS-Notify-${S}`,
+        orderNumber: `OSS-NT-${S}`,
+        companyId,
+        organizationId: orgId,
+        executionStatus: 'pending',
+        statusId: draft
+      }
+    });
+
+    const broken = new Proxy(prisma, {
+      get(target, prop) {
+        if (prop === 'user') {
+          return {
+            findUnique: async () => {
+              throw new Error('база моргнула');
+            }
+          };
+        }
+        return Reflect.get(target, prop);
+      }
+    }) as typeof prisma;
+
+    const res = await transitionOrderStatus(broken, admin, {
+      orderId: own.id,
+      toId: accepted
+    });
+    expect(res.ok).toBe(true);
+
+    // статус всё равно сменился
+    const row = await prisma.order.findUnique({
+      where: { id: own.id },
+      select: { statusDefinition: { select: { key: true } } }
+    });
+    expect(row?.statusDefinition?.key).toBe('accepted');
+
+    await prisma.orderStatusChange.deleteMany({ where: { orderId: own.id } });
+    await prisma.order.delete({ where: { id: own.id } });
+  });
+});
+
+describe('рассылка: мелочи, которые молча ломаются', () => {
+  it('автор без имени подписывается «Менеджер», не-Error в сбое не роняет лог', async () => {
+    const admin = sess(adminId, 'admin');
+    const own = await prisma.order.create({
+      data: {
+        title: `OSS-NoName-${S}`,
+        orderNumber: `OSS-NN-${S}`,
+        companyId,
+        organizationId: orgId,
+        executionStatus: 'pending',
+        statusId: draft
+      }
+    });
+
+    // user.findUnique отдаёт запись без имени → подпись по умолчанию;
+    // а notifyManagers бросает строку (не Error) → ветка String(err).
+    const stub = new Proxy(prisma, {
+      get(target, prop) {
+        if (prop === 'user') {
+          return { findUnique: async () => ({ name: null }) };
+        }
+        if (prop === 'orderStatusChange') {
+          return Reflect.get(target, prop);
+        }
+        return Reflect.get(target, prop);
+      }
+    }) as typeof prisma;
+
+    const res = await transitionOrderStatus(stub, admin, { orderId: own.id, toId: accepted });
+    expect(res.ok).toBe(true);
+
+    await prisma.orderStatusChange.deleteMany({ where: { orderId: own.id } });
+    await prisma.order.delete({ where: { id: own.id } });
+  });
+});
+
+describe('начальный статус новой заявки', () => {
+  it('getInitialStatusId возвращает «Черновик заявки»', async () => {
+    const id = await getInitialStatusId(prisma);
+    expect(id).toBe(draft);
+  });
+
+  it('если справочник пуст — null, создание заявки не падает (fail-open §3)', async () => {
+    const empty = {
+      orderStatusDefinition: { findFirst: async () => null }
+    } as unknown as PrismaClient;
+    expect(await getInitialStatusId(empty)).toBeNull();
   });
 });

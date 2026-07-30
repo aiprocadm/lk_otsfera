@@ -15,7 +15,10 @@ vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/services/customFields', () => ({ setValues }));
 
-import { saveOrderCustomFieldsAction } from '@/server-actions/customFields';
+import {
+  saveOrderCustomFieldsAction,
+  saveCustomFieldsAction
+} from '@/server-actions/customFields';
 
 const SESSION = { sub: 'mgr-1', role: 'manager', companyId: 'c1', managedOrgIds: [] };
 const VALUES: Record<string, string | null> = { 'def-1': 'hello', 'def-2': null };
@@ -89,5 +92,30 @@ describe('saveOrderCustomFieldsAction — session delegation', () => {
 
     await saveOrderCustomFieldsAction('order-1', {});
     expect(setValues).toHaveBeenCalledWith(expect.anything(), adminSession, 'order', 'order-1', {});
+  });
+});
+
+describe('saveCustomFieldsAction — пути освежения для всех пяти сущностей', () => {
+  // У каждой сущности свой набор путей: заявка живёт в трёх кабинетах,
+  // сотрудник в двух, партнёр и документ — в админском. Без этой проверки
+  // построители путей четырёх сущностей не исполнялись ни одним тестом
+  // (найдено полным прогоном покрытия 30.07.2026 — метрика «функции»).
+  it.each([
+    ['organization', '/admin/organizations/e1'],
+    ['partner', '/admin/partners/e1'],
+    ['student', '/manager/students/e1'],
+    ['document', '/admin/documents/e1']
+  ])('%s освежает свою карточку', async (entity, expectedPath) => {
+    setValues.mockResolvedValue({ ok: true });
+    revalidatePath.mockClear();
+
+    const res = await saveCustomFieldsAction(
+      entity as 'organization',
+      'e1',
+      { d1: 'x' }
+    );
+
+    expect(res).toEqual({ ok: true });
+    expect(revalidatePath.mock.calls.map((c) => c[0])).toContain(expectedPath);
   });
 });

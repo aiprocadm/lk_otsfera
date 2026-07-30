@@ -249,3 +249,28 @@ describe('OrderStatusPanel — переходы', () => {
     expect(transitionOrderStatusAction).not.toHaveBeenCalled();
   });
 });
+
+describe('OrderStatusPanel — закрытие окна отмены', () => {
+  it('Escape закрывает окно, статус не меняется', async () => {
+    render(
+      <OrderStatusPanel
+        orderId='o7'
+        current={{ id: 'a', label: 'Принято в работу', isTerminal: false }}
+        forward={[]}
+        backward={[]}
+        terminal={OPT('x', 'Отменена', { isTerminal: true })}
+        history={[]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отменена' }));
+    const dialog = document.querySelector('dialog[open]') as HTMLDialogElement;
+
+    // Нативный <dialog> сам шлёт `cancel` по Escape — компонент обязан на него
+    // отреагировать своим onClose (проверка метрики «функции», 30.07.2026).
+    fireEvent(dialog, new Event('cancel', { bubbles: false, cancelable: true }));
+
+    await waitFor(() => expect(HTMLDialogElement.prototype.close).toHaveBeenCalled());
+    expect(transitionOrderStatusAction).not.toHaveBeenCalled();
+  });
+});

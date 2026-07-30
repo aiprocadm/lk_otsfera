@@ -176,4 +176,8 @@ describe('карточка организации — руководитель �
   it('обычный менеджер без закрепления по-прежнему не видит', async () => {
     expect(await getOrganizationCard(prisma, mBSession(), orgB)).toBeNull();
   });
+
+  it('несуществующая организация — null, а не падение', async () => {
+    expect(await getOrganizationCard(prisma, leaderSession(), 'нет-такой-id')).toBeNull();
+  });
 });
