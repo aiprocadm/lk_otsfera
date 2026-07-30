@@ -428,6 +428,33 @@ describe('resendInvite — режимы письма и аудит', () => {
     );
   });
 
+  it('адрес кабинета берётся из настройки, иначе — боевой домен', async () => {
+    // Ссылка приглашения уходит человеку в письме. Если переменная окружения
+    // пустая, подставляем боевой адрес, а не пустую строку — иначе ссылка
+    // будет битой.
+    const prev = process.env.APP_URL;
+    process.env.APP_URL = '   ';
+    try {
+      const { prisma } = makePrisma(makeTarget());
+      const res = await resendInvite(prisma, ADMIN, { userId: 'u-t' });
+      expect(res).toMatchObject({ ok: true });
+      if (!res.ok) return;
+      expect(res.inviteUrl.startsWith('https://lk.otsfera.ru')).toBe(true);
+    } finally {
+      if (prev === undefined) delete process.env.APP_URL;
+      else process.env.APP_URL = prev;
+    }
+  });
+
+  it('сбой отправки не-Error значением тоже проглатывается', async () => {
+    sendMocks.sendPartnerInviteEmail.mockRejectedValue('smtp closed');
+    const { prisma } = makePrisma(makeTarget());
+    expect(await resendInvite(prisma, ADMIN, { userId: 'u-t' })).toMatchObject({
+      ok: true,
+      emailStatus: 'skipped'
+    });
+  });
+
   it("сбой отправки письма проглатывается: ok:true, emailStatus='skipped'", async () => {
     sendMocks.sendPartnerInviteEmail.mockRejectedValue(new Error('smtp down'));
     const { prisma } = makePrisma(makeTarget());
@@ -446,6 +473,35 @@ describe('resendInvite — режимы письма и аудит', () => {
     expect(await resendInvite(prisma, ADMIN, { userId: 'u-t' })).toMatchObject({
       ok: true,
       emailStatus: 'skipped'
+    });
+  });
+
+  it.each([
+    ['organization', 'sendOrgInviteEmail'],
+    ['manager', 'sendManagerInviteEmail'],
+    ['student', 'sendAdminUserInviteEmail']
+  ])("выключенная отправка писем: роль %s → emailStatus='skipped'", async (role, mockName) => {
+    // Транспорт отвечает «skipped», когда почта выключена настройкой. Это не
+    // ошибка: приглашение выпущено, ссылку отдадут вручную. Проверка нужна для
+    // каждой ветки шаблона — иначе где-нибудь останется 'sent' при выключенной
+    // почте, и человек будет ждать письма, которого нет.
+    (sendMocks as Record<string, ReturnType<typeof vi.fn>>)[mockName].mockResolvedValue({
+      status: 'skipped',
+      reason: 'disabled'
+    });
+    const { prisma } = makePrisma(makeTarget({ role }));
+    expect(await resendInvite(prisma, ADMIN, { userId: 'u-t' })).toMatchObject({
+      ok: true,
+      emailStatus: 'skipped'
+    });
+  });
+
+  it('организация-актёр без членств вовсе → forbidden, БД не опрашивается', async () => {
+    const noMemberships = { sub: 'a', role: 'organization' } as never;
+    const { prisma } = makePrisma(makeTarget({ role: 'organization' }));
+    expect(await resendInvite(prisma, noMemberships, { userId: 'u-t' })).toMatchObject({
+      ok: false,
+      error: 'forbidden'
     });
   });
 

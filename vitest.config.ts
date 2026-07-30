@@ -146,12 +146,14 @@ export default defineConfig(({ mode }) => ({
       ...(mode !== 'unit' && mode !== 'integration'
         ? {
             thresholds: {
-              'src/lib/**/!(*.tsx)': { lines: 99.61, branches: 99.03, functions: 99.73, statements: 99.61 },
+              'src/lib/**/!(*.tsx)': { lines: 99.63, branches: 99.2, functions: 99.73, statements: 99.63 },
               // Ф1: закрыт `server-actions/manager/create-lead.ts` (был 0%) — набор вышел
               // на 100% по строкам/операторам/функциям, остались только ветки.
-              'src/server-actions/**': { lines: 100, branches: 98.35, functions: 100, statements: 100 },
+              'src/server-actions/**': { lines: 100, branches: 99.58, functions: 100, statements: 100 },
               'src/app/api/**': { lines: 99.93, branches: 99.87, functions: 100, statements: 99.93 },
-              'src/worker/**': { lines: 99.45, branches: 97.83, functions: 97.87, statements: 99.45 },
+              // Ф3: набор закрыт ПОЛНОСТЬЮ и честно — 100% по всем метрикам
+              // (последними легли processors/{scan-document,sla-escalation,calendar-reminder}).
+              'src/worker/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
               'src/middleware.ts': { lines: 100, branches: 100, functions: 100, statements: 100 },
               // PHASE-2 (трек E): render-хуки + email-шаблоны под render-харнессом
               // (jsdom + @testing-library, per-file `// @vitest-environment jsdom` для

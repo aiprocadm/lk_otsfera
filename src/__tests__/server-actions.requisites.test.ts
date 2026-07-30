@@ -88,6 +88,42 @@ describe('requisites actions', () => {
     expect(await setCompanyRequisitesAction(form({}))).toEqual({ ok: false, error: 'validation' });
   });
 
+  it('отказ сервиса не ревалидирует страницу ни в одном из вариантов', async () => {
+    // Ревалидация — это сброс кэша страницы. Делать его после неудачной записи
+    // бессмысленно и вредно: пользователь увидит «обновлённую» страницу со
+    // старыми данными и решит, что сохранение прошло.
+    setPartnerRequisites.mockResolvedValue({ ok: false, error: 'forbidden' });
+    expect(await setPartnerRequisitesAction(form({}))).toEqual({ ok: false, error: 'forbidden' });
+
+    setCompanyRequisites.mockResolvedValue({ ok: false, error: 'not_found' });
+    expect(await setCompanyRequisitesAction(form({ companyId: 'c1' }))).toEqual({ ok: false, error: 'not_found' });
+
+    setOrgRequisitesByAdmin.mockResolvedValue({ ok: false, error: 'forbidden' });
+    expect(await setOrgRequisitesByAdminAction(form({ orgId: 'o1' }))).toEqual({ ok: false, error: 'forbidden' });
+
+    setPartnerRequisitesByAdmin.mockResolvedValue({ ok: false, error: 'validation', messages: ['БИК'] });
+    expect(await setPartnerRequisitesByAdminAction(form({ partnerId: 'p1' }))).toEqual({
+      ok: false,
+      error: 'validation',
+      messages: ['БИК']
+    });
+
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('пустые телефон и почта компании превращаются в null, а не в пустые строки', async () => {
+    // Пустая строка в базе — это «есть значение, но пустое»; в шапке документов
+    // из-за неё появится висящий разделитель. Нужен именно null.
+    setCompanyRequisites.mockResolvedValue({ ok: true });
+    await setCompanyRequisitesAction(form({ companyId: 'c1', phone: '', email: '' }));
+    expect(setCompanyRequisites).toHaveBeenCalledWith(
+      {},
+      SESSION,
+      'c1',
+      expect.objectContaining({ phone: null, email: null })
+    );
+  });
+
   it('admin-варианты: orgId/partnerId обязательны, ревалидируют карточки', async () => {
     setOrgRequisitesByAdmin.mockResolvedValue({ ok: true });
     await setOrgRequisitesByAdminAction(form({ orgId: 'org-9' }));
