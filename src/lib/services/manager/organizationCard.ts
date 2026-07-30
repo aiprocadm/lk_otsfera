@@ -243,6 +243,11 @@ export async function getOrganizationCard(
     }
   ]);
 
+  // Причина ignore: listCertificates не возвращает ошибок для read-скоупа —
+  // запасная ветка недостижима, оставлена ради полноты Result-типа.
+  /* v8 ignore next */
+  const certificateRows = certificatesRes.ok ? certificatesRes.certificates : [];
+
   return {
     id: org.id,
     name: org.name,
@@ -300,17 +305,15 @@ export async function getOrganizationCard(
       id: r.id, subject: r.subject, status: r.status, rejectedReason: r.rejectedReason, createdAt: r.createdAt
     })),
     leads: leads.map((l) => ({ id: l.id, subject: l.subject, status: l.status, createdAt: l.createdAt })),
-    certificates: certificatesRes.ok
-      ? certificatesRes.certificates.map((c) => ({
-          id: c.id,
-          number: c.number,
-          studentName: c.student.name,
-          directionName: c.direction.name,
-          issuedAt: c.issuedAt,
-          validUntil: c.validUntil,
-          hasScan: c.documentId != null
-        }))
-      : /* v8 ignore next -- listCertificates не возвращает ошибок для read-скоупа */ [],
+    certificates: certificateRows.map((c) => ({
+      id: c.id,
+      number: c.number,
+      studentName: c.student.name,
+      directionName: c.direction.name,
+      issuedAt: c.issuedAt,
+      validUntil: c.validUntil,
+      hasScan: c.documentId != null
+    })),
     deals: deals.map((d) => ({
       id: d.id, title: d.title, status: d.status, amount: d.amount ? d.amount.toFixed(2) : null, createdAt: d.createdAt
     })),

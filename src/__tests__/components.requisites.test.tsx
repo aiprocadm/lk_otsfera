@@ -73,6 +73,21 @@ describe('RequisitesFields', () => {
     expect((screen.getByLabelText('ИНН') as HTMLInputElement).value).toBe('123');
   });
 
+  it('пустые defaults: все поля стартуют пустыми, банк без «null»', () => {
+    render(
+      <RequisitesFields
+        defaults={{
+          legalName: null, inn: null, kpp: null, ogrn: null, legalAddress: null,
+          bankName: null, bankAccount: null, corrAccount: null, bic: null,
+          signerName: null, signerPosition: null, signerBasis: null
+        }}
+        idPrefix="e"
+      />
+    );
+    expect((screen.getByLabelText('Банк') as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('ИНН') as HTMLInputElement).value).toBe('');
+  });
+
   it('каждое поле правится руками после автозаполнения', () => {
     // Подсказка ДаДаты может ошибиться или устареть — человек обязан иметь
     // возможность поправить любое поле вручную. Если бы обработчик ввода
