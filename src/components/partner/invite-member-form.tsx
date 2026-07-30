@@ -53,9 +53,10 @@ export function InviteMemberForm({
   }
 
   async function copyInvite() {
-    /* v8 ignore next -- недостижимо: кнопка «Скопировать» рендерится только внутри
-       ветки `invite ? …`, поэтому к моменту клика приглашение всегда есть. Строка
-       оставлена ради сужения типа для TS (invite: Invite | null) — удалить нельзя. */
+    // Причина ignore: недостижимо — кнопка «Скопировать» рендерится только внутри
+    // ветки `invite ? …`, поэтому к моменту клика приглашение всегда есть. Строка
+    // оставлена ради сужения типа (invite: Invite | null) — удалить нельзя.
+    /* v8 ignore next */
     if (!invite) return;
     try {
       await navigator.clipboard.writeText(invite.inviteUrl);

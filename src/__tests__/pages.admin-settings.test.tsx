@@ -85,6 +85,48 @@ describe('AdminSettingsPage', () => {
     expect(container.textContent).toContain('на странице «Интеграции»');
   });
 
+  it('карточка реквизитов на каждую компанию с телефоном и почтой для шапки документов', async () => {
+    // Реквизиты компании-исполнителя уходят в шапку счетов и актов. Если
+    // карточка не отрисуется, заполнить их будет негде.
+    requireAdmin.mockResolvedValue(SESSION);
+    getTelegramStatus.mockResolvedValue({ linked: true });
+    getNotificationSettings.mockResolvedValue({ view: { email: true } });
+    listCompaniesRequisites.mockResolvedValue({
+      ok: true,
+      companies: [
+        {
+          id: 'c1', name: 'Промтехносфера', legalName: 'ООО ПТС', inn: '7707083893', kpp: null, ogrn: null,
+          legalAddress: null, bankName: null, bankAccount: null, corrAccount: null, bic: null,
+          signerName: null, signerPosition: null, signerBasis: null, phone: '+7 495 000-00-00', email: 'doc@pts.ru'
+        }
+      ]
+    });
+
+    const { container } = await renderServerComponent(AdminSettingsPage());
+
+    // RequisitesCard замокан (рендерит только title), но JSX-дети — поля
+    // телефона/почты — создаются страницей в любом случае.
+    expect(container.textContent).toContain('Реквизиты исполнителя: Промтехносфера');
+  });
+
+  it('компания без телефона и почты не роняет страницу (пустые значения, не «null»)', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getTelegramStatus.mockResolvedValue({ linked: true });
+    getNotificationSettings.mockResolvedValue({ view: { email: true } });
+    listCompaniesRequisites.mockResolvedValue({
+      ok: true,
+      companies: [
+        {
+          id: 'c2', name: 'Вторая', legalName: null, inn: null, kpp: null, ogrn: null,
+          legalAddress: null, bankName: null, bankAccount: null, corrAccount: null, bic: null,
+          signerName: null, signerPosition: null, signerBasis: null, phone: null, email: null
+        }
+      ]
+    });
+    const { container } = await renderServerComponent(AdminSettingsPage());
+    expect(container.textContent).toContain('Реквизиты исполнителя: Вторая');
+  });
+
   it('shows the backup-codes section when staff_2fa is enabled', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getTelegramStatus.mockResolvedValue({ linked: true });

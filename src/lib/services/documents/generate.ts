@@ -81,6 +81,10 @@ function party(row: {
   email?: string | null;
 }): PartyBlock {
   return {
+    // Причина ignore: хвост `|| ''` недостижим — listMissingRequisites выше
+    // требует юр. название исполнителя и (юр. или рабочее) название заказчика,
+    // поэтому к моменту сборки блока имя всегда есть. Хвост оставлен ради типа.
+    /* v8 ignore next */
     displayName: row.legalName?.trim() || row.name?.trim() || '',
     inn: row.inn,
     kpp: row.kpp,

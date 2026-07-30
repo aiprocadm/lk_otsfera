@@ -203,6 +203,74 @@ describe('notifyOrgUsers', () => {
     expect(n!.body).toContain('in_progress');
   });
 
+  it('requisites_requested: список недостающего и ссылка на настройки кабинета', async () => {
+    // Уведомление — единственный сигнал клиенту, что без его реквизитов
+    // документы не сформируются. В тексте должен быть конкретный список.
+    const summary = await notifyOrgUsers(prisma, {
+      organizationId: orgAId,
+      type: 'requisites_requested',
+      payload: {
+        orderId,
+        orderNumber: 'ORD-004',
+        orderTitle: 'NotifyOrg-Test',
+        missingLabels: ['ИНН заказчика', 'юр. адрес заказчика']
+      }
+    });
+    expect(summary.recipientsNotified).toBe(2);
+
+    const n = await prisma.notification.findFirst({
+      where: { organizationId: orgAId, type: 'requisites_requested' }
+    });
+    expect(n).not.toBeNull();
+    expect(n!.title).toContain('Заполните реквизиты');
+    expect(n!.body).toContain('ИНН заказчика');
+    expect(n!.body).toContain('юр. адрес заказчика');
+    expect(n!.body).toContain('NotifyOrg-Test'); // название заказа в тексте
+    expect((n!.meta as { url?: string }).url).toBe('/organization/settings');
+  });
+
+  it('requisites_requested без привязки к заказу: текст без хвоста «по заказу»', async () => {
+    const summary = await notifyOrgUsers(prisma, {
+      organizationId: orgAId,
+      type: 'requisites_requested',
+      payload: { orderId: null, orderNumber: null, orderTitle: null, missingLabels: ['БИК'] }
+    });
+    expect(summary.recipientsNotified).toBe(2);
+    const n = await prisma.notification.findFirst({
+      where: { organizationId: orgAId, type: 'requisites_requested' },
+      orderBy: { createdAt: 'desc' }
+    });
+    expect(n!.body).not.toContain('по заказу');
+  });
+
+  it('order_result_delivered: обучение ведёт в «Удостоверения», документы — в заказ', async () => {
+    // Куда идти за результатом, зависит от типа услуги. Неправильная ссылка
+    // отправила бы клиента в пустой раздел.
+    await notifyOrgUsers(prisma, {
+      organizationId: orgAId,
+      type: 'order_result_delivered',
+      payload: { orderId, orderNumber: 'ORD-005', orderTitle: 'NotifyOrg-Test', serviceType: 'training' }
+    });
+    const training = await prisma.notification.findFirst({
+      where: { organizationId: orgAId, type: 'order_result_delivered' },
+      orderBy: { createdAt: 'desc' }
+    });
+    expect(training!.body).toContain('Удостоверения');
+    expect((training!.meta as { url?: string }).url).toBe('/organization/certificates');
+
+    await notifyOrgUsers(prisma, {
+      organizationId: orgAId,
+      type: 'order_result_delivered',
+      payload: { orderId, orderNumber: 'ORD-006', orderTitle: 'NotifyOrg-Test', serviceType: 'document_development' }
+    });
+    const docs = await prisma.notification.findFirst({
+      where: { organizationId: orgAId, type: 'order_result_delivered', body: { contains: 'документы' } },
+      orderBy: { createdAt: 'desc' }
+    });
+    expect(docs).not.toBeNull();
+    expect((docs!.meta as { url?: string }).url).toContain(`/organization/orders/${orderId}`);
+  });
+
   it('returns zero summary and creates nothing when organization does not exist', async () => {
     const summary = await notifyOrgUsers(prisma, {
       organizationId: 'org-does-not-exist',

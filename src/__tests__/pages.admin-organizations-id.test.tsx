@@ -152,6 +152,27 @@ describe('AdminOrganizationDetailPage', () => {
     expect(container.querySelector('[data-testid="managers-block"]')).not.toBeNull();
   });
 
+  it('карточка реквизитов появляется, когда реквизиты заведены', async () => {
+    // Здесь админ правит реквизиты заказчика для автогенерации документов.
+    // Без карточки их негде заполнить — а без них счёт и акт не собираются.
+    requireAdmin.mockResolvedValue(SESSION);
+    getOrganization.mockResolvedValue(ORG);
+    organizationFindUnique.mockResolvedValue(META);
+    getOrgRequisitesByAdmin.mockResolvedValue({
+      legalName: 'ООО Заказчик', inn: '7707083893', kpp: null, ogrn: null, legalAddress: null,
+      bankName: null, bankAccount: null, corrAccount: null, bic: null,
+      signerName: null, signerPosition: null, signerBasis: null
+    });
+
+    const { container } = await renderServerComponent(
+      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
+    );
+
+    expect(container.querySelector('[data-testid="requisites-card"]')?.textContent).toContain(
+      'Реквизиты для документов'
+    );
+  });
+
   it('falls back partner/company/kpp/externalId/inn to defaults when absent', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getOrganization.mockResolvedValue({

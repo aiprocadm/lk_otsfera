@@ -13,7 +13,7 @@ let prisma: PrismaClient;
 const STAMP = Date.now();
 let companyA: string, companyB: string, leaderA: string, plainA: string, mB: string;
 let orgA: string, orgB: string, orderA: string, inboundA: string, callA: string;
-let dealA: string, certA: string, studentA: string, directionA: string;
+let dealA: string, dealNoAmount: string, certA: string, studentA: string, directionA: string;
 
 // companyA — teamMode ON (граница изоляции = компания); companyB — OFF (по умолчанию).
 const leaderSession = (): SessionPayload =>
@@ -55,6 +55,10 @@ beforeAll(async () => {
   dealA = (await prisma.deal.create({
     data: { companyId: companyA, organizationId: orgA, title: `g4deal-${STAMP}`, amount: new Prisma.Decimal('2500.00') }
   })).id;
+  // Сделка без суммы: карточка обязана показать её с прочерком, а не упасть.
+  dealNoAmount = (await prisma.deal.create({
+    data: { companyId: companyA, organizationId: orgA, title: `g4deal0-${STAMP}` }
+  })).id;
   directionA = (await prisma.trainingDirection.create({
     data: { name: `g4dir-${STAMP}` }
   })).id;
@@ -91,7 +95,7 @@ afterAll(async () => {
   await prisma.certificate.deleteMany({ where: { id: certA } });
   await prisma.student.deleteMany({ where: { id: studentA } });
   await prisma.trainingDirection.deleteMany({ where: { id: directionA } });
-  await prisma.deal.deleteMany({ where: { id: dealA } });
+  await prisma.deal.deleteMany({ where: { id: { in: [dealA, dealNoAmount] } } });
   await prisma.call.deleteMany({ where: { id: callA } });
   await prisma.inboundMessage.deleteMany({ where: { id: inboundA } });
   await prisma.comment.deleteMany({ where: { orderId: orderA } });
@@ -159,6 +163,10 @@ describe('getOrganizationCard — агрегация', () => {
     const deal = card.deals.find((d) => d.id === dealA);
     expect(deal).toBeDefined();
     expect(deal?.amount).toBe('2500.00');
+
+    const bare = card.deals.find((d) => d.id === dealNoAmount);
+    expect(bare).toBeDefined();
+    expect(bare?.amount).toBeNull();
 
     const cert = card.certificates.find((c) => c.id === certA);
     expect(cert).toBeDefined();

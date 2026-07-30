@@ -54,6 +54,71 @@ describe('OrganizationSettingsPage', () => {
     getNotificationSettings.mockReset();
   });
 
+  it('карточка реквизитов организации: право правки только у admin/leader', async () => {
+    getOrgPageContext.mockResolvedValue(CTX);
+    getTelegramStatus.mockResolvedValue({ ok: true, linked: false, enabled: true });
+    getNotificationSettings.mockResolvedValue({
+      ok: true,
+      view: {
+        emailAlwaysOn: true,
+        telegram: { available: true, linked: false, enabled: true },
+        max: { available: false, linked: false, enabled: false },
+        whatsapp: { available: false, phone: null, enabled: false }
+      }
+    });
+    getOrgRequisites.mockResolvedValue({
+      ok: true,
+      requisites: {
+        legalName: 'ООО Ромашка', inn: '7707083893', kpp: null, ogrn: null, legalAddress: null,
+        bankName: null, bankAccount: null, corrAccount: null, bic: null,
+        signerName: null, signerPosition: null, signerBasis: null
+      }
+    });
+    const { container } = await renderServerComponent(OrganizationSettingsPage());
+    expect(container.textContent).toContain('Реквизиты организации');
+  });
+
+  it('участник без прав (member): карточка реквизитов есть, но canEdit=false', async () => {
+    getOrgPageContext.mockResolvedValue({ ...CTX, viewerRole: 'member' as const });
+    getTelegramStatus.mockResolvedValue({ ok: true, linked: false, enabled: true });
+    getNotificationSettings.mockResolvedValue({
+      ok: true,
+      view: {
+        emailAlwaysOn: true,
+        telegram: { available: true, linked: false, enabled: true },
+        max: { available: false, linked: false, enabled: false },
+        whatsapp: { available: false, phone: null, enabled: false }
+      }
+    });
+    getOrgRequisites.mockResolvedValue({
+      ok: true,
+      requisites: {
+        legalName: 'ООО Ромашка', inn: null, kpp: null, ogrn: null, legalAddress: null,
+        bankName: null, bankAccount: null, corrAccount: null, bic: null,
+        signerName: null, signerPosition: null, signerBasis: null
+      }
+    });
+    const { container } = await renderServerComponent(OrganizationSettingsPage());
+    expect(container.textContent).toContain('Реквизиты организации');
+  });
+
+  it('сессия без активной организации: карточки реквизитов нет, сервис не зовётся', async () => {
+    getOrgPageContext.mockResolvedValue({ ...CTX, activeOrgId: null });
+    getTelegramStatus.mockResolvedValue({ ok: true, linked: false, enabled: true });
+    getNotificationSettings.mockResolvedValue({
+      ok: true,
+      view: {
+        emailAlwaysOn: true,
+        telegram: { available: true, linked: false, enabled: true },
+        max: { available: false, linked: false, enabled: false },
+        whatsapp: { available: false, phone: null, enabled: false }
+      }
+    });
+    const { container } = await renderServerComponent(OrganizationSettingsPage());
+    expect(getOrgRequisites).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain('Реквизиты организации');
+  });
+
   it('fetches telegram status + notification settings for the session and renders both cards', async () => {
     getOrgPageContext.mockResolvedValue(CTX);
     getTelegramStatus.mockResolvedValue({ ok: true, linked: false, enabled: true });

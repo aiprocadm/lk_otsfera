@@ -160,6 +160,93 @@ describe('generateOrderDocument', () => {
     expect(data.total).toContain('12');
   });
 
+  it('строки НДС: без ставки — просто «В том числе НДС», без vatIncluded — «НДС не облагается»', async () => {
+    // Строка НДС уходит в печатную форму счёта — бухгалтерия клиента сверяет
+    // по ней сумму налога. Неверная формулировка = вопросы к каждому счёту.
+    const now = new Date('2026-07-26T12:00:00Z');
+    const noRate = makePrisma({ order: { ...ORDER, vatIncluded: true, vatRate: null } });
+    await generateOrderDocument(noRate.prisma, manager(), { orderId: 'ord-1', docType: 'invoice', now });
+    expect(renderMock.mock.calls[0]![0].vatLine).toBe('В том числе НДС.');
+
+    renderMock.mockClear();
+    const noVat = makePrisma({ order: { ...ORDER, vatIncluded: false, vatRate: null } });
+    await generateOrderDocument(noVat.prisma, manager(), { orderId: 'ord-1', docType: 'invoice', now });
+    expect(renderMock.mock.calls[0]![0].vatLine).toBe('НДС не облагается.');
+  });
+
+  it('позиция без направления и слушателя подписывается note, совсем пустая — «Услуга»', async () => {
+    const now = new Date('2026-07-26T12:00:00Z');
+    const { prisma } = makePrisma({
+      order: {
+        ...ORDER,
+        items: [
+          { amount: 3000, note: 'Разработка инструкции', direction: null, student: null },
+          { amount: 2000, note: null, direction: null, student: null }
+        ]
+      }
+    });
+    await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice', now });
+    const items = renderMock.mock.calls[0]![0].items;
+    expect(items[0].name).toBe('Разработка инструкции');
+    expect(items[1].name).toBe('Услуга');
+  });
+
+  it('заказ без номера: строка услуг без «№», заголовок не ломается', async () => {
+    const now = new Date('2026-07-26T12:00:00Z');
+    const { prisma } = makePrisma({ order: { ...ORDER, orderNumber: null } });
+    await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice', now });
+    const item = renderMock.mock.calls[0]![0].items[0];
+    expect(item.name).toBe('Услуги по заказу : Обучение по ОТ');
+  });
+
+  it('displayName стороны: юр. название приоритетнее рабочего, пустые оба → пустая строка', async () => {
+    const now = new Date('2026-07-26T12:00:00Z');
+    const { prisma } = makePrisma({
+      organization: { ...FULL_PARTY, legalName: null, name: 'Рабочее имя' }
+    });
+    await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice', now });
+    expect(renderMock.mock.calls[0]![0].organization.displayName).toBe('Рабочее имя');
+
+    // Компания без рабочего имени в выборке (name отсутствует в PARTY_SELECT):
+    // fallback-цепочка не должна падать на undefined.
+    renderMock.mockClear();
+    const p2 = makePrisma({
+      company: { ...FULL_PARTY, legalName: 'ООО Исполнитель', name: undefined }
+    });
+    await generateOrderDocument(p2.prisma, manager(), { orderId: 'ord-1', docType: 'invoice', now });
+    expect(renderMock.mock.calls[0]![0].company.displayName).toBe('ООО Исполнитель');
+  });
+
+  it('заказ без companyId → missing_requisites с понятной причиной', async () => {
+    const { prisma } = makePrisma({ order: { ...ORDER, companyId: null } });
+    getCompanyTeamVisibility.mockResolvedValue(false);
+    const r = await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice' });
+    expect(r).toMatchObject({ ok: false, error: 'missing_requisites' });
+    if (!r.ok && r.error === 'missing_requisites') {
+      expect(r.missing![0].label).toContain('компания-исполнитель');
+    }
+  });
+
+  it('карточка компании или организации исчезла между проверками → not_found', async () => {
+    const noCompany = makePrisma({ company: null });
+    expect(await generateOrderDocument(noCompany.prisma, manager(), { orderId: 'ord-1', docType: 'invoice' })).toEqual({
+      ok: false,
+      error: 'not_found'
+    });
+
+    const noOrg = makePrisma({ organization: null });
+    expect(await generateOrderDocument(noOrg.prisma, manager(), { orderId: 'ord-1', docType: 'invoice' })).toEqual({
+      ok: false,
+      error: 'not_found'
+    });
+  });
+
+  it('не-Storage ошибка из транзакции пробрасывается наружу', async () => {
+    const { prisma } = makePrisma();
+    (prisma.$transaction as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('deadlock'));
+    await expect(generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice' })).rejects.toThrow('deadlock');
+  });
+
   it('акт наследует номер последнего счёта; без счёта → invoice_required', async () => {
     const now = new Date('2026-07-26T12:00:00Z');
     const withInvoice = makePrisma({

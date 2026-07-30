@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, cleanup as cleanupAll } from '@testing-library/react';
 
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
@@ -214,6 +214,100 @@ describe('DealDialog', () => {
       expect(createDealAction).not.toHaveBeenCalled();
       await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Сделка обновлена.'));
       await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    });
+  });
+
+  describe('заметки по сделке (PR-2)', () => {
+    it('редактирование: заметки лениво подгружаются и показываются с автором и датой', async () => {
+      listDealNotesAction.mockResolvedValue({
+        ok: true,
+        rows: [
+          { id: 'n1', body: 'Клиент просил счёт до пятницы', authorName: 'Мария', createdAt: new Date('2026-07-01T10:00:00Z') }
+        ]
+      });
+      renderCreate({ target });
+      expect(await screen.findByText('Клиент просил счёт до пятницы')).toBeTruthy();
+      expect(screen.getByText('Мария')).toBeTruthy();
+      expect(screen.queryByText('Заметок пока нет.')).toBeNull();
+    });
+
+    it('пустой список → «Заметок пока нет.»; сбой загрузки → тоже пустой список', async () => {
+      renderCreate({ target });
+      expect(await screen.findByText('Заметок пока нет.')).toBeTruthy();
+
+      cleanupAll();
+      listDealNotesAction.mockResolvedValue({ ok: false, error: 'forbidden' });
+      renderCreate({ target });
+      expect(await screen.findByText('Заметок пока нет.')).toBeTruthy();
+    });
+
+    it('добавление: экшен получает dealId и текст, список перезагружается, поле чистится', async () => {
+      // Заметка — память о договорённостях с клиентом. После добавления список
+      // должен пополниться, а поле — очиститься для следующей.
+      addDealNoteAction.mockResolvedValue({ ok: true, id: 'n2' });
+      renderCreate({ target });
+      await screen.findByText('Заметок пока нет.');
+
+      listDealNotesAction.mockResolvedValue({
+        ok: true,
+        rows: [{ id: 'n2', body: 'Новая заметка', authorName: 'Я', createdAt: new Date() }]
+      });
+
+      const field = screen.getByPlaceholderText(/заметк/i) as HTMLTextAreaElement;
+      fireEvent.change(field, { target: { value: '  Новая заметка  ' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
+
+      await waitFor(() => expect(addDealNoteAction).toHaveBeenCalled());
+      const fd = addDealNoteAction.mock.calls[0]![0] as FormData;
+      expect(fd.get('dealId')).toBe('deal-1');
+      expect(fd.get('body')).toBe('Новая заметка');
+      expect(await screen.findByText('Новая заметка')).toBeTruthy();
+      expect((screen.getByPlaceholderText(/заметк/i) as HTMLTextAreaElement).value).toBe('');
+    });
+
+    it('пустая заметка (одни пробелы) не отправляется', async () => {
+      renderCreate({ target });
+      await screen.findByText('Заметок пока нет.');
+      fireEvent.change(screen.getByPlaceholderText(/заметк/i), { target: { value: '   ' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
+      expect(addDealNoteAction).not.toHaveBeenCalled();
+    });
+
+    it('отказ добавления → русский toast, текст в поле сохраняется', async () => {
+      addDealNoteAction.mockResolvedValue({ ok: false, error: 'not_found' });
+      renderCreate({ target });
+      await screen.findByText('Заметок пока нет.');
+      fireEvent.change(screen.getByPlaceholderText(/заметк/i), { target: { value: 'Важная заметка' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
+      await waitFor(() => expect(toastError).toHaveBeenCalled());
+      expect((screen.getByPlaceholderText(/заметк/i) as HTMLTextAreaElement).value).toBe('Важная заметка');
+    });
+
+    it('незнакомый код отказа → общий текст; сбой перезагрузки списка после добавления → пустой список', async () => {
+      addDealNoteAction.mockResolvedValue({ ok: false, error: 'quota' });
+      renderCreate({ target });
+      await screen.findByText('Заметок пока нет.');
+      fireEvent.change(screen.getByPlaceholderText(/заметк/i), { target: { value: 'Текст' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
+      await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось добавить заметку.'));
+
+      cleanupAll();
+      toastError.mockClear();
+      addDealNoteAction.mockResolvedValue({ ok: true, id: 'n3' });
+      renderCreate({ target });
+      await screen.findByText('Заметок пока нет.');
+      listDealNotesAction.mockResolvedValue({ ok: false, error: 'forbidden' });
+      fireEvent.change(screen.getByPlaceholderText(/заметк/i), { target: { value: 'Текст' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
+      await waitFor(() => expect(addDealNoteAction).toHaveBeenCalled());
+      expect(await screen.findByText('Заметок пока нет.')).toBeTruthy();
+    });
+
+    it('сделка с заказом показывает ссылку на заказ', async () => {
+      renderCreate({ target: { ...target, orderId: 'ord-7' } });
+      await screen.findByText('Заметок пока нет.');
+      const link = document.querySelector('a[href="/manager/orders/ord-7"]');
+      expect(link).not.toBeNull();
     });
   });
 

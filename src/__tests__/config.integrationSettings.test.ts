@@ -8,12 +8,16 @@ const { recordAuditMock, keyState } = vi.hoisted(() => ({
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
 vi.mock('@/lib/crypto/secrets', () => ({
   encryptSecret: (s: string) => `ENC(${s})`,
-  decryptSecret: (s: string) => s.replace(/^ENC\(|\)$/g, ''),
+  decryptSecret: (s: string) => {
+    if (s === 'CORRUPTED') throw new Error('bad key');
+    return s.replace(/^ENC\(|\)$/g, '');
+  },
   isSecretsKeyConfigured: () => keyState.configured
 }));
 
 import {
   getSettingValue,
+  getSettingValues,
   getSettingsView,
   saveSettings
 } from '@/lib/config/integrationSettings';
@@ -66,6 +70,35 @@ describe('getSettingValue', () => {
     expect(await getSettingValue(prisma, 'email.resendApiKey')).toBe('env-key');
   });
 
+  it('испорченный секрет (смена ключа шифрования) → тихий откат в env, не падение', async () => {
+    // Ключ шифрования могли сменить — старые секреты перестают расшифровываться.
+    // Интеграции при этом должны продолжить работать от env-переменных.
+    process.env.RESEND_API_KEY = 'env-backup-key';
+    const prisma = makePrisma({
+      findUnique: vi.fn().mockResolvedValue({ value: 'CORRUPTED', isSecret: true })
+    });
+    expect(await getSettingValue(prisma, 'email.resendApiKey')).toBe('env-backup-key');
+    delete process.env.RESEND_API_KEY;
+
+    // А без env-запаски — честный null.
+    const prisma2 = makePrisma({
+      findUnique: vi.fn().mockResolvedValue({ value: 'CORRUPTED', isSecret: true })
+    });
+    expect(await getSettingValue(prisma2, 'email.resendApiKey')).toBeNull();
+  });
+
+  it('getSettingValues: пачка ключей одним вызовом, каждый по своим правилам', async () => {
+    process.env.EMAIL_FROM = 'env@x.ru';
+    const prisma = makePrisma({
+      findUnique: vi.fn().mockImplementation(async ({ where }: { where: { key: string } }) =>
+        where.key === 'email.enabled' ? { value: 'true', isSecret: false } : null
+      )
+    });
+    const out = await getSettingValues(prisma, ['email.enabled', 'email.from']);
+    expect(out).toEqual({ 'email.enabled': 'true', 'email.from': 'env@x.ru' });
+    delete process.env.EMAIL_FROM;
+  });
+
   it('returns null when neither DB nor env has a value', async () => {
     delete process.env.EMAIL_FROM;
     expect(await getSettingValue(makePrisma(), 'email.from')).toBeNull();
@@ -100,6 +133,21 @@ describe('getSettingsView', () => {
     expect(view.find((r) => r.key === 'email.resendApiKey')!.source).toBe('none');
     expect(view.find((r) => r.key === 'email.resendApiKey')!.isSet).toBe(false);
   });
+
+  it('несекретная настройка: нет ни в БД, ни в env → value=null (а не undefined)', async () => {
+    delete process.env.EMAIL_FROM;
+    const view = await getSettingsView(makePrisma(), ['email.from']);
+    expect(view[0].value).toBeNull();
+  });
+
+  it('несекретная настройка из БД: value виден и source=db', async () => {
+    delete process.env.EMAIL_FROM;
+    const prisma = makePrisma({
+      findMany: vi.fn().mockResolvedValue([{ key: 'email.from', value: 'noreply@x.ru', isSecret: false }])
+    });
+    const view = await getSettingsView(prisma, ['email.from']);
+    expect(view[0]).toMatchObject({ value: 'noreply@x.ru', source: 'db', isSet: true });
+  });
 });
 
 describe('saveSettings', () => {
@@ -124,6 +172,16 @@ describe('saveSettings', () => {
     // Значение секрета не попадает в аудит
     const auditArg = recordAuditMock.mock.calls[0][1];
     expect(JSON.stringify(auditArg)).not.toContain('re_new');
+  });
+
+  it('несекретное поле без значения (undefined) пропускается — ничего не пишем и не чистим', async () => {
+    // Форма шлёт только свои поля. Отсутствующее поле не должно ни затирать
+    // сохранённое, ни оставлять след в аудите.
+    const upsert = vi.fn();
+    const prisma = makePrisma({ upsert });
+    await saveSettings(prisma, { sub: 'a1' } as never, [{ key: 'email.from', value: undefined }]);
+    expect(upsert).not.toHaveBeenCalled();
+    expect(recordAuditMock).not.toHaveBeenCalled();
   });
 
   it('empty secret does not overwrite the stored one (no upsert for it)', async () => {

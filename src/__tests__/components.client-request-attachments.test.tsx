@@ -79,6 +79,41 @@ describe('ClientRequestAttachmentDropzone', () => {
     await waitFor(() => expect(refresh).toHaveBeenCalled());
   });
 
+  it('перетаскивание подсвечивает зону и снимает подсветку при уходе', () => {
+    // Подсветка — единственный сигнал «сюда можно бросить файл». Без неё
+    // клиент не поймёт, что перетаскивание вообще работает.
+    render(React.createElement(ClientRequestAttachmentDropzone, { requestId: 'req-1' }));
+    const zone = screen.getByRole('button');
+
+    fireEvent.dragOver(zone);
+    expect(zone.className).toContain('bg-orange-50');
+    expect(zone.className).not.toContain('border-gray-300');
+
+    fireEvent.dragLeave(zone);
+    expect(zone.className).toContain('border-gray-300');
+  });
+
+  it('клик и клавиатура (Enter/пробел) открывают выбор файла', () => {
+    // Зона доступна с клавиатуры (role=button): Enter и пробел обязаны работать
+    // так же, как клик — иначе загрузка недоступна без мыши.
+    render(React.createElement(ClientRequestAttachmentDropzone, { requestId: 'req-1' }));
+    const zone = screen.getByRole('button');
+    const clickSpy = vi.spyOn(fileInput(), 'click').mockImplementation(() => {});
+
+    fireEvent.click(zone);
+    fireEvent.keyDown(zone, { key: 'Enter' });
+    fireEvent.keyDown(zone, { key: ' ' });
+    fireEvent.keyDown(zone, { key: 'Tab' }); // посторонняя клавиша — не открывает
+    expect(clickSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('сбой сети не-Error значением → «Ошибка сети»', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue('conn reset'));
+    render(React.createElement(ClientRequestAttachmentDropzone, { requestId: 'req-1' }));
+    fireEvent.change(fileInput(), { target: { files: [pdfFile()] } });
+    await waitFor(() => expect(screen.getByText('Ошибка сети')).toBeTruthy());
+  });
+
   it('413 от сервера → «Файл больше 200 МБ» (дефолтный лимит), refresh не зовётся', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 413 }));
     render(React.createElement(ClientRequestAttachmentDropzone, { requestId: 'req-1' }));

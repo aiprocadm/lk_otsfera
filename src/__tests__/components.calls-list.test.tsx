@@ -1,7 +1,16 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import React from 'react';
+vi.mock('@/components/intake/source-intake-actions', () => ({
+  SourceIntakeActions: (props: { kind: string; sourceId: string; leadPrefill: Record<string, string>; taskTitle: string }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'intake-actions' },
+      `${props.kind}:${props.sourceId}:${props.leadPrefill.contactPhone}:${props.taskTitle}`
+    )
+}));
+
 import { CallsList, type CallListItem } from '@/components/manager/calls-list';
 import { CallsFiltersBar } from '@/components/manager/calls-filters';
 
@@ -143,5 +152,28 @@ describe('CallsFiltersBar', () => {
       </CallsFiltersBar>
     );
     expect(html).toContain('ORG_FILTER_SLOT');
+  });
+});
+
+describe('CallsList — интейк-действия (этап 7)', () => {
+  it('входящий звонок при currentUserId получает кнопки с префиллом номера', () => {
+    // «Создать лид»/«Задача» прямо из журнала звонков. Номер обязан переехать
+    // в префилл — менеджер не должен перепечатывать его из соседней колонки.
+    const html = renderToString(React.createElement(CallsList, { items: [base], currentUserId: 'm1' }));
+    expect(html).toContain('data-testid="intake-actions"');
+    expect(html).toContain('call:call-1:+79990001122:Перезвонить: +79990001122');
+  });
+
+  it('исходящий звонок — прочерк вместо кнопок (лид создают из входящих)', () => {
+    const outbound = { ...base, id: 'call-2', direction: 'outbound' as const };
+    const html = renderToString(React.createElement(CallsList, { items: [outbound], currentUserId: 'm1' }));
+    expect(html).not.toContain('data-testid="intake-actions"');
+    expect(html).toContain('—');
+  });
+
+  it('без currentUserId колонки «Действия» нет вовсе', () => {
+    const html = renderToString(React.createElement(CallsList, { items: [base] }));
+    expect(html).not.toContain('Действия');
+    expect(html).not.toContain('data-testid="intake-actions"');
   });
 });

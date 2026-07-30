@@ -129,6 +129,10 @@ export function EnrollmentWizard({
   function toggleStudent(s: StudentOption, checked: boolean) {
     setRows((prev) => {
       if (checked) {
+        // Причина ignore: чекбокс контролируемый (checked = «уже в rows»), поэтому
+        // onChange(true) для уже добавленного сотрудника прийти не может. Guard
+        // защищает от двойного события в одну отрисовку — оставлен сознательно.
+        /* v8 ignore next */
         if (prev.some((r) => r.studentId === s.id)) return prev;
         return [
           ...prev,
@@ -515,7 +519,9 @@ export function EnrollmentWizard({
           <ul className='text-sm text-gray-700 border border-gray-100 rounded-lg divide-y divide-gray-50'>
             {rows.map((r, i) => (
               <li key={r.key} className='px-3 py-2'>
-                <span className='font-medium text-[#111111]'>{i + 1}. {r.fullName || '—'}</span>{' '}
+                {/* Без запасного «—»: валидация шага 2 не пускает на итог позицию
+                    без ФИО, поэтому fallback был недостижим (Ф4 программы покрытия). */}
+                <span className='font-medium text-[#111111]'>{i + 1}. {r.fullName}</span>{' '}
                 <span className='text-xs text-gray-500'>{r.email}</span>
                 {r.position && <span className='text-xs text-gray-500'> · {r.position}</span>}
               </li>

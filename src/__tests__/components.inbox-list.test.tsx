@@ -15,6 +15,14 @@ vi.mock('@/components/manager/inbox-reply-form', () => ({
   InboxReplyForm: (props: { inboundMessageId: string }) =>
     React.createElement('div', { 'data-testid': 'reply-form' }, `reply:${props.inboundMessageId}`)
 }));
+vi.mock('@/components/intake/source-intake-actions', () => ({
+  SourceIntakeActions: (props: { kind: string; sourceId: string; leadPrefill: Record<string, string>; taskTitle: string }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'intake-actions' },
+      `${props.kind}:${props.sourceId}:${props.leadPrefill.companyName}:${props.leadPrefill.contactEmail}:${props.taskTitle}`
+    )
+}));
 vi.mock('@/components/manager/inbox-archive-button', () => ({
   InboxArchiveButton: (props: { inboundMessageId: string; mode: string }) =>
     React.createElement('div', { 'data-testid': 'archive-button' }, `${props.mode}:${props.inboundMessageId}`)
@@ -113,6 +121,35 @@ describe('InboxList', () => {
     expect(html).toContain('odd');
     expect(html).not.toContain('archive:msg-1');
     expect(html).not.toContain('restore:msg-1');
+  });
+
+  it('интейк-действия: только для unresolved и только при currentUserId, префилл из отправителя', () => {
+    // «Создать лид»/«Задача» прямо из инбокса (этап 7). Кнопки видны только
+    // сотруднику (currentUserId) и только у неразобранных обращений; данные
+    // отправителя должны переехать в префилл — иначе менеджер перебивает их
+    // руками из соседней колонки.
+    const emailItem = { ...base, channel: 'email', senderRef: 'p@x.ru', senderDisplay: null, subject: 'Вопрос по счёту' };
+    const withUser = renderToString(
+      <InboxList items={[emailItem]} organizations={ORGS} currentUserId="m1" />
+    );
+    // Обе раскладки (таблица + карточки).
+    expect(count(withUser, 'data-testid="intake-actions"')).toBe(2);
+    expect(withUser).toContain('inbound:msg-1:p@x.ru:p@x.ru:Обращение: Вопрос по счёту');
+
+    // Без currentUserId (не сотрудник) кнопок нет.
+    const withoutUser = renderToString(<InboxList items={[emailItem]} organizations={ORGS} />);
+    expect(count(withoutUser, 'data-testid="intake-actions"')).toBe(0);
+
+    // Разобранное (bound) — кнопок тоже нет.
+    const boundItem = { ...base, status: 'bound' as const };
+    const bound = renderToString(<InboxList items={[boundItem]} organizations={ORGS} currentUserId="m1" />);
+    expect(count(bound, 'data-testid="intake-actions"')).toBe(0);
+  });
+
+  it('интейк-действия: не-email канал не даёт префилла почты, тема падает в запасную', () => {
+    const tg = renderToString(<InboxList items={[base]} organizations={ORGS} currentUserId="m1" />);
+    expect(tg).toContain('inbound:msg-1:Вася::');
+    expect(tg).toContain('Обращение: Добрый день, нужна консультация');
   });
 
   it('subject рендерится, длинный body обрезается с многоточием', () => {

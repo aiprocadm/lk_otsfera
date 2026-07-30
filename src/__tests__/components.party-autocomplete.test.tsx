@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React, { useState } from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act , cleanup } from '@testing-library/react';
 import {
   PartyAutocomplete,
   type PartyAutocompleteSuggestion
@@ -36,11 +36,11 @@ function okJson(body: unknown) {
   return { ok: true, json: async () => body };
 }
 
-function Harness({ onSelect }: { onSelect: (s: PartyAutocompleteSuggestion) => void }) {
+function Harness({ onSelect, noId }: { onSelect: (s: PartyAutocompleteSuggestion) => void; noId?: boolean }) {
   const [value, setValue] = useState('');
   return (
     <PartyAutocomplete
-      id='pa'
+      id={noId ? undefined : 'pa'}
       value={value}
       onChange={setValue}
       onSelect={(s) => {
@@ -191,6 +191,89 @@ describe('PartyAutocomplete — клавиатура', () => {
 
     fireEvent.keyDown(el, { key: 'Enter' });
     expect(onSelect).toHaveBeenCalledWith(SUGGESTION_2);
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it('ArrowUp со второго пункта возвращает на первый (обычный шаг вверх)', async () => {
+    await typeAndSettle('ромашка');
+    fireEvent.keyDown(input(), { key: 'ArrowDown' });
+    fireEvent.keyDown(input(), { key: 'ArrowDown' });
+    fireEvent.keyDown(input(), { key: 'ArrowUp' });
+    expect(input().getAttribute('aria-activedescendant')).toBe('pa-listbox-opt-0');
+  });
+
+  it('без id использует автоматический идентификатор для связи со списком', async () => {
+    // Поле может рендериться без явного id — aria-связка listbox всё равно
+    // обязана работать (иначе скринридер не свяжет список с полем).
+    cleanup();
+    render(React.createElement(Harness, { onSelect, noId: true } as never));
+    await typeAndSettle('ромашка');
+    const list = screen.getByRole('listbox');
+    expect(list.id.endsWith('-listbox')).toBe(true);
+    expect(input().getAttribute('aria-controls')).toBe(list.id);
+  });
+
+  it('сбой сети по устаревшему запросу не трогает актуальную выпадашку', async () => {
+    // Первый запрос завис и упадёт позже; второй успел показать список.
+    // Ошибка первого не должна закрыть список второго.
+    let rejectStale: ((e: unknown) => void) | null = null;
+    fetchMock.mockImplementationOnce(() => new Promise((_r, rej) => { rejectStale = rej; }));
+    fireEvent.change(input(), { target: { value: 'ром' } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    fetchMock.mockResolvedValue(okJson({ suggestions: [SUGGESTION] }));
+    await typeAndSettle('ромашка');
+    expect(screen.getByRole('listbox')).toBeTruthy();
+
+    await act(async () => {
+      rejectStale?.(new Error('late failure'));
+    });
+    expect(screen.getByRole('listbox')).toBeTruthy();
+  });
+
+  it('ArrowUp первым нажатием уходит на последний пункт (закольцовка снизу)', async () => {
+    await typeAndSettle('ромашка');
+    fireEvent.keyDown(input(), { key: 'ArrowUp' });
+    expect(input().getAttribute('aria-activedescendant')).toBe('pa-listbox-opt-1');
+  });
+
+  it('уход фокуса закрывает выпадашку с задержкой; возврат — открывает и отменяет закрытие', async () => {
+    // Задержка на blur нужна, чтобы успел отработать клик по пункту. А возврат
+    // фокуса должен отменить отложенное закрытие — иначе список исчезнет прямо
+    // под руками.
+    await typeAndSettle('ромашка');
+    expect(screen.getByRole('listbox')).toBeTruthy();
+
+    fireEvent.blur(input());
+    fireEvent.focus(input()); // вернулись до истечения задержки
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(screen.getByRole('listbox')).toBeTruthy(); // закрытие отменено
+
+    fireEvent.blur(input());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it('наведение мыши делает пункт активным', async () => {
+    await typeAndSettle('ромашка');
+    fireEvent.mouseEnter(screen.getAllByRole('option')[1]);
+    expect(input().getAttribute('aria-activedescendant')).toBe('pa-listbox-opt-1');
+  });
+
+  it('клавиши при закрытом списке не трогают ничего', async () => {
+    fireEvent.keyDown(input(), { key: 'ArrowDown' });
+    expect(input().getAttribute('aria-activedescendant')).toBeNull();
+  });
+
+  it('ответ с не-массивом suggestions → пустой список, не падение', async () => {
+    fetchMock.mockResolvedValue(okJson({ suggestions: 'oops' }));
+    await typeAndSettle('ромашка');
     expect(screen.queryByRole('listbox')).toBeNull();
   });
 
