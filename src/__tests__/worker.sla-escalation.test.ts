@@ -111,6 +111,30 @@ describe('runSlaEscalation', () => {
     expect(bodies).toContain('входящий звонок с +7999');
   });
 
+  it('подписи собираются и на неполных данных: без организации, без темы, без имени отправителя', async () => {
+    // Просроченные единицы приходят из разных источников, и часть полей может
+    // быть пустой. Подпись в уведомлении обязана остаться читаемой — по ней
+    // руководитель понимает, что именно зависло.
+    const { prisma } = makePrisma({
+      companies: [COMPANY_A],
+      requests: [{ id: 'r-no-org', createdAt: ago(30), companyName: 'ООО Без-орг', subject: 'Тема', organization: null }],
+      enrollments: [
+        { id: 'e-legacy', createdAt: ago(30), organization: null, direction: null, legacyCourseTitle: 'Старый курс' },
+        { id: 'e-bare', createdAt: ago(30), organization: null, direction: null, legacyCourseTitle: null }
+      ],
+      inbound: [{ id: 'i-bare', createdAt: ago(30), companyId: null, senderDisplay: '   ', senderRef: 'anon@x.ru', subject: null }]
+    });
+
+    const res = await runSlaEscalation(prisma, NOW);
+    expect(res.escalated).toBe(4);
+
+    const bodies = createNotification.mock.calls.map((c) => c[0].body as string).join(' ');
+    expect(bodies).toContain('Старый курс'); // legacy-название вместо справочника
+    expect(bodies).toContain('обучение'); // ни справочника, ни legacy → общее слово
+    expect(bodies).toContain('обращение от anon@x.ru'); // пустое имя → адрес отправителя
+    expect(bodies).not.toContain('«»'); // темы нет — пустых кавычек тоже
+  });
+
   it('дедуп: P2002 из журнала пропускает единицу без уведомлений; иные ошибки пробрасываются', async () => {
     const dup = vi.fn().mockRejectedValue(P2002);
     const { prisma } = makePrisma(

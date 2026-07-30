@@ -100,6 +100,11 @@ describe('closeCallIntakeAction', () => {
     expect(closeCallIntake).toHaveBeenCalledWith({}, SESSION, { id: 'c1' });
     expect(await closeCallIntakeAction(new FormData())).toEqual({ ok: false, error: 'validation' });
   });
+  it('отказ сервиса при закрытии звонка не ревалидирует экран', async () => {
+    closeCallIntake.mockResolvedValue({ ok: false, error: 'forbidden' });
+    expect(await closeCallIntakeAction(form({ id: 'c1' }))).toEqual({ ok: false, error: 'forbidden' });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
 });
 
 describe('createLeadFrom*Action', () => {
@@ -116,6 +121,21 @@ describe('createLeadFrom*Action', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/manager/inbox');
   });
 
+  it('inbound: пустой sourceId → validation; отказ сервиса без messages пробрасывается', async () => {
+    // Симметрия с call-вариантом: у обеих кнопок один и тот же контракт, и
+    // ошибка без пояснений не должна превращаться в успех.
+    expect(await createLeadFromInboundAction(form({ companyName: 'x' }))).toEqual({
+      ok: false,
+      error: 'validation'
+    });
+    createLeadFromInbound.mockResolvedValue({ ok: false, error: 'already_converted' });
+    expect(await createLeadFromInboundAction(form(FIELDS))).toEqual({
+      ok: false,
+      error: 'already_converted',
+      messages: undefined
+    });
+  });
+
   it('call: маппинг ошибок с messages; пустой sourceId → validation', async () => {
     createLeadFromCall.mockResolvedValue({ ok: false, error: 'validation', messages: ['Укажите тему'] });
     expect(await createLeadFromCallAction(form({ ...FIELDS, sourceId: 'c1' }))).toEqual({
@@ -124,6 +144,28 @@ describe('createLeadFrom*Action', () => {
       messages: ['Укажите тему']
     });
     expect(await createLeadFromCallAction(form({ companyName: 'x' }))).toEqual({ ok: false, error: 'validation' });
+  });
+
+  it('незаполненные поля формы уходят как null, а не пустые строки', async () => {
+    // Форму конвертации заполняют частично: пустое поле означает «не знаю», и в
+    // лиде должен оказаться null. Пустая строка выглядела бы как заполненное
+    // поле и мешала бы потом искать лиды без контакта.
+    createLeadFromInbound.mockResolvedValue({ ok: true, lead: { id: 'lead-3' } });
+    await createLeadFromInboundAction(
+      form({ sourceId: 'i1', companyName: '', inn: '', contactName: '', contactPhone: '', contactEmail: '', subject: '', notes: '' })
+    );
+    expect(createLeadFromInbound).toHaveBeenCalledWith({}, SESSION, {
+      inboundId: 'i1',
+      input: {
+        companyName: null,
+        inn: null,
+        contactName: null,
+        contactPhone: null,
+        contactEmail: null,
+        subject: null,
+        notes: null
+      }
+    });
   });
 
   it('call: успех ревалидирует журнал звонков', async () => {

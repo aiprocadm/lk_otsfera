@@ -1,8 +1,8 @@
 /**
  * M5 — unit-тесты runCalendarReminders (спека 2026-07-17-m5-calendar §5).
- * Mock-prisma; @/lib/notifications и @/lib/logging замоканы. Импортируется
- * ТОЛЬКО runCalendarReminders — calendarReminderProcessor тянет @/lib/db/prisma
- * динамически и здесь не вызывается.
+ * Mock-prisma; @/lib/notifications и @/lib/logging замоканы. Обёртка
+ * calendarReminderProcessor тянет @/lib/db/prisma динамически — он тоже замокан
+ * (пустая выборка), чтобы проверить саму склейку воркера.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
@@ -17,8 +17,11 @@ vi.mock('@/lib/notifications', () => ({
   deliverNotificationToUser: deliverNotificationToUserMock
 }));
 vi.mock('@/lib/logging', () => ({ log: { error: logErrorMock } }));
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: { calendarEvent: { findMany: vi.fn().mockResolvedValue([]) } }
+}));
 
-import { runCalendarReminders } from '@/worker/processors/calendar-reminder';
+import { runCalendarReminders, calendarReminderProcessor } from '@/worker/processors/calendar-reminder';
 
 const NOW = new Date('2026-07-17T12:00:00.000Z');
 
@@ -170,5 +173,14 @@ describe('runCalendarReminders', () => {
       candidate({ id: 'e2', title: 'Демо', createdById: 'u3', remindAt: new Date('2026-07-15T10:00:00.000Z') })
     ]);
     expect(await runCalendarReminders(prisma, NOW)).toEqual({ remindersSent: 1, stale: 1 });
+  });
+});
+
+describe('calendarReminderProcessor (обёртка BullMQ)', () => {
+  it('работает на глобальном prisma и текущем времени', async () => {
+    // Обёртка — единственное место, где воркер соединяется с настоящей базой.
+    // Если она сломается, напоминания просто перестанут приходить, и никакой
+    // тест самой логики этого не заметит.
+    expect(await calendarReminderProcessor()).toEqual({ remindersSent: 0, stale: 0 });
   });
 });

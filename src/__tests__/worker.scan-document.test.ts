@@ -24,6 +24,7 @@ function makeDb(
     inboundAttachmentPath?: string | null;
     callRecordingPath?: string | null;
     staffAttachmentPath?: string | null;
+    clientRequestAttachmentPath?: string | null;
   } = {},
 ) {
   const documentUpdate = vi.fn().mockResolvedValue({});
@@ -31,6 +32,7 @@ function makeDb(
   const inboundMessageUpdate = vi.fn().mockResolvedValue({});
   const callUpdate = vi.fn().mockResolvedValue({});
   const staffMessageUpdate = vi.fn().mockResolvedValue({});
+  const clientRequestAttachmentUpdate = vi.fn().mockResolvedValue({});
   const syncLogCreate = vi.fn().mockResolvedValue({});
   return {
     document: {
@@ -82,6 +84,16 @@ function makeDb(
             : { id: 'staff-msg-1', attachmentPath: opts.staffAttachmentPath },
       ),
       update: staffMessageUpdate,
+    },
+    clientRequestAttachment: {
+      findUnique: vi.fn().mockResolvedValue(
+        opts.clientRequestAttachmentPath === undefined
+          ? { id: 'cra-1', path: 'client-requests/r1/file.pdf' }
+          : opts.clientRequestAttachmentPath === null
+            ? null
+            : { id: 'cra-1', path: opts.clientRequestAttachmentPath },
+      ),
+      update: clientRequestAttachmentUpdate,
     },
     syncLog: { create: syncLogCreate },
   } as any;
@@ -342,6 +354,34 @@ describe('scanDocumentProcessor', () => {
       scanDocumentProcessor(makeJob({ kind: 'call_recording', id: 'call-1' }), db, deps),
     ).rejects.toThrow(/NOT_FOUND/);
     expect(db.call.update).not.toHaveBeenCalled();
+  });
+
+  it('вложение заявки клиента: пишется полный набор колонок скана', async () => {
+    // Этап 5 добавил ещё один вид файлов под антивирус. У него, в отличие от
+    // сообщений сотрудников, есть и причина, и дата проверки — если писать
+    // только статус, расследовать карантин будет нечем.
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    const deps = makeDeps({ scan: vi.fn().mockResolvedValue('stream: Eicar-Test-Signature FOUND') });
+
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'client_request_attachment', id: 'cra-1' }),
+      db,
+      deps,
+    );
+
+    expect(result).toEqual({
+      kind: 'client_request_attachment',
+      id: 'cra-1',
+      scanStatus: 'infected',
+      scanReason: 'Eicar-Test-Signature',
+    });
+    expect(db.clientRequestAttachment.update).toHaveBeenCalledWith({
+      where: { id: 'cra-1' },
+      data: expect.objectContaining({ scanStatus: 'infected', scanReason: 'Eicar-Test-Signature' }),
+    });
+    expect(db.leadAttachment.update).not.toHaveBeenCalled();
+    expect(db.staffMessage.update).not.toHaveBeenCalled();
   });
 
   it('updates StaffMessage row when kind=staff_attachment (no scanReason/scannedAt columns)', async () => {
