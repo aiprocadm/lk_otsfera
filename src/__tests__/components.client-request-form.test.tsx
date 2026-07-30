@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
@@ -55,6 +55,37 @@ describe('ClientRequestForm', () => {
     expect(input('Телефон').required).toBe(false);
     expect(input('Email').required).toBe(false);
     expect((screen.getByLabelText('Описание') as HTMLTextAreaElement).required).toBe(false);
+  });
+
+  it('подсказка ДаДаты заполняет название компании и ИНН', async () => {
+    // Клиент заполняет обращение сам. Подсказка избавляет его от поиска ИНН —
+    // если её обработчик потеряется, поле молча останется пустым, и менеджер
+    // не сможет сопоставить обращение с организацией.
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        suggestions: [
+          { name: 'ООО Ромашка', inn: '7707083893', kpp: '770701001', ogrn: null, address: 'г. Москва' }
+        ]
+      })
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      render(<ClientRequestForm />);
+      const combo = screen.getByRole('combobox') as HTMLInputElement;
+      fireEvent.change(combo, { target: { value: 'ромашка' } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300);
+      });
+      fireEvent.mouseDown(screen.getAllByRole('option')[0]);
+
+      expect(combo.value).toBe('ООО Ромашка');
+      expect((screen.getByLabelText('ИНН') as HTMLInputElement).value).toBe('7707083893');
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
   });
 
   it('happy path: POST /api/client-requests со всеми полями, тост успеха, сброс формы, router.refresh()', async () => {

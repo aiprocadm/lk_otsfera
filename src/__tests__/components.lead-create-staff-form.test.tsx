@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
@@ -193,6 +193,56 @@ describe('LeadCreateStaffForm', () => {
 
     await waitFor(() => expect(createLeadAction).toHaveBeenCalled());
     expect(createLeadAction.mock.calls[0][0]).toMatchObject({ organizationId: null });
+  });
+
+  it('выбор компании из подсказки заполняет название и ИНН; email правится руками', async () => {
+    // Подсказка ДаДаты — основной способ заполнить карточку лида. Если бы её
+    // обработчик потерялся, менеджер вводил бы ИНН вручную и не заметил бы, что
+    // автозаполнение сломано: поле просто осталось бы пустым.
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        suggestions: [
+          { name: 'ООО Ромашка', inn: '7707083893', kpp: '770701001', ogrn: null, address: 'г. Москва' }
+        ]
+      })
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      render(React.createElement(LeadCreateStaffForm, { organizations: orgs }));
+      openDialog();
+
+      fireEvent.change(input('Название компании *'), { target: { value: 'ромашка' } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300);
+      });
+
+      fireEvent.mouseDown(screen.getAllByRole('option')[0]);
+
+      expect(input('Название компании *').value).toBe('ООО Ромашка');
+      expect(input('ИНН').value).toBe('7707083893');
+
+      fireEvent.change(input('Email'), { target: { value: 'client@x.ru' } });
+      expect(input('Email').value).toBe('client@x.ru');
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('Escape закрывает диалог так же, как «Отмена»', async () => {
+    // Кнопка «Отмена» и Escape — две разные точки закрытия: у кнопки свой
+    // обработчик, Escape идёт через onClose самого диалога. Обе должны работать.
+    render(React.createElement(LeadCreateStaffForm, { organizations: orgs }));
+    openDialog();
+    expect(screen.getByLabelText('Название компании *')).toBeTruthy();
+
+    const dialog = document.querySelector('dialog') as HTMLDialogElement;
+    fireEvent(dialog, new Event('cancel', { bubbles: false, cancelable: true }));
+
+    // Диалог остаётся в разметке (он всегда смонтирован), но закрывается.
+    await waitFor(() => expect(dialog.hasAttribute('open')).toBe(false));
   });
 
   it('«Отмена» закрывает диалог и сбрасывает список ошибок', async () => {
