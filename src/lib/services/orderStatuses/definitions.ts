@@ -38,39 +38,6 @@ export function isStatusAnchor(value: string): value is StatusAnchor {
 
 const KEY_RE = /^[a-z][a-z0-9_]*$/;
 
-/**
- * Карта старого enum `OrderStatus` → ключ справочника. Ровно её применила
- * миграция к существующим заявкам; PR-3 использует её же при создании заявки,
- * пока старое поле остаётся источником для 1С и отчётов (решение Q3).
- *
- * `waiting_client` схлопывается в «Принято в работу»: §10 такого статуса не
- * знает, а причина возврата и так хранится отдельно.
- */
-export const LEGACY_STATUS_TO_KEY = {
-  new: 'draft',
-  in_progress: 'accepted',
-  waiting_client: 'accepted',
-  completed: 'closed'
-} as const;
-
-/**
- * Обратная карта: ключ справочника → старый enum. Нужна, пока `Order.status`
- * остаётся источником для обмена с 1С и отчётов (решение Q3, снимается в PR-4).
- *
- * Три «средних» статуса схлопываются в `in_progress`: старый enum их не
- * различает, и это честнее, чем выдумывать несуществующее значение.
- * У «Отменена» соответствия НЕТ — старое поле при отмене не трогаем, отмена
- * видна в `executionStatus` и в журнале переходов (см. syncLegacyStatus).
- */
-export const KEY_TO_LEGACY_STATUS: Record<string, 'new' | 'in_progress' | 'completed'> = {
-  draft: 'new',
-  accepted: 'in_progress',
-  paid: 'in_progress',
-  documents_issued: 'in_progress',
-  accounting_signed: 'in_progress',
-  closed: 'completed'
-};
-
 /** §4 ТЗ: «Настройка полей и статусов» — администратор ИЛИ руководитель. */
 function requireStatusAdmin(session: SessionPayload): { ok: false; error: 'forbidden' } | null {
   if (session.role === 'admin') return null;

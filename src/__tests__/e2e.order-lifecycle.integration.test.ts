@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { claimOrder, assignOrderManager } from '@/lib/services/manager/distribution';
-import { transitionOrderLifecycle, setOrderAccountingSigned } from '@/lib/services/manager/orderLifecycle';
+import { setOrderAccountingSigned } from '@/lib/services/manager/orderLifecycle';
+import {
+  transitionOrderStatus,
+  getOrderedStatuses
+} from '@/lib/services/orderStatuses';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 /**
@@ -126,9 +130,15 @@ describe('E2E order lifecycle — full path through real services', () => {
   it('(1) the order was created new/unassigned with the expected money amount', async () => {
     const row = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { status: true, managerId: true, totalAmount: true }
+      select: {
+        statusDefinition: { select: { key: true } },
+        managerId: true,
+        totalAmount: true
+      }
     });
-    expect(row?.status).toBe('new');
+    // PR-4: старого поля больше нет — заявка стартует «Черновиком» справочника
+    // (фикстура создаёт её напрямую, поэтому статус может быть пустым).
+    expect([undefined, 'draft']).toContain(row?.statusDefinition?.key);
     expect(row?.managerId).toBeNull();
     // Decimal compared as fixed-point string, never JS number equality.
     expect(row?.totalAmount.toFixed(2)).toBe('150000.00');
@@ -171,60 +181,35 @@ describe('E2E order lifecycle — full path through real services', () => {
     expect(r).toEqual({ ok: true, changed: false });
   });
 
-  it('(3a) new → in_progress advances the lifecycle', async () => {
-    const r = await transitionOrderLifecycle(prisma, managerSession(managerAId), {
-      orderId,
-      to: 'in_progress'
-    });
-    expect(r).toEqual({ ok: true, changed: true, status: 'in_progress' });
-  });
+  // §10 ТЗ v0.5 (этап 2, PR-4): рабочий статус живёт в справочнике; шаги
+  // «ждём клиента» больше нет — §10 такого статуса не знает, причина возврата
+  // хранится отдельным полем и проверяется своими тестами.
+  async function statusId(key: string): Promise<string> {
+    const all = await getOrderedStatuses(prisma);
+    const row = all.find((s) => s.key === key);
+    if (!row) throw new Error(`нет статуса ${key}`);
+    return row.id;
+  }
 
-  it('(3b) in_progress → waiting_client stores the return reason (trimmed) and persists it', async () => {
-    const r = await transitionOrderLifecycle(prisma, managerSession(managerAId), {
+  it('(3a) черновик → принято в работу', async () => {
+    const r = await transitionOrderStatus(prisma, managerSession(managerAId), {
       orderId,
-      to: 'waiting_client',
-      reason: '  Клиент не прислал реквизиты  '
+      toId: await statusId('accepted')
     });
-    expect(r).toEqual({ ok: true, changed: true, status: 'waiting_client' });
+    expect(r.ok).toBe(true);
 
     const row = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { status: true, returnReason: true }
+      select: { statusDefinition: { select: { key: true } } }
     });
-    expect(row?.status).toBe('waiting_client');
-    expect(row?.returnReason).toBe('Клиент не прислал реквизиты');
-
-    // The audit row for this transition carries the reason in its meta.
-    const audit = await prisma.auditLog.findFirst({
-      where: { entity: 'order', entityId: orderId, action: 'order_lifecycle_changed' },
-      orderBy: { createdAt: 'desc' },
-      select: { meta: true }
-    });
-    const meta = audit?.meta as { reason?: string; after?: { status?: string } } | null;
-    expect(meta?.reason).toBe('Клиент не прислал реквизиты');
-    expect(meta?.after?.status).toBe('waiting_client');
-  });
-
-  it('(3c) waiting_client → in_progress clears the return reason', async () => {
-    const r = await transitionOrderLifecycle(prisma, managerSession(managerAId), {
-      orderId,
-      to: 'in_progress'
-    });
-    expect(r).toEqual({ ok: true, changed: true, status: 'in_progress' });
-
-    const row = await prisma.order.findUnique({
-      where: { id: orderId },
-      select: { status: true, returnReason: true }
-    });
-    expect(row?.status).toBe('in_progress');
-    expect(row?.returnReason).toBeNull();
+    expect(row?.statusDefinition?.key).toBe('accepted');
   });
 
   it('(4) completion is BLOCKED while completion conditions are unmet (completion_conditions_unmet)', async () => {
     // No clean document, accounting not signed → both conditions unmet.
-    const r = await transitionOrderLifecycle(prisma, managerSession(managerAId), {
+    const r = await transitionOrderStatus(prisma, managerSession(managerAId), {
       orderId,
-      to: 'completed'
+      toId: await statusId('closed')
     });
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('unreachable');
@@ -233,9 +218,12 @@ describe('E2E order lifecycle — full path through real services', () => {
     // document_development → certificates_issued NOT among unmet conditions.
     expect(r.unmet.sort()).toEqual(['accounting_signed', 'documents_uploaded'].sort());
 
-    // Status did not move.
-    const row = await prisma.order.findUnique({ where: { id: orderId }, select: { status: true } });
-    expect(row?.status).toBe('in_progress');
+    // Статус не сдвинулся.
+    const row = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { statusDefinition: { select: { key: true } } }
+    });
+    expect(row?.statusDefinition?.key).toBe('accepted');
   });
 
   it('(5a) satisfy documents_uploaded — a clean scanned document on the order', async () => {
@@ -269,44 +257,46 @@ describe('E2E order lifecycle — full path through real services', () => {
   });
 
   it('(5c) after every completion condition is met, completion SUCCEEDS', async () => {
-    const r = await transitionOrderLifecycle(prisma, managerSession(managerAId), {
+    const r = await transitionOrderStatus(prisma, managerSession(managerAId), {
       orderId,
-      to: 'completed'
+      toId: await statusId('closed')
     });
-    expect(r).toEqual({ ok: true, changed: true, status: 'completed' });
+    expect(r.ok).toBe(true);
 
-    const row = await prisma.order.findUnique({ where: { id: orderId }, select: { status: true } });
-    expect(row?.status).toBe('completed');
+    const row = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { statusDefinition: { select: { key: true } } }
+    });
+    expect(row?.statusDefinition?.key).toBe('closed');
   });
 
-  it('(6) reopen completed → in_progress is allowed and writes an AuditLog row', async () => {
-    const auditBefore = await prisma.auditLog.count({
-      where: { entity: 'order', entityId: orderId, action: 'order_lifecycle_changed' }
-    });
-
-    const r = await transitionOrderLifecycle(prisma, managerSession(managerAId), {
+  it('(6) возврат из «закрыта» доступен руководителю и пишется в журнал', async () => {
+    // §10 ТЗ v0.5: возврат на предыдущую стадию — право администратора и
+    // руководителя; обычному менеджеру он теперь запрещён (проверяется ниже).
+    const mgr = await transitionOrderStatus(prisma, managerSession(managerAId), {
       orderId,
-      to: 'in_progress'
+      toId: await statusId('accepted')
     });
-    expect(r).toEqual({ ok: true, changed: true, status: 'in_progress' });
+    expect(mgr).toEqual({ ok: false, error: 'backward_forbidden' });
 
-    const row = await prisma.order.findUnique({ where: { id: orderId }, select: { status: true } });
-    expect(row?.status).toBe('in_progress');
-
-    // A fresh lifecycle audit row was appended, capturing completed → in_progress.
-    const auditAfter = await prisma.auditLog.count({
-      where: { entity: 'order', entityId: orderId, action: 'order_lifecycle_changed' }
+    // тот же пользователь, но с суб-ролью руководителя — проверяем именно
+    // право, а не конкретного человека
+    const leaderSession = { ...managerSession(managerAId), managerRole: 'leader' as const };
+    const r = await transitionOrderStatus(prisma, leaderSession, {
+      orderId,
+      toId: await statusId('accepted')
     });
-    expect(auditAfter).toBe(auditBefore + 1);
+    expect(r.ok).toBe(true);
 
-    const reopen = await prisma.auditLog.findFirst({
-      where: { entity: 'order', entityId: orderId, action: 'order_lifecycle_changed' },
+    const changes = await prisma.orderStatusChange.findMany({
+      where: { orderId },
       orderBy: { createdAt: 'desc' },
-      select: { userId: true, meta: true }
+      take: 1,
+      select: { userId: true, from: { select: { key: true } }, to: { select: { key: true } } }
     });
-    expect(reopen?.userId).toBe(managerAId);
-    const meta = reopen?.meta as { before?: { status?: string }; after?: { status?: string } } | null;
-    expect(meta?.before?.status).toBe('completed');
-    expect(meta?.after?.status).toBe('in_progress');
+    expect(changes[0]?.userId).toBe(managerAId);
+    expect(changes[0]?.from?.key).toBe('closed');
+    expect(changes[0]?.to?.key).toBe('accepted');
   });
+
 });

@@ -15,8 +15,7 @@ import {
   createStatusDefinition,
   updateStatusDefinition,
   deleteStatusDefinition,
-  findByAnchor,
-  LEGACY_STATUS_TO_KEY
+  findByAnchor
 } from '@/lib/services/orderStatuses/definitions';
 import {
   transitionOrderStatus,
@@ -138,41 +137,19 @@ describe('миграция §10 — сид семёрки и перенос за
     expect((await findByAnchor(prisma, 'closed'))?.key).toBe('closed');
   });
 
-  it('карта переноса зафиксирована в коде — миграция и PR-3 используют одну', () => {
-    // Проверять «ни одной заявки без statusId» бессмысленно: тесты и сама
-    // система создают заявки уже ПОСЛЕ миграции, и до PR-3 они статуса не
-    // получают. Осмысленно проверять саму карту — её применила миграция.
-    expect(LEGACY_STATUS_TO_KEY).toEqual({
-      new: 'draft',
-      in_progress: 'accepted',
-      waiting_client: 'accepted',
-      completed: 'closed'
+  it('новая заявка, созданная сервисом, получает статус из справочника', async () => {
+    const fresh = await prisma.order.create({
+      data: {
+        title: `OSS-New-${S}`,
+        orderNumber: `OSS-NW-${S}`,
+        companyId,
+        organizationId: orgId,
+        executionStatus: 'pending',
+        statusId: draft
+      },
+      select: { statusDefinition: { select: { key: true } } }
     });
-  });
-
-  it('каждый ключ карты существует в справочнике', async () => {
-    const all = await getOrderedStatuses(prisma);
-    const keys = new Set(all.map((s) => s.key));
-    for (const key of Object.values(LEGACY_STATUS_TO_KEY)) {
-      expect(keys.has(key)).toBe(true);
-    }
-  });
-
-  it('заявки, перенесённые миграцией, имеют статус из карты', async () => {
-    // Берём заявки, у которых statusId проставлен (то есть прошедшие миграцию
-    // или созданные с явным статусом), и сверяем пару со старым полем.
-    const migrated = await prisma.order.findMany({
-      where: { statusId: { not: null } },
-      select: { status: true, statusDefinition: { select: { key: true } } },
-      take: 200
-    });
-    for (const row of migrated) {
-      const expected = LEGACY_STATUS_TO_KEY[row.status];
-      // Заявку могли двигать вручную после миграции — тогда ключ отличается,
-      // но он обязан быть настоящим статусом справочника, а не мусором.
-      expect(typeof row.statusDefinition?.key).toBe('string');
-      expect(expected).toBeTruthy();
-    }
+    expect(fresh.statusDefinition?.key).toBe('draft');
   });
 });
 
@@ -656,49 +633,22 @@ describe('нештатные ошибки БД пробрасываются на
 
 // ─── PR-3: связь со старым полем и условия закрытия ─────────────────────────
 
-describe('старое поле Order.status остаётся заполненным (решение Q3)', () => {
-  let syncOrderId: string;
-
-  beforeAll(async () => {
-    syncOrderId = (await prisma.order.create({
-      data: {
-        title: `OSS-Sync-${S}`,
-        orderNumber: `OSS-SY-${S}`,
-        companyId,
-        organizationId: orgId,
-        executionStatus: 'pending',
-        statusId: draft
-      }
-    })).id;
+describe('старого поля Order.status больше нет (PR-4)', () => {
+  it('колонка удалена из схемы — источник правды один', async () => {
+    const cols = await prisma.$queryRawUnsafe<{ column_name: string }[]>(
+      `select column_name from information_schema.columns
+       where table_name = 'Order' and column_name in ('status','statusId')`
+    );
+    const names = cols.map((c) => c.column_name);
+    expect(names).toContain('statusId');
+    expect(names).not.toContain('status');
   });
 
-  it('переход в «Принято в работу» ставит старому полю in_progress', async () => {
-    const admin = sess(adminId, 'admin');
-    await transitionOrderStatus(prisma, admin, { orderId: syncOrderId, toId: accepted });
-
-    const row = await prisma.order.findUnique({
-      where: { id: syncOrderId },
-      select: { status: true, statusId: true }
-    });
-    expect(row?.status).toBe('in_progress');
-    expect(row?.statusId).toBe(accepted);
-  });
-
-  it('отмена старое поле НЕ трогает — в enum нет такого значения', async () => {
-    const admin = sess(adminId, 'admin');
-    const before = await prisma.order.findUnique({
-      where: { id: syncOrderId },
-      select: { status: true }
-    });
-
-    await transitionOrderStatus(prisma, admin, { orderId: syncOrderId, toId: cancelled });
-
-    const after = await prisma.order.findUnique({
-      where: { id: syncOrderId },
-      select: { status: true, statusId: true }
-    });
-    expect(after?.status).toBe(before?.status);
-    expect(after?.statusId).toBe(cancelled);
+  it('тип OrderStatus тоже снят', async () => {
+    const types = await prisma.$queryRawUnsafe<{ typname: string }[]>(
+      `select typname from pg_type where typname = 'OrderStatus'`
+    );
+    expect(types).toEqual([]);
   });
 });
 
@@ -759,9 +709,8 @@ describe('закрыть заявку можно только при выпол�
 
     const row = await prisma.order.findUnique({
       where: { id: closeOrderId },
-      select: { status: true }
+      select: { statusDefinition: { select: { key: true } } }
     });
-    // старое поле тоже доехало до completed
-    expect(row?.status).toBe('completed');
+    expect(row?.statusDefinition?.key).toBe('closed');
   });
 });

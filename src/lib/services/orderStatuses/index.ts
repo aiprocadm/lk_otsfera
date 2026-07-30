@@ -7,9 +7,7 @@ export {
   updateStatusDefinition,
   deleteStatusDefinition,
   isStatusAnchor,
-  STATUS_ANCHORS,
-  LEGACY_STATUS_TO_KEY,
-  KEY_TO_LEGACY_STATUS
+  STATUS_ANCHORS
 } from './definitions';
 export type {
   StatusDefinitionsError,

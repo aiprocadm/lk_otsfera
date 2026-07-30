@@ -31,16 +31,10 @@ enum ScopeLevel {
   all
 }
 
-enum OrderStatus {
-  new
-  in_progress
-  waiting_client
-  completed
-}
-
 /// §10 ТЗ v0.5 (этап 2): настраиваемый справочник рабочих статусов заявки.
-/// Заменяет enum OrderStatus как источник правды; сам enum остаётся заполненным
-/// до PR-4, чтобы обмен с 1С и отчёты не сломались в день релиза.
+/// Единственный источник правды о рабочем статусе заявки: прежний enum
+/// `OrderStatus` снят в PR-4 после проверки, что его никто не читает
+/// (обмен с 1С на него не смотрел — там `status` про журнал синхронизации).
 model OrderStatusDefinition {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -1049,9 +1043,8 @@ model Order {
   externalId         String?                   @unique
   orderNumber        String?
   title              String
-  status             OrderStatus               @default(new)
-  /// §10 ТЗ v0.5 (этап 2): рабочий статус из справочника. Nullable на время
-  /// перехода — старый enum остаётся источником для 1С и отчётов до PR-4.
+  /// §10 ТЗ v0.5 (этап 2): рабочий статус из справочника. Старый enum
+  /// `OrderStatus` снят в PR-4 — источник правды один.
   statusId           String?
   statusDefinition   OrderStatusDefinition?    @relation(fields: [statusId], references: [id])
   statusChanges      OrderStatusChange[]
