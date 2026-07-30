@@ -126,17 +126,30 @@ export default defineConfig(({ mode }) => ({
       // полный и цифра честная. В частичных режимах (`--mode=unit` / `--mode=integration`)
       // порог снят: ни один из них в одиночку не покрывает весь набор (integration-only
       // файлы 0% под unit, и наоборот), иначе `test:coverage:unit` падал бы ложно.
-      // ВНИМАНИЕ: гейт ещё НЕ прогнан end-to-end против живого Postgres (на момент
-      // правки PG-форвардинг WSL↔Windows лежал). Требуется один `npm run test:coverage`
-      // с живой БД, чтобы подтвердить (а) проход и (б) что Vitest понимает extglob-ключ
-      // `!(*.tsx)` (открытый вопрос spec §7). См. close-out coverage-phase1.
+      // ПРОГНАН end-to-end 30.07.2026 против живого Postgres (первый раз за всё
+      // время). Extglob-ключ `!(*.tsx)` Vitest понимает — открытый вопрос spec §7
+      // закрыт. Результат: гейт КРАСНЫЙ, 108 файлов ниже 100% (факт по репозиторию:
+      // строки 99.31%, ветки 98.48%, функции 98.43%).
+      //
+      // ФАЗА Ф0 программы погашения долга (spec 2026-07-30-coverage-debt-design.md,
+      // решение заказчика 30.07.2026, вариант C): пороги опущены до ФАКТИЧЕСКИ
+      // достигнутого уровня. Смысл — не «сдаться», а сделать цифру честной: с этого
+      // момента гейт зелёный и падает на ЛЮБОМ ухудшении, то есть долг перестаёт
+      // расти, пока фазы Ф1–Ф4 его закрывают. Каждая фаза поднимает свои цифры;
+      // Ф5 возвращает все обратно к 100%. Цифры ниже — НЕ цель, а нижняя планка:
+      // повышать можно, понижать — только с решением заказчика.
+      //
+      // Почему на 0.01 ниже измеренного: отчёт печатает проценты округлёнными до
+      // сотых, а сравнение идёт по точному значению — порог «ровно как в отчёте»
+      // может оказаться выше факта и дать ложную красноту. 0.01% — это доли одной
+      // ветки из 18 тысяч; на ловле реальных регрессов не сказывается.
       ...(mode !== 'unit' && mode !== 'integration'
         ? {
             thresholds: {
-              'src/lib/**/!(*.tsx)': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/server-actions/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/app/api/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
-              'src/worker/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              'src/lib/**/!(*.tsx)': { lines: 99.56, branches: 98.59, functions: 99.72, statements: 99.56 },
+              'src/server-actions/**': { lines: 99.53, branches: 98.02, functions: 99.46, statements: 99.53 },
+              'src/app/api/**': { lines: 99.92, branches: 99.38, functions: 100, statements: 99.92 },
+              'src/worker/**': { lines: 99.44, branches: 97.82, functions: 97.86, statements: 99.44 },
               'src/middleware.ts': { lines: 100, branches: 100, functions: 100, statements: 100 },
               // PHASE-2 (трек E): render-хуки + email-шаблоны под render-харнессом
               // (jsdom + @testing-library, per-file `// @vitest-environment jsdom` для
@@ -156,7 +169,7 @@ export default defineConfig(({ mode }) => ({
               // `files`). Барель `ui/index.ts` — в exclude выше. Каждый `/* v8 ignore */` —
               // structurally-unreachable defensive guard с причиной-комментарием. Широкий glob
               // (а не подоменный) ловит и будущие компоненты в новых подкаталогах.
-              'src/components/**': { lines: 100, branches: 100, functions: 100, statements: 100 },
+              'src/components/**': { lines: 99.05, branches: 98.49, functions: 96.26, statements: 99.05 },
               // PHASE-3 W2 (app-страницы) — весь `src/app/**/*.tsx` (серверные `page.tsx`) под
               // порогом 100%. Harness `renderServerComponent` (jsdom): async-страница вызывается
               // напрямую (`await Page({ params/searchParams: Promise.resolve(...) })`), вложенные
@@ -165,7 +178,7 @@ export default defineConfig(({ mode }) => ({
               // featureFlags — `vi.mock`. Next-шеллы (layout/loading/error/…) — в exclude выше;
               // api-роуты (`.ts`) держит отдельный `src/app/api/**`. Каждый `/* v8 ignore */` —
               // single-line на structurally-unreachable defensive fallback (Paginator/TypeFilter).
-              'src/app/**/*.tsx': { lines: 100, branches: 100, functions: 100, statements: 100 }
+              'src/app/**/*.tsx': { lines: 98.42, branches: 96.36, functions: 100, statements: 98.42 }
             }
           }
         : {})
