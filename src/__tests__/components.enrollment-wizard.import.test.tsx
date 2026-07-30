@@ -95,6 +95,23 @@ describe('EnrollmentWizard — импорт из Excel (шаг 2)', () => {
     expect(screen.queryByRole('status')).toBeNull();
   });
 
+  it('импортированная дата рождения приводится к формату поля даты', async () => {
+    // Excel отдаёт дату объектом; в поле формы она должна попасть строкой
+    // ГГГГ-ММ-ДД, иначе input type=date её не покажет и дата потеряется.
+    parseEnrollmentImportAction.mockResolvedValue({
+      ok: true,
+      items: [importedItem({ birthDate: new Date('1990-01-15T00:00:00.000Z'), position: 'Инженер', snils: '11223344595' })],
+      errors: [],
+      warnings: []
+    });
+    goToStep2();
+    uploadFile();
+    await waitFor(() => expect(screen.getByDisplayValue('Мария Кузнецова')).toBeTruthy());
+    expect((document.querySelector('input[type="date"]') as HTMLInputElement).value).toBe('1990-01-15');
+    expect(screen.getByDisplayValue('Инженер')).toBeTruthy();
+    expect(screen.getByDisplayValue('11223344595')).toBeTruthy();
+  });
+
   it('ok:false → список ошибок в role=alert, строки не добавляются', async () => {
     parseEnrollmentImportAction.mockResolvedValue({
       ok: false,

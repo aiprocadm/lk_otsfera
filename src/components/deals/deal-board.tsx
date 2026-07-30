@@ -113,6 +113,9 @@ export function DealBoard({
   }
 
   async function doWin() {
+    // Причина ignore: недостижимо — кнопка подтверждения существует только в
+    // диалоге, который открыт при wonFor != null. Guard оставлен ради типа.
+    /* v8 ignore next */
     if (!wonFor) return;
     setWonBusy(true);
     const fd = new FormData();

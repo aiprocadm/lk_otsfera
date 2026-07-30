@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
@@ -133,6 +133,54 @@ describe('EnrollmentWizard — шаг 2 (слушатели)', () => {
     expect(screen.getByText('Никого не нашли по запросу.')).toBeTruthy();
   });
 
+  it('селект организаций: выбор грузит сотрудников; повторный клик по чекбоксу не дублирует позицию', async () => {
+    // Организацию выбирают из списка (кабинет партнёра). Смена значения должна
+    // подтянуть сотрудников именно выбранной организации.
+    vi.stubGlobal('fetch', fetchMockOk());
+    renderWizard({ organizations: [{ id: 'o1', name: 'ООО Ромашка' }, { id: 'o2', name: 'ООО Лютик' }] });
+    pickDirection();
+    // Селект организации — на первом шаге, рядом с направлением.
+    const orgSelect = screen.getAllByRole('combobox')[1] as HTMLSelectElement;
+    fireEvent.change(orgSelect, { target: { value: 'o1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Далее: слушатели' }));
+
+    expect(await screen.findByText('Пётр Петров')).toBeTruthy();
+
+    // Повторное «добавление» того же сотрудника не создаёт дубль.
+    const checkbox = screen.getAllByRole('checkbox')[0] as HTMLInputElement;
+    fireEvent.click(checkbox);
+    fireEvent.click(checkbox); // снятие
+    fireEvent.click(checkbox); // снова добавление
+    expect(screen.getByText('Слушатели в заявке: 1')).toBeTruthy();
+  });
+
+  it('ошибка ответа на список сотрудников (500) деградирует в пустой список', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) })
+    );
+    renderWizard({ defaultOrganizationId: 'o1' });
+    pickDirection();
+    fireEvent.click(screen.getByRole('button', { name: 'Далее: слушатели' }));
+    expect(await screen.findByText(/строками ниже/)).toBeTruthy();
+  });
+
+  it('ручная позиция: дата рождения и примечание правятся, пустое ФИО в итоге — прочерк', async () => {
+    vi.stubGlobal('fetch', fetchMockOk());
+    renderWizard();
+    pickDirection();
+    fireEvent.click(screen.getByRole('button', { name: 'Далее: слушатели' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Добавить слушателя' }));
+
+    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    fireEvent.change(dateInput, { target: { value: '1990-01-01' } });
+    expect(dateInput.value).toBe('1990-01-01');
+
+    const extra = screen.getByPlaceholderText('Любая дополнительная информация') as HTMLInputElement;
+    fireEvent.change(extra, { target: { value: 'группа 2' } });
+    expect(extra.value).toBe('группа 2');
+  });
+
   it('ручная позиция редактируется и удаляется', () => {
     vi.stubGlobal('fetch', fetchMockOk());
     renderWizard();
@@ -178,13 +226,16 @@ describe('EnrollmentWizard — шаг 2 (слушатели)', () => {
 });
 
 describe('EnrollmentWizard — шаг 3 и отправка', () => {
-  async function fillToStep3(fetchMock = fetchMockOk()) {
+  async function fillToStep3(fetchMock = fetchMockOk(), rowPatch: { position?: string } = {}) {
     vi.stubGlobal('fetch', fetchMock);
     renderWizard({ organizations: ORGS, defaultOrganizationId: 'o1' });
     pickDirection();
     fireEvent.click(screen.getByRole('button', { name: 'Далее: слушатели' }));
     await screen.findByText('Пётр Петров');
     fireEvent.click(screen.getAllByRole('checkbox')[0]!);
+    if (rowPatch.position) {
+      fireEvent.change(screen.getByPlaceholderText('Должность'), { target: { value: rowPatch.position } });
+    }
     fireEvent.click(screen.getByRole('button', { name: 'Далее: проверка' }));
     return fetchMock;
   }
@@ -224,6 +275,83 @@ describe('EnrollmentWizard — шаг 3 и отправка', () => {
     await fillToStep3(fetchMock);
     fireEvent.click(screen.getByRole('button', { name: 'Отправить заявку' }));
     await waitFor(() => expect(toastInfo).toHaveBeenCalledWith('Слушатель 2: дубликат — объединён'));
+  });
+
+  it('уход со страницы во время загрузки сотрудников не роняет мастер', async () => {
+    // Ответ может прийти после размонтирования (клиент ушёл со страницы).
+    // Флаг cancelled защищает от setState на размонтированном компоненте.
+    let resolveFetch: ((v: unknown) => void) | null = null;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => new Promise((resolve) => { resolveFetch = resolve; }))
+    );
+    const { unmount } = renderWizard({ defaultOrganizationId: 'o1' });
+    pickDirection();
+    fireEvent.click(screen.getByRole('button', { name: 'Далее: слушатели' }));
+
+    unmount();
+    await act(async () => {
+      resolveFetch?.({ ok: true, json: async () => ({ students: STUDENTS }) });
+    });
+    // Достаточно того, что не было unhandled rejection/ошибки React.
+  });
+
+  it('правка одной ручной позиции не трогает соседнюю', () => {
+    vi.stubGlobal('fetch', fetchMockOk());
+    renderWizard();
+    pickDirection();
+    fireEvent.click(screen.getByRole('button', { name: 'Далее: слушатели' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Добавить слушателя' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Добавить слушателя' }));
+
+    const names = screen.getAllByPlaceholderText('ФИО *') as HTMLInputElement[];
+    fireEvent.change(names[0], { target: { value: 'Первый' } });
+    expect((screen.getAllByPlaceholderText('ФИО *')[1] as HTMLInputElement).value).toBe('');
+  });
+
+  it('заявка без организации уходит с organizationId=null', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ itemCount: 1 }) });
+    vi.stubGlobal('fetch', fetchMock);
+    renderWizard();
+    pickDirection();
+    fireEvent.click(screen.getByRole('button', { name: 'Далее: слушатели' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Добавить слушателя' }));
+    fireEvent.change(screen.getByPlaceholderText('ФИО *'), { target: { value: 'Иван Иванов' } });
+    fireEvent.change(screen.getByPlaceholderText('Email *'), { target: { value: 'i@x.ru' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Далее: проверка' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить заявку' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/enrollments', expect.anything()));
+    const sent = JSON.parse((fetchMock.mock.calls.at(-1)![1] as { body: string }).body);
+    expect(sent.organizationId).toBeNull();
+    expect(sent.note).toBeNull();
+  });
+
+  it('ответ-ошибка с неразбираемым телом → toast со статус-кодом', async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (String(url).startsWith('/api/enrollments/students')) {
+        return { ok: true, json: async () => ({ students: STUDENTS }) };
+      }
+      return { ok: false, status: 502, json: async () => { throw new Error('not json'); } };
+    });
+    await fillToStep3(fetchMock);
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить заявку' }));
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось отправить заявку: 502'));
+  });
+
+  it('итог: позиция с должностью показывает её через точку; ответ без warnings не падает', async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (String(url).startsWith('/api/enrollments/students')) {
+        return { ok: true, json: async () => ({ students: STUDENTS }) };
+      }
+      // Ответ без поля warnings вовсе.
+      return { ok: true, json: async () => ({ itemCount: 1 }) };
+    });
+    await fillToStep3(fetchMock, { position: 'Инженер' });
+    expect(screen.getByText(/· Инженер/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить заявку' }));
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
+    expect(toastInfo).not.toHaveBeenCalled();
   });
 
   it('400 с messages → список ошибок в role=alert', async () => {

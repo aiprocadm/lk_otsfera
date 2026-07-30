@@ -179,6 +179,37 @@ describe('DealBoard', () => {
       expect(spy).toHaveBeenCalledWith('text/plain', 'deal-1');
     });
 
+    it('dragOver подсвечивает колонку, dragLeave снимает подсветку', () => {
+      // Подсветка колонки — единственный сигнал «сюда можно бросить карточку».
+      render(React.createElement(DealBoard, { board }));
+      const target = columnOf('В работе');
+
+      fireEvent.dragOver(target);
+      expect(target.className).toContain('ring-2');
+
+      fireEvent.dragLeave(target);
+      expect(target.className).not.toContain('ring-2');
+
+      // dragLeave чужой колонки не сбивает подсветку текущей.
+      fireEvent.dragOver(target);
+      fireEvent.dragLeave(columnOf('Новая'));
+      expect(target.className).toContain('ring-2');
+    });
+
+    it('карточка с нечисловой суммой не ломает сумму колонки', () => {
+      // Суммы приходят строками; мусор в одной карточке не должен превращать
+      // итог колонки в NaN на экране.
+      const dirty: DealBoardData = {
+        ...board,
+        columns: [
+          { stage: stNew, cards: [cardOpen, { ...cardOpen, id: 'd-bad', amount: 'мусор' }] },
+          ...board.columns.slice(1)
+        ]
+      };
+      render(React.createElement(DealBoard, { board: dirty }));
+      expect(document.body.textContent).not.toContain('NaN');
+    });
+
     it('drop with an empty dragged id does not call the action', () => {
       render(React.createElement(DealBoard, { board }));
       fireEvent.drop(columnOf('В работе'), { dataTransfer: dataTransfer('') });
@@ -220,6 +251,31 @@ describe('DealBoard', () => {
       expect(fd.get('lostReason')).toBe('Клиент отказался');
       await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Карточка перемещена.'));
       await waitFor(() => expect(dialogOf('Причина проигрыша').hasAttribute('open')).toBe(false));
+    });
+
+    it('Escape закрывает диалог причины/подтверждения/редактирования (onClose)', async () => {
+      // У каждой кнопки закрытия свой обработчик, а Escape идёт через onClose
+      // самого диалога — это отдельные точки, обе должны работать.
+      render(React.createElement(DealBoard, { board, organizations, managers, currentUserId: 'u-me' }));
+
+      // Диалог причины проигрыша.
+      fireEvent.drop(columnOf('Проиграна'), { dataTransfer: dataTransfer('d-open') });
+      const lost = dialogOf('Причина проигрыша');
+      fireEvent(lost, new Event('cancel', { bubbles: false, cancelable: true }));
+      await waitFor(() => expect(lost.hasAttribute('open')).toBe(false));
+
+      // Подтверждение выигрыша.
+      fireEvent.drop(columnOf('Выиграна'), { dataTransfer: dataTransfer('d-open') });
+      const won = dialogOf('Отметить сделку выигранной?');
+      fireEvent(won, new Event('cancel', { bubbles: false, cancelable: true }));
+      await waitFor(() => expect(won.hasAttribute('open')).toBe(false));
+
+      // Редактирование карточки.
+      fireEvent.click(screen.getByText('Сделка Ромашка'));
+      const edit = dialogOf('Сделка');
+      fireEvent(edit, new Event('cancel', { bubbles: false, cancelable: true }));
+      await waitFor(() => expect(edit.hasAttribute('open')).toBe(false));
+      expect(moveDealAction).not.toHaveBeenCalled();
     });
 
     it('cancel closes the reason dialog without calling the action', async () => {
