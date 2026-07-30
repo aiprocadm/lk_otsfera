@@ -4,6 +4,15 @@ import React from 'react';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManagerLeader } = vi.hoisted(() => ({ requireManagerLeader: vi.fn() }));
+// §10 ТЗ v0.5: страница подтягивает статусы для фильтра — мокаем сервис
+// обычной функцией (в файлах есть сброс моков).
+vi.mock('@/lib/services/orderStatuses', () => ({
+  getOrderedStatuses: async () => [
+    { id: 'st-1', label: 'Принято в работу', isActive: true },
+    { id: 'st-2', label: 'Выключенный', isActive: false }
+  ]
+}));
+
 vi.mock('@/lib/auth/requireRole', () => ({ requireManagerLeader }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));

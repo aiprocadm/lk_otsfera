@@ -93,6 +93,11 @@ afterAll(async () => {
   await prisma.partner.deleteMany({ where: { name: { startsWith: 'OSS-' } } });
   await prisma.orderStatusDefinition.deleteMany({ where: { key: { startsWith: 'oss_test_' } } });
   await prisma.auditLog.deleteMany({ where: { userId: { in: [adminId, managerId, leaderId] } } });
+  // Смена статуса теперь рассылает уведомления (§10, раздел 18) — их строки
+  // держат пользователей по внешнему ключу, чистим до удаления юзеров.
+  // Чистим по признаку пользователя, а не по списку id: остатки прошлых
+  // прогонов тоже держат FK.
+  await prisma.notification.deleteMany({ where: { user: { email: { contains: 'oss-' } } } });
   await prisma.user.deleteMany({ where: { email: { contains: 'oss-' } } });
   await prisma.company.deleteMany({ where: { name: { startsWith: 'OSS-Co' } } });
   await prisma.$disconnect();

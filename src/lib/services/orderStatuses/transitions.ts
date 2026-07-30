@@ -17,6 +17,8 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeOrder, getCompanyTeamVisibility, isManagerLeader } from '@/lib/auth/managerPolicy';
 import { recordAudit } from '@/lib/auth/audit';
 import { evaluateOrderCompletion, type CompletionCondition } from '@/lib/orders/completion';
+import { notifyManagers, notifyOrgUsers } from '@/lib/notifications';
+import { log } from '@/lib/logging';
 import { getOrderedStatuses, findByAnchor, type StatusAnchor } from './definitions';
 
 export type TransitionError =
@@ -69,6 +71,8 @@ export async function transitionOrderStatus(
       organizationId: true,
       companyId: true,
       statusId: true,
+      orderNumber: true,
+      title: true,
       // Для проверки условий закрытия (§5.6 ТЗ v1.0) — она была в старой
       // панели жизненного цикла и НЕ должна пропасть вместе с ней.
       serviceType: true,
@@ -150,6 +154,55 @@ export async function transitionOrderStatus(
     entityId: order.id,
     after: { from: current?.key ?? null, to: target.key, reason }
   });
+
+  // §10 ТЗ: «смена каждого из этих статусов — событие-триггер для уведомлений
+  // (раздел 18)». Раньше письма слал сервис операционного статуса; после того
+  // как тот убран из интерфейса (решение Q3), уведомления обязаны ехать
+  // отсюда — иначе клиент просто перестал бы их получать.
+  //
+  // Названия берём из справочника, а не хардкодом: заказчик их переименовывает.
+  if (order.organizationId) {
+    await notifyOrgUsers(prisma, {
+      organizationId: order.organizationId,
+      type: 'order_status_changed',
+      payload: {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        orderTitle: order.title,
+        dimension: 'execution',
+        oldStatus: current?.label ?? '—',
+        newStatus: target.label
+      }
+    });
+  }
+
+  // Коллегам — best-effort: сбой рассылки не откатывает смену статуса
+  // (§3 CLAUDE.md, degrade gracefully).
+  try {
+    const actor = await prisma.user.findUnique({
+      where: { id: session.sub },
+      select: { name: true }
+    });
+    await notifyManagers(
+      prisma,
+      {
+        orderId: order.id,
+        type: 'order_status_changed_by_manager',
+        payload: {
+          actorName: actor?.name ?? 'Менеджер',
+          oldStatus: current?.label ?? '—',
+          newStatus: target.label
+        }
+      },
+      { excludeUserId: session.sub }
+    );
+  } catch (err) {
+    log.warn('[orderStatuses] notifyManagers failed', {
+      orderId: order.id,
+      actorId: session.sub,
+      error: err instanceof Error ? err.message : String(err)
+    });
+  }
 
   return { ok: true, changed: true, statusId: target.id };
 }

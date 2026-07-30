@@ -5,14 +5,9 @@ import Link from 'next/link';
 // normal navigation to `${basePath}/orders?...`. No client JS, no useTransition.
 // The parent page is responsible for re-rendering with the new searchParams.
 
-const EXECUTION_OPTIONS: { value: string; label: string }[] = [
-  { value: '', label: 'Все этапы' },
-  { value: 'pending', label: 'Новые' },
-  { value: 'in_progress', label: 'В работе' },
-  { value: 'on_hold', label: 'На паузе' },
-  { value: 'completed', label: 'Завершённые' },
-  { value: 'cancelled', label: 'Отменённые' }
-];
+// §10 ТЗ v0.5: фильтруем по рабочему статусу из справочника. Прежний фильтр по
+// операционному статусу убран вместе с ним из интерфейса (решение Q3) —
+// фильтровать по невидимому полю бессмысленно.
 
 const FINANCIAL_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'Любой финансовый статус' },
@@ -27,19 +22,21 @@ type Props = {
   orgs: Array<{ id: string; name: string }>;
   initial: {
     search?: string;
-    executionStatus?: string;
+    statusId?: string;
     financialStatus?: string;
     organizationId?: string;
     unassigned?: string;
   };
   basePath?: string;
+  /** §10 ТЗ v0.5: рабочие статусы из справочника для выпадающего списка. */
+  statuses?: { id: string; label: string }[];
 };
 
-export function ManagerOrdersFilter({ orgs, initial, basePath = '/manager' }: Props) {
+export function ManagerOrdersFilter({ orgs, initial, statuses = [], basePath = '/manager' }: Props) {
   const unassigned = initial.unassigned === '1';
   const hasFilter =
     !!initial.search ||
-    !!initial.executionStatus ||
+    !!initial.statusId ||
     !!initial.financialStatus ||
     !!initial.organizationId ||
     unassigned;
@@ -59,13 +56,15 @@ export function ManagerOrdersFilter({ orgs, initial, basePath = '/manager' }: Pr
       />
 
       <select
-        name='executionStatus'
-        defaultValue={initial.executionStatus ?? ''}
+        name='statusId'
+        defaultValue={initial.statusId ?? ''}
+        aria-label='Статус заявки'
         className='border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'
       >
-        {EXECUTION_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
+        <option value=''>Любой статус</option>
+        {statuses.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.label}
           </option>
         ))}
       </select>

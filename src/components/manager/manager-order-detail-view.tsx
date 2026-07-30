@@ -5,7 +5,6 @@ import { ManagerOrderHeader } from '@/components/manager/manager-order-header';
 import { ClaimOrderButton } from '@/components/manager/claim-order-button';
 import { ManagerOrderAmounts } from '@/components/manager/manager-order-amounts';
 import { ManagerOrderTimeline } from '@/components/manager/manager-order-timeline';
-import { ManagerStatusChangeForm } from '@/components/manager/manager-status-change-form';
 import { OrderLifecyclePanel } from '@/components/manager/order-lifecycle-panel';
 import { OrderStatusPanel, type OrderStatusPanelProps } from '@/components/orders/order-status-panel';
 import { ManagerPaymentsList } from '@/components/manager/manager-payments-list';
@@ -111,20 +110,10 @@ export function ManagerOrderDetailView({
 
         <div className='space-y-4'>
           <ManagerOrderTimeline order={order} auditEntries={auditEntries} />
-          <ManagerStatusChangeForm
-            orderId={order.id}
-            currentStatus={
-              order.executionStatus as
-                | 'pending'
-                | 'in_progress'
-                | 'completed'
-                | 'cancelled'
-                | 'on_hold'
-            }
-          />
-          {/* §10 ТЗ v0.5: рабочий статус из справочника. Не путать с
-              операционным executionStatus выше — тот остаётся внутренним
-              (решение заказчика Q3) и уедет из интерфейса отдельно. */}
+          {/* §10 ТЗ v0.5, решение заказчика Q3: операционный статус
+              (`executionStatus`) убран из интерфейса — у заявки один видимый
+              статус, из справочника. Само поле осталось в базе ради
+              совместимости и внутренних выборок. */}
           {statusPanel && <OrderStatusPanel orderId={order.id} {...statusPanel} />}
           <OrderLifecyclePanel
             orderId={order.id}

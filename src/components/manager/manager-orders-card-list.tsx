@@ -2,7 +2,8 @@ import React from 'react';
 import Link from 'next/link';
 import type { ManagerOrderRow } from '@/lib/services/manager/orders';
 import { DealStatusBadge } from '@/components/partner/deal-status-badge';
-import { executionStage, paymentStage } from '@/lib/orders/humanStage';
+import { Badge } from '@/components/ui';
+import { paymentStage } from '@/lib/orders/humanStage';
 
 function fmtMoney(s: string | number): string {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Number(s)) + ' ₽';
@@ -33,7 +34,11 @@ export function ManagerOrdersCardList({
                 №{o.orderNumber ?? '—'} · {o.organization.name}
               </div>
             </div>
-            <DealStatusBadge stage={executionStage(o.executionStatus)} />
+            {/* §10 ТЗ v0.5: рабочий статус из справочника (операционный убран
+                из интерфейса, решение Q3). */}
+            <Badge tone={o.statusDefinition?.isTerminal ? 'warning' : 'info'}>
+              {o.statusDefinition?.label ?? 'Без статуса'}
+            </Badge>
           </div>
           <div className='mt-2 flex items-center justify-between text-xs'>
             <span className='text-gray-500'>

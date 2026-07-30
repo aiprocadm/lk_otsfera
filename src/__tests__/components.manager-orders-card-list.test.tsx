@@ -15,6 +15,7 @@ const row = {
   id: 'o1', orderNumber: 'A-1', title: 'Заказ X',
   totalAmount: '1000', paidAmount: '0',
   executionStatus: 'in_progress', financialStatus: 'not_billed',
+  statusDefinition: { id: 'st-1', label: 'Принято в работу', isTerminal: false },
   organization: { id: 'g1', name: 'Орг' }, manager: { id: 'm1', name: 'Иван', email: 'i@x' }
 };
 

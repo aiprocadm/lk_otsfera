@@ -52,15 +52,19 @@ describe('ManagerOrdersFilter', () => {
     expect(html).toContain('href="/manager/orders"');
   });
 
-  it('рендерит опции организаций и статусов исполнения/финансов', () => {
+  it('рендерит опции организаций, рабочих статусов и финансов', () => {
     const html = renderToString(
       React.createElement(ManagerOrdersFilter, {
         orgs: [{ id: 'g1', name: 'Орг 1' }],
-        initial: { executionStatus: 'pending', financialStatus: 'billed', organizationId: 'g1' }
+        initial: { statusId: 'st-1', financialStatus: 'billed', organizationId: 'g1' },
+        statuses: [{ id: 'st-1', label: 'Принято в работу' }]
       })
     );
     expect(html).toContain('Орг 1');
-    expect(html).toContain('value="pending" selected');
+    // §10 ТЗ v0.5: фильтр по рабочему статусу из справочника, а не по
+    // операционному (тот убран из интерфейса, решение Q3).
+    expect(html).toContain('Принято в работу');
+    expect(html).toContain('value="st-1" selected');
     expect(html).toContain('value="billed" selected');
     expect(html).toContain('value="g1" selected');
   });
