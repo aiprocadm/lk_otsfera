@@ -137,4 +137,81 @@ describe('submitCabinetQuestion', () => {
     await submitCabinetQuestion(fakePrisma(), orgSession({ organizationMemberships: [] }), VALID);
     expect(ingestMock.mock.calls[0]![1].sender.organizationId).toBe('org-1');
   });
+
+  it('активное членство в другой организации: берётся оно, а не поле сессии', async () => {
+    // Клиент переключился между своими организациями — обращение должно уйти в
+    // ту, где он реально активен, иначе менеджер увидит его не в той очереди.
+    await submitCabinetQuestion(
+      fakePrisma(),
+      orgSession({
+        organizationId: 'org-stale',
+        organizationMemberships: [{ organizationId: 'org-2', roleInOrg: 'admin', isActive: true }]
+      }),
+      VALID
+    );
+    expect(ingestMock.mock.calls[0]![1].sender.organizationId).toBe('org-2');
+  });
+
+  it('организация исчезла из базы → компания не проставляется, обращение всё равно принимается', async () => {
+    await submitCabinetQuestion(fakePrisma(null), orgSession(), VALID);
+    expect(ingestMock.mock.calls[0]![1].sender.companyId).toBeNull();
+  });
+
+  it('поля темы и текста отсутствуют вовсе → валидация, а не падение', async () => {
+    // Экшен зовётся из формы: поле может не прийти. Ожидаем список причин, а не
+    // TypeError на `.trim()` у undefined.
+    const res = await submitCabinetQuestion(fakePrisma(), orgSession(), {} as never);
+    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    if (res.ok) return;
+    expect(res.messages).toEqual(['Укажите тему обращения', 'Опишите вопрос']);
+  });
+
+  it('отправитель без почты и без имени: подставляются id и пустое имя', async () => {
+    // У сессии может не быть ни почты, ни имени (импортированный аккаунт).
+    // Обращение всё равно должно быть привязано к человеку — по его id.
+    await submitCabinetQuestion(
+      fakePrisma(),
+      orgSession({ email: undefined, name: undefined }),
+      VALID
+    );
+    const sender = ingestMock.mock.calls[0]![1];
+    expect(sender.senderRef).toBe('u1');
+    expect(sender.senderDisplay).toBeNull();
+  });
+
+  it('пустое имя файла (одни разделители пути) заменяется на «file»', async () => {
+    // Хранилищу нужно непустое имя. Если после отсечения каталогов не осталось
+    // ничего, кладём нейтральное «file» вместо пустой строки.
+    await submitCabinetQuestion(fakePrisma(), orgSession(), {
+      ...VALID,
+      file: { ...pdf, name: 'C:\\Users\\Иван\\' }
+    });
+    expect(ingestMock.mock.calls[0]![1].attachmentName).toBe('file');
+  });
+
+  it('организация без списка членств вообще и без organizationId → общая очередь', async () => {
+    // Клиентская сессия может прийти без поля членств (старый токен). Обращение
+    // тогда падает в общую очередь, а не роняет отправку.
+    await submitCabinetQuestion(
+      fakePrisma(),
+      orgSession({ organizationMemberships: undefined, organizationId: undefined }),
+      VALID
+    );
+    const sender = ingestMock.mock.calls[0]![1];
+    expect(sender.sender.organizationId).toBeNull();
+    expect(sender.sender.companyId).toBeNull();
+  });
+
+  it('имя файла с путём и опасными символами обрезается до безопасного', async () => {
+    // Браузер (и особенно старый клиент) может прислать полный путь. В хранилище
+    // должно уехать только имя, без каталогов и служебных символов.
+    await submitCabinetQuestion(fakePrisma(), orgSession(), {
+      ...VALID,
+      file: { ...pdf, name: 'C:\\Users\\Иван\\Мои документы\\счёт №1*?.pdf' }
+    });
+    const passed = ingestMock.mock.calls[0]![1].attachmentName as string;
+    expect(passed).not.toContain('\\');
+    expect(passed).not.toContain('*');
+    expect(passed).toContain('.pdf');
+  });
 });

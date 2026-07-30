@@ -52,6 +52,45 @@ describe('renderOrderDocumentPdf', () => {
     const buffer = await renderOrderDocumentPdf(data('act'));
     expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
   });
+
+  it('без подписантов: под линиями подписи стоит слово «подпись», документ формируется', async () => {
+    // Реквизиты подписанта могут быть не заполнены — счёт всё равно нужно
+    // выдать. Под линией тогда должна быть нейтральная подпись, а не пустота.
+    const bare = {
+      ...data('invoice'),
+      company: { ...PARTY, signerName: null, signerPosition: null },
+      organization: { ...PARTY, displayName: 'ООО «Ромашка»', signerName: null, signerPosition: null }
+    };
+    const buffer = await renderOrderDocumentPdf(bare);
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
+
+    // Акт печатает подписи по-другому (две стороны), поэтому проверяем и его.
+    const bareAct = { ...bare, docType: 'act' as const, number: 'А-2026-17' };
+    expect((await renderOrderDocumentPdf(bareAct)).subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
+  it('подписант без должности: в подписи только ФИО', async () => {
+    const noPosition = {
+      ...data('act'),
+      company: { ...PARTY, signerPosition: null },
+      organization: { ...PARTY, displayName: 'ООО «Ромашка»', signerPosition: null }
+    };
+    const buffer = await renderOrderDocumentPdf(noPosition);
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
+  it('пустые банковские реквизиты и ИНН: счёт формируется с пробелами вместо данных', async () => {
+    // Счёт выставляют и по неполным реквизитам (их дозаполнят позже). Пустые
+    // поля не должны ронять генерацию — иначе менеджер не сможет выдать вообще
+    // ничего.
+    const bare = {
+      ...data('invoice'),
+      company: { ...PARTY, bankName: null, bic: null, corrAccount: null, bankAccount: null, inn: null, kpp: null },
+      organization: { ...PARTY, displayName: 'ООО «Ромашка»', inn: null, kpp: null }
+    };
+    const buffer = await renderOrderDocumentPdf(bare);
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
+  });
 });
 
 describe('listMissingRequisites', () => {
@@ -105,6 +144,37 @@ describe('renderContractDocumentPdf (PR-3)', () => {
 
   it('доп. соглашение: рендерится со ссылкой на договор', async () => {
     const buffer = await renderContractDocumentPdf(base('extra_agreement'));
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
+  it('доп. соглашение без ссылки на базовый договор рендерится с прочерками', async () => {
+    // Договор-основание может быть не заведён в системе (подписан на бумаге).
+    // Документ всё равно должен сформироваться — с прочерком вместо номера и
+    // даты, а не упасть на обращении к пустому полю.
+    const orphan = { ...base('extra_agreement'), baseContract: null };
+    const buffer = await renderContractDocumentPdf(orphan);
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
+  it('стороны без КПП и без должности подписанта: документ формируется', async () => {
+    // ИП не имеет КПП, а подписант может быть без должности. Это не ошибка
+    // данных — договор обязан собраться и в таком виде.
+    const ip = {
+      ...base('contract'),
+      company: { ...PARTY, kpp: null, signerPosition: null },
+      organization: { ...PARTY, displayName: 'ИП Иванов', kpp: null, signerPosition: null }
+    };
+    const buffer = await renderContractDocumentPdf(ip);
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
+  it('стороны без ИНН вовсе: блок реквизитов схлопывается, рендер не падает', async () => {
+    const noInn = {
+      ...base('contract'),
+      company: { ...PARTY, inn: null, kpp: null },
+      organization: { ...PARTY, displayName: 'ООО «Ромашка»', inn: null, kpp: null }
+    };
+    const buffer = await renderContractDocumentPdf(noInn);
     expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
   });
 
