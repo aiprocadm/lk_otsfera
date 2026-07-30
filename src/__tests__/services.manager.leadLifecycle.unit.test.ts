@@ -31,6 +31,8 @@ function db(lead: LeadRow | null, txOver: Record<string, unknown> = {}) {
       order: { create: vi.fn().mockResolvedValue({ id: 'ord-new' }) },
       lead: { update: vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ ...lead, ...data })),
       },
+      // §10 ТЗ v0.5 (PR-3): заявка спрашивает начальный статус у справочника
+      orderStatusDefinition: { findFirst: vi.fn().mockResolvedValue({ id: 'oss_draft' }) },
       ...txOver
     }))
   } as never;

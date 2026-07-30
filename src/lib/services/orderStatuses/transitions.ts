@@ -16,7 +16,13 @@ import type { PrismaClient, OrderStatusDefinition } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeOrder, getCompanyTeamVisibility, isManagerLeader } from '@/lib/auth/managerPolicy';
 import { recordAudit } from '@/lib/auth/audit';
-import { getOrderedStatuses, findByAnchor, type StatusAnchor } from './definitions';
+import { evaluateOrderCompletion, type CompletionCondition } from '@/lib/orders/completion';
+import {
+  getOrderedStatuses,
+  findByAnchor,
+  KEY_TO_LEGACY_STATUS,
+  type StatusAnchor
+} from './definitions';
 
 export type TransitionError =
   | 'not_found'
@@ -28,7 +34,19 @@ export type TransitionError =
 
 export type TransitionResult =
   | { ok: true; changed: boolean; statusId: string }
-  | { ok: false; error: TransitionError };
+  | { ok: false; error: TransitionError }
+  | { ok: false; error: 'completion_conditions_unmet'; unmet: CompletionCondition[] };
+
+/**
+ * Старое поле `Order.status` держим заполненным, пока по нему живут обмен с 1С
+ * и отчёты (решение Q3; снимается в PR-4). У «Отменена» соответствия в старом
+ * enum нет — тогда поле не трогаем: выдумывать `completed` для отменённой
+ * заявки хуже, чем оставить прежнее значение. Отмена и так видна в
+ * `executionStatus` и в журнале переходов.
+ */
+function legacyStatusFor(key: string): 'new' | 'in_progress' | 'completed' | null {
+  return KEY_TO_LEGACY_STATUS[key] ?? null;
+}
 
 /** Может ли роль двигать статус вообще (клиенты — нет). */
 function isStaff(session: SessionPayload): boolean {
@@ -66,7 +84,13 @@ export async function transitionOrderStatus(
       managerId: true,
       organizationId: true,
       companyId: true,
-      statusId: true
+      statusId: true,
+      // Для проверки условий закрытия (§5.6 ТЗ v1.0) — она была в старой
+      // панели жизненного цикла и НЕ должна пропасть вместе с ней.
+      serviceType: true,
+      accountingSignedAt: true,
+      documents: { select: { scanStatus: true } },
+      items: { select: { trainingStatus: true } }
     }
   });
   if (!order) return { ok: false, error: 'not_found' };
@@ -114,7 +138,20 @@ export async function transitionOrderStatus(
     }
   }
 
-  await prisma.order.update({ where: { id: order.id }, data: { statusId: target.id } });
+  // Закрыть заявку можно только при выполненных условиях (§5.6): есть чистый
+  // документ, подписана бухгалтерия, у обучения выданы удостоверения. Раньше
+  // это проверяла панель жизненного цикла — при переезде на справочник
+  // проверка обязана переехать вместе с ней, иначе она тихо исчезнет.
+  if (target.anchor === 'closed') {
+    const { ready, unmet } = evaluateOrderCompletion(order);
+    if (!ready) return { ok: false, error: 'completion_conditions_unmet', unmet };
+  }
+
+  const legacy = legacyStatusFor(target.key);
+  await prisma.order.update({
+    where: { id: order.id },
+    data: { statusId: target.id, ...(legacy ? { status: legacy } : {}) }
+  });
 
   await prisma.orderStatusChange.create({
     data: {
@@ -175,7 +212,11 @@ export async function applyStatusAnchor(
   const toIdx = order_.findIndex((s) => s.id === target.id);
   if (fromIdx !== -1 && toIdx !== -1 && toIdx <= fromIdx) return { ok: true, changed: false };
 
-  await prisma.order.update({ where: { id: order.id }, data: { statusId: target.id } });
+  const legacy = legacyStatusFor(target.key);
+  await prisma.order.update({
+    where: { id: order.id },
+    data: { statusId: target.id, ...(legacy ? { status: legacy } : {}) }
+  });
   await prisma.orderStatusChange.create({
     data: {
       orderId: order.id,

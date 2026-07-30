@@ -1,5 +1,6 @@
 import type { PrismaClient, Lead, LeadStatus, Order } from '@prisma/client';
 import { recordAudit } from '@/lib/auth/audit';
+import { getInitialStatusId } from '@/lib/services/orderStatuses';
 
 /**
  * Manager-side lead lifecycle (T3). Leads are a shared team queue (any manager may
@@ -120,8 +121,11 @@ export async function promoteLead(
   const organizationId = lead.organizationId;
 
   const { order, updatedLead } = await prisma.$transaction(async (tx) => {
+    // §10 ТЗ v0.5: новая заявка получает рабочий статус из справочника.
+    const initialStatusId = await getInitialStatusId(tx);
     const order = await tx.order.create({
       data: {
+        statusId: initialStatusId,
         title: lead.subject,
         companyId,
         organizationId,

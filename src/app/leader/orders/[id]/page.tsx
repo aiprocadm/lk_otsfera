@@ -10,6 +10,7 @@ import { isFeatureEnabled } from '@/lib/featureFlags';
 import { listCompanyManagers } from '@/lib/services/manager/team';
 import { ManagerOrderDetailView } from '@/components/manager/manager-order-detail-view';
 import { LeaderAssignOrderManagerForm } from '@/components/leader/leader-assign-order-manager-form';
+import { getOrderStatusPanel } from '@/lib/services/orderStatuses';
 
 export default async function LeaderOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireManagerLeader();
@@ -39,9 +40,14 @@ export default async function LeaderOrderDetailPage({ params }: { params: Promis
     .filter((m) => m.isActive)
     .map((m) => ({ id: m.id, email: m.email, name: m.name }));
 
+  // §10 ТЗ v0.5: данные панели рабочего статуса — считает сервер, чтобы
+  // кнопки совпадали с тем, что реально разрешит сервис перехода.
+  const statusPanel = await getOrderStatusPanel(prisma, session, id);
+
   return (
     <div className='space-y-5'>
       <ManagerOrderDetailView
+      statusPanel={statusPanel}
         data={data}
         backHref='/leader/orders'
         directions={directions}

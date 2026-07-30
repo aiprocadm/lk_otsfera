@@ -2,12 +2,14 @@ export {
   listStatusDefinitions,
   getOrderedStatuses,
   findByAnchor,
+  getInitialStatusId,
   createStatusDefinition,
   updateStatusDefinition,
   deleteStatusDefinition,
   isStatusAnchor,
   STATUS_ANCHORS,
-  LEGACY_STATUS_TO_KEY
+  LEGACY_STATUS_TO_KEY,
+  KEY_TO_LEGACY_STATUS
 } from './definitions';
 export type {
   StatusDefinitionsError,
@@ -18,3 +20,6 @@ export type {
 
 export { transitionOrderStatus, applyStatusAnchor, listStatusHistory } from './transitions';
 export type { TransitionError, TransitionArgs, TransitionResult } from './transitions';
+
+export { getOrderStatusPanel } from './panel';
+export type { OrderStatusPanelData, StatusOptionView } from './panel';

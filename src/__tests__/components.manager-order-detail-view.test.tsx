@@ -12,7 +12,6 @@ vi.mock('@/components/manager/manager-status-change-form', () => ({
 vi.mock('@/components/manager/order-lifecycle-panel', () => ({
   OrderLifecyclePanel: (props: {
     orderId: string;
-    status: string;
     accountingSigned: boolean;
     returnReason: string | null;
   }) =>
@@ -20,7 +19,6 @@ vi.mock('@/components/manager/order-lifecycle-panel', () => ({
       'div',
       { 'data-testid': 'order-lifecycle-panel' },
       props.orderId,
-      props.status,
       String(props.accountingSigned),
       String(props.returnReason)
     )
@@ -183,8 +181,9 @@ describe('ManagerOrderDetailView', () => {
       })
     );
     expect(html).toContain('data-testid="order-lifecycle-panel"');
-    // props из data.order: id, status, accountingSignedAt != null, returnReason
-    expect(html).toContain('o1<!-- -->new<!-- -->false<!-- -->null');
+    // §10 ТЗ v0.5: статуса в props панели больше нет — он уехал в
+    // OrderStatusPanel; здесь остались id, отметка бухгалтерии и причина.
+    expect(html).toContain('o1<!-- -->false<!-- -->null');
     // монтаж в правой колонке ниже операционного статуса
     expect(html.indexOf('data-testid="status-change-form"')).toBeLessThan(
       html.indexOf('data-testid="order-lifecycle-panel"')
@@ -206,7 +205,7 @@ describe('ManagerOrderDetailView', () => {
         students: []
       })
     );
-    expect(html).toContain('o1<!-- -->waiting_client<!-- -->true<!-- -->нет сканов');
+    expect(html).toContain('o1<!-- -->true<!-- -->нет сканов');
   });
 
   it('DealActivityThread receives explicit activityItems/inboundEnabled/telephonyEnabled when passed', () => {

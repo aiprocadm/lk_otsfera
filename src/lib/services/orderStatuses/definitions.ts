@@ -53,6 +53,24 @@ export const LEGACY_STATUS_TO_KEY = {
   completed: 'closed'
 } as const;
 
+/**
+ * Обратная карта: ключ справочника → старый enum. Нужна, пока `Order.status`
+ * остаётся источником для обмена с 1С и отчётов (решение Q3, снимается в PR-4).
+ *
+ * Три «средних» статуса схлопываются в `in_progress`: старый enum их не
+ * различает, и это честнее, чем выдумывать несуществующее значение.
+ * У «Отменена» соответствия НЕТ — старое поле при отмене не трогаем, отмена
+ * видна в `executionStatus` и в журнале переходов (см. syncLegacyStatus).
+ */
+export const KEY_TO_LEGACY_STATUS: Record<string, 'new' | 'in_progress' | 'completed'> = {
+  draft: 'new',
+  accepted: 'in_progress',
+  paid: 'in_progress',
+  documents_issued: 'in_progress',
+  accounting_signed: 'in_progress',
+  closed: 'completed'
+};
+
 /** §4 ТЗ: «Настройка полей и статусов» — администратор ИЛИ руководитель. */
 function requireStatusAdmin(session: SessionPayload): { ok: false; error: 'forbidden' } | null {
   if (session.role === 'admin') return null;
@@ -78,6 +96,24 @@ export async function getOrderedStatuses(prisma: PrismaClient): Promise<OrderSta
   return prisma.orderStatusDefinition.findMany({
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }]
   });
+}
+
+/**
+ * Начальный статус новой заявки — «Черновик заявки».
+ *
+ * Возвращает id или null, если справочник почему-то пуст: создание заявки не
+ * должно падать из-за настройки статусов (fail-open §3 CLAUDE.md), заявка
+ * просто останется без рабочего статуса и будет видна как «Черновик» по
+ * старому полю.
+ */
+export async function getInitialStatusId(
+  prisma: Pick<PrismaClient, 'orderStatusDefinition'>
+): Promise<string | null> {
+  const draft = await prisma.orderStatusDefinition.findFirst({
+    where: { key: 'draft', companyId: null },
+    select: { id: true }
+  });
+  return draft?.id ?? null;
 }
 
 /** Статус по якорю (для автоперевода при наступлении факта). */
