@@ -21,6 +21,7 @@ function makeRow(overrides: Partial<ManagerOrderRow>): ManagerOrderRow {
     totalAmount: '1000' as unknown as ManagerOrderRow['totalAmount'],
     paidAmount: '500' as unknown as ManagerOrderRow['paidAmount'],
     executionStatus: 'in_progress',
+    statusDefinition: { id: 'st-1', label: 'Принято в работу', isTerminal: false },
     financialStatus: 'partially_paid',
     organization: { id: 'g1', name: 'Орг' },
     manager: { id: 'm1', name: 'Иван' },
@@ -62,7 +63,7 @@ describe('ManagerOrdersTable', () => {
       React.createElement(ManagerOrdersTable, {
         rows,
         nextCursor: 'cur1',
-        searchParams: { search: 'x', executionStatus: 'pending', financialStatus: 'billed', organizationId: 'g1' }
+        searchParams: { search: 'x', statusId: 'st-1', financialStatus: 'billed', organizationId: 'g1' }
       })
     );
     expect(html).toContain('Дальше');

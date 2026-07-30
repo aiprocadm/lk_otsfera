@@ -24,6 +24,8 @@ const ListOrdersOptionsSchema = z.object({
   session: z.custom<SessionPayload>((v) => !!v && typeof v === 'object' && 'sub' in (v as object)),
   search: z.string().optional(),
   executionStatus: z.string().optional(),
+  /** §10: фильтр по рабочему статусу (id строки справочника). */
+  statusId: z.string().optional(),
   financialStatus: z.string().optional(),
   organizationId: z.string().optional(),
   // «Без менеджера»: только заказы без персонального менеджера (Order.managerId IS NULL).
@@ -39,7 +41,11 @@ export type ListOrdersOptions = z.input<typeof ListOrdersOptionsSchema>;
 
 const LIST_INCLUDE = {
   organization: { select: { id: true, name: true } },
-  manager: { select: { id: true, name: true, email: true } }
+  manager: { select: { id: true, name: true, email: true } },
+  // §10 ТЗ v0.5: в списке показываем рабочий статус из справочника — тот же,
+  // что на карточке. Операционный `executionStatus` из интерфейса убран
+  // (решение Q3), поэтому бейджи по нему больше не строим.
+  statusDefinition: { select: { id: true, label: true, isTerminal: true } }
 } satisfies Prisma.OrderInclude;
 
 export type ManagerOrderRow = Prisma.OrderGetPayload<{ include: typeof LIST_INCLUDE }>;
@@ -59,6 +65,9 @@ function buildOrdersFilters(
   scope: Prisma.OrderWhereInput
 ): Prisma.OrderWhereInput[] {
   const filters: Prisma.OrderWhereInput[] = [scope];
+  if (opts.statusId) {
+    filters.push({ statusId: opts.statusId });
+  }
   if (opts.executionStatus) {
     filters.push({ executionStatus: opts.executionStatus as Prisma.OrderWhereInput['executionStatus'] });
   }

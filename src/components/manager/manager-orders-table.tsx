@@ -2,7 +2,8 @@ import React from 'react';
 import Link from 'next/link';
 import type { ManagerOrderRow } from '@/lib/services/manager/orders';
 import { DealStatusBadge } from '@/components/partner/deal-status-badge';
-import { executionStage, paymentStage } from '@/lib/orders/humanStage';
+import { Badge } from '@/components/ui';
+import { paymentStage } from '@/lib/orders/humanStage';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 
 function fmtMoney(s: string | number): string {
@@ -11,7 +12,7 @@ function fmtMoney(s: string | number): string {
 
 type SearchParams = {
   search?: string;
-  executionStatus?: string;
+  statusId?: string;
   financialStatus?: string;
   organizationId?: string;
   unassigned?: string;
@@ -28,7 +29,7 @@ type Props = {
 function buildNextHref(searchParams: SearchParams, cursor: string, basePath: string): string {
   const params = new URLSearchParams();
   if (searchParams.search) params.set('search', searchParams.search);
-  if (searchParams.executionStatus) params.set('executionStatus', searchParams.executionStatus);
+  if (searchParams.statusId) params.set('statusId', searchParams.statusId);
   if (searchParams.financialStatus) params.set('financialStatus', searchParams.financialStatus);
   if (searchParams.organizationId) params.set('organizationId', searchParams.organizationId);
   if (searchParams.unassigned) params.set('unassigned', searchParams.unassigned);
@@ -74,7 +75,10 @@ export function ManagerOrdersTable({ rows, nextCursor, searchParams, basePath = 
                 {fmtMoney(o.paidAmount.toString())}
               </Td>
               <Td>
-                <DealStatusBadge stage={executionStage(o.executionStatus)} />
+                {/* §10 ТЗ v0.5: рабочий статус из справочника. */}
+                <Badge tone={o.statusDefinition?.isTerminal ? 'warning' : 'info'}>
+                  {o.statusDefinition?.label ?? 'Без статуса'}
+                </Badge>
               </Td>
               <Td>
                 <DealStatusBadge stage={paymentStage({
