@@ -167,6 +167,17 @@ describe('uploadClientRequestAttachment', () => {
     expect(r).toMatchObject({ ok: false, error: 'INVALID_FILENAME' });
   });
 
+  it('имя без расширения принимается целиком (точка в начале — не расширение)', async () => {
+    // Файл может прийти без расширения или с точкой в начале («.gitignore»).
+    // Отсекать «расширение» тут нельзя — иначе имя схлопнется в пустоту.
+    reqFindFirst.mockResolvedValue(foundRequest());
+    const r = await uploadClientRequestAttachment(prismaMock(), SUBMITTER, {
+      ...input(),
+      file: { ...goodFile(), name: 'скан-без-расширения' }
+    });
+    expect(r).toMatchObject({ ok: true });
+  });
+
   it('успех: S3-путь client-requests/<id>/, создание+аудит в транзакции, скан-очередь', async () => {
     reqFindFirst.mockResolvedValue(foundRequest({ status: 'in_triage' }));
     const r = await uploadClientRequestAttachment(prismaMock(), SUBMITTER, input());
@@ -203,6 +214,25 @@ describe('uploadClientRequestAttachment', () => {
       '[client-request-attachments] enqueue scan failed',
       expect.objectContaining({ attachmentId: 'att-1' })
     );
+  });
+
+  it('сбой хранилища не-Error значением тоже даёт STORAGE_FAILURE с текстом в логе', async () => {
+    // S3-клиент умеет отвергать промис не-Error объектом. Без String(err) в лог
+    // ушло бы `providerError: undefined`, и разбирать инцидент было бы нечем.
+    reqFindFirst.mockResolvedValue(foundRequest());
+    storageUpload.mockRejectedValue('bucket closed');
+    const r = await uploadClientRequestAttachment(prismaMock(), SUBMITTER, input());
+    expect(r).toMatchObject({ ok: false, error: 'STORAGE_FAILURE' });
+    expect(logError).toHaveBeenCalledWith(
+      '[client-request-attachments] storage upload failed',
+      expect.objectContaining({ providerError: 'bucket closed' })
+    );
+  });
+
+  it('сбой очереди сканирования не-Error значением тоже проглатывается', async () => {
+    reqFindFirst.mockResolvedValue(foundRequest());
+    queueAdd.mockRejectedValue('redis closed');
+    expect(await uploadClientRequestAttachment(prismaMock(), SUBMITTER, input())).toMatchObject({ ok: true });
   });
 
   it('STORAGE_FAILURE при ошибке storage.upload (сырое сообщение — только в лог)', async () => {
@@ -320,6 +350,13 @@ describe('getClientRequestAttachmentDownloadUrl', () => {
     const r = await getClientRequestAttachmentDownloadUrl(prismaMock(), SUBMITTER, { attachmentId: 'att-1' });
     expect(r).toMatchObject({ ok: false, error: 'INFECTED', meta: { scanReason: 'EICAR-Test' } });
     expect(storageSigned).not.toHaveBeenCalled();
+  });
+
+  it('сбой ссылки не-Error значением тоже даёт STORAGE_FAILURE', async () => {
+    attFindFirst.mockResolvedValue(foundAtt());
+    storageSigned.mockRejectedValue('signer closed');
+    const r = await getClientRequestAttachmentDownloadUrl(prismaMock(), SUBMITTER, { attachmentId: 'att-1' });
+    expect(r).toMatchObject({ ok: false, error: 'STORAGE_FAILURE' });
   });
 
   it('STORAGE_FAILURE при сбое createSignedUrl', async () => {
