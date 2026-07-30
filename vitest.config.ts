@@ -146,12 +146,12 @@ export default defineConfig(({ mode }) => ({
       ...(mode !== 'unit' && mode !== 'integration'
         ? {
             thresholds: {
-              'src/lib/**/!(*.tsx)': { lines: 99.56, branches: 98.59, functions: 99.72, statements: 99.56 },
+              'src/lib/**/!(*.tsx)': { lines: 99.61, branches: 99.03, functions: 99.73, statements: 99.61 },
               // Ф1: закрыт `server-actions/manager/create-lead.ts` (был 0%) — набор вышел
               // на 100% по строкам/операторам/функциям, остались только ветки.
-              'src/server-actions/**': { lines: 100, branches: 98.13, functions: 100, statements: 100 },
-              'src/app/api/**': { lines: 99.92, branches: 99.38, functions: 100, statements: 99.92 },
-              'src/worker/**': { lines: 99.44, branches: 97.82, functions: 97.86, statements: 99.44 },
+              'src/server-actions/**': { lines: 100, branches: 98.35, functions: 100, statements: 100 },
+              'src/app/api/**': { lines: 99.93, branches: 99.87, functions: 100, statements: 99.93 },
+              'src/worker/**': { lines: 99.45, branches: 97.83, functions: 97.87, statements: 99.45 },
               'src/middleware.ts': { lines: 100, branches: 100, functions: 100, statements: 100 },
               // PHASE-2 (трек E): render-хуки + email-шаблоны под render-харнессом
               // (jsdom + @testing-library, per-file `// @vitest-environment jsdom` для
@@ -171,7 +171,7 @@ export default defineConfig(({ mode }) => ({
               // `files`). Барель `ui/index.ts` — в exclude выше. Каждый `/* v8 ignore */` —
               // structurally-unreachable defensive guard с причиной-комментарием. Широкий glob
               // (а не подоменный) ловит и будущие компоненты в новых подкаталогах.
-              'src/components/**': { lines: 99.19, branches: 98.51, functions: 96.36, statements: 99.19 },
+              'src/components/**': { lines: 99.21, branches: 99.02, functions: 96.84, statements: 99.21 },
               // PHASE-3 W2 (app-страницы) — весь `src/app/**/*.tsx` (серверные `page.tsx`) под
               // порогом 100%. Harness `renderServerComponent` (jsdom): async-страница вызывается
               // напрямую (`await Page({ params/searchParams: Promise.resolve(...) })`), вложенные
@@ -180,7 +180,7 @@ export default defineConfig(({ mode }) => ({
               // featureFlags — `vi.mock`. Next-шеллы (layout/loading/error/…) — в exclude выше;
               // api-роуты (`.ts`) держит отдельный `src/app/api/**`. Каждый `/* v8 ignore */` —
               // single-line на structurally-unreachable defensive fallback (Paginator/TypeFilter).
-              'src/app/**/*.tsx': { lines: 98.42, branches: 96.36, functions: 100, statements: 98.42 }
+              'src/app/**/*.tsx': { lines: 98.46, branches: 97.59, functions: 100, statements: 98.46 }
             }
           }
         : {})

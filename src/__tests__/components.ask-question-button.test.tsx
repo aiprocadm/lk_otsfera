@@ -42,6 +42,16 @@ describe('AskQuestionButton', () => {
     expect(screen.queryByLabelText('Тема')).toBeNull();
   });
 
+  it('Escape закрывает модалку так же, как «Отмена»', () => {
+    // У кнопки «Отмена» свой обработчик, а Escape идёт через onClose самого
+    // диалога — это две разные точки закрытия, и обе должны работать.
+    openDialog();
+    const dialog = document.querySelector('dialog');
+    expect(dialog).not.toBeNull();
+    fireEvent(dialog as HTMLDialogElement, new Event('cancel', { bubbles: false, cancelable: true }));
+    expect(screen.queryByLabelText('Тема')).toBeNull();
+  });
+
   it('успешная отправка: POST на роут, toast с кодом, модалка закрыта', async () => {
     fetchMock.mockResolvedValue({ ok: true, json: () => Promise.resolve({ code: 'ОБР-3F7A2C' }) });
     openDialog();

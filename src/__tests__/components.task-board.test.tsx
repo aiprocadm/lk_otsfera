@@ -161,6 +161,33 @@ describe('TaskBoard', () => {
     expect(screen.getByText('ООО Ромашка')).toBeTruthy();
   });
 
+  it('карточка с привязкой к лиду и сделке подписывается «Лид: …» и «Сделка: …»', () => {
+    // Подпись под карточкой собирается из всех привязок сразу. Проверяем, что
+    // лид и сделка получают поясняющий префикс — без него в строке были бы
+    // просто два названия подряд, непонятно чего.
+    const b: TaskBoardData = {
+      ...board,
+      board: [
+        {
+          column: board.board[0].column,
+          cards: [
+            {
+              ...board.board[0].cards[0],
+              linkedOrganizationName: null,
+              linkedOrderTitle: null,
+              linkedLeadId: 'l1',
+              linkedLeadSubject: 'Обучение по ОТ',
+              linkedDealId: 'd1',
+              linkedDealTitle: 'Поставка обучения'
+            }
+          ]
+        }
+      ]
+    };
+    render(React.createElement(TaskBoard, { board: b, options }));
+    expect(screen.getByText('Лид: Обучение по ОТ · Сделка: Поставка обучения')).toBeTruthy();
+  });
+
   it('an unknown priority value falls back to the neutral badge tone (PRIORITY_TONE fallback)', () => {
     const b: TaskBoardData = {
       ...board,

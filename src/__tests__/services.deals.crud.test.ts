@@ -61,6 +61,17 @@ describe('createDeal — гейты', () => {
     expect(dealCreate).not.toHaveBeenCalled();
   });
 
+  it('название вообще не передано → validation, а не падение', async () => {
+    // Сделку заводят и через API с сырым JSON: поле может отсутствовать.
+    const { prisma, dealCreate } = makePrisma();
+    expect(await createDeal(prisma, MGR, {} as never)).toEqual({
+      ok: false,
+      error: 'validation',
+      messages: ['Укажите название сделки']
+    });
+    expect(dealCreate).not.toHaveBeenCalled();
+  });
+
   it('staff без companyId → forbidden (сделке нужна граница C8)', async () => {
     const { prisma } = makePrisma();
     expect(await createDeal(prisma, { sub: 'adm-0', role: 'admin' }, VALID)).toEqual({
@@ -265,6 +276,31 @@ describe('updateDeal', () => {
       error: 'validation',
       messages: ['Укажите название сделки']
     });
+  });
+
+  it('чужая организация при правке → forbidden, сделка не трогается', async () => {
+    // Скоуп организации проверяется и на правке, а не только на создании: иначе
+    // менеджер мог бы переподвесить свою сделку на чужую организацию.
+    const { prisma, dealUpdate } = makePrisma({ existing: { id: 'd-1', status: 'open' } });
+    expect(
+      await updateDeal(prisma, MGR, { dealId: 'd-1', ...VALID, organizationId: 'org-alien' })
+    ).toEqual({ ok: false, error: 'forbidden' });
+    expect(dealUpdate).not.toHaveBeenCalled();
+  });
+
+  it('ответственный не найден при правке → validation, сделка не трогается', async () => {
+    const { prisma, dealUpdate } = makePrisma({
+      existing: { id: 'd-1', status: 'open' },
+      candidate: { role: 'manager', isActive: false, companyId: 'c1' }
+    });
+    expect(
+      await updateDeal(prisma, MGR, { dealId: 'd-1', ...VALID, managerId: 'm-off' })
+    ).toEqual({
+      ok: false,
+      error: 'validation',
+      messages: ['Ответственный менеджер не найден']
+    });
+    expect(dealUpdate).not.toHaveBeenCalled();
   });
 
   it('happy: поля перезаписываются + аудит deal_updated', async () => {

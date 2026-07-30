@@ -79,6 +79,17 @@ describe('POST /api/enrollments', () => {
     await POST(jsonReq({ directionId: 'd1', items: 'oops' }));
     expect(vi.mocked(submitEnrollmentRequest)).toHaveBeenCalledWith({}, partner, expect.objectContaining({ items: [] }));
   });
+  it('позиция null внутри массива → сервису уходит позиция с пустыми полями, а не падение', async () => {
+    // Клиент может прислать «дырявый» массив (позицию удалили на фронте, оставив
+    // null). Роут ничего не интерпретирует — он обязан отдать это сервису в
+    // нормализованном виде, а решение принимает валидатор.
+    vi.mocked(getSession).mockResolvedValue(partner);
+    vi.mocked(submitEnrollmentRequest).mockResolvedValue({ ok: false, error: 'validation', messages: ['x'] } as never);
+    await POST(jsonReq({ directionId: 'd1', items: [null] }));
+    const passed = vi.mocked(submitEnrollmentRequest).mock.calls[0]![2];
+    expect(passed.items).toEqual([expect.objectContaining({ fullName: null, email: null })]);
+  });
+
   it('maps validation Result → 400 (messages пробрасываются)', async () => {
     vi.mocked(getSession).mockResolvedValue(partner);
     vi.mocked(submitEnrollmentRequest).mockResolvedValue({ ok: false, error: 'validation', messages: ['Выберите направление обучения'] } as never);

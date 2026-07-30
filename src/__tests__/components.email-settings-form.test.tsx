@@ -30,6 +30,24 @@ describe('EmailSettingsForm', () => {
     expect(screen.getByPlaceholderText(/оставьте пустым/)).toBeTruthy();
   });
 
+  it('ключ задан в базе (не в конфиге) → пометка без приписки про сервер', () => {
+    // Источник ключа важен админу: из конфига сервера его правкой формы не
+    // изменить, из базы — можно. Приписка должна появляться только для конфига.
+    render(React.createElement(EmailSettingsForm, { ...BASE, apiKeySet: true, apiKeySource: 'db' }));
+    expect(screen.getByText(/задан/)).toBeTruthy();
+    expect(screen.queryByText(/в конфиге сервера/)).toBeNull();
+  });
+
+  it('переключатель отправки писем меняет состояние', () => {
+    // Галочка управляется состоянием, а не формой напрямую: без обработчика она
+    // визуально «залипнет» и админ решит, что отправка включена.
+    render(React.createElement(EmailSettingsForm, { ...BASE, initialEnabled: false }));
+    const box = screen.getByRole('checkbox') as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    fireEvent.click(box);
+    expect(box.checked).toBe(true);
+  });
+
   it('success: shows the saved confirmation', async () => {
     saveEmailSettingsAction.mockResolvedValue({ ok: true });
     render(React.createElement(EmailSettingsForm, { ...BASE }));

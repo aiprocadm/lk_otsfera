@@ -66,6 +66,24 @@ describe('привязки задач к лиду/сделке (ФТ-7.1)', () =
     expect(byLead[0]!.linkedLeadSubject).toBe(`s7p1-subject-${STAMP}`);
     expect(byLead[0]!.linkedDealTitle).toBe(`s7p1-deal-${STAMP}`);
 
+    // Профиль охвата уважается и в списке привязанных задач: с уровнем «own»
+    // менеджер видит только свои. Задача выше создана им же, поэтому остаётся
+    // видимой — а вот у другого менеджера с тем же профилем её быть не должно.
+    const ownProfile = { ...sA(), accessProfile: { tasks: 'own' } } as unknown as SessionPayload;
+    const byLeadOwn = await listLinkedTasks(prisma, ownProfile, { leadId });
+    expect(byLeadOwn.map((t) => t.title)).toContain(`s7p1-t1-${STAMP}`);
+
+    const strangerOwn = {
+      sub: m2,
+      role: 'manager',
+      companyId: companyA,
+      managedOrgIds: [],
+      accessProfile: { tasks: 'own' }
+    } as unknown as SessionPayload;
+    const byLeadStranger = await listLinkedTasks(prisma, strangerOwn, { leadId });
+    // m2 — назначенный исполнитель, значит задача его тоже касается.
+    expect(byLeadStranger.map((t) => t.title)).toContain(`s7p1-t1-${STAMP}`);
+
     const byDeal = await listLinkedTasks(prisma, sA(), { dealId });
     expect(byDeal.map((t) => t.title)).toContain(`s7p1-t1-${STAMP}`);
 

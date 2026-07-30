@@ -58,6 +58,16 @@ describe('DealStageConfig', () => {
       expect(within(row3).getByText('Проиграна')).toBeTruthy();
     });
 
+    it('незнакомый якорь показывается как есть, без пустой ячейки', () => {
+      // Якоря когда-нибудь расширят. Таблица обязана показать сырое значение,
+      // а не пустоту — иначе настройщик не поймёт, что за стадия перед ним.
+      const withUnknown: DealStageView[] = [
+        { id: 's-x', name: 'Заморожена', position: 3, statusAnchor: 'on_hold' as never, isTerminal: false, color: null }
+      ];
+      render(React.createElement(DealStageConfig, { stages: withUnknown, isDefault: false }));
+      expect(within(rowOf('Заморожена')).getByText('on_hold')).toBeTruthy();
+    });
+
     it('custom stages: shows edit/delete buttons per row', () => {
       render(React.createElement(DealStageConfig, { stages, isDefault: false }));
       expect(screen.getAllByRole('button', { name: 'Изменить' })).toHaveLength(3);
@@ -138,6 +148,19 @@ describe('DealStageConfig', () => {
       expect(fd.get('name')).toBe('Победа!');
       await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Стадия обновлена.'));
       await waitFor(() => expect(refresh).toHaveBeenCalled());
+    });
+
+    it('«Отмена» в диалоге закрывает его без сохранения', () => {
+      // У диалога две точки закрытия: сохранение и отказ. Отказ обязан вернуть
+      // экран в исходное состояние, иначе повторно открыть его не получится.
+      render(React.createElement(DealStageConfig, { stages, isDefault: false }));
+      fireEvent.click(within(rowOf('Победа')).getByRole('button', { name: 'Изменить' }));
+      expect(screen.getByText('Изменить стадию')).toBeTruthy();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+
+      expect(screen.queryByText('Изменить стадию')).toBeNull();
+      expect(updateDealStageAction).not.toHaveBeenCalled();
     });
 
     it('edit error → mapped russian toast, dialog stays without onSaved refresh', async () => {

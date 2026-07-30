@@ -139,6 +139,20 @@ describe('POST /api/client-requests/[id]/attachments (multipart upload)', () => 
     });
   });
 
+  it('INFECTED без подробностей антивируса → 410 без scanReason', async () => {
+    // Антивирус не всегда сообщает, что именно нашёл. Ответ обязан остаться
+    // валидным 410 с кодом карантина, а не сломаться на отсутствующем meta.
+    vi.mocked(uploadClientRequestAttachment).mockResolvedValue(
+      failure('INFECTED', 'Файл помещён в карантин антивирусом')
+    );
+    const res = await POST(formReq(), ctx());
+    expect(res.status).toBe(410);
+    expect(await res.json()).toEqual({
+      code: 'INFECTED',
+      error: 'Файл помещён в карантин антивирусом'
+    });
+  });
+
   it('STORAGE_FAILURE → 500', async () => {
     vi.mocked(uploadClientRequestAttachment).mockResolvedValue(failure('STORAGE_FAILURE'));
     expect((await POST(formReq(), ctx())).status).toBe(500);
@@ -218,6 +232,18 @@ describe('POST /api/client-requests/[id]/attachments/[attachmentId]/download', (
     const res = await DOWNLOAD(new Request('http://x/', { method: 'POST' }), dlCtx());
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: 'Вложение не найдено' });
+  });
+
+  it('INFECTED без подробностей антивируса → 410 без scanReason', async () => {
+    vi.mocked(getClientRequestAttachmentDownloadUrl).mockResolvedValue(
+      failure('INFECTED', 'Файл помещён в карантин антивирусом')
+    );
+    const res = await DOWNLOAD(new Request('http://x/', { method: 'POST' }), dlCtx());
+    expect(res.status).toBe(410);
+    expect(await res.json()).toEqual({
+      code: 'INFECTED',
+      error: 'Файл помещён в карантин антивирусом'
+    });
   });
 
   it('INFECTED → 410 Gone c code и scanReason (карантин это не 404)', async () => {

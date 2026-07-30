@@ -64,6 +64,17 @@ describe('DocumentsList — группировка по заказу', () => {
     expect(container.textContent).not.toContain('Общий документ');
   });
 
+  it('заказ без номера и без названия подписывается его идентификатором', () => {
+    // Крайний случай импорта из 1С: заказ есть, а человекочитаемых полей нет.
+    // Секция всё равно должна быть подписана, иначе документы уедут в безымянную
+    // группу и их не найдут.
+    const bare = [row({ id: '9', orderId: 'ord-bare', orderNumber: null, orderTitle: null })];
+    const { container } = render(<DocumentsList rows={bare} groupByOrder />);
+    expect(Array.from(container.querySelectorAll('h3')).map((h) => h.textContent)).toEqual([
+      'Заказ ord-bare'
+    ]);
+  });
+
   it('плоский режим (по умолчанию): без секций, с подписью «Заказ: …» / «Общий документ»', () => {
     const { container } = render(<DocumentsList rows={rows} />);
     expect(container.querySelectorAll('section')).toHaveLength(0);

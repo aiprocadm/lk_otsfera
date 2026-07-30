@@ -115,6 +115,18 @@ describe('TaskList', () => {
     expect(screen.queryByText(/просрочена/)).toBeNull();
   });
 
+  it('незнакомый приоритет не роняет строку (запасной нейтральный тон)', () => {
+    // Приоритеты когда-нибудь расширят. Список обязан отрисовать задачу и с
+    // незнакомым значением, а не упасть на отсутствующем в справочнике тоне.
+    const c = card({
+      id: 't-legacy',
+      title: 'Задача из будущего',
+      priority: 'critical' as never
+    });
+    render(<TaskList board={makeBoard([c])} options={options} />);
+    expect(screen.getByText('Задача из будущего')).toBeTruthy();
+  });
+
   it('просроченная незавершённая задача подсвечивается', () => {
     const c = card({ id: 't2', title: 'Старая', dueDate: new Date('2020-01-01') });
     render(<TaskList board={makeBoard([c])} options={options} />);

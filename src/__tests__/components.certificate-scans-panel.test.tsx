@@ -118,6 +118,22 @@ describe('CertificateScansPanel', () => {
     expect(screen.queryByText('подсказка')).toBeNull();
   });
 
+  it('ручной выбор меняет только свою строку, соседняя не сбивается', () => {
+    // Файлов обычно несколько. Смена слушателя у одного файла не должна
+    // перетирать выбор у остальных — иначе сканы уедут не тем людям.
+    render(<CertificateScansPanel orderId='o1' targets={TARGETS} />);
+    pickFiles([pdf('Иванов.pdf'), pdf('Петров.pdf')]);
+
+    const first = screen.getByLabelText('Слушатель для файла Иванов.pdf') as HTMLSelectElement;
+    const second = screen.getByLabelText('Слушатель для файла Петров.pdf') as HTMLSelectElement;
+    const secondBefore = second.value;
+
+    fireEvent.change(first, { target: { value: 'i2' } });
+
+    expect(first.value).toBe('i2');
+    expect(second.value).toBe(secondBefore);
+  });
+
   it('отправляет пары файл/позиция и показывает пофайловый итог', async () => {
     (global.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,

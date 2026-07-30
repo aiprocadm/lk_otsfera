@@ -68,8 +68,15 @@ describe('partner/dashboard recentEnrollments (ФТ-2.4)', () => {
     expect(findMany.mock.calls[0][0].take).toBe(7);
   });
 
-  it('маппинг тот же, что у организации (шапки без ПДн)', async () => {
-    const { d } = db([row('R1', { _count: { items: 2 }, status: 'in_training' })]);
+  it('маппинг тот же, что у организации: справочник / legacy / «—»', async () => {
+    // Партнёрская витрина обязана вести себя как организационная, включая
+    // заявки старого формата (направление ещё не из справочника) и заявки, где
+    // названия нет вовсе — там должен стоять прочерк, а не пустое место.
+    const { d } = db([
+      row('R1', { _count: { items: 2 }, status: 'in_training' }),
+      row('R2', { direction: null, legacyCourseTitle: 'Старый курс', _count: { items: 1 } }),
+      row('R3', { direction: null, _count: { items: 0 }, status: 'approved' })
+    ]);
     const res = await partnerRecentEnrollments(d, { partnerId: 'p1', scopeOrgIds: [] });
     expect(res).toEqual([
       {
@@ -78,7 +85,9 @@ describe('partner/dashboard recentEnrollments (ФТ-2.4)', () => {
         studentCount: 2,
         status: 'in_training',
         createdAt: new Date('2026-01-02T00:00:00.000Z')
-      }
+      },
+      { id: 'R2', directionName: 'Старый курс', studentCount: 1, status: 'pending', createdAt: new Date('2026-01-02T00:00:00.000Z') },
+      { id: 'R3', directionName: '—', studentCount: 0, status: 'approved', createdAt: new Date('2026-01-02T00:00:00.000Z') }
     ]);
   });
 });

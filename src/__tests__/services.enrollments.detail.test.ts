@@ -107,6 +107,20 @@ describe('getEnrollmentRequest (деталка заявки, ФТ-2.3)', () => {
     expect(r.request.items[0]!.certificateDocumentId).toBe('doc1');
   });
 
+  it('удостоверение привязано к заявке: компания заявки уходит в проверку прав', async () => {
+    // Документ может висеть на заявке (тогда у него есть order с компанией), а не
+    // на компании напрямую. Проверка прав обязана получить именно компанию заявки,
+    // иначе документ либо утечёт, либо перестанет открываться у своих.
+    const withOrder = { ...DOC, orderId: 'o1', companyId: null, order: { companyId: 'c9' } };
+    const { d } = db(reqRow(), [{ studentId: 'st1', documentId: 'doc1' }], [withOrder]);
+    const r = await getEnrollmentRequest(d, s(), 'E1');
+    if (!r.ok) throw new Error('expected ok');
+    expect(canReadDocument).toHaveBeenCalledWith(
+      s(),
+      expect.objectContaining({ id: 'doc1', order: { companyId: 'c9' } })
+    );
+  });
+
   it('canReadDocument=false → ссылки на удостоверение нет (кнопка не ведёт в 403)', async () => {
     canReadDocument.mockResolvedValue(false);
     const { d } = db(reqRow(), [{ studentId: 'st1', documentId: 'doc1' }], [DOC]);

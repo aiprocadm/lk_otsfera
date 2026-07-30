@@ -119,6 +119,15 @@ describe('CalendarMonthView', () => {
     expect(screen.getByRole('button', { name: 'Новое событие 2026-09-06' })).toBeTruthy();
   });
 
+  it('два события в один день показываются оба в одной ячейке', () => {
+    // Группировка по дням — самое частое место, где теряется вторая запись:
+    // день уже есть в списке, и элемент должен добавиться к нему, а не заменить.
+    const second = eventItem({ id: 'e-fut-2', title: 'Созвон с клиентом', date: new Date(2026, 7, 12, 15, 0) });
+    renderView({ items: [...items, second] });
+    expect(screen.getByTitle('Планёрка')).toBeTruthy();
+    expect(screen.getByTitle('Созвон с клиентом')).toBeTruthy();
+  });
+
   it('clicking an event chip opens the dialog in edit mode with that item', () => {
     renderView();
     const chip = screen.getByTitle('Планёрка');

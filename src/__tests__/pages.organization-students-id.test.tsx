@@ -101,6 +101,21 @@ describe('OrganizationStudentDetailPage', () => {
     expect(listCertificates).not.toHaveBeenCalled();
   });
 
+  it('сбой сервиса удостоверений деградирует в пустой список, карточка открывается', async () => {
+    // Удостоверения — дополнительный блок карточки. Их отказ не должен закрывать
+    // сотруднику доступ к самой карточке (принцип §3: деградируем, не роняем).
+    isFeatureEnabled.mockReturnValue(true);
+    getOrgPageContext.mockResolvedValue(ORG_CTX);
+    getOrgStudent.mockResolvedValue(STUDENT);
+    listCertificates.mockResolvedValue({ ok: false, error: 'forbidden' });
+    listOrgStudentTraining.mockResolvedValue([]);
+
+    const { container } = await renderServerComponent(OrganizationStudentDetailPage(props('s1')));
+
+    expect(container.textContent).toContain('Иванов Иван');
+    expect(container.textContent).not.toContain('УД-1');
+  });
+
   it('успех: шапка + удостоверения + история обучения (статус по-русски, ссылка на заказ)', async () => {
     isFeatureEnabled.mockReturnValue(true);
     getOrgPageContext.mockResolvedValue(ORG_CTX);

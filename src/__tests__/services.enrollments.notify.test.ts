@@ -138,6 +138,16 @@ describe('notifySubmitterEnrollmentStatus (enrollment_status_changed подат�
       error: 'db down'
     });
   });
+
+  it('best-effort: отказ не-Error значением логируется текстом, а не undefined', async () => {
+    createNotification.mockRejectedValue('соединение закрыто');
+    const { d } = db();
+    await expect(notifySubmitterEnrollmentStatus(d, req())).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalledWith('[enrollments/notify] status notify failed', {
+      requestId: 'E1',
+      error: 'соединение закрыто'
+    });
+  });
 });
 
 describe('notifyManagersEnrollmentSubmitted (enrollment_submitted менеджерам организации)', () => {
@@ -198,6 +208,16 @@ describe('notifyManagersEnrollmentSubmitted (enrollment_submitted менедже
     expect(warn).toHaveBeenCalledWith('[enrollments/notify] submit notify failed', {
       requestId: 'E1',
       error: 'boom'
+    });
+  });
+
+  it('best-effort: отказ не-Error значением логируется текстом', async () => {
+    resolveOrgManagerRecipients.mockRejectedValue('соединение закрыто');
+    const { d } = db();
+    await expect(notifyManagersEnrollmentSubmitted(d, req())).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalledWith('[enrollments/notify] submit notify failed', {
+      requestId: 'E1',
+      error: 'соединение закрыто'
     });
   });
 });

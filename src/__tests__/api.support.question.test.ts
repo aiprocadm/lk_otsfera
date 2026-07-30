@@ -79,6 +79,28 @@ describe('POST /api/support/question', () => {
     expect(await res.json()).toEqual({ error, messages: ['msg'] });
   });
 
+  it('незнакомый код ошибки сервиса → 400 по умолчанию, а не 500/undefined', async () => {
+    // Если в сервисе появится новый код, роут обязан ответить осмысленным
+    // статусом, а не отдать `status: undefined` и уронить ответ.
+    submitCabinetQuestion.mockResolvedValue({ ok: false, error: 'quota_exceeded', messages: ['msg'] });
+    const res = await POST(req({ subject: 'a', body: 'b' }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'quota_exceeded', messages: ['msg'] });
+  });
+
+  it('поля темы и текста отсутствуют в форме → сервис получает пустые строки', async () => {
+    // Браузерная форма может не прислать поле вовсе (например, файл без темы).
+    // Валидацию делает сервис, а роут обязан передать пустую строку, не undefined.
+    const fd = new FormData();
+    fd.set('file', new File([Buffer.from('x')], 'a.pdf', { type: 'application/pdf' }));
+    await POST(new Request('http://localhost/api/support/question', { method: 'POST', body: fd }));
+    expect(submitCabinetQuestion).toHaveBeenCalledWith(
+      {},
+      SESSION,
+      expect.objectContaining({ subject: '', body: '' })
+    );
+  });
+
   it('нечитаемое тело → 400', async () => {
     const bad = new Request('http://localhost/api/support/question', { method: 'POST', body: 'not-form', headers: { 'content-type': 'text/plain' } });
     const res = await POST(bad);

@@ -467,6 +467,15 @@ describe('createOrganization()', () => {
     expect($transaction).not.toHaveBeenCalled();
   });
 
+  it('validation: имя вообще не передано → тот же отказ, без падения', async () => {
+    // Форма может прислать объект без поля name (старый клиент, ручной вызов
+    // API). Отсутствие поля должно вести к вежливому отказу, а не к TypeError.
+    const { prisma, $transaction } = makeCreatePrisma();
+    expect(await createOrganization(prisma, 'actor1', {} as never))
+      .toEqual({ ok: false, error: 'validation' });
+    expect($transaction).not.toHaveBeenCalled();
+  });
+
   it('inn_exists: existing inn short-circuits before any write', async () => {
     const { prisma, $transaction } = makeCreatePrisma({ innLookup: { id: 'existing' } });
     expect(await createOrganization(prisma, 'actor1', { name: 'Новая', inn: '7700000000' }))
