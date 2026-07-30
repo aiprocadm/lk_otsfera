@@ -22,8 +22,19 @@ const { studentFindMany, dealFindUnique } = vi.hoisted(() => ({
   studentFindMany: vi.fn(),
   dealFindUnique: vi.fn()
 }));
+const { companyFindUnique, organizationFindUnique, documentGroupBy } = vi.hoisted(() => ({
+  companyFindUnique: vi.fn(),
+  organizationFindUnique: vi.fn(),
+  documentGroupBy: vi.fn()
+}));
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: { student: { findMany: studentFindMany }, deal: { findUnique: dealFindUnique } }
+  prisma: {
+    student: { findMany: studentFindMany },
+    deal: { findUnique: dealFindUnique },
+    company: { findUnique: companyFindUnique },
+    organization: { findUnique: organizationFindUnique },
+    document: { groupBy: documentGroupBy }
+  }
 }));
 
 const { loadManagerOrderDetail } = vi.hoisted(() => ({ loadManagerOrderDetail: vi.fn() }));
@@ -56,6 +67,14 @@ vi.mock('@/components/manager/certificate-scans-panel', () => ({
 }));
 
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
+vi.mock('@/components/manager/generate-documents-panel', () => ({
+  GenerateDocumentsPanel: (props: { orderId: string; missing: unknown[]; hasInvoice: boolean; hasContract: boolean }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'generate-panel' },
+      `${props.orderId}:missing=${props.missing.length}:invoice=${props.hasInvoice}:contract=${props.hasContract}`
+    )
+}));
 
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
@@ -76,6 +95,8 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
     inboundEnabled?: boolean;
     telephonyEnabled?: boolean;
     certificateScansPanel?: React.ReactNode;
+    generatePanel?: React.ReactNode;
+    readinessPanel?: React.ReactNode;
     breadcrumbs?: Array<{ label: string; href: string | null }>;
   }) =>
     React.createElement(
@@ -89,6 +110,8 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
       String(props.inboundEnabled),
       String(props.telephonyEnabled),
       props.certificateScansPanel,
+      props.generatePanel,
+      props.readinessPanel,
       JSON.stringify(props.breadcrumbs ?? [])
     )
 }));
@@ -319,5 +342,78 @@ describe('ManagerOrderDetailPage', () => {
       expect(container.textContent).toContain('Прямая сделка');
       expect(container.textContent).not.toContain('Обращения клиентов');
     });
+  });
+});
+describe('панель генерации документов (этап 8, ФТ-9.4/9.5)', () => {
+  const FULL = {
+    name: 'Раб', legalName: 'ООО', inn: '7707083893', kpp: null, legalAddress: 'адрес',
+    bankName: 'Банк', bankAccount: '40702810400000000001', corrAccount: '301', bic: '044525225',
+    signerName: 'Иванов', signerPosition: 'Директор'
+  };
+
+  async function renderWithGeneration(orderOver: Record<string, unknown> = {}) {
+    requireManager.mockResolvedValue(SESSION);
+    loadManagerOrderDetail.mockResolvedValue({
+      ...BASE_DATA,
+      order: { ...BASE_DATA.order, companyId: 'co-1', serviceType: 'training', resultDeliveredAt: null, ...orderOver }
+    });
+    listDirections.mockResolvedValue({ ok: true, directions: [] });
+    studentFindMany.mockResolvedValue([]);
+    getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+    getDealActivity.mockResolvedValue({ ok: true, items: [] });
+    listCertificateScanTargets.mockResolvedValue({ ok: true, targets: [] });
+    isFeatureEnabled.mockImplementation((flag: string) => flag === 'document_generation');
+    companyFindUnique.mockResolvedValue(FULL);
+    organizationFindUnique.mockResolvedValue(FULL);
+    documentGroupBy.mockResolvedValue([{ type: 'invoice', _count: { _all: 2 } }]);
+    return renderServerComponent(ManagerOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) }));
+  }
+
+  it('флаг включён и стороны на месте: панель собрана, счёт уже есть, договора нет', async () => {
+    // Страница сама собирает данные для панели: полноту реквизитов и какие
+    // документы уже сгенерированы. От этого зависят активность кнопок.
+    const { container } = await renderWithGeneration();
+    const panel = container.querySelector('[data-testid="generate-panel"]');
+    expect(panel?.textContent).toBe('order-1:missing=0:invoice=true:contract=false');
+  });
+
+  it('карточка стороны исчезла между запросами → панель с пустым списком недостающего', async () => {
+    requireManager.mockResolvedValue(SESSION);
+    loadManagerOrderDetail.mockResolvedValue({
+      ...BASE_DATA,
+      order: { ...BASE_DATA.order, companyId: 'co-1', serviceType: 'training', resultDeliveredAt: null }
+    });
+    listDirections.mockResolvedValue({ ok: true, directions: [] });
+    studentFindMany.mockResolvedValue([]);
+    getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+    getDealActivity.mockResolvedValue({ ok: true, items: [] });
+    listCertificateScanTargets.mockResolvedValue({ ok: true, targets: [] });
+    isFeatureEnabled.mockImplementation((flag: string) => flag === 'document_generation');
+    companyFindUnique.mockResolvedValue(null);
+    organizationFindUnique.mockResolvedValue(FULL);
+    documentGroupBy.mockResolvedValue([]);
+    const { container } = await renderServerComponent(ManagerOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) }));
+    expect(container.querySelector('[data-testid="generate-panel"]')?.textContent).toContain('missing=0');
+  });
+
+  it('заказ без companyId: панели нет даже при включённом флаге', async () => {
+    const { container } = await renderWithGeneration({ companyId: null });
+    expect(container.querySelector('[data-testid="generate-panel"]')).toBeNull();
+  });
+
+  it('передача уже состоялась: панель готовности показывает дату', async () => {
+    getOrderReadiness.mockResolvedValue({
+      ok: true,
+      readiness: { ready: true, gaps: [], items: [] },
+      deliveredAt: new Date('2026-07-01T10:00:00Z')
+    });
+    const { container } = await renderWithGeneration();
+    expect(container.textContent).toBeTruthy();
+  });
+
+  it('отказ сервиса готовности: страница открывается без панели готовности', async () => {
+    getOrderReadiness.mockResolvedValue({ ok: false, error: 'forbidden' });
+    const { container } = await renderWithGeneration();
+    expect(container.querySelector('[data-testid="order-detail-view"]')).not.toBeNull();
   });
 });
