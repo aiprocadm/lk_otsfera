@@ -124,6 +124,36 @@ describe('ManagerLeadDetailPage', () => {
     expect(container.querySelector('[data-testid="push-lead-button"]')?.textContent).toBe('lead-1');
   });
 
+  it.each([
+    ['звонка', { sourceCallId: 'c1' }, 'открыть звонки', '/manager/calls'],
+    ['обращения', { sourceInboundId: 'i1' }, 'открыть обращения', '/manager/inbox']
+  ])('лид из %s: ссылка ведёт к источнику', async (_label, over, label, href) => {
+    // Ссылка «открыть …» — единственный способ вернуться к первоисточнику лида
+    // (звонку или письму). Без неё менеджер теряет контекст разговора.
+    requireManager.mockResolvedValue(SESSION);
+    getManagerLead.mockResolvedValue({ ...BASE_LEAD, sourceRequestId: null, ...over });
+
+    const { container } = await renderServerComponent(
+      ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+    );
+
+    expect(container.textContent).toContain(label);
+    expect(container.innerHTML).toContain(href);
+  });
+
+  it('лид без партнёра подписывается «— (без партнёра)»', async () => {
+    // Лид, заведённый сотрудником вручную, партнёра не имеет. Пустая ячейка
+    // выглядела бы как потерянные данные.
+    requireManager.mockResolvedValue(SESSION);
+    getManagerLead.mockResolvedValue({ ...BASE_LEAD, partnerName: null });
+
+    const { container } = await renderServerComponent(
+      ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+    );
+
+    expect(container.textContent).toContain('— (без партнёра)');
+  });
+
   it('pushedToOneCAt задан: строка «1С» с датой и номером, кнопка отправки скрыта', async () => {
     requireManager.mockResolvedValue(SESSION);
     getManagerLead.mockResolvedValue({

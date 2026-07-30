@@ -44,6 +44,30 @@ describe('PartnerSettingsPage', () => {
     getNotificationSettings.mockReset();
   });
 
+  it('карточка реквизитов появляется, когда сервис их отдал; правка — только у админа партнёра', async () => {
+    // Реквизиты нужны для автогенерации документов. Если бы карточка не
+    // отрисовалась, партнёр не смог бы их заполнить и документы не собрались бы.
+    requirePartner.mockResolvedValue({ ...SESSION, partnerRole: 'admin' });
+    getTelegramStatus.mockResolvedValue({ ok: true, linked: false, enabled: true });
+    getNotificationSettings.mockResolvedValue({
+      ok: true,
+      view: {
+        emailAlwaysOn: true,
+        telegram: { available: true, linked: false, enabled: true },
+        max: { available: false, linked: false, enabled: false },
+        whatsapp: { available: false, phone: null, enabled: false }
+      }
+    });
+    getPartnerRequisites.mockResolvedValue({
+      ok: true,
+      requisites: { legalName: 'ООО Партнёр', inn: '7707083893', kpp: null, ogrn: null, legalAddress: null, bankName: null, bankAccount: null, corrAccount: null, bic: null, signerName: null, signerPosition: null, signerBasis: null }
+    });
+
+    const { container } = await renderServerComponent(PartnerSettingsPage());
+
+    expect(container.textContent).toContain('Реквизиты партнёра');
+  });
+
   it('renders the telegram link card and notification channels card', async () => {
     requirePartner.mockResolvedValue(SESSION);
     getTelegramStatus.mockResolvedValue({ ok: true, linked: false, enabled: true });

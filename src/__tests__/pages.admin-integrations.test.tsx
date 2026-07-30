@@ -28,15 +28,17 @@ type FormStubProps = {
   title: string;
   check?: { lastAt: string; lastOk: boolean; lastError: string | null } | null;
   webhook?: { url: string; headerName: string | null; secretSet: boolean; lastEventAt: string | null } | null;
+  fields?: Array<{ name: string; initialValue?: string | boolean }>;
 };
 const { formTitles, formProps } = vi.hoisted(() => ({
   formTitles: [] as string[],
   formProps: [] as unknown[]
 }));
 vi.mock('@/components/admin/integration-settings-form', () => ({
-  IntegrationSettingsForm: ({ title, check, webhook }: FormStubProps) => {
+  IntegrationSettingsForm: ({ title, check, webhook, fields }: FormStubProps) => {
     formTitles.push(title);
-    formProps.push({ title, check, webhook });
+    // `fields` нужен тестам про разбор значений настроек (Ф3 программы покрытия).
+    formProps.push({ title, check, webhook, fields });
     return null;
   }
 }));
@@ -137,6 +139,50 @@ describe('AdminIntegrationsPage', () => {
       'Обмен с 1С',
       'DaData (подсказки по ИНН)'
     ]);
+  });
+
+  it('включённые настройки и секреты из окружения отражаются в формах', async () => {
+    // Экран настроек — единственное место, где админ видит, что реально
+    // включено. Если бы разбор значений сломался, всё выглядело бы выключенным,
+    // и админ полез бы «чинить» работающие интеграции.
+    getIntegrationsStatus.mockReturnValue([]);
+    getSettingsView.mockResolvedValue(
+      VIEW_KEYS.map((key) => ({
+        key,
+        isSecret: key.endsWith('Key') || key.endsWith('Token') || key.endsWith('password'),
+        // Значения приходят строками из БД — с регистром и пробелами.
+        isSet: key === 'mango.apiKey' || key === 'mango.apiSalt',
+        value:
+          key === 'email.enabled' || key === 'dadata.enabled'
+            ? '  TRUE  '
+            : key === 'onec.adapter'
+              ? ' REST '
+              : null,
+        source: 'db'
+      }))
+    );
+
+    const prevTg = process.env.TELEGRAM_WEBHOOK_SECRET;
+    const prevMax = process.env.MAX_WEBHOOK_SECRET;
+    const prevWa = process.env.WHATSAPP_WEBHOOK_SECRET;
+    process.env.TELEGRAM_WEBHOOK_SECRET = ' s1 ';
+    process.env.MAX_WEBHOOK_SECRET = ' s2 ';
+    process.env.WHATSAPP_WEBHOOK_SECRET = ' s3 ';
+    try {
+      await renderServerComponent(AdminIntegrationsPage());
+
+      const onec = formProps.find((p) => (p as FormStubProps).title === 'Обмен с 1С') as FormStubProps;
+      const adapter = onec.fields?.find((f) => f.name === 'onec_adapter');
+      // Значение « REST » с пробелами и в верхнем регистре — это «боевой обмен».
+      expect(adapter?.initialValue).toBe('rest');
+    } finally {
+      if (prevTg === undefined) delete process.env.TELEGRAM_WEBHOOK_SECRET;
+      else process.env.TELEGRAM_WEBHOOK_SECRET = prevTg;
+      if (prevMax === undefined) delete process.env.MAX_WEBHOOK_SECRET;
+      else process.env.MAX_WEBHOOK_SECRET = prevMax;
+      if (prevWa === undefined) delete process.env.WHATSAPP_WEBHOOK_SECRET;
+      else process.env.WHATSAPP_WEBHOOK_SECRET = prevWa;
+    }
   });
 
   it('прокидывает в карточки результаты проб (SyncState) и диагностику вебхуков', async () => {

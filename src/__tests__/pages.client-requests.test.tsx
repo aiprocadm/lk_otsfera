@@ -236,6 +236,28 @@ describe('OrganizationRequestDetailPage (/organization/requests/[id])', () => {
     expect(svc.getClientRequest).toHaveBeenCalledWith({}, ORG_CTX.session, 'R404');
   });
 
+  it('флаг выключен → notFound до обращения к контексту организации', async () => {
+    isFeatureEnabled.mockReturnValue(false);
+    await expect(renderServerComponent(OrganizationRequestDetailPage(props('R1')))).rejects.toThrow('NOT_FOUND');
+    expect(getOrgPageContext).not.toHaveBeenCalled();
+  });
+
+  it('вложения организации приходят в деталку с приведённой датой', async () => {
+    // Дата вложения уходит в клиентский компонент строкой: серверный Date туда
+    // передать нельзя. Если бы приведение потерялось, страница упала бы на
+    // сериализации — и обращение вообще не открылось бы.
+    isFeatureEnabled.mockReturnValue(true);
+    getOrgPageContext.mockResolvedValue(ORG_CTX);
+    svc.getClientRequest.mockResolvedValue({ ok: true, request: REQUEST });
+    listClientRequestAttachments.mockResolvedValue(ATTACHMENTS_OK);
+
+    const { container } = await renderServerComponent(OrganizationRequestDetailPage(props('R1')));
+
+    const detail = container.querySelector('[data-testid="cr-detail"]');
+    expect(detail?.getAttribute('data-attachments')).toBe('1');
+    expect(container.textContent).toContain('скан.pdf');
+  });
+
   it('happy → шелл + деталка, backHref /organization/requests; сбой листинга вложений деградирует в []', async () => {
     isFeatureEnabled.mockReturnValue(true);
     getOrgPageContext.mockResolvedValue(ORG_CTX);
