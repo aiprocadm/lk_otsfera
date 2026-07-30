@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const t = vi.hoisted(() => ({ tg: vi.fn(), max: vi.fn(), wa: vi.fn() }));
+const t = vi.hoisted(() => ({ tg: vi.fn(), max: vi.fn(), wa: vi.fn(), createN: vi.fn(), deliver: vi.fn(), warn: vi.fn() }));
 vi.mock('@/lib/telegram/client', () => ({ sendTelegramMessage: t.tg }));
 vi.mock('@/lib/max/client', () => ({ sendMaxMessage: t.max }));
 vi.mock('@/lib/whatsapp/aggregator', () => ({ sendWhatsAppMessage: t.wa }));
+vi.mock('@/lib/notifications', () => ({ createNotification: t.createN, deliverNotificationToUser: t.deliver }));
+vi.mock('@/lib/logging', () => ({ log: { warn: t.warn } }));
 
 import { replyToInbound } from '@/lib/services/inbound/reply';
 
@@ -54,5 +56,55 @@ describe('replyToInbound', () => {
   it('unknown channel -> ok:false', async () => {
     const r = await replyToInbound({ channel: 'sms', senderRef: 'x', subject: null } as any, 'x');
     expect(r.ok).toBe(false);
+  });
+
+  it('cabinet: ответ уходит уведомлением автору вопроса (ЛК + его каналы)', async () => {
+    // У вопроса из кабинета нет внешнего транспорта — ответ доставляется
+    // уведомлением автору (решение §9-2). Это единственный канал, где ответ
+    // вообще может дойти; сломайся ветка — клиент никогда не увидит ответа.
+    t.createN.mockResolvedValue({ id: 'n1' });
+    t.deliver.mockResolvedValue(undefined);
+    const r = await replyToInbound(
+      { channel: 'cabinet', senderRef: 'u1', subject: 'Не открывается документ', resolvedUserId: 'user-9' } as any,
+      'Проверьте, пожалуйста, ещё раз'
+    );
+    expect(r.ok).toBe(true);
+    expect(t.createN).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-9',
+        type: 'inbound_reply',
+        body: '«Не открывается документ»: Проверьте, пожалуйста, ещё раз'
+      })
+    );
+    expect(t.deliver).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-9', dedupKey: 'n1' }));
+  });
+
+  it('cabinet: без темы в теле уведомления только текст ответа', async () => {
+    t.createN.mockResolvedValue({ id: 'n2' });
+    const r = await replyToInbound(
+      { channel: 'cabinet', senderRef: 'u1', subject: null, resolvedUserId: 'user-9' } as any,
+      'Ответ'
+    );
+    expect(r.ok).toBe(true);
+    expect(t.createN).toHaveBeenCalledWith(expect.objectContaining({ body: 'Ответ' }));
+  });
+
+  it('cabinet: автор не определён → ok:false, уведомление не создаётся', async () => {
+    const r = await replyToInbound(
+      { channel: 'cabinet', senderRef: 'u1', subject: 'Тема', resolvedUserId: null } as any,
+      'Ответ'
+    );
+    expect(r.ok).toBe(false);
+    expect(t.createN).not.toHaveBeenCalled();
+  });
+
+  it('cabinet: сбой доставки проглатывается с log.warn → ok:false', async () => {
+    t.createN.mockRejectedValue(new Error('db down'));
+    const r = await replyToInbound(
+      { channel: 'cabinet', senderRef: 'u1', subject: 'Тема', resolvedUserId: 'user-9' } as any,
+      'Ответ'
+    );
+    expect(r.ok).toBe(false);
+    expect(t.warn).toHaveBeenCalledWith('[inbound/reply] cabinet reply failed', { error: 'db down' });
   });
 });
