@@ -1,0 +1,5 @@
+# Механические коммиты, скрываемые из git blame
+# (git config blame.ignoreRevsFile .git-blame-ignore-revs)
+
+# style: единый прогон Prettier по всему репозиторию (фаза 1)
+7b578fa9994ab75f50ea6f7f32c0480c30fab079
