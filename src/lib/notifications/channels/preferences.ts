@@ -12,7 +12,11 @@ import { z } from 'zod';
 import type { ChannelKey } from './types';
 
 /** Каналы, которыми управляет пользователь (email намеренно исключён). */
-export const OPTIONAL_CHANNEL_KEYS = ['telegram', 'max', 'whatsapp'] as const satisfies readonly ChannelKey[];
+export const OPTIONAL_CHANNEL_KEYS = [
+  'telegram',
+  'max',
+  'whatsapp',
+] as const satisfies readonly ChannelKey[];
 export type OptionalChannelKey = (typeof OPTIONAL_CHANNEL_KEYS)[number];
 
 export type ChannelPrefs = Partial<Record<OptionalChannelKey, boolean>>;

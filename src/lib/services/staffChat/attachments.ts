@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { canSeeStaffConversation } from './policy';
 import { getObjectStorage } from '@/lib/storage';
 import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
 import { maxFileSizeBytes } from '@/lib/config/upload';
 import { log } from '@/lib/logging';
+import { canSeeStaffConversation } from './policy';
 
 /**
  * Staff-chat attachment upload + signed-URL download service.
@@ -53,7 +53,10 @@ export type UploadStaffAttachmentArgs = {
 
 export type UploadStaffAttachmentResult =
   | { ok: true; attachmentPath: string }
-  | { ok: false; error: 'forbidden' | 'conversation_not_found' | 'too_large' | 'invalid_mime' | 'storage' };
+  | {
+      ok: false;
+      error: 'forbidden' | 'conversation_not_found' | 'too_large' | 'invalid_mime' | 'storage';
+    };
 
 export async function uploadStaffAttachment(
   prisma: PrismaClient,
@@ -89,7 +92,13 @@ export async function uploadStaffAttachment(
     return { ok: false, error: 'conversation_not_found' };
   }
 
-  if (!canSeeStaffConversation(session, conversation, conversation.participants.map((p) => p.userId))) {
+  if (
+    !canSeeStaffConversation(
+      session,
+      conversation,
+      conversation.participants.map((p) => p.userId)
+    )
+  ) {
     return { ok: false, error: 'forbidden' };
   }
 
@@ -134,7 +143,12 @@ export async function getStaffAttachmentSignedUrl(
       attachmentName: true,
       scanStatus: true,
       conversation: {
-        select: { id: true, kind: true, companyId: true, participants: { select: { userId: true } } },
+        select: {
+          id: true,
+          kind: true,
+          companyId: true,
+          participants: { select: { userId: true } },
+        },
       },
     },
   });
@@ -150,7 +164,13 @@ export async function getStaffAttachmentSignedUrl(
   }
 
   const conversation = message.conversation;
-  if (!canSeeStaffConversation(session, conversation, conversation.participants.map((p) => p.userId))) {
+  if (
+    !canSeeStaffConversation(
+      session,
+      conversation,
+      conversation.participants.map((p) => p.userId)
+    )
+  ) {
     return { ok: false, error: 'forbidden' };
   }
 

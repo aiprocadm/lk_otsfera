@@ -7,7 +7,7 @@ const { revokeMock, toastErrorMock, pushMock, refreshMock } = vi.hoisted(() => (
   revokeMock: vi.fn(),
   toastErrorMock: vi.fn(),
   pushMock: vi.fn(),
-  refreshMock: vi.fn()
+  refreshMock: vi.fn(),
 }));
 
 vi.mock('@/server-actions/security', () => ({ revokeAllSessionsAction: revokeMock }));
@@ -28,7 +28,9 @@ describe('SecurityCard', () => {
 
     expect(screen.getByText('Безопасность')).toBeTruthy();
     expect(screen.getByText(/во всех браузерах и на всех устройствах/)).toBeTruthy();
-    const button = screen.getByRole('button', { name: 'Выйти на всех устройствах' }) as HTMLButtonElement;
+    const button = screen.getByRole('button', {
+      name: 'Выйти на всех устройствах',
+    }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
   });
 
@@ -56,7 +58,12 @@ describe('SecurityCard', () => {
 
   it('во время выполнения кнопка заблокирована и подписана «Выходим…»', async () => {
     let release: (v: unknown) => void = () => {};
-    revokeMock.mockImplementationOnce(() => new Promise((r) => { release = r; }));
+    revokeMock.mockImplementationOnce(
+      () =>
+        new Promise((r) => {
+          release = r;
+        })
+    );
     render(React.createElement(SecurityCard, null));
 
     fireEvent.click(screen.getByRole('button', { name: 'Выйти на всех устройствах' }));

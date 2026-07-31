@@ -49,7 +49,7 @@ const baseItems = [
     baseAmount: 100000 as unknown as import('@prisma/client').Prisma.Decimal,
     rate: 0.08 as unknown as import('@prisma/client').Prisma.Decimal,
     commissionAmount: 8000 as unknown as import('@prisma/client').Prisma.Decimal,
-  }
+  },
 ];
 
 const partner = { name: 'ПромТест', legalName: 'ООО ПромТест' };
@@ -78,7 +78,11 @@ describe('renderStatementPdf', () => {
 
   it('handles empty items list without throwing', async () => {
     const buf = await renderStatementPdf({
-      statement: { ...baseStatement, totalBaseAmount: 0 as any, totalCommissionAmount: 0 as any } as any,
+      statement: {
+        ...baseStatement,
+        totalBaseAmount: 0 as any,
+        totalCommissionAmount: 0 as any,
+      } as any,
       items: [],
       partner: { name: 'Партнёр', legalName: null },
       verifyUrl: null,

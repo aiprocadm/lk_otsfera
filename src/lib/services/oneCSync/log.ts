@@ -37,7 +37,7 @@ export async function writeSyncLog(
       status: entry.status,
       errorMessage: entry.errorMessage ?? null,
       payload: (entry.payload as object) ?? undefined,
-      durationMs: entry.durationMs ?? null
-    }
+      durationMs: entry.durationMs ?? null,
+    },
   });
 }

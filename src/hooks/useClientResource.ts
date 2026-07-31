@@ -47,10 +47,7 @@ export type ResourceOptions<T> = {
  * intervalMs → фоновый поллинг, который не срабатывает на скрытой вкладке и
  * немедленно догружает при возврате видимости.
  */
-export function useClientResource<T>(
-  url: string,
-  options?: ResourceOptions<T>
-): ResourceState<T> {
+export function useClientResource<T>(url: string, options?: ResourceOptions<T>): ResourceState<T> {
   const { enabled = true, intervalMs, select } = options ?? {};
 
   const [data, setData] = useState<T | null>(null);
@@ -125,5 +122,7 @@ export function useClientResource<T>(
     };
   }, [enabled, intervalMs, load]);
 
-  return { data, loading, error, refetch: load };
+  // Сигнатура refetch остаётся () => void: вызывающие не ждут промис,
+  // ошибки load обрабатывает сам (setError) — оборачиваем в void.
+  return { data, loading, error, refetch: () => void load() };
 }

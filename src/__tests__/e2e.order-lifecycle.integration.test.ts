@@ -2,10 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { claimOrder, assignOrderManager } from '@/lib/services/manager/distribution';
 import { setOrderAccountingSigned } from '@/lib/services/manager/orderLifecycle';
-import {
-  transitionOrderStatus,
-  getOrderedStatuses
-} from '@/lib/services/orderStatuses';
+import { transitionOrderStatus, getOrderedStatuses } from '@/lib/services/orderStatuses';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 /**
@@ -48,7 +45,7 @@ function managerSession(sub: string): SessionPayload {
     sub,
     role: 'manager',
     companyId,
-    managedOrgIds: []
+    managedOrgIds: [],
   } as unknown as SessionPayload;
 }
 
@@ -56,12 +53,12 @@ beforeAll(async () => {
   prisma = new PrismaClient();
 
   const company = await prisma.company.create({
-    data: { name: `e2eLifecycleCo-${STAMP}`, managerTeamVisibility: true }
+    data: { name: `e2eLifecycleCo-${STAMP}`, managerTeamVisibility: true },
   });
   companyId = company.id;
 
   const org = await prisma.organization.create({
-    data: { name: `e2eLifecycleOrg-${STAMP}`, companyId }
+    data: { name: `e2eLifecycleOrg-${STAMP}`, companyId },
   });
   organizationId = org.id;
 
@@ -72,8 +69,8 @@ beforeAll(async () => {
       email: `e2e-mgrA-${STAMP}@example.test`,
       name: `E2E Manager A ${STAMP}`,
       role: 'manager',
-      companyId
-    }
+      companyId,
+    },
   });
   managerAId = managerA.id;
 
@@ -82,8 +79,8 @@ beforeAll(async () => {
       email: `e2e-mgrB-${STAMP}@example.test`,
       name: `E2E Manager B ${STAMP}`,
       role: 'manager',
-      companyId
-    }
+      companyId,
+    },
   });
   managerBId = managerB.id;
 
@@ -95,8 +92,8 @@ beforeAll(async () => {
       companyId,
       organizationId,
       totalAmount: ORDER_AMOUNT,
-      serviceType: 'document_development'
-    }
+      serviceType: 'document_development',
+    },
   });
   orderId = order.id;
 
@@ -108,8 +105,8 @@ beforeAll(async () => {
       organizationId,
       totalAmount: new Prisma.Decimal('90000.00'),
       serviceType: 'document_development',
-      managerId: managerBId
-    }
+      managerId: managerBId,
+    },
   });
   assignedOrderId = assignedOrder.id;
 });
@@ -133,8 +130,8 @@ describe('E2E order lifecycle — full path through real services', () => {
       select: {
         statusDefinition: { select: { key: true } },
         managerId: true,
-        totalAmount: true
-      }
+        totalAmount: true,
+      },
     });
     // PR-4: старого поля больше нет — заявка стартует «Черновиком» справочника
     // (фикстура создаёт её напрямую, поэтому статус может быть пустым).
@@ -148,13 +145,16 @@ describe('E2E order lifecycle — full path through real services', () => {
     const r = await claimOrder(prisma, managerSession(managerAId), { orderId });
     expect(r).toEqual({ ok: true, changed: true });
 
-    const row = await prisma.order.findUnique({ where: { id: orderId }, select: { managerId: true } });
+    const row = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { managerId: true },
+    });
     expect(row?.managerId).toBe(managerAId);
 
     // self_assign wrote an audit row.
     const audit = await prisma.auditLog.findFirst({
       where: { entity: 'order', entityId: orderId, action: 'order_self_assigned' },
-      select: { userId: true }
+      select: { userId: true },
     });
     expect(audit?.userId).toBe(managerAId);
   });
@@ -166,7 +166,7 @@ describe('E2E order lifecycle — full path through real services', () => {
     // Ownership unchanged — the rejected claim did not mutate managerId.
     const row = await prisma.order.findUnique({
       where: { id: assignedOrderId },
-      select: { managerId: true }
+      select: { managerId: true },
     });
     expect(row?.managerId).toBe(managerBId);
   });
@@ -176,7 +176,7 @@ describe('E2E order lifecycle — full path through real services', () => {
     const r = await assignOrderManager(prisma, managerSession(managerAId), {
       orderId,
       managerUserId: managerAId,
-      restrictToCompanyId: companyId
+      restrictToCompanyId: companyId,
     });
     expect(r).toEqual({ ok: true, changed: false });
   });
@@ -194,13 +194,13 @@ describe('E2E order lifecycle — full path through real services', () => {
   it('(3a) черновик → принято в работу', async () => {
     const r = await transitionOrderStatus(prisma, managerSession(managerAId), {
       orderId,
-      toId: await statusId('accepted')
+      toId: await statusId('accepted'),
     });
     expect(r.ok).toBe(true);
 
     const row = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { statusDefinition: { select: { key: true } } }
+      select: { statusDefinition: { select: { key: true } } },
     });
     expect(row?.statusDefinition?.key).toBe('accepted');
   });
@@ -209,7 +209,7 @@ describe('E2E order lifecycle — full path through real services', () => {
     // No clean document, accounting not signed → both conditions unmet.
     const r = await transitionOrderStatus(prisma, managerSession(managerAId), {
       orderId,
-      toId: await statusId('closed')
+      toId: await statusId('closed'),
     });
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('unreachable');
@@ -221,7 +221,7 @@ describe('E2E order lifecycle — full path through real services', () => {
     // Статус не сдвинулся.
     const row = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { statusDefinition: { select: { key: true } } }
+      select: { statusDefinition: { select: { key: true } } },
     });
     expect(row?.statusDefinition?.key).toBe('accepted');
   });
@@ -237,21 +237,21 @@ describe('E2E order lifecycle — full path through real services', () => {
         orderId,
         counterpartyType: 'organization',
         counterpartyId: organizationId,
-        scanStatus: 'clean'
-      }
+        scanStatus: 'clean',
+      },
     });
   });
 
   it('(5b) satisfy accounting_signed via the real service (setOrderAccountingSigned)', async () => {
     const r = await setOrderAccountingSigned(prisma, managerSession(managerAId), {
       orderId,
-      signed: true
+      signed: true,
     });
     expect(r).toEqual({ ok: true, changed: true });
 
     const row = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { accountingSignedAt: true }
+      select: { accountingSignedAt: true },
     });
     expect(row?.accountingSignedAt).not.toBeNull();
   });
@@ -259,13 +259,13 @@ describe('E2E order lifecycle — full path through real services', () => {
   it('(5c) after every completion condition is met, completion SUCCEEDS', async () => {
     const r = await transitionOrderStatus(prisma, managerSession(managerAId), {
       orderId,
-      toId: await statusId('closed')
+      toId: await statusId('closed'),
     });
     expect(r.ok).toBe(true);
 
     const row = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { statusDefinition: { select: { key: true } } }
+      select: { statusDefinition: { select: { key: true } } },
     });
     expect(row?.statusDefinition?.key).toBe('closed');
   });
@@ -275,7 +275,7 @@ describe('E2E order lifecycle — full path through real services', () => {
     // руководителя; обычному менеджеру он теперь запрещён (проверяется ниже).
     const mgr = await transitionOrderStatus(prisma, managerSession(managerAId), {
       orderId,
-      toId: await statusId('accepted')
+      toId: await statusId('accepted'),
     });
     expect(mgr).toEqual({ ok: false, error: 'backward_forbidden' });
 
@@ -284,7 +284,7 @@ describe('E2E order lifecycle — full path through real services', () => {
     const leaderSession = { ...managerSession(managerAId), managerRole: 'leader' as const };
     const r = await transitionOrderStatus(prisma, leaderSession, {
       orderId,
-      toId: await statusId('accepted')
+      toId: await statusId('accepted'),
     });
     expect(r.ok).toBe(true);
 
@@ -292,11 +292,10 @@ describe('E2E order lifecycle — full path through real services', () => {
       where: { orderId },
       orderBy: { createdAt: 'desc' },
       take: 1,
-      select: { userId: true, from: { select: { key: true } }, to: { select: { key: true } } }
+      select: { userId: true, from: { select: { key: true } }, to: { select: { key: true } } },
     });
     expect(changes[0]?.userId).toBe(managerAId);
     expect(changes[0]?.from?.key).toBe('closed');
     expect(changes[0]?.to?.key).toBe('accepted');
   });
-
 });

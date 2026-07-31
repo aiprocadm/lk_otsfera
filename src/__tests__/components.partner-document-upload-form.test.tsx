@@ -75,7 +75,9 @@ describe('PartnerDocumentUploadForm (interactive)', () => {
 
     fireEvent.click(screen.getByText('Отправить'));
 
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Документ «act.pdf» отправлен менеджеру.'));
+    await waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith('Документ «act.pdf» отправлен менеджеру.')
+    );
     expect(uploadPartnerDocument).toHaveBeenCalled();
     const sentFormData = uploadPartnerDocument.mock.calls[0][0] as FormData;
     expect(sentFormData.get('orderId')).toBe('o1');
@@ -88,7 +90,9 @@ describe('PartnerDocumentUploadForm (interactive)', () => {
     uploadPartnerDocument.mockResolvedValue({ ok: true, documentId: 'd2' });
     render(React.createElement(PartnerDocumentUploadForm, { orderId: 'o1' }));
     fireEvent.click(screen.getByText('Отправить'));
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Документ «» отправлен менеджеру.'));
+    await waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith('Документ «» отправлен менеджеру.')
+    );
   });
 
   it('error path renders the alert with the resolved error text and does not toast', async () => {

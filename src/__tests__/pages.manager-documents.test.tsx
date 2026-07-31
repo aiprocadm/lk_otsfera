@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import ManagerDocumentsPage from '@/app/manager/documents/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
@@ -10,9 +11,12 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { listDocuments, listManagerOrderLessDocuments } = vi.hoisted(() => ({
   listDocuments: vi.fn(),
-  listManagerOrderLessDocuments: vi.fn()
+  listManagerOrderLessDocuments: vi.fn(),
 }));
-vi.mock('@/lib/services/manager/documents', () => ({ listDocuments, listManagerOrderLessDocuments }));
+vi.mock('@/lib/services/manager/documents', () => ({
+  listDocuments,
+  listManagerOrderLessDocuments,
+}));
 
 const { listManagerCounterparties } = vi.hoisted(() => ({ listManagerCounterparties: vi.fn() }));
 vi.mock('@/lib/services/manager/counterparties', () => ({ listManagerCounterparties }));
@@ -24,7 +28,7 @@ vi.mock('@/components/partner/documents-list', () => ({
       { 'data-testid': 'documents-list' },
       props.downloadEndpointBase,
       JSON.stringify(props.rows)
-    )
+    ),
 }));
 
 vi.mock('@/components/manager/manager-order-less-upload-form', () => ({
@@ -34,12 +38,15 @@ vi.mock('@/components/manager/manager-order-less-upload-form', () => ({
       { 'data-testid': 'upload-form' },
       JSON.stringify(props.organizations),
       JSON.stringify(props.partners)
-    )
+    ),
 }));
 
-import ManagerDocumentsPage from '@/app/manager/documents/page';
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 
 describe('ManagerDocumentsPage', () => {
   beforeEach(() => {
@@ -63,25 +70,33 @@ describe('ManagerDocumentsPage', () => {
             createdAt: new Date('2024-01-01'),
             size: 100,
             orderId: 'o1',
-            order: { orderNumber: '2024-001', title: 'Заказ 1' }
-          }
+            order: { orderNumber: '2024-001', title: 'Заказ 1' },
+          },
         ],
-        nextCursor: 'cur-2'
+        nextCursor: 'cur-2',
       });
 
       const { container } = await renderServerComponent(
         ManagerDocumentsPage({
-          searchParams: Promise.resolve({ search: 'дог', type: 'contract', orderId: 'o1' })
+          searchParams: Promise.resolve({ search: 'дог', type: 'contract', orderId: 'o1' }),
         })
       );
 
       expect(listDocuments).toHaveBeenCalledWith(
         {},
-        expect.objectContaining({ session: SESSION, search: 'дог', type: 'contract', orderId: 'o1', cursor: undefined })
+        expect.objectContaining({
+          session: SESSION,
+          search: 'дог',
+          type: 'contract',
+          orderId: 'o1',
+          cursor: undefined,
+        })
       );
       expect(container.textContent).toContain('Документы');
       expect(container.textContent).toContain('Договор.pdf');
-      const link = Array.from(container.querySelectorAll('a')).find((a) => a.textContent?.includes('Дальше'));
+      const link = Array.from(container.querySelectorAll('a')).find((a) =>
+        a.textContent?.includes('Дальше')
+      );
       expect(link).toBeDefined();
       expect(link?.getAttribute('href')).toContain('cursor=cur-2');
       expect(link?.getAttribute('href')).toContain('search=');
@@ -102,10 +117,10 @@ describe('ManagerDocumentsPage', () => {
             createdAt: new Date('2024-02-01'),
             size: null,
             orderId: null,
-            order: null
-          }
+            order: null,
+          },
         ],
-        nextCursor: null
+        nextCursor: null,
       });
 
       const { container } = await renderServerComponent(
@@ -168,13 +183,13 @@ describe('ManagerDocumentsPage', () => {
             direction: 'incoming',
             signedAt: null,
             createdAt: new Date('2024-03-01'),
-            size: 200
-          }
-        ]
+            size: 200,
+          },
+        ],
       });
       listManagerCounterparties.mockResolvedValue({
         organizations: [{ id: 'org1', name: 'Org' }],
-        partners: [{ id: 'p1', name: 'Partner' }]
+        partners: [{ id: 'p1', name: 'Partner' }],
       });
 
       const { container } = await renderServerComponent(

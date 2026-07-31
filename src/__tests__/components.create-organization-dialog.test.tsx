@@ -58,11 +58,17 @@ describe('CreateOrganizationDialog', () => {
       ok: true,
       json: async () => ({
         suggestions: [
-          { name: 'ООО Ромашка', inn: '7707083893', kpp: '770701001', ogrn: null, address: 'г. Москва' },
+          {
+            name: 'ООО Ромашка',
+            inn: '7707083893',
+            kpp: '770701001',
+            ogrn: null,
+            address: 'г. Москва',
+          },
           // ИП не имеет КПП — поле должно очиститься, а не сохранить чужое значение.
-          { name: 'ИП Иванов', inn: '770708389312', kpp: null, ogrn: null, address: null }
-        ]
-      })
+          { name: 'ИП Иванов', inn: '770708389312', kpp: null, ogrn: null, address: null },
+        ],
+      }),
     });
     vi.stubGlobal('fetch', fetchMock);
     try {
@@ -83,10 +89,14 @@ describe('CreateOrganizationDialog', () => {
       // ИНН и КПП правятся руками — подсказка бывает неточной или устаревшей.
       const innField = document.querySelector('input[name="inn"]') as HTMLInputElement;
       fireEvent.change(innField, { target: { value: '7707083894' } });
-      expect((document.querySelector('input[name="inn"]') as HTMLInputElement).value).toBe('7707083894');
+      expect((document.querySelector('input[name="inn"]') as HTMLInputElement).value).toBe(
+        '7707083894'
+      );
       // КПП можно поправить руками (подсказка бывает неточной).
       fireEvent.change(kpp, { target: { value: '997950001' } });
-      expect((document.querySelector('input[name="kpp"]') as HTMLInputElement).value).toBe('997950001');
+      expect((document.querySelector('input[name="kpp"]') as HTMLInputElement).value).toBe(
+        '997950001'
+      );
 
       // Выбор ИП (без КПП) обязан очистить поле, иначе в карточку уедет КПП
       // прошлой организации.
@@ -126,7 +136,9 @@ describe('CreateOrganizationDialog', () => {
     fireEvent.submit(within(dialog).getByText('Создать').closest('form')!);
 
     expect(
-      await within(dialog).findByText('Организация с таким ИНН уже есть в системе — найдите её в списке.')
+      await within(dialog).findByText(
+        'Организация с таким ИНН уже есть в системе — найдите её в списке.'
+      )
     ).toBeTruthy();
     expect(push).not.toHaveBeenCalled();
   });

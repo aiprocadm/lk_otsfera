@@ -10,29 +10,34 @@ vi.mock('@/lib/services/admin/integrations', () => ({ getIntegrationsStatus }));
 
 const { getSettingsView, syncStateFindMany } = vi.hoisted(() => ({
   getSettingsView: vi.fn(),
-  syncStateFindMany: vi.fn()
+  syncStateFindMany: vi.fn(),
 }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: { syncState: { findMany: syncStateFindMany } } }));
 vi.mock('@/lib/config/integrationSettings', () => ({ getSettingsView }));
 
 const { primeIntegrationSettingsCache } = vi.hoisted(() => ({
-  primeIntegrationSettingsCache: vi.fn().mockResolvedValue(undefined)
+  primeIntegrationSettingsCache: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@/lib/config/integrationSettingsCache', () => ({ primeIntegrationSettingsCache }));
 
 // Client-компоненты форм — заглушки (SSR-тест страницы их не драйвит).
 vi.mock('@/components/admin/email-settings-form', () => ({
-  EmailSettingsForm: () => null
+  EmailSettingsForm: () => null,
 }));
 type FormStubProps = {
   title: string;
   check?: { lastAt: string; lastOk: boolean; lastError: string | null } | null;
-  webhook?: { url: string; headerName: string | null; secretSet: boolean; lastEventAt: string | null } | null;
+  webhook?: {
+    url: string;
+    headerName: string | null;
+    secretSet: boolean;
+    lastEventAt: string | null;
+  } | null;
   fields?: Array<{ name: string; initialValue?: string | boolean }>;
 };
 const { formTitles, formProps } = vi.hoisted(() => ({
   formTitles: [] as string[],
-  formProps: [] as unknown[]
+  formProps: [] as unknown[],
 }));
 vi.mock('@/components/admin/integration-settings-form', () => ({
   IntegrationSettingsForm: ({ title, check, webhook, fields }: FormStubProps) => {
@@ -40,7 +45,7 @@ vi.mock('@/components/admin/integration-settings-form', () => ({
     // `fields` нужен тестам про разбор значений настроек (Ф3 программы покрытия).
     formProps.push({ title, check, webhook, fields });
     return null;
-  }
+  },
 }));
 vi.mock('@/server-actions/admin/integrationSettings', () => ({
   saveTelegramSettingsAction: vi.fn(),
@@ -50,7 +55,7 @@ vi.mock('@/server-actions/admin/integrationSettings', () => ({
   saveImapSettingsAction: vi.fn(),
   saveOnecSettingsAction: vi.fn(),
   saveDadataSettingsAction: vi.fn(),
-  testIntegrationAction: vi.fn()
+  testIntegrationAction: vi.fn(),
 }));
 
 import AdminIntegrationsPage from '@/app/admin/integrations/page';
@@ -83,7 +88,7 @@ const VIEW_KEYS = [
   'onec.apiToken',
   'onec.healthPath',
   'dadata.enabled',
-  'dadata.apiKey'
+  'dadata.apiKey',
 ];
 
 describe('AdminIntegrationsPage', () => {
@@ -103,15 +108,27 @@ describe('AdminIntegrationsPage', () => {
         isSecret: key.endsWith('Key') || key.endsWith('Token') || key.endsWith('password'),
         isSet: false,
         value: null,
-        source: 'none'
+        source: 'none',
       }))
     );
   });
 
   it('requires admin and renders the security notice + rows with status badges', async () => {
     getIntegrationsStatus.mockReturnValue([
-      { key: 'mango', label: 'Телефония (Mango Office)', enabled: true, description: 'desc-mango', envHint: 'HINT_MANGO' },
-      { key: 'telegram', label: 'Telegram-бот', enabled: false, description: 'desc-tg', envHint: 'HINT_TG' }
+      {
+        key: 'mango',
+        label: 'Телефония (Mango Office)',
+        enabled: true,
+        description: 'desc-mango',
+        envHint: 'HINT_MANGO',
+      },
+      {
+        key: 'telegram',
+        label: 'Telegram-бот',
+        enabled: false,
+        description: 'desc-tg',
+        envHint: 'HINT_TG',
+      },
     ]);
 
     const { container } = await renderServerComponent(AdminIntegrationsPage());
@@ -137,7 +154,7 @@ describe('AdminIntegrationsPage', () => {
       'Телефония Mango Office',
       'Входящая почта (IMAP)',
       'Обмен с 1С',
-      'DaData (подсказки по ИНН)'
+      'DaData (подсказки по ИНН)',
     ]);
   });
 
@@ -158,7 +175,7 @@ describe('AdminIntegrationsPage', () => {
             : key === 'onec.adapter'
               ? ' REST '
               : null,
-        source: 'db'
+        source: 'db',
       }))
     );
 
@@ -171,7 +188,9 @@ describe('AdminIntegrationsPage', () => {
     try {
       await renderServerComponent(AdminIntegrationsPage());
 
-      const onec = formProps.find((p) => (p as FormStubProps).title === 'Обмен с 1С') as FormStubProps;
+      const onec = formProps.find(
+        (p) => (p as FormStubProps).title === 'Обмен с 1С'
+      ) as FormStubProps;
       const adapter = onec.fields?.find((f) => f.name === 'onec_adapter');
       // Значение « REST » с пробелами и в верхнем регистре — это «боевой обмен».
       expect(adapter?.initialValue).toBe('rest');
@@ -191,14 +210,18 @@ describe('AdminIntegrationsPage', () => {
     const eventAt = new Date('2026-07-23T09:30:00Z');
     syncStateFindMany.mockResolvedValue([
       { entity: 'integration.telegram', lastRunAt: ranAt, lastSuccessAt: ranAt, lastError: null },
-      { entity: 'integration.onec', lastRunAt: ranAt, lastSuccessAt: null, lastError: 'Сервер ответил HTTP 500' },
-      { entity: 'webhook.telegram', lastRunAt: null, lastSuccessAt: eventAt, lastError: null }
+      {
+        entity: 'integration.onec',
+        lastRunAt: ranAt,
+        lastSuccessAt: null,
+        lastError: 'Сервер ответил HTTP 500',
+      },
+      { entity: 'webhook.telegram', lastRunAt: null, lastSuccessAt: eventAt, lastError: null },
     ]);
 
     await renderServerComponent(AdminIntegrationsPage());
 
-    const byTitle = (t: string) =>
-      (formProps as FormStubProps[]).find((p) => p.title === t)!;
+    const byTitle = (t: string) => (formProps as FormStubProps[]).find((p) => p.title === t)!;
 
     // Успешная проба: lastOk=true, ошибок нет.
     const tg = byTitle('Telegram-бот');
@@ -207,7 +230,7 @@ describe('AdminIntegrationsPage', () => {
     // Вебхук: готовый URL + имя заголовка + последнее входящее.
     expect(tg.webhook).toMatchObject({
       url: expect.stringContaining('/api/integrations/telegram/webhook'),
-      headerName: 'x-telegram-bot-api-secret-token'
+      headerName: 'x-telegram-bot-api-secret-token',
     });
     expect(tg.webhook!.lastEventAt).toBeTruthy();
 

@@ -25,8 +25,8 @@ export type PaymentForCalc = {
 export type CorrectionForCalc = {
   correctionId: string;
   organizationName: string;
-  baseAmount: Prisma.Decimal;     // уже отрицательная
-  rate: Prisma.Decimal;           // для отображения
+  baseAmount: Prisma.Decimal; // уже отрицательная
+  rate: Prisma.Decimal; // для отображения
   commissionAmount: Prisma.Decimal; // уже отрицательная, НЕ пересчитывается
 };
 

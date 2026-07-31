@@ -17,7 +17,7 @@ function makeComment(overrides: Partial<OrgCommentRow> = {}): OrgCommentRow {
     authorName: 'Иван Петров',
     orderId: 'ord1',
     orderTitle: 'Обучение №42',
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -51,7 +51,7 @@ describe('CommentsTab (async server component)', () => {
   it('renders multiple comments in order returned by the service', async () => {
     listOrgOrderComments.mockResolvedValue([
       makeComment({ id: 'c1', body: 'Первый' }),
-      makeComment({ id: 'c2', body: 'Второй' })
+      makeComment({ id: 'c2', body: 'Второй' }),
     ]);
     const element = await CommentsTab({ orgId: 'org1' });
     const html = renderToString(element);

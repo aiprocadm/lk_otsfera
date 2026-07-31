@@ -19,7 +19,7 @@ const { state, ImapFlowMock, simpleParser } = vi.hoisted(() => {
     release: vi.fn(),
     search: vi.fn(),
     fetchOne: vi.fn(),
-    lastOptions: null as unknown
+    lastOptions: null as unknown,
   };
   class ImapFlowMock {
     mailbox: { uidValidity: bigint };
@@ -43,7 +43,11 @@ const { state, ImapFlowMock, simpleParser } = vi.hoisted(() => {
 vi.mock('imapflow', () => ({ ImapFlow: ImapFlowMock }));
 vi.mock('mailparser', () => ({ simpleParser }));
 
-import { ImapInboundEmailAdapter, parseCursor, bodyTextFrom } from '@/lib/inbound/email/adapter-imap';
+import {
+  ImapInboundEmailAdapter,
+  parseCursor,
+  bodyTextFrom,
+} from '@/lib/inbound/email/adapter-imap';
 
 const CFG = { host: 'imap.test', port: 143, user: 'u', password: 'p', tls: false };
 
@@ -52,7 +56,7 @@ function makeParsed(from: string | null, subject?: string, text?: string, html?:
     from: from ? { value: [{ address: from }] } : undefined,
     subject,
     text,
-    html: html ?? false
+    html: html ?? false,
   };
 }
 
@@ -111,7 +115,7 @@ describe('ImapInboundEmailAdapter.fetchNewMessages', () => {
 
     expect(res.messages).toEqual([
       { externalId: '7-42', from: 'a@x.ru', subject: 'Тема', text: 'тело' },
-      { externalId: '7-43', from: 'b@x.ru', subject: undefined, text: 'из html' }
+      { externalId: '7-43', from: 'b@x.ru', subject: undefined, text: 'из html' },
     ]);
     expect(res.cursor).toBe('7:43');
     expect(state.search).toHaveBeenCalledWith({ uid: '42:*' }, { uid: true });
@@ -181,7 +185,9 @@ describe('ImapInboundEmailAdapter.fetchNewMessages', () => {
 
   it('ошибка search: lock освобождён, logout вызван, ошибка пробрасывается', async () => {
     state.search.mockRejectedValue(new Error('server gone'));
-    await expect(new ImapInboundEmailAdapter(CFG).fetchNewMessages(null)).rejects.toThrow('server gone');
+    await expect(new ImapInboundEmailAdapter(CFG).fetchNewMessages(null)).rejects.toThrow(
+      'server gone'
+    );
     expect(state.release).toHaveBeenCalled();
     expect(state.logout).toHaveBeenCalled();
   });
@@ -196,13 +202,23 @@ describe('ImapInboundEmailAdapter.fetchNewMessages', () => {
 
   it('tls=true даёт secure и дефолтный порт 993 при незаданном port', async () => {
     state.searchResult = [];
-    await new ImapInboundEmailAdapter({ host: 'h', user: 'u', password: 'p', tls: true }).fetchNewMessages(null);
+    await new ImapInboundEmailAdapter({
+      host: 'h',
+      user: 'u',
+      password: 'p',
+      tls: true,
+    }).fetchNewMessages(null);
     expect(state.lastOptions).toMatchObject({ host: 'h', port: 993, secure: true });
   });
 
   it('tls=false без порта → дефолтный 143', async () => {
     state.searchResult = [];
-    await new ImapInboundEmailAdapter({ host: 'h', user: 'u', password: 'p', tls: false }).fetchNewMessages(null);
+    await new ImapInboundEmailAdapter({
+      host: 'h',
+      user: 'u',
+      password: 'p',
+      tls: false,
+    }).fetchNewMessages(null);
     expect(state.lastOptions).toMatchObject({ port: 143, secure: false });
   });
 });

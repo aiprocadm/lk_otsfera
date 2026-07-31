@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 /** Деталка обращения подателя-партнёра (этап 5, ФТ-1.3). */
 export default async function PartnerRequestDetailPage({
-  params
+  params,
 }: {
   params: Promise<{ id: string }>;
 }) {
@@ -32,9 +32,9 @@ export default async function PartnerRequestDetailPage({
         size: a.size,
         mimeType: a.mimeType,
         createdAt: a.createdAt.toISOString(),
-        createdByUserName: a.createdByUserName
+        createdByUserName: a.createdByUserName,
       }))}
-      backHref='/partner/requests'
+      backHref="/partner/requests"
     />
   );
 }

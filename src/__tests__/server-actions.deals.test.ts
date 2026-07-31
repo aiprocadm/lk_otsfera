@@ -13,7 +13,7 @@ const {
   convertLeadToDeal,
   winDeal,
   addNoteToDeal,
-  listDealNotes
+  listDealNotes,
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   revalidatePath: vi.fn(),
@@ -27,7 +27,7 @@ const {
   convertLeadToDeal: vi.fn(),
   winDeal: vi.fn(),
   addNoteToDeal: vi.fn(),
-  listDealNotes: vi.fn()
+  listDealNotes: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
@@ -41,7 +41,7 @@ vi.mock('@/lib/services/access/dealStages', () => ({
   listDealStages,
   createDealStage,
   updateDealStage,
-  deleteDealStage
+  deleteDealStage,
 }));
 
 import {
@@ -55,7 +55,7 @@ import {
   winDealAction,
   convertLeadToDealAction,
   addDealNoteAction,
-  listDealNotesAction
+  listDealNotesAction,
 } from '@/server-actions/deals';
 
 const SESSION = { sub: 'u1', role: 'manager', managerRole: 'leader', companyId: 'co-A' };
@@ -82,22 +82,35 @@ describe('moveDealAction', () => {
     moveDeal.mockResolvedValue({ ok: true });
     const res = await moveDealAction(form({ dealId: 'd1', toStageId: 'st-1' }));
     expect(res).toEqual({ ok: true });
-    expect(moveDeal).toHaveBeenCalledWith({}, SESSION, { dealId: 'd1', toStageId: 'st-1', lostReason: undefined });
+    expect(moveDeal).toHaveBeenCalledWith({}, SESSION, {
+      dealId: 'd1',
+      toStageId: 'st-1',
+      lostReason: undefined,
+    });
     expectBothPagesRevalidated();
   });
 
   it('missing ids → not_found without calling the service', async () => {
     expect(await moveDealAction(form({ dealId: 'd1' }))).toEqual({ ok: false, error: 'not_found' });
-    expect(await moveDealAction(form({ toStageId: 'st-1' }))).toEqual({ ok: false, error: 'not_found' });
+    expect(await moveDealAction(form({ toStageId: 'st-1' }))).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
     expect(moveDeal).not.toHaveBeenCalled();
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
   it('forwards lostReason and passes through the service error code without revalidating', async () => {
     moveDeal.mockResolvedValue({ ok: false, error: 'lifecycle_violation' });
-    const res = await moveDealAction(form({ dealId: 'd1', toStageId: 'st-lost', lostReason: 'Дорого' }));
+    const res = await moveDealAction(
+      form({ dealId: 'd1', toStageId: 'st-lost', lostReason: 'Дорого' })
+    );
     expect(res).toEqual({ ok: false, error: 'lifecycle_violation' });
-    expect(moveDeal).toHaveBeenCalledWith({}, SESSION, { dealId: 'd1', toStageId: 'st-lost', lostReason: 'Дорого' });
+    expect(moveDeal).toHaveBeenCalledWith({}, SESSION, {
+      dealId: 'd1',
+      toStageId: 'st-lost',
+      lostReason: 'Дорого',
+    });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
@@ -106,7 +119,13 @@ describe('createDealAction', () => {
   it('builds a DealInput from the form and returns the created deal id, revalidating both pages', async () => {
     createDeal.mockResolvedValue({ ok: true, deal: { id: 'd-new' } });
     const res = await createDealAction(
-      form({ title: 'Сделка', amount: '100.50', organizationId: 'org-1', managerId: 'm-1', expectedCloseAt: '2026-09-01' })
+      form({
+        title: 'Сделка',
+        amount: '100.50',
+        organizationId: 'org-1',
+        managerId: 'm-1',
+        expectedCloseAt: '2026-09-01',
+      })
     );
     expect(res).toEqual({ ok: true, id: 'd-new' });
     expect(createDeal).toHaveBeenCalledWith({}, SESSION, {
@@ -114,7 +133,7 @@ describe('createDealAction', () => {
       amount: '100.50',
       organizationId: 'org-1',
       managerId: 'm-1',
-      expectedCloseAt: '2026-09-01'
+      expectedCloseAt: '2026-09-01',
     });
     expectBothPagesRevalidated();
   });
@@ -127,12 +146,16 @@ describe('createDealAction', () => {
       amount: null,
       organizationId: null,
       managerId: null,
-      expectedCloseAt: null
+      expectedCloseAt: null,
     });
   });
 
   it('passes through the validation error code and messages without revalidating', async () => {
-    createDeal.mockResolvedValue({ ok: false, error: 'validation', messages: ['Укажите название сделки'] });
+    createDeal.mockResolvedValue({
+      ok: false,
+      error: 'validation',
+      messages: ['Укажите название сделки'],
+    });
     const res = await createDealAction(form({ title: '' }));
     expect(res).toEqual({ ok: false, error: 'validation', messages: ['Укажите название сделки'] });
     expect(revalidatePath).not.toHaveBeenCalled();
@@ -155,14 +178,17 @@ describe('updateDealAction', () => {
       amount: '5',
       organizationId: null,
       managerId: null,
-      expectedCloseAt: null
+      expectedCloseAt: null,
     });
     expectBothPagesRevalidated();
   });
 
   it('passes through the service error code without revalidating', async () => {
     updateDeal.mockResolvedValue({ ok: false, error: 'forbidden' });
-    expect(await updateDealAction(form({ id: 'd7', title: 'x' }))).toEqual({ ok: false, error: 'forbidden' });
+    expect(await updateDealAction(form({ id: 'd7', title: 'x' }))).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
@@ -192,7 +218,10 @@ describe('winDealAction (PR-2)', () => {
 
   it('passes through service errors (org_required) without revalidating', async () => {
     winDeal.mockResolvedValue({ ok: false, error: 'org_required' });
-    expect(await winDealAction(form({ dealId: 'd1' }))).toEqual({ ok: false, error: 'org_required' });
+    expect(await winDealAction(form({ dealId: 'd1' }))).toEqual({
+      ok: false,
+      error: 'org_required',
+    });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
@@ -209,11 +238,17 @@ describe('convertLeadToDealAction (PR-2)', () => {
   });
 
   it('missing leadId → not_found; service error passes through without revalidating', async () => {
-    expect(await convertLeadToDealAction(new FormData())).toEqual({ ok: false, error: 'not_found' });
+    expect(await convertLeadToDealAction(new FormData())).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
     expect(convertLeadToDeal).not.toHaveBeenCalled();
 
     convertLeadToDeal.mockResolvedValue({ ok: false, error: 'lifecycle_violation' });
-    expect(await convertLeadToDealAction(form({ leadId: 'l1' }))).toEqual({ ok: false, error: 'lifecycle_violation' });
+    expect(await convertLeadToDealAction(form({ leadId: 'l1' }))).toEqual({
+      ok: false,
+      error: 'lifecycle_violation',
+    });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
@@ -231,7 +266,10 @@ describe('addDealNoteAction / listDealNotesAction (PR-2)', () => {
     expect(addNoteToDeal).not.toHaveBeenCalled();
 
     addNoteToDeal.mockResolvedValue({ ok: false, error: 'invalid' });
-    expect(await addDealNoteAction(form({ dealId: 'd1', body: ' ' }))).toEqual({ ok: false, error: 'invalid' });
+    expect(await addDealNoteAction(form({ dealId: 'd1', body: ' ' }))).toEqual({
+      ok: false,
+      error: 'invalid',
+    });
   });
 
   it('listDealNotesAction returns the service result as-is', async () => {
@@ -263,7 +301,13 @@ describe('createDealStageAction', () => {
   it('builds the stage input (position number, isTerminal checkbox) and returns the id', async () => {
     createDealStage.mockResolvedValue({ ok: true, id: 's-new' });
     const res = await createDealStageAction(
-      form({ name: 'Оплата', position: '3', statusAnchor: 'won', color: '#22C55E', isTerminal: 'on' })
+      form({
+        name: 'Оплата',
+        position: '3',
+        statusAnchor: 'won',
+        color: '#22C55E',
+        isTerminal: 'on',
+      })
     );
     expect(res).toEqual({ ok: true, id: 's-new' });
     expect(createDealStage).toHaveBeenCalledWith({}, SESSION, {
@@ -271,7 +315,7 @@ describe('createDealStageAction', () => {
       position: 3,
       statusAnchor: 'won',
       color: '#22C55E',
-      isTerminal: true
+      isTerminal: true,
     });
     expectBothPagesRevalidated();
   });
@@ -284,7 +328,7 @@ describe('createDealStageAction', () => {
       position: 0,
       statusAnchor: 'open',
       color: null,
-      isTerminal: false
+      isTerminal: false,
     });
   });
 
@@ -292,7 +336,7 @@ describe('createDealStageAction', () => {
     createDealStage.mockResolvedValue({ ok: false, error: 'position_taken' });
     expect(await createDealStageAction(form({ name: 'x', position: '1' }))).toEqual({
       ok: false,
-      error: 'position_taken'
+      error: 'position_taken',
     });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
@@ -300,21 +344,34 @@ describe('createDealStageAction', () => {
 
 describe('updateDealStageAction', () => {
   it('missing id → validation without calling the service', async () => {
-    expect(await updateDealStageAction(form({ name: 'x' }))).toEqual({ ok: false, error: 'validation' });
+    expect(await updateDealStageAction(form({ name: 'x' }))).toEqual({
+      ok: false,
+      error: 'validation',
+    });
     expect(updateDealStage).not.toHaveBeenCalled();
   });
 
   it('forwards id and the stage input, revalidates on success', async () => {
     updateDealStage.mockResolvedValue({ ok: true });
-    const res = await updateDealStageAction(form({ id: 's9', name: 'x', position: '2', statusAnchor: 'lost' }));
+    const res = await updateDealStageAction(
+      form({ id: 's9', name: 'x', position: '2', statusAnchor: 'lost' })
+    );
     expect(res).toEqual({ ok: true });
-    expect(updateDealStage).toHaveBeenCalledWith({}, SESSION, 's9', expect.objectContaining({ position: 2, statusAnchor: 'lost' }));
+    expect(updateDealStage).toHaveBeenCalledWith(
+      {},
+      SESSION,
+      's9',
+      expect.objectContaining({ position: 2, statusAnchor: 'lost' })
+    );
     expectBothPagesRevalidated();
   });
 
   it('passes through the service error without revalidating', async () => {
     updateDealStage.mockResolvedValue({ ok: false, error: 'not_found' });
-    expect(await updateDealStageAction(form({ id: 's9', name: 'x' }))).toEqual({ ok: false, error: 'not_found' });
+    expect(await updateDealStageAction(form({ id: 's9', name: 'x' }))).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
@@ -334,7 +391,10 @@ describe('deleteDealStageAction', () => {
     vi.clearAllMocks();
     requireSession.mockResolvedValue(SESSION);
     deleteDealStage.mockResolvedValue({ ok: false, error: 'forbidden' });
-    expect(await deleteDealStageAction(form({ id: 's3' }))).toEqual({ ok: false, error: 'forbidden' });
+    expect(await deleteDealStageAction(form({ id: 's3' }))).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

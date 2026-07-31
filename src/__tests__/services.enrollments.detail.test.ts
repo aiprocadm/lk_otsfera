@@ -8,7 +8,8 @@ vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
 
 import { getEnrollmentRequest } from '@/lib/services/enrollments/detail';
 
-const s = (over: Record<string, unknown> = {}) => ({ sub: 'u1', role: 'manager', ...over }) as never;
+const s = (over: Record<string, unknown> = {}) =>
+  ({ sub: 'u1', role: 'manager', ...over }) as never;
 
 const item = (over: Record<string, unknown> = {}) => ({
   id: 'i1',
@@ -21,7 +22,7 @@ const item = (over: Record<string, unknown> = {}) => ({
   extra: null,
   status: 'certificates_ready',
   externalStudentId: null,
-  ...over
+  ...over,
 });
 
 const reqRow = (over: Record<string, unknown> = {}) => ({
@@ -40,7 +41,7 @@ const reqRow = (over: Record<string, unknown> = {}) => ({
   reviewedAt: null,
   provisionedAt: null,
   items: [item()],
-  ...over
+  ...over,
 });
 
 function db(row: unknown, certs: unknown[] = [], docs: unknown[] = []) {
@@ -51,15 +52,22 @@ function db(row: unknown, certs: unknown[] = [], docs: unknown[] = []) {
     d: {
       enrollmentRequest: { findFirst },
       certificate: { findMany: certFindMany },
-      document: { findMany: docFindMany }
+      document: { findMany: docFindMany },
     } as never,
     findFirst,
     certFindMany,
-    docFindMany
+    docFindMany,
   };
 }
 
-const DOC = { id: 'doc1', orderId: null, companyId: 'c1', counterpartyType: null, counterpartyId: null, order: null };
+const DOC = {
+  id: 'doc1',
+  orderId: null,
+  companyId: 'c1',
+  counterpartyType: null,
+  counterpartyId: null,
+  order: null,
+};
 
 beforeEach(() => {
   canReadDocument.mockReset().mockResolvedValue(true);
@@ -76,7 +84,9 @@ describe('getEnrollmentRequest (деталка заявки, ФТ-2.3)', () => {
   });
 
   it('legacy-заявка без directionId: сертификаты не запрашиваются, ссылок нет', async () => {
-    const { d, certFindMany } = db(reqRow({ directionId: null, direction: null, legacyCourseTitle: 'Старый курс' }));
+    const { d, certFindMany } = db(
+      reqRow({ directionId: null, direction: null, legacyCourseTitle: 'Старый курс' })
+    );
     const r = await getEnrollmentRequest(d, s(), 'E1');
     if (!r.ok) throw new Error('expected ok');
     expect(certFindMany).not.toHaveBeenCalled();
@@ -89,7 +99,7 @@ describe('getEnrollmentRequest (деталка заявки, ФТ-2.3)', () => {
       reqRow(),
       [
         { studentId: 'st1', documentId: 'doc1' },
-        { studentId: 'st1', documentId: 'docOld' }
+        { studentId: 'st1', documentId: 'docOld' },
       ],
       [DOC]
     );
@@ -98,11 +108,16 @@ describe('getEnrollmentRequest (деталка заявки, ФТ-2.3)', () => {
     expect(certFindMany).toHaveBeenCalledWith({
       where: { studentId: { in: ['st1'] }, directionId: 'd1', documentId: { not: null } },
       orderBy: { issuedAt: 'desc' },
-      select: { studentId: true, documentId: true }
+      select: { studentId: true, documentId: true },
     });
     expect(canReadDocument).toHaveBeenCalledWith(
       s(),
-      expect.objectContaining({ id: 'doc1', counterpartyType: undefined, counterpartyId: undefined, order: null })
+      expect.objectContaining({
+        id: 'doc1',
+        counterpartyType: undefined,
+        counterpartyId: undefined,
+        order: null,
+      })
     );
     expect(r.request.items[0]!.certificateDocumentId).toBe('doc1');
   });
@@ -150,17 +165,26 @@ describe('getEnrollmentRequest (деталка заявки, ФТ-2.3)', () => {
       organizationName: 'Ромашка',
       partnerName: null,
       submittedByName: 'Юзер',
-      submitterRole: 'organization'
+      submitterRole: 'organization',
     });
-    expect(recordPiiAccess).toHaveBeenCalledWith(d, expect.objectContaining({
-      context: 'enrollment_detail',
-      subjectIds: ['E1']
-    }));
+    expect(recordPiiAccess).toHaveBeenCalledWith(
+      d,
+      expect.objectContaining({
+        context: 'enrollment_detail',
+        subjectIds: ['E1'],
+      })
+    );
   });
 
   it('direction=null и legacyCourseTitle=null → «—»; partner.name маппится', async () => {
     const { d } = db(
-      reqRow({ direction: null, directionId: null, organization: null, partner: { name: 'Партнёр+' }, items: [] })
+      reqRow({
+        direction: null,
+        directionId: null,
+        organization: null,
+        partner: { name: 'Партнёр+' },
+        items: [],
+      })
     );
     const r = await getEnrollmentRequest(d, s(), 'E1');
     if (!r.ok) throw new Error('expected ok');

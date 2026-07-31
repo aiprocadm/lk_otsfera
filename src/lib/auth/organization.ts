@@ -7,7 +7,7 @@ export async function getPrimaryOrganizationId(session: SessionPayload): Promise
   const membership = await prisma.organizationUser.findFirst({
     where: { userId: session.sub, isActive: true },
     select: { organizationId: true },
-    orderBy: { createdAt: 'asc' }
+    orderBy: { createdAt: 'asc' },
   });
 
   return membership?.organizationId ?? null;

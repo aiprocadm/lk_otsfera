@@ -16,15 +16,21 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: { user: { findUnique: userFindUnique
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
-const { kpis, attention, recentEvents, recentEnrollments, expiringCertificates } = vi.hoisted(() => ({
-  kpis: vi.fn(),
-  attention: vi.fn(),
-  recentEvents: vi.fn(),
-  recentEnrollments: vi.fn(),
-  expiringCertificates: vi.fn()
-}));
+const { kpis, attention, recentEvents, recentEnrollments, expiringCertificates } = vi.hoisted(
+  () => ({
+    kpis: vi.fn(),
+    attention: vi.fn(),
+    recentEvents: vi.fn(),
+    recentEnrollments: vi.fn(),
+    expiringCertificates: vi.fn(),
+  })
+);
 vi.mock('@/lib/services/partner/dashboard', () => ({
-  kpis, attention, recentEvents, recentEnrollments, expiringCertificates
+  kpis,
+  attention,
+  recentEvents,
+  recentEnrollments,
+  expiringCertificates,
 }));
 
 import PartnerDashboard from '@/app/partner/dashboard/page';
@@ -48,21 +54,21 @@ describe('PartnerDashboard', () => {
     kpis.mockResolvedValue({
       openOrders: 5,
       outstanding: '1000.00',
-      commissionThisMonth: '300.00'
+      commissionThisMonth: '300.00',
     });
-    attention.mockResolvedValue({ stuckOrders: [], overdueOrders: [], });
+    attention.mockResolvedValue({ stuckOrders: [], overdueOrders: [] });
     recentEvents.mockResolvedValue([]);
 
     const { container } = await renderServerComponent(PartnerDashboard());
 
-    expect(kpis).toHaveBeenCalledWith(
-      expect.anything(),
-      { partnerId: 'p1', scopeOrgIds: ['org-1'] }
-    );
-    expect(attention).toHaveBeenCalledWith(
-      expect.anything(),
-      { partnerId: 'p1', scopeOrgIds: ['org-1'] }
-    );
+    expect(kpis).toHaveBeenCalledWith(expect.anything(), {
+      partnerId: 'p1',
+      scopeOrgIds: ['org-1'],
+    });
+    expect(attention).toHaveBeenCalledWith(expect.anything(), {
+      partnerId: 'p1',
+      scopeOrgIds: ['org-1'],
+    });
     expect(recentEvents).toHaveBeenCalledWith(
       expect.anything(),
       { partnerId: 'p1', scopeOrgIds: ['org-1'] },
@@ -78,21 +84,23 @@ describe('PartnerDashboard', () => {
     kpis.mockResolvedValue({
       openOrders: 0,
       outstanding: '0.00',
-      commissionThisMonth: '0.00'
+      commissionThisMonth: '0.00',
     });
     attention.mockResolvedValue({
       stuckOrders: [{ id: 'o1', title: 'Заказ', updatedAt: new Date('2024-01-01') }],
       overdueOrders: [],
     });
     recentEvents.mockResolvedValue([
-      { kind: 'lead_created', title: 'Новый лид', at: new Date('2024-01-01'), ref: { kind: 'lead', id: 'l1' } }
+      {
+        kind: 'lead_created',
+        title: 'Новый лид',
+        at: new Date('2024-01-01'),
+        ref: { kind: 'lead', id: 'l1' },
+      },
     ]);
 
     await renderServerComponent(PartnerDashboard());
 
-    expect(kpis).toHaveBeenCalledWith(
-      expect.anything(),
-      { partnerId: 'p1', scopeOrgIds: [] }
-    );
+    expect(kpis).toHaveBeenCalledWith(expect.anything(), { partnerId: 'p1', scopeOrgIds: [] });
   });
 });

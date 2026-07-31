@@ -38,5 +38,7 @@ export function isInboundMessageInScope(
   session: SessionPayload,
   msg: { companyId: string | null; status: string }
 ): boolean {
-  return (msg.companyId != null && msg.companyId === session.companyId) || msg.status === 'unresolved';
+  return (
+    (msg.companyId != null && msg.companyId === session.companyId) || msg.status === 'unresolved'
+  );
 }

@@ -9,7 +9,7 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { listPiiAccess, listPiiAccessFilters } = vi.hoisted(() => ({
   listPiiAccess: vi.fn(),
-  listPiiAccessFilters: vi.fn()
+  listPiiAccessFilters: vi.fn(),
 }));
 vi.mock('@/lib/services/admin/piiAccess', () => ({ listPiiAccess, listPiiAccessFilters }));
 
@@ -26,7 +26,7 @@ const ROW = {
   subjectType: 'student',
   subjectCount: 1,
   subjects: [{ id: 's1', label: 'Иван И.' }],
-  meta: null
+  meta: null,
 };
 
 beforeEach(() => {
@@ -87,8 +87,8 @@ describe('AdminPiiAccessPage', () => {
           subjectId: 'c1',
           from: '2026-07-01',
           to: '2026-07-11',
-          cursor: 'ev5'
-        })
+          cursor: 'ev5',
+        }),
       })
     );
     expect(listPiiAccess.mock.calls[0][2]).toMatchObject({
@@ -100,7 +100,7 @@ describe('AdminPiiAccessPage', () => {
       cursor: 'ev5',
       from: new Date('2026-07-01'),
       to: new Date('2026-07-11'),
-      take: 50
+      take: 50,
     });
   });
 });

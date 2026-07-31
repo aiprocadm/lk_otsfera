@@ -29,8 +29,7 @@ export type DispatchOptions = DeliverOptions & {
 };
 
 export type DispatchOutcome =
-  | { mode: 'inline'; results: DeliveryResults }
-  | { mode: 'queued'; channels: ChannelKey[] };
+  { mode: 'inline'; results: DeliveryResults } | { mode: 'queued'; channels: ChannelKey[] };
 
 export function notificationJobId(dedupKey: string, userId: string, channel: ChannelKey): string {
   return `notif_${dedupKey}_${userId}_${channel}`;

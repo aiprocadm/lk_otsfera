@@ -9,12 +9,18 @@ import {
   capabilitySchema,
   sessionAccessProfileSchema,
   NO_COMPANY_SENTINEL,
-  type SessionAccessProfile
+  type SessionAccessProfile,
 } from '@/lib/auth/accessProfile';
 
 // Minimal session builders (mirror the inline-literal pattern used across tests).
 function mgr(over: Partial<SessionPayload> = {}): SessionPayload {
-  return { sub: 'u1', role: 'manager', companyId: 'co-1', managedOrgIds: [], ...over } as unknown as SessionPayload;
+  return {
+    sub: 'u1',
+    role: 'manager',
+    companyId: 'co-1',
+    managedOrgIds: [],
+    ...over,
+  } as unknown as SessionPayload;
 }
 function admin(over: Partial<SessionPayload> = {}): SessionPayload {
   return { sub: 'a1', role: 'admin', ...over } as unknown as SessionPayload;
@@ -31,7 +37,7 @@ const fullProfile = (over: Partial<SessionAccessProfile> = {}): SessionAccessPro
   leads: 'all',
   tasks: 'all',
   capabilities: [],
-  ...over
+  ...over,
 });
 
 describe('can()', () => {
@@ -54,10 +60,21 @@ describe('can()', () => {
   });
 
   it('profiled: capability granted only if present (default-deny)', () => {
-    expect(can(mgr({ accessProfile: fullProfile({ capabilities: ['see_commission'] }) }), 'see_commission')).toBe(true);
-    expect(can(mgr({ accessProfile: fullProfile({ capabilities: [] }) }), 'see_commission')).toBe(false);
-    expect(can(mgr({ accessProfile: fullProfile({ capabilities: ['export'] }) }), 'export')).toBe(true);
-    expect(can(mgr({ accessProfile: fullProfile({ capabilities: ['export'] }) }), 'see_commission')).toBe(false);
+    expect(
+      can(
+        mgr({ accessProfile: fullProfile({ capabilities: ['see_commission'] }) }),
+        'see_commission'
+      )
+    ).toBe(true);
+    expect(can(mgr({ accessProfile: fullProfile({ capabilities: [] }) }), 'see_commission')).toBe(
+      false
+    );
+    expect(can(mgr({ accessProfile: fullProfile({ capabilities: ['export'] }) }), 'export')).toBe(
+      true
+    );
+    expect(
+      can(mgr({ accessProfile: fullProfile({ capabilities: ['export'] }) }), 'see_commission')
+    ).toBe(false);
   });
 
   it('profile overrides leader: leader-built role without flag cannot see commission', () => {
@@ -73,18 +90,22 @@ describe('orderWhereForLevel()', () => {
 
   it('own → company AND managerId==sub', () => {
     expect(orderWhereForLevel(mgr({ companyId: 'co-1', sub: 'u1' }), 'own')).toEqual({
-      AND: [{ companyId: 'co-1' }, { managerId: 'u1' }]
+      AND: [{ companyId: 'co-1' }, { managerId: 'u1' }],
     });
   });
 
   it('assigned → company AND organizationId in managedOrgIds', () => {
-    expect(orderWhereForLevel(mgr({ companyId: 'co-1', managedOrgIds: ['o1', 'o2'] }), 'assigned')).toEqual({
-      AND: [{ companyId: 'co-1' }, { organizationId: { in: ['o1', 'o2'] } }]
+    expect(
+      orderWhereForLevel(mgr({ companyId: 'co-1', managedOrgIds: ['o1', 'o2'] }), 'assigned')
+    ).toEqual({
+      AND: [{ companyId: 'co-1' }, { organizationId: { in: ['o1', 'o2'] } }],
     });
   });
 
   it('null companyId falls back to the no-company sentinel (fail-safe deny)', () => {
-    expect(orderWhereForLevel(mgr({ companyId: null }), 'all')).toEqual({ companyId: NO_COMPANY_SENTINEL });
+    expect(orderWhereForLevel(mgr({ companyId: null }), 'all')).toEqual({
+      companyId: NO_COMPANY_SENTINEL,
+    });
   });
 });
 
@@ -97,7 +118,7 @@ describe('leadWhereForLevel() — leads single-tenant (no company floor)', () =>
   });
   it('assigned → own OR managed orgs', () => {
     expect(leadWhereForLevel(mgr({ sub: 'u7', managedOrgIds: ['o1', 'o2'] }), 'assigned')).toEqual({
-      OR: [{ assignedManagerId: 'u7' }, { organizationId: { in: ['o1', 'o2'] } }]
+      OR: [{ assignedManagerId: 'u7' }, { organizationId: { in: ['o1', 'o2'] } }],
     });
   });
 });
@@ -114,7 +135,7 @@ describe('toSessionAccessProfile()', () => {
       financeScope: 'own' as const,
       leadsScope: 'all' as const,
       tasksScope: 'assigned' as const,
-      capabilities: ['see_commission', 'garbage', 'export']
+      capabilities: ['see_commission', 'garbage', 'export'],
     };
     expect(toSessionAccessProfile(row)).toEqual({
       id: 'p1',
@@ -126,7 +147,7 @@ describe('toSessionAccessProfile()', () => {
       finance: 'own',
       leads: 'all',
       tasks: 'assigned',
-      capabilities: ['see_commission', 'export']
+      capabilities: ['see_commission', 'export'],
     });
   });
 });

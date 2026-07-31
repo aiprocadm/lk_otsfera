@@ -12,7 +12,7 @@ import {
   orgPaymentReceivedText,
   OrgOrderStatusChangedTemplate,
   orgOrderStatusChangedSubject,
-  orgOrderStatusChangedText
+  orgOrderStatusChangedText,
 } from '@/lib/email/templates';
 
 describe('organization email templates — render smoke', () => {
@@ -21,7 +21,7 @@ describe('organization email templates — render smoke', () => {
       React.createElement(OrgInviteTemplate, {
         organizationName: 'ООО Тест',
         inviteUrl: 'https://app.test/reset?token=abc',
-        invitedByName: 'Андрей'
+        invitedByName: 'Андрей',
       })
     );
     expect(html).toContain('ООО Тест');
@@ -34,7 +34,7 @@ describe('organization email templates — render smoke', () => {
     const html = renderToStaticMarkup(
       React.createElement(OrgInviteTemplate, {
         organizationName: 'ООО Тест',
-        inviteUrl: 'https://app.test/reset?token=abc'
+        inviteUrl: 'https://app.test/reset?token=abc',
       })
     );
     expect(html).toContain('Вас приглашают');
@@ -49,7 +49,7 @@ describe('organization email templates — render smoke', () => {
     const text = orgInviteText({
       organizationName: 'ООО Тест',
       inviteUrl: 'https://app.test/x',
-      invitedByName: 'Андрей'
+      invitedByName: 'Андрей',
     });
     expect(text).toContain('Андрей приглашает вас');
     expect(text).toContain('https://app.test/x');
@@ -63,7 +63,7 @@ describe('organization email templates — render smoke', () => {
         orderTitle: 'Курс по охране труда',
         documentName: 'contract.pdf',
         documentType: 'contract',
-        orderUrl: 'https://app.test/organization/orders/abc'
+        orderUrl: 'https://app.test/organization/orders/abc',
       })
     );
     expect(html).toContain('№ 12345');
@@ -80,7 +80,7 @@ describe('organization email templates — render smoke', () => {
         orderTitle: 'Курс по охране труда',
         documentName: 'a.pdf',
         documentType: 'act',
-        orderUrl: 'https://app.test/x'
+        orderUrl: 'https://app.test/x',
       })
     );
     expect(html).toContain('«Курс по охране труда»');
@@ -95,7 +95,7 @@ describe('organization email templates — render smoke', () => {
         orderTitle: 'T',
         documentName: 'd',
         documentType: 'other',
-        orderUrl: 'u'
+        orderUrl: 'u',
       })
     ).toBe('Новый документ по заказу № 999');
 
@@ -106,7 +106,7 @@ describe('organization email templates — render smoke', () => {
         orderTitle: 'T',
         documentName: 'd',
         documentType: 'other',
-        orderUrl: 'u'
+        orderUrl: 'u',
       })
     ).toBe('Новый документ по заказу «T»');
   });
@@ -119,7 +119,7 @@ describe('organization email templates — render smoke', () => {
         orderTitle: 'X',
         amount: '125000',
         paidAt: new Date('2026-05-26T12:00:00Z'),
-        orderUrl: 'https://app.test/order/777'
+        orderUrl: 'https://app.test/order/777',
       })
     );
     expect(html).toContain('125 000 ₽'); // ru-RU uses non-breaking space
@@ -135,7 +135,7 @@ describe('organization email templates — render smoke', () => {
         orderTitle: 'T',
         amount: '50000',
         paidAt: new Date(),
-        orderUrl: 'u'
+        orderUrl: 'u',
       })
     ).toMatch(/^Оплата .+ по заказу № 777$/);
   });
@@ -147,7 +147,7 @@ describe('organization email templates — render smoke', () => {
       orderTitle: 'T',
       amount: '100',
       paidAt: new Date('2026-05-26T00:00:00Z'),
-      orderUrl: 'https://u'
+      orderUrl: 'https://u',
     });
     expect(text).toContain('100 ₽');
     expect(text).toContain('https://u');
@@ -162,7 +162,7 @@ describe('organization email templates — render smoke', () => {
         dimension: 'execution',
         oldStatus: 'in_progress',
         newStatus: 'completed',
-        orderUrl: 'https://app.test/order/42'
+        orderUrl: 'https://app.test/order/42',
       })
     );
     expect(html).toContain('В работе');
@@ -179,7 +179,7 @@ describe('organization email templates — render smoke', () => {
         dimension: 'financial',
         oldStatus: 'billed',
         newStatus: 'paid',
-        orderUrl: 'https://u'
+        orderUrl: 'https://u',
       })
     );
     expect(html).toContain('Счёт выставлен');
@@ -195,7 +195,7 @@ describe('organization email templates — render smoke', () => {
         dimension: 'execution',
         oldStatus: 'pending',
         newStatus: 'in_progress',
-        orderUrl: 'u'
+        orderUrl: 'u',
       })
     ).toMatch(/^Статус заказа № 1: В работе$/);
 
@@ -207,7 +207,7 @@ describe('organization email templates — render smoke', () => {
         dimension: 'financial',
         oldStatus: 'not_billed',
         newStatus: 'billed',
-        orderUrl: 'u'
+        orderUrl: 'u',
       })
     ).toMatch(/^Финансы заказа № 1: Счёт выставлен$/);
   });
@@ -220,7 +220,7 @@ describe('organization email templates — render smoke', () => {
       dimension: 'execution',
       oldStatus: 'in_progress',
       newStatus: 'on_hold',
-      orderUrl: 'https://u'
+      orderUrl: 'https://u',
     });
     expect(text).toContain('В работе → На паузе');
     expect(text).toContain('https://u');

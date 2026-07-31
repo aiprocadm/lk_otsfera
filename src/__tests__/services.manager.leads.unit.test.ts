@@ -8,8 +8,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { recordPiiAccess } = vi.hoisted(() => ({ recordPiiAccess: vi.fn() }));
 vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
 
-import { listManagerLeads, getManagerLead } from '@/lib/services/manager/leads';
 import { Decimal } from '@prisma/client/runtime/library';
+import { listManagerLeads, getManagerLead } from '@/lib/services/manager/leads';
 
 const SESSION = { sub: 'mgr-1', role: 'manager' as const, companyId: 'co-1' };
 
@@ -19,10 +19,7 @@ beforeEach(() => {
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
-function leadRow(
-  id: string,
-  over: Record<string, unknown> = {}
-) {
+function leadRow(id: string, over: Record<string, unknown> = {}) {
   return {
     id,
     clientCompanyName: 'Acme Corp',
@@ -36,7 +33,7 @@ function leadRow(
     assignedManager: null,
     promotedOrderId: null,
     createdAt: new Date('2026-06-01'),
-    ...over
+    ...over,
   };
 }
 
@@ -66,9 +63,7 @@ describe('listManagerLeads', () => {
   });
 
   it('maps organization id/name when present', async () => {
-    const rows = [
-      leadRow('L1', { organization: { id: 'o1', name: 'Org One' } })
-    ];
+    const rows = [leadRow('L1', { organization: { id: 'o1', name: 'Org One' } })];
     const db = { lead: { findMany: vi.fn().mockResolvedValue(rows) } } as never;
     const r = await listManagerLeads(db, {});
     expect(r.rows[0]!.organizationId).toBe('o1');
@@ -91,7 +86,9 @@ describe('listManagerLeads', () => {
   });
 
   it('maps assignedManagerName from nested object', async () => {
-    const rows = [leadRow('L1', { assignedManager: { name: 'Ivanov' }, assignedManagerId: 'mgr-1' })];
+    const rows = [
+      leadRow('L1', { assignedManager: { name: 'Ivanov' }, assignedManagerId: 'mgr-1' }),
+    ];
     const db = { lead: { findMany: vi.fn().mockResolvedValue(rows) } } as never;
     const r = await listManagerLeads(db, {});
     expect(r.rows[0]!.assignedManagerName).toBe('Ivanov');
@@ -151,13 +148,13 @@ describe('getManagerLead', () => {
       updatedAt: new Date('2026-06-05'),
       externalIdInOneC: null,
       pushedToOneCAt: null,
-      ...over
+      ...over,
     };
   }
 
   it('returns null when lead is not found', async () => {
     const db = {
-      lead: { findUnique: vi.fn().mockResolvedValue(null) }
+      lead: { findUnique: vi.fn().mockResolvedValue(null) },
     } as never;
     const result = await getManagerLead(db, SESSION, 'nonexistent');
     expect(result).toBeNull();
@@ -165,7 +162,7 @@ describe('getManagerLead', () => {
 
   it('returns the full detail payload when lead is found', async () => {
     const db = {
-      lead: { findUnique: vi.fn().mockResolvedValue(fullRow()) }
+      lead: { findUnique: vi.fn().mockResolvedValue(fullRow()) },
     } as never;
     const result = await getManagerLead(db, SESSION, 'L1');
     expect(result).not.toBeNull();
@@ -189,8 +186,8 @@ describe('getManagerLead', () => {
       lead: {
         findUnique: vi
           .fn()
-          .mockResolvedValue(fullRow({ externalIdInOneC: 'EXT-77', pushedToOneCAt: pushedAt }))
-      }
+          .mockResolvedValue(fullRow({ externalIdInOneC: 'EXT-77', pushedToOneCAt: pushedAt })),
+      },
     } as never;
     const result = await getManagerLead(db, SESSION, 'L1');
     expect(result!.externalIdInOneC).toBe('EXT-77');
@@ -200,10 +197,8 @@ describe('getManagerLead', () => {
   it('maps estimatedAmount Decimal to string when present', async () => {
     const db = {
       lead: {
-        findUnique: vi.fn().mockResolvedValue(
-          fullRow({ estimatedAmount: new Decimal('5000.00') })
-        )
-      }
+        findUnique: vi.fn().mockResolvedValue(fullRow({ estimatedAmount: new Decimal('5000.00') })),
+      },
     } as never;
     const result = await getManagerLead(db, SESSION, 'L1');
     expect(result!.estimatedAmount).toBe('5000.00');
@@ -212,8 +207,8 @@ describe('getManagerLead', () => {
   it('maps estimatedAmount to null when absent', async () => {
     const db = {
       lead: {
-        findUnique: vi.fn().mockResolvedValue(fullRow({ estimatedAmount: null }))
-      }
+        findUnique: vi.fn().mockResolvedValue(fullRow({ estimatedAmount: null })),
+      },
     } as never;
     const result = await getManagerLead(db, SESSION, 'L1');
     expect(result!.estimatedAmount).toBeNull();
@@ -222,10 +217,10 @@ describe('getManagerLead', () => {
   it('maps organization id/name when present', async () => {
     const db = {
       lead: {
-        findUnique: vi.fn().mockResolvedValue(
-          fullRow({ organization: { id: 'o1', name: 'Org One' } })
-        )
-      }
+        findUnique: vi
+          .fn()
+          .mockResolvedValue(fullRow({ organization: { id: 'o1', name: 'Org One' } })),
+      },
     } as never;
     const result = await getManagerLead(db, SESSION, 'L1');
     expect(result!.organizationId).toBe('o1');
@@ -235,8 +230,8 @@ describe('getManagerLead', () => {
   it('maps organizationId/organizationName to null when organization is null', async () => {
     const db = {
       lead: {
-        findUnique: vi.fn().mockResolvedValue(fullRow({ organization: null }))
-      }
+        findUnique: vi.fn().mockResolvedValue(fullRow({ organization: null })),
+      },
     } as never;
     const result = await getManagerLead(db, SESSION, 'L1');
     expect(result!.organizationId).toBeNull();
@@ -246,10 +241,8 @@ describe('getManagerLead', () => {
   it('maps assignedManagerName to null when assignedManager is null', async () => {
     const db = {
       lead: {
-        findUnique: vi.fn().mockResolvedValue(
-          fullRow({ assignedManager: null })
-        )
-      }
+        findUnique: vi.fn().mockResolvedValue(fullRow({ assignedManager: null })),
+      },
     } as never;
     const result = await getManagerLead(db, SESSION, 'L1');
     expect(result!.assignedManagerName).toBeNull();
@@ -257,13 +250,13 @@ describe('getManagerLead', () => {
 
   it('журналирует выдачу контактных ПДн (view)', async () => {
     const db = {
-      lead: { findUnique: vi.fn().mockResolvedValue(fullRow()) }
+      lead: { findUnique: vi.fn().mockResolvedValue(fullRow()) },
     } as never;
     await getManagerLead(db, SESSION, 'L1');
     expect(recordPiiAccess).toHaveBeenCalledWith(db, {
       session: SESSION,
       context: 'manager_lead_view',
-      subjectIds: ['L1']
+      subjectIds: ['L1'],
     });
   });
 

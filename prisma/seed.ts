@@ -17,7 +17,7 @@ const PASSWORD = 'Password123!';
 function fakeJob(): Job<SyncJobPayload> {
   return {
     id: 'seed-' + Date.now(),
-    data: { triggeredAt: new Date().toISOString(), reason: 'manual' as const }
+    data: { triggeredAt: new Date().toISOString(), reason: 'manual' as const },
   } as Job<SyncJobPayload>;
 }
 
@@ -42,7 +42,7 @@ async function main() {
   const company = await prisma.company.upsert({
     where: { id: 'demo-company' },
     update: {},
-    create: { id: 'demo-company', name: 'Demo LLC' }
+    create: { id: 'demo-company', name: 'Demo LLC' },
   });
   const admin = await prisma.user.upsert({
     where: { email: 'admin@demo.local' },
@@ -52,8 +52,8 @@ async function main() {
       name: 'Admin',
       passwordHash,
       companyId: company.id,
-      role: 'admin'
-    }
+      role: 'admin',
+    },
   });
 
   const partner = await prisma.partner.upsert({
@@ -63,8 +63,8 @@ async function main() {
       name: 'ООО «Промтехносфера-Партнёр»',
       legalName: 'ООО «Промтехносфера-Партнёр»',
       slug: PARTNER_SLUG,
-      commissionRate: 0.1
-    }
+      commissionRate: 0.1,
+    },
   });
 
   const partnerAdmin = await prisma.user.upsert({
@@ -75,8 +75,8 @@ async function main() {
       name: 'Partner Admin',
       passwordHash,
       role: 'partner',
-      partnerId: partner.id
-    }
+      partnerId: partner.id,
+    },
   });
   await prisma.partnerUser.upsert({
     where: { partnerId_userId: { partnerId: partner.id, userId: partnerAdmin.id } },
@@ -86,8 +86,8 @@ async function main() {
       userId: partnerAdmin.id,
       roleInPartner: 'admin',
       assignedOrgIds: [],
-      isActive: true
-    }
+      isActive: true,
+    },
   });
 
   const job = fakeJob();
@@ -98,7 +98,7 @@ async function main() {
 
   const firstOrg = await prisma.organization.findFirst({
     where: { partnerId: partner.id, externalId: '1c-org-001' },
-    select: { id: true, companyId: true }
+    select: { id: true, companyId: true },
   });
   const managerScope = firstOrg ? [firstOrg.id] : [];
 
@@ -110,8 +110,8 @@ async function main() {
       name: 'Partner Manager',
       passwordHash,
       role: 'partner',
-      partnerId: partner.id
-    }
+      partnerId: partner.id,
+    },
   });
   await prisma.partnerUser.upsert({
     where: { partnerId_userId: { partnerId: partner.id, userId: partnerManager.id } },
@@ -121,15 +121,15 @@ async function main() {
       userId: partnerManager.id,
       roleInPartner: 'manager',
       assignedOrgIds: managerScope,
-      isActive: true
-    }
+      isActive: true,
+    },
   });
 
   console.log('[seed] sync results', {
     orgs: orgsResult,
     orders: ordersResult,
     payments: paymentsResult,
-    documents: documentsResult
+    documents: documentsResult,
   });
 
   // ─── Demo: paid order + commission statement for prev month ─────────
@@ -138,13 +138,25 @@ async function main() {
   prevMonthFrom.setMonth(prevMonthFrom.getMonth() - 1);
   prevMonthFrom.setHours(0, 0, 0, 0);
 
-  const prevMonthTo = new Date(prevMonthFrom.getFullYear(), prevMonthFrom.getMonth() + 1, 0, 23, 59, 59, 999);
+  const prevMonthTo = new Date(
+    prevMonthFrom.getFullYear(),
+    prevMonthFrom.getMonth() + 1,
+    0,
+    23,
+    59,
+    59,
+    999
+  );
 
   if (!firstOrg) {
-    throw new Error('[seed] expected firstOrg to be populated by sync-organizations — cannot attach demo commission order');
+    throw new Error(
+      '[seed] expected firstOrg to be populated by sync-organizations — cannot attach demo commission order'
+    );
   }
   if (!firstOrg.companyId) {
-    throw new Error('[seed] firstOrg has no companyId — leader/manager company-wide scope would be empty');
+    throw new Error(
+      '[seed] firstOrg has no companyId — leader/manager company-wide scope would be empty'
+    );
   }
   // Единая компания для заказов, менеджера и руководителя: синканные заказы и orgs
   // живут в компании firstOrg (sync-organizations создаёт по компании на org), а
@@ -167,8 +179,8 @@ async function main() {
       vatRate: 0.2,
       financialStatus: 'paid',
       executionStatus: 'completed',
-      closedAt: new Date(prevMonthFrom.getFullYear(), prevMonthFrom.getMonth(), 15)
-    }
+      closedAt: new Date(prevMonthFrom.getFullYear(), prevMonthFrom.getMonth(), 15),
+    },
   });
 
   const existingStatement = await prisma.commissionStatement.findFirst({
@@ -176,8 +188,8 @@ async function main() {
       partnerId: partner.id,
       periodFrom: prevMonthFrom,
       periodTo: prevMonthTo,
-      supersededBy: null
-    }
+      supersededBy: null,
+    },
   });
 
   let demoStatementId: string;
@@ -186,11 +198,13 @@ async function main() {
       partnerId: partner.id,
       periodFrom: prevMonthFrom,
       periodTo: prevMonthTo,
-      calculatedByUserId: null
+      calculatedByUserId: null,
     });
     if (!result.ok) throw new Error(`[seed] commission statement calc failed: ${result.error}`);
     demoStatementId = result.statement.id;
-    console.log(`[seed] created commission statement ${result.statement.id} with ${result.itemCount} items`);
+    console.log(
+      `[seed] created commission statement ${result.statement.id} with ${result.itemCount} items`
+    );
   } else {
     demoStatementId = existingStatement.id;
     console.log(`[seed] commission statement already exists: ${existingStatement.id}`);
@@ -205,8 +219,8 @@ async function main() {
         email: 'org@demo.local',
         name: 'Organization Admin',
         passwordHash,
-        role: 'organization'
-      }
+        role: 'organization',
+      },
     });
     await prisma.organizationUser.upsert({
       where: { organizationId_userId: { organizationId: firstOrg.id, userId: orgAdmin.id } },
@@ -215,8 +229,8 @@ async function main() {
         organizationId: firstOrg.id,
         userId: orgAdmin.id,
         roleInOrg: 'admin',
-        isActive: true
-      }
+        isActive: true,
+      },
     });
   }
 
@@ -226,25 +240,31 @@ async function main() {
   if (firstOrg) {
     const managerUser = await prisma.user.upsert({
       where: { email: 'manager@demo.local' },
-      update: { role: 'manager', isActive: true, passwordHash, name: 'Demo Manager', companyId: demoCompanyId },
+      update: {
+        role: 'manager',
+        isActive: true,
+        passwordHash,
+        name: 'Demo Manager',
+        companyId: demoCompanyId,
+      },
       create: {
         email: 'manager@demo.local',
         name: 'Demo Manager',
         passwordHash,
         role: 'manager',
-        companyId: demoCompanyId
-      }
+        companyId: demoCompanyId,
+      },
     });
     await prisma.organizationManager.upsert({
       where: {
-        organizationId_userId: { organizationId: firstOrg.id, userId: managerUser.id }
+        organizationId_userId: { organizationId: firstOrg.id, userId: managerUser.id },
       },
       update: { isActive: true, deactivatedAt: null },
       create: {
         organizationId: firstOrg.id,
         userId: managerUser.id,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
   }
 
@@ -255,15 +275,22 @@ async function main() {
   if (firstOrg) {
     await prisma.user.upsert({
       where: { email: 'leader@demo.local' },
-      update: { role: 'manager', managerRole: 'leader', isActive: true, passwordHash, name: 'Demo Leader', companyId: demoCompanyId },
+      update: {
+        role: 'manager',
+        managerRole: 'leader',
+        isActive: true,
+        passwordHash,
+        name: 'Demo Leader',
+        companyId: demoCompanyId,
+      },
       create: {
         email: 'leader@demo.local',
         name: 'Demo Leader',
         passwordHash,
         role: 'manager',
         managerRole: 'leader',
-        companyId: demoCompanyId
-      }
+        companyId: demoCompanyId,
+      },
     });
   }
 
@@ -275,8 +302,8 @@ async function main() {
       email: 'student@demo.local',
       name: 'Demo Student',
       passwordHash,
-      role: 'student'
-    }
+      role: 'student',
+    },
   });
 
   // ─── Admin-facing fixtures (6.7): norate partner, org rate override, audit sample ──
@@ -292,8 +319,8 @@ async function main() {
       legalName: 'ООО «Демо-Партнёр без ставки»',
       slug: 'demo-partner-norate',
       commissionRate: 0,
-      isActive: true
-    }
+      isActive: true,
+    },
   });
 
   // One organization carries an explicit partner-commission-rate override so the
@@ -305,8 +332,8 @@ async function main() {
         partnerCommissionRate: 0.15,
         partnerCommissionRateNote: 'Индивидуальная ставка для демо-организации',
         partnerCommissionRateChangedAt: new Date(),
-        partnerCommissionRateChangedBy: admin.id
-      }
+        partnerCommissionRateChangedBy: admin.id,
+      },
     });
   }
 
@@ -314,7 +341,7 @@ async function main() {
   // and the dashboard events feed have content. Guarded by a sentinel lookup so
   // re-running the seed doesn't pile up duplicates (recordAudit always inserts).
   const demoAuditSeeded = await prisma.auditLog.findFirst({
-    where: { action: 'partner_created', entity: 'partner', entityId: noRatePartner.id }
+    where: { action: 'partner_created', entity: 'partner', entityId: noRatePartner.id },
   });
   if (!demoAuditSeeded) {
     const auditSamples: Array<Parameters<typeof recordAudit>[1]> = [
@@ -323,7 +350,7 @@ async function main() {
         action: 'partner_created',
         entity: 'partner',
         entityId: noRatePartner.id,
-        after: { name: noRatePartner.name, commissionRate: '0' }
+        after: { name: noRatePartner.name, commissionRate: '0' },
       },
       {
         userId: admin.id,
@@ -331,14 +358,14 @@ async function main() {
         entity: 'partner',
         entityId: partner.id,
         before: { commissionRate: '0.05' },
-        after: { commissionRate: '0.10' }
+        after: { commissionRate: '0.10' },
       },
       {
         userId: admin.id,
         action: 'organization_rate_override',
         entity: 'organization',
         entityId: firstOrg.id,
-        after: { partnerCommissionRate: '0.15' }
+        after: { partnerCommissionRate: '0.15' },
       },
       {
         userId: admin.id,
@@ -346,14 +373,14 @@ async function main() {
         entity: 'user',
         entityId: partnerManager.id,
         before: { role: 'student' },
-        after: { role: 'partner' }
+        after: { role: 'partner' },
       },
       {
         userId: admin.id,
         action: 'commission_statement_approved',
         entity: 'commission_statement',
-        entityId: demoStatementId
-      }
+        entityId: demoStatementId,
+      },
     ];
     for (const rec of auditSamples) {
       await recordAudit(prisma, rec);
@@ -366,25 +393,29 @@ async function main() {
     { slug: 'labor-safety', name: 'Охрана труда', sortOrder: 1 },
     { slug: 'fire-safety', name: 'Пожарная безопасность', sortOrder: 2 },
     { slug: 'electrical-safety', name: 'Электробезопасность', sortOrder: 3 },
-    { slug: 'other', name: 'Другое', sortOrder: 99 }
+    { slug: 'other', name: 'Другое', sortOrder: 99 },
   ];
   for (const d of TRAINING_DIRECTIONS) {
     await prisma.trainingDirection.upsert({
       where: { slug: d.slug },
       update: { name: d.name, sortOrder: d.sortOrder },
-      create: d
+      create: d,
     });
   }
   console.log(`Seeded ${TRAINING_DIRECTIONS.length} training directions`);
 
   // ─── M2: backfill Contact/ContactChannel from org Users + Leads (idempotent) ──
   const bf = await backfillContacts(prisma);
-  console.log(`[seed] contacts backfill: +${bf.contactsCreated} contacts, +${bf.channelsCreated} channels`);
+  console.log(
+    `[seed] contacts backfill: +${bf.contactsCreated} contacts, +${bf.channelsCreated} channels`
+  );
 
   console.log('[seed] demo accounts (password = ' + PASSWORD + '):');
   console.log('  - admin@demo.local (role=admin)');
   console.log('  - partner@demo.local (partner admin, sees all orgs)');
-  console.log('  - partner-mgr@demo.local (partner manager, scope=' + managerScope.length + ' org)');
+  console.log(
+    '  - partner-mgr@demo.local (partner manager, scope=' + managerScope.length + ' org)'
+  );
   console.log('  - org@demo.local (organization admin, membership in firstOrg)');
   console.log('  - manager@demo.local (cabinet manager, assigned to firstOrg)');
   console.log('  - leader@demo.local (manager-leader, company-wide)');

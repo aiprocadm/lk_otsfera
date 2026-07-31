@@ -27,12 +27,12 @@ describe('welcomeActionsFor — оба флага включены', () => {
     expect(actions.map((a) => a.href)).toEqual([
       '/organization/enrollments',
       '/organization/certificates',
-      '/organization/documents'
+      '/organization/documents',
     ]);
     expect(actions.map((a) => a.title)).toEqual([
       'Подать заявку на обучение',
       'Удостоверения',
-      'Документы'
+      'Документы',
     ]);
   });
 
@@ -41,7 +41,7 @@ describe('welcomeActionsFor — оба флага включены', () => {
     expect(actions.map((a) => a.href)).toEqual([
       '/partner/enrollments',
       '/partner/certificates',
-      '/partner/documents'
+      '/partner/documents',
     ]);
   });
 });
@@ -54,7 +54,7 @@ describe('welcomeActionsFor — оба флага выключены (фолбэ
     expect(actions.map((a) => [a.title, a.href])).toEqual([
       ['Документы', '/organization/documents'],
       ['Заказы', '/organization/orders'],
-      ['Финансы', '/organization/finance']
+      ['Финансы', '/organization/finance'],
     ]);
   });
 
@@ -63,7 +63,7 @@ describe('welcomeActionsFor — оба флага выключены (фолбэ
     expect(actions.map((a) => [a.title, a.href])).toEqual([
       ['Документы', '/partner/documents'],
       ['Портфель', '/partner/portfolio'],
-      ['Финансы', '/partner/finance']
+      ['Финансы', '/partner/finance'],
     ]);
   });
 });
@@ -77,7 +77,7 @@ describe('welcomeActionsFor — один флаг включён (один фо�
     expect(partner.map((a) => a.title)).toEqual([
       'Подать заявку на обучение',
       'Документы',
-      'Портфель'
+      'Портфель',
     ]);
   });
 
@@ -87,7 +87,7 @@ describe('welcomeActionsFor — один флаг включён (один фо�
     expect(org.map((a) => [a.title, a.href])).toEqual([
       ['Удостоверения', '/organization/certificates'],
       ['Документы', '/organization/documents'],
-      ['Заказы', '/organization/orders']
+      ['Заказы', '/organization/orders'],
     ]);
   });
 });

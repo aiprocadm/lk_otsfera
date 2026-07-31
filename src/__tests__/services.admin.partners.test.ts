@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PrismaClient } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 
+import type { PrismaClient } from '@prisma/client';
 import {
   listPartners,
   getPartner,
@@ -9,12 +9,12 @@ import {
   deactivatePartner,
   reactivatePartner,
   createPartnerWithAdmin,
-  AdminPartnerError
+  AdminPartnerError,
 } from '@/lib/services/admin/partners';
 
 const { recordAuditMock, createInviteTokenMock } = vi.hoisted(() => ({
   recordAuditMock: vi.fn(),
-  createInviteTokenMock: vi.fn()
+  createInviteTokenMock: vi.fn(),
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
 vi.mock('@/lib/auth/passwordReset', () => ({ createInviteToken: createInviteTokenMock }));
@@ -29,7 +29,7 @@ function makePartner(overrides: Record<string, unknown> = {}) {
     slug: 'test-partner',
     commissionRate: new Prisma.Decimal('0.05'),
     isActive: true,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -37,15 +37,15 @@ function makePrisma(overrides: Record<string, unknown> = {}) {
   return {
     partner: {
       findMany: vi.fn().mockResolvedValue([]),
-      count: vi.fn().mockResolvedValue(0)
+      count: vi.fn().mockResolvedValue(0),
     },
     organization: {
-      groupBy: vi.fn().mockResolvedValue([])
+      groupBy: vi.fn().mockResolvedValue([]),
     },
     commissionStatement: {
-      groupBy: vi.fn().mockResolvedValue([])
+      groupBy: vi.fn().mockResolvedValue([]),
     },
-    ...overrides
+    ...overrides,
   } as unknown as PrismaClient;
 }
 
@@ -105,7 +105,7 @@ describe('listPartners()', () => {
     const whereArg = findMany.mock.calls[0][0].where;
     expect(whereArg.OR).toEqual([
       { name: { contains: 'foo', mode: 'insensitive' } },
-      { slug: { contains: 'foo', mode: 'insensitive' } }
+      { slug: { contains: 'foo', mode: 'insensitive' } },
     ]);
   });
 
@@ -157,10 +157,7 @@ describe('listPartners()', () => {
 
     await listPartners(prisma, {});
 
-    expect(findMany.mock.calls[0][0].orderBy).toEqual([
-      { isActive: 'desc' },
-      { name: 'asc' }
-    ]);
+    expect(findMany.mock.calls[0][0].orderBy).toEqual([{ isActive: 'desc' }, { name: 'asc' }]);
   });
 
   it('maps a partner row: nonzero commissionRate is preserved as number', async () => {
@@ -206,7 +203,7 @@ describe('listPartners()', () => {
     const orgGroupBy = vi.fn().mockResolvedValue([{ partnerId: 'p1', _count: 3 }]);
     const prisma = makePrisma({
       partner: { findMany: partnerFindMany, count: partnerCount },
-      organization: { groupBy: orgGroupBy }
+      organization: { groupBy: orgGroupBy },
     });
 
     const result = await listPartners(prisma, {});
@@ -214,7 +211,7 @@ describe('listPartners()', () => {
     expect(orgGroupBy).toHaveBeenCalledWith(
       expect.objectContaining({
         by: ['partnerId'],
-        where: { partnerId: { in: ['p1'] } }
+        where: { partnerId: { in: ['p1'] } },
       })
     );
     expect(result.rows[0].activeOrgCount).toBe(3);
@@ -224,12 +221,14 @@ describe('listPartners()', () => {
     const partner = makePartner();
     const partnerFindMany = vi.fn().mockResolvedValue([partner]);
     const partnerCount = vi.fn().mockResolvedValue(1);
-    const csGroupBy = vi.fn().mockResolvedValue([
-      { partnerId: 'p1', _sum: { totalCommissionAmount: new Prisma.Decimal('12500.00') } }
-    ]);
+    const csGroupBy = vi
+      .fn()
+      .mockResolvedValue([
+        { partnerId: 'p1', _sum: { totalCommissionAmount: new Prisma.Decimal('12500.00') } },
+      ]);
     const prisma = makePrisma({
       partner: { findMany: partnerFindMany, count: partnerCount },
-      commissionStatement: { groupBy: csGroupBy }
+      commissionStatement: { groupBy: csGroupBy },
     });
 
     const result = await listPartners(prisma, {});
@@ -237,7 +236,7 @@ describe('listPartners()', () => {
     expect(csGroupBy).toHaveBeenCalledWith(
       expect.objectContaining({
         by: ['partnerId'],
-        where: expect.objectContaining({ partnerId: { in: ['p1'] }, status: 'paid' })
+        where: expect.objectContaining({ partnerId: { in: ['p1'] }, status: 'paid' }),
       })
     );
     // Prisma.Decimal.toString() strips trailing zeros: '12500.00' → '12500'
@@ -278,7 +277,7 @@ describe('listPartners()', () => {
     expect(whereArg.isActive).toBe(true);
     expect(whereArg.OR).toEqual([
       { name: { contains: 'bar', mode: 'insensitive' } },
-      { slug: { contains: 'bar', mode: 'insensitive' } }
+      { slug: { contains: 'bar', mode: 'insensitive' } },
     ]);
     // active uses isActive, not OR — no bleed
     expect(whereArg.OR).toHaveLength(2);
@@ -314,26 +313,26 @@ describe('getPartner()', () => {
             email: 'admin@test.com',
             name: 'Admin User',
             isActive: true,
-            createdAt: new Date('2025-01-01')
-          }
-        }
-      ]
+            createdAt: new Date('2025-01-01'),
+          },
+        },
+      ],
     };
   }
 
   function makePrismaForGet(partnerData: unknown) {
     return {
       partner: {
-        findUnique: vi.fn().mockResolvedValue(partnerData)
+        findUnique: vi.fn().mockResolvedValue(partnerData),
       },
       organization: {
-        count: vi.fn().mockResolvedValue(2)
+        count: vi.fn().mockResolvedValue(2),
       },
       commissionStatement: {
         aggregate: vi.fn().mockResolvedValue({
-          _sum: { totalCommissionAmount: new Prisma.Decimal('5000.00') }
-        })
-      }
+          _sum: { totalCommissionAmount: new Prisma.Decimal('5000.00') },
+        }),
+      },
     } as unknown as PrismaClient;
   }
 
@@ -361,7 +360,7 @@ describe('getPartner()', () => {
       userId: 'u1',
       email: 'admin@test.com',
       name: 'Admin User',
-      isActive: true
+      isActive: true,
     });
   });
 
@@ -392,14 +391,14 @@ describe('getPartner()', () => {
       partner: { findUnique: vi.fn().mockResolvedValue(makeFullPartner()) },
       organization: { count: orgCount },
       commissionStatement: {
-        aggregate: vi.fn().mockResolvedValue({ _sum: { totalCommissionAmount: null } })
-      }
+        aggregate: vi.fn().mockResolvedValue({ _sum: { totalCommissionAmount: null } }),
+      },
     } as unknown as PrismaClient;
 
     await getPartner(prisma, 'p1');
 
     expect(orgCount).toHaveBeenCalledWith({
-      where: { partnerId: 'p1' }
+      where: { partnerId: 'p1' },
     });
   });
 });
@@ -415,36 +414,43 @@ describe('updatePartner()', () => {
       id: 'p1',
       name: 'Partner',
       commissionRate: new Prisma.Decimal('0.05'),
-      isActive: true
+      isActive: true,
     };
     return {
       partner: {
         findUnique: vi.fn().mockResolvedValue(partnerData),
-        update: vi.fn().mockResolvedValue(updatedData ?? defaultUpdated)
+        update: vi.fn().mockResolvedValue(updatedData ?? defaultUpdated),
       },
       commissionRateChange: {
-        create: vi.fn().mockResolvedValue({})
+        create: vi.fn().mockResolvedValue({}),
       },
-      auditLog: { create: vi.fn().mockResolvedValue({}) }
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
     };
   }
 
   function makePrismaWithTx(tx: ReturnType<typeof makeTx>) {
     return {
-      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => unknown) => fn(tx))
+      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
   }
 
   it('throws not_found when partner does not exist', async () => {
     const tx = makeTx(null);
     const prisma = makePrismaWithTx(tx);
-    expect(await updatePartner(prisma, 'actor1', 'missing', { name: 'New' }))
-      .toEqual({ ok: false, error: 'not_found' });
+    expect(await updatePartner(prisma, 'actor1', 'missing', { name: 'New' })).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
   });
 
   it('happy path: updates name and records audit', async () => {
     const before = { name: 'Old Name', commissionRate: new Prisma.Decimal('0.05'), isActive: true };
-    const updated = { id: 'p1', name: 'New Name', commissionRate: new Prisma.Decimal('0.05'), isActive: true };
+    const updated = {
+      id: 'p1',
+      name: 'New Name',
+      commissionRate: new Prisma.Decimal('0.05'),
+      isActive: true,
+    };
     const tx = makeTx(before, updated);
     const prisma = makePrismaWithTx(tx);
 
@@ -461,7 +467,12 @@ describe('updatePartner()', () => {
 
   it('null commissionRate is stored as Decimal(0)', async () => {
     const before = { name: 'Partner', commissionRate: new Prisma.Decimal('0.05'), isActive: true };
-    const updated = { id: 'p1', name: 'Partner', commissionRate: new Prisma.Decimal('0'), isActive: true };
+    const updated = {
+      id: 'p1',
+      name: 'Partner',
+      commissionRate: new Prisma.Decimal('0'),
+      isActive: true,
+    };
     const tx = makeTx(before, updated);
     const prisma = makePrismaWithTx(tx);
 
@@ -473,7 +484,12 @@ describe('updatePartner()', () => {
 
   it('numeric commissionRate is stored as Decimal', async () => {
     const before = { name: 'Partner', commissionRate: new Prisma.Decimal('0'), isActive: true };
-    const updated = { id: 'p1', name: 'Partner', commissionRate: new Prisma.Decimal('0.08'), isActive: true };
+    const updated = {
+      id: 'p1',
+      name: 'Partner',
+      commissionRate: new Prisma.Decimal('0.08'),
+      isActive: true,
+    };
     const tx = makeTx(before, updated);
     const prisma = makePrismaWithTx(tx);
 
@@ -485,7 +501,12 @@ describe('updatePartner()', () => {
 
   it('audit after snapshot is a full 3-field snapshot matching before shape', async () => {
     const before = { name: 'Partner', commissionRate: new Prisma.Decimal('0.05'), isActive: true };
-    const updated = { id: 'p1', name: 'New', commissionRate: new Prisma.Decimal('0.05'), isActive: true };
+    const updated = {
+      id: 'p1',
+      name: 'New',
+      commissionRate: new Prisma.Decimal('0.05'),
+      isActive: true,
+    };
     const tx = makeTx(before, updated);
     const prisma = makePrismaWithTx(tx);
 
@@ -498,7 +519,12 @@ describe('updatePartner()', () => {
 
   it('audit before and after commissionRate are both strings (type symmetry)', async () => {
     const before = { name: 'Partner', commissionRate: new Prisma.Decimal('0.05'), isActive: true };
-    const updated = { id: 'p1', name: 'Partner', commissionRate: new Prisma.Decimal('0.08'), isActive: true };
+    const updated = {
+      id: 'p1',
+      name: 'Partner',
+      commissionRate: new Prisma.Decimal('0.08'),
+      isActive: true,
+    };
     const tx = makeTx(before, updated);
     const prisma = makePrismaWithTx(tx);
 
@@ -525,7 +551,12 @@ describe('updatePartner()', () => {
   it('records a CommissionRateChange only when the rate actually changes', async () => {
     // name-only update → no history row
     const before = { name: 'Partner', commissionRate: new Prisma.Decimal('0.1'), isActive: true };
-    const updated = { id: 'p1', name: 'New Name', commissionRate: new Prisma.Decimal('0.1'), isActive: true };
+    const updated = {
+      id: 'p1',
+      name: 'New Name',
+      commissionRate: new Prisma.Decimal('0.1'),
+      isActive: true,
+    };
     const tx = makeTx(before, updated);
     const prisma = makePrismaWithTx(tx);
 
@@ -535,7 +566,12 @@ describe('updatePartner()', () => {
     // rate change 0.1 → 0.2 → 1 history row with correct fields
     vi.clearAllMocks();
     const before2 = { name: 'Partner', commissionRate: new Prisma.Decimal('0.1'), isActive: true };
-    const updated2 = { id: 'p1', name: 'Partner', commissionRate: new Prisma.Decimal('0.2'), isActive: true };
+    const updated2 = {
+      id: 'p1',
+      name: 'Partner',
+      commissionRate: new Prisma.Decimal('0.2'),
+      isActive: true,
+    };
     const tx2 = makeTx(before2, updated2);
     const prisma2 = makePrismaWithTx(tx2);
 
@@ -551,7 +587,12 @@ describe('updatePartner()', () => {
 
   it('does not record CommissionRateChange when rate is set to the same value', async () => {
     const before = { name: 'Partner', commissionRate: new Prisma.Decimal('0.1'), isActive: true };
-    const updated = { id: 'p1', name: 'Partner', commissionRate: new Prisma.Decimal('0.1'), isActive: true };
+    const updated = {
+      id: 'p1',
+      name: 'Partner',
+      commissionRate: new Prisma.Decimal('0.1'),
+      isActive: true,
+    };
     const tx = makeTx(before, updated);
     const prisma = makePrismaWithTx(tx);
 
@@ -564,13 +605,30 @@ describe('updatePartner()', () => {
     const created: { effectiveFrom?: Date } = {};
     const tx = {
       partner: {
-        findUnique: vi.fn().mockResolvedValue({ name: 'P', commissionRate: new Prisma.Decimal('0.1'), isActive: true }),
-        update: vi.fn().mockResolvedValue({ name: 'P', commissionRate: new Prisma.Decimal('0.2'), isActive: true }),
+        findUnique: vi.fn().mockResolvedValue({
+          name: 'P',
+          commissionRate: new Prisma.Decimal('0.1'),
+          isActive: true,
+        }),
+        update: vi.fn().mockResolvedValue({
+          name: 'P',
+          commissionRate: new Prisma.Decimal('0.2'),
+          isActive: true,
+        }),
       },
-      commissionRateChange: { create: vi.fn().mockImplementation(({ data }) => { created.effectiveFrom = data.effectiveFrom; return {}; }) },
+      commissionRateChange: {
+        create: vi.fn().mockImplementation(({ data }) => {
+          created.effectiveFrom = data.effectiveFrom;
+          return {};
+        }),
+      },
       auditLog: { create: vi.fn().mockResolvedValue({}) },
     };
-    const db = { $transaction: vi.fn().mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)) } as never;
+    const db = {
+      $transaction: vi
+        .fn()
+        .mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
+    } as never;
     await updatePartner(db, 'admin-1', 'p1', { commissionRate: 0.2, effectiveFrom: eff });
     expect(created.effectiveFrom).toEqual(eff);
   });
@@ -586,23 +644,25 @@ describe('deactivatePartner()', () => {
     return {
       partner: {
         findUnique: vi.fn().mockResolvedValue(partnerData),
-        update: vi.fn().mockResolvedValue({})
+        update: vi.fn().mockResolvedValue({}),
       },
-      auditLog: { create: vi.fn().mockResolvedValue({}) }
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
     };
   }
 
   function makePrismaWithTx(tx: ReturnType<typeof makeTx>) {
     return {
-      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => unknown) => fn(tx))
+      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
   }
 
   it('throws not_found when partner does not exist', async () => {
     const tx = makeTx(null);
     const prisma = makePrismaWithTx(tx);
-    expect(await deactivatePartner(prisma, 'actor1', 'missing'))
-      .toEqual({ ok: false, error: 'not_found' });
+    expect(await deactivatePartner(prisma, 'actor1', 'missing')).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
   });
 
   it('is idempotent: does not update or audit when already inactive', async () => {
@@ -623,7 +683,7 @@ describe('deactivatePartner()', () => {
 
     expect(tx.partner.update).toHaveBeenCalledWith({
       where: { id: 'p1' },
-      data: { isActive: false }
+      data: { isActive: false },
     });
     expect(recordAuditMock).toHaveBeenCalledWith(
       tx,
@@ -632,7 +692,7 @@ describe('deactivatePartner()', () => {
         entity: 'partner',
         entityId: 'p1',
         before: { isActive: true },
-        after: { isActive: false }
+        after: { isActive: false },
       })
     );
   });
@@ -648,23 +708,25 @@ describe('reactivatePartner()', () => {
     return {
       partner: {
         findUnique: vi.fn().mockResolvedValue(partnerData),
-        update: vi.fn().mockResolvedValue({})
+        update: vi.fn().mockResolvedValue({}),
       },
-      auditLog: { create: vi.fn().mockResolvedValue({}) }
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
     };
   }
 
   function makePrismaWithTx(tx: ReturnType<typeof makeTx>) {
     return {
-      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => unknown) => fn(tx))
+      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
   }
 
   it('throws not_found when partner does not exist', async () => {
     const tx = makeTx(null);
     const prisma = makePrismaWithTx(tx);
-    expect(await reactivatePartner(prisma, 'actor1', 'missing'))
-      .toEqual({ ok: false, error: 'not_found' });
+    expect(await reactivatePartner(prisma, 'actor1', 'missing')).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
   });
 
   it('is idempotent: does not update or audit when already active', async () => {
@@ -685,7 +747,7 @@ describe('reactivatePartner()', () => {
 
     expect(tx.partner.update).toHaveBeenCalledWith({
       where: { id: 'p1' },
-      data: { isActive: true }
+      data: { isActive: true },
     });
     expect(recordAuditMock).toHaveBeenCalledWith(
       tx,
@@ -694,7 +756,7 @@ describe('reactivatePartner()', () => {
         entity: 'partner',
         entityId: 'p1',
         before: { isActive: false },
-        after: { isActive: true }
+        after: { isActive: true },
       })
     );
   });
@@ -713,7 +775,7 @@ describe('createPartnerWithAdmin()', () => {
     slugExists = null,
     emailExists = null,
     createdPartner = { id: 'p2', name: 'New Partner', slug: 'new-partner' },
-    createdUser = { id: 'u2', email: 'admin@new.com' }
+    createdUser = { id: 'u2', email: 'admin@new.com' },
   }: {
     slugExists?: unknown;
     emailExists?: unknown;
@@ -723,28 +785,28 @@ describe('createPartnerWithAdmin()', () => {
     return {
       partner: {
         findUnique: vi.fn().mockResolvedValue(slugExists),
-        create: vi.fn().mockResolvedValue(createdPartner)
+        create: vi.fn().mockResolvedValue(createdPartner),
       },
       user: {
         findUnique: vi.fn().mockResolvedValue(emailExists),
-        create: vi.fn().mockResolvedValue(createdUser)
+        create: vi.fn().mockResolvedValue(createdUser),
       },
       partnerUser: {
-        create: vi.fn().mockResolvedValue({})
+        create: vi.fn().mockResolvedValue({}),
       },
       commissionRateChange: {
-        create: vi.fn().mockResolvedValue({})
+        create: vi.fn().mockResolvedValue({}),
       },
       passwordResetToken: {
-        create: vi.fn().mockResolvedValue({})
+        create: vi.fn().mockResolvedValue({}),
       },
-      auditLog: { create: vi.fn().mockResolvedValue({}) }
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
     };
   }
 
   function makePrismaWithTx(tx: ReturnType<typeof makeTxForCreate>) {
     return {
-      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => unknown) => fn(tx))
+      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
   }
 
@@ -753,15 +815,17 @@ describe('createPartnerWithAdmin()', () => {
     slug: 'new-partner',
     commissionRate: 0.05,
     adminEmail: 'admin@new.com',
-    adminName: 'Admin User'
+    adminName: 'Admin User',
   };
 
   it('throws duplicate_slug before partner.create when slug already exists', async () => {
     const tx = makeTxForCreate({ slugExists: { id: 'existing', slug: 'new-partner' } });
     const prisma = makePrismaWithTx(tx);
 
-    expect(await createPartnerWithAdmin(prisma, 'actor1', baseArgs))
-      .toEqual({ ok: false, error: 'duplicate_slug' });
+    expect(await createPartnerWithAdmin(prisma, 'actor1', baseArgs)).toEqual({
+      ok: false,
+      error: 'duplicate_slug',
+    });
 
     expect(tx.partner.create).toHaveBeenCalledTimes(0);
   });
@@ -770,8 +834,10 @@ describe('createPartnerWithAdmin()', () => {
     const tx = makeTxForCreate({ emailExists: { id: 'u-existing', email: 'admin@new.com' } });
     const prisma = makePrismaWithTx(tx);
 
-    expect(await createPartnerWithAdmin(prisma, 'actor1', baseArgs))
-      .toEqual({ ok: false, error: 'duplicate_email' });
+    expect(await createPartnerWithAdmin(prisma, 'actor1', baseArgs)).toEqual({
+      ok: false,
+      error: 'duplicate_email',
+    });
 
     expect(tx.partner.create).toHaveBeenCalledTimes(0);
   });
@@ -797,8 +863,8 @@ describe('createPartnerWithAdmin()', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           roleInPartner: 'admin',
-          assignedOrgIds: []
-        })
+          assignedOrgIds: [],
+        }),
       })
     );
 
@@ -814,8 +880,8 @@ describe('createPartnerWithAdmin()', () => {
           name: 'New Partner',
           slug: 'new-partner',
           commissionRate: '0.05',
-          adminEmail: 'admin@new.com'
-        })
+          adminEmail: 'admin@new.com',
+        }),
       })
     );
 
@@ -824,7 +890,7 @@ describe('createPartnerWithAdmin()', () => {
       ok: true,
       partner: { id: 'p2', name: 'New Partner', slug: 'new-partner' },
       user: { id: 'u2', email: 'admin@new.com' },
-      inviteToken: 'invite-token-abc'
+      inviteToken: 'invite-token-abc',
     });
   });
 

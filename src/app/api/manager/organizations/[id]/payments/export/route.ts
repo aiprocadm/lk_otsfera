@@ -25,14 +25,14 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const [{ rows, total }, kpis, org] = await Promise.all([
     listOrgPaymentsForExport(prisma, { organizationId: id, limit: EXPORT_ROW_LIMIT }),
     getOrgFinanceKpis(prisma, id),
-    prisma.organization.findUnique({ where: { id }, select: { name: true } })
+    prisma.organization.findUnique({ where: { id }, select: { name: true } }),
   ]);
 
   const buf = await renderPaymentsXlsx({ rows, total, kpis, organizationName: org?.name ?? '—' });
   return new NextResponse(Buffer.from(buf), {
     headers: {
       'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'content-disposition': 'attachment; filename="payments.xlsx"'
-    }
+      'content-disposition': 'attachment; filename="payments.xlsx"',
+    },
   });
 }

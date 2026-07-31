@@ -12,7 +12,7 @@ import {
   managerOrderMarkedPaidBy1CText,
   ManagerOrderStatusChanged,
   managerOrderStatusChangedSubject,
-  managerOrderStatusChangedText
+  managerOrderStatusChangedText,
 } from '@/lib/email/templates';
 
 describe('manager email templates — render smoke', () => {
@@ -22,7 +22,7 @@ describe('manager email templates — render smoke', () => {
         orgName: 'ООО Тест',
         orderNumber: 'O-001',
         commentExcerpt: 'Когда будет готов договор?',
-        orderUrl: 'https://app.test/manager/orders/abc'
+        orderUrl: 'https://app.test/manager/orders/abc',
       })
     );
     expect(html).toContain('ООО Тест');
@@ -39,7 +39,7 @@ describe('manager email templates — render smoke', () => {
         orgName: 'ООО Тест',
         orderNumber: 'O-001',
         commentExcerpt: '...',
-        orderUrl: 'u'
+        orderUrl: 'u',
       })
     ).toBe('Новое сообщение от ООО Тест по заказу № O-001');
   });
@@ -49,7 +49,7 @@ describe('manager email templates — render smoke', () => {
       orgName: 'ООО Тест',
       orderNumber: 'O-001',
       commentExcerpt: 'Хочу уточнить срок.',
-      orderUrl: 'https://u'
+      orderUrl: 'https://u',
     });
     expect(text).toContain('Хочу уточнить срок.');
     expect(text).toContain('https://u');
@@ -62,7 +62,7 @@ describe('manager email templates — render smoke', () => {
         orderNumber: 'O-77',
         documentName: 'signed-contract.pdf',
         documentType: 'contract',
-        orderUrl: 'https://app.test/manager/orders/xyz'
+        orderUrl: 'https://app.test/manager/orders/xyz',
       })
     );
     expect(html).toContain('ACME');
@@ -80,7 +80,7 @@ describe('manager email templates — render smoke', () => {
         orderNumber: 'O-77',
         documentName: 'signed.pdf',
         documentType: 'contract',
-        orderUrl: 'u'
+        orderUrl: 'u',
       })
     ).toBe('ACME загрузил документ signed.pdf к заказу № O-77');
   });
@@ -91,7 +91,7 @@ describe('manager email templates — render smoke', () => {
         orderNumber: 'O-555',
         amount: 125000,
         paidAt: new Date('2026-05-26T12:00:00Z'),
-        orderUrl: 'https://app.test/manager/orders/p555'
+        orderUrl: 'https://app.test/manager/orders/p555',
       })
     );
     // ru-RU group separator varies by Node ICU (NBSP   or narrow NBSP  );
@@ -108,7 +108,7 @@ describe('manager email templates — render smoke', () => {
         orderNumber: 'O-555',
         amount: 50000,
         paidAt: new Date(),
-        orderUrl: 'u'
+        orderUrl: 'u',
       })
     ).toMatch(/^Получена оплата .+ по заказу № O-555$/);
   });
@@ -118,7 +118,7 @@ describe('manager email templates — render smoke', () => {
       orderNumber: 'O-1',
       amount: 100,
       paidAt: new Date('2026-05-26T00:00:00Z'),
-      orderUrl: 'https://u'
+      orderUrl: 'https://u',
     });
     expect(text).toContain('100 ₽');
     expect(text).toContain('https://u');
@@ -132,7 +132,7 @@ describe('manager email templates — render smoke', () => {
         actorName: 'Иван Иванов',
         oldStatus: 'В работе',
         newStatus: 'Завершён',
-        orderUrl: 'https://app.test/manager/orders/42'
+        orderUrl: 'https://app.test/manager/orders/42',
       })
     );
     expect(html).toContain('Иван Иванов');
@@ -150,7 +150,7 @@ describe('manager email templates — render smoke', () => {
         actorName: 'Иван Иванов',
         oldStatus: 'В работе',
         newStatus: 'Завершён',
-        orderUrl: 'u'
+        orderUrl: 'u',
       })
     ).toBe('Менеджер Иван Иванов перевёл заказ № O-42 в Завершён');
   });
@@ -161,7 +161,7 @@ describe('manager email templates — render smoke', () => {
       actorName: 'Иван',
       oldStatus: 'В работе',
       newStatus: 'На паузе',
-      orderUrl: 'https://u'
+      orderUrl: 'https://u',
     });
     expect(text).toContain('В работе → На паузе');
     expect(text).toContain('https://u');

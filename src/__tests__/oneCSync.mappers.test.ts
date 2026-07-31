@@ -3,7 +3,7 @@ import {
   mapOrgDto,
   mapOrderDto,
   mapPaymentDto,
-  mapDocumentDto
+  mapDocumentDto,
 } from '@/lib/services/oneCSync/mappers';
 
 describe('1C → Prisma mappers', () => {
@@ -15,7 +15,7 @@ describe('1C → Prisma mappers', () => {
       inn: '770000',
       kpp: '770001',
       partnerExternalId: '1c-partner-001',
-      updatedAt: '2026-05-01T00:00:00Z'
+      updatedAt: '2026-05-01T00:00:00Z',
     });
     expect(out.externalId).toBe('1c-org-001');
     expect(out.name).toBe('ООО Тест');
@@ -37,7 +37,7 @@ describe('1C → Prisma mappers', () => {
       executionStatus: 'in_progress' as const,
       financialStatus: 'partially_paid' as const,
       productMix: ['training'],
-      updatedAt: '2026-05-01T00:00:00Z'
+      updatedAt: '2026-05-01T00:00:00Z',
     });
     expect(out.externalId).toBe('1c-order-1');
     expect(out.executionStatus).toBe('in_progress');
@@ -53,7 +53,7 @@ describe('1C → Prisma mappers', () => {
       amount: 50,
       paidAt: '2026-05-01T00:00:00Z',
       isRefund: false,
-      updatedAt: '2026-05-01T00:00:00Z'
+      updatedAt: '2026-05-01T00:00:00Z',
     });
     expect(out.externalId).toBe('p1');
     expect(out.orderExternalId).toBe('o1');
@@ -68,7 +68,7 @@ describe('1C → Prisma mappers', () => {
       amount: 200,
       paidAt: '2026-05-01T00:00:00Z',
       isRefund: false,
-      updatedAt: '2026-05-01T00:00:00Z'
+      updatedAt: '2026-05-01T00:00:00Z',
     });
     expect(out.externalId).toBe('p2');
     expect(out.orderExternalId).toBeNull();
@@ -85,7 +85,7 @@ describe('1C → Prisma mappers', () => {
       mimeType: 'application/pdf',
       size: 100,
       downloadUrl: 'fake://d1',
-      updatedAt: '2026-05-01T00:00:00Z'
+      updatedAt: '2026-05-01T00:00:00Z',
     });
     expect(out.externalId).toBe('d1');
     expect(out.type).toBe('act');
@@ -101,7 +101,7 @@ describe('1C → Prisma mappers', () => {
       executionStatus: 'pending' as const,
       financialStatus: 'not_billed' as const,
       productMix: [],
-      updatedAt: '2026-05-01T00:00:00Z'
+      updatedAt: '2026-05-01T00:00:00Z',
     });
     expect(out.orderNumber).toBeNull();
     expect(out.organizationExternalId).toBeNull();
@@ -119,7 +119,7 @@ describe('1C → Prisma mappers', () => {
       amount: 100,
       paidAt: '2026-05-01T00:00:00Z',
       isRefund: false,
-      updatedAt: '2026-05-01T00:00:00Z'
+      updatedAt: '2026-05-01T00:00:00Z',
     });
     expect(out.orderExternalId).toBeNull();
     expect(out.organizationExternalId).toBeNull();
@@ -140,7 +140,7 @@ describe('1C → Prisma mappers', () => {
       purpose: 'Оплата по договору',
       paymentOrderNumber: 'ПП-007',
       vatAmount: 36,
-      updatedAt: '2026-05-01T00:00:00Z'
+      updatedAt: '2026-05-01T00:00:00Z',
     });
     expect(out.purpose).toBe('Оплата по договору');
     expect(out.paymentOrderNumber).toBe('ПП-007');
@@ -156,7 +156,7 @@ describe('1C → Prisma mappers', () => {
       mimeType: 'application/pdf',
       size: 1,
       downloadUrl: 'fake://x',
-      updatedAt: '2026-05-01T00:00:00Z'
+      updatedAt: '2026-05-01T00:00:00Z',
     });
     expect(out.signedAt).toBeNull();
   });
@@ -165,7 +165,7 @@ describe('1C → Prisma mappers', () => {
     const out = mapOrgDto({
       externalId: 'org-bare',
       name: 'Bare Org',
-      updatedAt: '2026-05-01T00:00:00Z'
+      updatedAt: '2026-05-01T00:00:00Z',
     });
     expect(out.inn).toBeNull();
     expect(out.kpp).toBeNull();
@@ -186,7 +186,7 @@ describe('1C → Prisma mappers', () => {
       executionStatus: 'completed' as const,
       financialStatus: 'paid' as const,
       productMix: [],
-      updatedAt: '2026-05-01T00:00:00Z'
+      updatedAt: '2026-05-01T00:00:00Z',
     });
     expect(out.contractSignedAt).toBeInstanceOf(Date);
     expect(out.completedAt).toBeInstanceOf(Date);
@@ -203,7 +203,7 @@ describe('1C → Prisma mappers', () => {
       size: 1,
       signedAt: '2026-05-01T00:00:00Z',
       downloadUrl: 'fake://x',
-      updatedAt: '2026-05-01T00:00:00Z'
+      updatedAt: '2026-05-01T00:00:00Z',
     });
     expect(out.signedAt).toBeInstanceOf(Date);
   });

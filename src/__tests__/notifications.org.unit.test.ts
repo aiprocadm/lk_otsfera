@@ -15,17 +15,19 @@ vi.mock('@/lib/telegram/client', () => ({
 
 import { notifyOrgUsers } from '@/lib/notifications/org';
 
-function dbWith(users: Array<{ id: string; email: string | null; telegramChatId?: string | null }>) {
+function dbWith(
+  users: Array<{ id: string; email: string | null; telegramChatId?: string | null }>
+) {
   const create = vi.fn().mockResolvedValue({});
   const organizationUsers = users.map((u) => ({ user: { telegramChatId: null, ...u } }));
   return {
     db: {
       organization: {
-        findUnique: vi.fn().mockResolvedValue({ id: 'org-1', name: 'ООО Орг', organizationUsers })
+        findUnique: vi.fn().mockResolvedValue({ id: 'org-1', name: 'ООО Орг', organizationUsers }),
       },
-      notification: { create }
+      notification: { create },
     } as never,
-    create
+    create,
   };
 }
 
@@ -36,7 +38,13 @@ describe('notifyOrgUsers — unit (mocked prisma)', () => {
     await notifyOrgUsers(db, {
       organizationId: 'org-1',
       type: 'document_published',
-      payload: { orderId: null, orderNumber: null, orderTitle: null, documentName: 'общий.pdf', documentType: 'other' }
+      payload: {
+        orderId: null,
+        orderNumber: null,
+        orderTitle: null,
+        documentName: 'общий.pdf',
+        documentType: 'other',
+      },
     });
     const data = create.mock.calls[0][0].data;
     expect(data.title).toBe('Новый общий документ');
@@ -52,7 +60,13 @@ describe('notifyOrgUsers — unit (mocked prisma)', () => {
     await notifyOrgUsers(db, {
       organizationId: 'org-1',
       type: 'document_published',
-      payload: { orderId: 'ord-42', orderNumber: '42', orderTitle: 'Тест', documentName: 'акт.pdf', documentType: 'act' }
+      payload: {
+        orderId: 'ord-42',
+        orderNumber: '42',
+        orderTitle: 'Тест',
+        documentName: 'акт.pdf',
+        documentType: 'act',
+      },
     });
     const data = create.mock.calls[0][0].data;
     expect(data.title).toContain('Новый документ по заказу');

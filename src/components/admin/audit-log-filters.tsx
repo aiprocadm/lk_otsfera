@@ -37,7 +37,10 @@ export function AuditLogFilters({ entities, actions, actors, current }: Props) {
   const grouped = groupActions(actions);
 
   return (
-    <form method="get" className="flex flex-wrap items-end gap-2 bg-white border border-gray-200 rounded-xl p-3">
+    <form
+      method="get"
+      className="flex flex-wrap items-end gap-2 bg-white border border-gray-200 rounded-xl p-3"
+    >
       <label className="flex flex-col text-xs text-gray-500">
         Сущность
         <select
@@ -47,7 +50,9 @@ export function AuditLogFilters({ entities, actions, actors, current }: Props) {
         >
           <option value="">Все сущности</option>
           {entities.map((e) => (
-            <option key={e} value={e}>{e}</option>
+            <option key={e} value={e}>
+              {e}
+            </option>
           ))}
         </select>
       </label>
@@ -62,7 +67,9 @@ export function AuditLogFilters({ entities, actions, actors, current }: Props) {
           {Object.entries(grouped).map(([prefix, group]) => (
             <optgroup key={prefix} label={prefix}>
               {group.map((a) => (
-                <option key={a} value={a}>{a}</option>
+                <option key={a} value={a}>
+                  {a}
+                </option>
               ))}
             </optgroup>
           ))}
@@ -77,7 +84,9 @@ export function AuditLogFilters({ entities, actions, actors, current }: Props) {
         >
           <option value="">Все пользователи</option>
           {actors.map((a) => (
-            <option key={a.id} value={a.id}>{a.name} ({a.email})</option>
+            <option key={a.id} value={a.id}>
+              {a.name} ({a.email})
+            </option>
           ))}
         </select>
       </label>

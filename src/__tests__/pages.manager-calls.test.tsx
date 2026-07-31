@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import ManagerCallsPage from '@/app/manager/calls/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
@@ -12,7 +13,7 @@ vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 vi.mock('next/navigation', () => ({
   notFound: () => {
     throw new Error('NOTFOUND');
-  }
+  },
 }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
@@ -30,7 +31,7 @@ vi.mock('@/components/manager/calls-filters', () => ({
       { 'data-testid': 'calls-filters' },
       `${String(props.direction)}|${String(props.orgId)}`,
       props.children
-    )
+    ),
 }));
 
 vi.mock('@/components/manager/calls-org-filter', () => ({
@@ -43,7 +44,7 @@ vi.mock('@/components/manager/calls-org-filter', () => ({
       'div',
       { 'data-testid': 'calls-org-filter' },
       JSON.stringify({ orgs: props.orgs, orgId: props.orgId, direction: props.direction })
-    )
+    ),
 }));
 
 vi.mock('@/components/manager/calls-list', () => ({
@@ -53,10 +54,8 @@ vi.mock('@/components/manager/calls-list', () => ({
       { 'data-testid': 'calls-list', 'data-contacts-enabled': String(!!props.contactsEnabled) },
       JSON.stringify(props.items),
       JSON.stringify(props.orgs ?? [])
-    )
+    ),
 }));
-
-import ManagerCallsPage from '@/app/manager/calls/page';
 
 const SESSION = { sub: 'u1', role: 'manager' as const, companyId: 'c1' };
 
@@ -80,9 +79,9 @@ describe('ManagerCallsPage', () => {
 
   it('flag telephony_mango выключен → notFound', async () => {
     mockFlags({ telephony_mango: false });
-    await expect(
-      ManagerCallsPage({ searchParams: Promise.resolve({}) })
-    ).rejects.toThrow('NOTFOUND');
+    await expect(ManagerCallsPage({ searchParams: Promise.resolve({}) })).rejects.toThrow(
+      'NOTFOUND'
+    );
     expect(requireManager).not.toHaveBeenCalled();
   });
 
@@ -107,7 +106,7 @@ describe('ManagerCallsPage', () => {
 
     const { container } = await renderServerComponent(
       ManagerCallsPage({
-        searchParams: Promise.resolve({ direction: 'inbound', orgId: 'org-1', skip: '50' })
+        searchParams: Promise.resolve({ direction: 'inbound', orgId: 'org-1', skip: '50' }),
       })
     );
 
@@ -115,7 +114,7 @@ describe('ManagerCallsPage', () => {
       direction: 'inbound',
       orgId: 'org-1',
       page: 3,
-      pageSize: 25
+      pageSize: 25,
     });
     expect(container.textContent).toContain('call1');
   });
@@ -138,9 +137,7 @@ describe('ManagerCallsPage', () => {
     const qs = new URLSearchParams((next as HTMLAnchorElement).getAttribute('href')!.split('?')[1]);
     const spFromLink = Object.fromEntries(qs.entries());
     listCalls.mockClear();
-    await renderServerComponent(
-      ManagerCallsPage({ searchParams: Promise.resolve(spFromLink) })
-    );
+    await renderServerComponent(ManagerCallsPage({ searchParams: Promise.resolve(spFromLink) }));
     expect(listCalls).toHaveBeenCalledWith(
       {},
       SESSION,
@@ -189,7 +186,7 @@ describe('ManagerCallsPage', () => {
 
     const { getByTestId } = await renderServerComponent(
       ManagerCallsPage({
-        searchParams: Promise.resolve({ orgId: 'org-1', direction: 'inbound' })
+        searchParams: Promise.resolve({ orgId: 'org-1', direction: 'inbound' }),
       })
     );
 
@@ -197,7 +194,7 @@ describe('ManagerCallsPage', () => {
     expect(payload).toEqual({
       orgs: [{ id: 'org-1', name: 'Альфа' }],
       orgId: 'org-1',
-      direction: 'inbound'
+      direction: 'inbound',
     });
     // бар направлений тоже получает orgId для сохранения его в ссылках
     expect(getByTestId('calls-filters').textContent).toContain('inbound|org-1');

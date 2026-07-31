@@ -1,5 +1,5 @@
-import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
+import type { Job } from 'bullmq';
 import { prisma } from '@/lib/db/prisma';
 import type { SyncJobPayload } from '@/lib/jobs/types';
 import { getOneCAdapter } from '@/lib/services/oneCSync';
@@ -8,7 +8,11 @@ import { OneCPaymentSchema } from '@/lib/services/oneCSync/schemas';
 import type { OneCPaymentDto } from '@/lib/services/oneCSync/dto';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { getCursor, advanceCursor, markCursorError } from '@/lib/services/oneCSync/cursor';
-import { runRecordBatch, batchStatus, type BatchSummary } from '@/lib/services/oneCSync/record-batch';
+import {
+  runRecordBatch,
+  batchStatus,
+  type BatchSummary,
+} from '@/lib/services/oneCSync/record-batch';
 import { oneCMode } from '@/lib/services/oneCSync/config';
 import { upsertPaymentRecord } from '@/lib/services/oneCSync/writers';
 import { capturePendingSkips, replayPendingRecords } from '@/lib/services/oneCSync/pending';
@@ -51,7 +55,13 @@ export async function syncPaymentsProcessor(
       // Capture out-of-order skips and replay the backlog so nothing is lost when a
       // dependency (org/order) appears later. Best-effort: never fail the pull on this.
       try {
-        await capturePendingSkips(db, 'payment', raw, (dto) => (dto as OneCPaymentDto).externalId, summary);
+        await capturePendingSkips(
+          db,
+          'payment',
+          raw,
+          (dto) => (dto as OneCPaymentDto).externalId,
+          summary
+        );
         await replayPendingRecords(db, 'payment', { now: new Date() });
       } catch (e) {
         log.warn('[sync-payment] pending capture/replay failed', e);
@@ -65,7 +75,7 @@ export async function syncPaymentsProcessor(
         operation: mode === 'shadow' ? 'check' : summary.created > 0 ? 'create' : 'update',
         status: batchStatus(summary),
         payload: { mode, ...summary },
-        durationMs: Date.now() - startedAt
+        durationMs: Date.now() - startedAt,
       },
       db
     );
@@ -77,7 +87,14 @@ export async function syncPaymentsProcessor(
       log.warn('[sync-payments] markCursorError failed', e)
     );
     await writeSyncLog(
-      { entity: 'payment', direction: 'inbound', operation: 'skip', status: 'error', errorMessage: message, durationMs: Date.now() - startedAt },
+      {
+        entity: 'payment',
+        direction: 'inbound',
+        operation: 'skip',
+        status: 'error',
+        errorMessage: message,
+        durationMs: Date.now() - startedAt,
+      },
       db
     );
     throw err;

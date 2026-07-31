@@ -2,14 +2,27 @@ import { describe, it, expect } from 'vitest';
 import { OneCOrderSchema } from '@/lib/services/oneCSync/schemas';
 import { DEFAULT_SCENARIO } from './scenario';
 import {
-  applyDialect, applyDatetime, injectMalformed, injectDuplicates, paginate, wrapEnvelope, shapeResponse
+  applyDialect,
+  applyDatetime,
+  injectMalformed,
+  injectDuplicates,
+  paginate,
+  wrapEnvelope,
+  shapeResponse,
 } from './serialize';
 
 const order = {
-  externalId: '1c-order-1001', title: 'T', organizationExternalId: '1c-org-001',
-  totalAmount: 1, paidAmount: 1, vatIncluded: true,
-  executionStatus: 'completed', financialStatus: 'paid',
-  productMix: ['training'], updatedAt: '2026-05-12T10:00:00Z', paidAt: '2026-04-20T14:00:00Z'
+  externalId: '1c-order-1001',
+  title: 'T',
+  organizationExternalId: '1c-org-001',
+  totalAmount: 1,
+  paidAmount: 1,
+  vatIncluded: true,
+  executionStatus: 'completed',
+  financialStatus: 'paid',
+  productMix: ['training'],
+  updatedAt: '2026-05-12T10:00:00Z',
+  paidAt: '2026-04-20T14:00:00Z',
 };
 
 describe('applyDialect (Q10)', () => {
@@ -48,7 +61,10 @@ describe('injectMalformed / injectDuplicates', () => {
 
 describe('paginate (Q6) + wrapEnvelope (Q1)', () => {
   it('serves only the first page and reports the rest in meta', () => {
-    const { page, meta } = paginate([order, { ...order, externalId: 'b' }, { ...order, externalId: 'c' }], 2);
+    const { page, meta } = paginate(
+      [order, { ...order, externalId: 'b' }, { ...order, externalId: 'c' }],
+      2
+    );
     expect(page).toHaveLength(2);
     expect(meta).toEqual({ total: 3, pages: 2, served: 2 });
   });
@@ -62,7 +78,11 @@ describe('paginate (Q6) + wrapEnvelope (Q1)', () => {
 describe('shapeResponse (composition)', () => {
   it('paginating forces an { items, nextCursor } body regardless of envelope flag', () => {
     const records = [order, { ...order, externalId: 'b' }, { ...order, externalId: 'c' }];
-    const { body, meta } = shapeResponse(records, { ...DEFAULT_SCENARIO, pageSize: 2, envelope: 'array' });
+    const { body, meta } = shapeResponse(records, {
+      ...DEFAULT_SCENARIO,
+      pageSize: 2,
+      envelope: 'array',
+    });
     expect(Array.isArray((body as { items: unknown[] }).items)).toBe(true);
     expect((body as { items: unknown[] }).items).toHaveLength(2);
     expect((body as { nextCursor?: string }).nextCursor).toBeTruthy();

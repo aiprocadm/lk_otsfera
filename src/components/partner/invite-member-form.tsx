@@ -5,16 +5,12 @@ import { useFetchSubmit } from '@/lib/ui/useFetchSubmit';
 
 const ERROR_MAP: Record<string, string> = {
   email_taken: 'Пользователь с таким email уже существует',
-  org_out_of_scope: 'Одна из организаций не входит в портфель партнёра'
+  org_out_of_scope: 'Одна из организаций не входит в портфель партнёра',
 };
 
 type InviteResult = { inviteUrl: string; emailStatus: 'sent' | 'skipped' };
 
-export function InviteMemberForm({
-  orgs
-}: {
-  orgs: { id: string; name: string }[];
-}) {
+export function InviteMemberForm({ orgs }: { orgs: { id: string; name: string }[] }) {
   const [open, setOpen] = useState(false);
 
   const [email, setEmail] = useState('');
@@ -33,11 +29,11 @@ export function InviteMemberForm({
       email,
       name,
       roleInPartner,
-      assignedOrgIds: allOrgs ? [] : [...selected]
+      assignedOrgIds: allOrgs ? [] : [...selected],
     }),
     errorMap: ERROR_MAP,
     onSuccess: (data) => setInvite(data),
-    refresh: true
+    refresh: true,
   });
 
   function openDialog() {
@@ -80,165 +76,165 @@ export function InviteMemberForm({
   return (
     <>
       <button
-        type='button'
+        type="button"
         onClick={openDialog}
-        className='inline-flex items-center gap-1.5 px-4 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C]'
+        className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C]"
       >
-        <span className='text-lg leading-none'>+</span>
+        <span className="text-lg leading-none">+</span>
         Пригласить
       </button>
 
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
-        title='Пригласить сотрудника'
-        size='lg'
+        title="Пригласить сотрудника"
+        size="lg"
         busy={pending}
         error={errorText}
       >
         {invite ? (
-          <div className='space-y-3'>
-            <p className='text-sm text-gray-700'>
+          <div className="space-y-3">
+            <p className="text-sm text-gray-700">
               {invite.emailStatus === 'sent' ? (
                 <>
-                  Письмо приглашения отправлено на <strong>{email}</strong>.
-                  Если письмо не дошло, перешлите ссылку вручную:
+                  Письмо приглашения отправлено на <strong>{email}</strong>. Если письмо не дошло,
+                  перешлите ссылку вручную:
                 </>
               ) : (
                 <>
-                  Аккаунт для <strong>{email}</strong> создан. Отправка почты
-                  выключена — передайте ссылку установки пароля вручную:
+                  Аккаунт для <strong>{email}</strong> создан. Отправка почты выключена — передайте
+                  ссылку установки пароля вручную:
                 </>
               )}
             </p>
-            <div className='flex gap-2 items-center'>
+            <div className="flex gap-2 items-center">
               <input
                 readOnly
-                aria-label='Ссылка приглашения'
+                aria-label="Ссылка приглашения"
                 value={invite.inviteUrl}
-                className='flex-1 text-xs font-mono border border-gray-200 rounded px-2 py-1.5 bg-gray-50'
+                className="flex-1 text-xs font-mono border border-gray-200 rounded px-2 py-1.5 bg-gray-50"
               />
               <button
-                type='button'
+                type="button"
                 onClick={copyInvite}
-                className='px-3 py-1.5 text-xs border border-gray-200 rounded hover:bg-gray-50 whitespace-nowrap'
+                className="px-3 py-1.5 text-xs border border-gray-200 rounded hover:bg-gray-50 whitespace-nowrap"
               >
                 {copied ? 'Скопировано ✓' : 'Скопировать'}
               </button>
             </div>
-            <div className='flex justify-end pt-2'>
+            <div className="flex justify-end pt-2">
               <button
-                type='button'
+                type="button"
                 onClick={() => setOpen(false)}
-                className='px-4 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C]'
+                className="px-4 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C]"
               >
                 Готово
               </button>
             </div>
           </div>
         ) : (
-        <form action={formAction} className='space-y-4'>
-          <p className='text-xs text-gray-500'>
-            Отправим на email письмо со ссылкой для установки пароля — ссылка действует 7 дней.
-          </p>
+          <form action={formAction} className="space-y-4">
+            <p className="text-xs text-gray-500">
+              Отправим на email письмо со ссылкой для установки пароля — ссылка действует 7 дней.
+            </p>
 
-          <label className='block'>
-            <span className='text-sm text-gray-700'>Имя</span>
-            <input
-              type='text'
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              maxLength={200}
-              className='mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:border-[#F97316]'
-              placeholder='Иван Иванов'
-            />
-          </label>
-
-          <label className='block'>
-            <span className='text-sm text-gray-700'>Email</span>
-            <input
-              type='email'
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className='mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:border-[#F97316]'
-              placeholder='ivanov@company.ru'
-            />
-          </label>
-
-          <fieldset>
-            <legend className='text-sm text-gray-700 mb-1'>Роль в команде</legend>
-            <div className='flex gap-2'>
-              <RoleOption
-                label='Менеджер'
-                hint='доступ к назначенным организациям'
-                checked={roleInPartner === 'manager'}
-                onChange={() => setRole('manager')}
-              />
-              <RoleOption
-                label='Админ'
-                hint='настройки команды и комиссии'
-                checked={roleInPartner === 'admin'}
-                onChange={() => setRole('admin')}
-              />
-            </div>
-          </fieldset>
-
-          <fieldset className='space-y-2'>
-            <legend className='text-sm text-gray-700'>Доступ к организациям</legend>
-            <label className='flex items-center gap-2 cursor-pointer'>
+            <label className="block">
+              <span className="text-sm text-gray-700">Имя</span>
               <input
-                type='checkbox'
-                checked={allOrgs}
-                onChange={(e) => setAllOrgs(e.target.checked)}
-                className='accent-[#F97316]'
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                maxLength={200}
+                className="mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:border-[#F97316]"
+                placeholder="Иван Иванов"
               />
-              <span className='text-sm text-[#111111]'>Все организации партнёра</span>
             </label>
 
-            {!allOrgs && (
-              <div className='max-h-56 overflow-y-auto border border-gray-100 rounded-lg divide-y divide-gray-50'>
-                {orgs.length === 0 ? (
-                  <div className='p-3 text-xs text-gray-500'>В портфеле нет организаций.</div>
-                ) : (
-                  orgs.map((org) => (
-                    <label
-                      key={org.id}
-                      className='flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50'
-                    >
-                      <input
-                        type='checkbox'
-                        checked={selected.has(org.id)}
-                        onChange={() => toggleOrg(org.id)}
-                        className='accent-[#F97316]'
-                      />
-                      <span className='text-sm text-[#111111]'>{org.name}</span>
-                    </label>
-                  ))
-                )}
-              </div>
-            )}
-          </fieldset>
+            <label className="block">
+              <span className="text-sm text-gray-700">Email</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:border-[#F97316]"
+                placeholder="ivanov@company.ru"
+              />
+            </label>
 
-          <div className='flex justify-end gap-2 pt-2 border-t border-gray-100'>
-            <button
-              type='button'
-              onClick={() => setOpen(false)}
-              className='px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50'
-              disabled={pending}
-            >
-              Отмена
-            </button>
-            <button
-              type='submit'
-              disabled={pending || !valid || (!allOrgs && selected.size === 0)}
-              className='px-4 py-2 text-sm bg-[#F97316] text-white rounded-lg hover:bg-[#EA580C] disabled:opacity-50'
-            >
-              {pending ? 'Отправка…' : 'Пригласить'}
-            </button>
-          </div>
-        </form>
+            <fieldset>
+              <legend className="text-sm text-gray-700 mb-1">Роль в команде</legend>
+              <div className="flex gap-2">
+                <RoleOption
+                  label="Менеджер"
+                  hint="доступ к назначенным организациям"
+                  checked={roleInPartner === 'manager'}
+                  onChange={() => setRole('manager')}
+                />
+                <RoleOption
+                  label="Админ"
+                  hint="настройки команды и комиссии"
+                  checked={roleInPartner === 'admin'}
+                  onChange={() => setRole('admin')}
+                />
+              </div>
+            </fieldset>
+
+            <fieldset className="space-y-2">
+              <legend className="text-sm text-gray-700">Доступ к организациям</legend>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={allOrgs}
+                  onChange={(e) => setAllOrgs(e.target.checked)}
+                  className="accent-[#F97316]"
+                />
+                <span className="text-sm text-[#111111]">Все организации партнёра</span>
+              </label>
+
+              {!allOrgs && (
+                <div className="max-h-56 overflow-y-auto border border-gray-100 rounded-lg divide-y divide-gray-50">
+                  {orgs.length === 0 ? (
+                    <div className="p-3 text-xs text-gray-500">В портфеле нет организаций.</div>
+                  ) : (
+                    orgs.map((org) => (
+                      <label
+                        key={org.id}
+                        className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected.has(org.id)}
+                          onChange={() => toggleOrg(org.id)}
+                          className="accent-[#F97316]"
+                        />
+                        <span className="text-sm text-[#111111]">{org.name}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              )}
+            </fieldset>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50"
+                disabled={pending}
+              >
+                Отмена
+              </button>
+              <button
+                type="submit"
+                disabled={pending || !valid || (!allOrgs && selected.size === 0)}
+                className="px-4 py-2 text-sm bg-[#F97316] text-white rounded-lg hover:bg-[#EA580C] disabled:opacity-50"
+              >
+                {pending ? 'Отправка…' : 'Пригласить'}
+              </button>
+            </div>
+          </form>
         )}
       </Dialog>
     </>
@@ -249,7 +245,7 @@ function RoleOption({
   label,
   hint,
   checked,
-  onChange
+  onChange,
 }: {
   label: string;
   hint: string;
@@ -259,16 +255,14 @@ function RoleOption({
   return (
     <label
       className={`flex-1 cursor-pointer border rounded-lg px-3 py-2 transition-colors ${
-        checked
-          ? 'border-[#F97316] bg-[#FFF7ED]'
-          : 'border-gray-200 hover:border-gray-300'
+        checked ? 'border-[#F97316] bg-[#FFF7ED]' : 'border-gray-200 hover:border-gray-300'
       }`}
     >
-      <input type='radio' name='role' checked={checked} onChange={onChange} className='sr-only' />
+      <input type="radio" name="role" checked={checked} onChange={onChange} className="sr-only" />
       <div className={`text-sm font-medium ${checked ? 'text-[#9A3412]' : 'text-[#111111]'}`}>
         {label}
       </div>
-      <div className='text-xs text-gray-500 mt-0.5'>{hint}</div>
+      <div className="text-xs text-gray-500 mt-0.5">{hint}</div>
     </label>
   );
 }

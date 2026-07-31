@@ -1,5 +1,5 @@
-import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
+import type { Job } from 'bullmq';
 import { prisma } from '@/lib/db/prisma';
 import { getMangoAdapter } from '@/lib/telephony/mango';
 import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
@@ -42,7 +42,9 @@ export async function mangoBackfillProcessor(
 
   const state = await db.syncState.findUnique({ where: { entity: STATE_ENTITY } });
   const to = now;
-  const from = state?.cursor ? new Date(state.cursor) : new Date(now.getTime() - DEFAULT_LOOKBACK_MS);
+  const from = state?.cursor
+    ? new Date(state.cursor)
+    : new Date(now.getTime() - DEFAULT_LOOKBACK_MS);
 
   const adapter = getMangoAdapter();
   const { key } = await adapter.requestStats({ from: from.toISOString(), to: to.toISOString() });
@@ -73,7 +75,7 @@ export async function mangoBackfillProcessor(
     if (!event) continue;
     await ingestCallEvent(db, event).catch((err) => {
       log.warn('[mango-backfill] ingest failed', {
-        error: err instanceof Error ? err.message : String(err)
+        error: err instanceof Error ? err.message : String(err),
       });
     });
     ingested++;
@@ -82,11 +84,17 @@ export async function mangoBackfillProcessor(
   await db.syncState.upsert({
     where: { entity: STATE_ENTITY },
     create: { entity: STATE_ENTITY, cursor: to.toISOString(), lastRunAt: now, lastSuccessAt: now },
-    update: { cursor: to.toISOString(), lastRunAt: now, lastSuccessAt: now }
+    update: { cursor: to.toISOString(), lastRunAt: now, lastSuccessAt: now },
   });
 
   await writeSyncLog(
-    { entity: 'call', direction: 'inbound', operation: 'import', status: 'success', payload: { ingested } },
+    {
+      entity: 'call',
+      direction: 'inbound',
+      operation: 'import',
+      status: 'success',
+      payload: { ingested },
+    },
     db
   ).catch(() => {});
 

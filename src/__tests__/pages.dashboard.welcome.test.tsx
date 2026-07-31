@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { renderServerComponent } from './helpers/renderServerComponent';
 
 /**
  * Этап 4 (ФТ-10.4): одноразовый welcome-блок на дашбордах организации и
@@ -20,7 +19,7 @@ vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
 
 const { requirePartner, requireSession } = vi.hoisted(() => ({
   requirePartner: vi.fn(),
-  requireSession: vi.fn()
+  requireSession: vi.fn(),
 }));
 // requireSession нужен транзитивно: WelcomeCard → dismissWelcomeAction → requireRole.
 vi.mock('@/lib/auth/requireRole', () => ({ requirePartner, requireSession }));
@@ -33,7 +32,7 @@ const org = vi.hoisted(() => ({
   attention: vi.fn(),
   recentEvents: vi.fn(),
   recentEnrollments: vi.fn(),
-  expiringCertificates: vi.fn()
+  expiringCertificates: vi.fn(),
 }));
 vi.mock('@/lib/services/organization/dashboard', () => org);
 
@@ -42,26 +41,37 @@ const partner = vi.hoisted(() => ({
   attention: vi.fn(),
   recentEvents: vi.fn(),
   recentEnrollments: vi.fn(),
-  expiringCertificates: vi.fn()
+  expiringCertificates: vi.fn(),
 }));
 vi.mock('@/lib/services/partner/dashboard', () => partner);
 
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: (props: { activeOrgName: string; children: React.ReactNode }) =>
-    React.createElement('div', { 'data-testid': 'org-app-shell' }, props.activeOrgName, props.children)
+    React.createElement(
+      'div',
+      { 'data-testid': 'org-app-shell' },
+      props.activeOrgName,
+      props.children
+    ),
 }));
 
 import OrganizationDashboardPage from '@/app/organization/dashboard/page';
 import PartnerDashboard from '@/app/partner/dashboard/page';
+import { renderServerComponent } from './helpers/renderServerComponent';
 
 const ORG_CTX = {
   session: { sub: 'u1', role: 'organization' as const, email: 'org@example.com' },
   activeOrgId: 'org-1',
   activeOrgName: 'ООО Ромашка',
   memberships: [],
-  viewerRole: 'admin' as const
+  viewerRole: 'admin' as const,
 };
-const PARTNER_SESSION = { sub: 'p1', role: 'partner' as const, partnerId: 'pt-1', assignedOrgIds: ['org-9'] };
+const PARTNER_SESSION = {
+  sub: 'p1',
+  role: 'partner' as const,
+  partnerId: 'pt-1',
+  assignedOrgIds: ['org-9'],
+};
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -79,9 +89,9 @@ beforeEach(() => {
   partner.kpis.mockResolvedValue({
     openOrders: 5,
     outstanding: '1000.00',
-    commissionThisMonth: '300.00'
+    commissionThisMonth: '300.00',
   });
-  partner.attention.mockResolvedValue({ stuckOrders: [], overdueOrders: [], });
+  partner.attention.mockResolvedValue({ stuckOrders: [], overdueOrders: [] });
   partner.recentEvents.mockResolvedValue([]);
   partner.recentEnrollments.mockResolvedValue([]);
   partner.expiringCertificates.mockResolvedValue(0);
@@ -97,7 +107,7 @@ describe('OrganizationDashboardPage — welcome-блок', () => {
 
     expect(userFindUnique).toHaveBeenCalledWith({
       where: { id: 'u1' },
-      select: { name: true, welcomeSeenAt: true }
+      select: { name: true, welcomeSeenAt: true },
     });
     expect(container.textContent).toContain('Добро пожаловать, Иван!');
     // Флаги off → «Документы» + фолбэки, ссылки ведут в кабинет организации.
@@ -126,7 +136,7 @@ describe('PartnerDashboard — welcome-блок', () => {
 
     expect(userFindUnique).toHaveBeenCalledWith({
       where: { id: 'p1' },
-      select: { name: true, welcomeSeenAt: true }
+      select: { name: true, welcomeSeenAt: true },
     });
     expect(container.textContent).toContain('Добро пожаловать, Пётр!');
     expect(container.querySelector('a[href="/partner/documents"]')).toBeTruthy();

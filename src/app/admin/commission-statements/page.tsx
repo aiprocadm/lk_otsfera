@@ -30,7 +30,20 @@ function fmtMoney(val: unknown): string {
 }
 
 function fmtPeriod(from: Date, to: Date): string {
-  const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  const months = [
+    'янв',
+    'фев',
+    'мар',
+    'апр',
+    'май',
+    'июн',
+    'июл',
+    'авг',
+    'сен',
+    'окт',
+    'ноя',
+    'дек',
+  ];
   const f = new Date(from);
   const t = new Date(to);
   if (f.getMonth() === t.getMonth() && f.getFullYear() === t.getFullYear()) {
@@ -71,36 +84,40 @@ export default async function AdminCommissionStatementsPage({
   ]);
 
   return (
-    <div className='space-y-5'>
+    <div className="space-y-5">
       <div>
-        <h1 className='text-2xl font-bold text-[#111111]'>Комиссионные отчёты</h1>
-        <p className='text-sm text-gray-500 mt-0.5'>
-          Все партнёры. По умолчанию показаны утверждённые и выплаченные. Кликните по отчёту, чтобы открыть карточку.
+        <h1 className="text-2xl font-bold text-[#111111]">Комиссионные отчёты</h1>
+        <p className="text-sm text-gray-500 mt-0.5">
+          Все партнёры. По умолчанию показаны утверждённые и выплаченные. Кликните по отчёту, чтобы
+          открыть карточку.
         </p>
       </div>
 
-      <form method='get' className='bg-white border border-gray-200 rounded-xl p-4 grid gap-3 grid-cols-1 sm:grid-cols-4'>
-        <label className='text-xs text-gray-600 flex flex-col gap-1'>
+      <form
+        method="get"
+        className="bg-white border border-gray-200 rounded-xl p-4 grid gap-3 grid-cols-1 sm:grid-cols-4"
+      >
+        <label className="text-xs text-gray-600 flex flex-col gap-1">
           Статус
           <select
-            name='status'
+            name="status"
             defaultValue={sp.status ?? ''}
-            className='px-3 py-2 border border-gray-200 rounded-lg text-sm'
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
           >
-            <option value=''>Утв. + выпл.</option>
-            <option value='draft'>Черновики</option>
-            <option value='approved'>Утверждённые</option>
-            <option value='paid'>Выплаченные</option>
+            <option value="">Утв. + выпл.</option>
+            <option value="draft">Черновики</option>
+            <option value="approved">Утверждённые</option>
+            <option value="paid">Выплаченные</option>
           </select>
         </label>
-        <label className='text-xs text-gray-600 flex flex-col gap-1'>
+        <label className="text-xs text-gray-600 flex flex-col gap-1">
           Партнёр
           <select
-            name='partnerId'
+            name="partnerId"
             defaultValue={sp.partnerId ?? ''}
-            className='px-3 py-2 border border-gray-200 rounded-lg text-sm'
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
           >
-            <option value=''>Все партнёры</option>
+            <option value="">Все партнёры</option>
             {partners.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -108,28 +125,28 @@ export default async function AdminCommissionStatementsPage({
             ))}
           </select>
         </label>
-        <label className='text-xs text-gray-600 flex flex-col gap-1'>
+        <label className="text-xs text-gray-600 flex flex-col gap-1">
           Период с
           <input
-            type='date'
-            name='from'
+            type="date"
+            name="from"
             defaultValue={sp.from ?? ''}
-            className='px-3 py-2 border border-gray-200 rounded-lg text-sm'
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
           />
         </label>
-        <label className='text-xs text-gray-600 flex flex-col gap-1'>
+        <label className="text-xs text-gray-600 flex flex-col gap-1">
           Период по
           <input
-            type='date'
-            name='to'
+            type="date"
+            name="to"
             defaultValue={sp.to ?? ''}
-            className='px-3 py-2 border border-gray-200 rounded-lg text-sm'
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
           />
         </label>
-        <div className='sm:col-span-4 flex justify-end'>
+        <div className="sm:col-span-4 flex justify-end">
           <button
-            type='submit'
-            className='px-4 py-2 text-sm rounded-lg bg-[#111111] text-white font-medium hover:bg-[#F97316] transition-colors'
+            type="submit"
+            className="px-4 py-2 text-sm rounded-lg bg-[#111111] text-white font-medium hover:bg-[#F97316] transition-colors"
           >
             Применить
           </button>
@@ -137,22 +154,22 @@ export default async function AdminCommissionStatementsPage({
       </form>
 
       {rows.length === 0 ? (
-        <EmptyState message='Отчёты по фильтру не найдены.' className='p-8' />
+        <EmptyState message="Отчёты по фильтру не найдены." className="p-8" />
       ) : (
-        <TableShell overflow='x-auto'>
+        <TableShell overflow="x-auto">
           <THead>
             <Th>Партнёр</Th>
             <Th>Период</Th>
             <Th>Статус</Th>
-            <Th className='text-right'>Заказов</Th>
-            <Th className='text-right'>Сумма</Th>
-            <Th className='text-right'>Действие</Th>
+            <Th className="text-right">Заказов</Th>
+            <Th className="text-right">Сумма</Th>
+            <Th className="text-right">Действие</Th>
           </THead>
           <tbody>
             {rows.map((r) => (
               <Tr key={r.id}>
-                <Td className='text-[#111111] font-medium'>{r.partner.name}</Td>
-                <Td className='text-gray-700'>{fmtPeriod(r.periodFrom, r.periodTo)}</Td>
+                <Td className="text-[#111111] font-medium">{r.partner.name}</Td>
+                <Td className="text-gray-700">{fmtPeriod(r.periodFrom, r.periodTo)}</Td>
                 <Td>
                   <span
                     className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[r.status] ?? 'bg-gray-100 text-gray-500'}`}
@@ -160,14 +177,14 @@ export default async function AdminCommissionStatementsPage({
                     {STATUS_LABELS[r.status] ?? r.status}
                   </span>
                 </Td>
-                <Td className='text-right tabular-nums text-gray-700'>{r.itemCount}</Td>
-                <Td className='text-right tabular-nums font-medium text-[#111111]'>
+                <Td className="text-right tabular-nums text-gray-700">{r.itemCount}</Td>
+                <Td className="text-right tabular-nums font-medium text-[#111111]">
                   {fmtMoney(r.totalCommissionAmount)}
                 </Td>
-                <Td className='text-right'>
+                <Td className="text-right">
                   <Link
                     href={`/admin/commission-statements/${r.id}`}
-                    className='text-[#F97316] hover:underline text-xs font-medium'
+                    className="text-[#F97316] hover:underline text-xs font-medium"
                   >
                     Открыть →
                   </Link>

@@ -13,19 +13,14 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const {
-  sendPayment,
-  sendManagerReplied,
-  sendStatusChanged,
-  sendDocPublished,
-  sendNotification,
-} = vi.hoisted(() => ({
-  sendPayment: vi.fn(),
-  sendManagerReplied: vi.fn(),
-  sendStatusChanged: vi.fn(),
-  sendDocPublished: vi.fn(),
-  sendNotification: vi.fn(),
-}));
+const { sendPayment, sendManagerReplied, sendStatusChanged, sendDocPublished, sendNotification } =
+  vi.hoisted(() => ({
+    sendPayment: vi.fn(),
+    sendManagerReplied: vi.fn(),
+    sendStatusChanged: vi.fn(),
+    sendDocPublished: vi.fn(),
+    sendNotification: vi.fn(),
+  }));
 
 vi.mock('@/lib/email/send', () => ({
   sendOrgPaymentReceivedEmail: sendPayment,
@@ -50,7 +45,10 @@ beforeEach(() => {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function dbWith(users: Array<{ id: string; email: string | null; telegramChatId?: string | null }>, orgName = 'ООО Орг') {
+function dbWith(
+  users: Array<{ id: string; email: string | null; telegramChatId?: string | null }>,
+  orgName = 'ООО Орг'
+) {
   const create = vi.fn().mockResolvedValue({});
   const organizationUsers = users.map((u) => ({ user: { telegramChatId: null, ...u } }));
   return {

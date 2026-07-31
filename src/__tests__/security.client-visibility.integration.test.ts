@@ -31,7 +31,12 @@ let requestA: string, requestB: string;
 let leadId: string;
 
 const staffSession = (): SessionPayload =>
-  ({ sub: staffId, role: 'manager', companyId, managedOrgIds: [orgA, orgB] }) as unknown as SessionPayload;
+  ({
+    sub: staffId,
+    role: 'manager',
+    companyId,
+    managedOrgIds: [orgA, orgB],
+  }) as unknown as SessionPayload;
 
 const partnerSession = (partnerId: string, sub: string): SessionPayload =>
   ({ sub, role: 'partner', partnerId, companyId: null }) as unknown as SessionPayload;
@@ -41,7 +46,7 @@ const orgSession = (organizationId: string, sub: string): SessionPayload =>
     sub,
     role: 'organization',
     companyId: null,
-    organizationMemberships: [{ organizationId, isActive: true, roleInOrg: 'admin' }]
+    organizationMemberships: [{ organizationId, isActive: true, roleInOrg: 'admin' }],
   }) as unknown as SessionPayload;
 
 beforeAll(async () => {
@@ -49,37 +54,49 @@ beforeAll(async () => {
   companyId = company.id;
 
   const pA = await prisma.partner.create({
-    data: { name: `${RUN}-pA`, commissionRate: new Prisma.Decimal('0.1') }
+    data: { name: `${RUN}-pA`, commissionRate: new Prisma.Decimal('0.1') },
   });
   const pB = await prisma.partner.create({
-    data: { name: `${RUN}-pB`, commissionRate: new Prisma.Decimal('0.1') }
+    data: { name: `${RUN}-pB`, commissionRate: new Prisma.Decimal('0.1') },
   });
   partnerA = pA.id;
   partnerB = pB.id;
 
   const oA = await prisma.organization.create({
-    data: { name: `${RUN}-orgA`, companyId, partnerId: partnerA }
+    data: { name: `${RUN}-orgA`, companyId, partnerId: partnerA },
   });
   const oB = await prisma.organization.create({
-    data: { name: `${RUN}-orgB`, companyId, partnerId: partnerB }
+    data: { name: `${RUN}-orgB`, companyId, partnerId: partnerB },
   });
   orgA = oA.id;
   orgB = oB.id;
 
   const staff = await prisma.user.create({
-    data: { email: `${RUN}-staff@t.local`, name: 'Staff', role: 'manager', passwordHash: 'x', companyId }
+    data: {
+      email: `${RUN}-staff@t.local`,
+      name: 'Staff',
+      role: 'manager',
+      passwordHash: 'x',
+      companyId,
+    },
   });
   staffId = staff.id;
   const pu = await prisma.user.create({
-    data: { email: `${RUN}-pa@t.local`, name: 'PartnerA', role: 'partner', passwordHash: 'x', partnerId: partnerA }
+    data: {
+      email: `${RUN}-pa@t.local`,
+      name: 'PartnerA',
+      role: 'partner',
+      passwordHash: 'x',
+      partnerId: partnerA,
+    },
   });
   partnerUserA = pu.id;
   const ou = await prisma.user.create({
-    data: { email: `${RUN}-oa@t.local`, name: 'OrgA', role: 'organization', passwordHash: 'x' }
+    data: { email: `${RUN}-oa@t.local`, name: 'OrgA', role: 'organization', passwordHash: 'x' },
   });
   orgUserA = ou.id;
   await prisma.organizationUser.create({
-    data: { organizationId: orgA, userId: orgUserA, roleInOrg: 'admin', isActive: true }
+    data: { organizationId: orgA, userId: orgUserA, roleInOrg: 'admin', isActive: true },
   });
 
   // Внутренний контур: сделка + внутренняя заметка.
@@ -89,12 +106,12 @@ beforeAll(async () => {
       companyId,
       organizationId: orgA,
       managerId: staffId,
-      amount: new Prisma.Decimal('1000.00')
-    }
+      amount: new Prisma.Decimal('1000.00'),
+    },
   });
   dealId = deal.id;
   await prisma.dealNote.create({
-    data: { dealId, authorId: staffId, body: `${RUN} внутренняя заметка — клиенту не видна` }
+    data: { dealId, authorId: staffId, body: `${RUN} внутренняя заметка — клиенту не видна` },
   });
 
   // Обращение партнёра A, из которого сотрудник сделал внутренний лид.
@@ -107,8 +124,8 @@ beforeAll(async () => {
       submittedByUserId: partnerUserA,
       partnerId: partnerA,
       organizationId: orgA,
-      status: 'converted'
-    }
+      status: 'converted',
+    },
   });
   requestA = rA.id;
 
@@ -122,8 +139,8 @@ beforeAll(async () => {
       clientContactName: 'Контакт',
       subject: `${RUN}-lead`,
       assignedManagerId: staffId,
-      sourceRequestId: requestA
-    }
+      sourceRequestId: requestA,
+    },
   });
   leadId = lead.id;
 
@@ -136,20 +153,24 @@ beforeAll(async () => {
       submittedByUserId: staffId,
       partnerId: partnerB,
       organizationId: orgB,
-      status: 'submitted'
-    }
+      status: 'submitted',
+    },
   });
   requestB = rB.id;
 });
 
 afterAll(async () => {
-  await prisma.piiAccessEvent.deleteMany({ where: { userId: { in: [staffId, partnerUserA, orgUserA] } } });
+  await prisma.piiAccessEvent.deleteMany({
+    where: { userId: { in: [staffId, partnerUserA, orgUserA] } },
+  });
   await prisma.clientRequest.deleteMany({ where: { id: { in: [requestA, requestB] } } });
   await prisma.dealNote.deleteMany({ where: { dealId } });
   await prisma.deal.deleteMany({ where: { id: dealId } });
   await prisma.lead.deleteMany({ where: { id: leadId } });
   await prisma.organizationUser.deleteMany({ where: { organizationId: { in: [orgA, orgB] } } });
-  await prisma.auditLog.deleteMany({ where: { userId: { in: [staffId, partnerUserA, orgUserA] } } });
+  await prisma.auditLog.deleteMany({
+    where: { userId: { in: [staffId, partnerUserA, orgUserA] } },
+  });
   await prisma.user.deleteMany({ where: { id: { in: [staffId, partnerUserA, orgUserA] } } });
   await prisma.organization.deleteMany({ where: { id: { in: [orgA, orgB] } } });
   await prisma.partner.deleteMany({ where: { id: { in: [partnerA, partnerB] } } });
@@ -177,7 +198,9 @@ describe('§7 «Сделка целиком» — клиенту нет', () => 
 
 describe('§7 «DealNote / внутренние заметки» — клиенту нет', () => {
   it('чтение заметок сделки клиентом → forbidden', async () => {
-    const asPartner = await listDealNotes(prisma, partnerSession(partnerA, partnerUserA), { dealId });
+    const asPartner = await listDealNotes(prisma, partnerSession(partnerA, partnerUserA), {
+      dealId,
+    });
     expect(asPartner).toEqual({ ok: false, error: 'forbidden' });
 
     const asOrg = await listDealNotes(prisma, orgSession(orgA, orgUserA), { dealId });
@@ -188,7 +211,7 @@ describe('§7 «DealNote / внутренние заметки» — клиен�
     const before = await prisma.dealNote.count({ where: { dealId } });
     const res = await addNoteToDeal(prisma, orgSession(orgA, orgUserA), {
       dealId,
-      body: 'попытка клиента'
+      body: 'попытка клиента',
     });
     expect(res.ok).toBe(false);
     expect(await prisma.dealNote.count({ where: { dealId } })).toBe(before);
@@ -205,11 +228,11 @@ describe('§7 «Входящие в работу» (Intake) — клиенту �
   it('листинг Intake клиентом → forbidden', async () => {
     expect(await listIntake(prisma, partnerSession(partnerA, partnerUserA))).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect(await listIntake(prisma, orgSession(orgA, orgUserA))).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 });

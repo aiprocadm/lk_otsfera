@@ -7,7 +7,7 @@ import type {
   OneCPaymentDto,
   OneCDocumentDto,
   OneCLeadPushResult,
-  OneCAdapter
+  OneCAdapter,
 } from '@/lib/services/oneCSync';
 import { resetOneCAdapter } from '@/lib/services/oneCSync';
 import type { SyncJobPayload } from '@/lib/jobs/types';
@@ -15,7 +15,9 @@ import type { SyncJobPayload } from '@/lib/jobs/types';
 // DOC-03: the document writer fetches the 1C file into object storage (S3); fixtures use
 // unfetchable URLs, so stub the fetch-store to return a deterministic storage key.
 vi.mock('@/lib/services/oneCSync/document-fetch', () => ({
-  fetchAndStore1CDocument: vi.fn(async (a: { orderId: string; name: string }) => `orders/${a.orderId}/1c/stored-${a.name}`)
+  fetchAndStore1CDocument: vi.fn(
+    async (a: { orderId: string; name: string }) => `orders/${a.orderId}/1c/stored-${a.name}`
+  ),
 }));
 
 class ScriptedAdapter implements OneCAdapter {
@@ -45,7 +47,7 @@ vi.mock('@/lib/services/oneCSync', async (orig) => {
   const actual = await (orig() as Promise<typeof import('@/lib/services/oneCSync')>);
   return {
     ...actual,
-    getOneCAdapter: () => adapter
+    getOneCAdapter: () => adapter,
   };
 });
 
@@ -56,7 +58,7 @@ import { syncOrdersProcessor } from '@/worker/processors/sync-orders';
 function job(): Job<SyncJobPayload> {
   return {
     id: 'nh-' + Date.now() + '-' + Math.random().toString(36).slice(2),
-    data: { triggeredAt: new Date().toISOString(), reason: 'manual' as const }
+    data: { triggeredAt: new Date().toISOString(), reason: 'manual' as const },
   } as Job<SyncJobPayload>;
 }
 
@@ -76,7 +78,7 @@ beforeAll(async () => {
   const stamp = Date.now();
 
   const partner = await prisma.partner.create({
-    data: { name: `NotifHookP-${stamp}`, commissionRate: 0.1 }
+    data: { name: `NotifHookP-${stamp}`, commissionRate: 0.1 },
   });
   partnerId = partner.id;
   const company = await prisma.company.create({ data: { name: `NotifHookC-${stamp}` } });
@@ -88,24 +90,24 @@ beforeAll(async () => {
       name: `NotifHookOrg-${stamp}`,
       partnerId,
       companyId,
-      externalId: orgExternalId
-    }
+      externalId: orgExternalId,
+    },
   });
   orgId = org.id;
 
   const u1 = await prisma.user.create({
-    data: { email: `nh-u1-${stamp}@t.local`, name: 'Member 1', role: 'organization' }
+    data: { email: `nh-u1-${stamp}@t.local`, name: 'Member 1', role: 'organization' },
   });
   const u2 = await prisma.user.create({
-    data: { email: `nh-u2-${stamp}@t.local`, name: 'Member 2', role: 'organization' }
+    data: { email: `nh-u2-${stamp}@t.local`, name: 'Member 2', role: 'organization' },
   });
   user1Id = u1.id;
   user2Id = u2.id;
   await prisma.organizationUser.create({
-    data: { organizationId: orgId, userId: u1.id, roleInOrg: 'admin', isActive: true }
+    data: { organizationId: orgId, userId: u1.id, roleInOrg: 'admin', isActive: true },
   });
   await prisma.organizationUser.create({
-    data: { organizationId: orgId, userId: u2.id, roleInOrg: 'member', isActive: true }
+    data: { organizationId: orgId, userId: u2.id, roleInOrg: 'member', isActive: true },
   });
 
   orderExternalId = `1c-order-nh-${stamp}`;
@@ -118,8 +120,8 @@ beforeAll(async () => {
       organizationId: orgId,
       externalId: orderExternalId,
       executionStatus: 'in_progress',
-      financialStatus: 'not_billed'
-    }
+      financialStatus: 'not_billed',
+    },
   });
   orderId = order.id;
 });
@@ -132,7 +134,7 @@ afterAll(async () => {
   await prisma.user.deleteMany({ where: { id: { in: [user1Id, user2Id] } } });
   await prisma.order.deleteMany({ where: { id: orderId } });
   await prisma.syncLog.deleteMany({
-    where: { entity: { in: ['order', 'payment', 'document'] } }
+    where: { entity: { in: ['order', 'payment', 'document'] } },
   });
   await prisma.organization.deleteMany({ where: { id: orgId } });
   await prisma.company.deleteMany({ where: { id: companyId } });
@@ -151,7 +153,7 @@ beforeEach(async () => {
   // reset order back to baseline statuses
   await prisma.order.update({
     where: { id: orderId },
-    data: { executionStatus: 'in_progress', financialStatus: 'not_billed' }
+    data: { executionStatus: 'in_progress', financialStatus: 'not_billed' },
   });
   delete process.env.EMAIL_ENABLED;
 });
@@ -166,14 +168,14 @@ describe('syncPaymentsProcessor notification hook', () => {
         paidAt: '2026-05-25T10:00:00Z',
         method: 'wire',
         isRefund: false,
-        updatedAt: '2026-05-25T10:00:00Z'
-      }
+        updatedAt: '2026-05-25T10:00:00Z',
+      },
     ];
 
     await syncPaymentsProcessor(job(), prisma);
 
     const notifications = await prisma.notification.findMany({
-      where: { organizationId: orgId, type: 'payment_received' }
+      where: { organizationId: orgId, type: 'payment_received' },
     });
     expect(notifications).toHaveLength(2); // both members
     expect(notifications[0].title).toContain('NH-001');
@@ -183,7 +185,14 @@ describe('syncPaymentsProcessor notification hook', () => {
     // seed an existing payment with same externalId
     const externalId = `nh-pay-existing-${Date.now()}`;
     await prisma.payment.create({
-      data: { externalId, organizationId: orgId, orderId, amount: 50000, paidAt: new Date(), isRefund: false }
+      data: {
+        externalId,
+        organizationId: orgId,
+        orderId,
+        amount: 50000,
+        paidAt: new Date(),
+        isRefund: false,
+      },
     });
     adapter.payments = [
       {
@@ -193,14 +202,14 @@ describe('syncPaymentsProcessor notification hook', () => {
         paidAt: '2026-05-25T10:00:00Z',
         method: 'wire',
         isRefund: false,
-        updatedAt: '2026-05-25T10:00:00Z'
-      }
+        updatedAt: '2026-05-25T10:00:00Z',
+      },
     ];
 
     await syncPaymentsProcessor(job(), prisma);
 
     const notifications = await prisma.notification.findMany({
-      where: { organizationId: orgId, type: 'payment_received' }
+      where: { organizationId: orgId, type: 'payment_received' },
     });
     expect(notifications).toHaveLength(0);
   });
@@ -214,14 +223,14 @@ describe('syncPaymentsProcessor notification hook', () => {
         paidAt: '2026-05-25T10:00:00Z',
         method: 'wire',
         isRefund: true,
-        updatedAt: '2026-05-25T10:00:00Z'
-      }
+        updatedAt: '2026-05-25T10:00:00Z',
+      },
     ];
 
     await syncPaymentsProcessor(job(), prisma);
 
     const notifications = await prisma.notification.findMany({
-      where: { organizationId: orgId, type: 'payment_received' }
+      where: { organizationId: orgId, type: 'payment_received' },
     });
     expect(notifications).toHaveLength(0);
   });
@@ -238,14 +247,14 @@ describe('syncDocumentsProcessor notification hook', () => {
         mimeType: 'application/pdf',
         size: 1000,
         downloadUrl: 'fake://nh-doc-1.pdf',
-        updatedAt: '2026-05-25T10:00:00Z'
-      }
+        updatedAt: '2026-05-25T10:00:00Z',
+      },
     ];
 
     await syncDocumentsProcessor(job(), prisma);
 
     const notifications = await prisma.notification.findMany({
-      where: { organizationId: orgId, type: 'document_published' }
+      where: { organizationId: orgId, type: 'document_published' },
     });
     expect(notifications).toHaveLength(2);
     const meta = notifications[0].meta as Record<string, unknown>;
@@ -266,8 +275,8 @@ describe('syncDocumentsProcessor notification hook', () => {
         direction: 'incoming',
         generatedBy: 'system',
         counterpartyType: 'organization',
-        counterpartyId: orgId
-      }
+        counterpartyId: orgId,
+      },
     });
     adapter.documents = [
       {
@@ -278,14 +287,14 @@ describe('syncDocumentsProcessor notification hook', () => {
         mimeType: 'application/pdf',
         size: 1000,
         downloadUrl: 'fake://old.pdf',
-        updatedAt: '2026-05-25T10:00:00Z'
-      }
+        updatedAt: '2026-05-25T10:00:00Z',
+      },
     ];
 
     await syncDocumentsProcessor(job(), prisma);
 
     const notifications = await prisma.notification.findMany({
-      where: { organizationId: orgId, type: 'document_published' }
+      where: { organizationId: orgId, type: 'document_published' },
     });
     expect(notifications).toHaveLength(0);
   });
@@ -306,14 +315,14 @@ describe('syncOrdersProcessor notification hook', () => {
         executionStatus: 'in_progress',
         financialStatus: 'paid',
         productMix: [],
-        updatedAt: '2026-05-25T10:00:00Z'
-      }
+        updatedAt: '2026-05-25T10:00:00Z',
+      },
     ];
 
     await syncOrdersProcessor(job(), prisma);
 
     const notifications = await prisma.notification.findMany({
-      where: { organizationId: orgId, type: 'order_status_changed' }
+      where: { organizationId: orgId, type: 'order_status_changed' },
     });
     expect(notifications).toHaveLength(2);
     const meta = notifications[0].meta as Record<string, unknown>;
@@ -335,14 +344,14 @@ describe('syncOrdersProcessor notification hook', () => {
         executionStatus: 'in_progress',
         financialStatus: 'not_billed', // same as baseline
         productMix: [],
-        updatedAt: '2026-05-25T10:00:00Z'
-      }
+        updatedAt: '2026-05-25T10:00:00Z',
+      },
     ];
 
     await syncOrdersProcessor(job(), prisma);
 
     const notifications = await prisma.notification.findMany({
-      where: { organizationId: orgId, type: 'order_status_changed' }
+      where: { organizationId: orgId, type: 'order_status_changed' },
     });
     expect(notifications).toHaveLength(0);
   });

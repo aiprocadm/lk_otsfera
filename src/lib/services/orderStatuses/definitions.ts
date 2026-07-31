@@ -19,12 +19,7 @@ import { recordAudit } from '@/lib/auth/audit';
 import { isManagerLeader } from '@/lib/auth/managerPolicy';
 
 export type StatusDefinitionsError =
-  | 'forbidden'
-  | 'not_found'
-  | 'invalid_key'
-  | 'duplicate_key'
-  | 'system_protected'
-  | 'anchor_taken';
+  'forbidden' | 'not_found' | 'invalid_key' | 'duplicate_key' | 'system_protected' | 'anchor_taken';
 
 type Result<T> = ({ ok: true } & T) | { ok: false; error: StatusDefinitionsError };
 
@@ -61,7 +56,7 @@ export async function listStatusDefinitions(
  */
 export async function getOrderedStatuses(prisma: PrismaClient): Promise<OrderStatusDefinition[]> {
   return prisma.orderStatusDefinition.findMany({
-    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }]
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   });
 }
 
@@ -78,7 +73,7 @@ export async function getInitialStatusId(
 ): Promise<string | null> {
   const draft = await prisma.orderStatusDefinition.findFirst({
     where: { key: 'draft', companyId: null },
-    select: { id: true }
+    select: { id: true },
   });
   return draft?.id ?? null;
 }
@@ -123,8 +118,8 @@ export async function createStatusDefinition(
         label: args.label,
         sortOrder: args.sortOrder ?? 0,
         isTerminal: args.isTerminal ?? false,
-        anchor
-      }
+        anchor,
+      },
     });
 
     await recordAudit(prisma, {
@@ -132,7 +127,7 @@ export async function createStatusDefinition(
       action: 'order_status_definition_create',
       entity: 'order_status_definition',
       entityId: definition.id,
-      after: { key: definition.key, label: definition.label }
+      after: { key: definition.key, label: definition.label },
     });
 
     return { ok: true, definition };
@@ -184,7 +179,7 @@ export async function updateStatusDefinition(
     action: 'order_status_definition_update',
     entity: 'order_status_definition',
     entityId: definition.id,
-    after: patch as Record<string, unknown>
+    after: patch as Record<string, unknown>,
   });
 
   return { ok: true, definition };
@@ -206,10 +201,13 @@ export async function deleteStatusDefinition(
   if (!existing) return { ok: false, error: 'not_found' };
   if (existing.isSystem) return { ok: false, error: 'system_protected' };
 
-  const usedByOrder = await prisma.order.findFirst({ where: { statusId: id }, select: { id: true } });
+  const usedByOrder = await prisma.order.findFirst({
+    where: { statusId: id },
+    select: { id: true },
+  });
   const usedInHistory = await prisma.orderStatusChange.findFirst({
     where: { OR: [{ toId: id }, { fromId: id }] },
-    select: { id: true }
+    select: { id: true },
   });
   if (usedByOrder || usedInHistory) return { ok: false, error: 'system_protected' };
 
@@ -219,7 +217,7 @@ export async function deleteStatusDefinition(
     userId: session.sub,
     action: 'order_status_definition_delete',
     entity: 'order_status_definition',
-    entityId: id
+    entityId: id,
   });
 
   return { ok: true };

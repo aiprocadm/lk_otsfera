@@ -7,7 +7,7 @@ vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 
 const { partnerFindMany } = vi.hoisted(() => ({ partnerFindMany: vi.fn() }));
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: { partner: { findMany: partnerFindMany } }
+  prisma: { partner: { findMany: partnerFindMany } },
 }));
 
 const { listOrganizations } = vi.hoisted(() => ({ listOrganizations: vi.fn() }));
@@ -15,7 +15,7 @@ vi.mock('@/lib/services/admin/organizations', () => ({ listOrganizations }));
 
 // Client-компонент диалога создания — заглушка (SSR-тест страницы его не драйвит).
 vi.mock('@/components/admin/create-organization-dialog', () => ({
-  CreateOrganizationDialog: () => null
+  CreateOrganizationDialog: () => null,
 }));
 
 import AdminOrganizationsPage from '@/app/admin/organizations/page';
@@ -29,7 +29,7 @@ const ORG = {
   partner: { name: 'Партнёр 1' },
   ordersCount: 3,
   organizationUsersCount: 2,
-  partnerCommissionRate: null
+  partnerCommissionRate: null,
 };
 
 describe('AdminOrganizationsPage', () => {
@@ -43,20 +43,31 @@ describe('AdminOrganizationsPage', () => {
     requireAdmin.mockResolvedValue(SESSION);
     listOrganizations.mockResolvedValue({
       rows: [{ ...ORG, partnerCommissionRate: 0.1 }],
-      total: 1
+      total: 1,
     });
     partnerFindMany.mockResolvedValue([{ id: 'p1', name: 'Партнёр 1' }]);
 
     const { container } = await renderServerComponent(
       AdminOrganizationsPage({
-        searchParams: Promise.resolve({ q: ' test ', partnerId: 'p1', withRateOverride: 'true', skip: '10' })
+        searchParams: Promise.resolve({
+          q: ' test ',
+          partnerId: 'p1',
+          withRateOverride: 'true',
+          skip: '10',
+        }),
       })
     );
 
     expect(requireAdmin).toHaveBeenCalled();
     expect(listOrganizations).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ q: 'test', partnerId: 'p1', withRateOverride: true, skip: 10, take: 50 })
+      expect.objectContaining({
+        q: 'test',
+        partnerId: 'p1',
+        withRateOverride: true,
+        skip: 10,
+        take: 50,
+      })
     );
     expect(container.textContent).toContain('организация');
     expect(container.textContent).toContain('по запросу «test»');
@@ -69,7 +80,9 @@ describe('AdminOrganizationsPage', () => {
     partnerFindMany.mockResolvedValue([]);
 
     const { container } = await renderServerComponent(
-      AdminOrganizationsPage({ searchParams: Promise.resolve({ withRateOverride: 'false', skip: '-5' }) })
+      AdminOrganizationsPage({
+        searchParams: Promise.resolve({ withRateOverride: 'false', skip: '-5' }),
+      })
     );
 
     expect(listOrganizations).toHaveBeenCalledWith(
@@ -84,7 +97,7 @@ describe('AdminOrganizationsPage', () => {
     requireAdmin.mockResolvedValue(SESSION);
     listOrganizations.mockResolvedValue({
       rows: [{ ...ORG, inn: null, partner: null }],
-      total: 13
+      total: 13,
     });
     partnerFindMany.mockResolvedValue([]);
 
@@ -108,7 +121,12 @@ describe('AdminOrganizationsPage', () => {
 
     const { container } = await renderServerComponent(
       AdminOrganizationsPage({
-        searchParams: Promise.resolve({ skip: '50', q: 'abc', partnerId: 'p9', withRateOverride: 'true' })
+        searchParams: Promise.resolve({
+          skip: '50',
+          q: 'abc',
+          partnerId: 'p9',
+          withRateOverride: 'true',
+        }),
       })
     );
 
@@ -135,7 +153,9 @@ describe('AdminOrganizationsPage', () => {
       AdminOrganizationsPage({ searchParams: Promise.resolve({ skip: '50' }) })
     );
 
-    const forward = Array.from(container.querySelectorAll('a')).find((a) => a.textContent === 'Вперёд');
+    const forward = Array.from(container.querySelectorAll('a')).find(
+      (a) => a.textContent === 'Вперёд'
+    );
     expect(forward?.getAttribute('href')).toBe('/admin/organizations?skip=100');
   });
 

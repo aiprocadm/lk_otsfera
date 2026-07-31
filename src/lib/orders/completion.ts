@@ -14,9 +14,7 @@ import type { ServiceType, TrainingStatus } from '@prisma/client';
  *    и по каждой удостоверение выдано (`OrderItem.trainingStatus='certificate_issued'`).
  */
 export type CompletionCondition =
-  | 'documents_uploaded'
-  | 'accounting_signed'
-  | 'certificates_issued';
+  'documents_uploaded' | 'accounting_signed' | 'certificates_issued';
 
 export type OrderCompletionInput = {
   serviceType: ServiceType;
@@ -30,9 +28,10 @@ export function isTrainingOrder(serviceType: ServiceType): boolean {
   return serviceType === 'training';
 }
 
-export function evaluateOrderCompletion(
-  order: OrderCompletionInput
-): { ready: boolean; unmet: CompletionCondition[] } {
+export function evaluateOrderCompletion(order: OrderCompletionInput): {
+  ready: boolean;
+  unmet: CompletionCondition[];
+} {
   const unmet: CompletionCondition[] = [];
 
   if (!order.documents.some((d) => d.scanStatus === 'clean')) {
@@ -45,8 +44,7 @@ export function evaluateOrderCompletion(
 
   if (isTrainingOrder(order.serviceType)) {
     const allIssued =
-      order.items.length > 0 &&
-      order.items.every((i) => i.trainingStatus === 'certificate_issued');
+      order.items.length > 0 && order.items.every((i) => i.trainingStatus === 'certificate_issued');
     if (!allIssued) unmet.push('certificates_issued');
   }
 

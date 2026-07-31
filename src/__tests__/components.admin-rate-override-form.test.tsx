@@ -162,7 +162,10 @@ describe('AdminRateOverrideForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() =>
-      expect(screen.getByRole('alert')).toHaveProperty('textContent', 'Проверьте корректность полей.')
+      expect(screen.getByRole('alert')).toHaveProperty(
+        'textContent',
+        'Проверьте корректность полей.'
+      )
     );
   });
 
@@ -186,7 +189,11 @@ describe('AdminRateOverrideForm', () => {
 
   it('busy state disables both action buttons while pending', async () => {
     let resolvePromise: (v: unknown) => void = () => {};
-    setOrgRateOverrideAction.mockReturnValue(new Promise((resolve) => { resolvePromise = resolve; }));
+    setOrgRateOverrideAction.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      })
+    );
     render(
       React.createElement(AdminRateOverrideForm, {
         organizationId: 'org1',
@@ -197,7 +204,9 @@ describe('AdminRateOverrideForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Вернуть базовую ставку' }));
 
     await waitFor(() =>
-      expect((screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement).disabled).toBe(true)
+      expect(
+        (screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement).disabled
+      ).toBe(true)
     );
     expect(
       (screen.getByRole('button', { name: 'Вернуть базовую ставку' }) as HTMLButtonElement).disabled

@@ -18,7 +18,8 @@ export async function GET() {
   if (disabled) return disabled;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!canSubmitEnrollments(session)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (!canSubmitEnrollments(session))
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Промтехносфера';
@@ -29,7 +30,7 @@ export async function GET() {
     { header: ENROLLMENT_IMPORT_COLUMNS.position, key: 'position', width: 24 },
     { header: ENROLLMENT_IMPORT_COLUMNS.snils, key: 'snils', width: 18 },
     { header: ENROLLMENT_IMPORT_COLUMNS.birthDate, key: 'birthDate', width: 16 },
-    { header: ENROLLMENT_IMPORT_COLUMNS.extra, key: 'extra', width: 32 }
+    { header: ENROLLMENT_IMPORT_COLUMNS.extra, key: 'extra', width: 32 },
   ];
   const headerRow = ws.getRow(1);
   headerRow.eachCell((cell) => {
@@ -46,14 +47,14 @@ export async function GET() {
     position: 'Инженер по охране труда',
     snils: '123-456-789 00',
     birthDate: '01.01.1990',
-    extra: ''
+    extra: '',
   });
 
   const buf = await wb.xlsx.writeBuffer();
   return new NextResponse(Buffer.from(buf), {
     headers: {
       'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'content-disposition': 'attachment; filename="enrollment-import-template.xlsx"'
-    }
+      'content-disposition': 'attachment; filename="enrollment-import-template.xlsx"',
+    },
   });
 }

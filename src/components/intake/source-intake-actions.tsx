@@ -2,7 +2,11 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui';
-import { CreateLeadFromSourceDialog, type LeadPrefill, type LeadSourceKind } from './create-lead-from-source-dialog';
+import {
+  CreateLeadFromSourceDialog,
+  type LeadPrefill,
+  type LeadSourceKind,
+} from './create-lead-from-source-dialog';
 import { QuickTaskDialog } from './quick-task-dialog';
 
 /**
@@ -17,7 +21,7 @@ export function SourceIntakeActions({
   taskTitle,
   organizationId,
   currentUserId,
-  showLead = true
+  showLead = true,
 }: {
   kind: LeadSourceKind;
   sourceId: string;
@@ -41,7 +45,12 @@ export function SourceIntakeActions({
         Задача
       </Button>
       {leadOpen && (
-        <CreateLeadFromSourceDialog kind={kind} sourceId={sourceId} prefill={leadPrefill} onClose={() => setLeadOpen(false)} />
+        <CreateLeadFromSourceDialog
+          kind={kind}
+          sourceId={sourceId}
+          prefill={leadPrefill}
+          onClose={() => setLeadOpen(false)}
+        />
       )}
       {taskOpen && (
         <QuickTaskDialog

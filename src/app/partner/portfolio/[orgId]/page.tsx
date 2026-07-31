@@ -14,7 +14,8 @@ import { CustomerAccessSection } from '@/components/partner/customer-access-sect
 const VALID_TABS: TabKey[] = ['employees', 'comments', 'history'];
 
 export default async function OrgCardPage({
-  params, searchParams
+  params,
+  searchParams,
 }: {
   params: Promise<{ orgId: string }>;
   searchParams: Promise<{ tab?: string }>;
@@ -35,7 +36,7 @@ export default async function OrgCardPage({
   const isAdmin = isPartnerAdmin(session);
 
   return (
-    <div className='space-y-4'>
+    <div className="space-y-4">
       <OrgCardHeader card={card} />
       <OrgTabs orgId={orgId} active={tab} isAdmin={isAdmin} />
       {tab === 'employees' && <EmployeesTab orgId={orgId} />}

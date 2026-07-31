@@ -20,10 +20,23 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontFamily: 'Helvetica-Bold', color: BRAND, marginBottom: 4 },
   subtitle: { fontSize: 10, color: '#555' },
   meta: { fontSize: 9, color: '#444', marginTop: 2 },
-  sectionLabel: { fontSize: 8, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4, marginTop: 16 },
+  sectionLabel: {
+    fontSize: 8,
+    color: '#888',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 4,
+    marginTop: 16,
+  },
   table: { width: '100%' },
   tableHeader: { flexDirection: 'row', backgroundColor: BRAND, color: '#fff', padding: 5 },
-  tableRow: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: '#e5e7eb', paddingVertical: 4, paddingHorizontal: 5 },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#e5e7eb',
+    paddingVertical: 4,
+    paddingHorizontal: 5,
+  },
   tableRowEven: { backgroundColor: '#F9FAFB' },
   col0: { width: '5%', textAlign: 'right' },
   col1: { width: '18%' },
@@ -32,10 +45,30 @@ const styles = StyleSheet.create({
   col4: { width: '8%', textAlign: 'right' },
   col5: { width: '16%', textAlign: 'right' },
   colHeader: { color: '#fff', fontFamily: 'Helvetica-Bold', fontSize: 8 },
-  totalsRow: { flexDirection: 'row', borderTopWidth: 1.5, borderTopColor: BRAND, paddingVertical: 5, paddingHorizontal: 5, marginTop: 2 },
+  totalsRow: {
+    flexDirection: 'row',
+    borderTopWidth: 1.5,
+    borderTopColor: BRAND,
+    paddingVertical: 5,
+    paddingHorizontal: 5,
+    marginTop: 2,
+  },
   totalsLabel: { flex: 1, fontFamily: 'Helvetica-Bold', fontSize: 9, color: BRAND },
-  totalsValue: { width: '16%', textAlign: 'right', fontFamily: 'Helvetica-Bold', fontSize: 9, color: BRAND },
-  footer: { position: 'absolute', bottom: 30, left: 40, right: 40, flexDirection: 'row', justifyContent: 'space-between' },
+  totalsValue: {
+    width: '16%',
+    textAlign: 'right',
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 9,
+    color: BRAND,
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 30,
+    left: 40,
+    right: 40,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   footerText: { fontSize: 7, color: '#aaa' },
   qrWrap: { position: 'absolute', bottom: 30, right: 40, alignItems: 'center' },
   qrImage: { width: 80, height: 80 },
@@ -44,7 +77,9 @@ const styles = StyleSheet.create({
 
 function fmt(val: unknown): string {
   const n = Number(val);
-  return isNaN(n) ? '—' : n.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return isNaN(n)
+    ? '—'
+    : n.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function fmtRate(val: unknown): string {
@@ -53,7 +88,20 @@ function fmtRate(val: unknown): string {
 }
 
 function periodLabel(from: Date, to: Date): string {
-  const months = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+  const months = [
+    'январь',
+    'февраль',
+    'март',
+    'апрель',
+    'май',
+    'июнь',
+    'июль',
+    'август',
+    'сентябрь',
+    'октябрь',
+    'ноябрь',
+    'декабрь',
+  ];
   const f = new Date(from);
   const t = new Date(to);
   if (f.getMonth() === t.getMonth() && f.getFullYear() === t.getFullYear()) {
@@ -83,7 +131,11 @@ function StatementDocument({ statement, items, partner, qrDataUrl }: StatementDo
           { style: styles.headerLeft },
           React.createElement(Text, { style: styles.title }, 'Отчёт по комиссии'),
           React.createElement(Text, { style: styles.subtitle }, `За период: ${period}`),
-          React.createElement(Text, { style: styles.meta }, `Партнёр: ${partner.legalName ?? partner.name}`),
+          React.createElement(
+            Text,
+            { style: styles.meta },
+            `Партнёр: ${partner.legalName ?? partner.name}`
+          ),
           React.createElement(Text, { style: styles.meta }, `Сформировано: ${calculatedAtStr}`)
         )
       ),
@@ -125,16 +177,32 @@ function StatementDocument({ statement, items, partner, qrDataUrl }: StatementDo
           React.createElement(Text, { style: { width: '5%' } }, ''),
           React.createElement(Text, { style: { width: '18%' } }, ''),
           React.createElement(Text, { style: { width: '35%' } }, ''),
-          React.createElement(Text, { style: { ...styles.totalsValue, width: '18%' } }, fmt(statement.totalBaseAmount)),
-          React.createElement(Text, { style: { ...styles.totalsValue, width: '8%' } }, fmtRate(statement.averageRate)),
-          React.createElement(Text, { style: styles.totalsValue }, fmt(statement.totalCommissionAmount))
+          React.createElement(
+            Text,
+            { style: { ...styles.totalsValue, width: '18%' } },
+            fmt(statement.totalBaseAmount)
+          ),
+          React.createElement(
+            Text,
+            { style: { ...styles.totalsValue, width: '8%' } },
+            fmtRate(statement.averageRate)
+          ),
+          React.createElement(
+            Text,
+            { style: styles.totalsValue },
+            fmt(statement.totalCommissionAmount)
+          )
         )
       ),
       // Footer
       React.createElement(
         View,
         { style: styles.footer, fixed: true },
-        React.createElement(Text, { style: styles.footerText }, 'Сформировано в личном кабинете «Промтехносфера»'),
+        React.createElement(
+          Text,
+          { style: styles.footerText },
+          'Сформировано в личном кабинете «Промтехносфера»'
+        ),
         React.createElement(Text, { style: styles.footerText }, calculatedAtStr)
       ),
       // QR code in bottom-right corner (only when verifyUrl provided)

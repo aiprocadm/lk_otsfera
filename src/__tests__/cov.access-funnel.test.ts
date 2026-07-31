@@ -7,14 +7,14 @@ import {
   deleteAccessProfile,
   assignUserProfile,
   listAssignableUsers,
-  type AccessProfileInput
+  type AccessProfileInput,
 } from '@/lib/services/access/profiles';
 import {
   listFunnelStages,
   createFunnelStage,
   updateFunnelStage,
   deleteFunnelStage,
-  type FunnelStageInput
+  type FunnelStageInput,
 } from '@/lib/services/access/funnelStages';
 import { getFunnelBoard, moveFunnelLead } from '@/lib/services/funnel/board';
 import { resolveFunnelStages, DEFAULT_FUNNEL_STAGES, stageForLead } from '@/lib/funnel/stages';
@@ -38,45 +38,57 @@ import { canSeeLead, leadWhereForLevel, type SessionAccessProfile } from '@/lib/
 
 const { revalidatePath, requireSession } = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
-  requireSession: vi.fn()
+  requireSession: vi.fn(),
 }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
 
 // Imported AFTER the mocks so the action modules pick up the mocked deps.
 // The real @/lib/db/prisma singleton points at the same DATABASE_URL.
-import {
-  deleteAccessProfileAction
-} from '@/server-actions/access/profiles';
+import { deleteAccessProfileAction } from '@/server-actions/access/profiles';
 import {
   moveFunnelLeadAction,
   updateFunnelStageAction,
-  deleteFunnelStageAction
+  deleteFunnelStageAction,
 } from '@/server-actions/funnel';
 
 let prisma: PrismaClient;
 const STAMP = Date.now();
 
 let companyA: string, companyB: string, cleanCo: string;
-let leaderAId: string, plainMgrAId: string, targetMgrAId: string, userBId: string, cleanLeaderId: string;
+let leaderAId: string,
+  plainMgrAId: string,
+  targetMgrAId: string,
+  userBId: string,
+  cleanLeaderId: string;
 
 const leaderA = (): SessionPayload =>
-  ({ sub: leaderAId, role: 'manager', managerRole: 'leader', companyId: companyA } as unknown as SessionPayload);
+  ({
+    sub: leaderAId,
+    role: 'manager',
+    managerRole: 'leader',
+    companyId: companyA,
+  }) as unknown as SessionPayload;
 // Dedicated company that NEVER gets custom funnel stages → resolveFunnelStages
 // returns DEFAULT_FUNNEL_STAGES so `default:*` stage ids are valid. companyA is
 // polluted with custom FunnelStage rows by the funnelStages block, which would
 // otherwise make `default:*` resolve to invalid_stage.
 const cleanLeader = (): SessionPayload =>
-  ({ sub: cleanLeaderId, role: 'manager', managerRole: 'leader', companyId: cleanCo } as unknown as SessionPayload);
+  ({
+    sub: cleanLeaderId,
+    role: 'manager',
+    managerRole: 'leader',
+    companyId: cleanCo,
+  }) as unknown as SessionPayload;
 const plainMgrA = (): SessionPayload =>
-  ({ sub: plainMgrAId, role: 'manager', companyId: companyA } as unknown as SessionPayload);
+  ({ sub: plainMgrAId, role: 'manager', companyId: companyA }) as unknown as SessionPayload;
 const adminB = (): SessionPayload =>
-  ({ sub: userBId, role: 'admin', companyId: companyB } as unknown as SessionPayload);
+  ({ sub: userBId, role: 'admin', companyId: companyB }) as unknown as SessionPayload;
 // admin session with a company but a NON-existent actor id → recordAudit's
 // AuditLog.userId FK (→ User.id) fails with P2003 (not P2002, not our sentinel
 // error) → the defensive `throw e` re-throw runs.
 const ghostAdminA = (): SessionPayload =>
-  ({ sub: `ghost-${STAMP}`, role: 'admin', companyId: companyA } as unknown as SessionPayload);
+  ({ sub: `ghost-${STAMP}`, role: 'admin', companyId: companyA }) as unknown as SessionPayload;
 
 const pInput = (over: Partial<AccessProfileInput> = {}): AccessProfileInput => ({
   name: `E1-роль-${STAMP}`,
@@ -88,7 +100,7 @@ const pInput = (over: Partial<AccessProfileInput> = {}): AccessProfileInput => (
   leads: 'own',
   tasks: 'own',
   capabilities: [],
-  ...over
+  ...over,
 });
 
 const fsInput = (over: Partial<FunnelStageInput> = {}): FunnelStageInput => ({
@@ -97,7 +109,7 @@ const fsInput = (over: Partial<FunnelStageInput> = {}): FunnelStageInput => ({
   statusAnchor: 'qualified',
   color: null,
   isTerminal: false,
-  ...over
+  ...over,
 });
 
 function form(entries: Record<string, string>): FormData {
@@ -111,21 +123,58 @@ beforeAll(async () => {
   companyA = (await prisma.company.create({ data: { name: `e1A-${STAMP}` } })).id;
   companyB = (await prisma.company.create({ data: { name: `e1B-${STAMP}` } })).id;
   cleanCo = (await prisma.company.create({ data: { name: `e1Clean-${STAMP}` } })).id;
-  cleanLeaderId = (await prisma.user.create({
-    data: { email: `e1Clean-${STAMP}@t.local`, name: 'Clean Leader', role: 'manager', managerRole: 'leader', companyId: cleanCo }
-  })).id;
-  leaderAId = (await prisma.user.create({
-    data: { email: `e1Leader-${STAMP}@t.local`, name: 'Leader A', role: 'manager', managerRole: 'leader', companyId: companyA }
-  })).id;
-  plainMgrAId = (await prisma.user.create({
-    data: { email: `e1Mgr-${STAMP}@t.local`, name: 'Mgr A', role: 'manager', companyId: companyA }
-  })).id;
-  targetMgrAId = (await prisma.user.create({
-    data: { email: `e1Target-${STAMP}@t.local`, name: 'Target A', role: 'manager', companyId: companyA }
-  })).id;
-  userBId = (await prisma.user.create({
-    data: { email: `e1UserB-${STAMP}@t.local`, name: 'User B', role: 'admin', companyId: companyB }
-  })).id;
+  cleanLeaderId = (
+    await prisma.user.create({
+      data: {
+        email: `e1Clean-${STAMP}@t.local`,
+        name: 'Clean Leader',
+        role: 'manager',
+        managerRole: 'leader',
+        companyId: cleanCo,
+      },
+    })
+  ).id;
+  leaderAId = (
+    await prisma.user.create({
+      data: {
+        email: `e1Leader-${STAMP}@t.local`,
+        name: 'Leader A',
+        role: 'manager',
+        managerRole: 'leader',
+        companyId: companyA,
+      },
+    })
+  ).id;
+  plainMgrAId = (
+    await prisma.user.create({
+      data: {
+        email: `e1Mgr-${STAMP}@t.local`,
+        name: 'Mgr A',
+        role: 'manager',
+        companyId: companyA,
+      },
+    })
+  ).id;
+  targetMgrAId = (
+    await prisma.user.create({
+      data: {
+        email: `e1Target-${STAMP}@t.local`,
+        name: 'Target A',
+        role: 'manager',
+        companyId: companyA,
+      },
+    })
+  ).id;
+  userBId = (
+    await prisma.user.create({
+      data: {
+        email: `e1UserB-${STAMP}@t.local`,
+        name: 'User B',
+        role: 'admin',
+        companyId: companyB,
+      },
+    })
+  ).id;
 });
 
 afterAll(async () => {
@@ -163,7 +212,12 @@ describe('access/profiles — gates + error re-throws', () => {
     const b = await createAccessProfile(prisma, leaderA(), pInput({ name: `E1-nameB-${STAMP}` }));
     expect(a.ok && b.ok).toBe(true);
     const idB = b.ok ? b.id : '';
-    const res = await updateAccessProfile(prisma, leaderA(), idB, pInput({ name: `E1-nameA-${STAMP}` }));
+    const res = await updateAccessProfile(
+      prisma,
+      leaderA(),
+      idB,
+      pInput({ name: `E1-nameA-${STAMP}` })
+    );
     expect(res).toEqual({ ok: false, error: 'name_taken' });
   });
 
@@ -176,7 +230,11 @@ describe('access/profiles — gates + error re-throws', () => {
   });
 
   it('updateAccessProfile: unexpected error re-throw (ghost actor FK) propagates', async () => {
-    const created = await createAccessProfile(prisma, leaderA(), pInput({ name: `E1-ghostUpd-${STAMP}` }));
+    const created = await createAccessProfile(
+      prisma,
+      leaderA(),
+      pInput({ name: `E1-ghostUpd-${STAMP}` })
+    );
     const id = created.ok ? created.id : '';
     await expect(
       updateAccessProfile(prisma, ghostAdminA(), id, pInput({ name: `E1-ghostUpd-${STAMP}` }))
@@ -189,7 +247,11 @@ describe('access/profiles — gates + error re-throws', () => {
   });
 
   it('deleteAccessProfile: unexpected error re-throw (ghost actor FK) propagates', async () => {
-    const created = await createAccessProfile(prisma, leaderA(), pInput({ name: `E1-ghostDel-${STAMP}` }));
+    const created = await createAccessProfile(
+      prisma,
+      leaderA(),
+      pInput({ name: `E1-ghostDel-${STAMP}` })
+    );
     const id = created.ok ? created.id : '';
     await expect(deleteAccessProfile(prisma, ghostAdminA(), id)).rejects.toBeTruthy();
     // profile survived (tx rolled back) — cleaned up by afterAll.
@@ -197,19 +259,33 @@ describe('access/profiles — gates + error re-throws', () => {
   });
 
   it('assignUserProfile: plain manager → forbidden', async () => {
-    const res = await assignUserProfile(prisma, plainMgrA(), { userId: targetMgrAId, profileId: null });
+    const res = await assignUserProfile(prisma, plainMgrA(), {
+      userId: targetMgrAId,
+      profileId: null,
+    });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 
   it('assignUserProfile: cross-company profileId (valid user) → not_found', async () => {
-    const inB = await createAccessProfile(prisma, adminB(), pInput({ name: `E1-assignProfB-${STAMP}` }));
+    const inB = await createAccessProfile(
+      prisma,
+      adminB(),
+      pInput({ name: `E1-assignProfB-${STAMP}` })
+    );
     const idB = inB.ok ? inB.id : '';
-    const res = await assignUserProfile(prisma, leaderA(), { userId: targetMgrAId, profileId: idB });
+    const res = await assignUserProfile(prisma, leaderA(), {
+      userId: targetMgrAId,
+      profileId: idB,
+    });
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('assignUserProfile: unexpected error re-throw (ghost actor FK) propagates', async () => {
-    const created = await createAccessProfile(prisma, leaderA(), pInput({ name: `E1-assignThrow-${STAMP}` }));
+    const created = await createAccessProfile(
+      prisma,
+      leaderA(),
+      pInput({ name: `E1-assignThrow-${STAMP}` })
+    );
     const id = created.ok ? created.id : '';
     // ghost admin passes the gate and both entity checks (user + profile in companyA),
     // then recordAudit FK-fails → catch re-throws.
@@ -258,25 +334,51 @@ describe('access/funnelStages — gates + error re-throws', () => {
   });
 
   it('updateFunnelStage: colliding position in company → position_taken', async () => {
-    const a = await createFunnelStage(prisma, leaderA(), fsInput({ position: 110, name: `E1-posA-${STAMP}` }));
-    const b = await createFunnelStage(prisma, leaderA(), fsInput({ position: 111, name: `E1-posB-${STAMP}` }));
+    const a = await createFunnelStage(
+      prisma,
+      leaderA(),
+      fsInput({ position: 110, name: `E1-posA-${STAMP}` })
+    );
+    const b = await createFunnelStage(
+      prisma,
+      leaderA(),
+      fsInput({ position: 111, name: `E1-posB-${STAMP}` })
+    );
     expect(a.ok && b.ok).toBe(true);
     const idB = b.ok ? b.id : '';
-    const res = await updateFunnelStage(prisma, leaderA(), idB, fsInput({ position: 110, name: `E1-posB-${STAMP}` }));
+    const res = await updateFunnelStage(
+      prisma,
+      leaderA(),
+      idB,
+      fsInput({ position: 110, name: `E1-posB-${STAMP}` })
+    );
     expect(res).toEqual({ ok: false, error: 'position_taken' });
   });
 
   it('createFunnelStage: unexpected error re-throw (ghost actor FK) propagates', async () => {
     await expect(
-      createFunnelStage(prisma, ghostAdminA(), fsInput({ position: 120, name: `E1-fsGhostCreate-${STAMP}` }))
+      createFunnelStage(
+        prisma,
+        ghostAdminA(),
+        fsInput({ position: 120, name: `E1-fsGhostCreate-${STAMP}` })
+      )
     ).rejects.toBeTruthy();
   });
 
   it('updateFunnelStage: unexpected error re-throw (ghost actor FK) propagates', async () => {
-    const created = await createFunnelStage(prisma, leaderA(), fsInput({ position: 130, name: `E1-fsGhostUpd-${STAMP}` }));
+    const created = await createFunnelStage(
+      prisma,
+      leaderA(),
+      fsInput({ position: 130, name: `E1-fsGhostUpd-${STAMP}` })
+    );
     const id = created.ok ? created.id : '';
     await expect(
-      updateFunnelStage(prisma, ghostAdminA(), id, fsInput({ position: 130, name: `E1-fsGhostUpd-${STAMP}` }))
+      updateFunnelStage(
+        prisma,
+        ghostAdminA(),
+        id,
+        fsInput({ position: 130, name: `E1-fsGhostUpd-${STAMP}` })
+      )
     ).rejects.toBeTruthy();
   });
 
@@ -286,7 +388,11 @@ describe('access/funnelStages — gates + error re-throws', () => {
   });
 
   it('deleteFunnelStage: unexpected error re-throw (ghost actor FK) propagates', async () => {
-    const created = await createFunnelStage(prisma, leaderA(), fsInput({ position: 140, name: `E1-fsGhostDel-${STAMP}` }));
+    const created = await createFunnelStage(
+      prisma,
+      leaderA(),
+      fsInput({ position: 140, name: `E1-fsGhostDel-${STAMP}` })
+    );
     const id = created.ok ? created.id : '';
     await expect(deleteFunnelStage(prisma, ghostAdminA(), id)).rejects.toBeTruthy();
     expect(await prisma.funnelStage.findUnique({ where: { id } })).not.toBeNull();
@@ -306,15 +412,41 @@ describe('funnel/stages — resolveFunnelStages custom path', () => {
     const co = (await prisma.company.create({ data: { name: `e1resolve-${STAMP}` } })).id;
     try {
       const s2 = await prisma.funnelStage.create({
-        data: { companyId: co, name: 'Второй', position: 2, statusAnchor: 'qualified', color: '#111111', isTerminal: true }
+        data: {
+          companyId: co,
+          name: 'Второй',
+          position: 2,
+          statusAnchor: 'qualified',
+          color: '#111111',
+          isTerminal: true,
+        },
       });
       const s1 = await prisma.funnelStage.create({
-        data: { companyId: co, name: 'Первый', position: 1, statusAnchor: 'new', color: null, isTerminal: false }
+        data: {
+          companyId: co,
+          name: 'Первый',
+          position: 1,
+          statusAnchor: 'new',
+          color: null,
+          isTerminal: false,
+        },
       });
       const resolved = await resolveFunnelStages(prisma, co);
       expect(resolved.map((s) => s.id)).toEqual([s1.id, s2.id]); // position asc
-      expect(resolved[0]).toMatchObject({ name: 'Первый', position: 1, statusAnchor: 'new', color: null, isTerminal: false });
-      expect(resolved[1]).toMatchObject({ name: 'Второй', position: 2, statusAnchor: 'qualified', color: '#111111', isTerminal: true });
+      expect(resolved[0]).toMatchObject({
+        name: 'Первый',
+        position: 1,
+        statusAnchor: 'new',
+        color: null,
+        isTerminal: false,
+      });
+      expect(resolved[1]).toMatchObject({
+        name: 'Второй',
+        position: 2,
+        statusAnchor: 'qualified',
+        color: '#111111',
+        isTerminal: true,
+      });
     } finally {
       await prisma.funnelStage.deleteMany({ where: { companyId: co } });
       await prisma.company.deleteMany({ where: { id: co } });
@@ -332,14 +464,21 @@ describe('funnel/board — getFunnelBoard branches', () => {
     // org-less, manager-less, amount-less lead → organizationName/assignedManagerName/estimatedAmount all null.
     const bareLead = await prisma.lead.create({
       data: {
-        partnerId: (await prisma.partner.create({ data: { name: `e1bp-${STAMP}`, slug: `e1bp-${STAMP}` } })).id,
+        partnerId: (
+          await prisma.partner.create({ data: { name: `e1bp-${STAMP}`, slug: `e1bp-${STAMP}` } })
+        ).id,
         createdByUserId: leaderAId,
         clientCompanyName: `E1-bare-${STAMP}`,
         clientContactName: 'K',
-        subject: 'S'
-      }
+        subject: 'S',
+      },
     });
-    const noProfileSession = ({ sub: cleanLeaderId, role: 'manager', companyId: cleanCo, managedOrgIds: [] } as unknown as SessionPayload);
+    const noProfileSession = {
+      sub: cleanLeaderId,
+      role: 'manager',
+      companyId: cleanCo,
+      managedOrgIds: [],
+    } as unknown as SessionPayload;
     const board = await getFunnelBoard(prisma, noProfileSession);
     const newCol = board.columns.find((c) => c.stage.statusAnchor === 'new')!;
     const card = newCol.cards.find((c) => c.id === bareLead.id)!;
@@ -352,25 +491,64 @@ describe('funnel/board — getFunnelBoard branches', () => {
   });
 
   it('null companyId → resolveFunnelStages("") still returns default columns', async () => {
-    const nullCoSession = ({ sub: leaderAId, role: 'manager', companyId: null, managedOrgIds: [] } as unknown as SessionPayload);
+    const nullCoSession = {
+      sub: leaderAId,
+      role: 'manager',
+      companyId: null,
+      managedOrgIds: [],
+    } as unknown as SessionPayload;
     const board = await getFunnelBoard(prisma, nullCoSession);
-    expect(board.stages.map((s) => s.statusAnchor)).toEqual(['new', 'in_review', 'qualified', 'promoted_to_order', 'promoted_to_deal', 'rejected']);
+    expect(board.stages.map((s) => s.statusAnchor)).toEqual([
+      'new',
+      'in_review',
+      'qualified',
+      'promoted_to_order',
+      'promoted_to_deal',
+      'rejected',
+    ]);
   });
 
   it('lead whose status anchor has no matching stage → card skipped (!stage continue)', async () => {
     const co = (await prisma.company.create({ data: { name: `e1skip-${STAMP}` } })).id;
-    const partnerId = (await prisma.partner.create({ data: { name: `e1sp-${STAMP}`, slug: `e1sp-${STAMP}` } })).id;
-    const mgr = (await prisma.user.create({ data: { email: `e1skipM-${STAMP}@t.local`, name: 'M', role: 'manager', companyId: co } })).id;
+    const partnerId = (
+      await prisma.partner.create({ data: { name: `e1sp-${STAMP}`, slug: `e1sp-${STAMP}` } })
+    ).id;
+    const mgr = (
+      await prisma.user.create({
+        data: { email: `e1skipM-${STAMP}@t.local`, name: 'M', role: 'manager', companyId: co },
+      })
+    ).id;
     try {
       // Custom stages cover new/in_review/qualified/promoted_to_order but NOT rejected.
       const anchors = ['new', 'in_review', 'qualified', 'promoted_to_order'] as const;
       for (let i = 0; i < anchors.length; i++) {
-        await prisma.funnelStage.create({ data: { companyId: co, name: `st-${i}`, position: i, statusAnchor: anchors[i], color: null, isTerminal: false } });
+        await prisma.funnelStage.create({
+          data: {
+            companyId: co,
+            name: `st-${i}`,
+            position: i,
+            statusAnchor: anchors[i],
+            color: null,
+            isTerminal: false,
+          },
+        });
       }
       const rejected = await prisma.lead.create({
-        data: { partnerId, createdByUserId: mgr, clientCompanyName: 'x', clientContactName: 'y', subject: 'z', status: 'rejected' }
+        data: {
+          partnerId,
+          createdByUserId: mgr,
+          clientCompanyName: 'x',
+          clientContactName: 'y',
+          subject: 'z',
+          status: 'rejected',
+        },
       });
-      const session = ({ sub: mgr, role: 'manager', companyId: co, managedOrgIds: [] } as unknown as SessionPayload);
+      const session = {
+        sub: mgr,
+        role: 'manager',
+        companyId: co,
+        managedOrgIds: [],
+      } as unknown as SessionPayload;
       const board = await getFunnelBoard(prisma, session);
       const allCardIds = board.columns.flatMap((c) => c.cards.map((k) => k.id));
       expect(allCardIds).not.toContain(rejected.id); // rejected anchor absent → skipped
@@ -386,32 +564,67 @@ describe('funnel/board — getFunnelBoard branches', () => {
 
 describe('funnel/board — moveFunnelLead branches', () => {
   it('no companyId → forbidden', async () => {
-    const session = ({ sub: leaderAId, role: 'manager', companyId: null } as unknown as SessionPayload);
+    const session = {
+      sub: leaderAId,
+      role: 'manager',
+      companyId: null,
+    } as unknown as SessionPayload;
     const res = await moveFunnelLead(prisma, session, { leadId: 'x', toStageId: 'default:new' });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 
   it('nonexistent leadId (valid stage) → not_found', async () => {
-    const res = await moveFunnelLead(prisma, cleanLeader(), { leadId: `no-such-${STAMP}`, toStageId: 'default:new' });
+    const res = await moveFunnelLead(prisma, cleanLeader(), {
+      leadId: `no-such-${STAMP}`,
+      toStageId: 'default:new',
+    });
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('move within same anchor to a CUSTOM stage → repositions (funnelStageId = real cuid)', async () => {
     const co = (await prisma.company.create({ data: { name: `e1repos-${STAMP}` } })).id;
-    const partnerId = (await prisma.partner.create({ data: { name: `e1rp-${STAMP}`, slug: `e1rp-${STAMP}` } })).id;
-    const mgr = (await prisma.user.create({ data: { email: `e1reposM-${STAMP}@t.local`, name: 'M', role: 'manager', companyId: co } })).id;
+    const partnerId = (
+      await prisma.partner.create({ data: { name: `e1rp-${STAMP}`, slug: `e1rp-${STAMP}` } })
+    ).id;
+    const mgr = (
+      await prisma.user.create({
+        data: { email: `e1reposM-${STAMP}@t.local`, name: 'M', role: 'manager', companyId: co },
+      })
+    ).id;
     try {
       // A custom stage whose anchor == lead.status ('new') → within-anchor reposition path.
       const stage = await prisma.funnelStage.create({
-        data: { companyId: co, name: 'Новый (кастом)', position: 0, statusAnchor: 'new', color: null, isTerminal: false }
+        data: {
+          companyId: co,
+          name: 'Новый (кастом)',
+          position: 0,
+          statusAnchor: 'new',
+          color: null,
+          isTerminal: false,
+        },
       });
       const lead = await prisma.lead.create({
-        data: { partnerId, createdByUserId: mgr, clientCompanyName: 'x', clientContactName: 'y', subject: 'z', status: 'new' }
+        data: {
+          partnerId,
+          createdByUserId: mgr,
+          clientCompanyName: 'x',
+          clientContactName: 'y',
+          subject: 'z',
+          status: 'new',
+        },
       });
-      const session = ({ sub: mgr, role: 'manager', companyId: co, managedOrgIds: [] } as unknown as SessionPayload);
+      const session = {
+        sub: mgr,
+        role: 'manager',
+        companyId: co,
+        managedOrgIds: [],
+      } as unknown as SessionPayload;
       const res = await moveFunnelLead(prisma, session, { leadId: lead.id, toStageId: stage.id });
       expect(res).toEqual({ ok: true });
-      const after = await prisma.lead.findUniqueOrThrow({ where: { id: lead.id }, select: { status: true, funnelStageId: true } });
+      const after = await prisma.lead.findUniqueOrThrow({
+        where: { id: lead.id },
+        select: { status: true, funnelStageId: true },
+      });
       expect(after.status).toBe('new'); // no lifecycle transition
       expect(after.funnelStageId).toBe(stage.id); // persistStageId = real cuid (not default:)
     } finally {
@@ -424,15 +637,30 @@ describe('funnel/board — moveFunnelLead branches', () => {
   });
 
   it('promote branch with ineligible (rejected) lead → lifecycle_violation', async () => {
-    const partnerId = (await prisma.partner.create({ data: { name: `e1lvp-${STAMP}`, slug: `e1lvp-${STAMP}` } })).id;
-    const org = await prisma.organization.create({ data: { name: `e1lvorg-${STAMP}`, companyId: cleanCo } });
+    const partnerId = (
+      await prisma.partner.create({ data: { name: `e1lvp-${STAMP}`, slug: `e1lvp-${STAMP}` } })
+    ).id;
+    const org = await prisma.organization.create({
+      data: { name: `e1lvorg-${STAMP}`, companyId: cleanCo },
+    });
     try {
       // rejected != promoted_to_order → enters promote branch; org set to satisfy the
       // org_required guard, but promoteLead refuses a 'rejected' lead → lifecycle_violation.
       const lead = await prisma.lead.create({
-        data: { partnerId, createdByUserId: cleanLeaderId, clientCompanyName: 'x', clientContactName: 'y', subject: 'z', status: 'rejected', organizationId: org.id }
+        data: {
+          partnerId,
+          createdByUserId: cleanLeaderId,
+          clientCompanyName: 'x',
+          clientContactName: 'y',
+          subject: 'z',
+          status: 'rejected',
+          organizationId: org.id,
+        },
       });
-      const res = await moveFunnelLead(prisma, cleanLeader(), { leadId: lead.id, toStageId: 'default:promoted_to_order' });
+      const res = await moveFunnelLead(prisma, cleanLeader(), {
+        leadId: lead.id,
+        toStageId: 'default:promoted_to_order',
+      });
       expect(res).toEqual({ ok: false, error: 'lifecycle_violation' });
     } finally {
       await prisma.lead.deleteMany({ where: { partnerId } });
@@ -442,18 +670,37 @@ describe('funnel/board — moveFunnelLead branches', () => {
   });
 
   it('reject branch: with reason on a promoted lead → lifecycle_violation', async () => {
-    const partnerId = (await prisma.partner.create({ data: { name: `e1rjp-${STAMP}`, slug: `e1rjp-${STAMP}` } })).id;
-    const org = await prisma.organization.create({ data: { name: `e1rjorg-${STAMP}`, companyId: cleanCo } });
+    const partnerId = (
+      await prisma.partner.create({ data: { name: `e1rjp-${STAMP}`, slug: `e1rjp-${STAMP}` } })
+    ).id;
+    const org = await prisma.organization.create({
+      data: { name: `e1rjorg-${STAMP}`, companyId: cleanCo },
+    });
     try {
       // Create a promoted lead: promote a fresh org-linked lead first.
       const seed = await prisma.lead.create({
-        data: { partnerId, createdByUserId: cleanLeaderId, clientCompanyName: 'x', clientContactName: 'y', subject: 'z', status: 'new', organizationId: org.id }
+        data: {
+          partnerId,
+          createdByUserId: cleanLeaderId,
+          clientCompanyName: 'x',
+          clientContactName: 'y',
+          subject: 'z',
+          status: 'new',
+          organizationId: org.id,
+        },
       });
-      const promoted = await moveFunnelLead(prisma, cleanLeader(), { leadId: seed.id, toStageId: 'default:promoted_to_order' });
+      const promoted = await moveFunnelLead(prisma, cleanLeader(), {
+        leadId: seed.id,
+        toStageId: 'default:promoted_to_order',
+      });
       expect(promoted).toEqual({ ok: true });
       // Now moving promoted → rejected enters reject branch (anchor differs); rejectLead
       // refuses a promoted lead → lifecycle_violation (reason present passes the guard).
-      const res = await moveFunnelLead(prisma, cleanLeader(), { leadId: seed.id, toStageId: 'default:rejected', reason: 'нет' });
+      const res = await moveFunnelLead(prisma, cleanLeader(), {
+        leadId: seed.id,
+        toStageId: 'default:rejected',
+        reason: 'нет',
+      });
       expect(res).toEqual({ ok: false, error: 'lifecycle_violation' });
     } finally {
       await prisma.order.deleteMany({ where: { organizationId: org.id } });
@@ -464,13 +711,25 @@ describe('funnel/board — moveFunnelLead branches', () => {
   });
 
   it('setLeadStatus branch: illegal transition → lifecycle_violation', async () => {
-    const partnerId = (await prisma.partner.create({ data: { name: `e1slp-${STAMP}`, slug: `e1slp-${STAMP}` } })).id;
+    const partnerId = (
+      await prisma.partner.create({ data: { name: `e1slp-${STAMP}`, slug: `e1slp-${STAMP}` } })
+    ).id;
     try {
       const lead = await prisma.lead.create({
-        data: { partnerId, createdByUserId: cleanLeaderId, clientCompanyName: 'x', clientContactName: 'y', subject: 'z', status: 'new' }
+        data: {
+          partnerId,
+          createdByUserId: cleanLeaderId,
+          clientCompanyName: 'x',
+          clientContactName: 'y',
+          subject: 'z',
+          status: 'new',
+        },
       });
       // new → qualified is not an allowed manual move → setLeadStatus lifecycle_violation.
-      const res = await moveFunnelLead(prisma, cleanLeader(), { leadId: lead.id, toStageId: 'default:qualified' });
+      const res = await moveFunnelLead(prisma, cleanLeader(), {
+        leadId: lead.id,
+        toStageId: 'default:qualified',
+      });
       expect(res).toEqual({ ok: false, error: 'lifecycle_violation' });
     } finally {
       await prisma.lead.deleteMany({ where: { partnerId } });
@@ -485,18 +744,37 @@ describe('funnel/board — moveFunnelLead branches', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('auth/accessProfile — canSeeLead (assigned scope)', () => {
   const profile = (leads: SessionAccessProfile['leads']): SessionAccessProfile => ({
-    id: 'p', name: 'Продажи', orders: 'own', organizations: 'own', threads: 'own',
-    documents: 'own', finance: 'own', leads, tasks: 'all', capabilities: []
+    id: 'p',
+    name: 'Продажи',
+    orders: 'own',
+    organizations: 'own',
+    threads: 'own',
+    documents: 'own',
+    finance: 'own',
+    leads,
+    tasks: 'all',
+    capabilities: [],
   });
   const sess = (over: Partial<SessionPayload> = {}): SessionPayload =>
-    ({ sub: 'u1', role: 'manager', companyId: 'co-1', managedOrgIds: ['o1', 'o2'], ...over } as unknown as SessionPayload);
+    ({
+      sub: 'u1',
+      role: 'manager',
+      companyId: 'co-1',
+      managedOrgIds: ['o1', 'o2'],
+      ...over,
+    }) as unknown as SessionPayload;
 
   it('no profile → team-wide (true)', () => {
     expect(canSeeLead(sess(), { assignedManagerId: 'other', organizationId: 'oX' })).toBe(true);
   });
 
   it('leads=all → true regardless of assignment', () => {
-    expect(canSeeLead(sess({ accessProfile: profile('all') }), { assignedManagerId: 'other', organizationId: 'oX' })).toBe(true);
+    expect(
+      canSeeLead(sess({ accessProfile: profile('all') }), {
+        assignedManagerId: 'other',
+        organizationId: 'oX',
+      })
+    ).toBe(true);
   });
 
   it('leads=own → only self-assigned', () => {
@@ -518,9 +796,11 @@ describe('auth/accessProfile — canSeeLead (assigned scope)', () => {
   });
 
   it('leadWhereForLevel assigned → OR(self, managed orgs)', () => {
-    expect(leadWhereForLevel(sess({ sub: 'u7', managedOrgIds: ['o1', 'o2'] }), 'assigned')).toEqual({
-      OR: [{ assignedManagerId: 'u7' }, { organizationId: { in: ['o1', 'o2'] } }]
-    });
+    expect(leadWhereForLevel(sess({ sub: 'u7', managedOrgIds: ['o1', 'o2'] }), 'assigned')).toEqual(
+      {
+        OR: [{ assignedManagerId: 'u7' }, { organizationId: { in: ['o1', 'o2'] } }],
+      }
+    );
   });
 });
 
@@ -530,13 +810,19 @@ describe('auth/accessProfile — canSeeLead (assigned scope)', () => {
 describe('funnel/stages — stageForLead (pure)', () => {
   const stages = DEFAULT_FUNNEL_STAGES.map((s) => ({ ...s }));
   it('explicit funnelStageId present in set → that stage', () => {
-    expect(stageForLead(stages, { status: 'new', funnelStageId: 'default:qualified' })?.id).toBe('default:qualified');
+    expect(stageForLead(stages, { status: 'new', funnelStageId: 'default:qualified' })?.id).toBe(
+      'default:qualified'
+    );
   });
   it('funnelStageId not in set → anchor fallback', () => {
-    expect(stageForLead(stages, { status: 'in_review', funnelStageId: 'stale' })?.id).toBe('default:in_review');
+    expect(stageForLead(stages, { status: 'in_review', funnelStageId: 'stale' })?.id).toBe(
+      'default:in_review'
+    );
   });
   it('funnelStageId null → anchor fallback', () => {
-    expect(stageForLead(stages, { status: 'rejected', funnelStageId: null })?.id).toBe('default:rejected');
+    expect(stageForLead(stages, { status: 'rejected', funnelStageId: null })?.id).toBe(
+      'default:rejected'
+    );
   });
 });
 
@@ -556,7 +842,9 @@ describe('server-actions — error-mapping branches', () => {
   it('updateFunnelStageAction: service error (forbidden) → mapped, no revalidate', async () => {
     revalidatePath.mockClear();
     requireSession.mockResolvedValue(plainMgrA());
-    const res = await updateFunnelStageAction(form({ id: 'anything', name: 'X', position: '0', statusAnchor: 'new' }));
+    const res = await updateFunnelStageAction(
+      form({ id: 'anything', name: 'X', position: '0', statusAnchor: 'new' })
+    );
     expect(res).toEqual({ ok: false, error: 'forbidden' });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
@@ -580,12 +868,23 @@ describe('server-actions — error-mapping branches', () => {
   it('moveFunnelLeadAction: success → revalidates both cabinets', async () => {
     revalidatePath.mockClear();
     requireSession.mockResolvedValue(cleanLeader());
-    const partnerId = (await prisma.partner.create({ data: { name: `e1sap-${STAMP}`, slug: `e1sap-${STAMP}` } })).id;
+    const partnerId = (
+      await prisma.partner.create({ data: { name: `e1sap-${STAMP}`, slug: `e1sap-${STAMP}` } })
+    ).id;
     try {
       const lead = await prisma.lead.create({
-        data: { partnerId, createdByUserId: cleanLeaderId, clientCompanyName: 'x', clientContactName: 'y', subject: 'z', status: 'new' }
+        data: {
+          partnerId,
+          createdByUserId: cleanLeaderId,
+          clientCompanyName: 'x',
+          clientContactName: 'y',
+          subject: 'z',
+          status: 'new',
+        },
       });
-      const res = await moveFunnelLeadAction(form({ leadId: lead.id, toStageId: 'default:in_review' }));
+      const res = await moveFunnelLeadAction(
+        form({ leadId: lead.id, toStageId: 'default:in_review' })
+      );
       expect(res).toEqual({ ok: true });
       expect(revalidatePath).toHaveBeenCalledWith('/leader/funnel');
       expect(revalidatePath).toHaveBeenCalledWith('/manager/funnel');

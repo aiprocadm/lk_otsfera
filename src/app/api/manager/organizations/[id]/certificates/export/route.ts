@@ -3,7 +3,10 @@ import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { canManagerAccessOrg } from '@/lib/auth/managerPolicy';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
-import { listCertificates, type CertificateStatusFilter } from '@/lib/services/training/certificates';
+import {
+  listCertificates,
+  type CertificateStatusFilter,
+} from '@/lib/services/training/certificates';
 import { renderCertificatesXlsx } from '@/lib/services/certificates/xlsx';
 import { recordPiiAccess } from '@/lib/pii/record';
 
@@ -40,7 +43,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     status: STATUSES.includes(status as CertificateStatusFilter)
       ? (status as CertificateStatusFilter)
       : undefined,
-    search: url.searchParams.get('search') || undefined
+    search: url.searchParams.get('search') || undefined,
   });
   /* v8 ignore next -- listCertificates не возвращает ошибок для read-скоупа; ветка недостижима */
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: 500 });
@@ -49,18 +52,18 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     session,
     context: 'org_card_certificates_export',
     subjectIds: res.certificates.map((c) => c.studentId),
-    meta: { take: res.certificates.length, hasQuery: !!url.searchParams.get('search') }
+    meta: { take: res.certificates.length, hasQuery: !!url.searchParams.get('search') },
   });
 
   const buf = await renderCertificatesXlsx({
     rows: res.certificates,
     total: res.total,
-    showOrganization: false
+    showOrganization: false,
   });
   return new NextResponse(Buffer.from(buf), {
     headers: {
       'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'content-disposition': 'attachment; filename="certificates.xlsx"'
-    }
+      'content-disposition': 'attachment; filename="certificates.xlsx"',
+    },
   });
 }

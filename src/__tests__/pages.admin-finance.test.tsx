@@ -18,7 +18,7 @@ vi.mock('@/components/manager/manager-finance-view', () => ({
       { 'data-testid': 'finance-view' },
       props.ordersBasePath,
       JSON.stringify(props.data)
-    )
+    ),
 }));
 
 import AdminFinancePage from '@/app/admin/finance/page';
@@ -36,7 +36,7 @@ describe('AdminFinancePage', () => {
     getManagerFinanceOverview.mockResolvedValue({
       summary: { totalDebt: '0.00' },
       sections: [],
-      canSeeCommission: true
+      canSeeCommission: true,
     });
 
     const { container } = await renderServerComponent(AdminFinancePage());

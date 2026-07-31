@@ -4,7 +4,7 @@
  * summary format branches.
  */
 import { describe, it, expect } from 'vitest';
-import ExcelJS from 'exceljs';
+import type ExcelJS from 'exceljs';
 import { renderStatementXlsx } from '@/lib/services/commission/xlsx';
 import { loadXlsxWorkbook } from '@/lib/services/import/load-xlsx';
 
@@ -31,7 +31,11 @@ describe('renderStatementXlsx — safeText & edge branches', () => {
         commissionAmount: 50 as never,
       },
     ];
-    const buf = await renderStatementXlsx({ statement: baseStatement as never, items: items as never, partner: { name: 'П' } });
+    const buf = await renderStatementXlsx({
+      statement: baseStatement as never,
+      items: items as never,
+      partner: { name: 'П' },
+    });
     const wb = await loadXlsxWorkbook(buf);
     const sheet = wb.getWorksheet('Items');
     // Data row is row 2 (row 1 = header), col 2 = orderNumber
@@ -51,7 +55,11 @@ describe('renderStatementXlsx — safeText & edge branches', () => {
         commissionAmount: 100 as never,
       },
     ];
-    const buf = await renderStatementXlsx({ statement: baseStatement as never, items: items as never, partner: { name: 'П' } });
+    const buf = await renderStatementXlsx({
+      statement: baseStatement as never,
+      items: items as never,
+      partner: { name: 'П' },
+    });
     const wb = await loadXlsxWorkbook(buf);
     const sheet = wb.getWorksheet('Items');
     // col 2 = orderNumber
@@ -75,16 +83,38 @@ describe('renderStatementXlsx — safeText & edge branches', () => {
       },
     ];
     // Should not throw, just renders with sanitized text
-    const buf = await renderStatementXlsx({ statement: baseStatement as never, items: items as never, partner: { name: 'П' } });
+    const buf = await renderStatementXlsx({
+      statement: baseStatement as never,
+      items: items as never,
+      partner: { name: 'П' },
+    });
     expect(buf.length).toBeGreaterThan(1000);
   });
 
   it('alternating row shading: rows at idx 1 get a different fill from idx 0', async () => {
     const items = [
-      { id: 'i1', orderNumber: 'A', organizationName: 'O1', baseAmount: 100 as never, rate: 0.1 as never, commissionAmount: 10 as never },
-      { id: 'i2', orderNumber: 'B', organizationName: 'O2', baseAmount: 200 as never, rate: 0.1 as never, commissionAmount: 20 as never },
+      {
+        id: 'i1',
+        orderNumber: 'A',
+        organizationName: 'O1',
+        baseAmount: 100 as never,
+        rate: 0.1 as never,
+        commissionAmount: 10 as never,
+      },
+      {
+        id: 'i2',
+        orderNumber: 'B',
+        organizationName: 'O2',
+        baseAmount: 200 as never,
+        rate: 0.1 as never,
+        commissionAmount: 20 as never,
+      },
     ];
-    const buf = await renderStatementXlsx({ statement: baseStatement as never, items: items as never, partner: { name: 'П' } });
+    const buf = await renderStatementXlsx({
+      statement: baseStatement as never,
+      items: items as never,
+      partner: { name: 'П' },
+    });
     const wb = await loadXlsxWorkbook(buf);
     const sheet = wb.getWorksheet('Items');
     // Row 2 = idx 0 (not shaded), Row 3 = idx 1 (shaded with FFF9FAFB)
@@ -100,7 +130,11 @@ describe('renderStatementXlsx — safeText & edge branches', () => {
   });
 
   it('Summary sheet: "Средняя ставка" row has percent numFmt', async () => {
-    const buf = await renderStatementXlsx({ statement: baseStatement as never, items: [], partner: { name: 'TestPartner' } });
+    const buf = await renderStatementXlsx({
+      statement: baseStatement as never,
+      items: [],
+      partner: { name: 'TestPartner' },
+    });
     const wb = await loadXlsxWorkbook(buf);
     const summary = wb.getWorksheet('Summary');
     expect(summary).toBeDefined();
@@ -117,7 +151,11 @@ describe('renderStatementXlsx — safeText & edge branches', () => {
   });
 
   it('Summary sheet: "Итого база, ₽" row has currency numFmt', async () => {
-    const buf = await renderStatementXlsx({ statement: baseStatement as never, items: [], partner: { name: 'TestPartner' } });
+    const buf = await renderStatementXlsx({
+      statement: baseStatement as never,
+      items: [],
+      partner: { name: 'TestPartner' },
+    });
     const wb = await loadXlsxWorkbook(buf);
     const summary = wb.getWorksheet('Summary');
 
@@ -156,9 +194,20 @@ describe('renderStatementXlsx — safeText & edge branches', () => {
 
   it('auto-filter is applied when items.length > 0', async () => {
     const items = [
-      { id: 'i1', orderNumber: 'N1', organizationName: 'Org', baseAmount: 100 as never, rate: 0.1 as never, commissionAmount: 10 as never },
+      {
+        id: 'i1',
+        orderNumber: 'N1',
+        organizationName: 'Org',
+        baseAmount: 100 as never,
+        rate: 0.1 as never,
+        commissionAmount: 10 as never,
+      },
     ];
-    const buf = await renderStatementXlsx({ statement: baseStatement as never, items: items as never, partner: { name: 'П' } });
+    const buf = await renderStatementXlsx({
+      statement: baseStatement as never,
+      items: items as never,
+      partner: { name: 'П' },
+    });
     const wb = await loadXlsxWorkbook(buf);
     const sheet = wb.getWorksheet('Items');
     // autoFilter should be set when items > 0
@@ -166,7 +215,11 @@ describe('renderStatementXlsx — safeText & edge branches', () => {
   });
 
   it('no auto-filter when items is empty', async () => {
-    const buf = await renderStatementXlsx({ statement: baseStatement as never, items: [], partner: { name: 'П' } });
+    const buf = await renderStatementXlsx({
+      statement: baseStatement as never,
+      items: [],
+      partner: { name: 'П' },
+    });
     const wb = await loadXlsxWorkbook(buf);
     const sheet = wb.getWorksheet('Items');
     // autoFilter should NOT be set when no items (undefined or null)

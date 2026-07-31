@@ -15,8 +15,7 @@ export type CreateLeadByStaffInput = {
 };
 
 export type CreateLeadByStaffResult =
-  | { ok: true; lead: Lead }
-  | { ok: false; error: 'forbidden' | 'validation'; messages?: string[] };
+  { ok: true; lead: Lead } | { ok: false; error: 'forbidden' | 'validation'; messages?: string[] };
 
 /**
  * Ручное создание лида сотрудником (этап 5, ФТ-1.6; source=manual). Только
@@ -40,7 +39,7 @@ export async function createLeadByStaff(
   if (organizationId) {
     const org = await prisma.organization.findUnique({
       where: { id: organizationId },
-      select: { companyId: true }
+      select: { companyId: true },
     });
     if (!org) return { ok: false, error: 'validation', messages: ['Организация не найдена'] };
     if (session.role === 'manager' && (!session.companyId || org.companyId !== session.companyId)) {
@@ -62,8 +61,8 @@ export async function createLeadByStaff(
       clientContactEmail: v.contactEmail,
       subject: v.subject,
       notes: input.notes?.trim() || null,
-      status: 'new'
-    }
+      status: 'new',
+    },
   });
 
   await recordAudit(prisma, {
@@ -71,7 +70,7 @@ export async function createLeadByStaff(
     action: 'lead_created_manual',
     entity: 'lead',
     entityId: lead.id,
-    after: { organizationId, source: 'manual' }
+    after: { organizationId, source: 'manual' },
   });
 
   return { ok: true, lead };

@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { canSeeOrder, getCompanyTeamVisibility } = vi.hoisted(() => ({
   canSeeOrder: vi.fn(),
-  getCompanyTeamVisibility: vi.fn()
+  getCompanyTeamVisibility: vi.fn(),
 }));
 vi.mock('@/lib/auth/managerPolicy', () => ({ canSeeOrder, getCompanyTeamVisibility }));
 
@@ -19,7 +19,7 @@ vi.mock('@/lib/services/documents/upload-core', () => ({ persistUploadedDocument
 
 import {
   listCertificateScanTargets,
-  uploadCertificateScans
+  uploadCertificateScans,
 } from '@/lib/services/manager/certificateScans';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -36,21 +36,21 @@ const ORDER = {
     {
       id: 'i1',
       student: { name: 'Иванов Иван' },
-      certificate: { id: 'c1', number: 'АБ-1', documentId: null }
+      certificate: { id: 'c1', number: 'АБ-1', documentId: null },
     },
     {
       id: 'i2',
       student: { name: 'Петрова Анна' },
-      certificate: null
-    }
-  ]
+      certificate: null,
+    },
+  ],
 };
 
 function makePrisma(order: unknown) {
   const certificateUpdate = vi.fn().mockResolvedValue({});
   const prisma = {
     order: { findUnique: vi.fn().mockResolvedValue(order) },
-    certificate: { update: certificateUpdate }
+    certificate: { update: certificateUpdate },
   } as never;
   return { prisma, certificateUpdate };
 }
@@ -71,8 +71,12 @@ describe('listCertificateScanTargets', () => {
     const { prisma } = makePrisma({
       ...ORDER,
       items: [
-        { id: 'i1', student: { name: 'Иванов' }, certificate: { id: 'c1', number: 'АБ-1', documentId: 'd1' } }
-      ]
+        {
+          id: 'i1',
+          student: { name: 'Иванов' },
+          certificate: { id: 'c1', number: 'АБ-1', documentId: 'd1' },
+        },
+      ],
     });
     const res = await listCertificateScanTargets(prisma, session, 'o1');
     expect(res).toEqual({
@@ -83,9 +87,9 @@ describe('listCertificateScanTargets', () => {
           studentName: 'Иванов',
           certificateId: 'c1',
           certificateNumber: 'АБ-1',
-          hasScan: true
-        }
-      ]
+          hasScan: true,
+        },
+      ],
     });
   });
 
@@ -99,7 +103,7 @@ describe('listCertificateScanTargets', () => {
         studentName: 'Петрова Анна',
         certificateId: null,
         certificateNumber: null,
-        hasScan: false
+        hasScan: false,
       });
     }
   });
@@ -109,12 +113,12 @@ describe('listCertificateScanTargets', () => {
     const a = makePrisma(ORDER);
     expect(await listCertificateScanTargets(a.prisma, session, 'o1')).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     const b = makePrisma(null);
     expect(await listCertificateScanTargets(b.prisma, session, 'x')).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
   });
 });
@@ -124,7 +128,7 @@ describe('uploadCertificateScans', () => {
     const { prisma } = makePrisma(ORDER);
     expect(await uploadCertificateScans(prisma, session, { orderId: 'o1', files: [] })).toEqual({
       ok: false,
-      error: 'validation'
+      error: 'validation',
     });
   });
 
@@ -132,7 +136,7 @@ describe('uploadCertificateScans', () => {
     const { prisma } = makePrisma(null);
     const res = await uploadCertificateScans(prisma, session, {
       orderId: 'x',
-      files: [{ orderItemId: 'i1', file: file('a.pdf') }]
+      files: [{ orderItemId: 'i1', file: file('a.pdf') }],
     });
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
@@ -142,7 +146,7 @@ describe('uploadCertificateScans', () => {
     const { prisma, certificateUpdate } = makePrisma(ORDER);
     const res = await uploadCertificateScans(prisma, session, {
       orderId: 'o1',
-      files: [{ orderItemId: 'i1', file: file('a.pdf') }]
+      files: [{ orderItemId: 'i1', file: file('a.pdf') }],
     });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
     expect(persistUploadedDocument).not.toHaveBeenCalled();
@@ -153,11 +157,11 @@ describe('uploadCertificateScans', () => {
     const { prisma, certificateUpdate } = makePrisma(ORDER);
     const res = await uploadCertificateScans(prisma, session, {
       orderId: 'o1',
-      files: [{ orderItemId: 'i1', file: file('Иванов.pdf') }]
+      files: [{ orderItemId: 'i1', file: file('Иванов.pdf') }],
     });
     expect(res).toEqual({
       ok: true,
-      results: [{ fileName: 'Иванов.pdf', ok: true, orderItemId: 'i1', documentId: 'doc-new' }]
+      results: [{ fileName: 'Иванов.pdf', ok: true, orderItemId: 'i1', documentId: 'doc-new' }],
     });
     expect(persistUploadedDocument).toHaveBeenCalledWith(
       expect.anything(),
@@ -166,19 +170,19 @@ describe('uploadCertificateScans', () => {
         orderId: 'o1',
         direction: 'outgoing',
         docType: 'certificate',
-        uploadedById: 'm1'
+        uploadedById: 'm1',
       })
     );
     expect(certificateUpdate).toHaveBeenCalledWith({
       where: { id: 'c1' },
-      data: { documentId: 'doc-new' }
+      data: { documentId: 'doc-new' },
     });
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         action: 'certificate_scan_attached',
         entity: 'certificate',
-        entityId: 'c1'
+        entityId: 'c1',
       })
     );
   });
@@ -187,17 +191,21 @@ describe('uploadCertificateScans', () => {
     const { prisma } = makePrisma({
       ...ORDER,
       items: [
-        { id: 'i1', student: { name: 'Иванов' }, certificate: { id: 'c1', number: 'АБ-1', documentId: 'old-doc' } }
-      ]
+        {
+          id: 'i1',
+          student: { name: 'Иванов' },
+          certificate: { id: 'c1', number: 'АБ-1', documentId: 'old-doc' },
+        },
+      ],
     });
     await uploadCertificateScans(prisma, session, {
       orderId: 'o1',
-      files: [{ orderItemId: 'i1', file: file('new.pdf') }]
+      files: [{ orderItemId: 'i1', file: file('new.pdf') }],
     });
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        after: expect.objectContaining({ replacedDocumentId: 'old-doc', documentId: 'doc-new' })
+        after: expect.objectContaining({ replacedDocumentId: 'old-doc', documentId: 'doc-new' }),
       })
     );
   });
@@ -208,8 +216,8 @@ describe('uploadCertificateScans', () => {
       orderId: 'o1',
       files: [
         { orderItemId: 'чужая', file: file('чужой.pdf') },
-        { orderItemId: 'i1', file: file('Иванов.pdf') }
-      ]
+        { orderItemId: 'i1', file: file('Иванов.pdf') },
+      ],
     });
     expect(res.ok).toBe(true);
     if (res.ok) {
@@ -217,7 +225,7 @@ describe('uploadCertificateScans', () => {
         fileName: 'чужой.pdf',
         ok: false,
         orderItemId: 'чужая',
-        error: 'item_not_found'
+        error: 'item_not_found',
       });
       expect(res.results[1].ok).toBe(true);
     }
@@ -228,7 +236,7 @@ describe('uploadCertificateScans', () => {
     const { prisma, certificateUpdate } = makePrisma(ORDER);
     const res = await uploadCertificateScans(prisma, session, {
       orderId: 'o1',
-      files: [{ orderItemId: 'i2', file: file('Петрова.pdf') }]
+      files: [{ orderItemId: 'i2', file: file('Петрова.pdf') }],
     });
     expect(res.ok).toBe(true);
     if (res.ok) expect(res.results[0]).toMatchObject({ ok: false, error: 'certificate_missing' });
@@ -243,16 +251,24 @@ describe('uploadCertificateScans', () => {
     const { prisma, certificateUpdate } = makePrisma({
       ...ORDER,
       items: [
-        { id: 'i1', student: { name: 'Иванов' }, certificate: { id: 'c1', number: 'АБ-1', documentId: null } },
-        { id: 'i3', student: { name: 'Сидоров' }, certificate: { id: 'c3', number: 'АБ-3', documentId: null } }
-      ]
+        {
+          id: 'i1',
+          student: { name: 'Иванов' },
+          certificate: { id: 'c1', number: 'АБ-1', documentId: null },
+        },
+        {
+          id: 'i3',
+          student: { name: 'Сидоров' },
+          certificate: { id: 'c3', number: 'АБ-3', documentId: null },
+        },
+      ],
     });
     const res = await uploadCertificateScans(prisma, session, {
       orderId: 'o1',
       files: [
         { orderItemId: 'i1', file: file('плохой.exe') },
-        { orderItemId: 'i3', file: file('хороший.pdf') }
-      ]
+        { orderItemId: 'i3', file: file('хороший.pdf') },
+      ],
     });
     expect(res.ok).toBe(true);
     if (res.ok) {
@@ -262,7 +278,7 @@ describe('uploadCertificateScans', () => {
     expect(certificateUpdate).toHaveBeenCalledTimes(1);
     expect(certificateUpdate).toHaveBeenCalledWith({
       where: { id: 'c3' },
-      data: { documentId: 'doc-2' }
+      data: { documentId: 'doc-2' },
     });
   });
 });

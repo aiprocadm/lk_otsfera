@@ -20,7 +20,7 @@ const EMPTY: MyDayData = {
   dealsOpen: 0,
   dealsByStage: [],
   inboundFresh: 0,
-  callsMissed: 0
+  callsMissed: 0,
 };
 
 const FULL: MyDayData = {
@@ -30,16 +30,16 @@ const FULL: MyDayData = {
   readyToDeliver: 6,
   readyOrders: [
     { id: 'o1', orderNumber: '2026-1', title: 'Обучение по ОТ' },
-    { id: 'o2', orderNumber: null, title: 'Разработка документов' }
+    { id: 'o2', orderNumber: null, title: 'Разработка документов' },
   ],
   readyTruncated: true,
   dealsOpen: 5,
   dealsByStage: [
     { stageName: 'Переговоры', count: 3 },
-    { stageName: 'Счёт', count: 2 }
+    { stageName: 'Счёт', count: 2 },
   ],
   inboundFresh: 4,
-  callsMissed: 1
+  callsMissed: 1,
 };
 
 function render(data: MyDayData) {
@@ -55,7 +55,7 @@ describe('MyDayCards', () => {
       'Поступило',
       'Готово к передаче',
       'Мои сделки',
-      'Свежие обращения'
+      'Свежие обращения',
     ]) {
       expect(html).toContain(title);
     }
@@ -69,7 +69,7 @@ describe('MyDayCards', () => {
       '/manager/intake',
       '/manager/orders',
       '/manager/deals',
-      '/manager/inbox'
+      '/manager/inbox',
     ]) {
       expect(html).toContain(`href="${href}"`);
     }

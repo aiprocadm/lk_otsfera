@@ -103,9 +103,16 @@ describe('organization/dashboard — attention (unit)', () => {
   it('maps billedUnpaid orders with orderNumber', async () => {
     const prisma = {
       order: {
-        findMany: vi.fn()
+        findMany: vi
+          .fn()
           .mockResolvedValueOnce([
-            { id: 'o1', orderNumber: 'ЗАК-001', title: 'Заказ A', totalAmount: new Prisma.Decimal('100000'), paidAmount: new Prisma.Decimal('0') },
+            {
+              id: 'o1',
+              orderNumber: 'ЗАК-001',
+              title: 'Заказ A',
+              totalAmount: new Prisma.Decimal('100000'),
+              paidAmount: new Prisma.Decimal('0'),
+            },
           ])
           .mockResolvedValueOnce([]),
       },
@@ -124,9 +131,16 @@ describe('organization/dashboard — attention (unit)', () => {
   it('maps billedUnpaid orders without orderNumber → uses title', async () => {
     const prisma = {
       order: {
-        findMany: vi.fn()
+        findMany: vi
+          .fn()
           .mockResolvedValueOnce([
-            { id: 'o2', orderNumber: null, title: 'Безномерной заказ', totalAmount: new Prisma.Decimal('50000'), paidAmount: new Prisma.Decimal('0') },
+            {
+              id: 'o2',
+              orderNumber: null,
+              title: 'Безномерной заказ',
+              totalAmount: new Prisma.Decimal('50000'),
+              paidAmount: new Prisma.Decimal('0'),
+            },
           ])
           .mockResolvedValueOnce([]),
       },
@@ -141,14 +155,14 @@ describe('organization/dashboard — attention (unit)', () => {
   it('maps unsignedActs with order.orderNumber as meta', async () => {
     const prisma = {
       order: {
-        findMany: vi.fn()
-          .mockResolvedValueOnce([])
-          .mockResolvedValueOnce([]),
+        findMany: vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([]),
       },
       document: {
-        findMany: vi.fn().mockResolvedValue([
-          { id: 'd1', name: 'Акт-1.pdf', orderId: 'o3', order: { orderNumber: 'ЗАК-003' } },
-        ]),
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { id: 'd1', name: 'Акт-1.pdf', orderId: 'o3', order: { orderNumber: 'ЗАК-003' } },
+          ]),
       },
     } as unknown as PrismaClient;
 
@@ -163,14 +177,14 @@ describe('organization/dashboard — attention (unit)', () => {
   it('maps unsignedActs with null order.orderNumber → meta is undefined', async () => {
     const prisma = {
       order: {
-        findMany: vi.fn()
-          .mockResolvedValueOnce([])
-          .mockResolvedValueOnce([]),
+        findMany: vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([]),
       },
       document: {
-        findMany: vi.fn().mockResolvedValue([
-          { id: 'd2', name: 'Акт-2.pdf', orderId: 'o4', order: { orderNumber: null } },
-        ]),
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { id: 'd2', name: 'Акт-2.pdf', orderId: 'o4', order: { orderNumber: null } },
+          ]),
       },
     } as unknown as PrismaClient;
 
@@ -182,11 +196,10 @@ describe('organization/dashboard — attention (unit)', () => {
   it('maps completedOpen orders with orderNumber', async () => {
     const prisma = {
       order: {
-        findMany: vi.fn()
+        findMany: vi
+          .fn()
           .mockResolvedValueOnce([])
-          .mockResolvedValueOnce([
-            { id: 'o5', orderNumber: 'ЗАК-005', title: 'Готов' },
-          ]),
+          .mockResolvedValueOnce([{ id: 'o5', orderNumber: 'ЗАК-005', title: 'Готов' }]),
       },
       document: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
@@ -201,7 +214,8 @@ describe('organization/dashboard — attention (unit)', () => {
   it('maps completedOpen orders without orderNumber → uses title', async () => {
     const prisma = {
       order: {
-        findMany: vi.fn()
+        findMany: vi
+          .fn()
           .mockResolvedValueOnce([])
           .mockResolvedValueOnce([
             { id: 'o6', orderNumber: null, title: 'Безномерной завершённый' },
@@ -225,23 +239,25 @@ describe('organization/dashboard — recentEvents (unit)', () => {
 
     const prisma = {
       document: {
-        findMany: vi.fn().mockResolvedValue([
-          { id: 'doc1', name: 'Договор.pdf', createdAt: t1, orderId: 'o1' },
-        ]),
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: 'doc1', name: 'Договор.pdf', createdAt: t1, orderId: 'o1' }]),
       },
       payment: {
-        findMany: vi.fn().mockResolvedValue([
-          { id: 'pay1', amount: new Prisma.Decimal('5000'), paidAt: t2, orderId: 'o1' },
-        ]),
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { id: 'pay1', amount: new Prisma.Decimal('5000'), paidAt: t2, orderId: 'o1' },
+          ]),
       },
       // Статус-события приходят из raw-join (скоуп по org на уровне SQL).
-      $queryRaw: vi.fn().mockResolvedValue([
-        { id: 'aud1', entityId: 'o1', createdAt: t3 },
-      ]),
+      $queryRaw: vi.fn().mockResolvedValue([{ id: 'aud1', entityId: 'o1', createdAt: t3 }]),
       comment: {
-        findMany: vi.fn().mockResolvedValue([
-          { id: 'cmt1', createdAt: t4, orderId: 'o1', body: 'Комментарий к заказу' },
-        ]),
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { id: 'cmt1', createdAt: t4, orderId: 'o1', body: 'Комментарий к заказу' },
+          ]),
       },
     } as unknown as PrismaClient;
 
@@ -261,9 +277,11 @@ describe('organization/dashboard — recentEvents (unit)', () => {
       payment: { findMany: vi.fn().mockResolvedValue([]) },
       $queryRaw: vi.fn().mockResolvedValue([]),
       comment: {
-        findMany: vi.fn().mockResolvedValue([
-          { id: 'cmt2', createdAt: new Date(), orderId: 'o1', body: longBody },
-        ]),
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { id: 'cmt2', createdAt: new Date(), orderId: 'o1', body: longBody },
+          ]),
       },
     } as unknown as PrismaClient;
 
@@ -279,9 +297,11 @@ describe('organization/dashboard — recentEvents (unit)', () => {
       payment: { findMany: vi.fn().mockResolvedValue([]) },
       $queryRaw: vi.fn().mockResolvedValue([]),
       comment: {
-        findMany: vi.fn().mockResolvedValue([
-          { id: 'cmt3', createdAt: new Date(), orderId: 'o1', body: shortBody },
-        ]),
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { id: 'cmt3', createdAt: new Date(), orderId: 'o1', body: shortBody },
+          ]),
       },
     } as unknown as PrismaClient;
 
@@ -293,7 +313,10 @@ describe('organization/dashboard — recentEvents (unit)', () => {
 
   it('respects take parameter (default 15)', async () => {
     const manyDocs = Array.from({ length: 25 }, (_, i) => ({
-      id: `doc${i}`, name: `doc${i}.pdf`, createdAt: new Date(Date.now() - i * 1000), orderId: 'o1',
+      id: `doc${i}`,
+      name: `doc${i}.pdf`,
+      createdAt: new Date(Date.now() - i * 1000),
+      orderId: 'o1',
     }));
     const prisma = {
       document: { findMany: vi.fn().mockResolvedValue(manyDocs) },
@@ -331,8 +354,16 @@ describe('organization/finance (unit)', () => {
     const prisma = {
       order: {
         findMany: vi.fn().mockResolvedValue([
-          { organizationId: 'org-1', totalAmount: new Prisma.Decimal('100000'), paidAmount: new Prisma.Decimal('40000') },
-          { organizationId: 'org-1', totalAmount: new Prisma.Decimal('50000'), paidAmount: new Prisma.Decimal('50000') },
+          {
+            organizationId: 'org-1',
+            totalAmount: new Prisma.Decimal('100000'),
+            paidAmount: new Prisma.Decimal('40000'),
+          },
+          {
+            organizationId: 'org-1',
+            totalAmount: new Prisma.Decimal('50000'),
+            paidAmount: new Prisma.Decimal('50000'),
+          },
         ]),
       },
     } as unknown as PrismaClient;
@@ -348,8 +379,12 @@ describe('organization/finance (unit)', () => {
       payment: {
         findMany: vi.fn().mockResolvedValue([
           {
-            id: 'pay1', amount: new Prisma.Decimal('5000'), paidAt: new Date('2026-06-01'),
-            method: 'bank', isRefund: false, note: null,
+            id: 'pay1',
+            amount: new Prisma.Decimal('5000'),
+            paidAt: new Date('2026-06-01'),
+            method: 'bank',
+            isRefund: false,
+            note: null,
             order: { id: 'o1', orderNumber: 'ЗАК-001' },
           },
         ]),
@@ -369,8 +404,12 @@ describe('organization/finance (unit)', () => {
       payment: {
         findMany: vi.fn().mockResolvedValue([
           {
-            id: 'pay2', amount: new Prisma.Decimal('12345'), paidAt: new Date('2026-06-01'),
-            method: null, isRefund: false, note: null,
+            id: 'pay2',
+            amount: new Prisma.Decimal('12345'),
+            paidAt: new Date('2026-06-01'),
+            method: null,
+            isRefund: false,
+            note: null,
             order: null,
           },
         ]),
@@ -402,9 +441,9 @@ describe('organization/finance (unit)', () => {
   it('getOrgIntermediaryCommission: no rate (no override, no partner) → zero result', async () => {
     const prisma = {
       organization: {
-        findMany: vi.fn().mockResolvedValue([
-          { id: 'org-1', partnerCommissionRate: null, partner: null },
-        ]),
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: 'org-1', partnerCommissionRate: null, partner: null }]),
       },
     } as unknown as PrismaClient;
 
@@ -416,7 +455,12 @@ describe('organization/finance (unit)', () => {
     calculateCommissionMock.mockReturnValue({
       totals: { totalCommissionAmount: new Prisma.Decimal('15000') },
       items: [
-        { orderId: 'o1', orderNumber: 'ЗАК-001', baseAmount: new Prisma.Decimal('100000'), commissionAmount: new Prisma.Decimal('15000') },
+        {
+          orderId: 'o1',
+          orderNumber: 'ЗАК-001',
+          baseAmount: new Prisma.Decimal('100000'),
+          commissionAmount: new Prisma.Decimal('15000'),
+        },
       ],
     });
     const prisma = {
@@ -431,7 +475,14 @@ describe('organization/finance (unit)', () => {
       },
       order: {
         findMany: vi.fn().mockResolvedValue([
-          { id: 'o1', orderNumber: 'ЗАК-001', organizationId: 'org-1', totalAmount: new Prisma.Decimal('100000'), vatIncluded: true, vatRate: null },
+          {
+            id: 'o1',
+            orderNumber: 'ЗАК-001',
+            organizationId: 'org-1',
+            totalAmount: new Prisma.Decimal('100000'),
+            vatIncluded: true,
+            vatRate: null,
+          },
         ]),
       },
     } as unknown as PrismaClient;
@@ -446,7 +497,12 @@ describe('organization/finance (unit)', () => {
     calculateCommissionMock.mockReturnValue({
       totals: { totalCommissionAmount: new Prisma.Decimal('1000') },
       items: [
-        { orderId: 'o1', orderNumber: null, baseAmount: new Prisma.Decimal('10000'), commissionAmount: new Prisma.Decimal('1000') },
+        {
+          orderId: 'o1',
+          orderNumber: null,
+          baseAmount: new Prisma.Decimal('10000'),
+          commissionAmount: new Prisma.Decimal('1000'),
+        },
       ],
     });
     const prisma = {
@@ -461,7 +517,14 @@ describe('organization/finance (unit)', () => {
       },
       order: {
         findMany: vi.fn().mockResolvedValue([
-          { id: 'o1', orderNumber: null, organizationId: 'org-1', totalAmount: new Prisma.Decimal('10000'), vatIncluded: true, vatRate: null },
+          {
+            id: 'o1',
+            orderNumber: null,
+            organizationId: 'org-1',
+            totalAmount: new Prisma.Decimal('10000'),
+            vatIncluded: true,
+            vatRate: null,
+          },
         ]),
       },
     } as unknown as PrismaClient;
@@ -492,8 +555,11 @@ describe('organization/students (unit)', () => {
 
   it('returns students with correct shape', async () => {
     const student = {
-      id: 's1', name: 'Иван Петров', email: 'ivan@demo.local',
-      externalStudentId: 'EXT-001', createdAt: new Date('2026-01-01'),
+      id: 's1',
+      name: 'Иван Петров',
+      email: 'ivan@demo.local',
+      externalStudentId: 'EXT-001',
+      createdAt: new Date('2026-01-01'),
     };
     const prisma = {
       student: {
@@ -522,7 +588,9 @@ describe('organization/students (unit)', () => {
 
   it('no search → no OR clause', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { student: { count: vi.fn().mockResolvedValue(0), findMany } } as unknown as PrismaClient;
+    const prisma = {
+      student: { count: vi.fn().mockResolvedValue(0), findMany },
+    } as unknown as PrismaClient;
 
     await listOrgStudents(prisma, { organizationId: 'org-1' });
 
@@ -532,7 +600,9 @@ describe('organization/students (unit)', () => {
 
   it('normalizeTake: undefined → 50', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { student: { count: vi.fn().mockResolvedValue(0), findMany } } as unknown as PrismaClient;
+    const prisma = {
+      student: { count: vi.fn().mockResolvedValue(0), findMany },
+    } as unknown as PrismaClient;
 
     await listOrgStudents(prisma, { organizationId: 'org-1' });
     expect(findMany.mock.calls[0][0].take).toBe(50);
@@ -540,7 +610,9 @@ describe('organization/students (unit)', () => {
 
   it('normalizeTake: 0 (invalid) → 50', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { student: { count: vi.fn().mockResolvedValue(0), findMany } } as unknown as PrismaClient;
+    const prisma = {
+      student: { count: vi.fn().mockResolvedValue(0), findMany },
+    } as unknown as PrismaClient;
 
     await listOrgStudents(prisma, { organizationId: 'org-1', take: 0 });
     expect(findMany.mock.calls[0][0].take).toBe(50);
@@ -548,7 +620,9 @@ describe('organization/students (unit)', () => {
 
   it('normalizeTake: 999 → clamped to 200', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { student: { count: vi.fn().mockResolvedValue(0), findMany } } as unknown as PrismaClient;
+    const prisma = {
+      student: { count: vi.fn().mockResolvedValue(0), findMany },
+    } as unknown as PrismaClient;
 
     await listOrgStudents(prisma, { organizationId: 'org-1', take: 999 });
     expect(findMany.mock.calls[0][0].take).toBe(200);
@@ -556,7 +630,9 @@ describe('organization/students (unit)', () => {
 
   it('normalizeSkip: negative → 0', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { student: { count: vi.fn().mockResolvedValue(0), findMany } } as unknown as PrismaClient;
+    const prisma = {
+      student: { count: vi.fn().mockResolvedValue(0), findMany },
+    } as unknown as PrismaClient;
 
     await listOrgStudents(prisma, { organizationId: 'org-1', skip: -5 });
     expect(findMany.mock.calls[0][0].skip).toBe(0);
@@ -564,7 +640,9 @@ describe('organization/students (unit)', () => {
 
   it('normalizeSkip: 10 → 10', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { student: { count: vi.fn().mockResolvedValue(0), findMany } } as unknown as PrismaClient;
+    const prisma = {
+      student: { count: vi.fn().mockResolvedValue(0), findMany },
+    } as unknown as PrismaClient;
 
     await listOrgStudents(prisma, { organizationId: 'org-1', skip: 10 });
     expect(findMany.mock.calls[0][0].skip).toBe(10);
@@ -575,7 +653,13 @@ describe('organization/students (unit)', () => {
       student: {
         count: vi.fn().mockResolvedValue(1),
         findMany: vi.fn().mockResolvedValue([
-          { id: 's2', name: 'Мария', email: 'm@demo.local', externalStudentId: null, createdAt: new Date() },
+          {
+            id: 's2',
+            name: 'Мария',
+            email: 'm@demo.local',
+            externalStudentId: null,
+            createdAt: new Date(),
+          },
         ]),
       },
     } as unknown as PrismaClient;
@@ -613,21 +697,28 @@ describe('organization/documents (unit)', () => {
         count: vi.fn().mockResolvedValue(1),
         findMany: vi.fn().mockResolvedValue([
           {
-            id: 'd1', name: 'doc.pdf', type: 'contract', direction: 'inbound',
-            signedAt: null, createdAt: now, size: 1024, orderId: 'o1',
+            id: 'd1',
+            name: 'doc.pdf',
+            type: 'contract',
+            direction: 'inbound',
+            signedAt: null,
+            createdAt: now,
+            size: 1024,
+            orderId: 'o1',
             order: { orderNumber: 'ЗАК-001', title: 'Заказ 1' },
           },
         ]),
-        groupBy: vi.fn().mockResolvedValue([
-          { type: 'contract', _count: { _all: 1 } },
-        ]),
+        groupBy: vi.fn().mockResolvedValue([{ type: 'contract', _count: { _all: 1 } }]),
       },
     } as unknown as PrismaClient;
 
     const result = await listOrgDocuments(prisma, { organizationId: 'org-1' });
     expect(result.rows[0]).toMatchObject({
-      id: 'd1', name: 'doc.pdf', type: 'contract',
-      orderNumber: 'ЗАК-001', orderTitle: 'Заказ 1',
+      id: 'd1',
+      name: 'doc.pdf',
+      type: 'contract',
+      orderNumber: 'ЗАК-001',
+      orderTitle: 'Заказ 1',
     });
     expect(result.countsByType.contract).toBe(1);
   });
@@ -638,8 +729,14 @@ describe('organization/documents (unit)', () => {
         count: vi.fn().mockResolvedValue(1),
         findMany: vi.fn().mockResolvedValue([
           {
-            id: 'd2', name: 'orderless.pdf', type: 'other', direction: 'outbound',
-            signedAt: null, createdAt: new Date(), size: null, orderId: null,
+            id: 'd2',
+            name: 'orderless.pdf',
+            type: 'other',
+            direction: 'outbound',
+            signedAt: null,
+            createdAt: new Date(),
+            size: null,
+            orderId: null,
             order: null,
           },
         ]),
@@ -719,7 +816,11 @@ describe('organization/documents (unit)', () => {
   it('listOrgDocuments: normalizeTake invalid (-5) → 50', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const prisma = {
-      document: { count: vi.fn().mockResolvedValue(0), findMany, groupBy: vi.fn().mockResolvedValue([]) },
+      document: {
+        count: vi.fn().mockResolvedValue(0),
+        findMany,
+        groupBy: vi.fn().mockResolvedValue([]),
+      },
     } as unknown as PrismaClient;
 
     await listOrgDocuments(prisma, { organizationId: 'org-1', take: -5 });
@@ -729,7 +830,11 @@ describe('organization/documents (unit)', () => {
   it('listOrgDocuments: normalizeSkip negative (-10) → 0', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const prisma = {
-      document: { count: vi.fn().mockResolvedValue(0), findMany, groupBy: vi.fn().mockResolvedValue([]) },
+      document: {
+        count: vi.fn().mockResolvedValue(0),
+        findMany,
+        groupBy: vi.fn().mockResolvedValue([]),
+      },
     } as unknown as PrismaClient;
 
     await listOrgDocuments(prisma, { organizationId: 'org-1', skip: -10 });
@@ -749,9 +854,14 @@ describe('organization/documents (unit)', () => {
     const prisma = {
       document: {
         findUnique: vi.fn().mockResolvedValue({
-          id: 'd1', name: 'partner-doc.pdf', path: 'fake://1', mimeType: 'application/pdf',
-          scanStatus: 'clean', scanReason: null,
-          counterpartyType: 'partner', counterpartyId: 'partner-1',
+          id: 'd1',
+          name: 'partner-doc.pdf',
+          path: 'fake://1',
+          mimeType: 'application/pdf',
+          scanStatus: 'clean',
+          scanReason: null,
+          counterpartyType: 'partner',
+          counterpartyId: 'partner-1',
         }),
       },
     } as unknown as PrismaClient;
@@ -764,9 +874,14 @@ describe('organization/documents (unit)', () => {
     const prisma = {
       document: {
         findUnique: vi.fn().mockResolvedValue({
-          id: 'd2', name: 'other-org.pdf', path: 'fake://2', mimeType: 'application/pdf',
-          scanStatus: 'clean', scanReason: null,
-          counterpartyType: 'organization', counterpartyId: 'other-org', // wrong org
+          id: 'd2',
+          name: 'other-org.pdf',
+          path: 'fake://2',
+          mimeType: 'application/pdf',
+          scanStatus: 'clean',
+          scanReason: null,
+          counterpartyType: 'organization',
+          counterpartyId: 'other-org', // wrong org
         }),
       },
     } as unknown as PrismaClient;
@@ -779,9 +894,14 @@ describe('organization/documents (unit)', () => {
     const prisma = {
       document: {
         findUnique: vi.fn().mockResolvedValue({
-          id: 'd3', name: 'bad.pdf', path: 'fake://3', mimeType: 'application/pdf',
-          scanStatus: 'infected', scanReason: 'Malware.Gen',
-          counterpartyType: 'organization', counterpartyId: 'org-1',
+          id: 'd3',
+          name: 'bad.pdf',
+          path: 'fake://3',
+          mimeType: 'application/pdf',
+          scanStatus: 'infected',
+          scanReason: 'Malware.Gen',
+          counterpartyType: 'organization',
+          counterpartyId: 'org-1',
         }),
       },
     } as unknown as PrismaClient;
@@ -794,9 +914,14 @@ describe('organization/documents (unit)', () => {
     const prisma = {
       document: {
         findUnique: vi.fn().mockResolvedValue({
-          id: 'd4', name: 'bad2.pdf', path: 'fake://4', mimeType: 'application/pdf',
-          scanStatus: 'infected', scanReason: null,
-          counterpartyType: 'organization', counterpartyId: 'org-1',
+          id: 'd4',
+          name: 'bad2.pdf',
+          path: 'fake://4',
+          mimeType: 'application/pdf',
+          scanStatus: 'infected',
+          scanReason: null,
+          counterpartyType: 'organization',
+          counterpartyId: 'org-1',
         }),
       },
     } as unknown as PrismaClient;
@@ -809,21 +934,35 @@ describe('organization/documents (unit)', () => {
     const prisma = {
       document: {
         findUnique: vi.fn().mockResolvedValue({
-          id: 'd5', name: 'clean.pdf', path: 'fake://5', mimeType: 'application/pdf',
-          scanStatus: 'clean', scanReason: null,
-          counterpartyType: 'organization', counterpartyId: 'org-1',
+          id: 'd5',
+          name: 'clean.pdf',
+          path: 'fake://5',
+          mimeType: 'application/pdf',
+          scanStatus: 'clean',
+          scanReason: null,
+          counterpartyType: 'organization',
+          counterpartyId: 'org-1',
         }),
       },
     } as unknown as PrismaClient;
 
     const result = await getOrgDocumentForDownload(prisma, 'org-1', 'd5');
-    expect(result).toEqual({ ok: true, path: 'fake://5', mimeType: 'application/pdf', name: 'clean.pdf' });
+    expect(result).toEqual({
+      ok: true,
+      path: 'fake://5',
+      mimeType: 'application/pdf',
+      name: 'clean.pdf',
+    });
   });
 
   it('listOrgDocuments: normalizeTake Infinity → 50', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const prisma = {
-      document: { count: vi.fn().mockResolvedValue(0), findMany, groupBy: vi.fn().mockResolvedValue([]) },
+      document: {
+        count: vi.fn().mockResolvedValue(0),
+        findMany,
+        groupBy: vi.fn().mockResolvedValue([]),
+      },
     } as unknown as PrismaClient;
 
     await listOrgDocuments(prisma, { organizationId: 'org-1', take: Infinity });
@@ -833,7 +972,11 @@ describe('organization/documents (unit)', () => {
   it('listOrgDocuments: normalizeSkip Infinity → 0', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const prisma = {
-      document: { count: vi.fn().mockResolvedValue(0), findMany, groupBy: vi.fn().mockResolvedValue([]) },
+      document: {
+        count: vi.fn().mockResolvedValue(0),
+        findMany,
+        groupBy: vi.fn().mockResolvedValue([]),
+      },
     } as unknown as PrismaClient;
 
     await listOrgDocuments(prisma, { organizationId: 'org-1', skip: Infinity });
@@ -843,7 +986,11 @@ describe('organization/documents (unit)', () => {
   it('listOrgDocuments: valid take (10) passes through normalizeTake', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const prisma = {
-      document: { count: vi.fn().mockResolvedValue(0), findMany, groupBy: vi.fn().mockResolvedValue([]) },
+      document: {
+        count: vi.fn().mockResolvedValue(0),
+        findMany,
+        groupBy: vi.fn().mockResolvedValue([]),
+      },
     } as unknown as PrismaClient;
 
     await listOrgDocuments(prisma, { organizationId: 'org-1', take: 10 });
@@ -853,7 +1000,11 @@ describe('organization/documents (unit)', () => {
   it('listOrgDocuments: valid skip (5) passes through normalizeSkip', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const prisma = {
-      document: { count: vi.fn().mockResolvedValue(0), findMany, groupBy: vi.fn().mockResolvedValue([]) },
+      document: {
+        count: vi.fn().mockResolvedValue(0),
+        findMany,
+        groupBy: vi.fn().mockResolvedValue([]),
+      },
     } as unknown as PrismaClient;
 
     await listOrgDocuments(prisma, { organizationId: 'org-1', skip: 5 });
@@ -863,7 +1014,11 @@ describe('organization/documents (unit)', () => {
   it('listOrgDocuments: orderId filter applied', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const prisma = {
-      document: { count: vi.fn().mockResolvedValue(0), findMany, groupBy: vi.fn().mockResolvedValue([]) },
+      document: {
+        count: vi.fn().mockResolvedValue(0),
+        findMany,
+        groupBy: vi.fn().mockResolvedValue([]),
+      },
     } as unknown as PrismaClient;
 
     await listOrgDocuments(prisma, { organizationId: 'org-1', orderId: 'o1' });
@@ -874,7 +1029,11 @@ describe('organization/documents (unit)', () => {
   it('listOrgDocuments: search filter applied', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const prisma = {
-      document: { count: vi.fn().mockResolvedValue(0), findMany, groupBy: vi.fn().mockResolvedValue([]) },
+      document: {
+        count: vi.fn().mockResolvedValue(0),
+        findMany,
+        groupBy: vi.fn().mockResolvedValue([]),
+      },
     } as unknown as PrismaClient;
 
     await listOrgDocuments(prisma, { organizationId: 'org-1', search: 'договор' });
@@ -908,10 +1067,15 @@ describe('organization/orders (unit)', () => {
         count: vi.fn().mockResolvedValue(1),
         findMany: vi.fn().mockResolvedValue([
           {
-            id: 'o1', orderNumber: 'ЗАК-001', title: 'Тест',
-            totalAmount: new Prisma.Decimal('100000'), paidAmount: new Prisma.Decimal('0'),
-            executionStatus: 'in_progress', financialStatus: 'billed',
-            createdAt: new Date('2026-01-01'), deadline: null,
+            id: 'o1',
+            orderNumber: 'ЗАК-001',
+            title: 'Тест',
+            totalAmount: new Prisma.Decimal('100000'),
+            paidAmount: new Prisma.Decimal('0'),
+            executionStatus: 'in_progress',
+            financialStatus: 'billed',
+            createdAt: new Date('2026-01-01'),
+            deadline: null,
             manager: { name: 'Иван Менеджер' },
           },
         ]),
@@ -931,10 +1095,15 @@ describe('organization/orders (unit)', () => {
         count: vi.fn().mockResolvedValue(1),
         findMany: vi.fn().mockResolvedValue([
           {
-            id: 'o2', orderNumber: null, title: 'БезМенеджера',
-            totalAmount: new Prisma.Decimal('5000'), paidAmount: new Prisma.Decimal('5000'),
-            executionStatus: 'completed', financialStatus: 'paid',
-            createdAt: new Date(), deadline: null,
+            id: 'o2',
+            orderNumber: null,
+            title: 'БезМенеджера',
+            totalAmount: new Prisma.Decimal('5000'),
+            paidAmount: new Prisma.Decimal('5000'),
+            executionStatus: 'completed',
+            financialStatus: 'paid',
+            createdAt: new Date(),
+            deadline: null,
             manager: null,
           },
         ]),
@@ -948,7 +1117,9 @@ describe('organization/orders (unit)', () => {
 
   it('listOrgOrders: executionStatus filter', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { order: { count: vi.fn().mockResolvedValue(0), findMany } } as unknown as PrismaClient;
+    const prisma = {
+      order: { count: vi.fn().mockResolvedValue(0), findMany },
+    } as unknown as PrismaClient;
 
     await listOrgOrders(prisma, { organizationId: 'org-1', executionStatus: 'completed' });
     const whereArg = findMany.mock.calls[0][0].where;
@@ -957,7 +1128,9 @@ describe('organization/orders (unit)', () => {
 
   it('listOrgOrders: financialStatus filter', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { order: { count: vi.fn().mockResolvedValue(0), findMany } } as unknown as PrismaClient;
+    const prisma = {
+      order: { count: vi.fn().mockResolvedValue(0), findMany },
+    } as unknown as PrismaClient;
 
     await listOrgOrders(prisma, { organizationId: 'org-1', financialStatus: 'paid' });
     const whereArg = findMany.mock.calls[0][0].where;
@@ -966,7 +1139,9 @@ describe('organization/orders (unit)', () => {
 
   it('listOrgOrders: search filter builds OR clause', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { order: { count: vi.fn().mockResolvedValue(0), findMany } } as unknown as PrismaClient;
+    const prisma = {
+      order: { count: vi.fn().mockResolvedValue(0), findMany },
+    } as unknown as PrismaClient;
 
     await listOrgOrders(prisma, { organizationId: 'org-1', search: 'тест' });
     const whereArg = findMany.mock.calls[0][0].where;
@@ -975,7 +1150,9 @@ describe('organization/orders (unit)', () => {
 
   it('listOrgOrders: no status filter → no executionStatus/financialStatus in where', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { order: { count: vi.fn().mockResolvedValue(0), findMany } } as unknown as PrismaClient;
+    const prisma = {
+      order: { count: vi.fn().mockResolvedValue(0), findMany },
+    } as unknown as PrismaClient;
 
     await listOrgOrders(prisma, { organizationId: 'org-1' });
     const whereArg = findMany.mock.calls[0][0].where;
@@ -985,7 +1162,9 @@ describe('organization/orders (unit)', () => {
 
   it('listOrgOrders: take 200 clamped to MAX_TAKE=100, skip -3 → 0', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { order: { count: vi.fn().mockResolvedValue(0), findMany } } as unknown as PrismaClient;
+    const prisma = {
+      order: { count: vi.fn().mockResolvedValue(0), findMany },
+    } as unknown as PrismaClient;
 
     await listOrgOrders(prisma, { organizationId: 'org-1', take: 200, skip: -3 });
     expect(findMany.mock.calls[0][0].take).toBe(100);
@@ -1005,13 +1184,28 @@ describe('organization/orders (unit)', () => {
     const prisma = {
       order: {
         findUnique: vi.fn().mockResolvedValue({
-          id: 'o1', organizationId: 'other-org',
-          orderNumber: null, title: 'Чужой', totalAmount: new Prisma.Decimal('0'),
-          paidAmount: new Prisma.Decimal('0'), vatIncluded: true, vatRate: null, productMix: [],
-          executionStatus: 'pending', financialStatus: 'not_billed',
-          createdAt: new Date(), deadline: null, contractSignedAt: null,
-          completedAt: null, closedAt: null, paidAt: null, lastSyncedAt: null,
-          manager: null, documents: [], payments: [], _count: { comments: 0 },
+          id: 'o1',
+          organizationId: 'other-org',
+          orderNumber: null,
+          title: 'Чужой',
+          totalAmount: new Prisma.Decimal('0'),
+          paidAmount: new Prisma.Decimal('0'),
+          vatIncluded: true,
+          vatRate: null,
+          productMix: [],
+          executionStatus: 'pending',
+          financialStatus: 'not_billed',
+          createdAt: new Date(),
+          deadline: null,
+          contractSignedAt: null,
+          completedAt: null,
+          closedAt: null,
+          paidAt: null,
+          lastSyncedAt: null,
+          manager: null,
+          documents: [],
+          payments: [],
+          _count: { comments: 0 },
         }),
       },
     } as unknown as PrismaClient;
@@ -1025,19 +1219,45 @@ describe('organization/orders (unit)', () => {
     const prisma = {
       order: {
         findUnique: vi.fn().mockResolvedValue({
-          id: 'o1', organizationId: 'org-1',
-          orderNumber: 'ЗАК-001', title: 'Тестовый заказ',
-          totalAmount: new Prisma.Decimal('50000'), paidAmount: new Prisma.Decimal('25000'),
-          vatIncluded: true, vatRate: new Prisma.Decimal('20'), productMix: ['IT'],
-          executionStatus: 'in_progress', financialStatus: 'partially_paid',
-          createdAt: now, deadline: null, contractSignedAt: null,
-          completedAt: null, closedAt: null, paidAt: null, lastSyncedAt: null,
+          id: 'o1',
+          organizationId: 'org-1',
+          orderNumber: 'ЗАК-001',
+          title: 'Тестовый заказ',
+          totalAmount: new Prisma.Decimal('50000'),
+          paidAmount: new Prisma.Decimal('25000'),
+          vatIncluded: true,
+          vatRate: new Prisma.Decimal('20'),
+          productMix: ['IT'],
+          executionStatus: 'in_progress',
+          financialStatus: 'partially_paid',
+          createdAt: now,
+          deadline: null,
+          contractSignedAt: null,
+          completedAt: null,
+          closedAt: null,
+          paidAt: null,
+          lastSyncedAt: null,
           manager: { name: 'Менеджер Иван' },
           documents: [
-            { id: 'd1', name: 'doc.pdf', type: 'contract', direction: 'inbound', signedAt: null, createdAt: now, size: 512 },
+            {
+              id: 'd1',
+              name: 'doc.pdf',
+              type: 'contract',
+              direction: 'inbound',
+              signedAt: null,
+              createdAt: now,
+              size: 512,
+            },
           ],
           payments: [
-            { id: 'p1', amount: new Prisma.Decimal('25000'), paidAt: now, method: 'bank', isRefund: false, note: null },
+            {
+              id: 'p1',
+              amount: new Prisma.Decimal('25000'),
+              paidAt: now,
+              method: 'bank',
+              isRefund: false,
+              note: null,
+            },
           ],
           _count: { comments: 3 },
         }),
@@ -1060,15 +1280,28 @@ describe('organization/orders (unit)', () => {
     const prisma = {
       order: {
         findUnique: vi.fn().mockResolvedValue({
-          id: 'o2', organizationId: 'org-1',
-          orderNumber: null, title: 'БезНДС',
-          totalAmount: new Prisma.Decimal('10000'), paidAmount: new Prisma.Decimal('0'),
-          vatIncluded: false, vatRate: null,
+          id: 'o2',
+          organizationId: 'org-1',
+          orderNumber: null,
+          title: 'БезНДС',
+          totalAmount: new Prisma.Decimal('10000'),
+          paidAmount: new Prisma.Decimal('0'),
+          vatIncluded: false,
+          vatRate: null,
           productMix: [],
-          executionStatus: 'pending', financialStatus: 'not_billed',
-          createdAt: new Date(), deadline: null, contractSignedAt: null,
-          completedAt: null, closedAt: null, paidAt: null, lastSyncedAt: null,
-          manager: null, documents: [], payments: [], _count: { comments: 0 },
+          executionStatus: 'pending',
+          financialStatus: 'not_billed',
+          createdAt: new Date(),
+          deadline: null,
+          contractSignedAt: null,
+          completedAt: null,
+          closedAt: null,
+          paidAt: null,
+          lastSyncedAt: null,
+          manager: null,
+          documents: [],
+          payments: [],
+          _count: { comments: 0 },
         }),
       },
     } as unknown as PrismaClient;
@@ -1080,7 +1313,9 @@ describe('organization/orders (unit)', () => {
 
   it('listOrgOrders: normalizeTake Infinity → 25 (DEFAULT_TAKE)', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { order: { count: vi.fn().mockResolvedValue(0), findMany } } as unknown as PrismaClient;
+    const prisma = {
+      order: { count: vi.fn().mockResolvedValue(0), findMany },
+    } as unknown as PrismaClient;
 
     await listOrgOrders(prisma, { organizationId: 'org-1', take: Infinity });
     expect(findMany.mock.calls[0][0].take).toBe(25);
@@ -1088,7 +1323,9 @@ describe('organization/orders (unit)', () => {
 
   it('listOrgOrders: normalizeSkip Infinity → 0', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { order: { count: vi.fn().mockResolvedValue(0), findMany } } as unknown as PrismaClient;
+    const prisma = {
+      order: { count: vi.fn().mockResolvedValue(0), findMany },
+    } as unknown as PrismaClient;
 
     await listOrgOrders(prisma, { organizationId: 'org-1', skip: Infinity });
     expect(findMany.mock.calls[0][0].skip).toBe(0);
@@ -1096,7 +1333,9 @@ describe('organization/orders (unit)', () => {
 
   it('listOrgOrders: valid skip (10) passes through normalizeSkip', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { order: { count: vi.fn().mockResolvedValue(0), findMany } } as unknown as PrismaClient;
+    const prisma = {
+      order: { count: vi.fn().mockResolvedValue(0), findMany },
+    } as unknown as PrismaClient;
 
     await listOrgOrders(prisma, { organizationId: 'org-1', skip: 10 });
     expect(findMany.mock.calls[0][0].skip).toBe(10);
@@ -1107,14 +1346,27 @@ describe('organization/orders (unit)', () => {
     const prisma = {
       order: {
         findUnique: vi.fn().mockResolvedValue({
-          id: 'o1', organizationId: 'org-1',
-          orderNumber: 'ЗАК-001', title: 'Тестовый заказ',
-          totalAmount: new Prisma.Decimal('50000'), paidAmount: new Prisma.Decimal('0'),
-          vatIncluded: false, vatRate: null, productMix: [],
-          executionStatus: 'pending', financialStatus: 'not_billed',
-          createdAt: now, deadline: null, contractSignedAt: null,
-          completedAt: null, closedAt: null, paidAt: null, lastSyncedAt: null,
-          manager: null, documents: [], payments: [],
+          id: 'o1',
+          organizationId: 'org-1',
+          orderNumber: 'ЗАК-001',
+          title: 'Тестовый заказ',
+          totalAmount: new Prisma.Decimal('50000'),
+          paidAmount: new Prisma.Decimal('0'),
+          vatIncluded: false,
+          vatRate: null,
+          productMix: [],
+          executionStatus: 'pending',
+          financialStatus: 'not_billed',
+          createdAt: now,
+          deadline: null,
+          contractSignedAt: null,
+          completedAt: null,
+          closedAt: null,
+          paidAt: null,
+          lastSyncedAt: null,
+          manager: null,
+          documents: [],
+          payments: [],
           _count: { comments: 0 },
           items: [
             {
@@ -1127,9 +1379,9 @@ describe('organization/orders (unit)', () => {
               directionId: 'd1',
               student: { id: 's1', name: 'Анна Обучаемая', email: 'anna@demo.local' },
               direction: { id: 'd1', name: 'Пожарная безопасность' },
-              certificate: { id: 'cert1', number: 'ПБ-001', validUntil: null }
-            }
-          ]
+              certificate: { id: 'cert1', number: 'ПБ-001', validUntil: null },
+            },
+          ],
         }),
       },
     } as unknown as PrismaClient;
@@ -1146,16 +1398,29 @@ describe('organization/orders (unit)', () => {
     const prisma = {
       order: {
         findUnique: vi.fn().mockResolvedValue({
-          id: 'o2', organizationId: 'org-1',
-          orderNumber: null, title: 'БезПозиций',
-          totalAmount: new Prisma.Decimal('0'), paidAmount: new Prisma.Decimal('0'),
-          vatIncluded: false, vatRate: null, productMix: [],
-          executionStatus: 'pending', financialStatus: 'not_billed',
-          createdAt: new Date(), deadline: null, contractSignedAt: null,
-          completedAt: null, closedAt: null, paidAt: null, lastSyncedAt: null,
-          manager: null, documents: [], payments: [],
+          id: 'o2',
+          organizationId: 'org-1',
+          orderNumber: null,
+          title: 'БезПозиций',
+          totalAmount: new Prisma.Decimal('0'),
+          paidAmount: new Prisma.Decimal('0'),
+          vatIncluded: false,
+          vatRate: null,
+          productMix: [],
+          executionStatus: 'pending',
+          financialStatus: 'not_billed',
+          createdAt: new Date(),
+          deadline: null,
+          contractSignedAt: null,
+          completedAt: null,
+          closedAt: null,
+          paidAt: null,
+          lastSyncedAt: null,
+          manager: null,
+          documents: [],
+          payments: [],
           _count: { comments: 0 },
-          items: []
+          items: [],
         }),
       },
     } as unknown as PrismaClient;
@@ -1204,12 +1469,21 @@ describe('organization/team — listMembers (unit)', () => {
       organizationUser: {
         findMany: vi.fn().mockResolvedValue([
           {
-            id: 'ou1', userId: 'u1', isActive: true, roleInOrg: 'admin', createdAt: new Date(),
-            organizationId: 'org-1', user: { id: 'u1', email: 'admin@x', name: 'Admin' },
+            id: 'ou1',
+            userId: 'u1',
+            isActive: true,
+            roleInOrg: 'admin',
+            createdAt: new Date(),
+            organizationId: 'org-1',
+            user: { id: 'u1', email: 'admin@x', name: 'Admin' },
           },
           {
-            id: 'ou2', userId: 'u2', isActive: true, roleInOrg: null,
-            createdAt: new Date(), organizationId: 'org-1',
+            id: 'ou2',
+            userId: 'u2',
+            isActive: true,
+            roleInOrg: null,
+            createdAt: new Date(),
+            organizationId: 'org-1',
             user: { id: 'u2', email: 'mem@x', name: 'Member' },
           },
         ]),
@@ -1237,8 +1511,12 @@ describe('organization/team — listMembers (unit)', () => {
       organizationUser: {
         findMany: vi.fn().mockResolvedValue([
           {
-            id: 'ou-l', userId: 'u-l', isActive: true, roleInOrg: 'leader',
-            createdAt: new Date(), organizationId: 'org-1',
+            id: 'ou-l',
+            userId: 'u-l',
+            isActive: true,
+            roleInOrg: 'leader',
+            createdAt: new Date(),
+            organizationId: 'org-1',
             user: { id: 'u-l', email: 'leader@x', name: 'Leader' },
           },
         ]),
@@ -1259,7 +1537,9 @@ describe('organization/team — inviteMember (unit)', () => {
 
   it('creates new user + org membership + invite URL when no password', async () => {
     const tx = makeTx();
-    tx.user.create = vi.fn().mockResolvedValue({ id: 'u-new', email: 'new@x.com', passwordHash: null });
+    tx.user.create = vi
+      .fn()
+      .mockResolvedValue({ id: 'u-new', email: 'new@x.com', passwordHash: null });
     tx.organizationUser.create = vi.fn().mockResolvedValue({ id: 'ou-new' });
 
     const prisma = {
@@ -1269,7 +1549,7 @@ describe('organization/team — inviteMember (unit)', () => {
     const result = await inviteMember(
       prisma,
       { organizationId: 'org-1', email: 'new@x.com', name: 'Новый', roleInOrg: 'member' },
-      'actor-1',
+      'actor-1'
     );
 
     expect(result.ok).toBe(true);
@@ -1282,7 +1562,9 @@ describe('organization/team — inviteMember (unit)', () => {
 
   it('existing user with password → alreadyHasPassword=true, inviteUrl null', async () => {
     const tx = makeTx();
-    tx.user.findUnique = vi.fn().mockResolvedValue({ id: 'u2', email: 'old@x.com', passwordHash: 'hash123' });
+    tx.user.findUnique = vi
+      .fn()
+      .mockResolvedValue({ id: 'u2', email: 'old@x.com', passwordHash: 'hash123' });
     tx.organizationUser.create = vi.fn().mockResolvedValue({ id: 'ou2' });
 
     const prisma = {
@@ -1292,7 +1574,7 @@ describe('organization/team — inviteMember (unit)', () => {
     const result = await inviteMember(
       prisma,
       { organizationId: 'org-1', email: 'old@x.com', name: 'Старый', roleInOrg: 'member' },
-      'actor-1',
+      'actor-1'
     );
 
     expect(result.ok).toBe(true);
@@ -1303,16 +1585,25 @@ describe('organization/team — inviteMember (unit)', () => {
 
   it('existing ACTIVE membership → throws already_member', async () => {
     const tx = makeTx();
-    tx.user.findUnique = vi.fn().mockResolvedValue({ id: 'u3', email: 'dup@x.com', passwordHash: null });
+    tx.user.findUnique = vi
+      .fn()
+      .mockResolvedValue({ id: 'u3', email: 'dup@x.com', passwordHash: null });
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou3', isActive: true, roleInOrg: 'member', organizationId: 'org-1',
+      id: 'ou3',
+      isActive: true,
+      roleInOrg: 'member',
+      organizationId: 'org-1',
     });
 
     const prisma = {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
-    const res = await inviteMember(prisma, { organizationId: 'org-1', email: 'dup@x.com', name: 'Dup', roleInOrg: 'member' }, 'actor-1');
+    const res = await inviteMember(
+      prisma,
+      { organizationId: 'org-1', email: 'dup@x.com', name: 'Dup', roleInOrg: 'member' },
+      'actor-1'
+    );
     expect(res).toEqual({ ok: false, error: 'already_member' });
   });
 
@@ -1326,17 +1617,22 @@ describe('organization/team — inviteMember (unit)', () => {
       { organizationId: 'org-1', email: 'new@x.com', name: 'X', roleInOrg: 'admin' },
       'actor-1',
       {},
-      'leader',
+      'leader'
     );
     expect(res).toEqual({ ok: false, error: 'requires_admin' });
-    expect((prisma.$transaction as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(prisma.$transaction as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 
   it('leader cannot re-invite deactivated admin → throws requires_admin', async () => {
     const tx = makeTx();
-    tx.user.findUnique = vi.fn().mockResolvedValue({ id: 'u4', email: 'admin@x.com', passwordHash: 'x' });
+    tx.user.findUnique = vi
+      .fn()
+      .mockResolvedValue({ id: 'u4', email: 'admin@x.com', passwordHash: 'x' });
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou4', isActive: false, roleInOrg: 'admin', organizationId: 'org-1',
+      id: 'ou4',
+      isActive: false,
+      roleInOrg: 'admin',
+      organizationId: 'org-1',
     });
 
     const prisma = {
@@ -1348,16 +1644,21 @@ describe('organization/team — inviteMember (unit)', () => {
       { organizationId: 'org-1', email: 'admin@x.com', name: 'Admin', roleInOrg: 'member' },
       'actor-1',
       {},
-      'leader',
+      'leader'
     );
     expect(res).toEqual({ ok: false, error: 'requires_admin' });
   });
 
   it('reactivates deactivated membership with new role', async () => {
     const tx = makeTx();
-    tx.user.findUnique = vi.fn().mockResolvedValue({ id: 'u5', email: 'old@x.com', passwordHash: 'x' });
+    tx.user.findUnique = vi
+      .fn()
+      .mockResolvedValue({ id: 'u5', email: 'old@x.com', passwordHash: 'x' });
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou5', isActive: false, roleInOrg: 'member', organizationId: 'org-1',
+      id: 'ou5',
+      isActive: false,
+      roleInOrg: 'member',
+      organizationId: 'org-1',
     });
     tx.organizationUser.update = vi.fn().mockResolvedValue({ id: 'ou5' });
 
@@ -1368,14 +1669,14 @@ describe('organization/team — inviteMember (unit)', () => {
     const result = await inviteMember(
       prisma,
       { organizationId: 'org-1', email: 'old@x.com', name: 'Old', roleInOrg: 'leader' },
-      'actor-1',
+      'actor-1'
     );
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('unreachable');
     expect(result.user.email).toBe('old@x.com');
     expect(tx.organizationUser.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { isActive: true, roleInOrg: 'leader' } }),
+      expect.objectContaining({ data: { isActive: true, roleInOrg: 'leader' } })
     );
   });
 
@@ -1392,14 +1693,14 @@ describe('organization/team — inviteMember (unit)', () => {
       prisma,
       { organizationId: 'org-1', email: 'n@x.com', name: 'N', roleInOrg: 'member' },
       'actor-1',
-      { source: 'partner' },
+      { source: 'partner' }
     );
 
     expect(recordAuditMock).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({
         after: expect.objectContaining({ source: 'partner' }),
-      }),
+      })
     );
   });
 
@@ -1415,14 +1716,14 @@ describe('organization/team — inviteMember (unit)', () => {
     await inviteMember(
       prisma,
       { organizationId: 'org-1', email: 'n7@x.com', name: 'N7', roleInOrg: 'member' },
-      'actor-1',
+      'actor-1'
     );
 
     expect(recordAuditMock).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({
         after: expect.not.objectContaining({ source: expect.anything() }),
-      }),
+      })
     );
   });
 
@@ -1433,7 +1734,9 @@ describe('organization/team — inviteMember (unit)', () => {
       createInviteTokenMock.mockResolvedValue({ token: 'tk-custom' });
       recordAuditMock.mockResolvedValue(undefined);
       const tx = makeTx();
-      tx.user.create = vi.fn().mockResolvedValue({ id: 'u-c', email: 'custom@x.com', passwordHash: null });
+      tx.user.create = vi
+        .fn()
+        .mockResolvedValue({ id: 'u-c', email: 'custom@x.com', passwordHash: null });
       tx.organizationUser.create = vi.fn().mockResolvedValue({ id: 'ou-c' });
 
       const prisma = {
@@ -1443,12 +1746,14 @@ describe('organization/team — inviteMember (unit)', () => {
       const result = await inviteMember(
         prisma,
         { organizationId: 'org-1', email: 'custom@x.com', name: 'Custom', roleInOrg: 'member' },
-        'actor-1',
+        'actor-1'
       );
 
       expect(result.ok).toBe(true);
       if (!result.ok) throw new Error('unreachable');
-      expect(result.inviteUrl).toContain('https://custom.example.com/reset-password?token=tk-custom');
+      expect(result.inviteUrl).toContain(
+        'https://custom.example.com/reset-password?token=tk-custom'
+      );
     } finally {
       process.env.APP_URL = originalAppUrl;
     }
@@ -1460,7 +1765,11 @@ describe('organization/team — inviteMember (unit)', () => {
     } as unknown as PrismaClient;
 
     await expect(
-      inviteMember(prisma, { organizationId: 'org-1', email: 'x@x.com', name: 'X', roleInOrg: 'member' }, 'actor-1'),
+      inviteMember(
+        prisma,
+        { organizationId: 'org-1', email: 'x@x.com', name: 'X', roleInOrg: 'member' },
+        'actor-1'
+      )
     ).rejects.toThrow('DB crashed');
   });
 });
@@ -1486,7 +1795,11 @@ describe('organization/team — updateMemberRole (unit)', () => {
   it('not_found when orgUser belongs to different org (cross-tenant guard)', async () => {
     const tx = makeTx();
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou1', userId: 'u1', organizationId: 'other-org', roleInOrg: 'member', isActive: true,
+      id: 'ou1',
+      userId: 'u1',
+      organizationId: 'other-org',
+      roleInOrg: 'member',
+      isActive: true,
     });
 
     const prisma = {
@@ -1500,7 +1813,11 @@ describe('organization/team — updateMemberRole (unit)', () => {
   it('self_action_forbidden when actor targets themselves', async () => {
     const tx = makeTx();
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou1', userId: 'actor-1', organizationId: 'org-1', roleInOrg: 'admin', isActive: true,
+      id: 'ou1',
+      userId: 'actor-1',
+      organizationId: 'org-1',
+      roleInOrg: 'admin',
+      isActive: true,
     });
 
     const prisma = {
@@ -1514,7 +1831,11 @@ describe('organization/team — updateMemberRole (unit)', () => {
   it('leader cannot promote to admin', async () => {
     const tx = makeTx();
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou2', userId: 'u2', organizationId: 'org-1', roleInOrg: 'member', isActive: true,
+      id: 'ou2',
+      userId: 'u2',
+      organizationId: 'org-1',
+      roleInOrg: 'member',
+      isActive: true,
     });
 
     const prisma = {
@@ -1528,7 +1849,11 @@ describe('organization/team — updateMemberRole (unit)', () => {
   it('leader cannot change role of existing admin', async () => {
     const tx = makeTx();
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou3', userId: 'u3', organizationId: 'org-1', roleInOrg: 'admin', isActive: true,
+      id: 'ou3',
+      userId: 'u3',
+      organizationId: 'org-1',
+      roleInOrg: 'admin',
+      isActive: true,
     });
 
     const prisma = {
@@ -1542,7 +1867,11 @@ describe('organization/team — updateMemberRole (unit)', () => {
   it('no-op when newRole === currentRole (non-leader touching non-admin)', async () => {
     const tx = makeTx();
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou4', userId: 'u4', organizationId: 'org-1', roleInOrg: 'member', isActive: true,
+      id: 'ou4',
+      userId: 'u4',
+      organizationId: 'org-1',
+      roleInOrg: 'member',
+      isActive: true,
     });
 
     const prisma = {
@@ -1557,7 +1886,11 @@ describe('organization/team — updateMemberRole (unit)', () => {
   it('demoting last admin → last_admin_protected', async () => {
     const tx = makeTx();
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou5', userId: 'u5', organizationId: 'org-1', roleInOrg: 'admin', isActive: true,
+      id: 'ou5',
+      userId: 'u5',
+      organizationId: 'org-1',
+      roleInOrg: 'admin',
+      isActive: true,
     });
     tx.organizationUser.count = vi.fn().mockResolvedValue(0); // last admin
 
@@ -1572,7 +1905,11 @@ describe('organization/team — updateMemberRole (unit)', () => {
   it('promotes member to admin and writes audit', async () => {
     const tx = makeTx();
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou6', userId: 'u6', organizationId: 'org-1', roleInOrg: 'member', isActive: true,
+      id: 'ou6',
+      userId: 'u6',
+      organizationId: 'org-1',
+      roleInOrg: 'member',
+      isActive: true,
     });
 
     const prisma = {
@@ -1582,7 +1919,7 @@ describe('organization/team — updateMemberRole (unit)', () => {
     const res = await updateMemberRole(prisma, 'org-1', 'ou6', 'admin', 'actor-1');
     expect(res).toEqual({ ok: true });
     expect(tx.organizationUser.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { roleInOrg: 'admin' } }),
+      expect.objectContaining({ data: { roleInOrg: 'admin' } })
     );
     expect(recordAuditMock).toHaveBeenCalled();
   });
@@ -1590,7 +1927,11 @@ describe('organization/team — updateMemberRole (unit)', () => {
   it('demotes admin to member (with other admins remaining) and writes audit', async () => {
     const tx = makeTx();
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou7', userId: 'u7', organizationId: 'org-1', roleInOrg: 'admin', isActive: true,
+      id: 'ou7',
+      userId: 'u7',
+      organizationId: 'org-1',
+      roleInOrg: 'admin',
+      isActive: true,
     });
     tx.organizationUser.count = vi.fn().mockResolvedValue(2); // 2 other admins remain
 
@@ -1601,7 +1942,7 @@ describe('organization/team — updateMemberRole (unit)', () => {
     const res = await updateMemberRole(prisma, 'org-1', 'ou7', 'member', 'actor-1');
     expect(res).toEqual({ ok: true });
     expect(tx.organizationUser.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { roleInOrg: 'member' } }),
+      expect.objectContaining({ data: { roleInOrg: 'member' } })
     );
   });
 
@@ -1610,9 +1951,9 @@ describe('organization/team — updateMemberRole (unit)', () => {
       $transaction: vi.fn().mockRejectedValue(new Error('DB crashed')),
     } as unknown as PrismaClient;
 
-    await expect(
-      updateMemberRole(prisma, 'org-1', 'ou1', 'admin', 'actor-1'),
-    ).rejects.toThrow('DB crashed');
+    await expect(updateMemberRole(prisma, 'org-1', 'ou1', 'admin', 'actor-1')).rejects.toThrow(
+      'DB crashed'
+    );
   });
 });
 
@@ -1625,7 +1966,11 @@ describe('organization/team — deactivateMember (unit)', () => {
   it('self_action_forbidden when actor targets themselves', async () => {
     const tx = makeTx();
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou0', userId: 'actor-1', organizationId: 'org-1', roleInOrg: 'member', isActive: true,
+      id: 'ou0',
+      userId: 'actor-1',
+      organizationId: 'org-1',
+      roleInOrg: 'member',
+      isActive: true,
     });
 
     const prisma = {
@@ -1639,7 +1984,11 @@ describe('organization/team — deactivateMember (unit)', () => {
   it('leader cannot deactivate admin', async () => {
     const tx = makeTx();
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou3', userId: 'u3', organizationId: 'org-1', roleInOrg: 'admin', isActive: true,
+      id: 'ou3',
+      userId: 'u3',
+      organizationId: 'org-1',
+      roleInOrg: 'admin',
+      isActive: true,
     });
 
     const prisma = {
@@ -1653,7 +2002,11 @@ describe('organization/team — deactivateMember (unit)', () => {
   it('no-op when member already inactive', async () => {
     const tx = makeTx();
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou1', userId: 'u1', organizationId: 'org-1', roleInOrg: 'member', isActive: false,
+      id: 'ou1',
+      userId: 'u1',
+      organizationId: 'org-1',
+      roleInOrg: 'member',
+      isActive: false,
     });
 
     const prisma = {
@@ -1670,7 +2023,11 @@ describe('organization/team — deactivateMember (unit)', () => {
   it('deactivates non-admin member', async () => {
     const tx = makeTx();
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou2', userId: 'u2', organizationId: 'org-1', roleInOrg: 'member', isActive: true,
+      id: 'ou2',
+      userId: 'u2',
+      organizationId: 'org-1',
+      roleInOrg: 'member',
+      isActive: true,
     });
 
     const prisma = {
@@ -1680,7 +2037,7 @@ describe('organization/team — deactivateMember (unit)', () => {
     const res = await deactivateMember(prisma, 'org-1', 'ou2', 'actor-1');
     expect(res).toEqual({ ok: true });
     expect(tx.organizationUser.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { isActive: false } }),
+      expect.objectContaining({ data: { isActive: false } })
     );
     // ФТ-11.2: клеймы организации сидят в токене → отзываем сессии участника
     // (именно target.userId, не actor'а), в той же транзакции.
@@ -1693,7 +2050,11 @@ describe('organization/team — deactivateMember (unit)', () => {
   it('deactivating last admin → last_admin_protected', async () => {
     const tx = makeTx();
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou4', userId: 'u4', organizationId: 'org-1', roleInOrg: 'admin', isActive: true,
+      id: 'ou4',
+      userId: 'u4',
+      organizationId: 'org-1',
+      roleInOrg: 'admin',
+      isActive: true,
     });
     tx.organizationUser.count = vi.fn().mockResolvedValue(0); // last admin
 
@@ -1710,7 +2071,11 @@ describe('organization/team — deactivateMember (unit)', () => {
   it('deactivates admin when other admins exist', async () => {
     const tx = makeTx();
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou5', userId: 'u5', organizationId: 'org-1', roleInOrg: 'admin', isActive: true,
+      id: 'ou5',
+      userId: 'u5',
+      organizationId: 'org-1',
+      roleInOrg: 'admin',
+      isActive: true,
     });
     tx.organizationUser.count = vi.fn().mockResolvedValue(1); // 1 other admin
 
@@ -1721,7 +2086,7 @@ describe('organization/team — deactivateMember (unit)', () => {
     const res = await deactivateMember(prisma, 'org-1', 'ou5', 'actor-1');
     expect(res).toEqual({ ok: true });
     expect(tx.organizationUser.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { isActive: false } }),
+      expect.objectContaining({ data: { isActive: false } })
     );
     expect(tx.user.update).toHaveBeenCalledWith({
       where: { id: 'u5' },
@@ -1733,7 +2098,11 @@ describe('organization/team — deactivateMember (unit)', () => {
     // self_action_forbidden
     const txSelf = makeTx();
     txSelf.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou0', userId: 'actor-1', organizationId: 'org-1', roleInOrg: 'member', isActive: true,
+      id: 'ou0',
+      userId: 'actor-1',
+      organizationId: 'org-1',
+      roleInOrg: 'member',
+      isActive: true,
     });
     const prismaSelf = {
       $transaction: vi.fn().mockImplementation((fn: (t: typeof txSelf) => unknown) => fn(txSelf)),
@@ -1744,10 +2113,16 @@ describe('organization/team — deactivateMember (unit)', () => {
     // requires_admin (leader трогает admin-строку)
     const txLeader = makeTx();
     txLeader.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou3', userId: 'u3', organizationId: 'org-1', roleInOrg: 'admin', isActive: true,
+      id: 'ou3',
+      userId: 'u3',
+      organizationId: 'org-1',
+      roleInOrg: 'admin',
+      isActive: true,
     });
     const prismaLeader = {
-      $transaction: vi.fn().mockImplementation((fn: (t: typeof txLeader) => unknown) => fn(txLeader)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((fn: (t: typeof txLeader) => unknown) => fn(txLeader)),
     } as unknown as PrismaClient;
     await deactivateMember(prismaLeader, 'org-1', 'ou3', 'actor-1', 'leader');
     expect(txLeader.user.update).not.toHaveBeenCalled();
@@ -1755,13 +2130,20 @@ describe('organization/team — deactivateMember (unit)', () => {
     // not_found: строка принадлежит другой организации (cross-tenant guard)
     const txForeign = makeTx();
     txForeign.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou9', userId: 'u9', organizationId: 'org-OTHER', roleInOrg: 'member', isActive: true,
+      id: 'ou9',
+      userId: 'u9',
+      organizationId: 'org-OTHER',
+      roleInOrg: 'member',
+      isActive: true,
     });
     const prismaForeign = {
-      $transaction: vi.fn().mockImplementation((fn: (t: typeof txForeign) => unknown) => fn(txForeign)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((fn: (t: typeof txForeign) => unknown) => fn(txForeign)),
     } as unknown as PrismaClient;
     expect(await deactivateMember(prismaForeign, 'org-1', 'ou9', 'actor-1')).toEqual({
-      ok: false, error: 'not_found',
+      ok: false,
+      error: 'not_found',
     });
     expect(txForeign.user.update).not.toHaveBeenCalled();
   });
@@ -1771,9 +2153,7 @@ describe('organization/team — deactivateMember (unit)', () => {
       $transaction: vi.fn().mockRejectedValue(new Error('DB crashed')),
     } as unknown as PrismaClient;
 
-    await expect(
-      deactivateMember(prisma, 'org-1', 'ou1', 'actor-1'),
-    ).rejects.toThrow('DB crashed');
+    await expect(deactivateMember(prisma, 'org-1', 'ou1', 'actor-1')).rejects.toThrow('DB crashed');
   });
 });
 
@@ -1786,7 +2166,11 @@ describe('organization/team — reactivateMember (unit)', () => {
   it('self_action_forbidden when actor reactivates themselves', async () => {
     const tx = makeTx();
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou0', userId: 'actor-1', organizationId: 'org-1', roleInOrg: 'member', isActive: false,
+      id: 'ou0',
+      userId: 'actor-1',
+      organizationId: 'org-1',
+      roleInOrg: 'member',
+      isActive: false,
     });
 
     const prisma = {
@@ -1800,7 +2184,11 @@ describe('organization/team — reactivateMember (unit)', () => {
   it('leader cannot reactivate admin', async () => {
     const tx = makeTx();
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou4', userId: 'u4', organizationId: 'org-1', roleInOrg: 'admin', isActive: false,
+      id: 'ou4',
+      userId: 'u4',
+      organizationId: 'org-1',
+      roleInOrg: 'admin',
+      isActive: false,
     });
 
     const prisma = {
@@ -1814,7 +2202,11 @@ describe('organization/team — reactivateMember (unit)', () => {
   it('no-op when member already active', async () => {
     const tx = makeTx();
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou1', userId: 'u1', organizationId: 'org-1', roleInOrg: 'member', isActive: true,
+      id: 'ou1',
+      userId: 'u1',
+      organizationId: 'org-1',
+      roleInOrg: 'member',
+      isActive: true,
     });
 
     const prisma = {
@@ -1829,7 +2221,11 @@ describe('organization/team — reactivateMember (unit)', () => {
   it('reactivates inactive member and writes audit', async () => {
     const tx = makeTx();
     tx.organizationUser.findUnique = vi.fn().mockResolvedValue({
-      id: 'ou2', userId: 'u2', organizationId: 'org-1', roleInOrg: 'member', isActive: false,
+      id: 'ou2',
+      userId: 'u2',
+      organizationId: 'org-1',
+      roleInOrg: 'member',
+      isActive: false,
     });
 
     const prisma = {
@@ -1839,7 +2235,7 @@ describe('organization/team — reactivateMember (unit)', () => {
     const res = await reactivateMember(prisma, 'org-1', 'ou2', 'actor-1');
     expect(res).toEqual({ ok: true });
     expect(tx.organizationUser.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { isActive: true } }),
+      expect.objectContaining({ data: { isActive: true } })
     );
     expect(recordAuditMock).toHaveBeenCalled();
     // ФТ-11.2: возврат участника не отзывает сессии (симметричной точки нет).
@@ -1851,9 +2247,7 @@ describe('organization/team — reactivateMember (unit)', () => {
       $transaction: vi.fn().mockRejectedValue(new Error('DB crashed')),
     } as unknown as PrismaClient;
 
-    await expect(
-      reactivateMember(prisma, 'org-1', 'ou1', 'actor-1'),
-    ).rejects.toThrow('DB crashed');
+    await expect(reactivateMember(prisma, 'org-1', 'ou1', 'actor-1')).rejects.toThrow('DB crashed');
   });
 });
 
@@ -1906,8 +2300,8 @@ describe('organization/invite — createOrgAdminInvite (unit)', () => {
       createOrgAdminInvite(
         prisma,
         { organizationId: 'org-1', email: 'a@b.com', name: 'Alice' },
-        { actorUserId: 'actor-1', source: 'platform_admin' },
-      ),
+        { actorUserId: 'actor-1', source: 'platform_admin' }
+      )
     ).rejects.toMatchObject({ code: 'not_found', name: 'OrgInviteError' });
   });
 
@@ -1917,8 +2311,8 @@ describe('organization/invite — createOrgAdminInvite (unit)', () => {
       createOrgAdminInvite(
         prisma,
         { organizationId: 'org-1', email: 'b@c.com', name: 'Bob' },
-        { actorUserId: 'actor-2', source: 'partner', actorPartnerId: 'partner-B' },
-      ),
+        { actorUserId: 'actor-2', source: 'partner', actorPartnerId: 'partner-B' }
+      )
     ).rejects.toMatchObject({ code: 'forbidden', name: 'OrgInviteError' });
   });
 
@@ -1928,8 +2322,8 @@ describe('organization/invite — createOrgAdminInvite (unit)', () => {
       createOrgAdminInvite(
         prisma,
         { organizationId: 'org-1', email: 'c@d.com', name: 'Carol' },
-        { actorUserId: 'actor-3', source: 'partner', actorPartnerId: null },
-      ),
+        { actorUserId: 'actor-3', source: 'partner', actorPartnerId: null }
+      )
     ).rejects.toMatchObject({ code: 'forbidden', name: 'OrgInviteError' });
   });
 
@@ -1942,8 +2336,8 @@ describe('organization/invite — createOrgAdminInvite (unit)', () => {
       createOrgAdminInvite(
         prisma,
         { organizationId: 'org-1', email: 'admin@x.com', name: 'Admin' },
-        { actorUserId: 'actor-admin', source: 'platform_admin' },
-      ),
+        { actorUserId: 'actor-admin', source: 'platform_admin' }
+      )
     ).resolves.toBeDefined();
   });
 
@@ -1955,8 +2349,8 @@ describe('organization/invite — createOrgAdminInvite (unit)', () => {
       createOrgAdminInvite(
         prisma,
         { organizationId: 'org-1', email: 'pmatch@x.com', name: 'Partner Admin' },
-        { actorUserId: 'actor-partner', source: 'partner', actorPartnerId: 'partner-A' },
-      ),
+        { actorUserId: 'actor-partner', source: 'partner', actorPartnerId: 'partner-A' }
+      )
     ).resolves.toBeDefined();
   });
 
@@ -1968,18 +2362,27 @@ describe('organization/invite — createOrgAdminInvite (unit)', () => {
     const prisma = makePrisma(
       { id: 'org-1', partnerId: 'partner-A' },
       {
-        user: { findUnique: vi.fn().mockResolvedValue({ id: 'u-dup', email: 'dup@x.com', passwordHash: 'x' }) },
-        organizationUser: {
-          findUnique: vi.fn().mockResolvedValue({ id: 'ou-dup', isActive: true, roleInOrg: 'member', organizationId: 'org-1' }),
+        user: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue({ id: 'u-dup', email: 'dup@x.com', passwordHash: 'x' }),
         },
-      },
+        organizationUser: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: 'ou-dup',
+            isActive: true,
+            roleInOrg: 'member',
+            organizationId: 'org-1',
+          }),
+        },
+      }
     );
     await expect(
       createOrgAdminInvite(
         prisma,
         { organizationId: 'org-1', email: 'dup@x.com', name: 'Dup' },
-        { actorUserId: 'actor-admin', source: 'platform_admin' },
-      ),
+        { actorUserId: 'actor-admin', source: 'platform_admin' }
+      )
     ).rejects.toMatchObject({ code: 'already_member', name: 'OrgMemberError' });
   });
 

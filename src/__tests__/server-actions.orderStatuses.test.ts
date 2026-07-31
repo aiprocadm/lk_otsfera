@@ -43,7 +43,7 @@ describe('transitionOrderStatusAction', () => {
     expect(transitionOrderStatus).toHaveBeenCalledWith({}, SESSION, {
       orderId: 'o1',
       toId: 'x',
-      reason: 'отказ'
+      reason: 'отказ',
     });
   });
 
@@ -57,7 +57,7 @@ describe('transitionOrderStatusAction', () => {
     const res = await transitionOrderStatusAction({
       orderId: 'o1',
       toId: 'x',
-      reason: 'x'.repeat(1001)
+      reason: 'x'.repeat(1001),
     });
     expect(res).toEqual({ ok: false, error: 'validation' });
   });
@@ -73,13 +73,13 @@ describe('transitionOrderStatusAction', () => {
     transitionOrderStatus.mockResolvedValue({
       ok: false,
       error: 'completion_conditions_unmet',
-      unmet: ['accounting_signed']
+      unmet: ['accounting_signed'],
     });
     const res = await transitionOrderStatusAction({ orderId: 'o1', toId: 'c' });
     expect(res).toEqual({
       ok: false,
       error: 'completion_conditions_unmet',
-      unmet: ['accounting_signed']
+      unmet: ['accounting_signed'],
     });
   });
 });

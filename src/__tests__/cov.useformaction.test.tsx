@@ -34,11 +34,11 @@ describe('useFormAction — stateful transitions', () => {
       useFormAction<{ inviteUrl: string }>({
         action: async () => ({ ok: true, inviteUrl: 'https://x/y' }),
         onSuccess,
-        refresh: true
+        refresh: true,
       })
     );
     await act(async () => {
-      await result.current.formAction(new FormData());
+      result.current.formAction(new FormData());
     });
     expect(result.current.success).toBe(true);
     expect(result.current.data).toEqual({ inviteUrl: 'https://x/y' });
@@ -50,11 +50,11 @@ describe('useFormAction — stateful transitions', () => {
     const { result } = renderHook(() =>
       useFormAction({
         action: async () => ({ ok: false as const, error: 'not_found' }),
-        errorMap: { not_found: 'Не найдено.' }
+        errorMap: { not_found: 'Не найдено.' },
       })
     );
     await act(async () => {
-      await result.current.formAction(new FormData());
+      result.current.formAction(new FormData());
     });
     expect(result.current.success).toBe(false);
     expect(result.current.errorText).toBe('Не найдено.');
@@ -67,7 +67,7 @@ describe('useFormAction — stateful transitions', () => {
       useFormAction({ action: async () => ({ ok: true as const, id: '1' }) })
     );
     await act(async () => {
-      await result.current.formAction(new FormData());
+      result.current.formAction(new FormData());
     });
     expect(result.current.success).toBe(true);
     act(() => result.current.reset()); // generation !== state.generation → current becomes idle

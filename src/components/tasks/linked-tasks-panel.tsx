@@ -18,7 +18,7 @@ export function LinkedTasksPanel({
   link,
   tasks,
   currentUserId,
-  onCreated
+  onCreated,
 }: {
   link: { leadId: string } | { dealId: string };
   tasks: TaskCard[];
@@ -65,9 +65,13 @@ export function LinkedTasksPanel({
                 className={`inline-block h-2 w-2 rounded-full shrink-0 ${t.completedAt ? 'bg-green-500' : 'bg-[#F97316]'}`}
                 aria-hidden
               />
-              <span className={t.completedAt ? 'text-gray-400 line-through' : 'text-[#111111]'}>{t.title}</span>
+              <span className={t.completedAt ? 'text-gray-400 line-through' : 'text-[#111111]'}>
+                {t.title}
+              </span>
               {t.dueDate && (
-                <span className="text-xs text-gray-500 shrink-0">до {new Date(t.dueDate).toLocaleDateString('ru-RU')}</span>
+                <span className="text-xs text-gray-500 shrink-0">
+                  до {new Date(t.dueDate).toLocaleDateString('ru-RU')}
+                </span>
               )}
               {t.assigneeNames.length > 0 && (
                 <span className="text-xs text-gray-400 truncate">{t.assigneeNames.join(', ')}</span>
@@ -79,7 +83,14 @@ export function LinkedTasksPanel({
 
       {adding ? (
         <form onSubmit={handleQuickAdd} className="space-y-2">
-          <Input name="title" required maxLength={200} placeholder="Что нужно сделать" autoFocus aria-label="Название задачи" />
+          <Input
+            name="title"
+            required
+            maxLength={200}
+            placeholder="Что нужно сделать"
+            autoFocus
+            aria-label="Название задачи"
+          />
           <div className="flex flex-wrap items-center gap-2">
             <Input name="dueDate" type="date" className="w-40" aria-label="Срок" />
             <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
@@ -87,7 +98,13 @@ export function LinkedTasksPanel({
               на себя
             </label>
             <div className="ml-auto flex gap-2">
-              <Button type="button" size="sm" variant="secondary" onClick={() => setAdding(false)} disabled={busy}>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => setAdding(false)}
+                disabled={busy}
+              >
                 Отмена
               </Button>
               <Button type="submit" size="sm" disabled={busy}>

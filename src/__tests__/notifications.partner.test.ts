@@ -1,9 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 
-const { sendMock, sendCommissionMock } = vi.hoisted(() => ({ sendMock: vi.fn(), sendCommissionMock: vi.fn() }));
+const { sendMock, sendCommissionMock } = vi.hoisted(() => ({
+  sendMock: vi.fn(),
+  sendCommissionMock: vi.fn(),
+}));
 vi.mock('@/lib/email/send', () => ({
   sendPartnerDocumentPublishedEmail: sendMock,
-  sendCommissionReadyEmail: sendCommissionMock
+  sendCommissionReadyEmail: sendCommissionMock,
 }));
 
 import { notifyPartnerUsers } from '@/lib/notifications/partner';
@@ -13,10 +16,12 @@ function dbWith(users: Array<{ id: string; email: string | null }>) {
   const partnerUsers = users.map((u) => ({ user: u }));
   return {
     db: {
-      partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p-1', name: 'ООО Партнёр', partnerUsers }) },
-      notification: { create }
+      partner: {
+        findUnique: vi.fn().mockResolvedValue({ id: 'p-1', name: 'ООО Партнёр', partnerUsers }),
+      },
+      notification: { create },
     } as never,
-    create
+    create,
   };
 }
 
@@ -25,12 +30,18 @@ describe('notifyPartnerUsers', () => {
     sendMock.mockResolvedValue({ status: 'skipped', reason: 'disabled' });
     const { db, create } = dbWith([
       { id: 'u1', email: 'a@p.ru' },
-      { id: 'u2', email: null }
+      { id: 'u2', email: null },
     ]);
     const r = await notifyPartnerUsers(db, {
       partnerId: 'p-1',
       type: 'document_published',
-      payload: { orderId: 'o1', orderNumber: '42', orderTitle: 'T', documentName: 'k.pdf', documentType: 'commission_statement' }
+      payload: {
+        orderId: 'o1',
+        orderNumber: '42',
+        orderTitle: 'T',
+        documentName: 'k.pdf',
+        documentType: 'commission_statement',
+      },
     });
     expect(r.recipientsNotified).toBe(2);
     expect(r.emailsSent).toBe(0);
@@ -40,11 +51,20 @@ describe('notifyPartnerUsers', () => {
   });
 
   it('returns zeroes for an unknown partner', async () => {
-    const db = { partner: { findUnique: vi.fn().mockResolvedValue(null) }, notification: { create: vi.fn() } } as never;
+    const db = {
+      partner: { findUnique: vi.fn().mockResolvedValue(null) },
+      notification: { create: vi.fn() },
+    } as never;
     const r = await notifyPartnerUsers(db, {
       partnerId: 'missing',
       type: 'document_published',
-      payload: { orderId: 'o', orderNumber: null, orderTitle: 'T', documentName: 'k', documentType: 'other' }
+      payload: {
+        orderId: 'o',
+        orderNumber: null,
+        orderTitle: 'T',
+        documentName: 'k',
+        documentType: 'other',
+      },
     });
     expect(r).toEqual({ recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 });
   });
@@ -55,7 +75,13 @@ describe('notifyPartnerUsers', () => {
     await notifyPartnerUsers(db, {
       partnerId: 'p-1',
       type: 'document_published',
-      payload: { orderId: null, orderNumber: null, orderTitle: null, documentName: 'общий.pdf', documentType: 'other' }
+      payload: {
+        orderId: null,
+        orderNumber: null,
+        orderTitle: null,
+        documentName: 'общий.pdf',
+        documentType: 'other',
+      },
     });
     const data = create.mock.calls[0][0].data;
     expect(data.title).toBe('Новый общий документ');
@@ -71,7 +97,13 @@ describe('notifyPartnerUsers', () => {
     await notifyPartnerUsers(db, {
       partnerId: 'p-1',
       type: 'document_published',
-      payload: { orderId: 'o99', orderNumber: '99', orderTitle: 'Проект', documentName: 'акт.pdf', documentType: 'act' }
+      payload: {
+        orderId: 'o99',
+        orderNumber: '99',
+        orderTitle: 'Проект',
+        documentName: 'акт.pdf',
+        documentType: 'act',
+      },
     });
     const data = create.mock.calls[0][0].data;
     expect(data.title).toContain('Новый документ по заказу');
@@ -87,7 +119,7 @@ describe('notifyPartnerUsers', () => {
     const r = await notifyPartnerUsers(db, {
       partnerId: 'p-1',
       type: 'commission_statement_ready',
-      payload: { statementId: 's-7', period: 'май 2026', amount: '125 000 ₽' }
+      payload: { statementId: 's-7', period: 'май 2026', amount: '125 000 ₽' },
     });
     expect(r.recipientsNotified).toBe(1);
     const data = create.mock.calls[0][0].data;
@@ -107,11 +139,16 @@ describe('notifyPartnerUsers', () => {
     const r = await notifyPartnerUsers(db, {
       partnerId: 'p-1',
       type: 'commission_statement_ready',
-      payload: { statementId: 's-8', period: 'июнь 2026', amount: '90 000 ₽' }
+      payload: { statementId: 's-8', period: 'июнь 2026', amount: '90 000 ₽' },
     });
     expect(r.emailsSent).toBe(1);
     expect(sendCommissionMock).toHaveBeenCalledWith(
-      expect.objectContaining({ to: 'e@p.ru', partnerName: 'ООО Партнёр', period: 'июнь 2026', amount: '90 000 ₽' })
+      expect.objectContaining({
+        to: 'e@p.ru',
+        partnerName: 'ООО Партнёр',
+        period: 'июнь 2026',
+        amount: '90 000 ₽',
+      })
     );
     expect(sendMock).not.toHaveBeenCalled();
   });

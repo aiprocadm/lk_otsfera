@@ -12,7 +12,7 @@ const THREAD_A = {
   orderNumber: 'ПЗ-0001',
   orderTitle: 'Поставка оборудования',
   lastMessageAt: new Date('2024-03-01T10:00:00Z'),
-  unread: false
+  unread: false,
 };
 
 const THREAD_B = {
@@ -22,7 +22,7 @@ const THREAD_B = {
   orderNumber: 'ПЗ-0002',
   orderTitle: 'Монтажные работы',
   lastMessageAt: new Date('2024-03-02T12:00:00Z'),
-  unread: true
+  unread: true,
 };
 
 const THREAD_ORG = {
@@ -32,7 +32,7 @@ const THREAD_ORG = {
   orderNumber: 'ПЗ-0010',
   orderTitle: 'Поставка компрессоров',
   lastMessageAt: new Date('2024-04-01T10:00:00Z'),
-  unread: false
+  unread: false,
 };
 
 const THREAD_ORG_UNREAD = {
@@ -42,7 +42,7 @@ const THREAD_ORG_UNREAD = {
   orderNumber: 'ПЗ-0011',
   orderTitle: 'Монтаж оборудования',
   lastMessageAt: new Date('2024-04-03T08:00:00Z'),
-  unread: true
+  unread: true,
 };
 
 const THREAD_NO_NUMBER = {
@@ -52,7 +52,7 @@ const THREAD_NO_NUMBER = {
   orderNumber: null,
   orderTitle: 'Заказ без номера',
   lastMessageAt: new Date('2024-03-05T10:00:00Z'),
-  unread: false
+  unread: false,
 };
 
 describe('OrderThreadInbox variant=role (partner/org)', () => {
@@ -61,7 +61,7 @@ describe('OrderThreadInbox variant=role (partner/org)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     expect(html).toContain('Нет переписок');
@@ -72,7 +72,7 @@ describe('OrderThreadInbox variant=role (partner/org)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A, THREAD_B],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     expect(html).toContain('Поставка оборудования');
@@ -84,7 +84,7 @@ describe('OrderThreadInbox variant=role (partner/org)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A, THREAD_B],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     expect(html).toContain('ПЗ-0001');
@@ -96,7 +96,7 @@ describe('OrderThreadInbox variant=role (partner/org)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A, THREAD_B],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     const occurrences = html.split('data-unread="true"').length - 1;
@@ -108,7 +108,7 @@ describe('OrderThreadInbox variant=role (partner/org)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_ORG, THREAD_B],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     expect(html).not.toContain('Заказчик');
@@ -120,7 +120,7 @@ describe('OrderThreadInbox variant=role (partner/org)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_NO_NUMBER],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     expect(html).toContain('Заказ без номера');
@@ -134,7 +134,7 @@ describe('OrderThreadInbox variant=team (manager/admin)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [],
         currentUserId: CURRENT_USER,
-        variant: 'team'
+        variant: 'team',
       })
     );
     expect(html).toContain('Нет переписок');
@@ -145,7 +145,7 @@ describe('OrderThreadInbox variant=team (manager/admin)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_ORG, THREAD_B],
         currentUserId: CURRENT_USER,
-        variant: 'team'
+        variant: 'team',
       })
     );
     expect(html).toContain('Заказчик');
@@ -157,7 +157,7 @@ describe('OrderThreadInbox variant=team (manager/admin)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_ORG, THREAD_B],
         currentUserId: CURRENT_USER,
-        variant: 'team'
+        variant: 'team',
       })
     );
     expect(html).toContain('Поставка компрессоров');
@@ -169,7 +169,7 @@ describe('OrderThreadInbox variant=team (manager/admin)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_ORG, THREAD_B, THREAD_ORG_UNREAD],
         currentUserId: CURRENT_USER,
-        variant: 'team'
+        variant: 'team',
       })
     );
     const count = html.split('data-unread="true"').length - 1;

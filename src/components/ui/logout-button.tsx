@@ -25,10 +25,13 @@ export function LogoutButton({ className }: { className?: string }) {
 
   return (
     <button
-      type='button'
+      type="button"
       onClick={onClick}
       disabled={busy}
-      className={className ?? 'text-sm text-gray-600 hover:text-[#F97316] transition-colors disabled:opacity-60'}
+      className={
+        className ??
+        'text-sm text-gray-600 hover:text-[#F97316] transition-colors disabled:opacity-60'
+      }
     >
       {busy ? 'Выходим…' : 'Выйти'}
     </button>

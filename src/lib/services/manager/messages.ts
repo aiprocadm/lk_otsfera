@@ -21,20 +21,18 @@ const MAX_TAKE = 100;
 const DEFAULT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 const ListIncomingCommentsOptionsSchema = z.object({
-  session: z.custom<SessionPayload>(
-    (v) => !!v && typeof v === 'object' && 'sub' in (v as object)
-  ),
+  session: z.custom<SessionPayload>((v) => !!v && typeof v === 'object' && 'sub' in (v as object)),
   since: z.date().optional(),
   take: z.number().int().min(1).max(MAX_TAKE).default(DEFAULT_TAKE),
   cursor: z.string().optional(),
-  withOutgoing: z.boolean().optional()
+  withOutgoing: z.boolean().optional(),
 });
 
 export type ListIncomingCommentsOptions = z.input<typeof ListIncomingCommentsOptionsSchema>;
 
 const INBOX_INCLUDE = {
   order: { select: { id: true, orderNumber: true, title: true } },
-  author: { select: { id: true, name: true, email: true, role: true } }
+  author: { select: { id: true, name: true, email: true, role: true } },
 } satisfies Prisma.CommentInclude;
 
 export type ManagerInboxItem = Prisma.CommentGetPayload<{ include: typeof INBOX_INCLUDE }>;
@@ -65,12 +63,12 @@ export async function listIncomingComments(
     where: {
       order: orderWhere,
       author: authorWhere,
-      createdAt: { gte: since }
+      createdAt: { gte: since },
     },
     include: INBOX_INCLUDE,
     orderBy: { id: 'desc' },
     take: opts.take + 1,
-    ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {})
+    ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
   });
 
   const hasMore = rows.length > opts.take;

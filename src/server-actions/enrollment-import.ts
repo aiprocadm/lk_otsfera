@@ -2,7 +2,10 @@
 import { requireSession } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { canSubmitEnrollments } from '@/lib/services/enrollments/policy';
-import { parseEnrollmentImportWorkbook, type EnrollmentImportResult } from '@/lib/services/enrollments/importRows';
+import {
+  parseEnrollmentImportWorkbook,
+  type EnrollmentImportResult,
+} from '@/lib/services/enrollments/importRows';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
@@ -17,8 +20,16 @@ export async function parseEnrollmentImportAction(form: FormData): Promise<Enrol
     return { ok: false, errors: ['Недостаточно прав для импорта слушателей'] };
   }
   const file = form.get('file');
-  if (!(file instanceof File) || file.size === 0 || file.size > MAX_BYTES || !file.name.toLowerCase().endsWith('.xlsx')) {
-    return { ok: false, errors: ['Выберите файл Excel (.xlsx) размером до 10 МБ — скачайте шаблон и заполните его.'] };
+  if (
+    !(file instanceof File) ||
+    file.size === 0 ||
+    file.size > MAX_BYTES ||
+    !file.name.toLowerCase().endsWith('.xlsx')
+  ) {
+    return {
+      ok: false,
+      errors: ['Выберите файл Excel (.xlsx) размером до 10 МБ — скачайте шаблон и заполните его.'],
+    };
   }
   return parseEnrollmentImportWorkbook(Buffer.from(await file.arrayBuffer()));
 }

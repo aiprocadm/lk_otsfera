@@ -8,7 +8,7 @@ import type { PrismaClient } from '@prisma/client';
 const { recordAuditMock, requireManagerLeader, revalidatePath } = vi.hoisted(() => ({
   recordAuditMock: vi.fn(),
   requireManagerLeader: vi.fn(),
-  revalidatePath: vi.fn()
+  revalidatePath: vi.fn(),
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManagerLeader }));
@@ -21,16 +21,22 @@ import { getSlaSettings, setSlaSettings } from '@/lib/services/manager/slaSettin
 function fakePrisma(row: { slaResponseHours: number; slaWarningHours: number } | null) {
   const findUnique = vi.fn().mockResolvedValue(row);
   const update = vi.fn().mockResolvedValue({});
-  return { prisma: { company: { findUnique, update } } as unknown as PrismaClient, findUnique, update };
+  return {
+    prisma: { company: { findUnique, update } } as unknown as PrismaClient,
+    findUnique,
+    update,
+  };
 }
 
 beforeEach(() => vi.clearAllMocks());
 
 describe('getSlaSettings / setSlaSettings', () => {
   it('чтение возвращает пороги; отсутствующая компания → null', async () => {
-    expect(await getSlaSettings(fakePrisma({ slaResponseHours: 24, slaWarningHours: 4 }).prisma, 'c1')).toEqual({
+    expect(
+      await getSlaSettings(fakePrisma({ slaResponseHours: 24, slaWarningHours: 4 }).prisma, 'c1')
+    ).toEqual({
       slaResponseHours: 24,
-      slaWarningHours: 4
+      slaWarningHours: 4,
     });
     expect(await getSlaSettings(fakePrisma(null).prisma, 'c1')).toBeNull();
   });
@@ -43,7 +49,7 @@ describe('getSlaSettings / setSlaSettings', () => {
       { slaResponseHours: 24, slaWarningHours: 0 },
       { slaResponseHours: 24.5, slaWarningHours: 4 },
       { slaResponseHours: 4, slaWarningHours: 4 },
-      { slaResponseHours: 4, slaWarningHours: 10 }
+      { slaResponseHours: 4, slaWarningHours: 10 },
     ]) {
       const r = await setSlaSettings(prisma, 'u1', 'c1', bad);
       expect(r.ok).toBe(false);
@@ -54,9 +60,15 @@ describe('getSlaSettings / setSlaSettings', () => {
 
   it('успех: пишет пороги + аудит с before/after', async () => {
     const { prisma, update } = fakePrisma({ slaResponseHours: 24, slaWarningHours: 4 });
-    const r = await setSlaSettings(prisma, 'u1', 'c1', { slaResponseHours: 48, slaWarningHours: 8 });
+    const r = await setSlaSettings(prisma, 'u1', 'c1', {
+      slaResponseHours: 48,
+      slaWarningHours: 8,
+    });
     expect(r).toEqual({ ok: true, changed: true });
-    expect(update).toHaveBeenCalledWith({ where: { id: 'c1' }, data: { slaResponseHours: 48, slaWarningHours: 8 } });
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'c1' },
+      data: { slaResponseHours: 48, slaWarningHours: 8 },
+    });
     expect(recordAuditMock).toHaveBeenCalledWith(
       prisma,
       expect.objectContaining({ action: 'sla_settings_changed', entity: 'company', entityId: 'c1' })
@@ -65,33 +77,61 @@ describe('getSlaSettings / setSlaSettings', () => {
 
   it('идемпотентность (без записи и аудита) и company_not_found', async () => {
     const same = fakePrisma({ slaResponseHours: 24, slaWarningHours: 4 });
-    expect(await setSlaSettings(same.prisma, 'u1', 'c1', { slaResponseHours: 24, slaWarningHours: 4 })).toEqual({
+    expect(
+      await setSlaSettings(same.prisma, 'u1', 'c1', { slaResponseHours: 24, slaWarningHours: 4 })
+    ).toEqual({
       ok: true,
-      changed: false
+      changed: false,
     });
     expect(same.update).not.toHaveBeenCalled();
     expect(recordAuditMock).not.toHaveBeenCalled();
 
-    expect(await setSlaSettings(fakePrisma(null).prisma, 'u1', 'cX', { slaResponseHours: 24, slaWarningHours: 4 })).toEqual({
+    expect(
+      await setSlaSettings(fakePrisma(null).prisma, 'u1', 'cX', {
+        slaResponseHours: 24,
+        slaWarningHours: 4,
+      })
+    ).toEqual({
       ok: false,
-      error: 'company_not_found'
+      error: 'company_not_found',
     });
   });
 });
 
 describe('setSlaSettingsAction', () => {
   it('гейт лидера, no_company, успех с ревалидацией', async () => {
-    vi.doMock('@/lib/services/manager/slaSettings', () => ({ setSlaSettings: setSlaSettingsService }));
+    vi.doMock('@/lib/services/manager/slaSettings', () => ({
+      setSlaSettings: setSlaSettingsService,
+    }));
     vi.doMock('@/lib/db/prisma', () => ({ prisma: {} }));
     const { setSlaSettingsAction } = await import('@/server-actions/manager/slaSettings');
 
-    requireManagerLeader.mockResolvedValue({ sub: 'u1', role: 'manager', managerRole: 'leader', companyId: null });
-    expect(await setSlaSettingsAction({ slaResponseHours: 24, slaWarningHours: 4 })).toEqual({ ok: false, error: 'no_company' });
+    requireManagerLeader.mockResolvedValue({
+      sub: 'u1',
+      role: 'manager',
+      managerRole: 'leader',
+      companyId: null,
+    });
+    expect(await setSlaSettingsAction({ slaResponseHours: 24, slaWarningHours: 4 })).toEqual({
+      ok: false,
+      error: 'no_company',
+    });
 
-    requireManagerLeader.mockResolvedValue({ sub: 'u1', role: 'manager', managerRole: 'leader', companyId: 'c1' });
+    requireManagerLeader.mockResolvedValue({
+      sub: 'u1',
+      role: 'manager',
+      managerRole: 'leader',
+      companyId: 'c1',
+    });
     setSlaSettingsService.mockResolvedValue({ ok: true, changed: true });
-    expect(await setSlaSettingsAction({ slaResponseHours: 48, slaWarningHours: 8 })).toEqual({ ok: true, changed: true });
-    expect(setSlaSettingsService).toHaveBeenCalledWith({}, 'u1', 'c1', { slaResponseHours: 48, slaWarningHours: 8 });
+    expect(await setSlaSettingsAction({ slaResponseHours: 48, slaWarningHours: 8 })).toEqual({
+      ok: true,
+      changed: true,
+    });
+    expect(setSlaSettingsService).toHaveBeenCalledWith({}, 'u1', 'c1', {
+      slaResponseHours: 48,
+      slaWarningHours: 8,
+    });
     expect(revalidatePath).toHaveBeenCalledWith('/leader/team');
     expect(revalidatePath).toHaveBeenCalledWith('/leader/intake');
 
@@ -99,13 +139,15 @@ describe('setSlaSettingsAction', () => {
     expect(await setSlaSettingsAction({ slaResponseHours: 2, slaWarningHours: 5 })).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['x']
+      messages: ['x'],
     });
 
     // Мусорный вход отбивается zod'ом до сервиса.
-    expect(await setSlaSettingsAction({ slaResponseHours: Number.NaN, slaWarningHours: 4 })).toEqual({
+    expect(
+      await setSlaSettingsAction({ slaResponseHours: Number.NaN, slaWarningHours: 4 })
+    ).toEqual({
       ok: false,
-      error: 'validation'
+      error: 'validation',
     });
   });
 });

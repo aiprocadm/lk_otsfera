@@ -63,7 +63,7 @@ async function assertOrgUserLimit(
   organizationId: string
 ): Promise<void> {
   const activeCount = await tx.organizationUser.count({
-    where: { organizationId, isActive: true }
+    where: { organizationId, isActive: true },
   });
   if (activeCount >= MAX_ORGANIZATION_USERS) {
     throw new OrgMemberError('member_limit_reached');
@@ -84,9 +84,11 @@ export async function listMembers(
       roleInOrg: true,
       isActive: true,
       createdAt: true,
-      user: { select: { id: true, email: true, name: true, passwordHash: true, lastLoginAt: true } }
+      user: {
+        select: { id: true, email: true, name: true, passwordHash: true, lastLoginAt: true },
+      },
     },
-    orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }]
+    orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }],
   });
 
   return rows.map((r) => ({
@@ -99,7 +101,7 @@ export async function listMembers(
     invitedAt: r.createdAt,
     // ФТ-11.3: до этапа 9 здесь стояла заглушка null — теперь реальная отметка.
     lastLoginAt: r.user.lastLoginAt ?? null,
-    invitePending: r.user.passwordHash === null
+    invitePending: r.user.passwordHash === null,
   }));
 }
 
@@ -120,94 +122,94 @@ export async function inviteMember(
       throw new OrgMemberError('requires_admin');
     }
     const result = await prisma.$transaction(async (tx) => {
-    let user = await tx.user.findUnique({ where: { email: args.email } });
-    let isNewUser = false;
-    if (!user) {
-      user = await tx.user.create({
-        data: {
-          email: args.email,
-          name: args.name,
-          role: 'organization',
-          isActive: true,
-          passwordHash: null
-        }
-      });
-      isNewUser = true;
-    }
+      let user = await tx.user.findUnique({ where: { email: args.email } });
+      let isNewUser = false;
+      if (!user) {
+        user = await tx.user.create({
+          data: {
+            email: args.email,
+            name: args.name,
+            role: 'organization',
+            isActive: true,
+            passwordHash: null,
+          },
+        });
+        isNewUser = true;
+      }
 
-    const existing = await tx.organizationUser.findUnique({
-      where: {
-        organizationId_userId: {
-          organizationId: args.organizationId,
-          userId: user.id
-        }
-      }
-    });
-
-    let orgUserId: string;
-    let reactivated = false;
-    if (existing) {
-      if (existing.isActive) {
-        throw new OrgMemberError('already_member');
-      }
-      // A leader must not reactivate/alter an existing admin membership — the
-      // pre-transaction guard only blocks granting admin to a NEW invite; this
-      // closes the reactivation path (re-inviting a deactivated admin).
-      if (actorRole === 'leader' && normaliseRole(existing.roleInOrg) === 'admin') {
-        throw new OrgMemberError('requires_admin');
-      }
-      // Reactivation adds an active member — enforce the cap (deactivated rows are free).
-      await assertOrgUserLimit(tx, args.organizationId);
-      const updated = await tx.organizationUser.update({
-        where: { id: existing.id },
-        data: { isActive: true, roleInOrg: args.roleInOrg }
+      const existing = await tx.organizationUser.findUnique({
+        where: {
+          organizationId_userId: {
+            organizationId: args.organizationId,
+            userId: user.id,
+          },
+        },
       });
-      orgUserId = updated.id;
-      reactivated = true;
-    } else {
-      await assertOrgUserLimit(tx, args.organizationId);
-      const created = await tx.organizationUser.create({
-        data: {
+
+      let orgUserId: string;
+      let reactivated = false;
+      if (existing) {
+        if (existing.isActive) {
+          throw new OrgMemberError('already_member');
+        }
+        // A leader must not reactivate/alter an existing admin membership — the
+        // pre-transaction guard only blocks granting admin to a NEW invite; this
+        // closes the reactivation path (re-inviting a deactivated admin).
+        if (actorRole === 'leader' && normaliseRole(existing.roleInOrg) === 'admin') {
+          throw new OrgMemberError('requires_admin');
+        }
+        // Reactivation adds an active member — enforce the cap (deactivated rows are free).
+        await assertOrgUserLimit(tx, args.organizationId);
+        const updated = await tx.organizationUser.update({
+          where: { id: existing.id },
+          data: { isActive: true, roleInOrg: args.roleInOrg },
+        });
+        orgUserId = updated.id;
+        reactivated = true;
+      } else {
+        await assertOrgUserLimit(tx, args.organizationId);
+        const created = await tx.organizationUser.create({
+          data: {
+            organizationId: args.organizationId,
+            userId: user.id,
+            roleInOrg: args.roleInOrg,
+            isActive: true,
+          },
+        });
+        orgUserId = created.id;
+      }
+
+      let inviteUrl: string | null = null;
+      let alreadyHasPassword = false;
+      if (user.passwordHash === null) {
+        const { token } = await createInviteToken(tx, user.id);
+        inviteUrl = `${getAppBaseUrl()}/reset-password?token=${token}`;
+      } else {
+        alreadyHasPassword = true;
+      }
+
+      await recordAudit(tx, {
+        userId: actorUserId,
+        action: 'org_member_invited',
+        entity: 'organization_user',
+        entityId: orgUserId,
+        after: {
           organizationId: args.organizationId,
           userId: user.id,
+          email: args.email,
           roleInOrg: args.roleInOrg,
-          isActive: true
-        }
+          isNewUser,
+          reactivated,
+          alreadyHasPassword,
+          ...(audit.source ? { source: audit.source } : {}),
+        },
       });
-      orgUserId = created.id;
-    }
 
-    let inviteUrl: string | null = null;
-    let alreadyHasPassword = false;
-    if (user.passwordHash === null) {
-      const { token } = await createInviteToken(tx, user.id);
-      inviteUrl = `${getAppBaseUrl()}/reset-password?token=${token}`;
-    } else {
-      alreadyHasPassword = true;
-    }
-
-    await recordAudit(tx, {
-      userId: actorUserId,
-      action: 'org_member_invited',
-      entity: 'organization_user',
-      entityId: orgUserId,
-      after: {
-        organizationId: args.organizationId,
-        userId: user.id,
-        email: args.email,
-        roleInOrg: args.roleInOrg,
-        isNewUser,
-        reactivated,
+      return {
+        user: { id: user.id, email: user.email },
+        inviteUrl,
         alreadyHasPassword,
-        ...(audit.source ? { source: audit.source } : {})
-      }
-    });
-
-    return {
-      user: { id: user.id, email: user.email },
-      inviteUrl,
-      alreadyHasPassword
-    };
+      };
     });
     return { ok: true, ...result };
   } catch (e) {
@@ -240,8 +242,8 @@ async function assertNotLastActiveAdmin(
       organizationId,
       roleInOrg: 'admin',
       isActive: true,
-      NOT: { id: candidateOrgUserId }
-    }
+      NOT: { id: candidateOrgUserId },
+    },
   });
   if (activeAdmins === 0) {
     throw new OrgMemberError('last_admin_protected');
@@ -276,7 +278,7 @@ export async function updateMemberRole(
 
       await tx.organizationUser.update({
         where: { id: target.id },
-        data: { roleInOrg: newRole }
+        data: { roleInOrg: newRole },
       });
 
       await recordAudit(tx, {
@@ -285,7 +287,7 @@ export async function updateMemberRole(
         entity: 'organization_user',
         entityId: target.id,
         before: { roleInOrg: currentRole },
-        after: { roleInOrg: newRole }
+        after: { roleInOrg: newRole },
       });
     });
     return { ok: true };
@@ -319,14 +321,14 @@ export async function deactivateMember(
 
       await tx.organizationUser.update({
         where: { id: target.id },
-        data: { isActive: false }
+        data: { isActive: false },
       });
 
       // Этап 9 (ФТ-11.2): гашения membership мало — клеймы организации сидят в
       // 7-дневном токене, поэтому отзываем и сессии участника.
       await tx.user.update({
         where: { id: target.userId },
-        data: { sessionVersion: { increment: 1 } }
+        data: { sessionVersion: { increment: 1 } },
       });
 
       await recordAudit(tx, {
@@ -335,7 +337,7 @@ export async function deactivateMember(
         entity: 'organization_user',
         entityId: target.id,
         before: { isActive: true },
-        after: { isActive: false }
+        after: { isActive: false },
       });
     });
     return { ok: true };
@@ -365,7 +367,7 @@ export async function reactivateMember(
 
       await tx.organizationUser.update({
         where: { id: target.id },
-        data: { isActive: true }
+        data: { isActive: true },
       });
 
       await recordAudit(tx, {
@@ -374,7 +376,7 @@ export async function reactivateMember(
         entity: 'organization_user',
         entityId: target.id,
         before: { isActive: false },
-        after: { isActive: true }
+        after: { isActive: true },
       });
     });
     return { ok: true };

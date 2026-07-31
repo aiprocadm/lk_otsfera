@@ -23,19 +23,19 @@ const CHANNEL_LABEL: Record<string, string> = {
   max: 'MAX',
   whatsapp: 'WhatsApp',
   email: 'Email',
-  cabinet: 'Вопрос из кабинета'
+  cabinet: 'Вопрос из кабинета',
 };
 
 const STATUS_TONE: Record<string, 'warning' | 'success' | 'neutral'> = {
   unresolved: 'warning',
   bound: 'success',
-  archived: 'neutral'
+  archived: 'neutral',
 };
 
 const STATUS_LABEL: Record<string, string> = {
   unresolved: 'Не распознано',
   bound: 'Привязано',
-  archived: 'В архиве'
+  archived: 'В архиве',
 };
 
 function excerpt(body: string, max = 140): string {
@@ -89,7 +89,7 @@ export function InboxList({
   items,
   organizations,
   contactsEnabled = false,
-  currentUserId = ''
+  currentUserId = '',
 }: {
   items: InboxItem[];
   organizations: ManagerOrgListRow[];
@@ -153,7 +153,7 @@ export function InboxList({
                         contactName: item.senderDisplay || item.senderRef,
                         contactPhone: '',
                         contactEmail: item.channel === 'email' ? item.senderRef : '',
-                        subject: item.subject || 'Обращение из внешнего канала'
+                        subject: item.subject || 'Обращение из внешнего канала',
                       }}
                       taskTitle={`Обращение: ${item.subject || excerpt(item.body)}`}
                       organizationId={item.resolvedOrgId}
@@ -211,7 +211,7 @@ export function InboxList({
                     contactName: item.senderDisplay || item.senderRef,
                     contactPhone: '',
                     contactEmail: item.channel === 'email' ? item.senderRef : '',
-                    subject: item.subject || 'Обращение из внешнего канала'
+                    subject: item.subject || 'Обращение из внешнего канала',
                   }}
                   taskTitle={`Обращение: ${item.subject || excerpt(item.body)}`}
                   organizationId={item.resolvedOrgId}

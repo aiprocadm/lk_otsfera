@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { notFoundIfDisabled, getSession, submitCabinetQuestion } = vi.hoisted(() => ({
   notFoundIfDisabled: vi.fn(),
   getSession: vi.fn(),
-  submitCabinetQuestion: vi.fn()
+  submitCabinetQuestion: vi.fn(),
 }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled }));
 vi.mock('@/lib/auth/session', () => ({ getSession }));
@@ -50,7 +50,11 @@ describe('POST /api/support/question', () => {
     const res = await POST(req({ subject: 'Тема', body: 'Текст' }));
     expect(res.status).toBe(201);
     expect(await res.json()).toEqual({ id: 'i1', code: 'ОБР-3F7A2C' });
-    expect(submitCabinetQuestion).toHaveBeenCalledWith({}, SESSION, expect.objectContaining({ subject: 'Тема', body: 'Текст', file: null }));
+    expect(submitCabinetQuestion).toHaveBeenCalledWith(
+      {},
+      SESSION,
+      expect.objectContaining({ subject: 'Тема', body: 'Текст', file: null })
+    );
   });
 
   it('файл передаётся сервису буфером; пустой файл игнорируется', async () => {
@@ -71,7 +75,7 @@ describe('POST /api/support/question', () => {
     ['validation', 400],
     ['too_large', 413],
     ['invalid_mime', 415],
-    ['storage', 502]
+    ['storage', 502],
   ])('ошибка %s → HTTP %i', async (error, status) => {
     submitCabinetQuestion.mockResolvedValue({ ok: false, error, messages: ['msg'] });
     const res = await POST(req({ subject: 'a', body: 'b' }));
@@ -82,7 +86,11 @@ describe('POST /api/support/question', () => {
   it('незнакомый код ошибки сервиса → 400 по умолчанию, а не 500/undefined', async () => {
     // Если в сервисе появится новый код, роут обязан ответить осмысленным
     // статусом, а не отдать `status: undefined` и уронить ответ.
-    submitCabinetQuestion.mockResolvedValue({ ok: false, error: 'quota_exceeded', messages: ['msg'] });
+    submitCabinetQuestion.mockResolvedValue({
+      ok: false,
+      error: 'quota_exceeded',
+      messages: ['msg'],
+    });
     const res = await POST(req({ subject: 'a', body: 'b' }));
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: 'quota_exceeded', messages: ['msg'] });
@@ -102,7 +110,11 @@ describe('POST /api/support/question', () => {
   });
 
   it('нечитаемое тело → 400', async () => {
-    const bad = new Request('http://localhost/api/support/question', { method: 'POST', body: 'not-form', headers: { 'content-type': 'text/plain' } });
+    const bad = new Request('http://localhost/api/support/question', {
+      method: 'POST',
+      body: 'not-form',
+      headers: { 'content-type': 'text/plain' },
+    });
     const res = await POST(bad);
     expect(res.status).toBe(400);
   });

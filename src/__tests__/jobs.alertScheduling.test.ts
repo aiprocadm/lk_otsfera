@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { registerAlertSchedules, ALERT_SCHEDULES } from '@/lib/jobs/scheduling';
 import type { Queue } from 'bullmq';
+import { registerAlertSchedules, ALERT_SCHEDULES } from '@/lib/jobs/scheduling';
 
 describe('registerAlertSchedules', () => {
   it('registers the evaluate-alerts cron with Europe/Moscow tz', async () => {
@@ -10,7 +10,7 @@ describe('registerAlertSchedules', () => {
         upsertJobScheduler: vi.fn(async (id: string, opts) => {
           calls.push({ id, opts: opts as { pattern?: string; tz?: string } });
           return { id };
-        })
+        }),
       }) as unknown as Queue;
 
     const result = await registerAlertSchedules(getQueue as never);

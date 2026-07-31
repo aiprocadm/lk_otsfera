@@ -12,7 +12,7 @@ import type { StaffBadges } from '@/lib/services/intake/badges';
 export function NavBadge({ badgeKey }: { badgeKey: keyof StaffBadges }) {
   const { data } = useClientResource<number>('/api/staff/badges', {
     intervalMs: 30_000,
-    select: (d) => (d as Partial<StaffBadges>)[badgeKey] ?? 0
+    select: (d) => (d as Partial<StaffBadges>)[badgeKey] ?? 0,
   });
 
   if (!data || data <= 0) return null;

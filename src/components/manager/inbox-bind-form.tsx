@@ -27,13 +27,13 @@ import type { ManagerOrgListRow } from '@/lib/services/manager/organizations';
 
 const ERROR_LABEL: Record<string, string> = {
   forbidden: 'Организация вне вашей зоны видимости.',
-  not_found: 'Обращение или организация не найдены.'
+  not_found: 'Обращение или организация не найдены.',
 };
 
 const CREATE_CONTACT_ERROR_LABEL: Record<string, string> = {
   forbidden: 'Организация вне вашей зоны видимости.',
   not_found: 'Обращение или организация не найдены.',
-  invalid: 'Введите имя контакта.'
+  invalid: 'Введите имя контакта.',
 };
 
 function createContactErrorLabel(code: string): string {
@@ -43,7 +43,7 @@ function createContactErrorLabel(code: string): string {
 export function InboxBindForm({
   inboundMessageId,
   organizations,
-  contactsEnabled = false
+  contactsEnabled = false,
 }: {
   inboundMessageId: string;
   organizations: ManagerOrgListRow[];
@@ -61,7 +61,7 @@ export function InboxBindForm({
       return bindInboundMessageAction({
         inboundMessageId,
         organizationId,
-        ...(orderId ? { orderId } : {})
+        ...(orderId ? { orderId } : {}),
       });
     },
     errorMap: ERROR_LABEL,
@@ -69,7 +69,7 @@ export function InboxBindForm({
       toast.success('Привязано');
       formRef.current?.reset();
       setOrganizationId('');
-    }
+    },
   });
 
   if (organizations.length === 0) {
@@ -90,7 +90,7 @@ export function InboxBindForm({
       const result = await createContactFromInboundAction({
         inboundMessageId,
         organizationId,
-        name: trimmedName
+        name: trimmedName,
       });
       if (result.ok) {
         toast.success('Контакт создан, обращение привязано.');
@@ -103,7 +103,11 @@ export function InboxBindForm({
 
   return (
     <div className="flex flex-col gap-2">
-      <form ref={formRef} action={formAction} className="flex flex-col gap-2 sm:flex-row sm:items-start">
+      <form
+        ref={formRef}
+        action={formAction}
+        className="flex flex-col gap-2 sm:flex-row sm:items-start"
+      >
         <Select
           name="organizationId"
           required
@@ -127,7 +131,13 @@ export function InboxBindForm({
           aria-label="ID заказа"
           className="sm:w-48"
         />
-        <Button type="submit" size="sm" variant="secondary" loading={pending} disabled={pending || !organizationId}>
+        <Button
+          type="submit"
+          size="sm"
+          variant="secondary"
+          loading={pending}
+          disabled={pending || !organizationId}
+        >
           Привязать
         </Button>
         {errorText && (

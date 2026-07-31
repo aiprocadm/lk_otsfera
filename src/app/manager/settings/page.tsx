@@ -14,11 +14,14 @@ export default async function ManagerSettingsPage() {
   const session = await requireManager();
   const status = await getTelegramStatus(prisma, session);
   const settings = await getNotificationSettings(prisma, session);
-  const me = await prisma.user.findUnique({ where: { id: session.sub }, select: { internalPhone: true } });
+  const me = await prisma.user.findUnique({
+    where: { id: session.sub },
+    select: { internalPhone: true },
+  });
 
   return (
-    <div className='space-y-6'>
-      <h1 className='text-2xl font-bold text-[#111111]'>Настройки</h1>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-[#111111]">Настройки</h1>
       <TelegramLinkCard status={status} />
       <NotificationChannelsCard settings={settings.view} />
       <InternalPhoneCard initialInternalPhone={me?.internalPhone ?? null} />

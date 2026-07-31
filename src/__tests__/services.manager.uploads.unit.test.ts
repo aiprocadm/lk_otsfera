@@ -18,7 +18,7 @@ const {
   notifyOrgUsersMock,
   notifyPartnerUsersMock,
   listManagerCounterpartiesMock,
-  companyFindUnique
+  companyFindUnique,
 } = vi.hoisted(() => ({
   orderFindUnique: vi.fn(),
   commentCount: vi.fn().mockResolvedValue(0),
@@ -29,35 +29,45 @@ const {
   notifyOrgUsersMock: vi.fn(),
   notifyPartnerUsersMock: vi.fn(),
   listManagerCounterpartiesMock: vi.fn(),
-  companyFindUnique: vi.fn()
+  companyFindUnique: vi.fn(),
 }));
 
 vi.mock('@/lib/storage', () => ({
-  getObjectStorage: () => ({ upload: storageUpload, createSignedUrl: vi.fn(), remove: vi.fn(), download: vi.fn() }),
+  getObjectStorage: () => ({
+    upload: storageUpload,
+    createSignedUrl: vi.fn(),
+    remove: vi.fn(),
+    download: vi.fn(),
+  }),
   documentBucket: 'documents',
-  StorageError: class StorageError extends Error {}
+  StorageError: class StorageError extends Error {},
 }));
 vi.mock('@/lib/jobs/queues', () => ({
   getQueue: () => ({ add: queueAdd }),
-  QUEUE_NAMES: ['docs.scanDocument']
+  QUEUE_NAMES: ['docs.scanDocument'],
 }));
 vi.mock('@/lib/notifications', () => ({
   notifyOrgUsers: notifyOrgUsersMock,
-  notifyPartnerUsers: notifyPartnerUsersMock
+  notifyPartnerUsers: notifyPartnerUsersMock,
 }));
 vi.mock('@/lib/services/manager/counterparties', () => ({
-  listManagerCounterparties: listManagerCounterpartiesMock
+  listManagerCounterparties: listManagerCounterpartiesMock,
 }));
 
-import { createCounterpartyDocument, createManagerOrderLessDocument } from '@/lib/services/manager/uploads';
+import {
+  createCounterpartyDocument,
+  createManagerOrderLessDocument,
+} from '@/lib/services/manager/uploads';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
-function session(opts: { sub?: string; managedOrgIds?: string[]; companyId?: string } = {}): SessionPayload {
+function session(
+  opts: { sub?: string; managedOrgIds?: string[]; companyId?: string } = {}
+): SessionPayload {
   return {
     sub: opts.sub ?? 'u-mgr-1',
     role: 'manager',
     managedOrgIds: opts.managedOrgIds ?? [],
-    companyId: opts.companyId ?? 'co-1'
+    companyId: opts.companyId ?? 'co-1',
   };
 }
 
@@ -66,7 +76,7 @@ function pdf(overrides: Partial<{ size: number; mimeType: string }> = {}) {
     name: 'invoice.pdf',
     size: overrides.size ?? 1024,
     mimeType: overrides.mimeType ?? 'application/pdf',
-    buffer: Buffer.from('%PDF-1.4 minimal')
+    buffer: Buffer.from('%PDF-1.4 minimal'),
   };
 }
 
@@ -76,7 +86,7 @@ function prismaMock() {
     comment: { count: commentCount },
     document: { create: documentCreate },
     auditLog: { create: auditCreate },
-    company: { findUnique: companyFindUnique }
+    company: { findUnique: companyFindUnique },
   } as never;
 }
 
@@ -90,7 +100,7 @@ beforeEach(() => {
   commentCount.mockResolvedValue(0);
   listManagerCounterpartiesMock.mockResolvedValue({
     organizations: [{ id: 'o1', name: 'O' }],
-    partners: []
+    partners: [],
   });
   companyFindUnique.mockResolvedValue({ managerTeamVisibility: false });
 });
@@ -109,14 +119,15 @@ describe('createCounterpartyDocument — teamMode and scope branches', () => {
       partnerId: null,
       companyId: 'co-1',
       orderNumber: 'O-TM',
-      title: 'TeamMode'
+      title: 'TeamMode',
     });
 
-    await createCounterpartyDocument(
-      prismaMock(),
-      session({ sub: 'u-mgr-1', managedOrgIds: [] }),
-      { orderId: 'ord-1', recipient: 'organization', docType: 'contract', file: pdf() }
-    );
+    await createCounterpartyDocument(prismaMock(), session({ sub: 'u-mgr-1', managedOrgIds: [] }), {
+      orderId: 'ord-1',
+      recipient: 'organization',
+      docType: 'contract',
+      file: pdf(),
+    });
     // comment.count should NOT be called in teamMode=ON
     expect(commentCount).not.toHaveBeenCalled();
   });
@@ -129,14 +140,15 @@ describe('createCounterpartyDocument — teamMode and scope branches', () => {
       partnerId: null,
       companyId: 'co-1',
       orderNumber: 'O-Manager',
-      title: 'MyOrder'
+      title: 'MyOrder',
     });
 
-    await createCounterpartyDocument(
-      prismaMock(),
-      session({ sub: 'u-mgr-1', managedOrgIds: [] }),
-      { orderId: 'ord-1', recipient: 'organization', docType: 'contract', file: pdf() }
-    );
+    await createCounterpartyDocument(prismaMock(), session({ sub: 'u-mgr-1', managedOrgIds: [] }), {
+      orderId: 'ord-1',
+      recipient: 'organization',
+      docType: 'contract',
+      file: pdf(),
+    });
     expect(commentCount).not.toHaveBeenCalled();
   });
 
@@ -148,7 +160,7 @@ describe('createCounterpartyDocument — teamMode and scope branches', () => {
       partnerId: null,
       companyId: 'co-1',
       orderNumber: 'O-OrgScope',
-      title: 'OrgScopeOrder'
+      title: 'OrgScopeOrder',
     });
 
     await createCounterpartyDocument(
@@ -167,17 +179,18 @@ describe('createCounterpartyDocument — teamMode and scope branches', () => {
       partnerId: null,
       companyId: 'co-1',
       orderNumber: 'O-NoOrg',
-      title: 'NoOrgOrder'
+      title: 'NoOrgOrder',
     });
     // counterparty = { type: 'organization', id: null }
     // canReadOrderLessDocument won't be called for order docs
     // The counterparty is not null (organization path always creates one with id=organizationId)
     // But organizationId=null means counterparty.id=null which is a valid (if odd) case
-    const r = await createCounterpartyDocument(
-      prismaMock(),
-      session({ sub: 'u-mgr-1' }),
-      { orderId: 'ord-1', recipient: 'organization', docType: 'contract', file: pdf() }
-    );
+    const r = await createCounterpartyDocument(prismaMock(), session({ sub: 'u-mgr-1' }), {
+      orderId: 'ord-1',
+      recipient: 'organization',
+      docType: 'contract',
+      file: pdf(),
+    });
     // This should succeed (counterparty = { type: 'organization', id: null }) → not null → proceeds
     // The document is created with counterpartyId=null
     expect(r.ok).toBe(true);
@@ -189,45 +202,33 @@ describe('createCounterpartyDocument — teamMode and scope branches', () => {
 describe('createManagerOrderLessDocument — failure paths', () => {
   it('returns too_large before any DB call', async () => {
     const sess = session({ companyId: 'co-1' });
-    const r = await createManagerOrderLessDocument(
-      prismaMock(),
-      sess,
-      {
-        counterparty: { type: 'organization', id: 'o1' },
-        docType: 'other',
-        file: pdf({ size: 201 * 1024 * 1024 }) // config-driven 200 MB limit §11
-      }
-    );
+    const r = await createManagerOrderLessDocument(prismaMock(), sess, {
+      counterparty: { type: 'organization', id: 'o1' },
+      docType: 'other',
+      file: pdf({ size: 201 * 1024 * 1024 }), // config-driven 200 MB limit §11
+    });
     expect(r).toEqual({ ok: false, error: 'too_large' });
     expect(storageUpload).not.toHaveBeenCalled();
   });
 
   it('returns invalid_mime before any DB call', async () => {
     const sess = session({ companyId: 'co-1' });
-    const r = await createManagerOrderLessDocument(
-      prismaMock(),
-      sess,
-      {
-        counterparty: { type: 'organization', id: 'o1' },
-        docType: 'other',
-        file: pdf({ mimeType: 'application/x-msdownload' })
-      }
-    );
+    const r = await createManagerOrderLessDocument(prismaMock(), sess, {
+      counterparty: { type: 'organization', id: 'o1' },
+      docType: 'other',
+      file: pdf({ mimeType: 'application/x-msdownload' }),
+    });
     expect(r).toEqual({ ok: false, error: 'invalid_mime' });
   });
 
   it('propagates storage error from persistUploadedDocument', async () => {
     storageUpload.mockRejectedValue(new Error('bucket down'));
     const sess = session({ companyId: 'co-1', managedOrgIds: ['o1'] });
-    const r = await createManagerOrderLessDocument(
-      prismaMock(),
-      sess,
-      {
-        counterparty: { type: 'organization', id: 'o1' },
-        docType: 'other',
-        file: pdf()
-      }
-    );
+    const r = await createManagerOrderLessDocument(prismaMock(), sess, {
+      counterparty: { type: 'organization', id: 'o1' },
+      docType: 'other',
+      file: pdf(),
+    });
     expect(r).toEqual({ ok: false, error: 'storage' });
     expect(documentCreate).not.toHaveBeenCalled();
   });
@@ -237,15 +238,11 @@ describe('createManagerOrderLessDocument — failure paths', () => {
     notifyOrgUsersMock.mockRejectedValueOnce('network-gone');
     const sess = session({ companyId: 'co-1', managedOrgIds: ['o1'] });
     documentCreate.mockResolvedValue({ id: 'doc-ok' });
-    const r = await createManagerOrderLessDocument(
-      prismaMock(),
-      sess,
-      {
-        counterparty: { type: 'organization', id: 'o1' },
-        docType: 'other',
-        file: pdf()
-      }
-    );
+    const r = await createManagerOrderLessDocument(prismaMock(), sess, {
+      counterparty: { type: 'organization', id: 'o1' },
+      docType: 'other',
+      file: pdf(),
+    });
     expect(r).toEqual({ ok: true, documentId: 'doc-ok' });
   });
 });
@@ -261,14 +258,15 @@ describe('createCounterpartyDocument — notify non-Error catch branch', () => {
       partnerId: null,
       companyId: 'co-1',
       orderNumber: 'O-NE',
-      title: 'NonError test'
+      title: 'NonError test',
     });
     documentCreate.mockResolvedValue({ id: 'doc-ne' });
-    const r = await createCounterpartyDocument(
-      prismaMock(),
-      session({ sub: 'u-mgr-1' }),
-      { orderId: 'ord-2', recipient: 'organization', docType: 'contract', file: pdf() }
-    );
+    const r = await createCounterpartyDocument(prismaMock(), session({ sub: 'u-mgr-1' }), {
+      orderId: 'ord-2',
+      recipient: 'organization',
+      docType: 'contract',
+      file: pdf(),
+    });
     expect(r).toEqual({ ok: true, documentId: 'doc-ne' });
   });
 });

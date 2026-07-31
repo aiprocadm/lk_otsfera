@@ -13,9 +13,9 @@ const bridgeCodeTtlSec = Number(process.env.STUDENT_BRIDGE_CODE_TTL_SEC ?? 60);
 function parseCsvHosts(value: string | undefined): string[] {
   return (value ?? '')
     .split(',')
-    .map(host => host.trim())
+    .map((host) => host.trim())
     .filter(Boolean)
-    .filter(host => !host.includes('*'));
+    .filter((host) => !host.includes('*'));
 }
 
 function getStudentRedirectConfig() {
@@ -41,7 +41,7 @@ function getStudentRedirectConfig() {
 
   return {
     redirectUrl,
-    allowlist: ['otsfera.cdoprof.com', ...parseCsvHosts(allowlistRaw)]
+    allowlist: ['otsfera.cdoprof.com', ...parseCsvHosts(allowlistRaw)],
   };
 }
 
@@ -53,11 +53,12 @@ export default async function StudentRedirectPage() {
   // (shared cabinet entry), so the external SSO handoff itself must be
   // student-only — otherwise a non-student could obtain a student-scoped token.
   if (session.role !== 'student') {
-    return <div className='p-6'>Переход в кабинет слушателя доступен только обучающимся.</div>;
+    return <div className="p-6">Переход в кабинет слушателя доступен только обучающимся.</div>;
   }
 
-  const { redirectUrl: externalUrl, allowlist: studentPortalAllowlist } = getStudentRedirectConfig();
-  if (!externalUrl) return <div className='p-6'>STUDENT_REDIRECT_URL не настроен</div>;
+  const { redirectUrl: externalUrl, allowlist: studentPortalAllowlist } =
+    getStudentRedirectConfig();
+  if (!externalUrl) return <div className="p-6">STUDENT_REDIRECT_URL не настроен</div>;
 
   let url: URL;
   try {
@@ -67,19 +68,25 @@ export default async function StudentRedirectPage() {
     log.error('Blocked student portal redirect URL', {
       reason: error instanceof Error ? error.message : 'Unknown error',
       protocol: parsed?.protocol,
-      hostname: parsed?.hostname
+      hostname: parsed?.hostname,
     });
 
-    return <div className='p-6'>Не удалось выполнить безопасный переход. Обратитесь в поддержку.</div>;
+    return (
+      <div className="p-6">Не удалось выполнить безопасный переход. Обратитесь в поддержку.</div>
+    );
   }
 
-  const { token: bridge, jti, iat } = await signStudentBridgeToken({
+  const {
+    token: bridge,
+    jti,
+    iat,
+  } = await signStudentBridgeToken({
     sub: session.sub,
     role: 'student',
     organizationId: session.organizationId,
     email: session.email,
     name: session.name,
-    externalStudentId: session.externalStudentId
+    externalStudentId: session.externalStudentId,
   });
 
   const code = randomUUID();
@@ -99,7 +106,11 @@ export default async function StudentRedirectPage() {
       entity: 'student_bridge',
       entityId: jti,
       userId: session.sub,
-      after: { iat, organizationId: session.organizationId, externalStudentId: session.externalStudentId },
+      after: {
+        iat,
+        organizationId: session.organizationId,
+        externalStudentId: session.externalStudentId,
+      },
     });
     await tx.studentBridgeGrant.create({
       data: {
@@ -107,8 +118,8 @@ export default async function StudentRedirectPage() {
         jti,
         token: bridge,
         userId: session.sub,
-        expiresAt
-      }
+        expiresAt,
+      },
     });
     await recordAudit(tx, {
       action: 'STUDENT_BRIDGE_CODE_ISSUED',

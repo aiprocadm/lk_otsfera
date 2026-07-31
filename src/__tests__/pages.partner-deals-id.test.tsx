@@ -23,7 +23,7 @@ const nav = vi.hoisted(() => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -58,7 +58,7 @@ const BASE_DEAL = {
   managerName: 'Менеджер М.',
   documents: [],
   comments: [],
-  items: []
+  items: [],
 };
 
 describe('PartnerDealDetailPage', () => {
@@ -76,9 +76,7 @@ describe('PartnerDealDetailPage', () => {
     getPartnerDealDetail.mockResolvedValue(null);
 
     await expect(
-      renderServerComponent(
-        PartnerDealDetailPage({ params: Promise.resolve({ id: 'missing' }) })
-      )
+      renderServerComponent(PartnerDealDetailPage({ params: Promise.resolve({ id: 'missing' }) }))
     ).rejects.toThrow('NOT_FOUND');
 
     expect(canPartnerAccessOrg).not.toHaveBeenCalled();
@@ -88,15 +86,13 @@ describe('PartnerDealDetailPage', () => {
     requirePartner.mockResolvedValue(SESSION);
     getPartnerDealDetail.mockResolvedValue({
       ...BASE_DEAL,
-      organization: { id: 'org-1', name: 'ООО Ромашка', inn: '123' }
+      organization: { id: 'org-1', name: 'ООО Ромашка', inn: '123' },
     });
     getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
     canPartnerAccessOrg.mockResolvedValue(false);
 
     await expect(
-      renderServerComponent(
-        PartnerDealDetailPage({ params: Promise.resolve({ id: 'deal-1' }) })
-      )
+      renderServerComponent(PartnerDealDetailPage({ params: Promise.resolve({ id: 'deal-1' }) }))
     ).rejects.toThrow('REDIRECT:/forbidden');
 
     expect(canPartnerAccessOrg).toHaveBeenCalledWith(SESSION, 'org-1');
@@ -117,20 +113,26 @@ describe('PartnerDealDetailPage', () => {
           size: 1024,
           orderId: 'deal-1',
           orderNumber: '2024-001',
-          orderTitle: 'Обучение по ОТ'
-        }
-      ]
+          orderTitle: 'Обучение по ОТ',
+        },
+      ],
     });
     getValuesForEntity.mockResolvedValue({
       ok: true,
       fields: [
         {
           definition: {
-            id: 'f1', key: 'k1', label: 'Поле', fieldType: 'text', options: null, required: false, sortOrder: 0
+            id: 'f1',
+            key: 'k1',
+            label: 'Поле',
+            fieldType: 'text',
+            options: null,
+            required: false,
+            sortOrder: 0,
           },
-          value: 'значение'
-        }
-      ]
+          value: 'значение',
+        },
+      ],
     });
 
     const { container } = await renderServerComponent(
@@ -153,7 +155,7 @@ describe('PartnerDealDetailPage', () => {
     requirePartner.mockResolvedValue(SESSION);
     getPartnerDealDetail.mockResolvedValue({
       ...BASE_DEAL,
-      organization: { id: 'org-1', name: 'ООО Ромашка', inn: '123' }
+      organization: { id: 'org-1', name: 'ООО Ромашка', inn: '123' },
     });
     getValuesForEntity.mockResolvedValue({ ok: false, error: 'not_found' });
     canPartnerAccessOrg.mockResolvedValue(true);

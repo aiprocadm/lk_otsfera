@@ -1,5 +1,5 @@
+import { type Prisma, type PrismaClient } from '@prisma/client';
 import type { Job } from 'bullmq';
-import { Prisma, type PrismaClient } from '@prisma/client';
 import { getChannels } from '@/lib/notifications/channels/registry';
 import {
   CHANNEL_RECIPIENT_SELECT,
@@ -103,9 +103,7 @@ export async function runDispatchNotification(
       .catch((logErr) =>
         log.error('[dispatch-notification] SyncLog write failed', { error: logErr })
       );
-    throw new Error(
-      `notification channel ${data.channel} failed: ${result.reason ?? 'unknown'}`
-    );
+    throw new Error(`notification channel ${data.channel} failed: ${result.reason ?? 'unknown'}`);
   }
 
   return { status: result.status, ...(result.reason ? { reason: result.reason } : {}) };

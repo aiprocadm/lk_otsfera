@@ -15,13 +15,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const { ResendConstructorMock, sendMock } = vi.hoisted(() => {
   const sendMock = vi.fn();
   const ResendConstructorMock = vi.fn().mockImplementation(() => ({
-    emails: { send: sendMock }
+    emails: { send: sendMock },
   }));
   return { ResendConstructorMock, sendMock };
 });
 
 vi.mock('resend', () => ({
-  Resend: ResendConstructorMock
+  Resend: ResendConstructorMock,
 }));
 
 // transport теперь читает настройки через lib/config; в этом unit-тесте
@@ -32,10 +32,10 @@ vi.mock('@/lib/config/integrationSettings', () => ({
     const map: Record<string, string | undefined> = {
       'email.from': process.env.EMAIL_FROM,
       'email.enabled': process.env.EMAIL_ENABLED,
-      'email.resendApiKey': process.env.RESEND_API_KEY
+      'email.resendApiKey': process.env.RESEND_API_KEY,
     };
     return map[key]?.trim() || null;
-  }
+  },
 }));
 
 beforeEach(() => {
@@ -126,7 +126,7 @@ describe('defaultTransport — with RESEND_API_KEY (success path)', () => {
       from: 'a@b.com',
       to: 'c@d.com',
       subject: 'Hello',
-      html: '<p>Hi</p>'
+      html: '<p>Hi</p>',
     });
     expect(result).toEqual({ id: 'email_123' });
     expect(sendMock).toHaveBeenCalledWith({
@@ -134,7 +134,7 @@ describe('defaultTransport — with RESEND_API_KEY (success path)', () => {
       to: 'c@d.com',
       subject: 'Hello',
       html: '<p>Hi</p>',
-      text: undefined
+      text: undefined,
     });
   });
 
@@ -149,7 +149,7 @@ describe('defaultTransport — with RESEND_API_KEY (success path)', () => {
       to: 'c@d.com',
       subject: 'Hi',
       html: '<p>Hi</p>',
-      text: 'Hi'
+      text: 'Hi',
     });
     expect(result).toEqual({ id: null });
   });
@@ -158,7 +158,7 @@ describe('defaultTransport — with RESEND_API_KEY (success path)', () => {
     vi.stubEnv('RESEND_API_KEY', 'test-api-key');
     sendMock.mockResolvedValue({
       data: { id: 'err_id' },
-      error: { message: 'rate limited' }
+      error: { message: 'rate limited' },
     });
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -168,7 +168,7 @@ describe('defaultTransport — with RESEND_API_KEY (success path)', () => {
       from: 'a@b.com',
       to: 'bad@b.com',
       subject: 'Hi',
-      html: '<p>Hi</p>'
+      html: '<p>Hi</p>',
     });
     expect(result).toEqual({ id: 'err_id' });
     expect(errorSpy).toHaveBeenCalledWith(

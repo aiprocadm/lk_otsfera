@@ -13,7 +13,7 @@ import { ColumnConfig } from '@/components/tasks/column-config';
 export const dynamic = 'force-dynamic';
 
 export default async function LeaderTasksPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
@@ -24,9 +24,9 @@ export default async function LeaderTasksPage({
     listTaskBoard(prisma, session, {
       scope: state.scope,
       overdue: state.overdue,
-      assigneeId: state.assigneeId
+      assigneeId: state.assigneeId,
     }),
-    getTaskFormOptions(prisma, session)
+    getTaskFormOptions(prisma, session),
   ]);
   const isDefault = board.columns.length > 0 && board.columns[0]!.id.startsWith('default:');
 
@@ -35,11 +35,16 @@ export default async function LeaderTasksPage({
       <div>
         <h1 className="text-2xl font-bold text-[#111111]">Задачи</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Внутренний канбан задач. Перетаскивайте карточки между колонками; настройте колонки под процесс команды.
+          Внутренний канбан задач. Перетаскивайте карточки между колонками; настройте колонки под
+          процесс команды.
         </p>
       </div>
       <TasksToolbar state={state} assigneeOptions={options.users} />
-      {state.view === 'list' ? <TaskList board={board} options={options} /> : <TaskBoard board={board} options={options} />}
+      {state.view === 'list' ? (
+        <TaskList board={board} options={options} />
+      ) : (
+        <TaskBoard board={board} options={options} />
+      )}
       <ColumnConfig columns={board.columns} isDefault={isDefault} />
     </div>
   );

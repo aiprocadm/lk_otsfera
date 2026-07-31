@@ -5,13 +5,13 @@ const {
   recordAudit,
   revalidatePath,
   inboundMessageFindUnique,
-  inboundMessageUpdateMany
+  inboundMessageUpdateMany,
 } = vi.hoisted(() => ({
   requireManager: vi.fn(),
   recordAudit: vi.fn(),
   revalidatePath: vi.fn(),
   inboundMessageFindUnique: vi.fn(),
-  inboundMessageUpdateMany: vi.fn()
+  inboundMessageUpdateMany: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
@@ -22,8 +22,8 @@ vi.mock('@/lib/notifications', () => ({ notifyOrgUsers: vi.fn() }));
 vi.mock('@/lib/services/oneCSync/log', () => ({ writeSyncLog: vi.fn() }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
-    inboundMessage: { findUnique: inboundMessageFindUnique, updateMany: inboundMessageUpdateMany }
-  }
+    inboundMessage: { findUnique: inboundMessageFindUnique, updateMany: inboundMessageUpdateMany },
+  },
 }));
 
 import { archiveInboundMessageAction, restoreInboundMessageAction } from '@/server-actions/inbound';
@@ -33,7 +33,7 @@ function managerSession(opts: { sub?: string; companyId?: string | null } = {}) 
     sub: opts.sub ?? 'u-mgr-1',
     role: 'manager',
     companyId: opts.companyId === undefined ? 'company-a' : opts.companyId,
-    managedOrgIds: ['org-a']
+    managedOrgIds: ['org-a'],
   };
 }
 
@@ -89,14 +89,14 @@ describe('archiveInboundMessageAction', () => {
     expect(result).toEqual({ ok: true });
     expect(inboundMessageFindUnique).toHaveBeenCalledWith({
       where: { id: 'im-1' },
-      select: { companyId: true, status: true }
+      select: { companyId: true, status: true },
     });
     // Закрепление companyId — иначе archived+companyId=null выпадает из
     // scope ВСЕХ сессий навсегда (невидимо в списке и невосстановимо).
     // CAS по прочитанному status — TOCTOU-guard против гонки с bind.
     expect(inboundMessageUpdateMany).toHaveBeenCalledWith({
       where: { id: 'im-1', status: 'unresolved' },
-      data: { status: 'archived', companyId: 'company-a' }
+      data: { status: 'archived', companyId: 'company-a' },
     });
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
@@ -106,7 +106,7 @@ describe('archiveInboundMessageAction', () => {
         entityId: 'im-1',
         userId: 'u-mgr-1',
         before: { status: 'unresolved' },
-        after: { status: 'archived', companyId: 'company-a' }
+        after: { status: 'archived', companyId: 'company-a' },
       })
     );
     expect(revalidatePath).toHaveBeenCalledWith('/manager/inbox');
@@ -124,7 +124,7 @@ describe('archiveInboundMessageAction', () => {
     expect(result).toEqual({ ok: true });
     expect(inboundMessageUpdateMany).toHaveBeenCalledWith({
       where: { id: 'im-1', status: 'unresolved' },
-      data: { status: 'archived' }
+      data: { status: 'archived' },
     });
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
@@ -152,7 +152,7 @@ describe('archiveInboundMessageAction', () => {
     expect(result).toEqual({ ok: true });
     expect(inboundMessageUpdateMany).toHaveBeenCalledWith({
       where: { id: 'im-2', status: 'bound' },
-      data: { status: 'archived' }
+      data: { status: 'archived' },
     });
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
@@ -210,7 +210,7 @@ describe('restoreInboundMessageAction', () => {
     inboundMessageFindUnique.mockResolvedValue({
       companyId: 'company-other',
       status: 'archived',
-      boundAt: new Date()
+      boundAt: new Date(),
     });
 
     const result = await restoreInboundMessageAction({ inboundMessageId: 'im-1' });
@@ -223,7 +223,7 @@ describe('restoreInboundMessageAction', () => {
     inboundMessageFindUnique.mockResolvedValue({
       companyId: 'company-a',
       status: 'bound',
-      boundAt: new Date()
+      boundAt: new Date(),
     });
 
     const result = await restoreInboundMessageAction({ inboundMessageId: 'im-1' });
@@ -237,7 +237,7 @@ describe('restoreInboundMessageAction', () => {
     inboundMessageFindUnique.mockResolvedValue({
       companyId: 'company-a',
       status: 'archived',
-      boundAt: new Date('2026-07-01T10:00:00Z')
+      boundAt: new Date('2026-07-01T10:00:00Z'),
     });
 
     const result = await restoreInboundMessageAction({ inboundMessageId: 'im-1' });
@@ -245,11 +245,11 @@ describe('restoreInboundMessageAction', () => {
     expect(result).toEqual({ ok: true });
     expect(inboundMessageFindUnique).toHaveBeenCalledWith({
       where: { id: 'im-1' },
-      select: { companyId: true, status: true, boundAt: true }
+      select: { companyId: true, status: true, boundAt: true },
     });
     expect(inboundMessageUpdateMany).toHaveBeenCalledWith({
       where: { id: 'im-1', status: 'archived' },
-      data: { status: 'bound' }
+      data: { status: 'bound' },
     });
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
@@ -259,7 +259,7 @@ describe('restoreInboundMessageAction', () => {
         entityId: 'im-1',
         userId: 'u-mgr-1',
         before: { status: 'archived' },
-        after: { status: 'bound' }
+        after: { status: 'bound' },
       })
     );
     expect(revalidatePath).toHaveBeenCalledWith('/manager/inbox');
@@ -269,7 +269,7 @@ describe('restoreInboundMessageAction', () => {
     inboundMessageFindUnique.mockResolvedValue({
       companyId: 'company-a',
       status: 'archived',
-      boundAt: null
+      boundAt: null,
     });
 
     const result = await restoreInboundMessageAction({ inboundMessageId: 'im-2' });
@@ -277,11 +277,14 @@ describe('restoreInboundMessageAction', () => {
     expect(result).toEqual({ ok: true });
     expect(inboundMessageUpdateMany).toHaveBeenCalledWith({
       where: { id: 'im-2', status: 'archived' },
-      data: { status: 'unresolved' }
+      data: { status: 'unresolved' },
     });
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ action: 'inbound_message_restored', after: { status: 'unresolved' } })
+      expect.objectContaining({
+        action: 'inbound_message_restored',
+        after: { status: 'unresolved' },
+      })
     );
   });
 
@@ -289,7 +292,7 @@ describe('restoreInboundMessageAction', () => {
     inboundMessageFindUnique.mockResolvedValue({
       companyId: 'company-a',
       status: 'archived',
-      boundAt: null
+      boundAt: null,
     });
     inboundMessageUpdateMany.mockResolvedValue({ count: 0 });
 

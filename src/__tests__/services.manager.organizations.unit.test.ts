@@ -6,12 +6,13 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { getCompanyTeamVisibility, managerOrgScope, canSeeOrganization, isLeaderSameCompany } = vi.hoisted(() => ({
-  getCompanyTeamVisibility: vi.fn(),
-  managerOrgScope: vi.fn(),
-  canSeeOrganization: vi.fn(),
-  isLeaderSameCompany: vi.fn(() => false)
-}));
+const { getCompanyTeamVisibility, managerOrgScope, canSeeOrganization, isLeaderSameCompany } =
+  vi.hoisted(() => ({
+    getCompanyTeamVisibility: vi.fn(),
+    managerOrgScope: vi.fn(),
+    canSeeOrganization: vi.fn(),
+    isLeaderSameCompany: vi.fn(() => false),
+  }));
 
 vi.mock('@/lib/auth/managerPolicy', () => ({
   getCompanyTeamVisibility,
@@ -19,7 +20,7 @@ vi.mock('@/lib/auth/managerPolicy', () => ({
   canSeeOrganization,
   // Лидер-инвариант C8 в деталке организации (фикс 30.07.2026): по умолчанию
   // выключен, отдельная проверка ниже включает его точечно.
-  isLeaderSameCompany
+  isLeaderSameCompany,
 }));
 
 import { listOrganizations, getOrganization } from '@/lib/services/manager/organizations';
@@ -29,7 +30,7 @@ const SESSION: SessionPayload = {
   sub: 'mgr-1',
   role: 'manager',
   managedOrgIds: ['org-1'],
-  companyId: 'co-1'
+  companyId: 'co-1',
 };
 
 function orgRow(id: string, companyId = 'co-1') {
@@ -38,7 +39,7 @@ function orgRow(id: string, companyId = 'co-1') {
     name: `Org ${id}`,
     companyId,
     _count: { orders: 1, students: 0, users: 2 },
-    partner: { id: 'p-1', name: 'Partner' }
+    partner: { id: 'p-1', name: 'Partner' },
   };
 }
 

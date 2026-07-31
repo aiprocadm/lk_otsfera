@@ -161,7 +161,9 @@ describe('linkMaxByCode — P2002 race on update (branch @ 106, lines 107-112)',
     const { linkMaxByCode } = await realMaxLink();
     const boom = Object.assign(new Error('db exploded'), { code: 'P1001' });
     const prisma = stubPrisma({ linkedUserId: 'u-1', chatOwner: null, updateError: boom });
-    await expect(linkMaxByCode(prisma, { code: 'valid', chatId: 'c' })).rejects.toThrow('db exploded');
+    await expect(linkMaxByCode(prisma, { code: 'valid', chatId: 'c' })).rejects.toThrow(
+      'db exploded'
+    );
   });
 });
 
@@ -227,7 +229,10 @@ describe('POST /api/integrations/max/webhook — extractStart fall-through', () 
   // is NOT a string (number), and no message.text → text resolves to null → no-op.
   it('200 no-op когда bot_started.payload не строка (number) → text=null (line 66)', async () => {
     const res = await POST_MAX(
-      maxReq({ bot_started: { payload: 12345, user_id: 7 } }, { 'x-max-webhook-secret': MAX_SECRET })
+      maxReq(
+        { bot_started: { payload: 12345, user_id: 7 } },
+        { 'x-max-webhook-secret': MAX_SECRET }
+      )
     );
     expect(res.status).toBe(200);
     expect(linkMaxByCodeWh).not.toHaveBeenCalled();

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import ManagerLeadDetailPage from '@/app/manager/leads/[id]/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
@@ -19,25 +20,30 @@ const { listLinkedTasks } = vi.hoisted(() => ({ listLinkedTasks: vi.fn() }));
 vi.mock('@/lib/services/tasks/board', () => ({ listLinkedTasks }));
 vi.mock('@/components/tasks/linked-tasks-panel', () => ({
   LinkedTasksPanel: (props: { link: unknown; tasks: unknown[]; currentUserId: string }) =>
-    React.createElement('div', { 'data-testid': 'linked-tasks-panel' }, JSON.stringify(props.link), JSON.stringify(props.tasks))
+    React.createElement(
+      'div',
+      { 'data-testid': 'linked-tasks-panel' },
+      JSON.stringify(props.link),
+      JSON.stringify(props.tasks)
+    ),
 }));
 
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
 vi.mock('@/components/partner/lead-status-badge', () => ({
   LeadStatusBadge: (props: { status: string }) =>
-    React.createElement('span', { 'data-testid': 'status-badge' }, props.status)
+    React.createElement('span', { 'data-testid': 'status-badge' }, props.status),
 }));
 
 vi.mock('@/components/manager/push-lead-button', () => ({
   PushLeadButton: (props: { leadId: string }) =>
-    React.createElement('button', { 'data-testid': 'push-lead-button' }, props.leadId)
+    React.createElement('button', { 'data-testid': 'push-lead-button' }, props.leadId),
 }));
 
 vi.mock('@/components/manager/manager-lead-actions', () => ({
@@ -56,12 +62,15 @@ vi.mock('@/components/manager/manager-lead-actions', () => ({
       String(props.hasOrganization),
       String(props.promotedOrderId),
       JSON.stringify(props.candidates)
-    )
+    ),
 }));
 
-import ManagerLeadDetailPage from '@/app/manager/leads/[id]/page';
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 
 const BASE_LEAD = {
   id: 'lead-1',
@@ -83,7 +92,7 @@ const BASE_LEAD = {
   notes: null as string | null,
   promotedOrderId: null as string | null,
   externalIdInOneC: null as string | null,
-  pushedToOneCAt: null as Date | null
+  pushedToOneCAt: null as Date | null,
 };
 
 describe('ManagerLeadDetailPage', () => {
@@ -126,7 +135,7 @@ describe('ManagerLeadDetailPage', () => {
 
   it.each([
     ['звонка', { sourceCallId: 'c1' }, 'открыть звонки', '/manager/calls'],
-    ['обращения', { sourceInboundId: 'i1' }, 'открыть обращения', '/manager/inbox']
+    ['обращения', { sourceInboundId: 'i1' }, 'открыть обращения', '/manager/inbox'],
   ])('лид из %s: ссылка ведёт к источнику', async (_label, over, label, href) => {
     // Ссылка «открыть …» — единственный способ вернуться к первоисточнику лида
     // (звонку или письму). Без неё менеджер теряет контекст разговора.
@@ -159,7 +168,7 @@ describe('ManagerLeadDetailPage', () => {
     getManagerLead.mockResolvedValue({
       ...BASE_LEAD,
       pushedToOneCAt: new Date('2026-06-05T00:00:00Z'),
-      externalIdInOneC: 'EXT-77'
+      externalIdInOneC: 'EXT-77',
     });
 
     const { container } = await renderServerComponent(
@@ -176,7 +185,7 @@ describe('ManagerLeadDetailPage', () => {
     getManagerLead.mockResolvedValue({
       ...BASE_LEAD,
       pushedToOneCAt: new Date('2026-06-05T00:00:00Z'),
-      externalIdInOneC: null
+      externalIdInOneC: null,
     });
 
     const { container } = await renderServerComponent(
@@ -201,7 +210,7 @@ describe('ManagerLeadDetailPage', () => {
       assignedManagerName: 'Менеджер А',
       status: 'rejected',
       rejectedReason: 'Нет бюджета',
-      notes: 'Примечание к заявке'
+      notes: 'Примечание к заявке',
     });
 
     const { container } = await renderServerComponent(
@@ -224,9 +233,30 @@ describe('ManagerLeadDetailPage', () => {
     requireManager.mockResolvedValue(SESSION);
     getManagerLead.mockResolvedValue(BASE_LEAD);
     listCompanyManagers.mockResolvedValue([
-      { id: 'u1', name: 'Я сам', email: 'me@x.ru', isActive: true, managerRole: 'member', assignments: [] },
-      { id: 'm2', name: 'Мария', email: 'm@x.ru', isActive: true, managerRole: null, assignments: [] },
-      { id: 'm3', name: 'Неактивный', email: 'off@x.ru', isActive: false, managerRole: null, assignments: [] }
+      {
+        id: 'u1',
+        name: 'Я сам',
+        email: 'me@x.ru',
+        isActive: true,
+        managerRole: 'member',
+        assignments: [],
+      },
+      {
+        id: 'm2',
+        name: 'Мария',
+        email: 'm@x.ru',
+        isActive: true,
+        managerRole: null,
+        assignments: [],
+      },
+      {
+        id: 'm3',
+        name: 'Неактивный',
+        email: 'off@x.ru',
+        isActive: false,
+        managerRole: null,
+        assignments: [],
+      },
     ]);
 
     const { container } = await renderServerComponent(
@@ -257,7 +287,7 @@ describe('ManagerLeadDetailPage', () => {
     getManagerLead.mockResolvedValue({
       ...BASE_LEAD,
       status: 'promoted_to_order',
-      promotedOrderId: 'order-9'
+      promotedOrderId: 'order-9',
     });
 
     const { container } = await renderServerComponent(
@@ -265,7 +295,9 @@ describe('ManagerLeadDetailPage', () => {
     );
 
     expect(container.textContent).not.toContain('Чтобы преобразовать заявку в заказ');
-    expect(container.querySelector('[data-testid="lead-actions"]')?.textContent).toContain('order-9');
+    expect(container.querySelector('[data-testid="lead-actions"]')?.textContent).toContain(
+      'order-9'
+    );
   });
 
   it('этап 7: при выключенном internal_tasks блок «Задачи» скрыт и сервис не зовётся', async () => {

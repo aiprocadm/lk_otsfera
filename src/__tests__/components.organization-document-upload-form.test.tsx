@@ -47,14 +47,18 @@ describe('OrganizationDocumentUploadForm', () => {
   });
 
   it('renders the file input, doc-type select, and submit button', () => {
-    render(React.createElement(OrganizationDocumentUploadForm, { organizationId: 'org1', orderId: 'o1' }));
+    render(
+      React.createElement(OrganizationDocumentUploadForm, { organizationId: 'org1', orderId: 'o1' })
+    );
     expect(screen.getByText('Отправить документ менеджеру')).toBeTruthy();
     expect(screen.getByText('Отправить')).toBeTruthy();
     expect(screen.getByText('Договор')).toBeTruthy();
   });
 
   it('changing the doc-type select updates the selected value', () => {
-    render(React.createElement(OrganizationDocumentUploadForm, { organizationId: 'org1', orderId: 'o1' }));
+    render(
+      React.createElement(OrganizationDocumentUploadForm, { organizationId: 'org1', orderId: 'o1' })
+    );
     const select = screen.getByRole('combobox') as HTMLSelectElement;
     expect(select.value).toBe('other');
     fireEvent.change(select, { target: { value: 'act' } });
@@ -63,14 +67,18 @@ describe('OrganizationDocumentUploadForm', () => {
 
   it('success path: submits with a file, toasts with its name, and clears the file input', async () => {
     uploadOrganizationDocument.mockResolvedValue({ ok: true, documentId: 'd1' });
-    render(React.createElement(OrganizationDocumentUploadForm, { organizationId: 'org1', orderId: 'o1' }));
+    render(
+      React.createElement(OrganizationDocumentUploadForm, { organizationId: 'org1', orderId: 'o1' })
+    );
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     pickFile(fileInput, makeFile('act.pdf'));
 
     fireEvent.click(screen.getByText('Отправить'));
 
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Документ «act.pdf» отправлен менеджеру.'));
+    await waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith('Документ «act.pdf» отправлен менеджеру.')
+    );
     expect(uploadOrganizationDocument).toHaveBeenCalled();
     const sentFormData = uploadOrganizationDocument.mock.calls[0][0] as FormData;
     expect(sentFormData.get('organizationId')).toBe('org1');
@@ -81,14 +89,20 @@ describe('OrganizationDocumentUploadForm', () => {
 
   it('submits with no file selected (lastFileNameRef falls back to empty string)', async () => {
     uploadOrganizationDocument.mockResolvedValue({ ok: true, documentId: 'd2' });
-    render(React.createElement(OrganizationDocumentUploadForm, { organizationId: 'org1', orderId: 'o1' }));
+    render(
+      React.createElement(OrganizationDocumentUploadForm, { organizationId: 'org1', orderId: 'o1' })
+    );
     fireEvent.click(screen.getByText('Отправить'));
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Документ «» отправлен менеджеру.'));
+    await waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith('Документ «» отправлен менеджеру.')
+    );
   });
 
   it('error path renders the alert with the resolved error text', async () => {
     uploadOrganizationDocument.mockResolvedValue({ ok: false, error: 'too_large' });
-    render(React.createElement(OrganizationDocumentUploadForm, { organizationId: 'org1', orderId: 'o1' }));
+    render(
+      React.createElement(OrganizationDocumentUploadForm, { organizationId: 'org1', orderId: 'o1' })
+    );
     fireEvent.click(screen.getByText('Отправить'));
     await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
     expect(toastSuccess).not.toHaveBeenCalled();

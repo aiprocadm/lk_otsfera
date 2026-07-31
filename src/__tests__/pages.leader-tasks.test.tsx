@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import LeaderTasksPage from '@/app/leader/tasks/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManagerLeader } = vi.hoisted(() => ({ requireManagerLeader: vi.fn() }));
@@ -13,7 +14,7 @@ vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
 const { listTaskBoard, getTaskFormOptions } = vi.hoisted(() => ({
   listTaskBoard: vi.fn(),
-  getTaskFormOptions: vi.fn()
+  getTaskFormOptions: vi.fn(),
 }));
 vi.mock('@/lib/services/tasks/board', () => ({ listTaskBoard, getTaskFormOptions }));
 
@@ -21,7 +22,7 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -32,16 +33,20 @@ vi.mock('@/components/tasks/task-board', () => ({
       { 'data-testid': 'task-board' },
       JSON.stringify(props.board),
       JSON.stringify(props.options)
-    )
+    ),
 }));
 
 vi.mock('@/components/tasks/task-list', () => ({
-  TaskList: () => React.createElement('div', { 'data-testid': 'task-list' })
+  TaskList: () => React.createElement('div', { 'data-testid': 'task-list' }),
 }));
 
 vi.mock('@/components/tasks/tasks-toolbar', () => ({
   TasksToolbar: (props: { state: unknown; assigneeOptions: unknown }) =>
-    React.createElement('div', { 'data-testid': 'tasks-toolbar' }, JSON.stringify(props.assigneeOptions))
+    React.createElement(
+      'div',
+      { 'data-testid': 'tasks-toolbar' },
+      JSON.stringify(props.assigneeOptions)
+    ),
 }));
 
 vi.mock('@/components/tasks/column-config', () => ({
@@ -51,12 +56,15 @@ vi.mock('@/components/tasks/column-config', () => ({
       { 'data-testid': 'column-config' },
       String(props.isDefault),
       JSON.stringify(props.columns)
-    )
+    ),
 }));
 
-import LeaderTasksPage from '@/app/leader/tasks/page';
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'leader' as const,
+  companyId: 'c1',
+};
 
 function sp(params: Record<string, string> = {}) {
   return { searchParams: Promise.resolve(params) };
@@ -83,17 +91,30 @@ describe('LeaderTasksPage', () => {
   it('renders with default columns (isDefault: true) and passes assignee filter options (ФТ-7.3)', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManagerLeader.mockResolvedValue(SESSION);
-    listTaskBoard.mockResolvedValue({ columns: [{ id: 'default:todo', name: 'К выполнению' }], board: [] });
-    getTaskFormOptions.mockResolvedValue({ users: [{ id: 'm1', name: 'Менеджер' }], organizations: [], orders: [] });
+    listTaskBoard.mockResolvedValue({
+      columns: [{ id: 'default:todo', name: 'К выполнению' }],
+      board: [],
+    });
+    getTaskFormOptions.mockResolvedValue({
+      users: [{ id: 'm1', name: 'Менеджер' }],
+      organizations: [],
+      orders: [],
+    });
 
     const { container } = await renderServerComponent(LeaderTasksPage(sp()));
 
-    expect(listTaskBoard).toHaveBeenCalledWith({}, SESSION, { scope: 'all', overdue: false, assigneeId: null });
+    expect(listTaskBoard).toHaveBeenCalledWith({}, SESSION, {
+      scope: 'all',
+      overdue: false,
+      assigneeId: null,
+    });
     expect(getTaskFormOptions).toHaveBeenCalledWith({}, SESSION);
     expect(container.textContent).toContain('Задачи');
     expect(container.textContent).toContain('true');
     // Руководителю доступен фильтр по исполнителю.
-    expect(container.querySelector('[data-testid="tasks-toolbar"]')?.textContent).toContain('Менеджер');
+    expect(container.querySelector('[data-testid="tasks-toolbar"]')?.textContent).toContain(
+      'Менеджер'
+    );
   });
 
   it('passes assignee/scope/overdue searchParams to the service', async () => {
@@ -102,15 +123,24 @@ describe('LeaderTasksPage', () => {
     listTaskBoard.mockResolvedValue({ columns: [], board: [] });
     getTaskFormOptions.mockResolvedValue({ users: [], organizations: [], orders: [] });
 
-    await renderServerComponent(LeaderTasksPage(sp({ assignee: 'm2', scope: 'mine', overdue: '1' })));
+    await renderServerComponent(
+      LeaderTasksPage(sp({ assignee: 'm2', scope: 'mine', overdue: '1' }))
+    );
 
-    expect(listTaskBoard).toHaveBeenCalledWith({}, SESSION, { scope: 'mine', overdue: true, assigneeId: 'm2' });
+    expect(listTaskBoard).toHaveBeenCalledWith({}, SESSION, {
+      scope: 'mine',
+      overdue: true,
+      assigneeId: 'm2',
+    });
   });
 
   it('renders with custom columns (isDefault: false)', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManagerLeader.mockResolvedValue(SESSION);
-    listTaskBoard.mockResolvedValue({ columns: [{ id: 'custom-1', name: 'Своя колонка' }], board: [] });
+    listTaskBoard.mockResolvedValue({
+      columns: [{ id: 'custom-1', name: 'Своя колонка' }],
+      board: [],
+    });
     getTaskFormOptions.mockResolvedValue({ users: [], organizations: [], orders: [] });
 
     const { container } = await renderServerComponent(LeaderTasksPage(sp()));

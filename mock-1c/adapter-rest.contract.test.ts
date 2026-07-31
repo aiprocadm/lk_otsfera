@@ -19,7 +19,9 @@ beforeAll(async () => {
   baseUrl = `http://127.0.0.1:${port}`;
 });
 afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
-beforeEach(() => { scenarioRef.current = { ...DEFAULT_SCENARIO }; });
+beforeEach(() => {
+  scenarioRef.current = { ...DEFAULT_SCENARIO };
+});
 
 const adapter = () => new RestOneCAdapter({ baseUrl, token: 'tok' });
 
@@ -48,7 +50,14 @@ describe('RestOneCAdapter against the live mock server', () => {
 
   it('pushes a lead and dedups a retry by cabinetLeadId', async () => {
     const a = adapter();
-    const lead = { cabinetLeadId: 'L-contract', clientCompanyName: 'c', clientContactName: 'n', subject: 's', productType: ['training'], partnerSlug: 'acme' };
+    const lead = {
+      cabinetLeadId: 'L-contract',
+      clientCompanyName: 'c',
+      clientContactName: 'n',
+      subject: 's',
+      productType: ['training'],
+      partnerSlug: 'acme',
+    };
     const first = await a.pushLead(lead);
     const second = await a.pushLead(lead);
     expect(first.acceptedAt).toBeTruthy();

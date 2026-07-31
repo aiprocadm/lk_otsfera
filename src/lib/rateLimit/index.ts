@@ -118,7 +118,7 @@ export async function isRateLimited(
     );
   } catch (err) {
     log.warn('[rateLimit] redis backend failed, degrading to in-memory', {
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
     return memoryIsLimited(key, opts.windowMs, opts.max);
   }

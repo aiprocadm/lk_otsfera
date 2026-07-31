@@ -6,12 +6,15 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 const { addDealNoteAction, initiateCallAction } = vi.hoisted(() => ({
   addDealNoteAction: vi.fn(),
-  initiateCallAction: vi.fn()
+  initiateCallAction: vi.fn(),
 }));
 vi.mock('@/server-actions/deal-activity', () => ({ addDealNoteAction, initiateCallAction }));
 
@@ -32,7 +35,7 @@ function allKindsItems(): ActivityItem[] {
       channel: 'telegram',
       sender: 'Иван Клиент',
       body: 'Здравствуйте, есть вопрос',
-      attachmentName: 'скан.pdf'
+      attachmentName: 'скан.pdf',
     },
     {
       kind: 'message_in',
@@ -41,7 +44,7 @@ function allKindsItems(): ActivityItem[] {
       channel: 'sms',
       sender: 'Пётр',
       body: 'Без вложения',
-      attachmentName: null
+      attachmentName: null,
     },
     {
       kind: 'message_out',
@@ -49,7 +52,7 @@ function allKindsItems(): ActivityItem[] {
       at: new Date('2026-01-01T10:10:00Z'),
       author: 'Менеджер Мария',
       body: 'Ответ клиенту с файлом',
-      hasAttachment: true
+      hasAttachment: true,
     },
     {
       kind: 'message_out',
@@ -57,14 +60,14 @@ function allKindsItems(): ActivityItem[] {
       at: new Date('2026-01-01T10:12:00Z'),
       author: 'Менеджер Мария',
       body: 'Ответ без файла',
-      hasAttachment: false
+      hasAttachment: false,
     },
     {
       kind: 'comment',
       id: 'c1',
       at: new Date('2026-01-01T10:15:00Z'),
       author: 'Организация Ромашка',
-      body: 'Комментарий заказчика'
+      body: 'Комментарий заказчика',
     },
     {
       kind: 'call',
@@ -74,7 +77,7 @@ function allKindsItems(): ActivityItem[] {
       number: '+79990000000',
       durationSec: 125,
       recordingReady: true,
-      initiator: 'Оператор Олег'
+      initiator: 'Оператор Олег',
     },
     {
       kind: 'call',
@@ -84,7 +87,7 @@ function allKindsItems(): ActivityItem[] {
       number: '+79991111111',
       durationSec: null,
       recordingReady: false,
-      initiator: null
+      initiator: null,
     },
     {
       kind: 'call',
@@ -94,7 +97,7 @@ function allKindsItems(): ActivityItem[] {
       number: '+79992222222',
       durationSec: Number.NaN,
       recordingReady: false,
-      initiator: null
+      initiator: null,
     },
     {
       kind: 'call',
@@ -104,21 +107,21 @@ function allKindsItems(): ActivityItem[] {
       number: '+79993333333',
       durationSec: -5,
       recordingReady: false,
-      initiator: null
+      initiator: null,
     },
     {
       kind: 'note',
       id: 'n1',
       at: new Date('2026-01-01T10:25:00Z'),
       author: 'Менеджер Мария',
-      body: 'Внутренняя заметка для команды'
+      body: 'Внутренняя заметка для команды',
     },
     {
       kind: 'event',
       id: 'ev1',
       at: new Date('2026-01-01T10:30:00Z'),
-      label: 'Смена статуса заказа'
-    }
+      label: 'Смена статуса заказа',
+    },
   ];
 }
 
@@ -132,7 +135,7 @@ function tgInboundItems(): ActivityItem[] {
       channel: 'whatsapp',
       sender: 'Клиент',
       body: 'старое сообщение',
-      attachmentName: null
+      attachmentName: null,
     },
     {
       kind: 'message_in',
@@ -141,8 +144,8 @@ function tgInboundItems(): ActivityItem[] {
       channel: 'telegram',
       sender: 'Клиент',
       body: 'новое сообщение',
-      attachmentName: null
-    }
+      attachmentName: null,
+    },
   ];
 }
 
@@ -160,14 +163,19 @@ describe('DealActivityThread', () => {
 
   it('пустая лента: показывает заглушку', () => {
     render(
-      <DealActivityThread orderId='o1' items={[]} inboundEnabled={true} telephonyEnabled={true} />
+      <DealActivityThread orderId="o1" items={[]} inboundEnabled={true} telephonyEnabled={true} />
     );
     expect(screen.getByText('Активности пока нет.')).toBeTruthy();
   });
 
   it('вид по умолчанию — «Диалог»: показывает message_in/message_out/comment, скрывает call/note/event', () => {
     render(
-      <DealActivityThread orderId='o1' items={allKindsItems()} inboundEnabled={true} telephonyEnabled={true} />
+      <DealActivityThread
+        orderId="o1"
+        items={allKindsItems()}
+        inboundEnabled={true}
+        telephonyEnabled={true}
+      />
     );
     expect(screen.getByText('Здравствуйте, есть вопрос')).toBeTruthy();
     expect(screen.getByText('Ответ клиенту с файлом')).toBeTruthy();
@@ -179,7 +187,12 @@ describe('DealActivityThread', () => {
 
   it('переключение на «Вся активность» показывает call/note/event; «клиент не видит» маркер у заметки; initiator у звонка', () => {
     render(
-      <DealActivityThread orderId='o1' items={allKindsItems()} inboundEnabled={true} telephonyEnabled={true} />
+      <DealActivityThread
+        orderId="o1"
+        items={allKindsItems()}
+        inboundEnabled={true}
+        telephonyEnabled={true}
+      />
     );
 
     expect(screen.getByRole('button', { name: 'Диалог', pressed: true })).toBeTruthy();
@@ -207,7 +220,12 @@ describe('DealActivityThread', () => {
 
   it('inboundEnabled=false скрывает message_in/message_out даже во «Вся активность», но не comment', () => {
     render(
-      <DealActivityThread orderId='o1' items={allKindsItems()} inboundEnabled={false} telephonyEnabled={true} />
+      <DealActivityThread
+        orderId="o1"
+        items={allKindsItems()}
+        inboundEnabled={false}
+        telephonyEnabled={true}
+      />
     );
     fireEvent.click(screen.getByRole('button', { name: 'Вся активность' }));
 
@@ -219,14 +237,19 @@ describe('DealActivityThread', () => {
 
   it('telephonyEnabled=false: кнопки «Позвонить» нет вовсе', () => {
     render(
-      <DealActivityThread orderId='o1' items={[]} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread orderId="o1" items={[]} inboundEnabled={true} telephonyEnabled={false} />
     );
     expect(screen.queryByRole('button', { name: 'Позвонить' })).toBeNull();
   });
 
   it('telephonyEnabled=false: строки call скрыты даже во «Вся активность» (но comment/note видны)', () => {
     render(
-      <DealActivityThread orderId='o1' items={allKindsItems()} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="o1"
+        items={allKindsItems()}
+        inboundEnabled={true}
+        telephonyEnabled={false}
+      />
     );
     fireEvent.click(screen.getByRole('button', { name: 'Вся активность' }));
 
@@ -240,7 +263,12 @@ describe('DealActivityThread', () => {
 
   it('режимы: «Заметка» (pressed по умолчанию) и «Комментарий» всегда; «Ответ в канал» при inboundEnabled и не-email message_in', () => {
     render(
-      <DealActivityThread orderId='o1' items={tgInboundItems()} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="o1"
+        items={tgInboundItems()}
+        inboundEnabled={true}
+        telephonyEnabled={false}
+      />
     );
     expect(screen.getByRole('button', { name: 'Заметка', pressed: true })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Комментарий', pressed: false })).toBeTruthy();
@@ -249,7 +277,12 @@ describe('DealActivityThread', () => {
 
   it('режим «Ответ в канал» скрыт при inboundEnabled=false', () => {
     render(
-      <DealActivityThread orderId='o1' items={tgInboundItems()} inboundEnabled={false} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="o1"
+        items={tgInboundItems()}
+        inboundEnabled={false}
+        telephonyEnabled={false}
+      />
     );
     expect(screen.getByRole('button', { name: 'Заметка' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Комментарий' })).toBeTruthy();
@@ -258,7 +291,7 @@ describe('DealActivityThread', () => {
 
   it('режим «Ответ в канал» скрыт без единого message_in', () => {
     render(
-      <DealActivityThread orderId='o1' items={[]} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread orderId="o1" items={[]} inboundEnabled={true} telephonyEnabled={false} />
     );
     expect(screen.queryByRole('button', { name: 'Ответ в канал' })).toBeNull();
   });
@@ -273,24 +306,39 @@ describe('DealActivityThread', () => {
         channel: 'email',
         sender: 'Клиент',
         body: 'письмо',
-        attachmentName: null
-      }
+        attachmentName: null,
+      },
     ];
     render(
-      <DealActivityThread orderId='o1' items={items} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="o1"
+        items={items}
+        inboundEnabled={true}
+        telephonyEnabled={false}
+      />
     );
     expect(screen.queryByRole('button', { name: 'Ответ в канал' })).toBeNull();
   });
 
   it('rerender с inboundEnabled=false в режиме «Ответ в канал» откатывает композер на заметку', () => {
     const { rerender } = render(
-      <DealActivityThread orderId='o1' items={tgInboundItems()} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="o1"
+        items={tgInboundItems()}
+        inboundEnabled={true}
+        telephonyEnabled={false}
+      />
     );
     fireEvent.click(screen.getByRole('button', { name: 'Ответ в канал' }));
     expect(screen.getByRole('button', { name: 'Ответить в канал' })).toBeTruthy();
 
     rerender(
-      <DealActivityThread orderId='o1' items={tgInboundItems()} inboundEnabled={false} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="o1"
+        items={tgInboundItems()}
+        inboundEnabled={false}
+        telephonyEnabled={false}
+      />
     );
     expect(screen.queryByRole('button', { name: 'Ответ в канал' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Заметка', pressed: true })).toBeTruthy();
@@ -299,13 +347,15 @@ describe('DealActivityThread', () => {
 
   it('переключение режима сохраняет черновик в общей textarea', () => {
     render(
-      <DealActivityThread orderId='o1' items={[]} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread orderId="o1" items={[]} inboundEnabled={true} telephonyEnabled={false} />
     );
     const textarea = screen.getByLabelText('Текст заметки') as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: 'черновик' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Комментарий' }));
-    expect((screen.getByLabelText('Текст комментария') as HTMLTextAreaElement).value).toBe('черновик');
+    expect((screen.getByLabelText('Текст комментария') as HTMLTextAreaElement).value).toBe(
+      'черновик'
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Заметка' }));
     expect((screen.getByLabelText('Текст заметки') as HTMLTextAreaElement).value).toBe('черновик');
@@ -313,17 +363,21 @@ describe('DealActivityThread', () => {
 
   it('подпись связана с textarea через aria-describedby; client-visible режим — предупреждающий тон, заметка — обычный', () => {
     render(
-      <DealActivityThread orderId='o1' items={[]} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread orderId="o1" items={[]} inboundEnabled={true} telephonyEnabled={false} />
     );
     const noteCaption = screen.getByText('Внутренняя заметка — клиент её не видит');
     expect(noteCaption.id).toBeTruthy();
-    expect(screen.getByLabelText('Текст заметки').getAttribute('aria-describedby')).toBe(noteCaption.id);
+    expect(screen.getByLabelText('Текст заметки').getAttribute('aria-describedby')).toBe(
+      noteCaption.id
+    );
     expect(noteCaption.className).toContain('text-gray-500');
     expect(noteCaption.className).not.toContain('text-amber-700');
 
     fireEvent.click(screen.getByRole('button', { name: 'Комментарий' }));
     const commentCaption = screen.getByText('Комментарий клиенту (видит клиент)');
-    expect(screen.getByLabelText('Текст комментария').getAttribute('aria-describedby')).toBe(commentCaption.id);
+    expect(screen.getByLabelText('Текст комментария').getAttribute('aria-describedby')).toBe(
+      commentCaption.id
+    );
     expect(commentCaption.className).toContain('text-amber-700');
     expect(commentCaption.className).not.toContain('text-gray-500');
   });
@@ -331,26 +385,42 @@ describe('DealActivityThread', () => {
   it('пиллы заблокированы во время pending — кросс-режимный двойной сабмит невозможен', async () => {
     let resolveNote!: (v: { ok: true; id: string }) => void;
     addDealNoteAction.mockImplementation(
-      () => new Promise<{ ok: true; id: string }>((resolve) => { resolveNote = resolve; })
+      () =>
+        new Promise<{ ok: true; id: string }>((resolve) => {
+          resolveNote = resolve;
+        })
     );
     render(
-      <DealActivityThread orderId='order-9' items={tgInboundItems()} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="order-9"
+        items={tgInboundItems()}
+        inboundEnabled={true}
+        telephonyEnabled={false}
+      />
     );
 
     fireEvent.change(screen.getByLabelText('Текст заметки'), { target: { value: 'x' } });
     fireEvent.click(screen.getByRole('button', { name: 'Добавить заметку' }));
 
     await waitFor(() => {
-      expect((screen.getByRole('button', { name: 'Заметка' }) as HTMLButtonElement).disabled).toBe(true);
+      expect((screen.getByRole('button', { name: 'Заметка' }) as HTMLButtonElement).disabled).toBe(
+        true
+      );
     });
-    expect((screen.getByRole('button', { name: 'Комментарий' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Ответ в канал' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole('button', { name: 'Комментарий' }) as HTMLButtonElement).disabled
+    ).toBe(true);
+    expect(
+      (screen.getByRole('button', { name: 'Ответ в канал' }) as HTMLButtonElement).disabled
+    ).toBe(true);
 
     await act(async () => {
       resolveNote({ ok: true, id: 'n1' });
     });
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Заметка добавлена'));
-    expect((screen.getByRole('button', { name: 'Комментарий' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(
+      (screen.getByRole('button', { name: 'Комментарий' }) as HTMLButtonElement).disabled
+    ).toBe(false);
   });
 
   // ── Композер: заметка (default) ─────────────────────────────────────────
@@ -358,7 +428,12 @@ describe('DealActivityThread', () => {
   it('заметка: успешная отправка вызывает action, тост, refresh и сбрасывает форму', async () => {
     addDealNoteAction.mockResolvedValue({ ok: true, id: 'note-1' });
     render(
-      <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="order-9"
+        items={[]}
+        inboundEnabled={true}
+        telephonyEnabled={false}
+      />
     );
 
     const textarea = screen.getByLabelText('Текст заметки') as HTMLTextAreaElement;
@@ -366,7 +441,10 @@ describe('DealActivityThread', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Добавить заметку' }));
 
     await waitFor(() =>
-      expect(addDealNoteAction).toHaveBeenCalledWith({ orderId: 'order-9', body: 'Перезвонить завтра' })
+      expect(addDealNoteAction).toHaveBeenCalledWith({
+        orderId: 'order-9',
+        body: 'Перезвонить завтра',
+      })
     );
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Заметка добавлена'));
     await waitFor(() => expect(refresh).toHaveBeenCalled());
@@ -376,7 +454,12 @@ describe('DealActivityThread', () => {
   it('заметка: textarea без name → защитный ?? отдаёт пустой текст', async () => {
     addDealNoteAction.mockResolvedValue({ ok: true, id: 'note-1' });
     render(
-      <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="order-9"
+        items={[]}
+        inboundEnabled={true}
+        telephonyEnabled={false}
+      />
     );
 
     const textarea = screen.getByLabelText('Текст заметки') as HTMLTextAreaElement;
@@ -392,7 +475,12 @@ describe('DealActivityThread', () => {
   it('заметка: пустое тело → ошибка "Введите текст заметки." в role=alert', async () => {
     addDealNoteAction.mockResolvedValue({ ok: false, error: 'invalid' });
     render(
-      <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="order-9"
+        items={[]}
+        inboundEnabled={true}
+        telephonyEnabled={false}
+      />
     );
 
     fireEvent.change(screen.getByLabelText('Текст заметки'), { target: { value: 'x' } });
@@ -408,7 +496,12 @@ describe('DealActivityThread', () => {
   it('комментарий: сабмит шлёт POST /api/comments с {orderId, body} (trim), тостит, рефрешит и сбрасывает форму', async () => {
     fetchMock.mockResolvedValue({ ok: true, status: 201, json: async () => ({ id: 'c-1' }) });
     render(
-      <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="order-9"
+        items={[]}
+        inboundEnabled={true}
+        telephonyEnabled={false}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Комментарий' }));
@@ -422,7 +515,7 @@ describe('DealActivityThread', () => {
       expect(fetchMock).toHaveBeenCalledWith('/api/comments', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ orderId: 'order-9', body: 'Видимый клиенту текст' })
+        body: JSON.stringify({ orderId: 'order-9', body: 'Видимый клиенту текст' }),
       })
     );
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Комментарий отправлен'));
@@ -433,7 +526,12 @@ describe('DealActivityThread', () => {
   it('комментарий: textarea без name → защитный ?? отдаёт пустое тело', async () => {
     fetchMock.mockResolvedValue({ ok: true, status: 201, json: async () => ({ id: 'c-1' }) });
     render(
-      <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="order-9"
+        items={[]}
+        inboundEnabled={true}
+        telephonyEnabled={false}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Комментарий' }));
@@ -446,7 +544,7 @@ describe('DealActivityThread', () => {
       expect(fetchMock).toHaveBeenCalledWith('/api/comments', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ orderId: 'order-9', body: '' })
+        body: JSON.stringify({ orderId: 'order-9', body: '' }),
       })
     );
   });
@@ -454,11 +552,16 @@ describe('DealActivityThread', () => {
   it.each([
     ['Invalid request', 400, 'Введите текст комментария.'],
     ['Not found', 404, 'Заказ не найден.'],
-    ['Access denied', 403, 'Нет доступа к заказу.']
+    ['Access denied', 403, 'Нет доступа к заказу.'],
   ])('комментарий: ошибка роута %s → «%s» в role=alert', async (code, status, label) => {
     fetchMock.mockResolvedValue({ ok: false, status, json: async () => ({ error: code }) });
     render(
-      <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="order-9"
+        items={[]}
+        inboundEnabled={true}
+        telephonyEnabled={false}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Комментарий' }));
@@ -471,9 +574,18 @@ describe('DealActivityThread', () => {
   });
 
   it('комментарий: смена режима сбрасывает ошибку (не всплывает при возврате)', async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 404, json: async () => ({ error: 'Not found' }) });
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: 'Not found' }),
+    });
     render(
-      <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="order-9"
+        items={[]}
+        inboundEnabled={true}
+        telephonyEnabled={false}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Комментарий' }));
@@ -492,7 +604,12 @@ describe('DealActivityThread', () => {
   it('канал: подпись с channelLabel; сабмит зовёт replyInboundAction с id последнего message_in; тост/refresh/сброс', async () => {
     replyInboundAction.mockResolvedValue({ ok: true });
     render(
-      <DealActivityThread orderId='order-9' items={tgInboundItems()} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="order-9"
+        items={tgInboundItems()}
+        inboundEnabled={true}
+        telephonyEnabled={false}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Ответ в канал' }));
@@ -506,7 +623,7 @@ describe('DealActivityThread', () => {
     await waitFor(() =>
       expect(replyInboundAction).toHaveBeenCalledWith({
         inboundMessageId: 'in-new',
-        text: 'Отвечаю в мессенджер'
+        text: 'Отвечаю в мессенджер',
       })
     );
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Ответ отправлен'));
@@ -524,7 +641,7 @@ describe('DealActivityThread', () => {
         channel: 'sms',
         sender: 'Клиент',
         body: 'позднее',
-        attachmentName: null
+        attachmentName: null,
       },
       {
         kind: 'message_in',
@@ -533,11 +650,16 @@ describe('DealActivityThread', () => {
         channel: 'telegram',
         sender: 'Клиент',
         body: 'раннее',
-        attachmentName: null
-      }
+        attachmentName: null,
+      },
     ];
     render(
-      <DealActivityThread orderId='order-9' items={items} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="order-9"
+        items={items}
+        inboundEnabled={true}
+        telephonyEnabled={false}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Ответ в канал' }));
@@ -555,11 +677,32 @@ describe('DealActivityThread', () => {
     replyInboundAction.mockResolvedValue({ ok: true });
     const at = new Date('2026-01-01T10:00:00Z');
     const items: ActivityItem[] = [
-      { kind: 'message_in', id: 't1', at, channel: 'telegram', sender: 'К', body: 'a', attachmentName: null },
-      { kind: 'message_in', id: 't2', at, channel: 'telegram', sender: 'К', body: 'b', attachmentName: null }
+      {
+        kind: 'message_in',
+        id: 't1',
+        at,
+        channel: 'telegram',
+        sender: 'К',
+        body: 'a',
+        attachmentName: null,
+      },
+      {
+        kind: 'message_in',
+        id: 't2',
+        at,
+        channel: 'telegram',
+        sender: 'К',
+        body: 'b',
+        attachmentName: null,
+      },
     ];
     render(
-      <DealActivityThread orderId='order-9' items={items} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="order-9"
+        items={items}
+        inboundEnabled={true}
+        telephonyEnabled={false}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Ответ в канал' }));
@@ -574,7 +717,12 @@ describe('DealActivityThread', () => {
   it('канал: textarea без name → защитный ?? отдаёт пустой текст', async () => {
     replyInboundAction.mockResolvedValue({ ok: true });
     render(
-      <DealActivityThread orderId='order-9' items={tgInboundItems()} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="order-9"
+        items={tgInboundItems()}
+        inboundEnabled={true}
+        telephonyEnabled={false}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Ответ в канал' }));
@@ -591,11 +739,19 @@ describe('DealActivityThread', () => {
   it.each([
     ['forbidden', 'Обращение недоступно вашей компании.'],
     ['not_found', 'Обращение не найдено.'],
-    ['email_unsupported', 'Ответ по email пока не поддерживается — свяжитесь с клиентом другим каналом.']
+    [
+      'email_unsupported',
+      'Ответ по email пока не поддерживается — свяжитесь с клиентом другим каналом.',
+    ],
   ])('канал: ошибка %s → «%s» в role=alert', async (code, label) => {
     replyInboundAction.mockResolvedValue({ ok: false, error: code });
     render(
-      <DealActivityThread orderId='order-9' items={tgInboundItems()} inboundEnabled={true} telephonyEnabled={false} />
+      <DealActivityThread
+        orderId="order-9"
+        items={tgInboundItems()}
+        inboundEnabled={true}
+        telephonyEnabled={false}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Ответ в канал' }));
@@ -612,7 +768,12 @@ describe('DealActivityThread', () => {
   it('звонок: клик «Позвонить» раскрывает форму номера, успешный вызов сворачивает форму и тостит', async () => {
     initiateCallAction.mockResolvedValue({ ok: true, callId: 'call-x' });
     render(
-      <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={true} />
+      <DealActivityThread
+        orderId="order-9"
+        items={[]}
+        inboundEnabled={true}
+        telephonyEnabled={true}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Позвонить' }));
@@ -623,7 +784,7 @@ describe('DealActivityThread', () => {
     await waitFor(() =>
       expect(initiateCallAction).toHaveBeenCalledWith({
         orderId: 'order-9',
-        toNumber: '+79995554433'
+        toNumber: '+79995554433',
       })
     );
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Звонок инициирован'));
@@ -637,7 +798,12 @@ describe('DealActivityThread', () => {
   it('звонок: input без name → защитный ?? отдаёт пустой номер', async () => {
     initiateCallAction.mockResolvedValue({ ok: true, callId: 'call-x' });
     render(
-      <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={true} />
+      <DealActivityThread
+        orderId="order-9"
+        items={[]}
+        inboundEnabled={true}
+        telephonyEnabled={true}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Позвонить' }));
@@ -649,14 +815,19 @@ describe('DealActivityThread', () => {
     await waitFor(() =>
       expect(initiateCallAction).toHaveBeenCalledWith({
         orderId: 'order-9',
-        toNumber: ''
+        toNumber: '',
       })
     );
   });
 
   it('звонок: «Отмена» сворачивает форму без сабмита', () => {
     render(
-      <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={true} />
+      <DealActivityThread
+        orderId="order-9"
+        items={[]}
+        inboundEnabled={true}
+        telephonyEnabled={true}
+      />
     );
     fireEvent.click(screen.getByRole('button', { name: 'Позвонить' }));
     expect(screen.getByLabelText('Номер телефона')).toBeTruthy();
@@ -669,11 +840,18 @@ describe('DealActivityThread', () => {
   it('звонок: call_failed → ошибка "Звонок недоступен (не настроено)." в role=alert, форма остаётся открытой', async () => {
     initiateCallAction.mockResolvedValue({ ok: false, error: 'call_failed' });
     render(
-      <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={true} />
+      <DealActivityThread
+        orderId="order-9"
+        items={[]}
+        inboundEnabled={true}
+        telephonyEnabled={true}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Позвонить' }));
-    fireEvent.change(screen.getByLabelText('Номер телефона'), { target: { value: '+79995554433' } });
+    fireEvent.change(screen.getByLabelText('Номер телефона'), {
+      target: { value: '+79995554433' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Позвонить' }));
 
     const alert = await screen.findByRole('alert');
@@ -685,11 +863,18 @@ describe('DealActivityThread', () => {
   it('звонок: no_internal_phone → ошибка "Укажите ваш внутренний номер…" в role=alert, форма остаётся открытой', async () => {
     initiateCallAction.mockResolvedValue({ ok: false, error: 'no_internal_phone' });
     render(
-      <DealActivityThread orderId='order-9' items={[]} inboundEnabled={true} telephonyEnabled={true} />
+      <DealActivityThread
+        orderId="order-9"
+        items={[]}
+        inboundEnabled={true}
+        telephonyEnabled={true}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Позвонить' }));
-    fireEvent.change(screen.getByLabelText('Номер телефона'), { target: { value: '+79995554433' } });
+    fireEvent.change(screen.getByLabelText('Номер телефона'), {
+      target: { value: '+79995554433' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Позвонить' }));
 
     const alert = await screen.findByRole('alert');

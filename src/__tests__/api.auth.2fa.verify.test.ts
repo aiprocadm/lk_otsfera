@@ -10,7 +10,7 @@ const {
   buildClaimsMock,
   signTokenMock,
   recordAuditMock,
-  isRateLimitedMock
+  isRateLimitedMock,
 } = vi.hoisted(() => ({
   findUniqueMock: vi.fn(),
   updateUserMock: vi.fn(),
@@ -20,17 +20,17 @@ const {
   buildClaimsMock: vi.fn(),
   signTokenMock: vi.fn(),
   recordAuditMock: vi.fn(),
-  isRateLimitedMock: vi.fn()
+  isRateLimitedMock: vi.fn(),
 }));
 
 // update — отметка lastLoginAt на втором пути входа (этап 9, ФТ-11.3)
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: { user: { findUnique: findUniqueMock, update: updateUserMock } }
+  prisma: { user: { findUnique: findUniqueMock, update: updateUserMock } },
 }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled: notFoundIfDisabledMock }));
 vi.mock('@/lib/auth/jwt', () => ({
   verifyTwoFactorPendingToken: verifyPendingMock,
-  signToken: signTokenMock
+  signToken: signTokenMock,
 }));
 vi.mock('@/lib/services/auth/twoFactor', () => ({ verifyTwoFactorCode: verifyCodeMock }));
 vi.mock('@/lib/auth/buildSessionClaims', () => ({ buildSessionClaims: buildClaimsMock }));
@@ -48,7 +48,7 @@ const USER = {
   companyId: 'c1',
   partnerId: null,
   organizationId: null,
-  externalStudentId: null
+  externalStudentId: null,
 };
 
 function req(body: unknown, cookie?: string): NextRequest {
@@ -56,9 +56,9 @@ function req(body: unknown, cookie?: string): NextRequest {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      ...(cookie ? { cookie } : {})
+      ...(cookie ? { cookie } : {}),
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
 }
 
@@ -95,9 +95,9 @@ describe('POST /api/auth/2fa/verify', () => {
       headers: {
         'content-type': 'application/json',
         cookie: '2fa_pending=t',
-        'x-forwarded-for': '203.0.113.9, 10.0.0.1'
+        'x-forwarded-for': '203.0.113.9, 10.0.0.1',
       },
-      body: JSON.stringify({ code: '123456' })
+      body: JSON.stringify({ code: '123456' }),
     });
     await POST(r);
     expect(isRateLimitedMock).toHaveBeenCalledWith('2fa-verify:203.0.113.9', expect.anything());
@@ -124,7 +124,7 @@ describe('POST /api/auth/2fa/verify', () => {
   it.each([
     ['code_expired', 'CODE_EXPIRED'],
     ['too_many_attempts', 'TOO_MANY_ATTEMPTS'],
-    ['invalid_code', 'INVALID_CODE']
+    ['invalid_code', 'INVALID_CODE'],
   ] as const)('401 %s → %s; audit 2fa_failed with reason', async (serviceError, apiCode) => {
     verifyCodeMock.mockResolvedValue({ ok: false, error: serviceError });
     const res = await POST(req({ code: '000000' }, '2fa_pending=t'));

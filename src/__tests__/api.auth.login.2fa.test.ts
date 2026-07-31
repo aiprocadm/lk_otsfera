@@ -11,7 +11,7 @@ const {
   buildClaimsMock,
   signTokenMock,
   signPendingMock,
-  recordAuditMock
+  recordAuditMock,
 } = vi.hoisted(() => ({
   findUniqueMock: vi.fn(),
   updateUserMock: vi.fn(),
@@ -23,15 +23,15 @@ const {
   buildClaimsMock: vi.fn(),
   signTokenMock: vi.fn(),
   signPendingMock: vi.fn(),
-  recordAuditMock: vi.fn()
+  recordAuditMock: vi.fn(),
 }));
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     // update — отметка lastLoginAt (этап 9, ФТ-11.3)
     user: { findUnique: findUniqueMock, update: updateUserMock },
-    twoFactorChallenge: { delete: vi.fn().mockResolvedValue(undefined) }
-  }
+    twoFactorChallenge: { delete: vi.fn().mockResolvedValue(undefined) },
+  },
 }));
 vi.mock('bcryptjs', () => ({ default: { compare: compareMock } }));
 vi.mock('@/lib/rateLimit', () => ({ isRateLimited: isRateLimitedMock }));
@@ -41,7 +41,7 @@ vi.mock('@/lib/email/send', () => ({ send: sendMock }));
 vi.mock('@/lib/auth/buildSessionClaims', () => ({ buildSessionClaims: buildClaimsMock }));
 vi.mock('@/lib/auth/jwt', () => ({
   signToken: signTokenMock,
-  signTwoFactorPendingToken: signPendingMock
+  signTwoFactorPendingToken: signPendingMock,
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
 
@@ -57,14 +57,14 @@ const MANAGER = {
   companyId: 'c1',
   partnerId: null,
   organizationId: null,
-  externalStudentId: null
+  externalStudentId: null,
 };
 
 function req(body: unknown): Request {
   return new Request('http://x/api/auth/login', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
 }
 

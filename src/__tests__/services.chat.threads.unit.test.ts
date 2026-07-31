@@ -3,19 +3,24 @@
  * Covers branches missed by the integration test.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { listThreads, markRead, unreadCount, findOrCreateThread } from '@/lib/services/chat/threads';
+import {
+  listThreads,
+  markRead,
+  unreadCount,
+  findOrCreateThread,
+} from '@/lib/services/chat/threads';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 // canSeeThread is tested separately; for threads.ts we just mock the policy module
 vi.mock('@/lib/services/chat/policy', () => ({
-  canSeeThread: vi.fn()
+  canSeeThread: vi.fn(),
 }));
 vi.mock('@/lib/auth/organizationPolicy', () => ({
   activeOrgIds: vi.fn((session: any) =>
     (session.organizationMemberships ?? [])
       .filter((m: any) => m.isActive)
       .map((m: any) => m.organizationId)
-  )
+  ),
 }));
 
 import { canSeeThread } from '@/lib/services/chat/policy';
@@ -27,10 +32,13 @@ function makeSession(overrides: Partial<SessionPayload> = {}): SessionPayload {
 
 function makeThread(overrides: Record<string, any> = {}) {
   return {
-    id: 't1', orderId: 'o1', side: 'org', lastMessageAt: new Date('2024-06-01'),
+    id: 't1',
+    orderId: 'o1',
+    side: 'org',
+    lastMessageAt: new Date('2024-06-01'),
     order: { orderNumber: 'N1', title: 'Заказ' },
     readStates: [],
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -75,7 +83,9 @@ describe('listThreads — unit', () => {
     const prisma = { orderThread: { findMany } } as any;
     const session = makeSession({
       role: 'organization',
-      organizationMemberships: [{ organizationId: 'org1', isActive: true, roleInOrg: 'member' }] as any
+      organizationMemberships: [
+        { organizationId: 'org1', isActive: true, roleInOrg: 'member' },
+      ] as any,
     });
     await listThreads(prisma, session);
     const where = findMany.mock.calls[0][0].where;
@@ -103,18 +113,20 @@ describe('listThreads — unit', () => {
   it('maps unread=true when lastMessageAt > lastReadAt', async () => {
     const lastRead = new Date('2024-01-01');
     const lastMsg = new Date('2024-06-01');
-    const findMany = vi.fn().mockResolvedValue([
-      makeThread({ lastMessageAt: lastMsg, readStates: [{ lastReadAt: lastRead }] })
-    ]);
+    const findMany = vi
+      .fn()
+      .mockResolvedValue([
+        makeThread({ lastMessageAt: lastMsg, readStates: [{ lastReadAt: lastRead }] }),
+      ]);
     const prisma = { orderThread: { findMany } } as any;
     const result = await listThreads(prisma, makeSession({ role: 'admin' }));
     expect(result.rows[0].unread).toBe(true);
   });
 
   it('maps unread=false when no readState (defaults to epoch 0)', async () => {
-    const findMany = vi.fn().mockResolvedValue([
-      makeThread({ lastMessageAt: new Date('2024-06-01'), readStates: [] })
-    ]);
+    const findMany = vi
+      .fn()
+      .mockResolvedValue([makeThread({ lastMessageAt: new Date('2024-06-01'), readStates: [] })]);
     const prisma = { orderThread: { findMany } } as any;
     const result = await listThreads(prisma, makeSession({ role: 'admin' }));
     // lastMessageAt > new Date(0), so unread = true
@@ -130,7 +142,7 @@ describe('markRead — unit', () => {
   it('returns thread_not_found when thread does not exist', async () => {
     const prisma = {
       orderThread: { findUnique: vi.fn().mockResolvedValue(null) },
-      threadReadState: { upsert: vi.fn() }
+      threadReadState: { upsert: vi.fn() },
     } as any;
     const result = await markRead(prisma, makeSession(), 'missing-thread');
     expect(result).toEqual({ ok: false, error: 'thread_not_found' });
@@ -139,10 +151,14 @@ describe('markRead — unit', () => {
   it('returns forbidden when canSeeThread returns false', async () => {
     canSeeThreadMock.mockReturnValue(false);
     const prisma = {
-      orderThread: { findUnique: vi.fn().mockResolvedValue({
-        id: 't1', side: 'org', order: { id: 'o1', organizationId: 'org1', partnerId: 'p1', companyId: 'c1' }
-      }) },
-      threadReadState: { upsert: vi.fn() }
+      orderThread: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 't1',
+          side: 'org',
+          order: { id: 'o1', organizationId: 'org1', partnerId: 'p1', companyId: 'c1' },
+        }),
+      },
+      threadReadState: { upsert: vi.fn() },
     } as any;
     const result = await markRead(prisma, makeSession({ role: 'partner' }), 't1');
     expect(result).toEqual({ ok: false, error: 'forbidden' });
@@ -152,16 +168,22 @@ describe('markRead — unit', () => {
     canSeeThreadMock.mockReturnValue(true);
     const upsert = vi.fn().mockResolvedValue({});
     const prisma = {
-      orderThread: { findUnique: vi.fn().mockResolvedValue({
-        id: 't1', side: 'org', order: { id: 'o1', organizationId: 'org1', partnerId: 'p1', companyId: 'c1' }
-      }) },
-      threadReadState: { upsert }
+      orderThread: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 't1',
+          side: 'org',
+          order: { id: 'o1', organizationId: 'org1', partnerId: 'p1', companyId: 'c1' },
+        }),
+      },
+      threadReadState: { upsert },
     } as any;
     const result = await markRead(prisma, makeSession(), 't1');
     expect(result).toEqual({ ok: true });
-    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
-      where: { threadId_userId: { threadId: 't1', userId: 'u1' } }
-    }));
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { threadId_userId: { threadId: 't1', userId: 'u1' } },
+      })
+    );
   });
 });
 
@@ -219,8 +241,8 @@ describe('unreadCount — unit', () => {
       role: 'organization',
       organizationMemberships: [
         { organizationId: 'org1', isActive: true, roleInOrg: 'member' },
-        { organizationId: 'org2', isActive: false, roleInOrg: 'member' }
-      ] as any
+        { organizationId: 'org2', isActive: false, roleInOrg: 'member' },
+      ] as any,
     });
     await unreadCount(prisma, session);
     const { text, values } = sqlOf(queryRaw);
@@ -263,7 +285,7 @@ describe('findOrCreateThread — unit', () => {
   it('returns order_not_found when order does not exist', async () => {
     const prisma = {
       order: { findUnique: vi.fn().mockResolvedValue(null) },
-      orderThread: { upsert: vi.fn() }
+      orderThread: { upsert: vi.fn() },
     } as any;
     const result = await findOrCreateThread(prisma, makeSession(), { orderId: 'x', side: 'org' });
     expect(result).toEqual({ ok: false, error: 'order_not_found' });
@@ -272,10 +294,15 @@ describe('findOrCreateThread — unit', () => {
   it('returns forbidden when canSeeThread returns false', async () => {
     canSeeThreadMock.mockReturnValue(false);
     const prisma = {
-      order: { findUnique: vi.fn().mockResolvedValue({
-        id: 'o1', organizationId: 'org1', partnerId: 'p1', companyId: 'c1'
-      }) },
-      orderThread: { upsert: vi.fn() }
+      order: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'o1',
+          organizationId: 'org1',
+          partnerId: 'p1',
+          companyId: 'c1',
+        }),
+      },
+      orderThread: { upsert: vi.fn() },
     } as any;
     const result = await findOrCreateThread(prisma, makeSession(), { orderId: 'o1', side: 'org' });
     expect(result).toEqual({ ok: false, error: 'forbidden' });
@@ -285,10 +312,15 @@ describe('findOrCreateThread — unit', () => {
     canSeeThreadMock.mockReturnValue(true);
     const thread = { id: 't1', orderId: 'o1', side: 'org' };
     const prisma = {
-      order: { findUnique: vi.fn().mockResolvedValue({
-        id: 'o1', organizationId: 'org1', partnerId: 'p1', companyId: 'c1'
-      }) },
-      orderThread: { upsert: vi.fn().mockResolvedValue(thread) }
+      order: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'o1',
+          organizationId: 'org1',
+          partnerId: 'p1',
+          companyId: 'c1',
+        }),
+      },
+      orderThread: { upsert: vi.fn().mockResolvedValue(thread) },
     } as any;
     const result = await findOrCreateThread(prisma, makeSession(), { orderId: 'o1', side: 'org' });
     expect(result).toEqual({ ok: true, thread });

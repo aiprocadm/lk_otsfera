@@ -21,8 +21,7 @@ export type DeliverResultActionResult =
   | { ok: false; error: 'not_ready'; readiness: OrderReadiness };
 
 export type ApproveDeliverablesActionResult =
-  | { ok: true; approvedAt: string }
-  | { ok: false; error: 'validation' | 'not_found' | 'forbidden' };
+  { ok: true; approvedAt: string } | { ok: false; error: 'validation' | 'not_found' | 'forbidden' };
 
 function revalidateOrder(orderId: string): void {
   revalidatePath(`/manager/orders/${orderId}`);
@@ -50,7 +49,7 @@ export async function deliverOrderResultAction(input: {
   return {
     ok: true,
     deliveredAt: res.deliveredAt.toISOString(),
-    alreadyDelivered: res.alreadyDelivered
+    alreadyDelivered: res.alreadyDelivered,
   };
 }
 

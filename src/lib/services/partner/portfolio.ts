@@ -32,9 +32,7 @@ export async function listPortfolio(
     ...(filters.scopeOrgIds && filters.scopeOrgIds.length > 0
       ? { id: { in: filters.scopeOrgIds } }
       : {}),
-    ...(filters.search
-      ? { name: { contains: filters.search, mode: 'insensitive' as const } }
-      : {})
+    ...(filters.search ? { name: { contains: filters.search, mode: 'insensitive' as const } } : {}),
   };
 
   const [total, rows] = await Promise.all([
@@ -48,9 +46,9 @@ export async function listPortfolio(
         id: true,
         name: true,
         inn: true,
-        assignedManagerUserId: true
-      }
-    })
+        assignedManagerUserId: true,
+      },
+    }),
   ]);
 
   // F2: count only orders visible via the partner's leads; scope by the exact
@@ -61,9 +59,14 @@ export async function listPortfolio(
     ? await prisma.order.findMany({
         where: {
           organizationId: { in: orgIds },
-          promotedFromLead: { partnerId: filters.partnerId }
+          promotedFromLead: { partnerId: filters.partnerId },
         },
-        select: { organizationId: true, totalAmount: true, paidAmount: true, executionStatus: true }
+        select: {
+          organizationId: true,
+          totalAmount: true,
+          paidAmount: true,
+          executionStatus: true,
+        },
       })
     : [];
 
@@ -96,6 +99,6 @@ function baseItem(
     inn: org.inn,
     assignedManagerUserId: org.assignedManagerUserId,
     ordersCount,
-    debt
+    debt,
   };
 }

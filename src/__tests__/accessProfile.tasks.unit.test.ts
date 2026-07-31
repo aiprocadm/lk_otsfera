@@ -4,11 +4,17 @@ import {
   taskWhereForLevel,
   canSeeTask,
   NO_COMPANY_SENTINEL,
-  type SessionAccessProfile
+  type SessionAccessProfile,
 } from '@/lib/auth/accessProfile';
 
 function mgr(over: Partial<SessionPayload> = {}): SessionPayload {
-  return { sub: 'u1', role: 'manager', companyId: 'co-1', managedOrgIds: [], ...over } as unknown as SessionPayload;
+  return {
+    sub: 'u1',
+    role: 'manager',
+    companyId: 'co-1',
+    managedOrgIds: [],
+    ...over,
+  } as unknown as SessionPayload;
 }
 
 const profile = (over: Partial<SessionAccessProfile> = {}): SessionAccessProfile => ({
@@ -22,15 +28,22 @@ const profile = (over: Partial<SessionAccessProfile> = {}): SessionAccessProfile
   leads: 'all',
   tasks: 'all',
   capabilities: [],
-  ...over
+  ...over,
 });
 
-const task = (over: Partial<{ companyId: string; createdById: string; assigneeUserIds: string[]; linkedOrganizationId: string | null }> = {}) => ({
+const task = (
+  over: Partial<{
+    companyId: string;
+    createdById: string;
+    assigneeUserIds: string[];
+    linkedOrganizationId: string | null;
+  }> = {}
+) => ({
   companyId: 'co-1',
   createdById: 'other',
   assigneeUserIds: [] as string[],
   linkedOrganizationId: null as string | null,
-  ...over
+  ...over,
 });
 
 describe('taskWhereForLevel() — tasks company-scoped (company floor как у orders)', () => {
@@ -40,27 +53,37 @@ describe('taskWhereForLevel() — tasks company-scoped (company floor как у 
 
   it('own → компания И (создатель ∨ исполнитель)', () => {
     expect(taskWhereForLevel(mgr({ companyId: 'co-1', sub: 'u1' }), 'own')).toEqual({
-      AND: [{ companyId: 'co-1' }, { OR: [{ createdById: 'u1' }, { assignees: { some: { userId: 'u1' } } }] }]
+      AND: [
+        { companyId: 'co-1' },
+        { OR: [{ createdById: 'u1' }, { assignees: { some: { userId: 'u1' } } }] },
+      ],
     });
   });
 
   it('assigned → компания И (создатель ∨ исполнитель ∨ задача закреплённой орг)', () => {
-    expect(taskWhereForLevel(mgr({ companyId: 'co-1', sub: 'u1', managedOrgIds: ['o1', 'o2'] }), 'assigned')).toEqual({
+    expect(
+      taskWhereForLevel(
+        mgr({ companyId: 'co-1', sub: 'u1', managedOrgIds: ['o1', 'o2'] }),
+        'assigned'
+      )
+    ).toEqual({
       AND: [
         { companyId: 'co-1' },
         {
           OR: [
             { createdById: 'u1' },
             { assignees: { some: { userId: 'u1' } } },
-            { linkedOrganizationId: { in: ['o1', 'o2'] } }
-          ]
-        }
-      ]
+            { linkedOrganizationId: { in: ['o1', 'o2'] } },
+          ],
+        },
+      ],
     });
   });
 
   it('null companyId → no-company sentinel (fail-safe deny)', () => {
-    expect(taskWhereForLevel(mgr({ companyId: null }), 'all')).toEqual({ companyId: NO_COMPANY_SENTINEL });
+    expect(taskWhereForLevel(mgr({ companyId: null }), 'all')).toEqual({
+      companyId: NO_COMPANY_SENTINEL,
+    });
   });
 });
 
@@ -72,7 +95,12 @@ describe('canSeeTask() — строго внутренняя видимость 
   });
 
   it('admin видит всё (Model A)', () => {
-    expect(canSeeTask({ sub: 'a1', role: 'admin' } as unknown as SessionPayload, task({ companyId: 'other' }))).toBe(true);
+    expect(
+      canSeeTask(
+        { sub: 'a1', role: 'admin' } as unknown as SessionPayload,
+        task({ companyId: 'other' })
+      )
+    ).toBe(true);
   });
 
   it('менеджер: своя компания без профиля → видит (company-wide)', () => {
@@ -95,7 +123,11 @@ describe('canSeeTask() — строго внутренняя видимость 
   });
 
   it('assigned: own ∪ задачи закреплённых организаций', () => {
-    const s = mgr({ sub: 'u1', managedOrgIds: ['o1'], accessProfile: profile({ tasks: 'assigned' }) });
+    const s = mgr({
+      sub: 'u1',
+      managedOrgIds: ['o1'],
+      accessProfile: profile({ tasks: 'assigned' }),
+    });
     expect(canSeeTask(s, task({ linkedOrganizationId: 'o1' }))).toBe(true);
     expect(canSeeTask(s, task({ linkedOrganizationId: 'o9' }))).toBe(false);
     expect(canSeeTask(s, task({ createdById: 'u1' }))).toBe(true);

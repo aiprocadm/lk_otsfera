@@ -5,7 +5,9 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requirePartner } = vi.hoisted(() => ({ requirePartner: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requirePartner }));
 
-const { viewedDocumentIds } = vi.hoisted(() => ({ viewedDocumentIds: vi.fn(async () => new Set<string>()) }));
+const { viewedDocumentIds } = vi.hoisted(() => ({
+  viewedDocumentIds: vi.fn(async () => new Set<string>()),
+}));
 vi.mock('@/lib/services/documents/viewMarks', () => ({ viewedDocumentIds }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
@@ -16,7 +18,7 @@ vi.mock('@/lib/services/partner/documentsList', () => ({ listPartnerDocuments })
 // DocumentsSearch ('use client') calls useRouter()/useSearchParams() -- stub next/navigation.
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
-  useSearchParams: () => new URLSearchParams()
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 import PartnerDocumentsPage from '@/app/partner/documents/page';
@@ -45,7 +47,7 @@ describe('PartnerDocumentsPage', () => {
         type: undefined,
         orderLess: false,
         take: 50,
-        skip: 0
+        skip: 0,
       })
     );
     expect(container.textContent).toContain('Документы');
@@ -65,12 +67,12 @@ describe('PartnerDocumentsPage', () => {
       size: 100,
       orderId: null,
       orderNumber: null,
-      orderTitle: null
+      orderTitle: null,
     });
     listPartnerDocuments.mockResolvedValue({
       rows: [doc('dA', 'Свежий.pdf'), doc('dB', 'Скачанный.pdf')],
       total: 2,
-      countsByType: { act: 2 }
+      countsByType: { act: 2 },
     });
     viewedDocumentIds.mockResolvedValueOnce(new Set(['dB']));
 
@@ -80,11 +82,15 @@ describe('PartnerDocumentsPage', () => {
 
     expect(viewedDocumentIds).toHaveBeenCalledWith(expect.anything(), {
       userId: 'u1',
-      documentIds: ['dA', 'dB']
+      documentIds: ['dA', 'dB'],
     });
     const items = Array.from(container.querySelectorAll('li'));
-    expect(items.find((li) => li.textContent?.includes('Свежий.pdf'))?.textContent).toContain('новый');
-    expect(items.find((li) => li.textContent?.includes('Скачанный.pdf'))?.textContent).not.toContain('новый');
+    expect(items.find((li) => li.textContent?.includes('Свежий.pdf'))?.textContent).toContain(
+      'новый'
+    );
+    expect(
+      items.find((li) => li.textContent?.includes('Скачанный.pdf'))?.textContent
+    ).not.toContain('новый');
   });
 
   it('switches to the "general" tab, clamps take to MAX_TAKE, no org scope when assignedOrgIds empty, and shows the search-query hint', async () => {
@@ -95,12 +101,12 @@ describe('PartnerDocumentsPage', () => {
       // `invoice: undefined` exercises the `n ?? 0` fallback in the grandTotal
       // reduce; countsByType is a Partial<Record<...>> so a present key can
       // still be undefined.
-      countsByType: { contract: 2, invoice: undefined }
+      countsByType: { contract: 2, invoice: undefined },
     });
 
     const { container } = await renderServerComponent(
       PartnerDocumentsPage({
-        searchParams: Promise.resolve({ tab: 'general', take: '5000', skip: '20', search: 'дог' })
+        searchParams: Promise.resolve({ tab: 'general', take: '5000', skip: '20', search: 'дог' }),
       })
     );
 
@@ -111,7 +117,7 @@ describe('PartnerDocumentsPage', () => {
         orderLess: true,
         take: 200,
         skip: 20,
-        search: 'дог'
+        search: 'дог',
       })
     );
     expect(container.textContent).toContain('по запросу «дог»');
@@ -129,7 +135,7 @@ describe('PartnerDocumentsPage', () => {
 
     await renderServerComponent(
       PartnerDocumentsPage({
-        searchParams: Promise.resolve({ type: 'act', take: 'nope', skip: 'nope' })
+        searchParams: Promise.resolve({ type: 'act', take: 'nope', skip: 'nope' }),
       })
     );
 

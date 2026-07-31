@@ -1,5 +1,5 @@
-import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
+import type { Job } from 'bullmq';
 import { prisma } from '@/lib/db/prisma';
 import { getInboundEmailAdapter } from '@/lib/inbound/email';
 import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
@@ -20,7 +20,9 @@ export async function pollInboundEmailProcessor(
   await primeIntegrationSettingsCache(db);
 
   const state = await db.syncState.findUnique({ where: { entity: 'inbound.email' } });
-  const { messages, cursor } = await getInboundEmailAdapter().fetchNewMessages(state?.cursor ?? null);
+  const { messages, cursor } = await getInboundEmailAdapter().fetchNewMessages(
+    state?.cursor ?? null
+  );
 
   let failed = 0;
   for (const m of messages) {
@@ -29,12 +31,12 @@ export async function pollInboundEmailProcessor(
       externalId: `email:${m.externalId}`,
       senderRef: m.from.trim().toLowerCase(),
       subject: m.subject,
-      body: m.text
+      body: m.text,
     }).catch((err) => {
       failed += 1;
       log.warn('[poll-inbound-email] ingest failed', {
         externalId: m.externalId,
-        error: err instanceof Error ? err.message : String(err)
+        error: err instanceof Error ? err.message : String(err),
       });
     });
   }
@@ -43,8 +45,14 @@ export async function pollInboundEmailProcessor(
   if (failed === 0) {
     await db.syncState.upsert({
       where: { entity: 'inbound.email' },
-      create: { entity: 'inbound.email', cursor, lastRunAt: now, lastSuccessAt: now, lastError: null },
-      update: { cursor, lastRunAt: now, lastSuccessAt: now, lastError: null }
+      create: {
+        entity: 'inbound.email',
+        cursor,
+        lastRunAt: now,
+        lastSuccessAt: now,
+        lastError: null,
+      },
+      update: { cursor, lastRunAt: now, lastSuccessAt: now, lastError: null },
     });
   } else {
     // Курсор НЕ продвигаем: иначе упавшее письмо потеряно навсегда. Следующий
@@ -55,7 +63,7 @@ export async function pollInboundEmailProcessor(
     await db.syncState.upsert({
       where: { entity: 'inbound.email' },
       create: { entity: 'inbound.email', cursor: state?.cursor ?? null, lastRunAt: now, lastError },
-      update: { lastRunAt: now, lastError }
+      update: { lastRunAt: now, lastError },
     });
   }
 

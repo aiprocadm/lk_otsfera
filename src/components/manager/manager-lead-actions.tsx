@@ -3,11 +3,11 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import type { LeadStatus } from '@prisma/client';
 import { Button, Dialog, Select } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { convertLeadToDealAction } from '@/server-actions/deals';
-import type { LeadStatus } from '@prisma/client';
 
 type Candidate = { id: string; name: string; email: string };
 
@@ -15,14 +15,14 @@ type Candidate = { id: string; name: string; email: string };
 // not_found говорит «Заказ не найден.», здесь сущность — заявка).
 const ERROR_LABELS: Record<string, string> = {
   invalid_manager: 'Выбранный менеджер недоступен',
-  not_found: 'Заявка не найдена.'
+  not_found: 'Заявка не найдена.',
 };
 
 // Этап 6 PR-2 (ФТ-4.4): ошибки convertLeadToDealAction.
 const CONVERT_ERRORS: Record<string, string> = {
   lifecycle_violation: 'Лид уже передан или отклонён.',
   not_found: 'Заявка не найдена.',
-  forbidden: 'Нет доступа.'
+  forbidden: 'Нет доступа.',
 };
 
 function patchErrorText(code: string | undefined, status: number): string {
@@ -46,7 +46,7 @@ export function ManagerLeadActions({
   hasOrganization,
   promotedOrderId,
   candidates = [],
-  dealsEnabled = false
+  dealsEnabled = false,
 }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -67,7 +67,7 @@ export function ManagerLeadActions({
     toast.success(
       <span>
         Сделка создана —{' '}
-        <a href='/manager/deals' className='underline text-[#F97316]'>
+        <a href="/manager/deals" className="underline text-[#F97316]">
           открыть доску сделок
         </a>
       </span>
@@ -81,7 +81,7 @@ export function ManagerLeadActions({
       const res = await fetch(`/api/manager/leads/${leadId}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const e = (await res.json().catch(() => ({}))) as { error?: string };
@@ -104,50 +104,72 @@ export function ManagerLeadActions({
     return promotedOrderId ? (
       <Link
         href={`/manager/orders/${promotedOrderId}`}
-        className='inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-[#F97316] text-white hover:bg-[#EA580C]'
+        className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-[#F97316] text-white hover:bg-[#EA580C]"
       >
         Открыть заказ
       </Link>
     ) : (
-      <span className='text-sm text-gray-500'>Заявка преобразована в заказ</span>
+      <span className="text-sm text-gray-500">Заявка преобразована в заказ</span>
     );
   }
 
   if (status === 'promoted_to_deal') {
     return (
-      <Link href='/manager/deals' className='text-sm text-[#F97316] hover:underline'>
+      <Link href="/manager/deals" className="text-sm text-[#F97316] hover:underline">
         Заявка передана в сделку — открыть доску сделок
       </Link>
     );
   }
 
   if (status === 'rejected') {
-    return <span className='text-sm text-gray-500'>Заявка отклонена</span>;
+    return <span className="text-sm text-gray-500">Заявка отклонена</span>;
   }
 
   return (
-    <div className='space-y-3'>
-      <div className='flex flex-wrap gap-2'>
-        <Button variant='secondary' loading={busy} onClick={() => run({ action: 'assign' }, 'Заявка взята в работу')}>
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="secondary"
+          loading={busy}
+          onClick={() => run({ action: 'assign' }, 'Заявка взята в работу')}
+        >
           Взять в работу
         </Button>
         {status === 'in_review' && (
           <>
-            <Button variant='secondary' loading={busy} onClick={() => run({ action: 'setStatus', status: 'qualified' }, 'Заявка квалифицирована')}>
+            <Button
+              variant="secondary"
+              loading={busy}
+              onClick={() =>
+                run({ action: 'setStatus', status: 'qualified' }, 'Заявка квалифицирована')
+              }
+            >
               Квалифицировать
             </Button>
-            <Button variant='ghost' loading={busy} onClick={() => run({ action: 'setStatus', status: 'new' }, 'Заявка возвращена в новые')}>
+            <Button
+              variant="ghost"
+              loading={busy}
+              onClick={() =>
+                run({ action: 'setStatus', status: 'new' }, 'Заявка возвращена в новые')
+              }
+            >
               Вернуть в новые
             </Button>
           </>
         )}
         {status === 'qualified' && (
-          <Button variant='ghost' loading={busy} onClick={() => run({ action: 'setStatus', status: 'in_review' }, 'Возвращено на рассмотрение')}>
+          <Button
+            variant="ghost"
+            loading={busy}
+            onClick={() =>
+              run({ action: 'setStatus', status: 'in_review' }, 'Возвращено на рассмотрение')
+            }
+          >
             Вернуть на рассмотрение
           </Button>
         )}
         <Button
-          variant='primary'
+          variant="primary"
           loading={busy}
           disabled={!hasOrganization}
           title={hasOrganization ? undefined : 'Сначала привяжите организацию к заявке'}
@@ -156,31 +178,31 @@ export function ManagerLeadActions({
           Преобразовать в заказ
         </Button>
         {dealsEnabled && (
-          <Button variant='secondary' loading={busy} onClick={() => setDealConfirmOpen(true)}>
+          <Button variant="secondary" loading={busy} onClick={() => setDealConfirmOpen(true)}>
             Создать сделку
           </Button>
         )}
         <Button
-          variant='danger'
+          variant="danger"
           loading={busy}
           onClick={() => {
             const reason = window.prompt('Причина отклонения заявки:');
-            if (reason !== null) run({ action: 'reject', reason }, 'Заявка отклонена');
+            if (reason !== null) void run({ action: 'reject', reason }, 'Заявка отклонена');
           }}
         >
           Отклонить
         </Button>
       </div>
       {candidates.length > 0 && (
-        <div className='flex flex-wrap items-center gap-2'>
+        <div className="flex flex-wrap items-center gap-2">
           <Select
-            aria-label='Менеджер для передачи заявки'
-            className='w-auto min-w-56'
+            aria-label="Менеджер для передачи заявки"
+            className="w-auto min-w-56"
             value={assignTo}
             disabled={busy}
             onChange={(e) => setAssignTo(e.target.value)}
           >
-            <option value=''>Выберите менеджера…</option>
+            <option value="">Выберите менеджера…</option>
             {candidates.map((c) => (
               <option key={c.id} value={c.id}>
                 {`${c.name} (${c.email})`}
@@ -188,11 +210,17 @@ export function ManagerLeadActions({
             ))}
           </Select>
           <Button
-            variant='secondary'
+            variant="secondary"
             loading={busy}
             disabled={!assignTo}
             onClick={async () => {
-              if (await run({ action: 'assign', assignToUserId: assignTo }, 'Заявка передана менеджеру')) setAssignTo('');
+              if (
+                await run(
+                  { action: 'assign', assignToUserId: assignTo },
+                  'Заявка передана менеджеру'
+                )
+              )
+                setAssignTo('');
             }}
           >
             Передать
@@ -203,15 +231,15 @@ export function ManagerLeadActions({
         <Dialog
           open={dealConfirmOpen}
           onClose={() => setDealConfirmOpen(false)}
-          title='Создать сделку из лида?'
-          size='sm'
+          title="Создать сделку из лида?"
+          size="sm"
           busy={busy}
         >
-          <p className='text-sm text-gray-600 mb-3'>
+          <p className="text-sm text-gray-600 mb-3">
             Лид получит статус «Передана в сделку», карточка появится на доске сделок.
           </p>
-          <div className='flex justify-end gap-2'>
-            <Button variant='secondary' onClick={() => setDealConfirmOpen(false)} disabled={busy}>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setDealConfirmOpen(false)} disabled={busy}>
               Отмена
             </Button>
             <Button loading={busy} onClick={() => void createDealFromLead()}>

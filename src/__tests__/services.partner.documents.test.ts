@@ -14,11 +14,11 @@ let orderA1Id: string;
 let orderB1Id: string;
 
 // partner-channel docs (should be visible to the partner)
-let partnerDocAct: string;      // partner-channel, orderA1
-let partnerDocInvoice: string;  // partner-channel, orderB1
+let partnerDocAct: string; // partner-channel, orderA1
+let partnerDocInvoice: string; // partner-channel, orderB1
 
 // org-channel docs (must NOT leak to the partner)
-let orgChannelDoc: string;      // org-channel on orderA1 — must not appear
+let orgChannelDoc: string; // org-channel on orderA1 — must not appear
 
 // infected partner-channel doc (must be hidden)
 let infectedDoc: string;
@@ -28,7 +28,7 @@ beforeAll(async () => {
   const stamp = Date.now();
 
   const partner = await prisma.partner.create({
-    data: { name: `PartnerDocsP-${stamp}`, commissionRate: 0.1 }
+    data: { name: `PartnerDocsP-${stamp}`, commissionRate: 0.1 },
   });
   partnerId = partner.id;
 
@@ -36,25 +36,31 @@ beforeAll(async () => {
   companyId = company.id;
 
   const orgA = await prisma.organization.create({
-    data: { name: `PartnerDocsOrgA-${stamp}`, partnerId, companyId }
+    data: { name: `PartnerDocsOrgA-${stamp}`, partnerId, companyId },
   });
   const orgB = await prisma.organization.create({
-    data: { name: `PartnerDocsOrgB-${stamp}`, partnerId, companyId }
+    data: { name: `PartnerDocsOrgB-${stamp}`, partnerId, companyId },
   });
   orgAId = orgA.id;
   orgBId = orgB.id;
 
   const orderA1 = await prisma.order.create({
     data: {
-      title: 'PA1 order', companyId, partnerId, organizationId: orgAId,
-      executionStatus: 'in_progress'
-    }
+      title: 'PA1 order',
+      companyId,
+      partnerId,
+      organizationId: orgAId,
+      executionStatus: 'in_progress',
+    },
   });
   const orderB1 = await prisma.order.create({
     data: {
-      title: 'PB1 order', companyId, partnerId, organizationId: orgBId,
-      executionStatus: 'pending'
-    }
+      title: 'PB1 order',
+      companyId,
+      partnerId,
+      organizationId: orgBId,
+      executionStatus: 'pending',
+    },
   });
   orderA1Id = orderA1.id;
   orderB1Id = orderB1.id;
@@ -63,58 +69,83 @@ beforeAll(async () => {
   // so getPartnerDealDetail(orderA1) resolves (the document-channel assertions below
   // are about doc isolation, unaffected by this linkage).
   const u = await prisma.user.create({
-    data: { email: `pdocs-${stamp}@t.local`, passwordHash: 'x', name: 'U', role: 'partner', partnerId }
+    data: {
+      email: `pdocs-${stamp}@t.local`,
+      passwordHash: 'x',
+      name: 'U',
+      role: 'partner',
+      partnerId,
+    },
   });
   await prisma.lead.create({
     data: {
-      partnerId, createdByUserId: u.id, organizationId: orgAId,
-      clientCompanyName: 'c', clientContactName: 'n', subject: 's',
-      status: 'promoted_to_order', productType: [], promotedOrderId: orderA1Id
-    }
+      partnerId,
+      createdByUserId: u.id,
+      organizationId: orgAId,
+      clientCompanyName: 'c',
+      clientContactName: 'n',
+      subject: 's',
+      status: 'promoted_to_order',
+      productType: [],
+      promotedOrderId: orderA1Id,
+    },
   });
 
   // Partner-channel doc on orderA1
   const dAct = await prisma.document.create({
     data: {
-      name: 'act-partner-A1.pdf', path: 'fake://partner-act-a1',
-      mimeType: 'application/pdf', type: 'act',
+      name: 'act-partner-A1.pdf',
+      path: 'fake://partner-act-a1',
+      mimeType: 'application/pdf',
+      type: 'act',
       orderId: orderA1Id,
-      counterpartyType: 'partner', counterpartyId: partnerId
-    }
+      counterpartyType: 'partner',
+      counterpartyId: partnerId,
+    },
   });
   partnerDocAct = dAct.id;
 
   // Partner-channel doc on orderB1
   const dInvoice = await prisma.document.create({
     data: {
-      name: 'commission-partner-B1.pdf', path: 'fake://partner-commission-b1',
-      mimeType: 'application/pdf', type: 'commission_statement',
+      name: 'commission-partner-B1.pdf',
+      path: 'fake://partner-commission-b1',
+      mimeType: 'application/pdf',
+      type: 'commission_statement',
       orderId: orderB1Id,
-      counterpartyType: 'partner', counterpartyId: partnerId
-    }
+      counterpartyType: 'partner',
+      counterpartyId: partnerId,
+    },
   });
   partnerDocInvoice = dInvoice.id;
 
   // Org-channel doc on orderA1 — must NOT be visible to the partner
   const dOrgChannel = await prisma.document.create({
     data: {
-      name: 'contract-org-channel-A1.pdf', path: 'fake://org-contract-a1',
-      mimeType: 'application/pdf', type: 'contract',
+      name: 'contract-org-channel-A1.pdf',
+      path: 'fake://org-contract-a1',
+      mimeType: 'application/pdf',
+      type: 'contract',
       orderId: orderA1Id,
-      counterpartyType: 'organization', counterpartyId: orgAId
-    }
+      counterpartyType: 'organization',
+      counterpartyId: orgAId,
+    },
   });
   orgChannelDoc = dOrgChannel.id;
 
   // Infected partner-channel doc on orderA1 — must be hidden
   const dInfected = await prisma.document.create({
     data: {
-      name: 'malware-partner-A1.pdf', path: 'fake://infected-partner-a1',
-      mimeType: 'application/pdf', type: 'other',
+      name: 'malware-partner-A1.pdf',
+      path: 'fake://infected-partner-a1',
+      mimeType: 'application/pdf',
+      type: 'other',
       orderId: orderA1Id,
-      scanStatus: 'infected', scanReason: 'EICAR test',
-      counterpartyType: 'partner', counterpartyId: partnerId
-    }
+      scanStatus: 'infected',
+      scanReason: 'EICAR test',
+      counterpartyType: 'partner',
+      counterpartyId: partnerId,
+    },
   });
   infectedDoc = dInfected.id;
 });
@@ -163,7 +194,7 @@ describe('services/partner/orgDocuments — getOrgDocuments', () => {
   it('returns empty when org does not belong to this partner', async () => {
     const { rows, total } = await getOrgDocuments(prisma, {
       orgId: orgAId,
-      partnerId: 'non-existent-partner-id'
+      partnerId: 'non-existent-partner-id',
     });
     expect(total).toBe(0);
     expect(rows).toEqual([]);
@@ -182,7 +213,9 @@ describe('services/partner/orgDocuments — getOrgDocuments', () => {
 describe('services/partner/documentsList — listPartnerDocuments', () => {
   it('returns all partner-channel docs across all orgs', async () => {
     const { rows, total } = await listPartnerDocuments(prisma, {
-      partnerId, take: 50, skip: 0
+      partnerId,
+      take: 50,
+      skip: 0,
     });
     const ids = rows.map((r) => r.id);
     expect(ids).toContain(partnerDocAct);
@@ -192,7 +225,9 @@ describe('services/partner/documentsList — listPartnerDocuments', () => {
 
   it('does NOT leak organization-channel docs to the partner', async () => {
     const { rows } = await listPartnerDocuments(prisma, {
-      partnerId, take: 50, skip: 0
+      partnerId,
+      take: 50,
+      skip: 0,
     });
     const ids = rows.map((r) => r.id);
     expect(ids).not.toContain(orgChannelDoc);
@@ -201,7 +236,9 @@ describe('services/partner/documentsList — listPartnerDocuments', () => {
 
   it('hides infected docs', async () => {
     const { rows } = await listPartnerDocuments(prisma, {
-      partnerId, take: 50, skip: 0
+      partnerId,
+      take: 50,
+      skip: 0,
     });
     const ids = rows.map((r) => r.id);
     expect(ids).not.toContain(infectedDoc);
@@ -209,7 +246,10 @@ describe('services/partner/documentsList — listPartnerDocuments', () => {
 
   it('narrows by scopeOrgIds to only orgA docs', async () => {
     const { rows } = await listPartnerDocuments(prisma, {
-      partnerId, scopeOrgIds: [orgAId], take: 50, skip: 0
+      partnerId,
+      scopeOrgIds: [orgAId],
+      take: 50,
+      skip: 0,
     });
     const ids = rows.map((r) => r.id);
     expect(ids).toContain(partnerDocAct);
@@ -218,7 +258,10 @@ describe('services/partner/documentsList — listPartnerDocuments', () => {
 
   it('filters by type', async () => {
     const { rows } = await listPartnerDocuments(prisma, {
-      partnerId, type: 'commission_statement', take: 50, skip: 0
+      partnerId,
+      type: 'commission_statement',
+      take: 50,
+      skip: 0,
     });
     const ids = rows.map((r) => r.id);
     expect(ids).toContain(partnerDocInvoice);
@@ -227,7 +270,10 @@ describe('services/partner/documentsList — listPartnerDocuments', () => {
 
   it('searches by name (case-insensitive)', async () => {
     const { rows } = await listPartnerDocuments(prisma, {
-      partnerId, search: 'ACT-PARTNER', take: 50, skip: 0
+      partnerId,
+      search: 'ACT-PARTNER',
+      take: 50,
+      skip: 0,
     });
     expect(rows.length).toBeGreaterThanOrEqual(1);
     expect(rows[0]!.id).toBe(partnerDocAct);
@@ -235,7 +281,9 @@ describe('services/partner/documentsList — listPartnerDocuments', () => {
 
   it('countsByType reflects only partner-channel visible docs', async () => {
     const { countsByType } = await listPartnerDocuments(prisma, {
-      partnerId, take: 50, skip: 0
+      partnerId,
+      take: 50,
+      skip: 0,
     });
     expect(countsByType.act).toBeGreaterThanOrEqual(1);
     expect(countsByType.commission_statement).toBeGreaterThanOrEqual(1);

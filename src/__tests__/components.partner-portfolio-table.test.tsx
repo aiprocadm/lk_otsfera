@@ -12,7 +12,7 @@ function makeItem(overrides: Partial<PortfolioItem> = {}): PortfolioItem {
     assignedManagerUserId: null,
     ordersCount: 3,
     debt: '0.00',
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -31,18 +31,24 @@ describe('PortfolioTable', () => {
   });
 
   it('shows em-dash for a null INN', () => {
-    const html = renderToString(React.createElement(PortfolioTable, { items: [makeItem({ inn: null })] }));
+    const html = renderToString(
+      React.createElement(PortfolioTable, { items: [makeItem({ inn: null })] })
+    );
     expect(html).toContain('—');
   });
 
   it('shows red accent styling when debt > 0', () => {
-    const html = renderToString(React.createElement(PortfolioTable, { items: [makeItem({ debt: '9000.00' })] }));
+    const html = renderToString(
+      React.createElement(PortfolioTable, { items: [makeItem({ debt: '9000.00' })] })
+    );
     expect(html).toContain('text-red-700');
   });
 
   it('renders multiple rows', () => {
     const html = renderToString(
-      React.createElement(PortfolioTable, { items: [makeItem({ id: 'o1' }), makeItem({ id: 'o2', name: 'Вторая' })] })
+      React.createElement(PortfolioTable, {
+        items: [makeItem({ id: 'o1' }), makeItem({ id: 'o2', name: 'Вторая' })],
+      })
     );
     expect(html).toContain('href="/partner/portfolio/o1"');
     expect(html).toContain('href="/partner/portfolio/o2"');

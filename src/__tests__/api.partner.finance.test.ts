@@ -4,41 +4,61 @@ vi.mock('@/lib/auth/session', () => ({ getSession: vi.fn() }));
 vi.mock('@/lib/services/partner/finance', () => ({
   getFinanceKpis: vi.fn(),
   listStatements: vi.fn(),
-  getStatementWithItems: vi.fn()
+  getStatementWithItems: vi.fn(),
 }));
 vi.mock('@/lib/services/commission/statement', () => ({
-  calculateStatementForPartner: vi.fn()
+  calculateStatementForPartner: vi.fn(),
 }));
 vi.mock('@/lib/services/commission/lifecycle', () => ({
   approveStatement: vi.fn(),
-  markStatementPaid: vi.fn()
+  markStatementPaid: vi.fn(),
 }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
-    commissionStatement: { findFirst: vi.fn() }
-  }
+    commissionStatement: { findFirst: vi.fn() },
+  },
 }));
 
 import { getSession } from '@/lib/auth/session';
-import { getFinanceKpis, listStatements, getStatementWithItems } from '@/lib/services/partner/finance';
+import {
+  getFinanceKpis,
+  listStatements,
+  getStatementWithItems,
+} from '@/lib/services/partner/finance';
 import { calculateStatementForPartner } from '@/lib/services/commission/statement';
 import { approveStatement, markStatementPaid } from '@/lib/services/commission/lifecycle';
 import { GET } from '@/app/api/partner/finance/route';
 import { POST } from '@/app/api/partner/finance/statements/route';
 import { GET as GET_STMT, PATCH } from '@/app/api/partner/finance/statements/[id]/route';
 
-const partnerManagerSession = { sub: 'u1', role: 'partner', partnerId: 'p1', partnerRole: 'manager', assignedOrgIds: [] } as any;
-const partnerAdminSession = { sub: 'u2', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: [] } as any;
+const partnerManagerSession = {
+  sub: 'u1',
+  role: 'partner',
+  partnerId: 'p1',
+  partnerRole: 'manager',
+  assignedOrgIds: [],
+} as any;
+const partnerAdminSession = {
+  sub: 'u2',
+  role: 'partner',
+  partnerId: 'p1',
+  partnerRole: 'admin',
+  assignedOrgIds: [],
+} as any;
 const platformAdminSession = { sub: 'u3', role: 'admin' } as any;
 const orgSession = { sub: 'u4', role: 'organization' } as any;
 
-function ctx(id: string) { return { params: Promise.resolve({ id }) }; }
-function getReq(url = 'http://x/') { return new Request(url); }
+function ctx(id: string) {
+  return { params: Promise.resolve({ id }) };
+}
+function getReq(url = 'http://x/') {
+  return new Request(url);
+}
 function jsonReq(b: unknown, method = 'POST') {
   return new Request('http://x/', {
     method,
     body: JSON.stringify(b),
-    headers: { 'content-type': 'application/json' }
+    headers: { 'content-type': 'application/json' },
   });
 }
 
@@ -73,13 +93,16 @@ describe('GET /api/partner/finance', () => {
     vi.mocked(getFinanceKpis).mockResolvedValue(stubKpis);
     vi.mocked(listStatements).mockResolvedValue([]);
     await GET(getReq('http://x/?from=2026-01-01&to=2026-03-31&status=approved&skip=5&take=10'));
-    expect(listStatements).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
-      from: expect.any(Date),
-      to: expect.any(Date),
-      status: 'approved',
-      skip: 5,
-      take: 10
-    }));
+    expect(listStatements).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        from: expect.any(Date),
+        to: expect.any(Date),
+        status: 'approved',
+        skip: 5,
+        take: 10,
+      })
+    );
   });
 });
 
@@ -88,12 +111,16 @@ describe('POST /api/partner/finance/statements', () => {
 
   it('401 unauthenticated', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
-    expect((await POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }))).status).toBe(401);
+    expect((await POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }))).status).toBe(
+      401
+    );
   });
 
   it('403 partner-manager (not admin)', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerManagerSession);
-    expect((await POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }))).status).toBe(403);
+    expect((await POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }))).status).toBe(
+      403
+    );
   });
 
   it('400 missing dates', async () => {
@@ -103,7 +130,12 @@ describe('POST /api/partner/finance/statements', () => {
 
   it('201 created new statement', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
-    vi.mocked(calculateStatementForPartner).mockResolvedValue({ ok: true, statement: stubStatement as any, itemCount: 3, isNew: true });
+    vi.mocked(calculateStatementForPartner).mockResolvedValue({
+      ok: true,
+      statement: stubStatement as any,
+      itemCount: 3,
+      isNew: true,
+    });
     const res = await POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }));
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -112,7 +144,12 @@ describe('POST /api/partner/finance/statements', () => {
 
   it('200 updated existing draft statement', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
-    vi.mocked(calculateStatementForPartner).mockResolvedValue({ ok: true, statement: stubStatement as any, itemCount: 3, isNew: false });
+    vi.mocked(calculateStatementForPartner).mockResolvedValue({
+      ok: true,
+      statement: stubStatement as any,
+      itemCount: 3,
+      isNew: false,
+    });
     const res = await POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }));
     expect(res.status).toBe(200);
   });
@@ -120,7 +157,10 @@ describe('POST /api/partner/finance/statements', () => {
   // C-05: manual path must reject a period overlapping an existing statement.
   it('409 when the period overlaps an existing statement (period_overlap)', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
-    vi.mocked(calculateStatementForPartner).mockResolvedValue({ ok: false, error: 'period_overlap' });
+    vi.mocked(calculateStatementForPartner).mockResolvedValue({
+      ok: false,
+      error: 'period_overlap',
+    });
     const res = await POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-06-30' }));
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: 'period_overlap' });
@@ -128,7 +168,10 @@ describe('POST /api/partner/finance/statements', () => {
 
   it('404 when the partner is not found (partner_not_found)', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
-    vi.mocked(calculateStatementForPartner).mockResolvedValue({ ok: false, error: 'partner_not_found' });
+    vi.mocked(calculateStatementForPartner).mockResolvedValue({
+      ok: false,
+      error: 'partner_not_found',
+    });
     const res = await POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }));
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: 'partner_not_found' });
@@ -136,7 +179,12 @@ describe('POST /api/partner/finance/statements', () => {
 
   it('asks the service to reject overlaps on the manual path (rejectOverlap=true)', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
-    vi.mocked(calculateStatementForPartner).mockResolvedValue({ ok: true, statement: stubStatement as any, itemCount: 1, isNew: true });
+    vi.mocked(calculateStatementForPartner).mockResolvedValue({
+      ok: true,
+      statement: stubStatement as any,
+      itemCount: 1,
+      isNew: true,
+    });
     await POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }));
     expect(calculateStatementForPartner).toHaveBeenCalledWith(
       expect.anything(),
@@ -163,7 +211,9 @@ describe('POST /api/partner/finance/statements', () => {
   it('propagates unexpected errors from the service', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
     vi.mocked(calculateStatementForPartner).mockRejectedValue(new Error('DB_CONSTRAINT_VIOLATION'));
-    await expect(POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }))).rejects.toThrow('DB_CONSTRAINT_VIOLATION');
+    await expect(
+      POST(jsonReq({ periodFrom: '2026-04-01', periodTo: '2026-04-30' }))
+    ).rejects.toThrow('DB_CONSTRAINT_VIOLATION');
   });
 });
 
@@ -211,7 +261,10 @@ describe('PATCH /api/partner/finance/statements/[id] — approve', () => {
 
   it('200 partner-admin approves', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerAdminSession);
-    vi.mocked(approveStatement).mockResolvedValue({ ok: true, statement: { ...stubStatement, status: 'approved' } } as any);
+    vi.mocked(approveStatement).mockResolvedValue({
+      ok: true,
+      statement: { ...stubStatement, status: 'approved' },
+    } as any);
     const res = await PATCH(jsonReq({ action: 'approve' }, 'PATCH'), ctx('s1'));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ statement: { ...stubStatement, status: 'approved' } });
@@ -245,7 +298,10 @@ describe('PATCH /api/partner/finance/statements/[id] — markPaid', () => {
 
   it('200 platform-admin marks paid', async () => {
     vi.mocked(getSession).mockResolvedValue(platformAdminSession);
-    vi.mocked(markStatementPaid).mockResolvedValue({ ok: true, statement: { ...stubStatement, status: 'paid' } } as any);
+    vi.mocked(markStatementPaid).mockResolvedValue({
+      ok: true,
+      statement: { ...stubStatement, status: 'paid' },
+    } as any);
     const res = await PATCH(jsonReq({ action: 'markPaid' }, 'PATCH'), ctx('s1'));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ statement: { ...stubStatement, status: 'paid' } });

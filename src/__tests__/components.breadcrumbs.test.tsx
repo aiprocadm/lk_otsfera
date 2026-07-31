@@ -18,7 +18,7 @@ describe('Breadcrumbs', () => {
       <Breadcrumbs
         items={[
           { label: 'Заказы', href: '/manager/orders' },
-          { label: 'Заказ №5', href: null }
+          { label: 'Заказ №5', href: null },
         ]}
       />
     );
@@ -34,7 +34,7 @@ describe('Breadcrumbs', () => {
       <Breadcrumbs
         items={[
           { label: 'Лиды', href: '/manager/leads' },
-          { label: 'Лид', href: null }
+          { label: 'Лид', href: null },
         ]}
       />
     );

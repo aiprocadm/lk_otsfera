@@ -35,7 +35,10 @@ export function monthGridRange(month: string): { from: Date; to: Date } {
 /** 42 дня сетки по порядку. */
 export function monthGridDays(month: string): Date[] {
   const start = monthGridStart(month);
-  return Array.from({ length: 42 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
+  return Array.from(
+    { length: 42 },
+    (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)
+  );
 }
 
 /** Локальный ключ дня YYYY-MM-DD (группировка чипов по ячейкам). */
@@ -62,8 +65,18 @@ export function nextMonth(month: string): string {
 }
 
 const MONTHS_RU = [
-  'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+  'Январь',
+  'Февраль',
+  'Март',
+  'Апрель',
+  'Май',
+  'Июнь',
+  'Июль',
+  'Август',
+  'Сентябрь',
+  'Октябрь',
+  'Ноябрь',
+  'Декабрь',
 ];
 
 export function monthLabel(month: string): string {

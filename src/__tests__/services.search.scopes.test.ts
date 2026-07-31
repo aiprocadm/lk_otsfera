@@ -6,17 +6,19 @@
 import { describe, it, expect } from 'vitest';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { searchScopes } from '@/lib/services/search/scopes';
-import {
-  managerDocumentScope,
-  managerOrderScope,
-  managerOrgScope
-} from '@/lib/auth/managerPolicy';
+import { managerDocumentScope, managerOrderScope, managerOrgScope } from '@/lib/auth/managerPolicy';
 import { leadWhereForLevel, taskWhereForLevel } from '@/lib/auth/accessProfile';
 import { eventScopeWhere } from '@/lib/services/calendar/items';
 import { conversationScopeWhere } from '@/lib/services/staffChat/conversations';
 
 function session(over: Record<string, unknown> = {}): SessionPayload {
-  return { sub: 'u1', role: 'manager', companyId: 'c1', managedOrgIds: ['org1'], ...over } as unknown as SessionPayload;
+  return {
+    sub: 'u1',
+    role: 'manager',
+    companyId: 'c1',
+    managedOrgIds: ['org1'],
+    ...over,
+  } as unknown as SessionPayload;
 }
 
 const admin = session({ sub: 'a1', role: 'admin', managedOrgIds: undefined });

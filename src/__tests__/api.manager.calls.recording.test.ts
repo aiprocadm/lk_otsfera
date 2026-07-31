@@ -42,7 +42,9 @@ describe('GET /api/manager/calls/[id]/recording', () => {
   });
 
   it('returns 404 when the telephony_mango flag is disabled', async () => {
-    vi.mocked(notFoundIfDisabled).mockReturnValue(new Response('Not Found', { status: 404 }) as never);
+    vi.mocked(notFoundIfDisabled).mockReturnValue(
+      new Response('Not Found', { status: 404 }) as never
+    );
     const res = await recordingGet(buildReq() as never, paramsP);
     expect(res.status).toBe(404);
     expect(findUniqueMock).not.toHaveBeenCalled();

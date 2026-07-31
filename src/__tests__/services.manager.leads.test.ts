@@ -8,9 +8,19 @@ function dbWith(rows: unknown[]) {
 
 function leadRow(id: string, over: Record<string, unknown> = {}) {
   return {
-    id, clientCompanyName: 'Acme', clientInn: null, subject: 'S', status: 'new',
-    estimatedAmount: null, organization: null, partner: { name: 'P' }, assignedManagerId: null,
-    assignedManager: null, promotedOrderId: null, createdAt: new Date('2026-06-01'), ...over
+    id,
+    clientCompanyName: 'Acme',
+    clientInn: null,
+    subject: 'S',
+    status: 'new',
+    estimatedAmount: null,
+    organization: null,
+    partner: { name: 'P' },
+    assignedManagerId: null,
+    assignedManager: null,
+    promotedOrderId: null,
+    createdAt: new Date('2026-06-01'),
+    ...over,
   };
 }
 

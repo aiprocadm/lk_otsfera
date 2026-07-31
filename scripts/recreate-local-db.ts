@@ -24,8 +24,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 
-const DB_URL =
-  process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/cabinet';
+const DB_URL = process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/cabinet';
 
 function parse(url: string) {
   const u = new URL(url);
@@ -50,10 +49,10 @@ if (host !== 'localhost' && host !== '127.0.0.1' && host !== '::1') {
 // you're connected to).
 const adminUrl = DB_URL.replace(new RegExp(`/${dbName}(\\?|$)`), '/postgres$1');
 
-async function runSql(url: string, sql: string): Promise<any[]> {
+async function runSql<T = unknown>(url: string, sql: string): Promise<T[]> {
   const p = new PrismaClient({ datasources: { db: { url } } });
   try {
-    return await p.$queryRawUnsafe<any[]>(sql);
+    return await p.$queryRawUnsafe<T[]>(sql);
   } finally {
     await p.$disconnect();
   }
@@ -73,7 +72,7 @@ async function main() {
       `LOCALE_PROVIDER icu ICU_LOCALE 'und' LC_COLLATE 'C' LC_CTYPE 'C'`
   );
 
-  const [fold] = await runSql(
+  const [fold] = await runSql<{ cyr_ilike: boolean; cyr_lower: boolean }>(
     DB_URL,
     `SELECT ('Иван' ILIKE 'иван') AS cyr_ilike, (lower('ИВАН') = 'иван') AS cyr_lower`
   );
@@ -85,7 +84,9 @@ async function main() {
   console.log(
     `[recreate-local-db] done — Cyrillic case-insensitive search works (cyr_ilike=${fold.cyr_ilike}).`
   );
-  console.log('[recreate-local-db] next: `npm run prisma:migrate:deploy` then `npm run prisma:seed`.');
+  console.log(
+    '[recreate-local-db] next: `npm run prisma:migrate:deploy` then `npm run prisma:seed`.'
+  );
 }
 
 main()

@@ -18,13 +18,19 @@ export function forbiddenResponse(message = 'Access denied', code: AccessErrorCo
   return Response.json({ code, message }, { status: 403 });
 }
 
-export async function canAccessOrganization(session: SessionPayload, organizationId: string | null | undefined) {
+export async function canAccessOrganization(
+  session: SessionPayload,
+  organizationId: string | null | undefined
+) {
   if (!organizationId) return false;
   if (session.role === 'admin') return true;
 
   if (session.role === 'partner') {
     if (!session.partnerId) return false;
-    const organization = await prisma.organization.findUnique({ where: { id: organizationId }, select: { partnerId: true } });
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { partnerId: true },
+    });
     return organization?.partnerId === session.partnerId;
   }
 
@@ -33,12 +39,13 @@ export async function canAccessOrganization(session: SessionPayload, organizatio
   }
 
   if (session.role === 'manager') {
-    const { canSeeOrganization, getCompanyTeamVisibility } = await import('@/lib/auth/managerPolicy');
+    const { canSeeOrganization, getCompanyTeamVisibility } =
+      await import('@/lib/auth/managerPolicy');
     const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
     if (teamMode) {
       const org = await prisma.organization.findUnique({
         where: { id: organizationId },
-        select: { companyId: true }
+        select: { companyId: true },
       });
       return !!session.companyId && org?.companyId === session.companyId;
     }
@@ -53,7 +60,10 @@ export async function canReadOrder(session: SessionPayload, order: OrderLike) {
 
   if (session.role === 'organization') {
     if (!session.organizationId) return false;
-    const organizations = await prisma.organization.findMany({ where: { companyId: order.companyId }, select: { id: true } });
+    const organizations = await prisma.organization.findMany({
+      where: { companyId: order.companyId },
+      select: { id: true },
+    });
     return organizations.some((org: { id: string }) => org.id === session.organizationId);
   }
 
@@ -61,7 +71,7 @@ export async function canReadOrder(session: SessionPayload, order: OrderLike) {
     if (!session.partnerId) return false;
     const organization = await prisma.organization.findFirst({
       where: { companyId: order.companyId, partnerId: session.partnerId },
-      select: { id: true }
+      select: { id: true },
     });
     return Boolean(organization);
   }
@@ -74,7 +84,7 @@ export async function canReadOrder(session: SessionPayload, order: OrderLike) {
     // Scoped mode: assignment graph only (no comments-history at this guard).
     const fullOrder = await prisma.order.findUnique({
       where: { id: order.id },
-      select: { managerId: true, organizationId: true, companyId: true }
+      select: { managerId: true, organizationId: true, companyId: true },
     });
     if (!fullOrder) return false;
     return canSeeOrder(session, fullOrder, false);
@@ -89,17 +99,21 @@ export async function canReadDocument(session: SessionPayload, document: Documen
   // an order-less doc is complete only when companyId is present (orderId===null alone
   // is not sufficient — a missing companyId would reach the downstream gate with null).
   const haveAll =
-    !!document.counterpartyType && !!document.counterpartyId &&
+    !!document.counterpartyType &&
+    !!document.counterpartyId &&
     (!!document.order?.companyId || !!document.companyId);
   const doc = haveAll
     ? document
     : await prisma.document.findUnique({
         where: { id: document.id },
         select: {
-          id: true, orderId: true, companyId: true,
-          counterpartyType: true, counterpartyId: true,
-          order: { select: { companyId: true } }
-        }
+          id: true,
+          orderId: true,
+          companyId: true,
+          counterpartyType: true,
+          counterpartyId: true,
+          order: { select: { companyId: true } },
+        },
       });
   if (!doc || !doc.counterpartyType || !doc.counterpartyId) return false;
 
@@ -108,7 +122,7 @@ export async function canReadDocument(session: SessionPayload, document: Documen
     return canReadOrderLessDocument(session, {
       counterpartyType: doc.counterpartyType,
       counterpartyId: doc.counterpartyId,
-      companyId: doc.companyId ?? null
+      companyId: doc.companyId ?? null,
     });
   }
 
@@ -119,13 +133,15 @@ export async function canReadDocument(session: SessionPayload, document: Documen
   // a partner reads only its partner-channel; an organization only org-channel.
   // Managers/admins see both channels within their order scope (unchanged).
   if (session.role === 'partner') {
-    if (doc.counterpartyType !== 'partner' || doc.counterpartyId !== session.partnerId) return false;
+    if (doc.counterpartyType !== 'partner' || doc.counterpartyId !== session.partnerId)
+      return false;
   } else if (session.role === 'organization') {
     // Pin BOTH type and counterpartyId (DOC-01): canReadOrder() below is company-level
     // for orgs and does NOT isolate to a specific organization, so without this an org
     // user could read a sibling org's document within the same company. Symmetric to
     // the partner branch above.
-    if (doc.counterpartyType !== 'organization' || doc.counterpartyId !== session.organizationId) return false;
+    if (doc.counterpartyType !== 'organization' || doc.counterpartyId !== session.organizationId)
+      return false;
   }
 
   // Pass the parent ORDER id, not the document id: canReadOrder() for the
@@ -146,7 +162,7 @@ export async function canPartnerAccessOrg(
 
   const org = await prisma.organization.findUnique({
     where: { id: organizationId },
-    select: { partnerId: true }
+    select: { partnerId: true },
   });
   if (!org || org.partnerId !== session.partnerId) return false;
 

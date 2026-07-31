@@ -27,19 +27,24 @@ function countingAdapter(counter: { calls: number }): OneCAdapter {
       // Small await to widen the race window between the two callers.
       await new Promise((r) => setTimeout(r, 5));
       return { acceptedAt: new Date().toISOString(), oneCRequestId: `req-${counter.calls}` };
-    })
+    }),
   } as unknown as OneCAdapter;
 }
 
 beforeEach(async () => {
   const stamp = Date.now();
   const partner = await prisma.partner.create({
-    data: { name: `PushIdemPartner-${stamp}`, slug: `push-idem-${stamp}`, commissionRate: 0.1 }
+    data: { name: `PushIdemPartner-${stamp}`, slug: `push-idem-${stamp}`, commissionRate: 0.1 },
   });
   partnerId = partner.id;
 
   const author = await prisma.user.create({
-    data: { email: `idem-author-${stamp}@test.local`, name: 'Idem Author', role: 'partner', partnerId }
+    data: {
+      email: `idem-author-${stamp}@test.local`,
+      name: 'Idem Author',
+      role: 'partner',
+      partnerId,
+    },
   });
   authorUserId = author.id;
 
@@ -51,9 +56,9 @@ beforeEach(async () => {
       clientContactName: 'Пётр Петров',
       subject: 'Параллельный push',
       productType: ['course'],
-      estimatedAmount: 12345
+      estimatedAmount: 12345,
       // pushedToOneCAt left null — eligible for push
-    }
+    },
   });
   leadId = lead.id;
 });
@@ -76,7 +81,7 @@ describe('pushLeadToOneC — concurrent idempotency (integration)', () => {
 
     const [a, b] = await Promise.all([
       pushLeadToOneC(prisma, leadId, { adapter }),
-      pushLeadToOneC(prisma, leadId, { adapter })
+      pushLeadToOneC(prisma, leadId, { adapter }),
     ]);
 
     // Exactly one caller reached 1C; the other lost the atomic claim and skipped.
@@ -85,7 +90,7 @@ describe('pushLeadToOneC — concurrent idempotency (integration)', () => {
 
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
-      select: { pushedToOneCAt: true, externalIdInOneC: true }
+      select: { pushedToOneCAt: true, externalIdInOneC: true },
     });
     expect(lead?.pushedToOneCAt).not.toBeNull();
     expect(lead?.externalIdInOneC).toBe('req-1');

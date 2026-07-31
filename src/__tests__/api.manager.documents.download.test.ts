@@ -1,44 +1,38 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const {
-  getSession,
-  documentFindUnique,
-  commentCount,
-  auditCreate,
-  createSignedUrl,
-  redirectMock
-} = vi.hoisted(() => ({
-  getSession: vi.fn(),
-  documentFindUnique: vi.fn(),
-  commentCount: vi.fn().mockResolvedValue(0),
-  auditCreate: vi.fn(),
-  createSignedUrl: vi.fn(),
-  redirectMock: vi.fn(() => {
-    throw new Error('REDIRECT');
-  })
-}));
+const { getSession, documentFindUnique, commentCount, auditCreate, createSignedUrl, redirectMock } =
+  vi.hoisted(() => ({
+    getSession: vi.fn(),
+    documentFindUnique: vi.fn(),
+    commentCount: vi.fn().mockResolvedValue(0),
+    auditCreate: vi.fn(),
+    createSignedUrl: vi.fn(),
+    redirectMock: vi.fn(() => {
+      throw new Error('REDIRECT');
+    }),
+  }));
 
 vi.mock('@/lib/auth/session', () => ({ getSession }));
 vi.mock('next/navigation', () => ({
   redirect: redirectMock,
   notFound: () => {
     throw new Error('NOTFOUND');
-  }
+  },
 }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     document: { findUnique: documentFindUnique },
     comment: { count: commentCount },
-    auditLog: { create: auditCreate }
-  }
+    auditLog: { create: auditCreate },
+  },
 }));
 vi.mock('@/lib/storage', () => ({
   getObjectStorage: () => ({
     createSignedUrl,
     upload: vi.fn(),
     remove: vi.fn(),
-    download: vi.fn()
-  })
+    download: vi.fn(),
+  }),
 }));
 
 import { POST as downloadGet } from '@/app/api/manager/documents/[id]/download/route';
@@ -48,13 +42,13 @@ function managerSession(opts: { sub?: string; managedOrgIds?: string[] }) {
     sub: opts.sub ?? 'u-mgr-1',
     role: 'manager',
     email: 'mgr@local',
-    managedOrgIds: opts.managedOrgIds ?? []
+    managedOrgIds: opts.managedOrgIds ?? [],
   };
 }
 
 function getReq(): Request {
   return new Request('https://app.local/api/manager/documents/d1/download', {
-    method: 'POST'
+    method: 'POST',
   });
 }
 
@@ -103,7 +97,7 @@ describe('POST /api/manager/documents/[id]/download', () => {
       mimeType: 'application/pdf',
       scanStatus: 'clean',
       scanReason: null,
-      order: { managerId: 'someone-else', organizationId: 'org-b' }
+      order: { managerId: 'someone-else', organizationId: 'org-b' },
     });
     commentCount.mockResolvedValue(0);
     const res = await downloadGet(getReq() as never, paramsP);
@@ -119,7 +113,7 @@ describe('POST /api/manager/documents/[id]/download', () => {
       mimeType: 'application/pdf',
       scanStatus: 'infected',
       scanReason: 'EICAR',
-      order: { managerId: null, organizationId: 'org-a' }
+      order: { managerId: null, organizationId: 'org-a' },
     });
     const res = await downloadGet(getReq() as never, paramsP);
     expect(res.status).toBe(410);
@@ -134,7 +128,7 @@ describe('POST /api/manager/documents/[id]/download', () => {
       mimeType: 'application/pdf',
       scanStatus: 'clean',
       scanReason: null,
-      order: { managerId: null, organizationId: 'org-a' }
+      order: { managerId: null, organizationId: 'org-a' },
     });
     createSignedUrl.mockResolvedValue('https://signed.test/x');
 
@@ -144,7 +138,7 @@ describe('POST /api/manager/documents/[id]/download', () => {
     expect(body).toEqual({
       downloadUrl: 'https://signed.test/x',
       expiresInSec: expect.any(Number),
-      fileName: 'contract.pdf'
+      fileName: 'contract.pdf',
     });
     expect(createSignedUrl).toHaveBeenCalledWith('org-a/contract.pdf', expect.any(Number));
     expect(auditCreate).toHaveBeenCalled();
@@ -159,7 +153,7 @@ describe('POST /api/manager/documents/[id]/download', () => {
       mimeType: 'application/pdf',
       scanStatus: 'clean',
       scanReason: null,
-      order: { managerId: 'u-mgr-1', organizationId: 'org-x' }
+      order: { managerId: 'u-mgr-1', organizationId: 'org-x' },
     });
     createSignedUrl.mockResolvedValue('https://signed.test/own');
 
@@ -177,7 +171,7 @@ describe('POST /api/manager/documents/[id]/download', () => {
       mimeType: 'application/pdf',
       scanStatus: 'clean',
       scanReason: null,
-      order: { managerId: 'someone-else', organizationId: 'org-z' }
+      order: { managerId: 'someone-else', organizationId: 'org-z' },
     });
     commentCount.mockResolvedValue(2);
     createSignedUrl.mockResolvedValue('https://signed.test/h');
@@ -196,7 +190,7 @@ describe('POST /api/manager/documents/[id]/download', () => {
       mimeType: 'application/pdf',
       scanStatus: 'clean',
       scanReason: null,
-      order: { managerId: null, organizationId: 'org-a' }
+      order: { managerId: null, organizationId: 'org-a' },
     });
     createSignedUrl.mockRejectedValue(new Error('storage down'));
 
@@ -213,7 +207,7 @@ describe('POST /api/manager/documents/[id]/download', () => {
       mimeType: 'application/pdf',
       scanStatus: 'clean',
       scanReason: null,
-      order: { managerId: null, organizationId: 'org-a' }
+      order: { managerId: null, organizationId: 'org-a' },
     });
     createSignedUrl.mockRejectedValue('provider exploded');
 

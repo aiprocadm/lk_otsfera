@@ -15,21 +15,31 @@ export default async function PartnerTeamPage() {
     prisma.organization.findMany({
       where: { partnerId: session.partnerId },
       orderBy: { name: 'asc' },
-      select: { id: true, name: true }
-    })
+      select: { id: true, name: true },
+    }),
   ]);
 
   const activeCount = rows.filter((r) => r.isActive).length;
 
   return (
-    <div className='space-y-4'>
-      <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <h1 className='text-2xl font-semibold text-[#111111]'>Команда</h1>
-          <p className='text-sm text-gray-500 mt-0.5'>
-            {activeCount} {pluralizeRu(activeCount, 'активный сотрудник', 'активных сотрудника', 'активных сотрудников')}
+          <h1 className="text-2xl font-semibold text-[#111111]">Команда</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {activeCount}{' '}
+            {pluralizeRu(
+              activeCount,
+              'активный сотрудник',
+              'активных сотрудника',
+              'активных сотрудников'
+            )}
             {rows.length > activeCount && (
-              <span className='text-gray-400'> · {rows.length - activeCount} деактивирован{rows.length - activeCount === 1 ? '' : 'о'}</span>
+              <span className="text-gray-400">
+                {' '}
+                · {rows.length - activeCount} деактивирован
+                {rows.length - activeCount === 1 ? '' : 'о'}
+              </span>
             )}
           </p>
         </div>

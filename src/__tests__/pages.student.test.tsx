@@ -21,7 +21,7 @@ vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
 // which props), matching how their internals are already covered elsewhere.
 vi.mock('@/components/dashboard/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('div', { 'data-testid': 'app-shell' }, children)
+    React.createElement('div', { 'data-testid': 'app-shell' }, children),
 }));
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: (props: {
@@ -34,7 +34,7 @@ vi.mock('@/components/organization/org-app-shell', () => ({
       { 'data-testid': 'org-app-shell' },
       `${props.activeOrgName} / ${props.userEmail ?? ''}`,
       props.children
-    )
+    ),
 }));
 
 import StudentPage from '@/app/student/page';
@@ -65,7 +65,7 @@ describe('StudentPage', () => {
       activeOrgId: 'org-1',
       activeOrgName: 'ООО Ромашка',
       memberships: [],
-      viewerRole: 'admin'
+      viewerRole: 'admin',
     });
 
     const { container } = await renderServerComponent(

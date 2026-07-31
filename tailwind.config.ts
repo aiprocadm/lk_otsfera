@@ -12,9 +12,9 @@ export default {
           black: '#111111',
           'black-soft': '#1F1F1F',
           white: '#FFFFFF',
-        }
-      }
-    }
+        },
+      },
+    },
   },
-  plugins: []
+  plugins: [],
 } satisfies Config;

@@ -10,20 +10,35 @@ vi.mock('@/server-actions/admin/integrationSettings', () => ({ saveEmailSettings
 
 import { EmailSettingsForm } from '@/components/admin/email-settings-form';
 
-const BASE = { initialEnabled: false, initialFrom: '', apiKeySet: false, apiKeySource: 'none' as const };
+const BASE = {
+  initialEnabled: false,
+  initialFrom: '',
+  apiKeySet: false,
+  apiKeySource: 'none' as const,
+};
 
 describe('EmailSettingsForm', () => {
   beforeEach(() => saveEmailSettingsAction.mockReset());
 
   it('renders fields; reflects initial enabled + from; shows re_ placeholder when no key', () => {
-    render(React.createElement(EmailSettingsForm, { ...BASE, initialEnabled: true, initialFrom: 'x@y.ru' }));
+    render(
+      React.createElement(EmailSettingsForm, {
+        ...BASE,
+        initialEnabled: true,
+        initialFrom: 'x@y.ru',
+      })
+    );
     expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByPlaceholderText('no-reply@otsfera.ru') as HTMLInputElement).value).toBe('x@y.ru');
+    expect((screen.getByPlaceholderText('no-reply@otsfera.ru') as HTMLInputElement).value).toBe(
+      'x@y.ru'
+    );
     expect(screen.getByPlaceholderText('re_...')).toBeTruthy();
   });
 
   it('shows "задан" hint (with env note) when the key is set from env', () => {
-    render(React.createElement(EmailSettingsForm, { ...BASE, apiKeySet: true, apiKeySource: 'env' }));
+    render(
+      React.createElement(EmailSettingsForm, { ...BASE, apiKeySet: true, apiKeySource: 'env' })
+    );
     expect(screen.getByText(/задан/)).toBeTruthy();
     expect(screen.getByText(/в конфиге сервера/)).toBeTruthy();
     // placeholder switches to the "leave empty to keep" hint
@@ -33,7 +48,9 @@ describe('EmailSettingsForm', () => {
   it('ключ задан в базе (не в конфиге) → пометка без приписки про сервер', () => {
     // Источник ключа важен админу: из конфига сервера его правкой формы не
     // изменить, из базы — можно. Приписка должна появляться только для конфига.
-    render(React.createElement(EmailSettingsForm, { ...BASE, apiKeySet: true, apiKeySource: 'db' }));
+    render(
+      React.createElement(EmailSettingsForm, { ...BASE, apiKeySet: true, apiKeySource: 'db' })
+    );
     expect(screen.getByText(/задан/)).toBeTruthy();
     expect(screen.queryByText(/в конфиге сервера/)).toBeNull();
   });
@@ -74,7 +91,7 @@ describe('EmailSettingsForm — панель «Проверить подключ
       React.createElement(EmailSettingsForm, {
         ...BASE,
         testAction,
-        check: { lastAt: '23.07.2026, 10:00', lastOk: true, lastError: null }
+        check: { lastAt: '23.07.2026, 10:00', lastOk: true, lastError: null },
       })
     );
     expect(screen.getByText('Проверить подключение')).toBeTruthy();
@@ -86,7 +103,7 @@ describe('EmailSettingsForm — панель «Проверить подключ
     const testAction = vi.fn().mockResolvedValue({
       ok: true,
       success: true,
-      message: 'Тестовое письмо отправлено на a@x.ru'
+      message: 'Тестовое письмо отправлено на a@x.ru',
     });
     render(React.createElement(EmailSettingsForm, { ...BASE, testAction, check: null }));
     const btn = screen.getByText('Проверить подключение');

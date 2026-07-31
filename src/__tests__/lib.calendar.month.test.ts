@@ -13,7 +13,7 @@ import {
   isSameMonth,
   prevMonth,
   nextMonth,
-  monthLabel
+  monthLabel,
 } from '@/lib/calendar/month';
 
 describe('normalizeMonthParam', () => {

@@ -9,10 +9,7 @@ import { Field } from '@/components/ui/field';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
 import type { NotificationSettingsView } from '@/lib/services/notifications/preferences';
-import {
-  generateMaxLinkAction,
-  unlinkMaxAction,
-} from '@/server-actions/max';
+import { generateMaxLinkAction, unlinkMaxAction } from '@/server-actions/max';
 import {
   saveWhatsappPhoneAction,
   updateChannelPreferenceAction,

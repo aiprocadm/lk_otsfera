@@ -1,7 +1,7 @@
 import type { Queue } from 'bullmq';
+import type { PrismaClient } from '@prisma/client';
 import { getQueue, type QueueName } from './queues';
 import type { SyncJobPayload } from './types';
-import type { PrismaClient } from '@prisma/client';
 
 export type SyncScheduleQueueName = Extract<
   QueueName,
@@ -28,44 +28,44 @@ export const SYNC_SCHEDULES: ReadonlyArray<SyncSchedule> = [
     queueName: 'oneCSync.pullOrders',
     schedulerId: 'oneCSync.pullOrders.cron',
     pattern: '*/15 * * * *',
-    tz: DEFAULT_SYNC_TZ
+    tz: DEFAULT_SYNC_TZ,
   },
   {
     queueName: 'oneCSync.pullPayments',
     schedulerId: 'oneCSync.pullPayments.cron',
     pattern: '*/15 * * * *',
-    tz: DEFAULT_SYNC_TZ
+    tz: DEFAULT_SYNC_TZ,
   },
   {
     queueName: 'oneCSync.pullDocuments',
     schedulerId: 'oneCSync.pullDocuments.cron',
     pattern: '0 * * * *',
-    tz: DEFAULT_SYNC_TZ
+    tz: DEFAULT_SYNC_TZ,
   },
   {
     queueName: 'oneCSync.pullOrganizations',
     schedulerId: 'oneCSync.pullOrganizations.cron',
     pattern: '0 */6 * * *',
-    tz: DEFAULT_SYNC_TZ
+    tz: DEFAULT_SYNC_TZ,
   },
   {
     queueName: 'oneCSync.reconcile',
     schedulerId: 'oneCSync.reconcile.cron',
     pattern: '0 3 * * *',
-    tz: DEFAULT_SYNC_TZ
+    tz: DEFAULT_SYNC_TZ,
   },
   {
     queueName: 'inbound.email.poll',
     schedulerId: 'inbound.email.poll.cron',
     pattern: '*/5 * * * *',
-    tz: DEFAULT_SYNC_TZ
+    tz: DEFAULT_SYNC_TZ,
   },
   {
     queueName: 'telephony.mango.backfill',
     schedulerId: 'telephony.mango.backfill.cron',
     pattern: '0 * * * *',
-    tz: DEFAULT_SYNC_TZ
-  }
+    tz: DEFAULT_SYNC_TZ,
+  },
 ] as const;
 
 export type RegisteredSchedule = {
@@ -89,8 +89,8 @@ export const COMMISSION_SCHEDULES: ReadonlyArray<CommissionSchedule> = [
     queueName: 'docs.calculateMonthlyCommissions',
     schedulerId: 'docs.calculateMonthlyCommissions.cron',
     pattern: '0 6 1 * *',
-    tz: DEFAULT_SYNC_TZ
-  }
+    tz: DEFAULT_SYNC_TZ,
+  },
 ] as const;
 
 export async function registerCommissionSchedules(
@@ -109,7 +109,7 @@ export async function registerCommissionSchedules(
       schedulerId: schedule.schedulerId,
       queueName: schedule.queueName,
       pattern: schedule.pattern,
-      tz: schedule.tz
+      tz: schedule.tz,
     });
   }
   return results;
@@ -117,7 +117,7 @@ export async function registerCommissionSchedules(
 
 export async function registerSyncSchedules(
   getQueueFn: GetQueueFn = getQueue,
-  pausedSchedulerIds: ReadonlySet<string> = new Set(),
+  pausedSchedulerIds: ReadonlySet<string> = new Set()
 ): Promise<RegisteredSchedule[]> {
   const results: RegisteredSchedule[] = [];
   const registeredAt = new Date().toISOString();
@@ -126,7 +126,7 @@ export async function registerSyncSchedules(
     const queue = getQueueFn(schedule.queueName);
     const payload: SyncJobPayload = {
       triggeredAt: registeredAt,
-      reason: 'cron'
+      reason: 'cron',
     };
     await queue.upsertJobScheduler(
       schedule.schedulerId,
@@ -137,7 +137,7 @@ export async function registerSyncSchedules(
       schedulerId: schedule.schedulerId,
       queueName: schedule.queueName,
       pattern: schedule.pattern,
-      tz: schedule.tz
+      tz: schedule.tz,
     });
   }
   return results;
@@ -161,8 +161,8 @@ export const ALERT_SCHEDULES: ReadonlyArray<AlertSchedule> = [
     queueName: 'monitoring.evaluateAlerts',
     schedulerId: 'monitoring.evaluateAlerts.cron',
     pattern: '*/5 * * * *',
-    tz: DEFAULT_SYNC_TZ
-  }
+    tz: DEFAULT_SYNC_TZ,
+  },
 ] as const;
 
 export async function registerAlertSchedules(
@@ -181,7 +181,7 @@ export async function registerAlertSchedules(
       schedulerId: schedule.schedulerId,
       queueName: schedule.queueName,
       pattern: schedule.pattern,
-      tz: schedule.tz
+      tz: schedule.tz,
     });
   }
   return results;
@@ -201,8 +201,8 @@ export const CALENDAR_REMINDER_SCHEDULES: ReadonlyArray<CalendarReminderSchedule
     queueName: 'notifications.calendarReminder',
     schedulerId: 'notifications.calendarReminder.cron',
     pattern: '*/5 * * * *',
-    tz: DEFAULT_SYNC_TZ
-  }
+    tz: DEFAULT_SYNC_TZ,
+  },
 ] as const;
 
 export async function registerCalendarReminderSchedules(
@@ -218,8 +218,10 @@ export async function registerCalendarReminderSchedules(
       { data: { triggeredAt, reason: 'cron' } }
     );
     results.push({
-      schedulerId: schedule.schedulerId, queueName: schedule.queueName,
-      pattern: schedule.pattern, tz: schedule.tz
+      schedulerId: schedule.schedulerId,
+      queueName: schedule.queueName,
+      pattern: schedule.pattern,
+      tz: schedule.tz,
     });
   }
   return results;
@@ -239,8 +241,8 @@ export const TASK_DUE_SOON_SCHEDULES: ReadonlyArray<TaskDueSoonSchedule> = [
     queueName: 'notifications.taskDueSoon',
     schedulerId: 'notifications.taskDueSoon.cron',
     pattern: '0 7 * * *',
-    tz: DEFAULT_SYNC_TZ
-  }
+    tz: DEFAULT_SYNC_TZ,
+  },
 ] as const;
 
 export async function registerTaskDueSoonSchedules(
@@ -256,8 +258,10 @@ export async function registerTaskDueSoonSchedules(
       { data: { triggeredAt, reason: 'cron' } }
     );
     results.push({
-      schedulerId: schedule.schedulerId, queueName: schedule.queueName,
-      pattern: schedule.pattern, tz: schedule.tz
+      schedulerId: schedule.schedulerId,
+      queueName: schedule.queueName,
+      pattern: schedule.pattern,
+      tz: schedule.tz,
     });
   }
   return results;
@@ -277,8 +281,8 @@ export const SLA_ESCALATION_SCHEDULES: ReadonlyArray<SlaEscalationSchedule> = [
     queueName: 'monitoring.slaEscalation',
     schedulerId: 'monitoring.slaEscalation.cron',
     pattern: '*/30 * * * *',
-    tz: DEFAULT_SYNC_TZ
-  }
+    tz: DEFAULT_SYNC_TZ,
+  },
 ] as const;
 
 export async function registerSlaEscalationSchedules(
@@ -294,8 +298,10 @@ export async function registerSlaEscalationSchedules(
       { data: { triggeredAt, reason: 'cron' } }
     );
     results.push({
-      schedulerId: schedule.schedulerId, queueName: schedule.queueName,
-      pattern: schedule.pattern, tz: schedule.tz
+      schedulerId: schedule.schedulerId,
+      queueName: schedule.queueName,
+      pattern: schedule.pattern,
+      tz: schedule.tz,
     });
   }
   return results;
@@ -313,8 +319,8 @@ export const CERT_EXPIRY_SCHEDULES: ReadonlyArray<CertExpirySchedule> = [
     queueName: 'notifications.certificateExpiry',
     schedulerId: 'notifications.certificateExpiry.cron',
     pattern: '0 7 * * *',
-    tz: DEFAULT_SYNC_TZ
-  }
+    tz: DEFAULT_SYNC_TZ,
+  },
 ] as const;
 
 export async function registerCertExpirySchedules(
@@ -330,8 +336,10 @@ export async function registerCertExpirySchedules(
       { data: { triggeredAt, reason: 'cron' } }
     );
     results.push({
-      schedulerId: schedule.schedulerId, queueName: schedule.queueName,
-      pattern: schedule.pattern, tz: schedule.tz
+      schedulerId: schedule.schedulerId,
+      queueName: schedule.queueName,
+      pattern: schedule.pattern,
+      tz: schedule.tz,
     });
   }
   return results;

@@ -1,6 +1,6 @@
 import React from 'react';
-import { BackLink } from '@/components/ui';
 import { notFound } from 'next/navigation';
+import { BackLink } from '@/components/ui';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
 import { canSeeOrder } from '@/lib/auth/organizationPolicy';
@@ -23,7 +23,7 @@ type SearchParams = { org?: string };
 
 export default async function OrganizationOrderDetailPage({
   params,
-  searchParams
+  searchParams,
 }: {
   params: Promise<Params>;
   searchParams: Promise<SearchParams>;
@@ -45,15 +45,15 @@ export default async function OrganizationOrderDetailPage({
     prisma.comment.findMany({
       where: { orderId: order.id },
       orderBy: { createdAt: 'asc' },
-      include: { author: { select: { name: true } } }
+      include: { author: { select: { name: true } } },
     }),
-    getValuesForEntity(prisma, ctx.session, 'order', order.id)
+    getValuesForEntity(prisma, ctx.session, 'order', order.id),
   ]);
   const comments: DealCommentRow[] = commentRows.map((c) => ({
     id: c.id,
     body: c.body,
     createdAt: c.createdAt,
-    authorName: c.author.name
+    authorName: c.author.name,
   }));
   const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
 
@@ -69,30 +69,28 @@ export default async function OrganizationOrderDetailPage({
       activeOrgId={ctx.activeOrgId}
       viewerRole={ctx.viewerRole}
     >
-      <div className='space-y-4'>
-        <div className='text-sm'>
-          <BackLink href={backHref} label='Все заказы' />
+      <div className="space-y-4">
+        <div className="text-sm">
+          <BackLink href={backHref} label="Все заказы" />
         </div>
 
         <OrgOrderHeader order={order} />
 
-        <div className='grid gap-4 md:grid-cols-3'>
-          <div className='md:col-span-2 space-y-4'>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="md:col-span-2 space-y-4">
             <OrgOrderAmounts order={order} />
 
-            <div className='bg-white border border-gray-200 rounded-xl p-5 space-y-3'>
-              <h2 className='text-sm font-semibold text-[#111111]'>
+            <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+              <h2 className="text-sm font-semibold text-[#111111]">
                 Документы{' '}
                 {order.documents.length > 0 && (
-                  <span className='text-gray-400 font-normal'>({order.documents.length})</span>
+                  <span className="text-gray-400 font-normal">({order.documents.length})</span>
                 )}
               </h2>
               <DocumentsList
                 rows={order.documents}
-                downloadEndpointBase='/api/organization/documents'
-                downloadEndpointQuery={
-                  sp.org ? `?org=${encodeURIComponent(sp.org)}` : ''
-                }
+                downloadEndpointBase="/api/organization/documents"
+                downloadEndpointQuery={sp.org ? `?org=${encodeURIComponent(sp.org)}` : ''}
               />
               <OrganizationDocumentUploadForm organizationId={ctx.activeOrgId} orderId={order.id} />
             </div>
@@ -112,7 +110,7 @@ export default async function OrganizationOrderDetailPage({
             <DealComments comments={comments} orderId={order.id} />
           </div>
 
-          <div className='space-y-4'>
+          <div className="space-y-4">
             <OrgOrderTimeline order={order} />
           </div>
         </div>
@@ -120,4 +118,3 @@ export default async function OrganizationOrderDetailPage({
     </OrgAppShell>
   );
 }
-

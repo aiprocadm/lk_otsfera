@@ -13,7 +13,7 @@ const { isRateLimited, findUnique, updateUser, verifyAndConsumeToken } = vi.hois
   isRateLimited: vi.fn(),
   findUnique: vi.fn(),
   updateUser: vi.fn(),
-  verifyAndConsumeToken: vi.fn()
+  verifyAndConsumeToken: vi.fn(),
 }));
 
 vi.mock('@/lib/rateLimit', () => ({ isRateLimited }));
@@ -21,16 +21,18 @@ vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     // updateUser — отметка lastLoginAt (этап 9, ФТ-11.3)
     user: { findUnique, update: updateUser },
-    partnerUser: { findUnique: vi.fn().mockResolvedValue(null) }
-  }
+    partnerUser: { findUnique: vi.fn().mockResolvedValue(null) },
+  },
 }));
 vi.mock('@/lib/auth/passwordReset', () => ({
   createInviteToken: vi.fn(),
-  verifyAndConsumeToken
+  verifyAndConsumeToken,
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: vi.fn() }));
 vi.mock('@/lib/email/send', () => ({ send: vi.fn() }));
-vi.mock('bcryptjs', () => ({ default: { compare: vi.fn(), hash: vi.fn().mockResolvedValue('h') } }));
+vi.mock('bcryptjs', () => ({
+  default: { compare: vi.fn(), hash: vi.fn().mockResolvedValue('h') },
+}));
 vi.mock('@/lib/auth/jwt', () => ({ signToken: vi.fn() }));
 
 import { POST as loginPost } from '@/app/api/auth/login/route';
@@ -43,7 +45,7 @@ function req(url: string, body: unknown, headers: Record<string, string> = {}): 
   return new Request(url, {
     method: 'POST',
     body: JSON.stringify(body),
-    headers: { 'content-type': 'application/json', ...headers }
+    headers: { 'content-type': 'application/json', ...headers },
   }) as unknown as NextReq;
 }
 
@@ -57,7 +59,11 @@ describe('login — общий лимитер', () => {
   it('лимит превышен → 429 TOO_MANY_REQUESTS, ключ login:<ip>, до чтения тела', async () => {
     isRateLimited.mockResolvedValueOnce(true);
     const res = await loginPost(
-      req('https://app.local/api/auth/login', { email: 'a@b.ru', password: 'x' }, { 'x-forwarded-for': '1.2.3.4' })
+      req(
+        'https://app.local/api/auth/login',
+        { email: 'a@b.ru', password: 'x' },
+        { 'x-forwarded-for': '1.2.3.4' }
+      )
     );
     expect(res.status).toBe(429);
     expect((await res.json()).code).toBe('TOO_MANY_REQUESTS');
@@ -81,7 +87,7 @@ describe('reset-password/request — лимиты per-IP и per-email', () => {
     expect(isRateLimited).toHaveBeenCalledTimes(1);
     expect(isRateLimited).toHaveBeenCalledWith('reset-request:ip:9.9.9.9', {
       windowMs: 3_600_000,
-      max: 20
+      max: 20,
     });
     expect(findUnique).not.toHaveBeenCalled();
   });
@@ -98,11 +104,11 @@ describe('reset-password/request — лимиты per-IP и per-email', () => {
     expect(res.status).toBe(429);
     expect(isRateLimited).toHaveBeenNthCalledWith(1, 'reset-request:ip:7.7.7.7', {
       windowMs: 3_600_000,
-      max: 20
+      max: 20,
     });
     expect(isRateLimited).toHaveBeenNthCalledWith(2, 'reset-request:email:user@example.com', {
       windowMs: 3_600_000,
-      max: 5
+      max: 5,
     });
     expect(findUnique).not.toHaveBeenCalled();
   });
@@ -132,7 +138,7 @@ describe('reset-password/confirm — лимит per-IP (анти-перебор 
     expect((await res.json()).error).toBe('too_many_requests');
     expect(isRateLimited).toHaveBeenCalledWith('reset-confirm:ip:8.8.8.8', {
       windowMs: 60_000,
-      max: 10
+      max: 10,
     });
     expect(verifyAndConsumeToken).not.toHaveBeenCalled();
   });
@@ -150,7 +156,7 @@ describe('reset-password/confirm — лимит per-IP (анти-перебор 
     expect((await res.json()).error).toBe('invalid_token');
     expect(isRateLimited).toHaveBeenCalledWith('reset-confirm:ip:6.6.6.6', {
       windowMs: 60_000,
-      max: 10
+      max: 10,
     });
   });
 });

@@ -21,7 +21,7 @@ export async function GET() {
   const docs = await prisma.document.findMany({
     where: { ...hideInfectedForSession(s) },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, name: true, mimeType: true, createdAt: true, orderId: true }
+    select: { id: true, name: true, mimeType: true, createdAt: true, orderId: true },
   });
 
   return NextResponse.json(docs);

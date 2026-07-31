@@ -37,9 +37,7 @@ export type DocumentDetail = {
   counterparty: { type: string; id: string; name: string | null };
 };
 
-type Result =
-  | { ok: true; document: DocumentDetail }
-  | { ok: false; error: DocumentDetailError };
+type Result = { ok: true; document: DocumentDetail } | { ok: false; error: DocumentDetailError };
 
 /** Русское имя контрагента по типу и id (для шапки карточки). */
 async function counterpartyName(
@@ -81,9 +79,9 @@ export async function getDocumentDetail(
       counterpartyId: true,
       uploadedBy: { select: { name: true, email: true } },
       order: {
-        select: { id: true, title: true, orderNumber: true, companyId: true }
-      }
-    }
+        select: { id: true, title: true, orderNumber: true, companyId: true },
+      },
+    },
   });
   if (!doc) return { ok: false, error: 'not_found' };
 
@@ -112,8 +110,8 @@ export async function getDocumentDetail(
       counterparty: {
         type: doc.counterpartyType,
         id: doc.counterpartyId,
-        name: await counterpartyName(prisma, doc.counterpartyType, doc.counterpartyId)
-      }
-    }
+        name: await counterpartyName(prisma, doc.counterpartyType, doc.counterpartyId),
+      },
+    },
   };
 }

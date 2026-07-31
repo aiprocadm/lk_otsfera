@@ -3,8 +3,8 @@
 // (docs/integrations/1c-meeting-agenda.md). Each constant is tagged with its
 // DECISION Q#. If 1C answers "not REST" (Q1), this file + adapter-rest.ts are
 // the only throwaway code — the rest of oneCSync is transport-agnostic.
-import type { SyncCursor, OneCLeadPushPayload } from './dto';
 import { translateFinancialStatus, translateExecutionStatus } from './translate';
+import type { SyncCursor, OneCLeadPushPayload } from './dto';
 
 // DECISION Q1: REST endpoint paths (or OData / file-export).
 export const ENDPOINTS = {
@@ -12,7 +12,7 @@ export const ENDPOINTS = {
   orders: '/api/orders',
   payments: '/api/payments',
   documents: '/api/documents',
-  leadPush: '/api/leads'
+  leadPush: '/api/leads',
 } as const;
 
 // DECISION Q6/Q7: incremental cursor query param + datetime format on the wire.
@@ -35,7 +35,8 @@ export function parseEnvelope(raw: unknown): { items: unknown[]; nextCursor?: st
   if (Array.isArray(raw)) return { items: raw };
   if (raw && typeof raw === 'object' && Array.isArray((raw as { items?: unknown }).items)) {
     const o = raw as { items: unknown[]; nextCursor?: unknown };
-    const nextCursor = typeof o.nextCursor === 'string' && o.nextCursor.length > 0 ? o.nextCursor : undefined;
+    const nextCursor =
+      typeof o.nextCursor === 'string' && o.nextCursor.length > 0 ? o.nextCursor : undefined;
     return { items: o.items, nextCursor };
   }
   throw new Error('Unexpected 1C response envelope (expected JSON array or { items: [] })');
@@ -44,7 +45,12 @@ export function parseEnvelope(raw: unknown): { items: unknown[]; nextCursor?: st
 // DECISION Q6: query param carrying the opaque page cursor on follow-up requests.
 export const PAGE_PARAM = 'cursor';
 
-export function buildUrl(baseUrl: string, path: string, cursor: SyncCursor, pageCursor?: string): string {
+export function buildUrl(
+  baseUrl: string,
+  path: string,
+  cursor: SyncCursor,
+  pageCursor?: string
+): string {
   const url = new URL(path, baseUrl);
   if (cursor.since) url.searchParams.set(SINCE_PARAM, formatSince(cursor.since));
   if (pageCursor) url.searchParams.set(PAGE_PARAM, pageCursor);

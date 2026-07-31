@@ -11,7 +11,7 @@ import { fmtMoney } from '@/lib/format';
  */
 export function LeaderManagersTable({ rows }: { rows: LeaderManagerRow[] }) {
   if (rows.length === 0) {
-    return <EmptyState icon='👥' message='В компании пока нет менеджеров.' />;
+    return <EmptyState icon="👥" message="В компании пока нет менеджеров." />;
   }
 
   return (
@@ -27,12 +27,12 @@ export function LeaderManagersTable({ rows }: { rows: LeaderManagerRow[] }) {
         {rows.map((m) => (
           <Tr key={m.managerId}>
             <Td>
-              <div className='font-medium text-[#111111]'>{m.name}</div>
-              <div className='text-xs text-gray-500'>{m.email}</div>
+              <div className="font-medium text-[#111111]">{m.name}</div>
+              <div className="text-xs text-gray-500">{m.email}</div>
             </Td>
-            <Td className='text-gray-700'>{m.activeOrders}</Td>
-            <Td className='text-gray-700'>{fmtMoney(m.totalAmount)}</Td>
-            <Td className='text-gray-700'>{fmtMoney(m.paidAmount)}</Td>
+            <Td className="text-gray-700">{m.activeOrders}</Td>
+            <Td className="text-gray-700">{fmtMoney(m.totalAmount)}</Td>
+            <Td className="text-gray-700">{fmtMoney(m.paidAmount)}</Td>
             <Td className={m.overdue > 0 ? 'font-medium text-red-700' : 'text-gray-700'}>
               {m.overdue}
             </Td>

@@ -4,7 +4,7 @@ import React, { useId, useRef, useState } from 'react';
 export function ChatComposer({
   onSend,
   disabled,
-  onAttachFile
+  onAttachFile,
 }: {
   /** true — отправлено (поле очищается); false — ошибка, текст остаётся в поле */
   onSend: (text: string) => boolean | Promise<boolean>;
@@ -43,7 +43,7 @@ export function ChatComposer({
         gap: '8px',
         padding: '12px 16px',
         borderTop: '1px solid #E5E7EB',
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
       }}
     >
       <textarea
@@ -64,7 +64,7 @@ export function ChatComposer({
           color: '#111111',
           outline: 'none',
           fontFamily: 'inherit',
-          boxSizing: 'border-box'
+          boxSizing: 'border-box',
         }}
       />
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -80,7 +80,7 @@ export function ChatComposer({
                 fontSize: '16px',
                 lineHeight: 1,
                 userSelect: 'none',
-                color: '#374151'
+                color: '#374151',
               }}
               title="Прикрепить файл"
             >
@@ -109,7 +109,7 @@ export function ChatComposer({
             fontSize: '14px',
             fontWeight: 600,
             cursor: canSubmit ? 'pointer' : 'default',
-            transition: 'background-color 0.15s'
+            transition: 'background-color 0.15s',
           }}
         >
           Отправить

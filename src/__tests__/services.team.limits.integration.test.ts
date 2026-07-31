@@ -19,7 +19,7 @@ let actorId = '';
 
 async function makeUser(suffix: string) {
   return prisma.user.create({
-    data: { email: `${TAG}-${suffix}@x`, name: suffix, role: 'organization', passwordHash: 'x' }
+    data: { email: `${TAG}-${suffix}@x`, name: suffix, role: 'organization', passwordHash: 'x' },
   });
 }
 
@@ -34,17 +34,24 @@ beforeAll(async () => {
   for (let i = 0; i < MAX_ORGANIZATION_USERS; i++) {
     const u = await makeUser(`of-${i}`);
     await prisma.organizationUser.create({
-      data: { organizationId: orgFull, userId: u.id, roleInOrg: 'member', isActive: true }
+      data: { organizationId: orgFull, userId: u.id, roleInOrg: 'member', isActive: true },
     });
   }
 
-  const oInactive = await prisma.organization.create({ data: { name: `${TAG}-orgInactive`, companyId } });
+  const oInactive = await prisma.organization.create({
+    data: { name: `${TAG}-orgInactive`, companyId },
+  });
   orgWithInactive = oInactive.id;
   for (let i = 0; i < MAX_ORGANIZATION_USERS; i++) {
     const u = await makeUser(`oi-${i}`);
     await prisma.organizationUser.create({
       // last one deactivated → 9 active + 1 inactive
-      data: { organizationId: orgWithInactive, userId: u.id, roleInOrg: 'member', isActive: i < MAX_ORGANIZATION_USERS - 1 }
+      data: {
+        organizationId: orgWithInactive,
+        userId: u.id,
+        roleInOrg: 'member',
+        isActive: i < MAX_ORGANIZATION_USERS - 1,
+      },
     });
   }
 
@@ -53,7 +60,13 @@ beforeAll(async () => {
   for (let i = 0; i < MAX_PARTNER_USERS; i++) {
     const u = await makeUser(`pf-${i}`);
     await prisma.partnerUser.create({
-      data: { partnerId: partnerFull, userId: u.id, roleInPartner: 'manager', assignedOrgIds: [], isActive: true }
+      data: {
+        partnerId: partnerFull,
+        userId: u.id,
+        roleInPartner: 'manager',
+        assignedOrgIds: [],
+        isActive: true,
+      },
     });
   }
 });
@@ -61,7 +74,9 @@ beforeAll(async () => {
 afterAll(async () => {
   await prisma.passwordResetToken.deleteMany({ where: { user: { email: { startsWith: TAG } } } });
   await prisma.auditLog.deleteMany({ where: { user: { email: { startsWith: TAG } } } });
-  await prisma.organizationUser.deleteMany({ where: { organization: { name: { startsWith: TAG } } } });
+  await prisma.organizationUser.deleteMany({
+    where: { organization: { name: { startsWith: TAG } } },
+  });
   await prisma.partnerUser.deleteMany({ where: { partner: { name: { startsWith: TAG } } } });
   await prisma.user.deleteMany({ where: { email: { startsWith: TAG } } });
   await prisma.organization.deleteMany({ where: { name: { startsWith: TAG } } });
@@ -88,14 +103,19 @@ describe('organization user limit', () => {
   it('allows an invite when a slot is free because a member is deactivated', async () => {
     const res = await inviteOrgMember(
       prisma,
-      { organizationId: orgWithInactive, email: `${TAG}-org10@x`, name: 'Tenth', roleInOrg: 'member' },
+      {
+        organizationId: orgWithInactive,
+        email: `${TAG}-org10@x`,
+        name: 'Tenth',
+        roleInOrg: 'member',
+      },
       actorId,
       { source: 'organization' },
       'admin'
     );
     expect(res.ok).toBe(true);
     const activeNow = await prisma.organizationUser.count({
-      where: { organizationId: orgWithInactive, isActive: true }
+      where: { organizationId: orgWithInactive, isActive: true },
     });
     expect(activeNow).toBe(MAX_ORGANIZATION_USERS);
   });
@@ -108,7 +128,7 @@ describe('partner user limit', () => {
       email: `${TAG}-p6@x`,
       name: 'Sixth',
       roleInPartner: 'manager',
-      assignedOrgIds: []
+      assignedOrgIds: [],
     });
     expect(res).toEqual({ ok: false, error: 'member_limit_reached' });
     const created = await prisma.user.findUnique({ where: { email: `${TAG}-p6@x` } });

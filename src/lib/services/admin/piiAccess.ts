@@ -32,7 +32,7 @@ type ListOk = { ok: true; rows: PiiAccessRow[]; nextCursor: string | null };
 type Forbidden = { ok: false; error: 'forbidden' };
 
 const EVENT_INCLUDE = {
-  user: { select: { id: true, email: true, name: true } }
+  user: { select: { id: true, email: true, name: true } },
 } satisfies Prisma.PiiAccessEventInclude;
 
 type EventRow = Prisma.PiiAccessEventGetPayload<{ include: typeof EVENT_INCLUDE }>;
@@ -58,26 +58,50 @@ async function resolveSubjectLabels(
   const ids = (t: string) => [...(byType.get(t) ?? [])];
 
   if (byType.has('student')) {
-    for (const s of await prisma.student.findMany({ where: { id: { in: ids('student') } }, select: { id: true, name: true } })) put(s.id, s.name);
+    for (const s of await prisma.student.findMany({
+      where: { id: { in: ids('student') } },
+      select: { id: true, name: true },
+    }))
+      put(s.id, s.name);
   }
   if (byType.has('user')) {
-    for (const u of await prisma.user.findMany({ where: { id: { in: ids('user') } }, select: { id: true, name: true } })) put(u.id, u.name);
+    for (const u of await prisma.user.findMany({
+      where: { id: { in: ids('user') } },
+      select: { id: true, name: true },
+    }))
+      put(u.id, u.name);
   }
   if (byType.has('lead')) {
-    for (const l of await prisma.lead.findMany({ where: { id: { in: ids('lead') } }, select: { id: true, clientContactName: true } })) put(l.id, l.clientContactName);
+    for (const l of await prisma.lead.findMany({
+      where: { id: { in: ids('lead') } },
+      select: { id: true, clientContactName: true },
+    }))
+      put(l.id, l.clientContactName);
   }
   if (byType.has('enrollment_request')) {
     // Этап 2: слушатели живут в позициях — подписываем заявку первым слушателем.
     for (const e of await prisma.enrollmentRequest.findMany({
       where: { id: { in: ids('enrollment_request') } },
-      select: { id: true, items: { orderBy: { createdAt: 'asc' }, take: 1, select: { fullName: true } } }
-    })) put(e.id, e.items[0]?.fullName ?? '—');
+      select: {
+        id: true,
+        items: { orderBy: { createdAt: 'asc' }, take: 1, select: { fullName: true } },
+      },
+    }))
+      put(e.id, e.items[0]?.fullName ?? '—');
   }
   if (byType.has('caller')) {
-    for (const c of await prisma.call.findMany({ where: { id: { in: ids('caller') } }, select: { id: true, callerNumber: true } })) put(c.id, c.callerNumber);
+    for (const c of await prisma.call.findMany({
+      where: { id: { in: ids('caller') } },
+      select: { id: true, callerNumber: true },
+    }))
+      put(c.id, c.callerNumber);
   }
   if (byType.has('inbound_sender')) {
-    for (const m of await prisma.inboundMessage.findMany({ where: { id: { in: ids('inbound_sender') } }, select: { id: true, senderDisplay: true } })) put(m.id, m.senderDisplay);
+    for (const m of await prisma.inboundMessage.findMany({
+      where: { id: { in: ids('inbound_sender') } },
+      select: { id: true, senderDisplay: true },
+    }))
+      put(m.id, m.senderDisplay);
   }
   return labels;
 }
@@ -107,7 +131,7 @@ export async function listPiiAccess(
     include: EVENT_INCLUDE,
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: take + 1,
-    ...(filters.cursor ? { cursor: { id: filters.cursor }, skip: 1 } : {})
+    ...(filters.cursor ? { cursor: { id: filters.cursor }, skip: 1 } : {}),
   });
 
   let nextCursor: string | null = null;
@@ -131,9 +155,9 @@ export async function listPiiAccess(
       subjectType: r.subjectType,
       subjectCount: r.subjectCount,
       subjects: r.subjectIds.map((id) => ({ id, label: labels.get(id) ?? `${id} (удалён)` })),
-      meta: r.meta
+      meta: r.meta,
     })),
-    nextCursor
+    nextCursor,
   };
 }
 
@@ -152,18 +176,18 @@ export async function listPiiAccessFilters(
   const actorIds = await prisma.piiAccessEvent.findMany({
     distinct: ['userId'],
     select: { userId: true },
-    take: 200
+    take: 200,
   });
   const actors = actorIds.length
     ? await prisma.user.findMany({
         where: { id: { in: actorIds.map((r) => r.userId) } },
         select: { id: true, name: true, email: true },
-        orderBy: { name: 'asc' }
+        orderBy: { name: 'asc' },
       })
     : [];
   const contexts = (Object.keys(PII_CONTEXTS) as PiiContextKey[]).map((key) => ({
     key,
-    labelRu: PII_CONTEXTS[key].labelRu
+    labelRu: PII_CONTEXTS[key].labelRu,
   }));
   const subjectTypes = [...new Set(Object.values(PII_CONTEXTS).map((c) => c.subjectType))];
   return { ok: true, contexts, subjectTypes, actors };

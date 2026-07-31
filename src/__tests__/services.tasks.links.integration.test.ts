@@ -18,13 +18,26 @@ let m1: string, m2: string;
 let leadId: string, dealId: string;
 
 const sA = (): SessionPayload =>
-  ({ sub: m1, role: 'manager', companyId: companyA, managedOrgIds: [] } as unknown as SessionPayload);
+  ({
+    sub: m1,
+    role: 'manager',
+    companyId: companyA,
+    managedOrgIds: [],
+  }) as unknown as SessionPayload;
 
 beforeAll(async () => {
   prisma = new PrismaClient();
   companyA = (await prisma.company.create({ data: { name: `s7p1-${STAMP}` } })).id;
-  m1 = (await prisma.user.create({ data: { email: `s7p1-m1-${STAMP}@t.local`, name: 'M1', role: 'manager', companyId: companyA } })).id;
-  m2 = (await prisma.user.create({ data: { email: `s7p1-m2-${STAMP}@t.local`, name: 'M2', role: 'manager', companyId: companyA } })).id;
+  m1 = (
+    await prisma.user.create({
+      data: { email: `s7p1-m1-${STAMP}@t.local`, name: 'M1', role: 'manager', companyId: companyA },
+    })
+  ).id;
+  m2 = (
+    await prisma.user.create({
+      data: { email: `s7p1-m2-${STAMP}@t.local`, name: 'M2', role: 'manager', companyId: companyA },
+    })
+  ).id;
   leadId = (
     await prisma.lead.create({
       data: {
@@ -32,11 +45,13 @@ beforeAll(async () => {
         clientCompanyName: `s7p1-client-${STAMP}`,
         clientContactName: 'Контакт',
         subject: `s7p1-subject-${STAMP}`,
-        source: 'manual'
-      }
+        source: 'manual',
+      },
     })
   ).id;
-  dealId = (await prisma.deal.create({ data: { companyId: companyA, title: `s7p1-deal-${STAMP}` } })).id;
+  dealId = (
+    await prisma.deal.create({ data: { companyId: companyA, title: `s7p1-deal-${STAMP}` } })
+  ).id;
 });
 
 afterAll(async () => {
@@ -57,7 +72,7 @@ describe('привязки задач к лиду/сделке (ФТ-7.1)', () =
       title: `s7p1-t1-${STAMP}`,
       linkedLeadId: leadId,
       linkedDealId: dealId,
-      assigneeIds: [m2]
+      assigneeIds: [m2],
     });
     expect(r.ok).toBe(true);
 
@@ -78,7 +93,7 @@ describe('привязки задач к лиду/сделке (ФТ-7.1)', () =
       role: 'manager',
       companyId: companyA,
       managedOrgIds: [],
-      accessProfile: { tasks: 'own' }
+      accessProfile: { tasks: 'own' },
     } as unknown as SessionPayload;
     const byLeadStranger = await listLinkedTasks(prisma, strangerOwn, { leadId });
     // m2 — назначенный исполнитель, значит задача его тоже касается.
@@ -90,12 +105,14 @@ describe('привязки задач к лиду/сделке (ФТ-7.1)', () =
     // Уведомление назначенному (не автору) существует.
     const notif = await prisma.notification.findFirst({
       where: { userId: m2, type: 'task_assigned' },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     expect(notif).not.toBeNull();
     expect(notif!.body).toContain(`s7p1-t1-${STAMP}`);
     // Автору — нет.
-    expect(await prisma.notification.count({ where: { userId: m1, type: 'task_assigned' } })).toBe(0);
+    expect(await prisma.notification.count({ where: { userId: m1, type: 'task_assigned' } })).toBe(
+      0
+    );
   });
 
   it('удаление лида обнуляет привязку (SetNull), задача живёт', async () => {
@@ -105,10 +122,13 @@ describe('привязки задач к лиду/сделке (ФТ-7.1)', () =
         clientCompanyName: `s7p1-tmp-${STAMP}`,
         clientContactName: 'К',
         subject: 'tmp',
-        source: 'manual'
-      }
+        source: 'manual',
+      },
     });
-    const r = await createTask(prisma, sA(), { title: `s7p1-setnull-${STAMP}`, linkedLeadId: tmpLead.id });
+    const r = await createTask(prisma, sA(), {
+      title: `s7p1-setnull-${STAMP}`,
+      linkedLeadId: tmpLead.id,
+    });
     expect(r.ok).toBe(true);
     await prisma.lead.delete({ where: { id: tmpLead.id } });
 
@@ -124,51 +144,73 @@ describe('джоб task_due_soon (ФТ-7.2)', () => {
     const create = await createTask(prisma, sA(), {
       title: `s7p1-due-${STAMP}`,
       dueDate: now,
-      assigneeIds: [m2]
+      assigneeIds: [m2],
     });
     expect(create.ok).toBe(true);
     const taskId = (create as { ok: true; id: string }).id;
 
-    const before = await prisma.notification.count({ where: { userId: m2, type: 'task_due_soon' } });
+    const before = await prisma.notification.count({
+      where: { userId: m2, type: 'task_due_soon' },
+    });
 
     // Прогон 1: задача в горизонте → уведомление и отметка.
     const run1 = await runTaskDueSoon(prisma, now);
     expect(run1.notified).toBeGreaterThanOrEqual(1);
-    const afterRun1 = await prisma.notification.count({ where: { userId: m2, type: 'task_due_soon' } });
+    const afterRun1 = await prisma.notification.count({
+      where: { userId: m2, type: 'task_due_soon' },
+    });
     expect(afterRun1).toBe(before + 1);
-    const claimed = await prisma.task.findUnique({ where: { id: taskId }, select: { dueSoonNotifiedAt: true } });
+    const claimed = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { dueSoonNotifiedAt: true },
+    });
     expect(claimed!.dueSoonNotifiedAt).not.toBeNull();
 
     // Прогон 2: идемпотентность — новых уведомлений нет.
     await runTaskDueSoon(prisma, now);
-    expect(await prisma.notification.count({ where: { userId: m2, type: 'task_due_soon' } })).toBe(before + 1);
+    expect(await prisma.notification.count({ where: { userId: m2, type: 'task_due_soon' } })).toBe(
+      before + 1
+    );
 
     // Перенос срока сбрасывает отметку → прогон 3 уведомляет заново.
     const upd = await updateTask(prisma, sA(), taskId, {
       title: `s7p1-due-${STAMP}`,
       dueDate: new Date(now.getTime() + 24 * 60 * 60 * 1000),
-      assigneeIds: [m2]
+      assigneeIds: [m2],
     });
     expect(upd.ok).toBe(true);
-    const reset = await prisma.task.findUnique({ where: { id: taskId }, select: { dueSoonNotifiedAt: true } });
+    const reset = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { dueSoonNotifiedAt: true },
+    });
     expect(reset!.dueSoonNotifiedAt).toBeNull();
 
     await runTaskDueSoon(prisma, now);
-    expect(await prisma.notification.count({ where: { userId: m2, type: 'task_due_soon' } })).toBe(before + 2);
+    expect(await prisma.notification.count({ where: { userId: m2, type: 'task_due_soon' } })).toBe(
+      before + 2
+    );
   });
 
   it('done-задачи и задачи за горизонтом не трогаются', async () => {
     const far = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
-    const rFar = await createTask(prisma, sA(), { title: `s7p1-far-${STAMP}`, dueDate: far, assigneeIds: [m2] });
+    const rFar = await createTask(prisma, sA(), {
+      title: `s7p1-far-${STAMP}`,
+      dueDate: far,
+      assigneeIds: [m2],
+    });
     expect(rFar.ok).toBe(true);
 
-    const beforeCnt = await prisma.notification.count({ where: { userId: m2, type: 'task_due_soon' } });
+    const beforeCnt = await prisma.notification.count({
+      where: { userId: m2, type: 'task_due_soon' },
+    });
     await runTaskDueSoon(prisma, new Date());
     const farRow = await prisma.task.findFirst({
       where: { title: `s7p1-far-${STAMP}` },
-      select: { dueSoonNotifiedAt: true }
+      select: { dueSoonNotifiedAt: true },
     });
     expect(farRow!.dueSoonNotifiedAt).toBeNull();
-    expect(await prisma.notification.count({ where: { userId: m2, type: 'task_due_soon' } })).toBe(beforeCnt);
+    expect(await prisma.notification.count({ where: { userId: m2, type: 'task_due_soon' } })).toBe(
+      beforeCnt
+    );
   });
 });

@@ -7,7 +7,10 @@ import type { OrderItemRow } from '@/lib/services/training';
 const { push, refresh } = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }) }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { OrderItemsSection, TRAINING_STATUS_RU } from '@/components/training/order-items-section';
@@ -28,7 +31,7 @@ function item(overrides: Partial<OrderItemRow> = {}): OrderItemRow {
     trainingStatus: 'pending',
     note: null,
     certificate: null,
-    ...overrides
+    ...overrides,
   } as OrderItemRow;
 }
 
@@ -59,7 +62,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     expect(screen.getByText('Слушатели не добавлены.')).toBeTruthy();
@@ -73,7 +76,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item()],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     expect(screen.getByText('(1)')).toBeTruthy();
@@ -86,7 +89,7 @@ describe('OrderItemsSection', () => {
         canEdit: false,
         items: [item({ trainingStatus: 'in_progress' })],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     expect(screen.queryByRole('button', { name: 'Добавить слушателя' })).toBeNull();
@@ -102,7 +105,7 @@ describe('OrderItemsSection', () => {
         canEdit: false,
         items: [item({ trainingStatus: 'weird_status' as OrderItemRow['trainingStatus'] })],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     expect(screen.getByText('weird_status')).toBeTruthy();
@@ -115,7 +118,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item()],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     const select = screen.getByRole('combobox') as HTMLSelectElement;
@@ -131,11 +134,18 @@ describe('OrderItemsSection', () => {
         orderId: 'order-1',
         canEdit: true,
         items: [
-          item({ id: 'i1', certificate: { id: 'c1', number: 'УТ-01', validUntil: null } as OrderItemRow['certificate'] }),
-          item({ id: 'i2', certificate: null })
+          item({
+            id: 'i1',
+            certificate: {
+              id: 'c1',
+              number: 'УТ-01',
+              validUntil: null,
+            } as OrderItemRow['certificate'],
+          }),
+          item({ id: 'i2', certificate: null }),
         ],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     expect(screen.getByText('УТ-01')).toBeTruthy();
@@ -152,7 +162,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item({ id: 'i7' })],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'in_progress' } });
@@ -160,7 +170,10 @@ describe('OrderItemsSection', () => {
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/manager/order-items/i7',
-        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ trainingStatus: 'in_progress' }) })
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ trainingStatus: 'in_progress' }),
+        })
       )
     );
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Статус обновлён'));
@@ -168,7 +181,9 @@ describe('OrderItemsSection', () => {
   });
 
   it('status change: PATCH failure (with error body) shows the mapped toast error', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: 'validation' }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, json: async () => ({ error: 'validation' }) });
     vi.stubGlobal('fetch', fetchMock);
     render(
       React.createElement(OrderItemsSection, {
@@ -176,7 +191,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item()],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'cancelled' } });
@@ -190,7 +205,7 @@ describe('OrderItemsSection', () => {
       ok: false,
       json: async () => {
         throw new Error('bad json');
-      }
+      },
     });
     vi.stubGlobal('fetch', fetchMock);
     render(
@@ -199,7 +214,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item()],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'cancelled' } });
@@ -216,7 +231,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item()],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'cancelled' } });
@@ -239,7 +254,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item()],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     const select = screen.getByRole('combobox') as HTMLSelectElement;
@@ -264,12 +279,14 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item({ id: 'i3' })],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'in_progress' } });
     await waitFor(() =>
-      expect((screen.getByRole('button', { name: 'Выдать удостоверение' }) as HTMLButtonElement).disabled).toBe(true)
+      expect(
+        (screen.getByRole('button', { name: 'Выдать удостоверение' }) as HTMLButtonElement).disabled
+      ).toBe(true)
     );
     resolveFetch({ ok: true });
     await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
@@ -282,7 +299,7 @@ describe('OrderItemsSection', () => {
         canEdit: false,
         items: [item()],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     expect(document.querySelector('dialog')).toBeNull();
@@ -293,7 +310,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item()],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     expect(document.querySelectorAll('dialog').length).toBe(2);
@@ -306,7 +323,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Добавить слушателя' }));
@@ -320,7 +337,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Добавить слушателя' }));
@@ -338,7 +355,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item({ student: { id: 's1', name: 'Мария Сидорова', email: 'm@example.com' } })],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Выдать удостоверение' }));
@@ -354,7 +371,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item()],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Выдать удостоверение' }));
@@ -374,7 +391,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item({ id: 'i9' })],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Выдать удостоверение' }));
@@ -382,7 +399,9 @@ describe('OrderItemsSection', () => {
 
     fireEvent.change(screen.getByLabelText('Номер удостоверения'), { target: { value: 'УТ-99' } });
     fireEvent.change(screen.getByLabelText('Дата выдачи'), { target: { value: '2024-05-01' } });
-    fireEvent.change(screen.getByLabelText('Действителен до (необязательно)'), { target: { value: '2027-05-01' } });
+    fireEvent.change(screen.getByLabelText('Действителен до (необязательно)'), {
+      target: { value: '2027-05-01' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Выдать' }));
 
     await waitFor(() =>
@@ -394,8 +413,8 @@ describe('OrderItemsSection', () => {
             orderItemId: 'i9',
             number: 'УТ-99',
             issuedAt: '2024-05-01',
-            validUntil: '2027-05-01'
-          })
+            validUntil: '2027-05-01',
+          }),
         })
       )
     );
@@ -412,7 +431,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item({ id: 'i9' })],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Выдать удостоверение' }));
@@ -425,14 +444,16 @@ describe('OrderItemsSection', () => {
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/manager/certificates',
         expect.objectContaining({
-          body: JSON.stringify({ orderItemId: 'i9', number: 'УТ-1', issuedAt: '2024-05-01' })
+          body: JSON.stringify({ orderItemId: 'i9', number: 'УТ-1', issuedAt: '2024-05-01' }),
         })
       )
     );
   });
 
   it('IssueCertDialog: submit failure (with error body) shows the mapped inline error, no toast', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: 'validation' }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, json: async () => ({ error: 'validation' }) });
     vi.stubGlobal('fetch', fetchMock);
     render(
       React.createElement(OrderItemsSection, {
@@ -440,7 +461,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item()],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Выдать удостоверение' }));
@@ -458,7 +479,7 @@ describe('OrderItemsSection', () => {
       ok: false,
       json: async () => {
         throw new Error('bad json');
-      }
+      },
     });
     vi.stubGlobal('fetch', fetchMock);
     render(
@@ -467,7 +488,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item()],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Выдать удостоверение' }));
@@ -488,7 +509,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item()],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Выдать удостоверение' }));
@@ -515,7 +536,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item()],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Выдать удостоверение' }));
@@ -538,7 +559,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item()],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Выдать удостоверение' }));
@@ -563,7 +584,7 @@ describe('OrderItemsSection', () => {
         canEdit: true,
         items: [item()],
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Выдать удостоверение' }));

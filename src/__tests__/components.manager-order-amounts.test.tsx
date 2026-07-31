@@ -10,7 +10,7 @@ function makeOrder(overrides: Partial<ManagerOrderDetail>): ManagerOrderDetail {
     paidAmount: '400' as unknown as ManagerOrderDetail['paidAmount'],
     vatRate: '0.2' as unknown as ManagerOrderDetail['vatRate'],
     vatIncluded: true,
-    ...overrides
+    ...overrides,
   } as ManagerOrderDetail;
 }
 
@@ -25,38 +25,56 @@ describe('ManagerOrderAmounts', () => {
   });
 
   it('debt > 0: danger tone applied', () => {
-    const order = makeOrder({ totalAmount: '1000' as unknown as ManagerOrderDetail['totalAmount'], paidAmount: '400' as unknown as ManagerOrderDetail['paidAmount'] });
+    const order = makeOrder({
+      totalAmount: '1000' as unknown as ManagerOrderDetail['totalAmount'],
+      paidAmount: '400' as unknown as ManagerOrderDetail['paidAmount'],
+    });
     const html = renderToString(React.createElement(ManagerOrderAmounts, { order }));
     expect(html).toContain('bg-red-50 border-red-100 text-red-800');
   });
 
   it('debt === 0 (fully paid): neutral tone, not danger', () => {
-    const order = makeOrder({ totalAmount: '1000' as unknown as ManagerOrderDetail['totalAmount'], paidAmount: '1000' as unknown as ManagerOrderDetail['paidAmount'] });
+    const order = makeOrder({
+      totalAmount: '1000' as unknown as ManagerOrderDetail['totalAmount'],
+      paidAmount: '1000' as unknown as ManagerOrderDetail['paidAmount'],
+    });
     const html = renderToString(React.createElement(ManagerOrderAmounts, { order }));
     expect(html).not.toContain('bg-red-50 border-red-100 text-red-800');
   });
 
   it('renders the progress bar and percentage when total > 0', () => {
-    const order = makeOrder({ totalAmount: '1000' as unknown as ManagerOrderDetail['totalAmount'], paidAmount: '500' as unknown as ManagerOrderDetail['paidAmount'] });
+    const order = makeOrder({
+      totalAmount: '1000' as unknown as ManagerOrderDetail['totalAmount'],
+      paidAmount: '500' as unknown as ManagerOrderDetail['paidAmount'],
+    });
     const html = renderToString(React.createElement(ManagerOrderAmounts, { order }));
     expect(html).toContain('role="progressbar"');
     expect(html).toContain('50%');
   });
 
   it('paidPct is clamped to 100 when paid exceeds total', () => {
-    const order = makeOrder({ totalAmount: '1000' as unknown as ManagerOrderDetail['totalAmount'], paidAmount: '2000' as unknown as ManagerOrderDetail['paidAmount'] });
+    const order = makeOrder({
+      totalAmount: '1000' as unknown as ManagerOrderDetail['totalAmount'],
+      paidAmount: '2000' as unknown as ManagerOrderDetail['paidAmount'],
+    });
     const html = renderToString(React.createElement(ManagerOrderAmounts, { order }));
     expect(html).toContain('100%');
   });
 
   it('total === 0: no progress bar section rendered', () => {
-    const order = makeOrder({ totalAmount: '0' as unknown as ManagerOrderDetail['totalAmount'], paidAmount: '0' as unknown as ManagerOrderDetail['paidAmount'] });
+    const order = makeOrder({
+      totalAmount: '0' as unknown as ManagerOrderDetail['totalAmount'],
+      paidAmount: '0' as unknown as ManagerOrderDetail['paidAmount'],
+    });
     const html = renderToString(React.createElement(ManagerOrderAmounts, { order }));
     expect(html).not.toContain('role="progressbar"');
   });
 
   it('vatIncluded=true renders "НДС включён"', () => {
-    const order = makeOrder({ vatIncluded: true, vatRate: '0.2' as unknown as ManagerOrderDetail['vatRate'] });
+    const order = makeOrder({
+      vatIncluded: true,
+      vatRate: '0.2' as unknown as ManagerOrderDetail['vatRate'],
+    });
     const html = renderToString(React.createElement(ManagerOrderAmounts, { order }));
     expect(html).toContain('НДС включён');
     expect(html).toContain('ставка <!-- -->20<!-- -->%');

@@ -3,7 +3,7 @@ import {
   evaluateOrderReadiness,
   ORDER_GAP_RU,
   ITEM_GAP_RU,
-  type ReadinessInput
+  type ReadinessInput,
 } from '@/lib/orders/readiness';
 
 /**
@@ -17,7 +17,7 @@ const trainingItem = (over: Partial<ReadinessInput['items'][number]> = {}) => ({
   trainingStatus: 'certificate_issued' as const,
   studentName: 'Иванов Иван',
   certificate: { documentId: 'doc-1' },
-  ...over
+  ...over,
 });
 
 const training = (over: Partial<ReadinessInput> = {}): ReadinessInput => ({
@@ -25,7 +25,7 @@ const training = (over: Partial<ReadinessInput> = {}): ReadinessInput => ({
   deliverablesApprovedAt: null,
   documents: [],
   items: [trainingItem()],
-  ...over
+  ...over,
 });
 
 const docs = (over: Partial<ReadinessInput> = {}): ReadinessInput => ({
@@ -33,7 +33,7 @@ const docs = (over: Partial<ReadinessInput> = {}): ReadinessInput => ({
   deliverablesApprovedAt: new Date('2026-07-01'),
   documents: [{ direction: 'outgoing', scanStatus: 'clean' }],
   items: [],
-  ...over
+  ...over,
 });
 
 describe('обучение: попозиционная готовность', () => {
@@ -55,7 +55,7 @@ describe('обучение: попозиционная готовность', ()
     expect(r.ready).toBe(false);
     expect(r.gaps).toEqual(['items_not_ready']);
     expect(r.items).toEqual([
-      { itemId: 'i1', studentName: 'Петров', gaps: ['training_incomplete'] }
+      { itemId: 'i1', studentName: 'Петров', gaps: ['training_incomplete'] },
     ]);
   });
 
@@ -81,7 +81,10 @@ describe('обучение: попозиционная готовность', ()
   it('готовые позиции в список замечаний не попадают', () => {
     const r = evaluateOrderReadiness(
       training({
-        items: [trainingItem(), trainingItem({ id: 'i2', certificate: null, studentName: 'Второй' })]
+        items: [
+          trainingItem(),
+          trainingItem({ id: 'i2', certificate: null, studentName: 'Второй' }),
+        ],
       })
     );
     expect(r.items.map((i) => i.itemId)).toEqual(['i2']);
@@ -145,7 +148,7 @@ describe('статус скана удостоверения (PR-2)', () => {
   it('заражённый скан → отдельный пробел, заказ не готов', () => {
     const res = evaluateOrderReadiness(
       training({
-        items: [trainingItem({ certificate: { documentId: 'doc-1', scanStatus: 'infected' } })]
+        items: [trainingItem({ certificate: { documentId: 'doc-1', scanStatus: 'infected' } })],
       })
     );
     expect(res.ready).toBe(false);
@@ -155,7 +158,7 @@ describe('статус скана удостоверения (PR-2)', () => {
   it('чистый скан готовности не мешает', () => {
     const res = evaluateOrderReadiness(
       training({
-        items: [trainingItem({ certificate: { documentId: 'doc-1', scanStatus: 'clean' } })]
+        items: [trainingItem({ certificate: { documentId: 'doc-1', scanStatus: 'clean' } })],
       })
     );
     expect(res.ready).toBe(true);
@@ -164,7 +167,7 @@ describe('статус скана удостоверения (PR-2)', () => {
   it('скан на проверке (pending) считается загруженным', () => {
     const res = evaluateOrderReadiness(
       training({
-        items: [trainingItem({ certificate: { documentId: 'doc-1', scanStatus: 'pending' } })]
+        items: [trainingItem({ certificate: { documentId: 'doc-1', scanStatus: 'pending' } })],
       })
     );
     expect(res.ready).toBe(true);
@@ -173,7 +176,7 @@ describe('статус скана удостоверения (PR-2)', () => {
   it('без скана заражение не проверяется — пробел прежний', () => {
     const res = evaluateOrderReadiness(
       training({
-        items: [trainingItem({ certificate: { documentId: null, scanStatus: 'infected' } })]
+        items: [trainingItem({ certificate: { documentId: null, scanStatus: 'infected' } })],
       })
     );
     expect(res.items[0].gaps).toEqual(['certificate_scan_missing']);

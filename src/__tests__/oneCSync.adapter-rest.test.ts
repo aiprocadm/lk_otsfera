@@ -1,13 +1,25 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { RestOneCAdapter } from '@/lib/services/oneCSync/adapter-rest';
-import { buildLeadBody, PARTNER_KEY_FIELD, parseEnvelope, normalizeOrderRecord, buildUrl } from '@/lib/services/oneCSync/rest-wire';
+import {
+  buildLeadBody,
+  PARTNER_KEY_FIELD,
+  parseEnvelope,
+  normalizeOrderRecord,
+  buildUrl,
+} from '@/lib/services/oneCSync/rest-wire';
 
 const config = { baseUrl: 'https://1c.example.com', token: 'tok' };
 const validOrder = {
-  externalId: '1c-order-1', title: 'T', organizationExternalId: '1c-org-1',
-  totalAmount: 100, paidAmount: 50, vatIncluded: true,
-  executionStatus: 'in_progress', financialStatus: 'partially_paid',
-  productMix: ['training'], updatedAt: '2026-05-01T00:00:00Z'
+  externalId: '1c-order-1',
+  title: 'T',
+  organizationExternalId: '1c-org-1',
+  totalAmount: 100,
+  paidAmount: 50,
+  vatIncluded: true,
+  executionStatus: 'in_progress',
+  financialStatus: 'partially_paid',
+  productMix: ['training'],
+  updatedAt: '2026-05-01T00:00:00Z',
 };
 
 afterEach(() => vi.unstubAllGlobals());
@@ -28,7 +40,10 @@ describe('RestOneCAdapter', () => {
   });
 
   it('unwraps an { items: [] } envelope', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items: [validOrder] }) }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items: [validOrder] }) })
+    );
     const rows = await new RestOneCAdapter(config).pullOrders({});
     expect(rows).toHaveLength(1);
   });
@@ -55,7 +70,9 @@ describe('RestOneCAdapter', () => {
     const bad = { ...validOrder, financialStatus: 'Марсианский статус' };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [bad] }));
     const rows = await new RestOneCAdapter(config).pullOrders({});
-    expect((rows[0] as unknown as Record<string, unknown>).financialStatus).toBe('Марсианский статус');
+    expect((rows[0] as unknown as Record<string, unknown>).financialStatus).toBe(
+      'Марсианский статус'
+    );
   });
 
   // Q6: the adapter must follow nextCursor to exhaustion, else only page 1 is
@@ -80,7 +97,9 @@ describe('RestOneCAdapter', () => {
   });
 
   it('stops after one page when no nextCursor is returned', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items: [validOrder] }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ items: [validOrder] }) });
     vi.stubGlobal('fetch', fetchMock);
     await new RestOneCAdapter(config).pullOrders({});
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -100,14 +119,31 @@ describe('RestOneCAdapter', () => {
   });
 
   it('throws OneCHttpError on a non-OK response', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500, headers: { get: () => null }, json: async () => ({}) }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        headers: { get: () => null },
+        json: async () => ({}),
+      })
+    );
     await expect(new RestOneCAdapter(config).pullOrders({})).rejects.toThrow(/500/);
   });
 
   it('pushLead POSTs and validates the response', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ acceptedAt: '2026-05-01T00:00:00Z', oneCRequestId: 'r1' }) });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ acceptedAt: '2026-05-01T00:00:00Z', oneCRequestId: 'r1' }),
+    });
     vi.stubGlobal('fetch', fetchMock);
-    const r = await new RestOneCAdapter(config).pushLead({ cabinetLeadId: 'l', clientCompanyName: 'c', clientContactName: 'n', subject: 's', productType: [] });
+    const r = await new RestOneCAdapter(config).pushLead({
+      cabinetLeadId: 'l',
+      clientCompanyName: 'c',
+      clientContactName: 'n',
+      subject: 's',
+      productType: [],
+    });
     expect(r.oneCRequestId).toBe('r1');
     expect(fetchMock.mock.calls[0][1].method).toBe('POST');
   });
@@ -127,11 +163,15 @@ describe('RestOneCAdapter', () => {
   it('sets retryAfter on error when Retry-After header > 0 (400 = no retry, fast test)', async () => {
     // 400 is a fatal (non-transient) error → withRetry throws immediately, no retry loop.
     // This exercises the retryAfterHeader > 0 branch in doFetch (line 20).
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false, status: 400,
-      headers: { get: (h: string) => h === 'retry-after' ? '3' : null },
-      json: async () => ({})
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        headers: { get: (h: string) => (h === 'retry-after' ? '3' : null) },
+        json: async () => ({}),
+      })
+    );
     const adapter = new RestOneCAdapter(config);
     const err = await adapter.pullOrders({}).catch((e) => e);
     expect(err.status).toBe(400);
@@ -139,11 +179,15 @@ describe('RestOneCAdapter', () => {
   });
 
   it('sets retryAfter to undefined when Retry-After header is 0', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false, status: 400,
-      headers: { get: (h: string) => h === 'retry-after' ? '0' : null },
-      json: async () => ({})
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        headers: { get: (h: string) => (h === 'retry-after' ? '0' : null) },
+        json: async () => ({}),
+      })
+    );
     const adapter = new RestOneCAdapter(config);
     const err = await adapter.pullOrders({}).catch((e) => e);
     expect(err.retryAfter).toBeUndefined(); // 0 is not > 0 → undefined
@@ -191,7 +235,9 @@ describe('normalizeOrderRecord', () => {
 
 describe('buildUrl', () => {
   it('sets since param when cursor.since is present', () => {
-    const url = buildUrl('https://1c.example.com', '/api/orders', { since: '2026-01-01T00:00:00Z' });
+    const url = buildUrl('https://1c.example.com', '/api/orders', {
+      since: '2026-01-01T00:00:00Z',
+    });
     expect(url).toContain('since=');
   });
 
@@ -210,8 +256,12 @@ describe('buildLeadBody (Q5 partner key)', () => {
   it('defaults to keying on Partner.slug under `partnerSlug`', () => {
     expect(PARTNER_KEY_FIELD).toBe('partnerSlug');
     const body = buildLeadBody({
-      partnerSlug: 'acme', cabinetLeadId: 'l1', clientCompanyName: 'c',
-      clientContactName: 'n', subject: 's', productType: ['training']
+      partnerSlug: 'acme',
+      cabinetLeadId: 'l1',
+      clientCompanyName: 'c',
+      clientContactName: 'n',
+      subject: 's',
+      productType: ['training'],
     }) as Record<string, unknown>;
     expect(body.partnerSlug).toBe('acme');
     expect('partnerExternalId' in body).toBe(false); // never double-emit the key
@@ -221,8 +271,11 @@ describe('buildLeadBody (Q5 partner key)', () => {
 
   it('omits the partner field on the wire when the slug is absent', () => {
     const body = buildLeadBody({
-      cabinetLeadId: 'l2', clientCompanyName: 'c', clientContactName: 'n',
-      subject: 's', productType: []
+      cabinetLeadId: 'l2',
+      clientCompanyName: 'c',
+      clientContactName: 'n',
+      subject: 's',
+      productType: [],
     }) as Record<string, unknown>;
     expect(body.partnerSlug).toBeUndefined();
     expect(JSON.parse(JSON.stringify(body))).not.toHaveProperty('partnerSlug');

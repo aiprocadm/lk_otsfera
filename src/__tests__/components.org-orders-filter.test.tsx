@@ -11,7 +11,7 @@ const { replace } = vi.hoisted(() => ({ replace: vi.fn() }));
 
 vi.mock('next/navigation', () => ({
   useRouter: vi.fn(() => ({ replace })),
-  useSearchParams: vi.fn(() => new URLSearchParams())
+  useSearchParams: vi.fn(() => new URLSearchParams()),
 }));
 
 import { useSearchParams } from 'next/navigation';
@@ -29,7 +29,9 @@ describe('OrgOrdersFilter', () => {
 
   it('initializes fields from the current search params and hides Сбросить when no filter is active', () => {
     render(React.createElement(OrgOrdersFilter));
-    expect(inputValue(screen.getByPlaceholderText('Поиск по названию или номеру заказа…'))).toBe('');
+    expect(inputValue(screen.getByPlaceholderText('Поиск по названию или номеру заказа…'))).toBe(
+      ''
+    );
     expect(screen.queryByText('Сбросить')).toBeNull();
   });
 
@@ -38,7 +40,9 @@ describe('OrgOrdersFilter', () => {
       sp({ search: 'abc', execution: 'in_progress', financial: 'billed' })
     );
     render(React.createElement(OrgOrdersFilter));
-    expect(inputValue(screen.getByPlaceholderText('Поиск по названию или номеру заказа…'))).toBe('abc');
+    expect(inputValue(screen.getByPlaceholderText('Поиск по названию или номеру заказа…'))).toBe(
+      'abc'
+    );
     expect(screen.getByText('Сбросить')).toBeTruthy();
   });
 
@@ -47,7 +51,9 @@ describe('OrgOrdersFilter', () => {
     const input = screen.getByPlaceholderText('Поиск по названию или номеру заказа…');
     fireEvent.change(input, { target: { value: 'заказ 5' } });
     fireEvent.keyDown(input, { key: 'Enter' });
-    expect(replace).toHaveBeenCalledWith('/organization/orders?search=%D0%B7%D0%B0%D0%BA%D0%B0%D0%B7+5');
+    expect(replace).toHaveBeenCalledWith(
+      '/organization/orders?search=%D0%B7%D0%B0%D0%BA%D0%B0%D0%B7+5'
+    );
   });
 
   it('pressing a non-Enter key does not apply', () => {
@@ -86,7 +92,9 @@ describe('OrgOrdersFilter', () => {
     render(React.createElement(OrgOrdersFilter));
     fireEvent.click(screen.getByText('Сбросить'));
     expect(replace).toHaveBeenCalledWith('/organization/orders');
-    expect(inputValue(screen.getByPlaceholderText('Поиск по названию или номеру заказа…'))).toBe('');
+    expect(inputValue(screen.getByPlaceholderText('Поиск по названию или номеру заказа…'))).toBe(
+      ''
+    );
   });
 
   it('clicking Сбросить with an org param present preserves it in the reset URL', () => {

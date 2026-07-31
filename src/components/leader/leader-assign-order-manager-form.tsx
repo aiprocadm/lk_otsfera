@@ -16,7 +16,7 @@ export type LeaderManagerCandidate = {
 // order_not_found и invalid_manager центральные тексты точны — без дельт.
 const ERROR_LABELS: Record<string, string> = {
   validation: 'Проверьте выбор менеджера.',
-  forbidden: 'Нет доступа к этому заказу.'
+  forbidden: 'Нет доступа к этому заказу.',
 };
 
 /**
@@ -28,7 +28,7 @@ const ERROR_LABELS: Record<string, string> = {
 export function LeaderAssignOrderManagerForm({
   orderId,
   currentManagerId,
-  candidates
+  candidates,
 }: {
   orderId: string;
   currentManagerId: string | null;
@@ -52,9 +52,9 @@ export function LeaderAssignOrderManagerForm({
     action: (formData) =>
       assignOrderManagerLeaderAction({
         orderId,
-        managerUserId: (formData.get('managerUserId') as string) || null
+        managerUserId: (formData.get('managerUserId') as string) || null,
       }),
-    errorMap: ERROR_LABELS
+    errorMap: ERROR_LABELS,
   });
 
   // Сортировка кандидатов: текущий менеджер первым (если назначен), потом алфавит.
@@ -69,25 +69,19 @@ export function LeaderAssignOrderManagerForm({
   return (
     <form
       action={formAction}
-      className='bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3'
+      className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3"
     >
       <div>
-        <h2 className='text-base font-semibold text-[#111111]'>Менеджер заказа</h2>
-        <p className='text-xs text-gray-500 mt-0.5'>
+        <h2 className="text-base font-semibold text-[#111111]">Менеджер заказа</h2>
+        <p className="text-xs text-gray-500 mt-0.5">
           Назначение менеджера вашей компании на этот заказ.
         </p>
       </div>
 
-      <label className='block'>
-        <span className='block text-sm font-medium text-gray-700 mb-1'>
-          Выберите менеджера
-        </span>
-        <Select
-          name='managerUserId'
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-        >
-          <option value=''>— Без менеджера —</option>
+      <label className="block">
+        <span className="block text-sm font-medium text-gray-700 mb-1">Выберите менеджера</span>
+        <Select name="managerUserId" value={selected} onChange={(e) => setSelected(e.target.value)}>
+          <option value="">— Без менеджера —</option>
           {sorted.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name ? `${c.name} (${c.email})` : c.email}
@@ -98,23 +92,23 @@ export function LeaderAssignOrderManagerForm({
 
       {success && data && (
         <div
-          role='status'
-          className='text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2'
+          role="status"
+          className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2"
         >
           {data.changed ? 'Менеджер обновлён.' : 'Без изменений.'}
         </div>
       )}
       {errorText !== null && (
         <div
-          role='alert'
-          className='text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2'
+          role="alert"
+          className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2"
         >
           {errorText}
         </div>
       )}
 
-      <div className='flex justify-end'>
-        <Button type='submit' disabled={!dirty} loading={pending}>
+      <div className="flex justify-end">
+        <Button type="submit" disabled={!dirty} loading={pending}>
           {pending ? 'Сохраняем…' : 'Сохранить'}
         </Button>
       </div>

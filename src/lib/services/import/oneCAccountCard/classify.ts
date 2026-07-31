@@ -2,7 +2,8 @@ import type { RowKind } from './types';
 
 export type Classification = { kind: RowKind; excludeReason?: string };
 
-const INTERNAL_TRANSFER = /(перевод собственных средств|внутреннее перемещение|перевод между своими счет)/i;
+const INTERNAL_TRANSFER =
+  /(перевод собственных средств|внутреннее перемещение|перевод между своими счет)/i;
 
 /**
  * Классификация строки-операции по типу документа (col[1]) и корр-счёту (col[7]).

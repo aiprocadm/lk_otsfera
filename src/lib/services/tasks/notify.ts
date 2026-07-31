@@ -31,7 +31,7 @@ export async function notifyTaskAssigned(args: {
         type: 'task_assigned',
         title,
         body,
-        meta: { taskId: args.taskId, url: TASKS_BOARD_URL }
+        meta: { taskId: args.taskId, url: TASKS_BOARD_URL },
       });
       await deliverNotificationToUser({
         userId,
@@ -39,10 +39,14 @@ export async function notifyTaskAssigned(args: {
         body,
         type: 'task_assigned',
         url: TASKS_BOARD_URL,
-        dedupKey: row.id
+        dedupKey: row.id,
       });
     } catch (e) {
-      log.error('[tasks/notify] task_assigned fan-out failed', { taskId: args.taskId, userId, error: (e as Error).message });
+      log.error('[tasks/notify] task_assigned fan-out failed', {
+        taskId: args.taskId,
+        userId,
+        error: (e as Error).message,
+      });
     }
   }
 }

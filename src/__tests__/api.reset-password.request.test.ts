@@ -4,26 +4,26 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Hoisted mocks — must be declared before imports
 // ---------------------------------------------------------------------------
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: { user: { findUnique: vi.fn() } }
+  prisma: { user: { findUnique: vi.fn() } },
 }));
 
 vi.mock('@/lib/auth/passwordReset', () => ({
-  createInviteToken: vi.fn()
+  createInviteToken: vi.fn(),
 }));
 
 vi.mock('@/lib/email/send', () => ({
-  send: vi.fn()
+  send: vi.fn(),
 }));
 
 // Лимитер здесь всегда пропускает: 429-контракт покрыт отдельным
 // api.auth.ratelimit.test.ts; этот файл тестирует доменную логику маршрута.
 vi.mock('@/lib/rateLimit', () => ({
-  isRateLimited: vi.fn().mockResolvedValue(false)
+  isRateLimited: vi.fn().mockResolvedValue(false),
 }));
 
 // Mock react-dom/server so renderHtml doesn't need a real DOM
 vi.mock('react-dom/server', () => ({
-  renderToStaticMarkup: vi.fn(() => '<html>mocked</html>')
+  renderToStaticMarkup: vi.fn(() => '<html>mocked</html>'),
 }));
 
 // ---------------------------------------------------------------------------
@@ -96,7 +96,7 @@ describe('POST /api/auth/reset-password/request', () => {
     const res = await POST(jsonReq({ email: 'nobody@example.com' }));
 
     expect(res.status).toBe(200);
-    expect((await res.json())).toEqual({ ok: true });
+    expect(await res.json()).toEqual({ ok: true });
     expect(send).not.toHaveBeenCalled();
     expect(createInviteToken).not.toHaveBeenCalled();
   });
@@ -107,7 +107,7 @@ describe('POST /api/auth/reset-password/request', () => {
     const res = await POST(jsonReq({ email: 'inactive@example.com' }));
 
     expect(res.status).toBe(200);
-    expect((await res.json())).toEqual({ ok: true });
+    expect(await res.json()).toEqual({ ok: true });
     expect(send).not.toHaveBeenCalled();
     expect(createInviteToken).not.toHaveBeenCalled();
   });
@@ -122,7 +122,7 @@ describe('POST /api/auth/reset-password/request', () => {
     const res = await POST(req);
 
     expect(res.status).toBe(200);
-    expect((await res.json())).toEqual({ ok: true });
+    expect(await res.json()).toEqual({ ok: true });
     expect(send).not.toHaveBeenCalled();
   });
 
@@ -130,7 +130,7 @@ describe('POST /api/auth/reset-password/request', () => {
     const res = await POST(jsonReq({ email: 'not-an-email' }));
 
     expect(res.status).toBe(200);
-    expect((await res.json())).toEqual({ ok: true });
+    expect(await res.json()).toEqual({ ok: true });
     expect(send).not.toHaveBeenCalled();
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
   });
@@ -142,7 +142,7 @@ describe('POST /api/auth/reset-password/request', () => {
     const res = await POST(jsonReq({ email: 'user@example.com' }));
 
     expect(res.status).toBe(200);
-    expect((await res.json())).toEqual({ ok: true });
+    expect(await res.json()).toEqual({ ok: true });
     // send was called but failed; token was still created
     expect(createInviteToken).toHaveBeenCalled();
   });
@@ -154,7 +154,7 @@ describe('POST /api/auth/reset-password/request', () => {
     const res = await POST(jsonReq({ email: 'user@example.com' }));
 
     expect(res.status).toBe(200);
-    expect((await res.json())).toEqual({ ok: true });
+    expect(await res.json()).toEqual({ ok: true });
     expect(createInviteToken).toHaveBeenCalled();
   });
 

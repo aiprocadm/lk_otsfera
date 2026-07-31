@@ -18,12 +18,12 @@ let orderId: string;
 
 async function seedData() {
   const partner = await prisma.partner.create({
-    data: { name: `${PREFIX}-Partner`, slug: PARTNER_SLUG, commissionRate: 0.1 }
+    data: { name: `${PREFIX}-Partner`, slug: PARTNER_SLUG, commissionRate: 0.1 },
   });
   partnerId = partner.id;
 
   const company = await prisma.company.create({
-    data: { name: `${PREFIX}-Company` }
+    data: { name: `${PREFIX}-Company` },
   });
   companyId = company.id;
 
@@ -32,8 +32,8 @@ async function seedData() {
       name: `${PREFIX}-Org`,
       externalId: ORG_EXT_ID,
       partnerId,
-      companyId
-    }
+      companyId,
+    },
   });
   organizationId = org.id;
 
@@ -42,8 +42,8 @@ async function seedData() {
       title: ORDER_TITLE,
       partnerId,
       organizationId,
-      companyId
-    }
+      companyId,
+    },
   });
   orderId = order.id;
 }
@@ -51,13 +51,13 @@ async function seedData() {
 async function cleanupData() {
   // FK-safe order: message → threadReadState → orderThread → order → org → company → partner
   await prisma.message.deleteMany({
-    where: { thread: { order: { title: ORDER_TITLE } } }
+    where: { thread: { order: { title: ORDER_TITLE } } },
   });
   await prisma.threadReadState.deleteMany({
-    where: { thread: { order: { title: ORDER_TITLE } } }
+    where: { thread: { order: { title: ORDER_TITLE } } },
   });
   await prisma.orderThread.deleteMany({
-    where: { order: { title: ORDER_TITLE } }
+    where: { order: { title: ORDER_TITLE } },
   });
   await prisma.order.deleteMany({ where: { title: ORDER_TITLE } });
   await prisma.organization.deleteMany({ where: { externalId: ORG_EXT_ID } });
@@ -101,18 +101,18 @@ describe('findOrCreateThread', () => {
   it('forbidden: partner session with wrong partnerId requesting org side', async () => {
     // Create a second partner not related to this order
     const otherPartner = await prisma.partner.create({
-      data: { name: `${PREFIX}-OtherPartner`, commissionRate: 0 }
+      data: { name: `${PREFIX}-OtherPartner`, commissionRate: 0 },
     });
 
     const otherPartnerSession: SessionPayload = {
       sub: 'other-partner-user',
       role: 'partner',
-      partnerId: otherPartner.id
+      partnerId: otherPartner.id,
     };
 
     const result = await findOrCreateThread(prisma, otherPartnerSession, {
       orderId,
-      side: 'org'
+      side: 'org',
     });
     expect(result).toEqual({ ok: false, error: 'forbidden' });
 
@@ -123,7 +123,7 @@ describe('findOrCreateThread', () => {
   it('order_not_found: bogus orderId returns error', async () => {
     const result = await findOrCreateThread(prisma, teamSession(), {
       orderId: 'nonexistent-order-id-xyz',
-      side: 'org'
+      side: 'org',
     });
     expect(result).toEqual({ ok: false, error: 'order_not_found' });
   });

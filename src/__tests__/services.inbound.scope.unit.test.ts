@@ -55,7 +55,7 @@ const MATRIX: Array<[string | null, string | null, string, boolean]> = [
   [null, 'co-b', 'archived', false],
   [null, null, 'unresolved', true],
   [null, null, 'bound', false],
-  [null, null, 'archived', false]
+  [null, null, 'archived', false],
 ];
 
 describe('inbound scope: матрица эквивалентности where ↔ предикат', () => {
@@ -73,20 +73,20 @@ describe('inbound scope: матрица эквивалентности where ↔
 describe('inboxScopeWhere: структура where', () => {
   it('сессия с companyId — фильтр по своей компании + общая unresolved-очередь', () => {
     expect(inboxScopeWhere(session('co-a'))).toEqual({
-      OR: [{ companyId: 'co-a' }, { status: 'unresolved' }]
+      OR: [{ companyId: 'co-a' }, { status: 'unresolved' }],
     });
   });
 
   it('companyId=null — deny-all сентинел на ветке компании (не company-wide утечка)', () => {
     expect(inboxScopeWhere(session(null))).toEqual({
-      OR: [{ companyId: '__no_company__' }, { status: 'unresolved' }]
+      OR: [{ companyId: '__no_company__' }, { status: 'unresolved' }],
     });
   });
 
   it('companyId отсутствует (undefined) — тот же сентинел; предикат тоже deny', () => {
     const s = { sub: 'u-1', role: 'manager' } as SessionPayload;
     expect(inboxScopeWhere(s)).toEqual({
-      OR: [{ companyId: '__no_company__' }, { status: 'unresolved' }]
+      OR: [{ companyId: '__no_company__' }, { status: 'unresolved' }],
     });
     expect(isInboundMessageInScope(s, { companyId: 'co-a', status: 'bound' })).toBe(false);
   });

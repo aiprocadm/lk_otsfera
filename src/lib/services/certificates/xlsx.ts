@@ -1,8 +1,5 @@
 import ExcelJS from 'exceljs';
-import {
-  certificateStatus,
-  type CertificateRow,
-} from '@/lib/services/training/certificates';
+import { certificateStatus, type CertificateRow } from '@/lib/services/training/certificates';
 
 /**
  * Xlsx-рендерер клиентского реестра удостоверений (этап 3 PR-2, ФТ-6.5 /

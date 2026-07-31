@@ -33,16 +33,16 @@ const ORG_DIRS = [
 // Идентификаторы, обозначающие КОМИССИОННЫЕ данные/логику (не document-type).
 // Case-sensitive: `CommissionStatement` (модель) ≠ `commission_statement` (enum).
 const FORBIDDEN_TOKENS = [
-  'IntermediaryCommission',     // get/canSee OrgIntermediaryCommission + тип
+  'IntermediaryCommission', // get/canSee OrgIntermediaryCommission + тип
   'getOrgIntermediaryCommission',
   'canSeeIntermediaryCommission',
-  'partnerCommissionRate',      // индивидуальная ставка — внутренняя кухня
+  'partnerCommissionRate', // индивидуальная ставка — внутренняя кухня
   'commissionAmount',
   'totalCommissionAmount',
   'averageRate',
-  'getStatementWithItems',      // партнёрские ведомости
-  'getFinanceKpis',             // партнёрские KPI комиссии
-  'CommissionStatement',        // Prisma-модель ведомости
+  'getStatementWithItems', // партнёрские ведомости
+  'getFinanceKpis', // партнёрские KPI комиссии
+  'CommissionStatement', // Prisma-модель ведомости
 ];
 
 // Импорт-границы: org-контур не тянет комиссионные/партнёрско-финансовые сервисы
@@ -112,6 +112,9 @@ describe('C1 — organization cabinet never references commission', () => {
         }
       }
     }
-    expect(offenders, `Org cabinet must not import commission/partner-finance services:\n  ${offenders.join('\n  ')}`).toEqual([]);
+    expect(
+      offenders,
+      `Org cabinet must not import commission/partner-finance services:\n  ${offenders.join('\n  ')}`
+    ).toEqual([]);
   });
 });

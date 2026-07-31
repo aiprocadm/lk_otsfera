@@ -12,16 +12,16 @@ beforeAll(async () => {
   prisma = new PrismaClient();
   const stamp = Date.now();
   const partner = await prisma.partner.create({
-    data: { name: `OrgStudP-${stamp}`, commissionRate: 0.1 }
+    data: { name: `OrgStudP-${stamp}`, commissionRate: 0.1 },
   });
   partnerId = partner.id;
   const company = await prisma.company.create({ data: { name: `OrgStudC-${stamp}` } });
   companyId = company.id;
   const a = await prisma.organization.create({
-    data: { name: `StudA-${stamp}`, partnerId, companyId }
+    data: { name: `StudA-${stamp}`, partnerId, companyId },
   });
   const b = await prisma.organization.create({
-    data: { name: `StudB-${stamp}`, partnerId, companyId }
+    data: { name: `StudB-${stamp}`, partnerId, companyId },
   });
   orgAId = a.id;
   orgBId = b.id;
@@ -31,28 +31,28 @@ beforeAll(async () => {
       email: `ivan-${stamp}@t.local`,
       name: 'Иван Петров',
       organizationId: orgAId,
-      externalStudentId: 'EXT-001'
-    }
+      externalStudentId: 'EXT-001',
+    },
   });
   await prisma.student.create({
     data: {
       email: `mary-${stamp}@t.local`,
       name: 'Мария Смирнова',
-      organizationId: orgAId
-    }
+      organizationId: orgAId,
+    },
   });
   await prisma.student.create({
     data: {
       email: `boris-${stamp}@t.local`,
       name: 'Борис Сидоров',
-      organizationId: orgBId
-    }
+      organizationId: orgBId,
+    },
   });
 });
 
 afterAll(async () => {
   await prisma.student.deleteMany({
-    where: { organizationId: { in: [orgAId, orgBId] } }
+    where: { organizationId: { in: [orgAId, orgBId] } },
   });
   await prisma.organization.deleteMany({ where: { id: { in: [orgAId, orgBId] } } });
   await prisma.partner.delete({ where: { id: partnerId } });
@@ -81,7 +81,7 @@ describe('services/organization/students — listOrgStudents', () => {
   it('search by name (case-insensitive)', async () => {
     const { rows, total } = await listOrgStudents(prisma, {
       organizationId: orgAId,
-      search: 'ИВАН'
+      search: 'ИВАН',
     });
     expect(total).toBe(1);
     expect(rows[0]!.name).toBe('Иван Петров');
@@ -90,7 +90,7 @@ describe('services/organization/students — listOrgStudents', () => {
   it('search by email', async () => {
     const { rows } = await listOrgStudents(prisma, {
       organizationId: orgAId,
-      search: 'mary'
+      search: 'mary',
     });
     expect(rows.length).toBe(1);
     expect(rows[0]!.name).toBe('Мария Смирнова');
@@ -99,7 +99,7 @@ describe('services/organization/students — listOrgStudents', () => {
   it('exposes externalStudentId when present', async () => {
     const { rows } = await listOrgStudents(prisma, {
       organizationId: orgAId,
-      search: 'Иван'
+      search: 'Иван',
     });
     expect(rows[0]!.externalStudentId).toBe('EXT-001');
   });
@@ -112,7 +112,7 @@ describe('services/organization/students — listOrgStudents', () => {
   it('returns empty arrays for org without students', async () => {
     const stamp = Date.now();
     const empty = await prisma.organization.create({
-      data: { name: `Empty-${stamp}`, partnerId, companyId }
+      data: { name: `Empty-${stamp}`, partnerId, companyId },
     });
     try {
       const { rows, total } = await listOrgStudents(prisma, { organizationId: empty.id });

@@ -22,15 +22,29 @@ let companyA: string, orgA: string, partnerId: string;
 let leaderAId: string, mgrAId: string;
 let leadId: string;
 
-const leaderA = (): SessionPayload => ({ sub: leaderAId, role: 'manager', managerRole: 'leader', companyId: companyA });
+const leaderA = (): SessionPayload => ({
+  sub: leaderAId,
+  role: 'manager',
+  managerRole: 'leader',
+  companyId: companyA,
+});
 const mgrA = (): SessionPayload => ({ sub: mgrAId, role: 'manager', companyId: companyA });
 
 async function cleanup() {
-  const users = await prisma.user.findMany({ where: { email: { contains: P } }, select: { id: true } });
+  const users = await prisma.user.findMany({
+    where: { email: { contains: P } },
+    select: { id: true },
+  });
   const userIds = users.map((u) => u.id);
-  const companies = await prisma.company.findMany({ where: { name: { startsWith: P } }, select: { id: true } });
+  const companies = await prisma.company.findMany({
+    where: { name: { startsWith: P } },
+    select: { id: true },
+  });
   const companyIds = companies.map((c) => c.id);
-  const partners = await prisma.partner.findMany({ where: { name: { startsWith: P } }, select: { id: true } });
+  const partners = await prisma.partner.findMany({
+    where: { name: { startsWith: P } },
+    select: { id: true },
+  });
   const partnerIds = partners.map((p) => p.id);
 
   // Заметки (dealId- и orderId-привязки) — авторы только наши пользователи.
@@ -45,7 +59,8 @@ async function cleanup() {
     await prisma.dealStage.deleteMany({ where: { companyId: { in: companyIds } } });
   }
   if (userIds.length) await prisma.auditLog.deleteMany({ where: { userId: { in: userIds } } });
-  if (companyIds.length) await prisma.organization.deleteMany({ where: { companyId: { in: companyIds } } });
+  if (companyIds.length)
+    await prisma.organization.deleteMany({ where: { companyId: { in: companyIds } } });
   if (partnerIds.length) await prisma.partner.deleteMany({ where: { id: { in: partnerIds } } });
   if (userIds.length) await prisma.user.deleteMany({ where: { id: { in: userIds } } });
   if (companyIds.length) await prisma.company.deleteMany({ where: { id: { in: companyIds } } });
@@ -55,18 +70,32 @@ beforeAll(async () => {
   prisma = new PrismaClient();
   await cleanup(); // хвосты упавших прошлых прогонов
   companyA = (await prisma.company.create({ data: { name: `${P}-coA` } })).id;
-  partnerId = (await prisma.partner.create({ data: { name: `${P}-partner`, commissionRate: 0.1 } })).id;
+  partnerId = (await prisma.partner.create({ data: { name: `${P}-partner`, commissionRate: 0.1 } }))
+    .id;
   orgA = (
-    await prisma.organization.create({ data: { name: `${P}-orgA`, companyId: companyA, partnerId } })
+    await prisma.organization.create({
+      data: { name: `${P}-orgA`, companyId: companyA, partnerId },
+    })
   ).id;
   leaderAId = (
     await prisma.user.create({
-      data: { email: `${P}-leaderA@t.local`, name: 'Лидер А', role: 'manager', managerRole: 'leader', companyId: companyA }
+      data: {
+        email: `${P}-leaderA@t.local`,
+        name: 'Лидер А',
+        role: 'manager',
+        managerRole: 'leader',
+        companyId: companyA,
+      },
     })
   ).id;
   mgrAId = (
     await prisma.user.create({
-      data: { email: `${P}-mgrA@t.local`, name: 'Менеджер А', role: 'manager', companyId: companyA }
+      data: {
+        email: `${P}-mgrA@t.local`,
+        name: 'Менеджер А',
+        role: 'manager',
+        companyId: companyA,
+      },
     })
   ).id;
   // Партнёрский лид с организацией — создаём напрямую (вход конверсии).
@@ -81,8 +110,8 @@ beforeAll(async () => {
         subject: `${P} Обучение по ОТ`,
         estimatedAmount: '1200.50',
         status: 'qualified',
-        assignedManagerId: mgrAId
-      }
+        assignedManagerId: mgrAId,
+      },
     })
   ).id;
 });
@@ -118,7 +147,12 @@ describe('конверсии: лид → сделка → заказ', () => {
 
     expect(
       await prisma.auditLog.findFirst({
-        where: { action: 'lead_promoted_to_deal', entity: 'lead', entityId: leadId, userId: leaderAId }
+        where: {
+          action: 'lead_promoted_to_deal',
+          entity: 'lead',
+          entityId: leadId,
+          userId: leaderAId,
+        },
       })
     ).not.toBeNull();
   });
@@ -126,7 +160,7 @@ describe('конверсии: лид → сделка → заказ', () => {
   it('повторный convertLeadToDeal на promoted-лиде → lifecycle_violation, второй сделки нет', async () => {
     expect(await convertLeadToDeal(prisma, leaderA(), { leadId })).toEqual({
       ok: false,
-      error: 'lifecycle_violation'
+      error: 'lifecycle_violation',
     });
     expect(await prisma.deal.count({ where: { leadId } })).toBe(1);
   });
@@ -155,7 +189,12 @@ describe('конверсии: лид → сделка → заказ', () => {
 
     expect(
       await prisma.auditLog.findFirst({
-        where: { action: 'deal_won_order_created', entity: 'deal', entityId: dealId, userId: mgrAId }
+        where: {
+          action: 'deal_won_order_created',
+          entity: 'deal',
+          entityId: dealId,
+          userId: mgrAId,
+        },
       })
     ).not.toBeNull();
   });
@@ -163,18 +202,18 @@ describe('конверсии: лид → сделка → заказ', () => {
   it('повторный winDeal выигранной сделки → lifecycle_violation, второго заказа нет', async () => {
     expect(await winDeal(prisma, mgrA(), { dealId })).toEqual({
       ok: false,
-      error: 'lifecycle_violation'
+      error: 'lifecycle_violation',
     });
     expect(await prisma.order.count({ where: { companyId: companyA } })).toBe(1);
   });
 
   it('winDeal сделки без организации → org_required', async () => {
     const bare = await prisma.deal.create({
-      data: { companyId: companyA, title: `${P} Без организации`, managerId: mgrAId }
+      data: { companyId: companyA, title: `${P} Без организации`, managerId: mgrAId },
     });
     expect(await winDeal(prisma, mgrA(), { dealId: bare.id })).toEqual({
       ok: false,
-      error: 'org_required'
+      error: 'org_required',
     });
     expect((await prisma.deal.findUniqueOrThrow({ where: { id: bare.id } })).status).toBe('open');
   });
@@ -188,7 +227,7 @@ describe('заметки: параллельная привязка DealNote (de
 
     // Существующий поток заметок заказа: orderId напрямую, dealId null.
     const orderNote = await prisma.dealNote.create({
-      data: { orderId, authorId: mgrAId, body: `${P} заметка по заказу` }
+      data: { orderId, authorId: mgrAId, body: `${P} заметка по заказу` },
     });
     expect(orderNote.dealId).toBeNull();
 
@@ -196,7 +235,10 @@ describe('заметки: параллельная привязка DealNote (de
     expect(list.ok).toBe(true);
     if (!list.ok) return;
     expect(list.rows.map((r) => r.id)).toEqual([add.id]); // заказная заметка не подмешана
-    expect(list.rows[0]).toMatchObject({ body: `${P} заметка по сделке`, authorName: 'Менеджер А' });
+    expect(list.rows[0]).toMatchObject({
+      body: `${P} заметка по сделке`,
+      authorName: 'Менеджер А',
+    });
   });
 
   it('заметка сделки: dealId заполнен, orderId null — параллельная привязка живёт в БД', async () => {
@@ -207,7 +249,7 @@ describe('заметки: параллельная привязка DealNote (de
     // Аудит заметки — entity deal.
     expect(
       await prisma.auditLog.findFirst({
-        where: { action: 'deal_note_created', entity: 'deal', entityId: dealId, userId: mgrAId }
+        where: { action: 'deal_note_created', entity: 'deal', entityId: dealId, userId: mgrAId },
       })
     ).not.toBeNull();
   });

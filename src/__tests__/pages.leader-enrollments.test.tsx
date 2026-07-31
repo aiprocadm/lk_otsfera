@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import LeaderEnrollmentsPage from '@/app/leader/enrollments/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManagerLeader } = vi.hoisted(() => ({ requireManagerLeader: vi.fn() }));
@@ -18,18 +19,21 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
 vi.mock('@/components/enrollment/enrollment-queue', () => ({
   EnrollmentQueue: (props: { rows: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'enrollment-queue' }, JSON.stringify(props.rows))
+    React.createElement('div', { 'data-testid': 'enrollment-queue' }, JSON.stringify(props.rows)),
 }));
 
-import LeaderEnrollmentsPage from '@/app/leader/enrollments/page';
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'leader' as const,
+  companyId: 'c1',
+};
 
 describe('LeaderEnrollmentsPage', () => {
   beforeEach(() => {

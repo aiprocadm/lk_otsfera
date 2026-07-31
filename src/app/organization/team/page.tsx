@@ -1,6 +1,6 @@
 import React from 'react';
-import { prisma } from '@/lib/db/prisma';
 import { redirect } from 'next/navigation';
+import { prisma } from '@/lib/db/prisma';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { TeamTable } from '@/components/organization/team-table';
@@ -13,7 +13,7 @@ type SearchParams = {
 };
 
 export default async function OrganizationTeamPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
@@ -27,9 +27,7 @@ export default async function OrganizationTeamPage({
   }
 
   const members = await listMembers(prisma, ctx.activeOrgId);
-  const activeAdminCount = members.filter(
-    (m) => m.isActive && m.roleInOrg === 'admin'
-  ).length;
+  const activeAdminCount = members.filter((m) => m.isActive && m.roleInOrg === 'admin').length;
 
   return (
     <OrgAppShell
@@ -39,16 +37,23 @@ export default async function OrganizationTeamPage({
       activeOrgId={ctx.activeOrgId}
       viewerRole={ctx.viewerRole}
     >
-      <div className='space-y-4'>
-        <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <h1 className='text-2xl font-semibold text-[#111111]'>Команда</h1>
-            <p className='text-sm text-gray-500 mt-0.5'>
-              {members.length} {pluralizeRu(members.length, 'участник', 'участника', 'участников')} в {ctx.activeOrgName}
+            <h1 className="text-2xl font-semibold text-[#111111]">Команда</h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {members.length} {pluralizeRu(members.length, 'участник', 'участника', 'участников')}{' '}
+              в {ctx.activeOrgName}
               {activeAdminCount > 0 && (
-                <span className='text-gray-400'>
+                <span className="text-gray-400">
                   {' '}
-                  · {activeAdminCount} {pluralizeRu(activeAdminCount, 'администратор', 'администратора', 'администраторов')}
+                  · {activeAdminCount}{' '}
+                  {pluralizeRu(
+                    activeAdminCount,
+                    'администратор',
+                    'администратора',
+                    'администраторов'
+                  )}
                 </span>
               )}
             </p>
@@ -63,13 +68,12 @@ export default async function OrganizationTeamPage({
           viewerRole={ctx.viewerRole}
         />
 
-        <p className='text-xs text-gray-400 mt-2'>
-          Администраторы и руководители могут приглашать участников, менять роли
-          и деактивировать доступ; роль «Администратор» назначают только
-          администраторы. Последнего активного администратора деактивировать нельзя.
+        <p className="text-xs text-gray-400 mt-2">
+          Администраторы и руководители могут приглашать участников, менять роли и деактивировать
+          доступ; роль «Администратор» назначают только администраторы. Последнего активного
+          администратора деактивировать нельзя.
         </p>
       </div>
     </OrgAppShell>
   );
 }
-

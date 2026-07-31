@@ -3,7 +3,7 @@ import {
   signToken,
   signTwoFactorPendingToken,
   verifyTwoFactorPendingToken,
-  verifyToken
+  verifyToken,
 } from '@/lib/auth/jwt';
 
 beforeAll(() => {

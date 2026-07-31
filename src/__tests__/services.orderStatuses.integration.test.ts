@@ -16,12 +16,12 @@ import {
   updateStatusDefinition,
   deleteStatusDefinition,
   findByAnchor,
-  getInitialStatusId
+  getInitialStatusId,
 } from '@/lib/services/orderStatuses/definitions';
 import {
   transitionOrderStatus,
   applyStatusAnchor,
-  listStatusHistory
+  listStatusHistory,
 } from '@/lib/services/orderStatuses/transitions';
 
 let prisma: PrismaClient;
@@ -55,26 +55,32 @@ beforeAll(async () => {
   leaderId = (await mk(`oss-leader-${S}@t.local`, 'manager', 'OSS Leader')).id;
 
   companyId = (await prisma.company.create({ data: { name: `OSS-Co-${S}` } })).id;
-  const partnerId = (await prisma.partner.create({
-    data: { name: `OSS-P-${S}`, commissionRate: 0.1 }
-  })).id;
-  orgId = (await prisma.organization.create({
-    data: { name: `OSS-Org-${S}`, partnerId, companyId }
-  })).id;
+  const partnerId = (
+    await prisma.partner.create({
+      data: { name: `OSS-P-${S}`, commissionRate: 0.1 },
+    })
+  ).id;
+  orgId = (
+    await prisma.organization.create({
+      data: { name: `OSS-Org-${S}`, partnerId, companyId },
+    })
+  ).id;
   await prisma.organizationManager.create({
-    data: { organizationId: orgId, userId: managerId, isActive: true }
+    data: { organizationId: orgId, userId: managerId, isActive: true },
   });
 
-  orderId = (await prisma.order.create({
-    data: {
-      title: `OSS-Order-${S}`,
-      orderNumber: `OSS-ON-${S}`,
-      companyId,
-      partnerId,
-      organizationId: orgId,
-      executionStatus: 'in_progress'
-    }
-  })).id;
+  orderId = (
+    await prisma.order.create({
+      data: {
+        title: `OSS-Order-${S}`,
+        orderNumber: `OSS-ON-${S}`,
+        companyId,
+        partnerId,
+        organizationId: orgId,
+        executionStatus: 'in_progress',
+      },
+    })
+  ).id;
 
   const all = await getOrderedStatuses(prisma);
   const byKey = (k: string) => all.find((s) => s.key === k)!.id;
@@ -86,7 +92,9 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.orderStatusChange.deleteMany({ where: { order: { title: { startsWith: 'OSS-' } } } });
+  await prisma.orderStatusChange.deleteMany({
+    where: { order: { title: { startsWith: 'OSS-' } } },
+  });
   await prisma.document.deleteMany({ where: { name: { startsWith: 'OSS-' } } });
   await prisma.order.deleteMany({ where: { title: { startsWith: 'OSS-' } } });
   await prisma.organizationManager.deleteMany({ where: { userId: managerId } });
@@ -117,7 +125,7 @@ describe('миграция §10 — сид семёрки и перенос за
       'documents_issued',
       'accounting_signed',
       'closed',
-      'cancelled'
+      'cancelled',
     ]);
     expect(system.map((s) => s.label)).toEqual([
       'Черновик заявки',
@@ -126,7 +134,7 @@ describe('миграция §10 — сид семёрки и перенос за
       'Документы выданы',
       'Бухгалтерия подписана',
       'Заявка закрыта',
-      'Отменена'
+      'Отменена',
     ]);
   });
 
@@ -151,9 +159,9 @@ describe('миграция §10 — сид семёрки и перенос за
         companyId,
         organizationId: orgId,
         executionStatus: 'pending',
-        statusId: draft
+        statusId: draft,
       },
-      select: { statusDefinition: { select: { key: true } } }
+      select: { statusDefinition: { select: { key: true } } },
     });
     expect(fresh.statusDefinition?.key).toBe('draft');
   });
@@ -165,7 +173,7 @@ describe('справочник статусов — настройка', () => {
   it('менеджеру справочник недоступен, админу и руководителю — да', async () => {
     expect(await listStatusDefinitions(prisma, sess(managerId, 'manager'))).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect((await listStatusDefinitions(prisma, sess(adminId, 'admin'))).ok).toBe(true);
     expect(
@@ -175,7 +183,7 @@ describe('справочник статусов — настройка', () => {
 
   it('системный статус нельзя деактивировать', async () => {
     const res = await updateStatusDefinition(prisma, sess(adminId, 'admin'), draft, {
-      isActive: false
+      isActive: false,
     });
     expect(res).toEqual({ ok: false, error: 'system_protected' });
   });
@@ -187,14 +195,14 @@ describe('справочник статусов — настройка', () => {
 
   it('системный статус можно переименовать и подвинуть (§10)', async () => {
     const res = await updateStatusDefinition(prisma, sess(adminId, 'admin'), accepted, {
-      label: 'Взято в работу'
+      label: 'Взято в работу',
     });
     expect(res.ok).toBe(true);
     if (!res.ok) throw new Error('unexpected');
     expect(res.definition.label).toBe('Взято в работу');
     // возвращаем как было, чтобы не мешать другим проверкам
     await updateStatusDefinition(prisma, sess(adminId, 'admin'), accepted, {
-      label: 'Принято в работу'
+      label: 'Принято в работу',
     });
   });
 
@@ -203,29 +211,31 @@ describe('справочник статусов — настройка', () => {
     const created = await createStatusDefinition(prisma, admin, {
       key: `oss_test_extra_${S}`,
       label: 'Выданы доступы',
-      sortOrder: 25
+      sortOrder: 25,
     });
     expect(created.ok).toBe(true);
     if (!created.ok) throw new Error('unexpected');
 
     const renamed = await updateStatusDefinition(prisma, admin, created.definition.id, {
-      label: 'Доступы выданы'
+      label: 'Доступы выданы',
     });
     if (!renamed.ok) throw new Error('unexpected');
     expect(renamed.definition.label).toBe('Доступы выданы');
 
-    expect(await deleteStatusDefinition(prisma, admin, created.definition.id)).toEqual({ ok: true });
+    expect(await deleteStatusDefinition(prisma, admin, created.definition.id)).toEqual({
+      ok: true,
+    });
   });
 
   it('дубль ключа и кривой ключ отвергаются', async () => {
     const admin = sess(adminId, 'admin');
     expect(await createStatusDefinition(prisma, admin, { key: 'draft', label: 'X' })).toEqual({
       ok: false,
-      error: 'duplicate_key'
+      error: 'duplicate_key',
     });
     expect(await createStatusDefinition(prisma, admin, { key: '1bad', label: 'X' })).toEqual({
       ok: false,
-      error: 'invalid_key'
+      error: 'invalid_key',
     });
   });
 
@@ -233,7 +243,7 @@ describe('справочник статусов — настройка', () => {
     const res = await createStatusDefinition(prisma, sess(adminId, 'admin'), {
       key: `oss_test_paid2_${S}`,
       label: 'Оплата (дубль)',
-      anchor: 'paid'
+      anchor: 'paid',
     });
     expect(res).toEqual({ ok: false, error: 'anchor_taken' });
   });
@@ -242,7 +252,7 @@ describe('справочник статусов — настройка', () => {
     const res = await createStatusDefinition(prisma, sess(adminId, 'admin'), {
       key: `oss_test_bogus_${S}`,
       label: 'Мимо',
-      anchor: 'teleported'
+      anchor: 'teleported',
     });
     expect(res).toEqual({ ok: false, error: 'invalid_key' });
   });
@@ -251,11 +261,11 @@ describe('справочник статусов — настройка', () => {
     const admin = sess(adminId, 'admin');
     expect(await updateStatusDefinition(prisma, admin, 'nope', { label: 'X' })).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
     expect(await deleteStatusDefinition(prisma, admin, 'nope')).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
   });
 
@@ -274,7 +284,7 @@ describe('справочник статусов — настройка', () => {
     const extra = await createStatusDefinition(prisma, admin, {
       key: `oss_test_used_${S}`,
       label: 'Временный',
-      sortOrder: 27
+      sortOrder: 27,
     });
     if (!extra.ok) throw new Error('unexpected');
 
@@ -286,25 +296,27 @@ describe('справочник статусов — настройка', () => {
         orderNumber: `OSS-US-${S}`,
         companyId,
         organizationId: orgId,
-        executionStatus: 'pending'
-      }
+        executionStatus: 'pending',
+      },
     });
     await transitionOrderStatus(prisma, admin, { orderId: own.id, toId: extra.definition.id });
 
     expect(await deleteStatusDefinition(prisma, admin, extra.definition.id)).toEqual({
       ok: false,
-      error: 'system_protected'
+      error: 'system_protected',
     });
 
     // а деактивировать — можно
-    const off = await updateStatusDefinition(prisma, admin, extra.definition.id, { isActive: false });
+    const off = await updateStatusDefinition(prisma, admin, extra.definition.id, {
+      isActive: false,
+    });
     expect(off.ok).toBe(true);
 
     // уборка: чистим историю своей заявки
     await prisma.orderStatusChange.deleteMany({ where: { orderId: own.id } });
     await prisma.order.delete({ where: { id: own.id } });
     await prisma.orderStatusChange.deleteMany({
-      where: { OR: [{ toId: extra.definition.id }, { fromId: extra.definition.id }] }
+      where: { OR: [{ toId: extra.definition.id }, { fromId: extra.definition.id }] },
     });
     await prisma.orderStatusDefinition.delete({ where: { id: extra.definition.id } });
   });
@@ -313,15 +325,15 @@ describe('справочник статусов — настройка', () => {
     const mgr = sess(managerId, 'manager');
     expect(await createStatusDefinition(prisma, mgr, { key: 'x_key', label: 'X' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect(await updateStatusDefinition(prisma, mgr, draft, { label: 'X' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect(await deleteStatusDefinition(prisma, mgr, draft)).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 });
@@ -364,7 +376,7 @@ describe('переходы статуса — права §10', () => {
     for (const role of ['organization', 'partner', 'student']) {
       const res = await transitionOrderStatus(prisma, sess('anon', role), {
         orderId,
-        toId: accepted
+        toId: accepted,
       });
       expect(res).toEqual({ ok: false, error: 'forbidden' });
     }
@@ -380,11 +392,11 @@ describe('переходы статуса — права §10', () => {
     const admin = sess(adminId, 'admin');
     expect(await transitionOrderStatus(prisma, admin, { orderId: 'nope', toId: paid })).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
     expect(await transitionOrderStatus(prisma, admin, { orderId, toId: 'nope' })).toEqual({
       ok: false,
-      error: 'invalid_status'
+      error: 'invalid_status',
     });
   });
 
@@ -393,14 +405,14 @@ describe('переходы статуса — права §10', () => {
     const extra = await createStatusDefinition(prisma, admin, {
       key: `oss_test_off_${S}`,
       label: 'Выключенный',
-      sortOrder: 26
+      sortOrder: 26,
     });
     if (!extra.ok) throw new Error('unexpected');
     await updateStatusDefinition(prisma, admin, extra.definition.id, { isActive: false });
 
     const res = await transitionOrderStatus(prisma, admin, {
       orderId,
-      toId: extra.definition.id
+      toId: extra.definition.id,
     });
     expect(res).toEqual({ ok: false, error: 'status_inactive' });
 
@@ -412,23 +424,25 @@ describe('отмена заявки — решение Q4', () => {
   let cancelOrderId: string;
 
   beforeAll(async () => {
-    cancelOrderId = (await prisma.order.create({
-      data: {
-        title: `OSS-Cancel-${S}`,
-        orderNumber: `OSS-CN-${S}`,
-        companyId,
-        organizationId: orgId,
-        executionStatus: 'pending',
-        statusId: accepted
-      }
-    })).id;
+    cancelOrderId = (
+      await prisma.order.create({
+        data: {
+          title: `OSS-Cancel-${S}`,
+          orderNumber: `OSS-CN-${S}`,
+          companyId,
+          organizationId: orgId,
+          executionStatus: 'pending',
+          statusId: accepted,
+        },
+      })
+    ).id;
   });
 
   it('менеджер без причины отменить не может', async () => {
     const mgr = sess(managerId, 'manager', { companyId, managedOrgIds: [orgId] });
     const res = await transitionOrderStatus(prisma, mgr, {
       orderId: cancelOrderId,
-      toId: cancelled
+      toId: cancelled,
     });
     expect(res).toEqual({ ok: false, error: 'reason_required' });
   });
@@ -438,7 +452,7 @@ describe('отмена заявки — решение Q4', () => {
     const res = await transitionOrderStatus(prisma, mgr, {
       orderId: cancelOrderId,
       toId: cancelled,
-      reason: 'Клиент отказался'
+      reason: 'Клиент отказался',
     });
     expect(res.ok).toBe(true);
 
@@ -453,15 +467,19 @@ describe('отмена заявки — решение Q4', () => {
     const mgr = sess(managerId, 'manager', { companyId, managedOrgIds: [orgId] });
     const res = await transitionOrderStatus(prisma, mgr, {
       orderId: cancelOrderId,
-      toId: accepted
+      toId: accepted,
     });
     expect(res).toEqual({ ok: false, error: 'backward_forbidden' });
   });
 
   it('администратор поднимает — и отменяет без причины', async () => {
     const admin = sess(adminId, 'admin');
-    expect((await transitionOrderStatus(prisma, admin, { orderId: cancelOrderId, toId: accepted })).ok).toBe(true);
-    expect((await transitionOrderStatus(prisma, admin, { orderId: cancelOrderId, toId: cancelled })).ok).toBe(true);
+    expect(
+      (await transitionOrderStatus(prisma, admin, { orderId: cancelOrderId, toId: accepted })).ok
+    ).toBe(true);
+    expect(
+      (await transitionOrderStatus(prisma, admin, { orderId: cancelOrderId, toId: cancelled })).ok
+    ).toBe(true);
   });
 });
 
@@ -471,16 +489,18 @@ describe('автоперевод по якорю', () => {
   let anchorOrderId: string;
 
   beforeAll(async () => {
-    anchorOrderId = (await prisma.order.create({
-      data: {
-        title: `OSS-Anchor-${S}`,
-        orderNumber: `OSS-AN-${S}`,
-        companyId,
-        organizationId: orgId,
-        executionStatus: 'pending',
-        statusId: accepted
-      }
-    })).id;
+    anchorOrderId = (
+      await prisma.order.create({
+        data: {
+          title: `OSS-Anchor-${S}`,
+          orderNumber: `OSS-AN-${S}`,
+          companyId,
+          organizationId: orgId,
+          executionStatus: 'pending',
+          statusId: accepted,
+        },
+      })
+    ).id;
   });
 
   it('оплата пришла — заявка сама переехала в «Оплата поступила»', async () => {
@@ -489,7 +509,7 @@ describe('автоперевод по якорю', () => {
 
     const order = await prisma.order.findUnique({
       where: { id: anchorOrderId },
-      select: { statusId: true }
+      select: { statusId: true },
     });
     expect(order?.statusId).toBe(paid);
   });
@@ -497,7 +517,7 @@ describe('автоперевод по якорю', () => {
   it('повторное событие ничего не меняет', async () => {
     expect(await applyStatusAnchor(prisma, anchorOrderId, 'paid')).toEqual({
       ok: true,
-      changed: false
+      changed: false,
     });
   });
 
@@ -516,7 +536,7 @@ describe('автоперевод по якорю', () => {
 
     const order = await prisma.order.findUnique({
       where: { id: anchorOrderId },
-      select: { statusId: true }
+      select: { statusId: true },
     });
     expect(order?.statusId).toBe(signed);
   });
@@ -526,14 +546,14 @@ describe('автоперевод по якорю', () => {
     await transitionOrderStatus(prisma, admin, { orderId: anchorOrderId, toId: cancelled });
     expect(await applyStatusAnchor(prisma, anchorOrderId, 'documents_issued')).toEqual({
       ok: true,
-      changed: false
+      changed: false,
     });
   });
 
   it('несуществующая заявка — not_found', async () => {
     expect(await applyStatusAnchor(prisma, 'nope', 'paid')).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
   });
 
@@ -544,12 +564,12 @@ describe('автоперевод по якорю', () => {
         orderNumber: `OSS-FR-${S}`,
         companyId,
         organizationId: orgId,
-        executionStatus: 'pending'
-      }
+        executionStatus: 'pending',
+      },
     });
     expect(await applyStatusAnchor(prisma, fresh.id, 'documents_issued')).toEqual({
       ok: true,
-      changed: true
+      changed: true,
     });
 
     const history = await listStatusHistory(prisma, fresh.id);
@@ -560,11 +580,13 @@ describe('автоперевод по якорю', () => {
 
   it('якорь без строки в справочнике — invalid_status', async () => {
     const admin = sess(adminId, 'admin');
-    const target = (await getOrderedStatuses(prisma)).find((s) => s.anchor === 'accounting_signed')!;
+    const target = (await getOrderedStatuses(prisma)).find(
+      (s) => s.anchor === 'accounting_signed'
+    )!;
     // временно выключаем строку с якорем: findByAnchor ищет только активные
     await prisma.orderStatusDefinition.update({
       where: { id: target.id },
-      data: { isActive: false }
+      data: { isActive: false },
     });
     const fresh = await prisma.order.create({
       data: {
@@ -572,16 +594,16 @@ describe('автоперевод по якорю', () => {
         orderNumber: `OSS-NA-${S}`,
         companyId,
         organizationId: orgId,
-        executionStatus: 'pending'
-      }
+        executionStatus: 'pending',
+      },
     });
     expect(await applyStatusAnchor(prisma, fresh.id, 'accounting_signed')).toEqual({
       ok: false,
-      error: 'invalid_status'
+      error: 'invalid_status',
     });
     await prisma.orderStatusDefinition.update({
       where: { id: target.id },
-      data: { isActive: true }
+      data: { isActive: true },
     });
     void admin;
   });
@@ -599,14 +621,14 @@ describe('нештатные ошибки БД пробрасываются на
         findFirst: async () => null,
         create: async () => {
           throw boom;
-        }
-      }
+        },
+      },
     } as unknown as PrismaClient;
 
     await expect(
       createStatusDefinition(stub, sess(adminId, 'admin'), {
         key: `oss_test_boom_${S}`,
-        label: 'Бум'
+        label: 'Бум',
       })
     ).rejects.toThrow('connection lost');
   });
@@ -622,8 +644,8 @@ describe('нештатные ошибки БД пробрасываются на
         companyId,
         organizationId: orgId,
         executionStatus: 'pending',
-        statusId: draft
-      }
+        statusId: draft,
+      },
     });
 
     const res = await transitionOrderStatus(prisma, admin, { orderId: own.id, toId: paid });
@@ -662,24 +684,26 @@ describe('закрыть заявку можно только при выпол�
   let closeOrderId: string;
 
   beforeAll(async () => {
-    closeOrderId = (await prisma.order.create({
-      data: {
-        title: `OSS-Close-${S}`,
-        orderNumber: `OSS-CL-${S}`,
-        companyId,
-        organizationId: orgId,
-        executionStatus: 'in_progress',
-        serviceType: 'document_development',
-        statusId: accepted
-      }
-    })).id;
+    closeOrderId = (
+      await prisma.order.create({
+        data: {
+          title: `OSS-Close-${S}`,
+          orderNumber: `OSS-CL-${S}`,
+          companyId,
+          organizationId: orgId,
+          executionStatus: 'in_progress',
+          serviceType: 'document_development',
+          statusId: accepted,
+        },
+      })
+    ).id;
   });
 
   it('без документа и подписи бухгалтерии закрыть нельзя — со списком причин', async () => {
     const admin = sess(adminId, 'admin');
     const res = await transitionOrderStatus(prisma, admin, {
       orderId: closeOrderId,
-      toId: closed
+      toId: closed,
     });
     expect(res.ok).toBe(false);
     if (res.ok) throw new Error('unexpected');
@@ -699,23 +723,23 @@ describe('закрыть заявку можно только при выпол�
         counterpartyType: 'organization',
         counterpartyId: orgId,
         orderId: closeOrderId,
-        scanStatus: 'clean'
-      }
+        scanStatus: 'clean',
+      },
     });
     await prisma.order.update({
       where: { id: closeOrderId },
-      data: { accountingSignedAt: new Date('2026-07-01T00:00:00Z') }
+      data: { accountingSignedAt: new Date('2026-07-01T00:00:00Z') },
     });
 
     const res = await transitionOrderStatus(prisma, admin, {
       orderId: closeOrderId,
-      toId: closed
+      toId: closed,
     });
     expect(res.ok).toBe(true);
 
     const row = await prisma.order.findUnique({
       where: { id: closeOrderId },
-      select: { statusDefinition: { select: { key: true } } }
+      select: { statusDefinition: { select: { key: true } } },
     });
     expect(row?.statusDefinition?.key).toBe('closed');
   });
@@ -735,8 +759,8 @@ describe('рассылка при смене статуса', () => {
         companyId,
         organizationId: orgId,
         executionStatus: 'pending',
-        statusId: draft
-      }
+        statusId: draft,
+      },
     });
 
     const broken = new Proxy(prisma, {
@@ -745,23 +769,23 @@ describe('рассылка при смене статуса', () => {
           return {
             findUnique: async () => {
               throw new Error('база моргнула');
-            }
+            },
           };
         }
         return Reflect.get(target, prop);
-      }
+      },
     }) as typeof prisma;
 
     const res = await transitionOrderStatus(broken, admin, {
       orderId: own.id,
-      toId: accepted
+      toId: accepted,
     });
     expect(res.ok).toBe(true);
 
     // статус всё равно сменился
     const row = await prisma.order.findUnique({
       where: { id: own.id },
-      select: { statusDefinition: { select: { key: true } } }
+      select: { statusDefinition: { select: { key: true } } },
     });
     expect(row?.statusDefinition?.key).toBe('accepted');
 
@@ -780,8 +804,8 @@ describe('рассылка: мелочи, которые молча ломают
         companyId,
         organizationId: orgId,
         executionStatus: 'pending',
-        statusId: draft
-      }
+        statusId: draft,
+      },
     });
 
     // user.findUnique отдаёт запись без имени → подпись по умолчанию;
@@ -795,7 +819,7 @@ describe('рассылка: мелочи, которые молча ломают
           return Reflect.get(target, prop);
         }
         return Reflect.get(target, prop);
-      }
+      },
     }) as typeof prisma;
 
     const res = await transitionOrderStatus(stub, admin, { orderId: own.id, toId: accepted });
@@ -814,7 +838,7 @@ describe('начальный статус новой заявки', () => {
 
   it('если справочник пуст — null, создание заявки не падает (fail-open §3)', async () => {
     const empty = {
-      orderStatusDefinition: { findFirst: async () => null }
+      orderStatusDefinition: { findFirst: async () => null },
     } as unknown as PrismaClient;
     expect(await getInitialStatusId(empty)).toBeNull();
   });

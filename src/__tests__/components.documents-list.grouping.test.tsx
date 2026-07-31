@@ -21,7 +21,7 @@ const row = (over: Partial<OrgDocumentRow>): OrgDocumentRow => ({
   orderId: null,
   orderNumber: null,
   orderTitle: null,
-  ...over
+  ...over,
 });
 
 describe('DocumentsList — бейдж «новый»', () => {
@@ -50,7 +50,7 @@ describe('DocumentsList — группировка по заказу', () => {
     row({ id: '1', orderId: 'ord1', orderNumber: '42', orderTitle: 'Обучение' }),
     row({ id: '2', orderId: 'ord2', orderNumber: null, orderTitle: 'Без номера' }),
     row({ id: '3', orderId: 'ord1', orderNumber: '42', orderTitle: 'Обучение' }),
-    row({ id: '4' }) // без заказа
+    row({ id: '4' }), // без заказа
   ];
 
   it('groupByOrder → секции по заказам в порядке появления + «Без заказа»; строка «Заказ: …» скрыта', () => {
@@ -71,7 +71,7 @@ describe('DocumentsList — группировка по заказу', () => {
     const bare = [row({ id: '9', orderId: 'ord-bare', orderNumber: null, orderTitle: null })];
     const { container } = render(<DocumentsList rows={bare} groupByOrder />);
     expect(Array.from(container.querySelectorAll('h3')).map((h) => h.textContent)).toEqual([
-      'Заказ ord-bare'
+      'Заказ ord-bare',
     ]);
   });
 

@@ -12,7 +12,7 @@ const { recordAudit } = vi.hoisted(() => ({ recordAudit: vi.fn() }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 
 const { assertAllowedStudentPortalUrl } = vi.hoisted(() => ({
-  assertAllowedStudentPortalUrl: vi.fn()
+  assertAllowedStudentPortalUrl: vi.fn(),
 }));
 vi.mock('@/lib/security/redirect', () => ({ assertAllowedStudentPortalUrl }));
 
@@ -28,7 +28,7 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: { $transaction: prismaTransaction } 
 const nav = vi.hoisted(() => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
-  })
+  }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -39,7 +39,7 @@ const ENV_KEYS = [
   'STUDENT_PORTAL_URL',
   'STUDENT_REDIRECT_ALLOWED_DOMAINS',
   'STUDENT_PORTAL_ALLOWED_HOSTS',
-  'STUDENT_BRIDGE_CODE_TTL_SEC'
+  'STUDENT_BRIDGE_CODE_TTL_SEC',
 ] as const;
 
 describe('StudentRedirectPage', () => {
@@ -169,7 +169,7 @@ describe('StudentRedirectPage', () => {
       organizationId: 'org-1',
       email: 'stud@example.com',
       name: 'Студент Студентов',
-      externalStudentId: 'ext-1'
+      externalStudentId: 'ext-1',
     });
     process.env.STUDENT_REDIRECT_URL = 'https://otsfera.cdoprof.com/sso';
     process.env.STUDENT_REDIRECT_ALLOWED_DOMAINS = 'extra.example.com';
@@ -185,7 +185,7 @@ describe('StudentRedirectPage', () => {
       organizationId: 'org-1',
       email: 'stud@example.com',
       name: 'Студент Студентов',
-      externalStudentId: 'ext-1'
+      externalStudentId: 'ext-1',
     });
     expect(prismaTransaction).toHaveBeenCalledTimes(1);
     expect(recordAudit).toHaveBeenCalledTimes(2);
@@ -203,7 +203,7 @@ describe('StudentRedirectPage', () => {
     const secondCallAfter = recordAudit.mock.calls[1]![1].after as Record<string, unknown>;
     expect(JSON.stringify(secondCallAfter)).not.toContain('code');
     expect(studentBridgeGrantCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({ jti: 'jti-42', token: 'signed-token', userId: 'u1' })
+      data: expect.objectContaining({ jti: 'jti-42', token: 'signed-token', userId: 'u1' }),
     });
 
     const redirectedUrl = nav.redirect.mock.calls[0]![0] as string;
@@ -222,10 +222,9 @@ describe('StudentRedirectPage', () => {
     expect(console.warn).toHaveBeenCalledWith(
       expect.stringContaining('STUDENT_PORTAL_ALLOWED_HOSTS is deprecated')
     );
-    expect(assertAllowedStudentPortalUrl).toHaveBeenCalledWith(
-      'https://otsfera.cdoprof.com/sso',
-      { allowlist: ['otsfera.cdoprof.com', 'legacy.example.com'] }
-    );
+    expect(assertAllowedStudentPortalUrl).toHaveBeenCalledWith('https://otsfera.cdoprof.com/sso', {
+      allowlist: ['otsfera.cdoprof.com', 'legacy.example.com'],
+    });
   });
 
   it('defaults codeTtlSec to 60s when STUDENT_BRIDGE_CODE_TTL_SEC is not a finite number (module-load-time NaN)', async () => {

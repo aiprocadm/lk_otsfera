@@ -7,7 +7,7 @@ import {
   sendAdminUserInviteEmail,
   sendManagerInviteEmail,
   sendOrgInviteEmail,
-  sendPartnerInviteEmail
+  sendPartnerInviteEmail,
 } from '@/lib/email/send';
 import { log } from '@/lib/logging';
 
@@ -51,8 +51,8 @@ export async function resendInvite(
       isActive: true,
       passwordHash: true,
       partnerId: true,
-      companyId: true
-    }
+      companyId: true,
+    },
   });
   if (!target || !target.isActive) return { ok: false, error: 'not_found' };
 
@@ -71,7 +71,7 @@ export async function resendInvite(
     // ФТ-10.2: старый токен инвалидируется — «пере-отправка» не плодит живые ссылки.
     await tx.passwordResetToken.updateMany({
       where: { userId: target.id, purpose: 'invite', usedAt: null },
-      data: { usedAt: new Date() }
+      data: { usedAt: new Date() },
     });
     const { token } = await createInviteToken(tx, target.id);
     return `${getAppBaseUrl()}/reset-password?token=${token}`;
@@ -87,7 +87,7 @@ export async function resendInvite(
     action: 'invite_resent',
     entity: 'user',
     entityId: target.id,
-    after: { targetRole: target.role, emailRequested: sendEmail, emailStatus }
+    after: { targetRole: target.role, emailRequested: sendEmail, emailStatus },
   });
 
   return { ok: true, inviteUrl, emailStatus };
@@ -116,7 +116,7 @@ async function isInScope(
     if (!adminOrgIds.length || target.role !== 'organization') return false;
     const membership = await prisma.organizationUser.findFirst({
       where: { userId: target.id, isActive: true, organizationId: { in: adminOrgIds } },
-      select: { id: true }
+      select: { id: true },
     });
     return !!membership;
   }
@@ -126,13 +126,15 @@ async function isInScope(
     if (target.role !== 'partner' || target.partnerId !== session.partnerId) return false;
     const member = await prisma.partnerUser.findUnique({
       where: { partnerId_userId: { partnerId: session.partnerId, userId: target.id } },
-      select: { isActive: true }
+      select: { isActive: true },
     });
     return !!member?.isActive;
   }
 
   if (session.role === 'manager' && session.managerRole === 'leader') {
-    return target.role === 'manager' && !!session.companyId && target.companyId === session.companyId;
+    return (
+      target.role === 'manager' && !!session.companyId && target.companyId === session.companyId
+    );
   }
 
   return false;
@@ -152,15 +154,15 @@ async function sendInviteEmailFor(
         prisma.partner.findUnique({ where: { id: target.partnerId }, select: { name: true } }),
         prisma.partnerUser.findUnique({
           where: { partnerId_userId: { partnerId: target.partnerId, userId: target.id } },
-          select: { roleInPartner: true }
-        })
+          select: { roleInPartner: true },
+        }),
       ]);
       const sent = await sendPartnerInviteEmail({
         to: target.email,
         partnerName: partner?.name ?? 'партнёр',
         roleLabel: member?.roleInPartner === 'admin' ? 'администратор' : 'менеджер',
         inviteUrl,
-        invitedByName
+        invitedByName,
       });
       return sent.status === 'sent' ? 'sent' : 'skipped';
     }
@@ -168,13 +170,13 @@ async function sendInviteEmailFor(
       const membership = await prisma.organizationUser.findFirst({
         where: { userId: target.id, isActive: true },
         select: { organization: { select: { name: true } } },
-        orderBy: { createdAt: 'asc' }
+        orderBy: { createdAt: 'asc' },
       });
       const sent = await sendOrgInviteEmail({
         to: target.email,
         organizationName: membership?.organization.name ?? 'организация',
         inviteUrl,
-        invitedByName
+        invitedByName,
       });
       return sent.status === 'sent' ? 'sent' : 'skipped';
     }
@@ -182,13 +184,13 @@ async function sendInviteEmailFor(
       const assignment = await prisma.organizationManager.findFirst({
         where: { userId: target.id, isActive: true },
         select: { organization: { select: { name: true } } },
-        orderBy: { assignedAt: 'asc' }
+        orderBy: { assignedAt: 'asc' },
       });
       const sent = await sendManagerInviteEmail({
         to: target.email,
         organizationName: assignment?.organization.name ?? 'организация',
         inviteUrl,
-        invitedByName
+        invitedByName,
       });
       return sent.status === 'sent' ? 'sent' : 'skipped';
     }
@@ -203,11 +205,14 @@ async function sendInviteEmailFor(
       // годится; берём 'manager' как staff-ближайшую. Практически недостижимо: admin-аккаунты
       // создаются с паролем не через invite-поток.
       role: templateRole ?? 'manager',
-      invitedByName
+      invitedByName,
     });
     return sent.status === 'sent' ? 'sent' : 'skipped';
   } catch (e) {
-    log.warn('[team/resend] send invite email failed', { userId: target.id, error: e instanceof Error ? e.message : String(e) });
+    log.warn('[team/resend] send invite email failed', {
+      userId: target.id,
+      error: e instanceof Error ? e.message : String(e),
+    });
     return 'skipped';
   }
 }

@@ -12,7 +12,7 @@ const FOCUSABLE_SELECTOR = [
   // Ловится e2e organization-team-modal-focus-trap.
   'input:not([disabled]):not([type="hidden"])',
   'select:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])'
+  '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
 const FORM_CONTROL_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
@@ -23,7 +23,7 @@ const SIZE_CLASS: Record<DialogSize, string> = {
   sm: 'max-w-sm',
   md: 'max-w-md',
   lg: 'max-w-lg',
-  xl: 'max-w-3xl'
+  xl: 'max-w-3xl',
 };
 
 type FocusableLike = { tagName: string; getAttribute(name: string): string | null };
@@ -71,7 +71,7 @@ export function Dialog({
   closeOnBackdrop = true,
   error,
   notice,
-  children
+  children,
 }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const titleId = useId();
@@ -126,7 +126,9 @@ export function Dialog({
           </h2>
           <button
             type="button"
-            onClick={() => { if (!busy) onClose(); }}
+            onClick={() => {
+              if (!busy) onClose();
+            }}
             aria-label="Закрыть"
             className="text-gray-400 hover:text-gray-600 text-xl leading-none"
           >

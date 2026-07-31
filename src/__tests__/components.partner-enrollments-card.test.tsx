@@ -11,12 +11,15 @@ function summary(overrides: Partial<PartnerEnrollmentSummary> = {}): PartnerEnro
     studentCount: 1,
     status: 'pending',
     createdAt: new Date('2024-01-15T10:00:00Z'),
-    ...overrides
+    ...overrides,
   };
 }
 
 function renderCard(rows: PartnerEnrollmentSummary[]): string {
-  return renderToString(React.createElement(PartnerEnrollmentsCard, { rows })).replace(/<!-- -->/g, '');
+  return renderToString(React.createElement(PartnerEnrollmentsCard, { rows })).replace(
+    /<!-- -->/g,
+    ''
+  );
 }
 
 describe('PartnerEnrollmentsCard', () => {
@@ -41,7 +44,12 @@ describe('PartnerEnrollmentsCard', () => {
   it('склонение счётчика: 2 слушателя / 5 слушателей; ссылки по id каждой строки', () => {
     const html = renderCard([
       summary({ id: 'e2', studentCount: 2, status: 'provisioned' }),
-      summary({ id: 'e5', directionName: 'Пожарная безопасность', studentCount: 5, status: 'rejected' })
+      summary({
+        id: 'e5',
+        directionName: 'Пожарная безопасность',
+        studentCount: 5,
+        status: 'rejected',
+      }),
     ]);
     expect(html).toContain('2 слушателя');
     expect(html).toContain('5 слушателей');

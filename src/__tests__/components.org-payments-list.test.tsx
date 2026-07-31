@@ -13,7 +13,14 @@ describe('OrgPaymentsList', () => {
 
   it('renders count badge, method label, and note for a regular payment', () => {
     const payments: OrgOrderPayment[] = [
-      { id: 'p1', amount: '500.00', paidAt: new Date('2026-01-10'), method: 'bank', isRefund: false, note: 'Аванс' }
+      {
+        id: 'p1',
+        amount: '500.00',
+        paidAt: new Date('2026-01-10'),
+        method: 'bank',
+        isRefund: false,
+        note: 'Аванс',
+      },
     ];
     const html = renderToString(React.createElement(OrgPaymentsList, { payments }));
     expect(html).toContain('>1<');
@@ -24,7 +31,14 @@ describe('OrgPaymentsList', () => {
 
   it('renders refund styling and badge, and falls back to the raw method when unknown', () => {
     const payments: OrgOrderPayment[] = [
-      { id: 'p2', amount: '100.00', paidAt: new Date('2026-01-11'), method: 'crypto', isRefund: true, note: null }
+      {
+        id: 'p2',
+        amount: '100.00',
+        paidAt: new Date('2026-01-11'),
+        method: 'crypto',
+        isRefund: true,
+        note: null,
+      },
     ];
     const html = renderToString(React.createElement(OrgPaymentsList, { payments }));
     expect(html).toContain('Возврат');
@@ -33,7 +47,14 @@ describe('OrgPaymentsList', () => {
 
   it('omits the method segment entirely when method is null', () => {
     const payments: OrgOrderPayment[] = [
-      { id: 'p3', amount: '200.00', paidAt: new Date('2026-01-12'), method: null, isRefund: false, note: null }
+      {
+        id: 'p3',
+        amount: '200.00',
+        paidAt: new Date('2026-01-12'),
+        method: null,
+        isRefund: false,
+        note: null,
+      },
     ];
     const html = renderToString(React.createElement(OrgPaymentsList, { payments }));
     expect(html).not.toContain('·');

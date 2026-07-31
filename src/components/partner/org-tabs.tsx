@@ -8,23 +8,30 @@ const ALL_TABS: { key: TabKey; label: string; adminOnly?: boolean }[] = [
   { key: 'documents', label: 'Документы' },
   { key: 'comments', label: 'Комментарии' },
   { key: 'history', label: 'История' },
-  { key: 'settings', label: 'Настройки', adminOnly: true }
+  { key: 'settings', label: 'Настройки', adminOnly: true },
 ];
 
 export function OrgTabs({
-  orgId, active, isAdmin
-}: { orgId: string; active: TabKey; isAdmin: boolean }) {
+  orgId,
+  active,
+  isAdmin,
+}: {
+  orgId: string;
+  active: TabKey;
+  isAdmin: boolean;
+}) {
   const tabs = ALL_TABS.filter((t) => !t.adminOnly || isAdmin);
 
   return (
-    <nav className='border-b border-gray-200 flex gap-4 overflow-x-auto'>
+    <nav className="border-b border-gray-200 flex gap-4 overflow-x-auto">
       {tabs.map((t) => {
         const isActive = t.key === active;
-        const href = t.key === 'settings'
-          ? `/partner/portfolio/${orgId}/settings`
-          : t.key === 'documents'
-          ? `/partner/portfolio/${orgId}/documents`
-          : `/partner/portfolio/${orgId}?tab=${t.key}`;
+        const href =
+          t.key === 'settings'
+            ? `/partner/portfolio/${orgId}/settings`
+            : t.key === 'documents'
+              ? `/partner/portfolio/${orgId}/documents`
+              : `/partner/portfolio/${orgId}?tab=${t.key}`;
         return (
           <Link
             key={t.key}

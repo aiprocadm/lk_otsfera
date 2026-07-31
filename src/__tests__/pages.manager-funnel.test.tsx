@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import ManagerFunnelPage from '@/app/manager/funnel/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
@@ -18,18 +19,21 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
 vi.mock('@/components/funnel/funnel-board', () => ({
   FunnelBoard: (props: { board: unknown }) =>
-    React.createElement('div', { 'data-testid': 'funnel-board' }, JSON.stringify(props.board))
+    React.createElement('div', { 'data-testid': 'funnel-board' }, JSON.stringify(props.board)),
 }));
 
-import ManagerFunnelPage from '@/app/manager/funnel/page';
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 
 describe('ManagerFunnelPage', () => {
   beforeEach(() => {

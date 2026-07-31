@@ -2,22 +2,19 @@
 
 import React from 'react';
 import { ActionToastButton } from '@/components/ui';
-import {
-  archiveInboundMessageAction,
-  restoreInboundMessageAction
-} from '@/server-actions/inbound';
+import { archiveInboundMessageAction, restoreInboundMessageAction } from '@/server-actions/inbound';
 
 // Дельта поверх errorMessageRu (контекст архива обращений): общий словарь
 // говорит про загрузку («Нет прав на загрузку.») и заказ («Заказ не
 // найден.») — здесь нужны тексты про обращение.
 const ERROR_LABELS: Record<string, string> = {
   forbidden: 'Нет доступа к обращению',
-  not_found: 'Обращение не найдено'
+  not_found: 'Обращение не найдено',
 };
 
 const MODE_TEXT = {
   archive: { label: 'В архив', success: 'Обращение перемещено в архив' },
-  restore: { label: 'Вернуть', success: 'Обращение восстановлено' }
+  restore: { label: 'Вернуть', success: 'Обращение восстановлено' },
 } as const;
 
 /**
@@ -27,7 +24,7 @@ const MODE_TEXT = {
  */
 export function InboxArchiveButton({
   inboundMessageId,
-  mode
+  mode,
 }: {
   inboundMessageId: string;
   mode: 'archive' | 'restore';
@@ -37,8 +34,8 @@ export function InboxArchiveButton({
 
   return (
     <ActionToastButton
-      variant='secondary'
-      size='sm'
+      variant="secondary"
+      size="sm"
       label={text.label}
       successText={text.success}
       errorLabels={ERROR_LABELS}

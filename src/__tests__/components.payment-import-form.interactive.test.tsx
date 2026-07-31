@@ -5,9 +5,12 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const { previewPaymentImportAction, commitPaymentImportAction } = vi.hoisted(() => ({
   previewPaymentImportAction: vi.fn(),
-  commitPaymentImportAction: vi.fn()
+  commitPaymentImportAction: vi.fn(),
 }));
-vi.mock('@/server-actions/payment-import', () => ({ previewPaymentImportAction, commitPaymentImportAction }));
+vi.mock('@/server-actions/payment-import', () => ({
+  previewPaymentImportAction,
+  commitPaymentImportAction,
+}));
 
 import { PaymentImportForm } from '@/components/import/payment-import-form';
 
@@ -30,7 +33,7 @@ function emptyCounts(overrides: Partial<Counts> = {}): Counts {
     excluded: 0,
     excludedByReason: {},
     parseErrors: 0,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -64,10 +67,15 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
   it('preview success shows the plan with counts, no error alert', async () => {
     previewPaymentImportAction.mockResolvedValue({
       ok: true,
-      plan: { counts: emptyCounts({ totalRows: 10, imported: 7, refunds: 1, queued: 2, excluded: 1 }) }
+      plan: {
+        counts: emptyCounts({ totalRows: 10, imported: 7, refunds: 1, queued: 2, excluded: 1 }),
+      },
     });
     render(React.createElement(PaymentImportForm));
-    pickFile(screen.getByTestId('payment-import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('payment-import-preview-button'));
 
     expect(await screen.findByTestId('payment-import-plan')).toBeTruthy();
@@ -86,7 +94,10 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
         })
     );
     render(React.createElement(PaymentImportForm));
-    pickFile(screen.getByTestId('payment-import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('payment-import-preview-button'));
     expect(await screen.findByText('Загрузка…')).toBeTruthy();
     resolvePreview({ ok: true, plan: { counts: emptyCounts() } });
@@ -96,7 +107,10 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
   it('preview failure (forbidden) shows the mapped Russian error, no plan section', async () => {
     previewPaymentImportAction.mockResolvedValue({ ok: false, error: 'forbidden' });
     render(React.createElement(PaymentImportForm));
-    pickFile(screen.getByTestId('payment-import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('payment-import-preview-button'));
     expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Недостаточно прав');
     expect(screen.queryByTestId('payment-import-plan')).toBeNull();
@@ -106,12 +120,15 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
     for (const [code, expected] of [
       ['invalid_file', 'Выберите файл .xls или .xlsx (не более 20 МБ)'],
       ['empty', 'Файл пуст или нет строк-операций'],
-      ['parse_failed', 'Не удалось разобрать файл']
+      ['parse_failed', 'Не удалось разобрать файл'],
     ] as const) {
       previewPaymentImportAction.mockReset();
       previewPaymentImportAction.mockResolvedValue({ ok: false, error: code });
       const { unmount } = render(React.createElement(PaymentImportForm));
-      pickFile(screen.getByTestId('payment-import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+      pickFile(
+        screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+        new File(['x'], 'a.xlsx')
+      );
       fireEvent.click(screen.getByTestId('payment-import-preview-button'));
       expect(await screen.findByText(expected)).toBeTruthy();
       unmount();
@@ -121,7 +138,10 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
   it('preview failure with an unmapped code falls back to "Ошибка: <code>"', async () => {
     previewPaymentImportAction.mockResolvedValue({ ok: false, error: 'mystery' });
     render(React.createElement(PaymentImportForm));
-    pickFile(screen.getByTestId('payment-import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('payment-import-preview-button'));
     expect(await screen.findByText('Ошибка: mystery')).toBeTruthy();
   });
@@ -140,10 +160,13 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
   it('shows the "Ошибок разбора" row only when parseErrors > 0', async () => {
     previewPaymentImportAction.mockResolvedValue({
       ok: true,
-      plan: { counts: emptyCounts({ totalRows: 3, parseErrors: 2 }) }
+      plan: { counts: emptyCounts({ totalRows: 3, parseErrors: 2 }) },
     });
     render(React.createElement(PaymentImportForm));
-    pickFile(screen.getByTestId('payment-import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('payment-import-preview-button'));
     await screen.findByTestId('payment-import-plan');
     expect(screen.getByText('Ошибок разбора')).toBeTruthy();
@@ -152,10 +175,13 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
   it('does not show the "Ошибок разбора" row when parseErrors is 0', async () => {
     previewPaymentImportAction.mockResolvedValue({
       ok: true,
-      plan: { counts: emptyCounts({ totalRows: 3 }) }
+      plan: { counts: emptyCounts({ totalRows: 3 }) },
     });
     render(React.createElement(PaymentImportForm));
-    pickFile(screen.getByTestId('payment-import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('payment-import-preview-button'));
     await screen.findByTestId('payment-import-plan');
     expect(screen.queryByText('Ошибок разбора')).toBeNull();
@@ -168,12 +194,15 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
         counts: emptyCounts({
           totalRows: 5,
           excluded: 3,
-          excludedByReason: { supplier: 2, unknown_code: 1 }
-        })
-      }
+          excludedByReason: { supplier: 2, unknown_code: 1 },
+        }),
+      },
     });
     render(React.createElement(PaymentImportForm));
-    pickFile(screen.getByTestId('payment-import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('payment-import-preview-button'));
     await screen.findByTestId('payment-import-plan');
     expect(screen.getByText('Исключено по причинам:')).toBeTruthy();
@@ -184,23 +213,32 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
   it('does not render the excludedByReason block when it is empty', async () => {
     previewPaymentImportAction.mockResolvedValue({
       ok: true,
-      plan: { counts: emptyCounts({ totalRows: 1 }) }
+      plan: { counts: emptyCounts({ totalRows: 1 }) },
     });
     render(React.createElement(PaymentImportForm));
-    pickFile(screen.getByTestId('payment-import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('payment-import-preview-button'));
     await screen.findByTestId('payment-import-plan');
     expect(screen.queryByText('Исключено по причинам:')).toBeNull();
   });
 
   it('commit success shows the success banner + final counts, hides the commit button', async () => {
-    previewPaymentImportAction.mockResolvedValue({ ok: true, plan: { counts: emptyCounts({ totalRows: 2 }) } });
+    previewPaymentImportAction.mockResolvedValue({
+      ok: true,
+      plan: { counts: emptyCounts({ totalRows: 2 }) },
+    });
     commitPaymentImportAction.mockResolvedValue({
       ok: true,
-      result: { counts: emptyCounts({ totalRows: 2, imported: 2 }), batchId: 'batch-1' }
+      result: { counts: emptyCounts({ totalRows: 2, imported: 2 }), batchId: 'batch-1' },
     });
     render(React.createElement(PaymentImportForm));
-    pickFile(screen.getByTestId('payment-import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('payment-import-preview-button'));
     await screen.findByTestId('payment-import-commit-button');
 
@@ -220,7 +258,10 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
         })
     );
     render(React.createElement(PaymentImportForm));
-    pickFile(screen.getByTestId('payment-import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('payment-import-preview-button'));
     await screen.findByTestId('payment-import-commit-button');
 
@@ -234,7 +275,10 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
     previewPaymentImportAction.mockResolvedValue({ ok: true, plan: { counts: emptyCounts() } });
     commitPaymentImportAction.mockResolvedValue({ ok: false, error: 'parse_failed' });
     render(React.createElement(PaymentImportForm));
-    pickFile(screen.getByTestId('payment-import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('payment-import-preview-button'));
     await screen.findByTestId('payment-import-commit-button');
 

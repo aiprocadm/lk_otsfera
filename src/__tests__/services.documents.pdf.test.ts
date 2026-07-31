@@ -4,8 +4,14 @@
  * (замер ФТ-9.6 — поэтому генерация синхронна, без очереди).
  */
 import { describe, it, expect } from 'vitest';
-import { renderOrderDocumentPdf, type OrderDocumentData } from '@/lib/services/documents/orderDocumentPdf';
-import { renderContractDocumentPdf, type ContractDocumentData } from '@/lib/services/documents/contractDocumentPdf';
+import {
+  renderOrderDocumentPdf,
+  type OrderDocumentData,
+} from '@/lib/services/documents/orderDocumentPdf';
+import {
+  renderContractDocumentPdf,
+  type ContractDocumentData,
+} from '@/lib/services/documents/contractDocumentPdf';
 import { listMissingRequisites } from '@/lib/documents/requisites-check';
 
 const PARTY = {
@@ -20,7 +26,7 @@ const PARTY = {
   signerName: 'Иванов И.И.',
   signerPosition: 'Генеральный директор',
   phone: '+7 495 000-00-00',
-  email: 'docs@pts.ru'
+  email: 'docs@pts.ru',
 };
 
 function data(docType: 'invoice' | 'act'): OrderDocumentData {
@@ -33,7 +39,7 @@ function data(docType: 'invoice' | 'act'): OrderDocumentData {
     orderLabel: 'Заказ №123 «Обучение по охране труда»',
     items: [{ name: 'Услуги по заказу №123: Обучение по охране труда', amount: '15 000,00' }],
     total: '15 000,00',
-    vatLine: 'В том числе НДС 20%.'
+    vatLine: 'В том числе НДС 20%.',
   };
 }
 
@@ -59,7 +65,12 @@ describe('renderOrderDocumentPdf', () => {
     const bare = {
       ...data('invoice'),
       company: { ...PARTY, signerName: null, signerPosition: null },
-      organization: { ...PARTY, displayName: 'ООО «Ромашка»', signerName: null, signerPosition: null }
+      organization: {
+        ...PARTY,
+        displayName: 'ООО «Ромашка»',
+        signerName: null,
+        signerPosition: null,
+      },
     };
     const buffer = await renderOrderDocumentPdf(bare);
     expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
@@ -73,7 +84,7 @@ describe('renderOrderDocumentPdf', () => {
     const noPosition = {
       ...data('act'),
       company: { ...PARTY, signerPosition: null },
-      organization: { ...PARTY, displayName: 'ООО «Ромашка»', signerPosition: null }
+      organization: { ...PARTY, displayName: 'ООО «Ромашка»', signerPosition: null },
     };
     const buffer = await renderOrderDocumentPdf(noPosition);
     expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
@@ -85,8 +96,16 @@ describe('renderOrderDocumentPdf', () => {
     // ничего.
     const bare = {
       ...data('invoice'),
-      company: { ...PARTY, bankName: null, bic: null, corrAccount: null, bankAccount: null, inn: null, kpp: null },
-      organization: { ...PARTY, displayName: 'ООО «Ромашка»', inn: null, kpp: null }
+      company: {
+        ...PARTY,
+        bankName: null,
+        bic: null,
+        corrAccount: null,
+        bankAccount: null,
+        inn: null,
+        kpp: null,
+      },
+      organization: { ...PARTY, displayName: 'ООО «Ромашка»', inn: null, kpp: null },
     };
     const buffer = await renderOrderDocumentPdf(bare);
     expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
@@ -109,14 +128,20 @@ describe('listMissingRequisites', () => {
         { side: 'company', label: 'БИК исполнителя' },
         { side: 'company', label: 'подписант исполнителя (ФИО)' },
         { side: 'organization', label: 'ИНН заказчика' },
-        { side: 'organization', label: 'юр. название заказчика' }
+        { side: 'organization', label: 'юр. название заказчика' },
       ])
     );
   });
 
   it('рабочее название организации закрывает отсутствие юр. названия', () => {
-    const org = { ...(full as Record<string, unknown>), legalName: null, name: 'ООО Ромашка (раб.)' };
-    expect(listMissingRequisites(full, org as never).some((m) => m.label.includes('название'))).toBe(false);
+    const org = {
+      ...(full as Record<string, unknown>),
+      legalName: null,
+      name: 'ООО Ромашка (раб.)',
+    };
+    expect(
+      listMissingRequisites(full, org as never).some((m) => m.label.includes('название'))
+    ).toBe(false);
   });
 });
 
@@ -131,7 +156,8 @@ describe('renderContractDocumentPdf (PR-3)', () => {
     items: [{ name: 'Обучение по охране труда', amount: '15 000,00' }],
     total: '15 000,00',
     vatLine: 'В том числе НДС 20%.',
-    baseContract: docType === 'extra_agreement' ? { number: 'Д-2026-4', date: new Date('2026-07-01') } : null
+    baseContract:
+      docType === 'extra_agreement' ? { number: 'Д-2026-4', date: new Date('2026-07-01') } : null,
   });
 
   it('договор: валидный PDF с кириллицей, рендер < 2 с', async () => {
@@ -162,7 +188,7 @@ describe('renderContractDocumentPdf (PR-3)', () => {
     const ip = {
       ...base('contract'),
       company: { ...PARTY, kpp: null, signerPosition: null },
-      organization: { ...PARTY, displayName: 'ИП Иванов', kpp: null, signerPosition: null }
+      organization: { ...PARTY, displayName: 'ИП Иванов', kpp: null, signerPosition: null },
     };
     const buffer = await renderContractDocumentPdf(ip);
     expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
@@ -172,7 +198,7 @@ describe('renderContractDocumentPdf (PR-3)', () => {
     const noInn = {
       ...base('contract'),
       company: { ...PARTY, inn: null, kpp: null },
-      organization: { ...PARTY, displayName: 'ООО «Ромашка»', inn: null, kpp: null }
+      organization: { ...PARTY, displayName: 'ООО «Ромашка»', inn: null, kpp: null },
     };
     const buffer = await renderContractDocumentPdf(noInn);
     expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
@@ -181,8 +207,23 @@ describe('renderContractDocumentPdf (PR-3)', () => {
   it('пустые подписанты/реквизиты не ломают рендер (фолбэки)', async () => {
     const bare = {
       ...base('contract'),
-      company: { ...PARTY, signerName: null, signerPosition: null, signerBasis: null, phone: null, email: null, legalAddress: null },
-      organization: { ...PARTY, displayName: 'ООО «Ромашка»', signerName: null, signerBasis: null, bankName: null, bic: null }
+      company: {
+        ...PARTY,
+        signerName: null,
+        signerPosition: null,
+        signerBasis: null,
+        phone: null,
+        email: null,
+        legalAddress: null,
+      },
+      organization: {
+        ...PARTY,
+        displayName: 'ООО «Ромашка»',
+        signerName: null,
+        signerBasis: null,
+        bankName: null,
+        bic: null,
+      },
     };
     const buffer = await renderContractDocumentPdf(bare);
     expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');

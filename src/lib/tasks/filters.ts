@@ -11,7 +11,9 @@ export type TasksToolbarState = {
   view: 'board' | 'list';
 };
 
-export function parseTasksSearchParams(sp: Record<string, string | string[] | undefined>): TasksToolbarState {
+export function parseTasksSearchParams(
+  sp: Record<string, string | string[] | undefined>
+): TasksToolbarState {
   const one = (k: string): string => {
     const v = sp[k];
     return typeof v === 'string' ? v : '';
@@ -20,6 +22,6 @@ export function parseTasksSearchParams(sp: Record<string, string | string[] | un
     scope: one('scope') === 'mine' ? 'mine' : 'all',
     assigneeId: one('assignee') || null,
     overdue: one('overdue') === '1',
-    view: one('view') === 'list' ? 'list' : 'board'
+    view: one('view') === 'list' ? 'list' : 'board',
   };
 }

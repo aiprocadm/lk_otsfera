@@ -7,7 +7,7 @@ import { clientLog } from '@/lib/logging/client';
 // кабинета (навигация остаётся живой), в отличие от корневого app/error.tsx.
 export default function CabinetError({
   error,
-  reset
+  reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
@@ -17,16 +17,16 @@ export default function CabinetError({
   }, [error]);
 
   return (
-    <div className='flex items-center justify-center py-24'>
-      <div className='text-center max-w-md'>
-        <div className='w-16 h-16 bg-brand-orange rounded-2xl flex items-center justify-center mx-auto mb-6'>
-          <span className='text-white text-2xl font-bold'>!</span>
+    <div className="flex items-center justify-center py-24">
+      <div className="text-center max-w-md">
+        <div className="w-16 h-16 bg-brand-orange rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <span className="text-white text-2xl font-bold">!</span>
         </div>
-        <h1 className='text-2xl font-bold text-brand-black mb-2'>Что-то пошло не так</h1>
-        <p className='text-gray-500 mb-6'>Произошла непредвиденная ошибка. Попробуйте ещё раз.</p>
+        <h1 className="text-2xl font-bold text-brand-black mb-2">Что-то пошло не так</h1>
+        <p className="text-gray-500 mb-6">Произошла непредвиденная ошибка. Попробуйте ещё раз.</p>
         <Button onClick={reset}>Попробовать снова</Button>
         {error.digest ? (
-          <p className='text-gray-400 text-xs mt-6'>Код ошибки: {error.digest}</p>
+          <p className="text-gray-400 text-xs mt-6">Код ошибки: {error.digest}</p>
         ) : null}
       </div>
     </div>

@@ -21,7 +21,7 @@ const nav = vi.hoisted(() => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -29,7 +29,7 @@ const auth = vi.hoisted(() => ({
   requirePartner: vi.fn(),
   requireManager: vi.fn(),
   requireManagerLeader: vi.fn(),
-  requireAdmin: vi.fn()
+  requireAdmin: vi.fn(),
 }));
 vi.mock('@/lib/auth/requireRole', () => auth);
 
@@ -41,7 +41,9 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 const svc = vi.hoisted(() => ({ listClientRequests: vi.fn(), getClientRequest: vi.fn() }));
 vi.mock('@/lib/services/clientRequests/list', () => svc);
 
-const { listClientRequestAttachments } = vi.hoisted(() => ({ listClientRequestAttachments: vi.fn() }));
+const { listClientRequestAttachments } = vi.hoisted(() => ({
+  listClientRequestAttachments: vi.fn(),
+}));
 vi.mock('@/lib/services/clientRequests/attachments', () => ({ listClientRequestAttachments }));
 
 const { listLeads } = vi.hoisted(() => ({ listLeads: vi.fn() }));
@@ -50,7 +52,7 @@ vi.mock('@/lib/services/partner/leads', () => ({ listLeads }));
 // Презентационные компоненты покрыты своими W1-тестами — здесь стабы,
 // проверяем только что страница прокинула правильные props.
 vi.mock('@/components/client-requests/client-request-form', () => ({
-  ClientRequestForm: () => React.createElement('div', { 'data-testid': 'cr-form' })
+  ClientRequestForm: () => React.createElement('div', { 'data-testid': 'cr-form' }),
 }));
 vi.mock('@/components/client-requests/client-request-list', () => ({
   ClientRequestList: (props: { rows: Array<{ id: string }>; detailHrefBase: string }) =>
@@ -58,11 +60,15 @@ vi.mock('@/components/client-requests/client-request-list', () => ({
       'div',
       { 'data-testid': 'cr-list', 'data-base': props.detailHrefBase },
       props.rows.map((r) => r.id).join(',')
-    )
+    ),
 }));
 vi.mock('@/components/client-requests/client-request-queue', () => ({
   ClientRequestQueue: (props: { rows: Array<{ id: string }> }) =>
-    React.createElement('div', { 'data-testid': 'cr-queue' }, props.rows.map((r) => r.id).join(','))
+    React.createElement(
+      'div',
+      { 'data-testid': 'cr-queue' },
+      props.rows.map((r) => r.id).join(',')
+    ),
 }));
 vi.mock('@/components/client-requests/client-request-detail-view', () => ({
   ClientRequestDetailView: (props: {
@@ -72,14 +78,23 @@ vi.mock('@/components/client-requests/client-request-detail-view', () => ({
   }) =>
     React.createElement(
       'div',
-      { 'data-testid': 'cr-detail', 'data-back': props.backHref, 'data-attachments': String(props.attachments.length) },
+      {
+        'data-testid': 'cr-detail',
+        'data-back': props.backHref,
+        'data-attachments': String(props.attachments.length),
+      },
       props.request.subject,
       props.attachments.map((a) => a.name).join(',')
-    )
+    ),
 }));
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: (props: { activeOrgName: string; children: React.ReactNode }) =>
-    React.createElement('div', { 'data-testid': 'org-app-shell' }, props.activeOrgName, props.children)
+    React.createElement(
+      'div',
+      { 'data-testid': 'org-app-shell' },
+      props.activeOrgName,
+      props.children
+    ),
 }));
 // Стабы компонентов старой страницы /partner/leads (нужны только для импорта —
 // redirect срабатывает до рендера).
@@ -102,13 +117,18 @@ const ORG_CTX = {
   activeOrgId: 'org-1',
   activeOrgName: 'ООО Ромашка',
   memberships: [],
-  viewerRole: 'admin' as const
+  viewerRole: 'admin' as const,
 };
 const ROWS = [
   { id: 'R1', subject: 'Обучение ОТ', companyName: 'ООО Ромашка', status: 'submitted' },
-  { id: 'R2', subject: 'Поставка СИЗ', companyName: 'АО Пион', status: 'in_triage' }
+  { id: 'R2', subject: 'Поставка СИЗ', companyName: 'АО Пион', status: 'in_triage' },
 ];
-const REQUEST = { id: 'R1', subject: 'Обучение ОТ', companyName: 'ООО Ромашка', status: 'submitted' };
+const REQUEST = {
+  id: 'R1',
+  subject: 'Обучение ОТ',
+  companyName: 'ООО Ромашка',
+  status: 'submitted',
+};
 const ATTACHMENTS_OK = {
   ok: true,
   rows: [
@@ -119,9 +139,9 @@ const ATTACHMENTS_OK = {
       mimeType: 'application/pdf',
       createdAt: new Date('2026-07-24T10:00:00Z'),
       createdByUserId: 'p1',
-      createdByUserName: 'Иван'
-    }
-  ]
+      createdByUserName: 'Иван',
+    },
+  ],
 };
 const props = (id: string) => ({ params: Promise.resolve({ id }) });
 
@@ -176,7 +196,9 @@ describe('OrganizationRequestsPage (/organization/requests)', () => {
     expect(container.querySelector('[data-testid="org-app-shell"]')).not.toBeNull();
     expect(container.textContent).toContain('ООО Ромашка');
     expect(container.querySelector('[data-testid="cr-form"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="cr-list"]')?.getAttribute('data-base')).toBe('/organization/requests');
+    expect(container.querySelector('[data-testid="cr-list"]')?.getAttribute('data-base')).toBe(
+      '/organization/requests'
+    );
     expect(svc.listClientRequests).toHaveBeenCalledWith({}, ORG_CTX.session, {});
   });
 });
@@ -184,7 +206,9 @@ describe('OrganizationRequestsPage (/organization/requests)', () => {
 describe('PartnerRequestDetailPage (/partner/requests/[id])', () => {
   it('флаг off → notFound', async () => {
     isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(PartnerRequestDetailPage(props('R1')))).rejects.toThrow('NOT_FOUND');
+    await expect(renderServerComponent(PartnerRequestDetailPage(props('R1')))).rejects.toThrow(
+      'NOT_FOUND'
+    );
     expect(auth.requirePartner).not.toHaveBeenCalled();
   });
 
@@ -192,7 +216,9 @@ describe('PartnerRequestDetailPage (/partner/requests/[id])', () => {
     isFeatureEnabled.mockReturnValue(true);
     auth.requirePartner.mockResolvedValue(PARTNER_SESSION);
     svc.getClientRequest.mockResolvedValue({ ok: false, error: 'not_found' });
-    await expect(renderServerComponent(PartnerRequestDetailPage(props('чужая')))).rejects.toThrow('NOT_FOUND');
+    await expect(renderServerComponent(PartnerRequestDetailPage(props('чужая')))).rejects.toThrow(
+      'NOT_FOUND'
+    );
     expect(svc.getClientRequest).toHaveBeenCalledWith({}, PARTNER_SESSION, 'чужая');
     expect(listClientRequestAttachments).not.toHaveBeenCalled();
   });
@@ -217,7 +243,11 @@ describe('PartnerRequestDetailPage (/partner/requests/[id])', () => {
     isFeatureEnabled.mockReturnValue(true);
     auth.requirePartner.mockResolvedValue(PARTNER_SESSION);
     svc.getClientRequest.mockResolvedValue({ ok: true, request: REQUEST });
-    listClientRequestAttachments.mockResolvedValue({ ok: false, error: 'NOT_FOUND', message: 'нет' });
+    listClientRequestAttachments.mockResolvedValue({
+      ok: false,
+      error: 'NOT_FOUND',
+      message: 'нет',
+    });
 
     const { container } = await renderServerComponent(PartnerRequestDetailPage(props('R1')));
 
@@ -232,13 +262,17 @@ describe('OrganizationRequestDetailPage (/organization/requests/[id])', () => {
     isFeatureEnabled.mockReturnValue(true);
     getOrgPageContext.mockResolvedValue(ORG_CTX);
     svc.getClientRequest.mockResolvedValue({ ok: false, error: 'not_found' });
-    await expect(renderServerComponent(OrganizationRequestDetailPage(props('R404')))).rejects.toThrow('NOT_FOUND');
+    await expect(
+      renderServerComponent(OrganizationRequestDetailPage(props('R404')))
+    ).rejects.toThrow('NOT_FOUND');
     expect(svc.getClientRequest).toHaveBeenCalledWith({}, ORG_CTX.session, 'R404');
   });
 
   it('флаг выключен → notFound до обращения к контексту организации', async () => {
     isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(OrganizationRequestDetailPage(props('R1')))).rejects.toThrow('NOT_FOUND');
+    await expect(renderServerComponent(OrganizationRequestDetailPage(props('R1')))).rejects.toThrow(
+      'NOT_FOUND'
+    );
     expect(getOrgPageContext).not.toHaveBeenCalled();
   });
 
@@ -262,7 +296,11 @@ describe('OrganizationRequestDetailPage (/organization/requests/[id])', () => {
     isFeatureEnabled.mockReturnValue(true);
     getOrgPageContext.mockResolvedValue(ORG_CTX);
     svc.getClientRequest.mockResolvedValue({ ok: true, request: REQUEST });
-    listClientRequestAttachments.mockResolvedValue({ ok: false, error: 'NOT_FOUND', message: 'нет' });
+    listClientRequestAttachments.mockResolvedValue({
+      ok: false,
+      error: 'NOT_FOUND',
+      message: 'нет',
+    });
 
     const { container } = await renderServerComponent(OrganizationRequestDetailPage(props('R1')));
 
@@ -275,9 +313,29 @@ describe('OrganizationRequestDetailPage (/organization/requests/[id])', () => {
 
 describe('очередь триажа: manager / leader / admin', () => {
   const cases = [
-    { name: 'ManagerRequestsPage', Page: ManagerRequestsPage, guard: auth.requireManager, session: { sub: 'm1', role: 'manager' as const, companyId: 'c1' } },
-    { name: 'LeaderRequestsPage', Page: LeaderRequestsPage, guard: auth.requireManagerLeader, session: { sub: 'l1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' } },
-    { name: 'AdminRequestsPage', Page: AdminRequestsPage, guard: auth.requireAdmin, session: { sub: 'a1', role: 'admin' as const } }
+    {
+      name: 'ManagerRequestsPage',
+      Page: ManagerRequestsPage,
+      guard: auth.requireManager,
+      session: { sub: 'm1', role: 'manager' as const, companyId: 'c1' },
+    },
+    {
+      name: 'LeaderRequestsPage',
+      Page: LeaderRequestsPage,
+      guard: auth.requireManagerLeader,
+      session: {
+        sub: 'l1',
+        role: 'manager' as const,
+        managerRole: 'leader' as const,
+        companyId: 'c1',
+      },
+    },
+    {
+      name: 'AdminRequestsPage',
+      Page: AdminRequestsPage,
+      guard: auth.requireAdmin,
+      session: { sub: 'a1', role: 'admin' as const },
+    },
   ];
 
   for (const { name, Page, guard, session } of cases) {

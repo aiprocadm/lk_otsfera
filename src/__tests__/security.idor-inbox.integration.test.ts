@@ -52,7 +52,11 @@ beforeAll(async () => {
   });
   msgBoundB = mB.id;
 
-  managerA = { sub: `idor-mgr-${STAMP}`, role: 'manager', companyId: companyA } as unknown as SessionPayload;
+  managerA = {
+    sub: `idor-mgr-${STAMP}`,
+    role: 'manager',
+    companyId: companyA,
+  } as unknown as SessionPayload;
 });
 
 afterAll(async () => {
@@ -61,15 +65,15 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe('IDOR — listInbox must never leak another company\'s bound inbound messages', () => {
-  it('manager of company A does not receive company B\'s bound message in items', async () => {
+describe("IDOR — listInbox must never leak another company's bound inbound messages", () => {
+  it("manager of company A does not receive company B's bound message in items", async () => {
     const result = await listInbox(prisma, managerA);
     const ids = result.items.map((i) => i.id);
     expect(ids).toContain(msgBoundA); // positive control — filter is not vacuous
     expect(ids).not.toContain(msgBoundB); // the leak under test
   });
 
-  it('total excludes company B\'s bound message even when filtering by status=bound', async () => {
+  it("total excludes company B's bound message even when filtering by status=bound", async () => {
     const result = await listInbox(prisma, managerA, { status: 'bound' });
     const ids = result.items.map((i) => i.id);
     expect(ids).toEqual([msgBoundA]);
@@ -77,7 +81,11 @@ describe('IDOR — listInbox must never leak another company\'s bound inbound me
   });
 
   it('a companyId-less manager session sees no bound messages from any company (sentinel deny-all)', async () => {
-    const noCompanySession = { sub: `idor-mgr-nc-${STAMP}`, role: 'manager', companyId: null } as unknown as SessionPayload;
+    const noCompanySession = {
+      sub: `idor-mgr-nc-${STAMP}`,
+      role: 'manager',
+      companyId: null,
+    } as unknown as SessionPayload;
     const result = await listInbox(prisma, noCompanySession, { status: 'bound' });
     const ids = result.items.map((i) => i.id);
     expect(ids).not.toContain(msgBoundA);

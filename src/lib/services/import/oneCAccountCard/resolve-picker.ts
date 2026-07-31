@@ -44,8 +44,8 @@ export async function searchResolveOrgs(
       OR: [
         { name: { contains: q, mode: 'insensitive' } },
         { inn: { contains: q, mode: 'insensitive' } },
-        { externalId: { contains: q, mode: 'insensitive' } }
-      ]
+        { externalId: { contains: q, mode: 'insensitive' } },
+      ],
     });
   }
 
@@ -53,7 +53,7 @@ export async function searchResolveOrgs(
     where: and.length ? { AND: and } : {},
     select: { id: true, name: true, inn: true },
     orderBy: { name: 'asc' },
-    take
+    take,
   });
 }
 
@@ -75,6 +75,6 @@ export async function listResolveOrders(
     where,
     select: { id: true, orderNumber: true, title: true },
     orderBy: { id: 'desc' },
-    take: MAX_TAKE
+    take: MAX_TAKE,
   });
 }

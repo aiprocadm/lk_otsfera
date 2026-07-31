@@ -39,7 +39,7 @@ export async function buildNotificationScopeWhere(
     const orgIds = managedOrgIds(session);
     const visibleOrders = await prisma.order.findMany({
       where: managerOrderScopeFilter(session),
-      select: { id: true }
+      select: { id: true },
     });
     const orderIds = visibleOrders.map((order) => order.id);
 

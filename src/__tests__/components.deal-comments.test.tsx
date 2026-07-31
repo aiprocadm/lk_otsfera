@@ -16,7 +16,12 @@ describe('DealComments', () => {
 
   it('renders a comment list with author initial, name, body and count', () => {
     const comments: DealCommentRow[] = [
-      { id: 'c1', body: 'Привет мир', createdAt: new Date('2026-01-01T10:00:00Z'), authorName: 'Иван Петров' }
+      {
+        id: 'c1',
+        body: 'Привет мир',
+        createdAt: new Date('2026-01-01T10:00:00Z'),
+        authorName: 'Иван Петров',
+      },
     ];
     const html = renderToString(React.createElement(DealComments, { comments, orderId: 'o1' }));
     expect(html).toContain('Привет мир');

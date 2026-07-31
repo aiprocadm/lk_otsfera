@@ -21,7 +21,7 @@ function makePrisma(overrides: Partial<FakePrisma> = {}): PrismaClient {
     partnerUser: { findUnique: vi.fn().mockResolvedValue(null) },
     organizationUser: { findMany: vi.fn().mockResolvedValue([]) },
     organizationManager: { findMany: vi.fn().mockResolvedValue([]) },
-    accessProfile: { findUnique: vi.fn().mockResolvedValue(null) }
+    accessProfile: { findUnique: vi.fn().mockResolvedValue(null) },
   };
   return { ...base, ...overrides } as unknown as PrismaClient;
 }
@@ -40,7 +40,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     managerRole: null,
     accessProfileId: null,
     sessionVersion: 0,
-    ...overrides
+    ...overrides,
   } as unknown as User;
 }
 
@@ -64,7 +64,7 @@ describe('buildSessionClaims — клейм sessionVersion', () => {
 
   it('проставляет версию менеджеру (роль с денормализацией managedOrgIds)', async () => {
     const prisma = makePrisma({
-      organizationManager: { findMany: vi.fn().mockResolvedValue([{ organizationId: 'org-1' }]) }
+      organizationManager: { findMany: vi.fn().mockResolvedValue([{ organizationId: 'org-1' }]) },
     });
 
     const result = await buildSessionClaims(
@@ -83,8 +83,8 @@ describe('buildSessionClaims — клейм sessionVersion', () => {
       partnerUser: {
         findUnique: vi
           .fn()
-          .mockResolvedValue({ isActive: true, roleInPartner: 'admin', assignedOrgIds: ['org-9'] })
-      }
+          .mockResolvedValue({ isActive: true, roleInPartner: 'admin', assignedOrgIds: ['org-9'] }),
+      },
     });
 
     const result = await buildSessionClaims(
@@ -103,8 +103,8 @@ describe('buildSessionClaims — клейм sessionVersion', () => {
       organizationUser: {
         findMany: vi
           .fn()
-          .mockResolvedValue([{ organizationId: 'org-2', roleInOrg: 'member', isActive: true }])
-      }
+          .mockResolvedValue([{ organizationId: 'org-2', roleInOrg: 'member', isActive: true }]),
+      },
     });
 
     const result = await buildSessionClaims(
@@ -122,8 +122,8 @@ describe('buildSessionClaims — клейм sessionVersion', () => {
       partnerUser: {
         findUnique: vi
           .fn()
-          .mockResolvedValue({ isActive: false, roleInPartner: 'manager', assignedOrgIds: [] })
-      }
+          .mockResolvedValue({ isActive: false, roleInPartner: 'manager', assignedOrgIds: [] }),
+      },
     });
 
     const result = await buildSessionClaims(

@@ -17,7 +17,12 @@ import { listIntake } from '@/lib/services/intake/list';
 
 let prisma: PrismaClient;
 const STAMP = Date.now();
-let companyA: string, orgA: string, orgUser: string, manager: string, partnerUser: string, partnerA: string;
+let companyA: string,
+  orgA: string,
+  orgUser: string,
+  manager: string,
+  partnerUser: string,
+  partnerA: string;
 const createdIds: string[] = [];
 
 const sOrg = (): SessionPayload =>
@@ -27,27 +32,58 @@ const sOrg = (): SessionPayload =>
     email: `org-${STAMP}@t.local`,
     name: 'Клиент Иванов',
     organizationId: orgA,
-    organizationMemberships: [{ organizationId: orgA, roleInOrg: 'admin', isActive: true }]
+    organizationMemberships: [{ organizationId: orgA, roleInOrg: 'admin', isActive: true }],
   }) as unknown as SessionPayload;
 const sPartner = (): SessionPayload =>
-  ({ sub: partnerUser, role: 'partner', email: `pt-${STAMP}@t.local`, name: 'Партнёр', partnerId: partnerA }) as unknown as SessionPayload;
+  ({
+    sub: partnerUser,
+    role: 'partner',
+    email: `pt-${STAMP}@t.local`,
+    name: 'Партнёр',
+    partnerId: partnerA,
+  }) as unknown as SessionPayload;
 const sManager = (): SessionPayload =>
-  ({ sub: manager, role: 'manager', companyId: companyA, managedOrgIds: [orgA] }) as unknown as SessionPayload;
+  ({
+    sub: manager,
+    role: 'manager',
+    companyId: companyA,
+    managedOrgIds: [orgA],
+  }) as unknown as SessionPayload;
 
 beforeAll(async () => {
   prisma = new PrismaClient();
   companyA = (await prisma.company.create({ data: { name: `s9p1-${STAMP}` } })).id;
-  orgA = (await prisma.organization.create({ data: { name: `s9p1-org-${STAMP}`, companyId: companyA } })).id;
-  partnerA = (await prisma.partner.create({ data: { name: `s9p1-pt-${STAMP}`, slug: `s9p1-${STAMP}`, commissionRate: 0.1 } })).id;
-  orgUser = (await prisma.user.create({ data: { email: `s9p1-o-${STAMP}@t.local`, name: 'О', role: 'organization' } })).id;
-  partnerUser = (await prisma.user.create({ data: { email: `s9p1-p-${STAMP}@t.local`, name: 'П', role: 'partner' } })).id;
-  manager = (await prisma.user.create({ data: { email: `s9p1-m-${STAMP}@t.local`, name: 'М', role: 'manager', companyId: companyA } })).id;
+  orgA = (
+    await prisma.organization.create({ data: { name: `s9p1-org-${STAMP}`, companyId: companyA } })
+  ).id;
+  partnerA = (
+    await prisma.partner.create({
+      data: { name: `s9p1-pt-${STAMP}`, slug: `s9p1-${STAMP}`, commissionRate: 0.1 },
+    })
+  ).id;
+  orgUser = (
+    await prisma.user.create({
+      data: { email: `s9p1-o-${STAMP}@t.local`, name: 'О', role: 'organization' },
+    })
+  ).id;
+  partnerUser = (
+    await prisma.user.create({
+      data: { email: `s9p1-p-${STAMP}@t.local`, name: 'П', role: 'partner' },
+    })
+  ).id;
+  manager = (
+    await prisma.user.create({
+      data: { email: `s9p1-m-${STAMP}@t.local`, name: 'М', role: 'manager', companyId: companyA },
+    })
+  ).id;
 });
 
 afterAll(async () => {
   await prisma.auditLog.deleteMany({ where: { userId: { in: [orgUser, partnerUser, manager] } } });
   await prisma.inboundMessage.deleteMany({ where: { id: { in: createdIds } } });
-  await prisma.syncLog.deleteMany({ where: { entity: 'inbound', externalId: { startsWith: 'cabinet:' } } }).catch(() => undefined);
+  await prisma.syncLog
+    .deleteMany({ where: { entity: 'inbound', externalId: { startsWith: 'cabinet:' } } })
+    .catch(() => undefined);
   await prisma.organization.deleteMany({ where: { id: orgA } });
   await prisma.partner.deleteMany({ where: { id: partnerA } });
   await prisma.user.deleteMany({ where: { id: { in: [orgUser, partnerUser, manager] } } });
@@ -59,7 +95,7 @@ describe('вопрос из кабинета', () => {
   it('организация: строка unresolved с привязкой к отправителю; видна в inbox и Intake', async () => {
     const res = await submitCabinetQuestion(prisma, sOrg(), {
       subject: `s9p1-тема-${STAMP}`,
-      body: 'Не открывается документ'
+      body: 'Не открывается документ',
     });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
@@ -73,7 +109,7 @@ describe('вопрос из кабинета', () => {
       resolvedUserId: orgUser,
       resolvedOrgId: orgA,
       companyId: companyA,
-      scanStatus: 'none'
+      scanStatus: 'none',
     });
 
     const inbox = await listInbox(prisma, sManager(), { channel: 'cabinet' });
@@ -86,13 +122,21 @@ describe('вопрос из кабинета', () => {
   });
 
   it('партнёр: без организации — общая очередь, тоже виден staff', async () => {
-    const res = await submitCabinetQuestion(prisma, sPartner(), { subject: `s9p1-pt-${STAMP}`, body: 'Вопрос партнёра' });
+    const res = await submitCabinetQuestion(prisma, sPartner(), {
+      subject: `s9p1-pt-${STAMP}`,
+      body: 'Вопрос партнёра',
+    });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     createdIds.push(res.id);
 
     const row = await prisma.inboundMessage.findUnique({ where: { id: res.id } });
-    expect(row).toMatchObject({ resolvedUserId: partnerUser, resolvedOrgId: null, companyId: null, status: 'unresolved' });
+    expect(row).toMatchObject({
+      resolvedUserId: partnerUser,
+      resolvedOrgId: null,
+      companyId: null,
+      status: 'unresolved',
+    });
 
     const intake = await listIntake(prisma, sManager(), { pageSize: 100 });
     expect(intake.ok && intake.result.items.map((i) => i.id)).toContain(res.id);

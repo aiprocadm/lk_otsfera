@@ -1,10 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { translateFinancialStatus, translateExecutionStatus } from '@/lib/services/oneCSync/translate';
+import {
+  translateFinancialStatus,
+  translateExecutionStatus,
+} from '@/lib/services/oneCSync/translate';
 
 describe('translateFinancialStatus', () => {
   it('maps known RU labels to enum', () => {
     expect(translateFinancialStatus('Оплачено')).toEqual({ ok: true, value: 'paid' });
-    expect(translateFinancialStatus('Частично оплачено')).toEqual({ ok: true, value: 'partially_paid' });
+    expect(translateFinancialStatus('Частично оплачено')).toEqual({
+      ok: true,
+      value: 'partially_paid',
+    });
     expect(translateFinancialStatus('Счёт выставлен')).toEqual({ ok: true, value: 'billed' });
   });
   it('is case/space-insensitive', () => {

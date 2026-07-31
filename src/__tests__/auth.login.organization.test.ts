@@ -5,7 +5,7 @@ const { findUniqueUser, updateUser, findManyMemberships, compare, signToken } = 
   updateUser: vi.fn(),
   findManyMemberships: vi.fn(),
   compare: vi.fn(),
-  signToken: vi.fn()
+  signToken: vi.fn(),
 }));
 
 vi.mock('@/lib/db/prisma', () => ({
@@ -13,8 +13,8 @@ vi.mock('@/lib/db/prisma', () => ({
     // updateUser — отметка lastLoginAt (этап 9, ФТ-11.3)
     user: { findUnique: findUniqueUser, update: updateUser },
     partnerUser: { findUnique: vi.fn().mockResolvedValue(null) },
-    organizationUser: { findMany: findManyMemberships }
-  }
+    organizationUser: { findMany: findManyMemberships },
+  },
 }));
 vi.mock('bcryptjs', () => ({ default: { compare } }));
 vi.mock('@/lib/auth/jwt', () => ({ signToken }));
@@ -39,7 +39,7 @@ describe('auth login route — organization memberships', () => {
       email: 'org@example.com',
       name: 'Org User',
       externalStudentId: null,
-      passwordHash: 'hash'
+      passwordHash: 'hash',
     };
   }
 
@@ -47,14 +47,14 @@ describe('auth login route — organization memberships', () => {
     findUniqueUser.mockResolvedValue(orgUser());
     findManyMemberships.mockResolvedValue([
       { organizationId: 'org-A', roleInOrg: 'admin', isActive: true },
-      { organizationId: 'org-B', roleInOrg: 'member', isActive: true }
+      { organizationId: 'org-B', roleInOrg: 'member', isActive: true },
     ]);
 
     const res = await POST(
       new Request('https://app.local/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email: 'org@example.com', password: 'pw' }),
-        headers: { 'content-type': 'application/json' }
+        headers: { 'content-type': 'application/json' },
       })
     );
 
@@ -65,8 +65,8 @@ describe('auth login route — organization memberships', () => {
         role: 'organization',
         organizationMemberships: [
           { organizationId: 'org-A', roleInOrg: 'admin', isActive: true },
-          { organizationId: 'org-B', roleInOrg: 'member', isActive: true }
-        ]
+          { organizationId: 'org-B', roleInOrg: 'member', isActive: true },
+        ],
       })
     );
   });
@@ -74,22 +74,20 @@ describe('auth login route — organization memberships', () => {
   it('preserves the leader role in the signed token', async () => {
     findUniqueUser.mockResolvedValue(orgUser());
     findManyMemberships.mockResolvedValue([
-      { organizationId: 'org-A', roleInOrg: 'leader', isActive: true }
+      { organizationId: 'org-A', roleInOrg: 'leader', isActive: true },
     ]);
 
     await POST(
       new Request('https://app.local/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email: 'org@example.com', password: 'pw' }),
-        headers: { 'content-type': 'application/json' }
+        headers: { 'content-type': 'application/json' },
       })
     );
 
     expect(signToken).toHaveBeenCalledWith(
       expect.objectContaining({
-        organizationMemberships: [
-          { organizationId: 'org-A', roleInOrg: 'leader', isActive: true }
-        ]
+        organizationMemberships: [{ organizationId: 'org-A', roleInOrg: 'leader', isActive: true }],
       })
     );
   });
@@ -97,22 +95,20 @@ describe('auth login route — organization memberships', () => {
   it('coerces unexpected roleInOrg values to member', async () => {
     findUniqueUser.mockResolvedValue(orgUser());
     findManyMemberships.mockResolvedValue([
-      { organizationId: 'org-A', roleInOrg: 'something-weird', isActive: true }
+      { organizationId: 'org-A', roleInOrg: 'something-weird', isActive: true },
     ]);
 
     await POST(
       new Request('https://app.local/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email: 'org@example.com', password: 'pw' }),
-        headers: { 'content-type': 'application/json' }
+        headers: { 'content-type': 'application/json' },
       })
     );
 
     expect(signToken).toHaveBeenCalledWith(
       expect.objectContaining({
-        organizationMemberships: [
-          { organizationId: 'org-A', roleInOrg: 'member', isActive: true }
-        ]
+        organizationMemberships: [{ organizationId: 'org-A', roleInOrg: 'member', isActive: true }],
       })
     );
   });
@@ -125,14 +121,14 @@ describe('auth login route — organization memberships', () => {
       new Request('https://app.local/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email: 'org@example.com', password: 'pw' }),
-        headers: { 'content-type': 'application/json' }
+        headers: { 'content-type': 'application/json' },
       })
     );
 
     expect(res.status).toBe(200);
     expect(signToken).toHaveBeenCalledWith(
       expect.objectContaining({
-        organizationMemberships: []
+        organizationMemberships: [],
       })
     );
   });
@@ -141,14 +137,14 @@ describe('auth login route — organization memberships', () => {
     findUniqueUser.mockResolvedValue({
       ...orgUser(),
       id: 'u-admin',
-      role: 'admin'
+      role: 'admin',
     });
 
     await POST(
       new Request('https://app.local/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email: 'admin@example.com', password: 'pw' }),
-        headers: { 'content-type': 'application/json' }
+        headers: { 'content-type': 'application/json' },
       })
     );
 

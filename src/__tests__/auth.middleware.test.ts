@@ -9,7 +9,7 @@ function req(pathname: string, token?: string) {
   return {
     url: `https://app.local${pathname}`,
     nextUrl: { pathname },
-    cookies: { get: vi.fn().mockReturnValue(token ? { value: token } : undefined) }
+    cookies: { get: vi.fn().mockReturnValue(token ? { value: token } : undefined) },
   } as any;
 }
 

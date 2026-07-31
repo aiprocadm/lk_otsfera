@@ -13,5 +13,5 @@ import type { ReactElement, ReactNode } from 'react';
 export async function renderServerComponent(
   node: ReactNode | Promise<ReactNode>
 ): Promise<ReturnType<typeof render>> {
-  return render(await node as ReactElement);
+  return render((await node) as ReactElement);
 }

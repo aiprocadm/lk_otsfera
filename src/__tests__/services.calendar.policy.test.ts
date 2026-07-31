@@ -6,15 +6,17 @@ import { describe, it, expect } from 'vitest';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeEvent } from '@/lib/services/calendar/policy';
 
-const event = (over: Partial<{ companyId: string; createdById: string; attendeeUserIds: string[] }> = {}) => ({
+const event = (
+  over: Partial<{ companyId: string; createdById: string; attendeeUserIds: string[] }> = {}
+) => ({
   companyId: 'c1',
   createdById: 'creator',
   attendeeUserIds: [] as string[],
-  ...over
+  ...over,
 });
 
 const session = (over: Record<string, unknown>): SessionPayload =>
-  ({ sub: 'm1', role: 'manager', companyId: 'c1', ...over } as unknown as SessionPayload);
+  ({ sub: 'm1', role: 'manager', companyId: 'c1', ...over }) as unknown as SessionPayload;
 
 describe('canSeeEvent — роли', () => {
   it('admin видит всё (Model A), включая чужую компанию', () => {

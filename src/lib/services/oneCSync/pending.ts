@@ -2,11 +2,21 @@ import type { PrismaClient } from '@prisma/client';
 import { log } from '@/lib/logging';
 import { type BatchSummary, emptySummary } from './record-batch';
 import { OneCOrgSchema, OneCOrderSchema, OneCPaymentSchema, OneCDocumentSchema } from './schemas';
-import { upsertOrgRecord, upsertOrderRecord, upsertPaymentRecord, upsertDocumentRecord, type WriteCtx } from './writers';
+import {
+  upsertOrgRecord,
+  upsertOrderRecord,
+  upsertPaymentRecord,
+  upsertDocumentRecord,
+  type WriteCtx,
+} from './writers';
 import { oneCPendingMaxAttempts, oneCPendingMaxAgeDays } from './config';
 
 /** Skip reasons whose dependency may appear on a later sync, so the record is worth replaying. */
-const TRANSIENT_REASONS = new Set(['organization_not_found', 'order_not_found', 'document_fetch_failed']);
+const TRANSIENT_REASONS = new Set([
+  'organization_not_found',
+  'order_not_found',
+  'document_fetch_failed',
+]);
 
 /** True only for known dependency-ordering skips. Unknown/permanent reasons fail closed (no retry). */
 export function isTransientSkip(reason: string): boolean {
@@ -27,8 +37,13 @@ export async function capturePendingSkips<T>(
   summary: BatchSummary
 ): Promise<void> {
   const items = [
-    ...summary.skips.filter((s) => isTransientSkip(s.reason)).map((s) => ({ externalId: s.externalId, reason: s.reason })),
-    ...summary.failures.map((f) => ({ externalId: f.externalId, reason: `threw: ${f.error}`.slice(0, 200) })),
+    ...summary.skips
+      .filter((s) => isTransientSkip(s.reason))
+      .map((s) => ({ externalId: s.externalId, reason: s.reason })),
+    ...summary.failures.map((f) => ({
+      externalId: f.externalId,
+      reason: `threw: ${f.error}`.slice(0, 200),
+    })),
   ];
   if (items.length === 0) return;
   const byExt = new Map(raw.map((r) => [getExternalId(r), r]));
@@ -66,10 +81,22 @@ export async function replayPendingRecords(
   let schema: AnySchema;
   let write: AnyWriter;
   switch (entity) {
-    case 'organization': schema = OneCOrgSchema;    write = upsertOrgRecord;     break;
-    case 'order':        schema = OneCOrderSchema;  write = upsertOrderRecord;   break;
-    case 'payment':      schema = OneCPaymentSchema; write = upsertPaymentRecord; break;
-    case 'document':     schema = OneCDocumentSchema; write = upsertDocumentRecord; break;
+    case 'organization':
+      schema = OneCOrgSchema;
+      write = upsertOrgRecord;
+      break;
+    case 'order':
+      schema = OneCOrderSchema;
+      write = upsertOrderRecord;
+      break;
+    case 'payment':
+      schema = OneCPaymentSchema;
+      write = upsertPaymentRecord;
+      break;
+    case 'document':
+      schema = OneCDocumentSchema;
+      write = upsertDocumentRecord;
+      break;
   }
 
   const rows = await db.oneCPendingRecord.findMany({
@@ -78,10 +105,15 @@ export async function replayPendingRecords(
     take: 500,
   });
   if (rows.length === 500) {
-    log.warn('[1c-pending] replay batch hit the 500-row cap for entity %s — backlog may be truncated this run', entity);
+    log.warn(
+      '[1c-pending] replay batch hit the 500-row cap for entity %s — backlog may be truncated this run',
+      entity
+    );
   }
 
-  let resolved = 0, deadLettered = 0, stillPending = 0;
+  let resolved = 0,
+    deadLettered = 0,
+    stillPending = 0;
   for (const row of rows) {
     const parsed = schema.safeParse(row.dto);
     const attempts = row.attempts + 1;
@@ -89,8 +121,12 @@ export async function replayPendingRecords(
     const overAge = ageMs >= maxAgeDays * MS_PER_DAY;
 
     if (!parsed.success) {
-      await db.oneCPendingRecord.update({ where: { id: row.id }, data: { attempts, status: 'dead', reason: 'invalid_stored_dto' } });
-      deadLettered++; continue;
+      await db.oneCPendingRecord.update({
+        where: { id: row.id },
+        data: { attempts, status: 'dead', reason: 'invalid_stored_dto' },
+      });
+      deadLettered++;
+      continue;
     }
 
     const summary = emptySummary();
@@ -105,7 +141,8 @@ export async function replayPendingRecords(
 
     if (summary.created + summary.updated > 0) {
       await db.oneCPendingRecord.delete({ where: { id: row.id } });
-      resolved++; continue;
+      resolved++;
+      continue;
     }
 
     const lastSkip = summary.skips.at(-1);
@@ -117,7 +154,8 @@ export async function replayPendingRecords(
       where: { id: row.id },
       data: dead ? { attempts, status: 'dead', reason } : { attempts, reason },
     });
-    if (dead) deadLettered++; else stillPending++;
+    if (dead) deadLettered++;
+    else stillPending++;
   }
   return { resolved, deadLettered, stillPending };
 }

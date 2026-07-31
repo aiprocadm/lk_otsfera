@@ -6,19 +6,22 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 const { createLeadAction } = vi.hoisted(() => ({ createLeadAction: vi.fn() }));
 vi.mock('@/server-actions/manager/create-lead', () => ({
-  createLeadByStaffAction: createLeadAction
+  createLeadByStaffAction: createLeadAction,
 }));
 
 import { LeadCreateStaffForm } from '@/components/manager/lead-create-staff-form';
 
 const orgs = [
   { id: 'org-1', name: 'ООО Заказчик' },
-  { id: 'org-2', name: 'АО Вектор' }
+  { id: 'org-2', name: 'АО Вектор' },
 ];
 
 function openDialog() {
@@ -104,7 +107,7 @@ describe('LeadCreateStaffForm', () => {
       contactEmail: null,
       subject: 'Обучение ОТ',
       notes: 'Срочно',
-      organizationId: null
+      organizationId: null,
     });
     expect(refresh).toHaveBeenCalled();
     await waitFor(() => expect(close).toHaveBeenCalled());
@@ -134,7 +137,7 @@ describe('LeadCreateStaffForm', () => {
     createLeadAction.mockResolvedValue({
       ok: false,
       error: 'validation',
-      messages: ['Укажите телефон или email', 'ИНН — 10 или 12 цифр']
+      messages: ['Укажите телефон или email', 'ИНН — 10 или 12 цифр'],
     });
     render(React.createElement(LeadCreateStaffForm, { organizations: orgs }));
     openDialog();
@@ -204,9 +207,15 @@ describe('LeadCreateStaffForm', () => {
       ok: true,
       json: async () => ({
         suggestions: [
-          { name: 'ООО Ромашка', inn: '7707083893', kpp: '770701001', ogrn: null, address: 'г. Москва' }
-        ]
-      })
+          {
+            name: 'ООО Ромашка',
+            inn: '7707083893',
+            kpp: '770701001',
+            ogrn: null,
+            address: 'г. Москва',
+          },
+        ],
+      }),
     });
     vi.stubGlobal('fetch', fetchMock);
     try {

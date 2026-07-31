@@ -5,7 +5,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
-const { invitePartnerOrgAdminAction } = vi.hoisted(() => ({ invitePartnerOrgAdminAction: vi.fn() }));
+const { invitePartnerOrgAdminAction } = vi.hoisted(() => ({
+  invitePartnerOrgAdminAction: vi.fn(),
+}));
 vi.mock('@/server-actions/partner/inviteOrgAdmin', () => ({ invitePartnerOrgAdminAction }));
 
 const { inviteAdminOrgAdminAction } = vi.hoisted(() => ({ inviteAdminOrgAdminAction: vi.fn() }));
@@ -42,7 +44,12 @@ describe('InviteCustomerAdminForm', () => {
   });
 
   it('accepts a custom label prop', () => {
-    render(React.createElement(InviteCustomerAdminForm, { organizationId: 'org1', label: 'Пригласить ещё' }));
+    render(
+      React.createElement(InviteCustomerAdminForm, {
+        organizationId: 'org1',
+        label: 'Пригласить ещё',
+      })
+    );
     expect(screen.getByRole('button', { name: 'Пригласить ещё' })).toBeTruthy();
   });
 
@@ -55,7 +62,12 @@ describe('InviteCustomerAdminForm', () => {
   });
 
   it('source=partner (default) calls invitePartnerOrgAdminAction, not the admin action', async () => {
-    invitePartnerOrgAdminAction.mockResolvedValue({ ok: true, user: { id: 'u1', email: 'a@x.com' }, inviteUrl: 'https://app/invite/a', alreadyHasPassword: false });
+    invitePartnerOrgAdminAction.mockResolvedValue({
+      ok: true,
+      user: { id: 'u1', email: 'a@x.com' },
+      inviteUrl: 'https://app/invite/a',
+      alreadyHasPassword: false,
+    });
     render(React.createElement(InviteCustomerAdminForm, { organizationId: 'org1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить администратора' }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
@@ -68,8 +80,15 @@ describe('InviteCustomerAdminForm', () => {
   });
 
   it('source=admin calls inviteAdminOrgAdminAction', async () => {
-    inviteAdminOrgAdminAction.mockResolvedValue({ ok: true, user: { id: 'u1', email: 'b@x.com' }, inviteUrl: null, alreadyHasPassword: true });
-    render(React.createElement(InviteCustomerAdminForm, { organizationId: 'org1', source: 'admin' }));
+    inviteAdminOrgAdminAction.mockResolvedValue({
+      ok: true,
+      user: { id: 'u1', email: 'b@x.com' },
+      inviteUrl: null,
+      alreadyHasPassword: true,
+    });
+    render(
+      React.createElement(InviteCustomerAdminForm, { organizationId: 'org1', source: 'admin' })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить администратора' }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'b@x.com' } });
@@ -81,7 +100,12 @@ describe('InviteCustomerAdminForm', () => {
   });
 
   it('success with alreadyHasPassword=true shows the "already registered" message (no invite link block)', async () => {
-    invitePartnerOrgAdminAction.mockResolvedValue({ ok: true, user: { id: 'u1', email: 'c@x.com' }, inviteUrl: null, alreadyHasPassword: true });
+    invitePartnerOrgAdminAction.mockResolvedValue({
+      ok: true,
+      user: { id: 'u1', email: 'c@x.com' },
+      inviteUrl: null,
+      alreadyHasPassword: true,
+    });
     render(React.createElement(InviteCustomerAdminForm, { organizationId: 'org1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить администратора' }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
@@ -94,7 +118,12 @@ describe('InviteCustomerAdminForm', () => {
   });
 
   it('success with a fresh invite: shows the link, copy works, then Закрыть closes', async () => {
-    invitePartnerOrgAdminAction.mockResolvedValue({ ok: true, user: { id: 'u1', email: 'd@x.com' }, inviteUrl: 'https://app/invite/d', alreadyHasPassword: false });
+    invitePartnerOrgAdminAction.mockResolvedValue({
+      ok: true,
+      user: { id: 'u1', email: 'd@x.com' },
+      inviteUrl: 'https://app/invite/d',
+      alreadyHasPassword: false,
+    });
     render(React.createElement(InviteCustomerAdminForm, { organizationId: 'org1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить администратора' }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
@@ -103,7 +132,10 @@ describe('InviteCustomerAdminForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
 
     await waitFor(() => expect(screen.getByText(/Приглашение отправлено на/)).toBeTruthy());
-    expect(screen.getByLabelText('Ссылка приглашения')).toHaveProperty('value', 'https://app/invite/d');
+    expect(screen.getByLabelText('Ссылка приглашения')).toHaveProperty(
+      'value',
+      'https://app/invite/d'
+    );
 
     fireEvent.click(screen.getByText('Скопировать'));
     await waitFor(() => expect(screen.getByText('Скопировано ✓')).toBeTruthy());
@@ -115,7 +147,12 @@ describe('InviteCustomerAdminForm', () => {
   });
 
   it('copy is a no-op when inviteUrl is null after success', async () => {
-    invitePartnerOrgAdminAction.mockResolvedValue({ ok: true, user: { id: 'u1', email: 'e@x.com' }, inviteUrl: null, alreadyHasPassword: false });
+    invitePartnerOrgAdminAction.mockResolvedValue({
+      ok: true,
+      user: { id: 'u1', email: 'e@x.com' },
+      inviteUrl: null,
+      alreadyHasPassword: false,
+    });
     render(React.createElement(InviteCustomerAdminForm, { organizationId: 'org1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить администратора' }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
@@ -129,8 +166,15 @@ describe('InviteCustomerAdminForm', () => {
   });
 
   it('clipboard write failure is swallowed silently', async () => {
-    Object.assign(navigator, { clipboard: { writeText: vi.fn().mockRejectedValue(new Error('no-https')) } });
-    invitePartnerOrgAdminAction.mockResolvedValue({ ok: true, user: { id: 'u1', email: 'f@x.com' }, inviteUrl: 'https://app/invite/f', alreadyHasPassword: false });
+    Object.assign(navigator, {
+      clipboard: { writeText: vi.fn().mockRejectedValue(new Error('no-https')) },
+    });
+    invitePartnerOrgAdminAction.mockResolvedValue({
+      ok: true,
+      user: { id: 'u1', email: 'f@x.com' },
+      inviteUrl: 'https://app/invite/f',
+      alreadyHasPassword: false,
+    });
     render(React.createElement(InviteCustomerAdminForm, { organizationId: 'org1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить администратора' }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));

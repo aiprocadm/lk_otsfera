@@ -7,22 +7,41 @@ import { DocumentsList } from '@/components/partner/documents-list';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
 
 const base: OrgDocumentRow = {
-  id: 'd1', name: 'gen.pdf', type: 'other', direction: 'outgoing',
-  signedAt: null, createdAt: new Date('2026-06-01'), size: 100,
-  orderId: null, orderNumber: null, orderTitle: null
+  id: 'd1',
+  name: 'gen.pdf',
+  type: 'other',
+  direction: 'outgoing',
+  signedAt: null,
+  createdAt: new Date('2026-06-01'),
+  size: 100,
+  orderId: null,
+  orderNumber: null,
+  orderTitle: null,
 };
 
 describe('DocumentsList order-less label', () => {
   it('shows «Общий документ» when order fields are null', () => {
-    const html = renderToString(<DocumentsList rows={[{ ...base, orderId: null, orderNumber: null, orderTitle: null }] as never} />);
+    const html = renderToString(
+      <DocumentsList
+        rows={[{ ...base, orderId: null, orderNumber: null, orderTitle: null }] as never}
+      />
+    );
     expect(html).toContain('Общий документ');
   });
   it('shows order reference for order-bound docs', () => {
-    const html = renderToString(<DocumentsList rows={[{ ...base, orderId: 'o1', orderNumber: '№42', orderTitle: 'T' }] as never} />);
+    const html = renderToString(
+      <DocumentsList
+        rows={[{ ...base, orderId: 'o1', orderNumber: '№42', orderTitle: 'T' }] as never}
+      />
+    );
     expect(html).toContain('№42');
   });
   it('falls back to orderTitle when orderNumber is null but the doc is order-bound', () => {
-    const html = renderToString(<DocumentsList rows={[{ ...base, orderId: 'o1', orderNumber: null, orderTitle: 'Обучение ОТ' }] as never} />);
+    const html = renderToString(
+      <DocumentsList
+        rows={[{ ...base, orderId: 'o1', orderNumber: null, orderTitle: 'Обучение ОТ' }] as never}
+      />
+    );
     expect(html).toContain('Обучение ОТ');
   });
 });
@@ -46,7 +65,7 @@ describe('DocumentsList — empty and formatting', () => {
 
   it('§11 PR-4: с cardHrefBase имя документа становится ссылкой на карточку', () => {
     const withCard = renderToString(
-      <DocumentsList rows={[base]} cardHrefBase='/manager/documents' />
+      <DocumentsList rows={[base]} cardHrefBase="/manager/documents" />
     );
     expect(withCard).toContain(`href="/manager/documents/${base.id}"`);
   });
@@ -66,19 +85,33 @@ describe('DocumentsList — empty and formatting', () => {
   });
 
   it('shows the "подписан" badge only when signedAt is set', () => {
-    const signed = renderToString(<DocumentsList rows={[{ ...base, signedAt: new Date('2026-06-02') }]} />);
+    const signed = renderToString(
+      <DocumentsList rows={[{ ...base, signedAt: new Date('2026-06-02') }]} />
+    );
     const unsigned = renderToString(<DocumentsList rows={[{ ...base, signedAt: null }]} />);
     expect(signed).toContain('подписан');
     expect(unsigned).not.toContain('подписан');
   });
 
   it('renders every document type label and falls back to the raw type string for unknown types', () => {
-    const types: OrgDocumentRow['type'][] = ['contract', 'extra_agreement', 'invoice', 'act', 'waybill', 'certificate', 'report', 'commission_statement', 'other'];
+    const types: OrgDocumentRow['type'][] = [
+      'contract',
+      'extra_agreement',
+      'invoice',
+      'act',
+      'waybill',
+      'certificate',
+      'report',
+      'commission_statement',
+      'other',
+    ];
     for (const type of types) {
       const html = renderToString(<DocumentsList rows={[{ ...base, type }]} />);
       expect(html).toBeTruthy();
     }
-    const unknownHtml = renderToString(<DocumentsList rows={[{ ...base, type: 'weird' as OrgDocumentRow['type'] }]} />);
+    const unknownHtml = renderToString(
+      <DocumentsList rows={[{ ...base, type: 'weird' as OrgDocumentRow['type'] }]} />
+    );
     expect(unknownHtml).toContain('weird');
   });
 
@@ -92,7 +125,8 @@ describe('DocumentsList — empty and formatting', () => {
   });
 
   it('icon mapping: contract/extra_agreement -> 📜, invoice/act/waybill -> 🧾, certificate -> 🎖, report -> 📊, commission_statement -> 💼, other/unknown -> 📄', () => {
-    const iconFor = (type: string) => renderToString(<DocumentsList rows={[{ ...base, type: type as OrgDocumentRow['type'] }]} />);
+    const iconFor = (type: string) =>
+      renderToString(<DocumentsList rows={[{ ...base, type: type as OrgDocumentRow['type'] }]} />);
     expect(iconFor('contract')).toContain('📜');
     expect(iconFor('extra_agreement')).toContain('📜');
     expect(iconFor('invoice')).toContain('🧾');
@@ -112,9 +146,13 @@ describe('DocumentsList — download (interactive, jsdom)', () => {
   let removeSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {}) as unknown as ReturnType<typeof vi.fn>;
+    clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => {}) as unknown as ReturnType<typeof vi.fn>;
     appendSpy = vi.spyOn(document.body, 'appendChild') as unknown as ReturnType<typeof vi.fn>;
-    removeSpy = vi.spyOn(HTMLAnchorElement.prototype, 'remove').mockImplementation(() => {}) as unknown as ReturnType<typeof vi.fn>;
+    removeSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'remove')
+      .mockImplementation(() => {}) as unknown as ReturnType<typeof vi.fn>;
   });
   afterEach(() => {
     clickSpy.mockRestore();
@@ -124,7 +162,9 @@ describe('DocumentsList — download (interactive, jsdom)', () => {
   });
 
   it('success path: POSTs the default endpoint, creates+clicks a download link, then removes it', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ downloadUrl: 'https://s3/x' }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ downloadUrl: 'https://s3/x' }) });
     vi.stubGlobal('fetch', fetchMock);
     render(<DocumentsList rows={[base]} />);
     fireEvent.click(screen.getByText('Скачать'));
@@ -136,18 +176,32 @@ describe('DocumentsList — download (interactive, jsdom)', () => {
   });
 
   it('respects a custom downloadEndpointBase and downloadEndpointQuery', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ downloadUrl: 'https://s3/y' }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ downloadUrl: 'https://s3/y' }) });
     vi.stubGlobal('fetch', fetchMock);
-    render(<DocumentsList rows={[base]} downloadEndpointBase='/api/organization/documents' downloadEndpointQuery='?orgId=g1' />);
+    render(
+      <DocumentsList
+        rows={[base]}
+        downloadEndpointBase="/api/organization/documents"
+        downloadEndpointQuery="?orgId=g1"
+      />
+    );
     fireEvent.click(screen.getByText('Скачать'));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    expect(fetchMock).toHaveBeenCalledWith('/api/organization/documents/d1/download?orgId=g1', { method: 'POST' });
+    expect(fetchMock).toHaveBeenCalledWith('/api/organization/documents/d1/download?orgId=g1', {
+      method: 'POST',
+    });
   });
 
   it('shows the busy label while downloading, then resets after completion', async () => {
     let resolveFetch: (v: unknown) => void = () => {};
-    const fetchMock = vi.fn().mockReturnValue(new Promise((resolve) => { resolveFetch = resolve; }));
+    const fetchMock = vi.fn().mockReturnValue(
+      new Promise((resolve) => {
+        resolveFetch = resolve;
+      })
+    );
     vi.stubGlobal('fetch', fetchMock);
     render(<DocumentsList rows={[base]} />);
     fireEvent.click(screen.getByText('Скачать'));
@@ -163,7 +217,9 @@ describe('DocumentsList — download (interactive, jsdom)', () => {
     render(<DocumentsList rows={[base]} />);
     fireEvent.click(screen.getByText('Скачать'));
 
-    await waitFor(() => expect(screen.getByText('Не удалось получить ссылку для скачивания')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText('Не удалось получить ссылку для скачивания')).toBeTruthy()
+    );
     expect(clickSpy).not.toHaveBeenCalled();
   });
 
@@ -185,20 +241,27 @@ describe('DocumentsList — download (interactive, jsdom)', () => {
     render(<DocumentsList rows={[base]} />);
     fireEvent.click(screen.getByText('Скачать'));
 
-    await waitFor(() => expect(screen.getByText('Ссылка не вернулась — попробуйте ещё раз')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText('Ссылка не вернулась — попробуйте ещё раз')).toBeTruthy()
+    );
     expect(clickSpy).not.toHaveBeenCalled();
   });
 
   it('a prior error banner clears on the next download attempt', async () => {
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce({ ok: false })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ downloadUrl: 'https://s3/again' }) });
     vi.stubGlobal('fetch', fetchMock);
     render(<DocumentsList rows={[base]} />);
     fireEvent.click(screen.getByText('Скачать'));
-    await waitFor(() => expect(screen.getByText('Не удалось получить ссылку для скачивания')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText('Не удалось получить ссылку для скачивания')).toBeTruthy()
+    );
 
     fireEvent.click(screen.getByText('Скачать'));
-    await waitFor(() => expect(screen.queryByText('Не удалось получить ссылку для скачивания')).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByText('Не удалось получить ссылку для скачивания')).toBeNull()
+    );
   });
 });

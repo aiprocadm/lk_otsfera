@@ -75,7 +75,7 @@ describe('navItemsFor — chat flag (partner)', () => {
     expect(labels).toContain('Сообщения');
     // Other items still present
     expect(labels).toEqual(
-      expect.arrayContaining(['Главная', 'Портфель', 'Заказы', 'Документы', 'Финансы', 'Команда']),
+      expect.arrayContaining(['Главная', 'Портфель', 'Заказы', 'Документы', 'Финансы', 'Команда'])
     );
   });
 
@@ -174,14 +174,21 @@ describe('navByRole — Финансы (manager + admin)', () => {
 
   it('manager /manager/finance стоит после Организации', () => {
     const hrefs = navByRole.manager.map((i) => i.href);
-    expect(hrefs.indexOf('/manager/finance')).toBeGreaterThan(hrefs.indexOf('/manager/organizations'));
+    expect(hrefs.indexOf('/manager/finance')).toBeGreaterThan(
+      hrefs.indexOf('/manager/organizations')
+    );
   });
 });
 
 describe('navByRole.admin — русский канон с группами (все 24 страницы)', () => {
   it('содержит все админские страницы, включая ранее потерянные documents/messages/finance + корректировки комиссии + заявки на обучение + настройки', () => {
     const hrefs = navByRole.admin.map((i) => i.href);
-    for (const lost of ['/admin/documents', '/admin/messages', '/admin/finance', '/admin/enrollments']) {
+    for (const lost of [
+      '/admin/documents',
+      '/admin/messages',
+      '/admin/finance',
+      '/admin/enrollments',
+    ]) {
       expect(hrefs).toContain(lost);
     }
     expect(hrefs).toContain('/admin/commission-corrections');
@@ -225,7 +232,7 @@ describe('navByRole.organization — единый источник (канон 1
       '/organization/team',
       '/organization/messages',
       '/student',
-      '/organization/settings'
+      '/organization/settings',
     ]);
   });
 
@@ -242,7 +249,9 @@ describe('navByRole.organization — единый источник (канон 1
   });
 
   it('каждый пункт имеет иконку', () => {
-    expect(navByRole.organization.every((i) => typeof i.icon === 'string' && i.icon.length > 0)).toBe(true);
+    expect(
+      navByRole.organization.every((i) => typeof i.icon === 'string' && i.icon.length > 0)
+    ).toBe(true);
   });
 
   it('«Кабинет слушателя» указывает на /student', () => {
@@ -267,7 +276,7 @@ describe('navByRole.partner — состав по ФТ-15.4', () => {
       '/partner/finance',
       '/partner/team',
       '/partner/messages',
-      '/partner/settings'
+      '/partner/settings',
     ]);
   });
 

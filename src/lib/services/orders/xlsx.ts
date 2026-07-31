@@ -7,7 +7,7 @@ import {
   formatDateRu,
   safeText,
   styleHeader,
-  textOrDash
+  textOrDash,
 } from '@/lib/services/export/xlsx';
 
 /**
@@ -22,7 +22,7 @@ const EXECUTION_RU: Record<string, string> = {
   in_progress: 'В работе',
   completed: 'Завершён',
   cancelled: 'Отменён',
-  on_hold: 'Приостановлен'
+  on_hold: 'Приостановлен',
 };
 
 const FINANCIAL_RU: Record<string, string> = {
@@ -30,7 +30,7 @@ const FINANCIAL_RU: Record<string, string> = {
   billed: 'Выставлен',
   partially_paid: 'Частично оплачен',
   paid: 'Оплачен',
-  refunded: 'Возврат'
+  refunded: 'Возврат',
 };
 
 /** Коды приходят из БД-энамов, но fallback на код держим (как в i18n/labels.ts). */
@@ -61,7 +61,7 @@ export function renderOrdersXlsx(args: {
     { header: 'Сумма, ₽', key: 'total', width: 14 },
     { header: 'Оплачено, ₽', key: 'paid', width: 14 },
     { header: 'Долг, ₽', key: 'outstanding', width: 14 },
-    { header: 'Создан', key: 'createdAt', width: 14 }
+    { header: 'Создан', key: 'createdAt', width: 14 },
   ];
 
   const page = args.rows.slice(0, EXPORT_ROW_LIMIT);
@@ -81,7 +81,7 @@ export function renderOrdersXlsx(args: {
       total: total.toFixed(2),
       paid: paid.toFixed(2),
       outstanding: total.minus(paid).toFixed(2),
-      createdAt: formatDateRu(o.createdAt)
+      createdAt: formatDateRu(o.createdAt),
     });
   });
 

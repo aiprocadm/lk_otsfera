@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import AdminMessagesPage from '@/app/admin/messages/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
@@ -22,23 +23,21 @@ vi.mock('@/components/chat/order-thread-inbox', () => ({
       JSON.stringify(props.threads),
       props.currentUserId,
       props.variant
-    )
+    ),
 }));
 
 vi.mock('@/components/chat/unread-badge', () => ({
-  UnreadBadge: () => React.createElement('span', { 'data-testid': 'unread-badge' })
+  UnreadBadge: () => React.createElement('span', { 'data-testid': 'unread-badge' }),
 }));
 
 vi.mock('@/components/staff-chat/staff-chat-section', () => ({
   StaffChatSection: (props: { currentUserId: string }) =>
-    React.createElement('div', { 'data-testid': 'staff-chat-section' }, props.currentUserId)
+    React.createElement('div', { 'data-testid': 'staff-chat-section' }, props.currentUserId),
 }));
 
 vi.mock('@/components/staff-chat/staff-unread-badge', () => ({
-  StaffUnreadBadge: () => React.createElement('span', { 'data-testid': 'staff-unread-badge' })
+  StaffUnreadBadge: () => React.createElement('span', { 'data-testid': 'staff-unread-badge' }),
 }));
-
-import AdminMessagesPage from '@/app/admin/messages/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 

@@ -6,7 +6,7 @@ vi.mock('@/server-actions/payment-import', () => ({
   dismissQueueRowAction: vi.fn(),
   resolveQueueRowAction: vi.fn(),
   searchResolveOrgsAction: vi.fn().mockResolvedValue([]),
-  listResolveOrdersAction: vi.fn().mockResolvedValue([])
+  listResolveOrdersAction: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: vi.fn() } }));
 
@@ -14,10 +14,19 @@ import { PaymentQueueTable, type QueueRow } from '@/components/import/payment-qu
 
 function row(over: Partial<QueueRow> = {}): QueueRow {
   return {
-    id: 'r1', externalId: '0000-9', paidAt: '2026-06-01T00:00:00.000Z', amount: '1500.00', isRefund: false,
-    purpose: 'Оплата', counterpartyName: 'ООО Ромашка', counterpartyInn: '7701234567',
-    accountCandidates: ['СЧ-1'], candidateOrgId: 'org1', candidateOrgName: 'ООО Ромашка', matchMethod: 'fuzzy',
-    ...over
+    id: 'r1',
+    externalId: '0000-9',
+    paidAt: '2026-06-01T00:00:00.000Z',
+    amount: '1500.00',
+    isRefund: false,
+    purpose: 'Оплата',
+    counterpartyName: 'ООО Ромашка',
+    counterpartyInn: '7701234567',
+    accountCandidates: ['СЧ-1'],
+    candidateOrgId: 'org1',
+    candidateOrgName: 'ООО Ромашка',
+    matchMethod: 'fuzzy',
+    ...over,
   };
 }
 

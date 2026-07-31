@@ -17,7 +17,7 @@ const REMIND_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'Без напоминания' },
   { value: '15', label: 'За 15 минут' },
   { value: '60', label: 'За 1 час' },
-  { value: '1440', label: 'За 1 день' }
+  { value: '1440', label: 'За 1 день' },
 ];
 
 /** Date → значение для input type="datetime-local" в локальной TZ браузера. */
@@ -33,7 +33,7 @@ export function EventDialog({
   createDate,
   options,
   onClose,
-  onSaved
+  onSaved,
 }: {
   /** Событие для редактирования; null → создание. */
   target: CalendarItem | null;
@@ -84,13 +84,31 @@ export function EventDialog({
   }
 
   return (
-    <Dialog open onClose={onClose} title={target ? 'Событие' : 'Новое событие'} size="lg" busy={submitting}>
+    <Dialog
+      open
+      onClose={onClose}
+      title={target ? 'Событие' : 'Новое событие'}
+      size="lg"
+      busy={submitting}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field htmlFor="ev-title" label="Название">
-          <Input id="ev-title" name="title" required maxLength={200} defaultValue={target?.title ?? ''} autoFocus />
+          <Input
+            id="ev-title"
+            name="title"
+            required
+            maxLength={200}
+            defaultValue={target?.title ?? ''}
+            autoFocus
+          />
         </Field>
         <Field htmlFor="ev-desc" label="Описание">
-          <Textarea id="ev-desc" name="description" rows={3} defaultValue={target?.description ?? ''} />
+          <Textarea
+            id="ev-desc"
+            name="description"
+            rows={3}
+            defaultValue={target?.description ?? ''}
+          />
         </Field>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field htmlFor="ev-starts" label="Начало">
@@ -103,15 +121,29 @@ export function EventDialog({
             />
           </Field>
           <Field htmlFor="ev-ends" label="Окончание (необязательно)">
-            <Input id="ev-ends" name="endsAt" type="datetime-local" defaultValue={dateTimeValue(target?.endsAt ?? null)} />
+            <Input
+              id="ev-ends"
+              name="endsAt"
+              type="datetime-local"
+              defaultValue={dateTimeValue(target?.endsAt ?? null)}
+            />
           </Field>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field htmlFor="ev-location" label="Место / ссылка">
-            <Input id="ev-location" name="location" maxLength={300} defaultValue={target?.location ?? ''} />
+            <Input
+              id="ev-location"
+              name="location"
+              maxLength={300}
+              defaultValue={target?.location ?? ''}
+            />
           </Field>
           <Field htmlFor="ev-remind" label="Напоминание">
-            <Select id="ev-remind" name="remindMinutes" defaultValue={target?.remindMinutes != null ? String(target.remindMinutes) : ''}>
+            <Select
+              id="ev-remind"
+              name="remindMinutes"
+              defaultValue={target?.remindMinutes != null ? String(target.remindMinutes) : ''}
+            >
               {REMIND_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
@@ -121,14 +153,23 @@ export function EventDialog({
           </Field>
           <div className="flex items-end pb-2">
             <label className="flex items-center gap-2 cursor-pointer text-sm">
-              <input type="checkbox" name="allDay" defaultChecked={target?.allDay ?? false} className="h-4 w-4 rounded" />
+              <input
+                type="checkbox"
+                name="allDay"
+                defaultChecked={target?.allDay ?? false}
+                className="h-4 w-4 rounded"
+              />
               <span>Весь день</span>
             </label>
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field htmlFor="ev-org" label="Организация (необязательно)">
-            <Select id="ev-org" name="linkedOrganizationId" defaultValue={target?.linkedOrganizationId ?? ''}>
+            <Select
+              id="ev-org"
+              name="linkedOrganizationId"
+              defaultValue={target?.linkedOrganizationId ?? ''}
+            >
               <option value="">— не привязана —</option>
               {options.organizations.map((o) => (
                 <option key={o.id} value={o.id}>

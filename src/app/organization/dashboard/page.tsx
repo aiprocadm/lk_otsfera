@@ -7,12 +7,18 @@ import { OrgAttentionList } from '@/components/organization/org-attention-list';
 import { OrgEventsFeed } from '@/components/organization/org-events-feed';
 import { OrgEnrollmentsCard } from '@/components/organization/org-enrollments-card';
 import { isFeatureEnabled } from '@/lib/featureFlags';
-import { kpis, attention, recentEvents, recentEnrollments, expiringCertificates } from '@/lib/services/organization/dashboard';
+import {
+  kpis,
+  attention,
+  recentEvents,
+  recentEnrollments,
+  expiringCertificates,
+} from '@/lib/services/organization/dashboard';
 import { WelcomeCard } from '@/components/welcome/welcome-card';
 import { welcomeActionsFor } from '@/lib/welcomeActions';
 
 export default async function OrganizationDashboardPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<{ org?: string }>;
 }) {
@@ -28,7 +34,10 @@ export default async function OrganizationDashboardPage({
     enrollmentsEnabled ? recentEnrollments(prisma, ctx.activeOrgId) : Promise.resolve([]),
     certificatesEnabled ? expiringCertificates(prisma, ctx.activeOrgId) : Promise.resolve(null),
     // ФТ-10.4: одноразовый welcome-блок — пока пользователь его не скрыл.
-    prisma.user.findUnique({ where: { id: ctx.session.sub }, select: { name: true, welcomeSeenAt: true } })
+    prisma.user.findUnique({
+      where: { id: ctx.session.sub },
+      select: { name: true, welcomeSeenAt: true },
+    }),
   ]);
 
   return (
@@ -39,17 +48,17 @@ export default async function OrganizationDashboardPage({
       activeOrgId={ctx.activeOrgId}
       viewerRole={ctx.viewerRole}
     >
-      <div className='space-y-6'>
+      <div className="space-y-6">
         <div>
-          <h1 className='text-2xl font-semibold text-[#111111]'>Главная</h1>
-          <p className='text-sm text-gray-500 mt-1'>Обзор по {ctx.activeOrgName}</p>
+          <h1 className="text-2xl font-semibold text-[#111111]">Главная</h1>
+          <p className="text-sm text-gray-500 mt-1">Обзор по {ctx.activeOrgName}</p>
         </div>
         {viewer && viewer.welcomeSeenAt === null && (
           <WelcomeCard name={viewer.name} actions={welcomeActionsFor('organization')} />
         )}
         <OrgKpiGrid kpis={k} expiringCertificates={expiringCerts} />
         {enrollmentsEnabled && <OrgEnrollmentsCard rows={enrollments} />}
-        <div className='grid gap-4 md:grid-cols-2'>
+        <div className="grid gap-4 md:grid-cols-2">
           <OrgAttentionList data={a} />
           <OrgEventsFeed events={events} />
         </div>

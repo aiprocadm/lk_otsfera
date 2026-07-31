@@ -9,7 +9,13 @@ vi.mock('@/hooks/useClientResource', () => ({ useClientResource }));
 import { DocumentsPanel } from '@/components/documents/documents-panel';
 
 const docs = [
-  { id: 'd1', name: 'file.pdf', mimeType: 'application/pdf', orderId: 'o1', createdAt: '2026-01-05T10:00:00.000Z' }
+  {
+    id: 'd1',
+    name: 'file.pdf',
+    mimeType: 'application/pdf',
+    orderId: 'o1',
+    createdAt: '2026-01-05T10:00:00.000Z',
+  },
 ];
 
 describe('DocumentsPanel', () => {
@@ -42,7 +48,9 @@ describe('DocumentsPanel', () => {
   it('shows the selected file name once chosen', () => {
     render(React.createElement(DocumentsPanel));
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    const file = new File(['x'], 'contract.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    const file = new File(['x'], 'contract.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
     fireEvent.change(fileInput, { target: { files: [file] } });
     expect(screen.getByText('contract.docx')).toBeTruthy();
   });
@@ -50,7 +58,9 @@ describe('DocumentsPanel', () => {
   it('clearing the file input (empty FileList) resets file to null', () => {
     render(React.createElement(DocumentsPanel));
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    const file = new File(['x'], 'contract.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    const file = new File(['x'], 'contract.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
     fireEvent.change(fileInput, { target: { files: [file] } });
     expect(screen.getByText('contract.docx')).toBeTruthy();
 
@@ -81,7 +91,12 @@ describe('DocumentsPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Загрузить' }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/documents/upload', expect.objectContaining({ method: 'POST' })));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/documents/upload',
+        expect.objectContaining({ method: 'POST' })
+      )
+    );
     const formData = fetchMock.mock.calls[0][1].body as FormData;
     expect(formData.get('orderId')).toBe('order-1');
     expect(formData.get('file')).toBeInstanceOf(File);
@@ -94,7 +109,7 @@ describe('DocumentsPanel', () => {
   it('upload failure: !res.ok keeps fields populated, shows the error and does not refetch', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
-      json: () => Promise.resolve({ code: 'FILE_TOO_LARGE' })
+      json: () => Promise.resolve({ code: 'FILE_TOO_LARGE' }),
     });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(DocumentsPanel));
@@ -114,7 +129,10 @@ describe('DocumentsPanel', () => {
   });
 
   it('download: successful fetch opens the presigned URL in a new tab', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ downloadUrl: 'https://s3/signed' }) });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ downloadUrl: 'https://s3/signed' }),
+    });
     vi.stubGlobal('fetch', fetchMock);
     const openMock = vi.fn();
     vi.stubGlobal('open', openMock);
@@ -124,21 +142,27 @@ describe('DocumentsPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Скачать' }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/documents/d1/download', { method: 'POST' }));
-    await waitFor(() => expect(openMock).toHaveBeenCalledWith('https://s3/signed', '_blank', 'noopener,noreferrer'));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith('/api/documents/d1/download', { method: 'POST' })
+    );
+    await waitFor(() =>
+      expect(openMock).toHaveBeenCalledWith('https://s3/signed', '_blank', 'noopener,noreferrer')
+    );
   });
 
   it('upload failure with an unknown code falls back to the generic upload error', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
-      json: () => Promise.reject(new Error('not json'))
+      json: () => Promise.reject(new Error('not json')),
     });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(DocumentsPanel));
 
     fireEvent.change(screen.getByPlaceholderText('ID заказа'), { target: { value: 'order-3' } });
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    fireEvent.change(fileInput, { target: { files: [new File(['x'], 'doc3.pdf', { type: 'application/pdf' })] } });
+    fireEvent.change(fileInput, {
+      target: { files: [new File(['x'], 'doc3.pdf', { type: 'application/pdf' })] },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Загрузить' }));
 
     expect(
@@ -150,7 +174,7 @@ describe('DocumentsPanel', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 502,
-      json: () => Promise.resolve({})
+      json: () => Promise.resolve({}),
     });
     vi.stubGlobal('fetch', fetchMock);
     const openMock = vi.fn();
@@ -168,7 +192,7 @@ describe('DocumentsPanel', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 410,
-      json: () => Promise.resolve({ code: 'INFECTED' })
+      json: () => Promise.resolve({ code: 'INFECTED' }),
     });
     vi.stubGlobal('fetch', fetchMock);
     const openMock = vi.fn();
@@ -180,7 +204,9 @@ describe('DocumentsPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Скачать' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    expect(await screen.findByText('Файл в карантине: не прошёл антивирусную проверку.')).toBeTruthy();
+    expect(
+      await screen.findByText('Файл в карантине: не прошёл антивирусную проверку.')
+    ).toBeTruthy();
     expect(openMock).not.toHaveBeenCalled();
   });
 });

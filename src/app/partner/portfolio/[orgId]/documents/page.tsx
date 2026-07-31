@@ -20,7 +20,7 @@ const VALID_TYPES: DocumentType[] = [
   'certificate',
   'report',
   'commission_statement',
-  'other'
+  'other',
 ];
 
 const TYPE_LABELS: Record<DocumentType, string> = {
@@ -32,12 +32,12 @@ const TYPE_LABELS: Record<DocumentType, string> = {
   certificate: 'Сертификаты',
   report: 'Отчёты',
   commission_statement: 'Комиссия',
-  other: 'Прочее'
+  other: 'Прочее',
 };
 
 export default async function OrgDocumentsPage({
   params,
-  searchParams
+  searchParams,
 }: {
   params: Promise<{ orgId: string }>;
   searchParams: Promise<{ type?: string }>;
@@ -60,20 +60,15 @@ export default async function OrgDocumentsPage({
   const { rows, countsByType, total } = await getOrgDocuments(prisma, {
     orgId,
     partnerId: session.partnerId,
-    type: typeFilter
+    type: typeFilter,
   });
 
   return (
-    <div className='space-y-4'>
+    <div className="space-y-4">
       <OrgCardHeader card={card} />
-      <OrgTabs orgId={orgId} active='documents' isAdmin={isPartnerAdmin(session)} />
+      <OrgTabs orgId={orgId} active="documents" isAdmin={isPartnerAdmin(session)} />
 
-      <TypeFilter
-        orgId={orgId}
-        active={typeFilter}
-        countsByType={countsByType}
-        total={total}
-      />
+      <TypeFilter orgId={orgId} active={typeFilter} countsByType={countsByType} total={total} />
 
       <DocumentsList rows={rows} />
     </div>
@@ -84,7 +79,7 @@ function TypeFilter({
   orgId,
   active,
   countsByType,
-  total
+  total,
 }: {
   orgId: string;
   active?: DocumentType;
@@ -97,8 +92,8 @@ function TypeFilter({
   if (total === 0) return null;
 
   return (
-    <nav className='flex flex-wrap gap-1.5'>
-      <Chip href={base} active={!active} label='Все' count={total} />
+    <nav className="flex flex-wrap gap-1.5">
+      <Chip href={base} active={!active} label="Все" count={total} />
       {present.map((t) => (
         <Chip
           key={t}
@@ -114,8 +109,16 @@ function TypeFilter({
 }
 
 function Chip({
-  href, label, count, active
-}: { href: string; label: string; count: number; active: boolean }) {
+  href,
+  label,
+  count,
+  active,
+}: {
+  href: string;
+  label: string;
+  count: number;
+  active: boolean;
+}) {
   return (
     <Link
       href={href}

@@ -135,9 +135,7 @@ describe('runBackfill', () => {
   });
 
   it('uses cursor + skip:1 for subsequent pages (cuid-stable ordering)', async () => {
-    documentFindMany
-      .mockResolvedValueOnce([{ id: 'd1' }, { id: 'd2' }])
-      .mockResolvedValueOnce([]);
+    documentFindMany.mockResolvedValueOnce([{ id: 'd1' }, { id: 'd2' }]).mockResolvedValueOnce([]);
     leadFindMany.mockResolvedValueOnce([]);
     await runBackfill(db, { add: queueAdd }, 2);
     // First page: no cursor.
@@ -151,9 +149,7 @@ describe('runBackfill', () => {
 
   it('leadAttachment table also uses cursor on subsequent pages', async () => {
     documentFindMany.mockResolvedValueOnce([]);
-    leadFindMany
-      .mockResolvedValueOnce([{ id: 'l1' }, { id: 'l2' }])
-      .mockResolvedValueOnce([]);
+    leadFindMany.mockResolvedValueOnce([{ id: 'l1' }, { id: 'l2' }]).mockResolvedValueOnce([]);
     await runBackfill(db, { add: queueAdd }, 2);
     // Second page of leadAttachments uses cursor from last row of first page
     expect(leadFindMany.mock.calls[1][0]).toMatchObject({
@@ -209,9 +205,7 @@ describe('runBackfill', () => {
     documentFindMany.mockResolvedValueOnce([]);
     leadFindMany.mockResolvedValueOnce([]);
     inboundFindMany.mockReset();
-    inboundFindMany
-      .mockResolvedValueOnce([{ id: 'im1' }, { id: 'im2' }])
-      .mockResolvedValueOnce([]);
+    inboundFindMany.mockResolvedValueOnce([{ id: 'im1' }, { id: 'im2' }]).mockResolvedValueOnce([]);
     await runBackfill(db, { add: queueAdd }, 2);
     expect(inboundFindMany.mock.calls[0][0]).not.toHaveProperty('cursor');
     expect(inboundFindMany.mock.calls[1][0]).toMatchObject({
@@ -246,9 +240,7 @@ describe('runBackfill', () => {
     documentFindMany.mockResolvedValueOnce([]);
     leadFindMany.mockResolvedValueOnce([]);
     staffFindMany.mockReset();
-    staffFindMany
-      .mockResolvedValueOnce([{ id: 'sm1' }, { id: 'sm2' }])
-      .mockResolvedValueOnce([]);
+    staffFindMany.mockResolvedValueOnce([{ id: 'sm1' }, { id: 'sm2' }]).mockResolvedValueOnce([]);
     await runBackfill(db, { add: queueAdd }, 2);
     expect(staffFindMany.mock.calls[0][0]).not.toHaveProperty('cursor');
     expect(staffFindMany.mock.calls[1][0]).toMatchObject({

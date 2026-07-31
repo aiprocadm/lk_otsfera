@@ -19,8 +19,8 @@ export function registerPdfFonts(): void {
     family: PDF_FONT_FAMILY,
     fonts: [
       { src: path.join(dir, 'DejaVuSans.ttf'), fontWeight: 'normal' },
-      { src: path.join(dir, 'DejaVuSans-Bold.ttf'), fontWeight: 'bold' }
-    ]
+      { src: path.join(dir, 'DejaVuSans-Bold.ttf'), fontWeight: 'bold' },
+    ],
   });
   registered = true;
 }

@@ -3,8 +3,15 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
-    React.createElement('a', { href, className }, children)
+  default: ({
+    href,
+    children,
+    className,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => React.createElement('a', { href, className }, children),
 }));
 
 import { OrgKpiGrid } from '@/components/organization/org-kpi-grid';
@@ -16,7 +23,7 @@ describe('OrgKpiGrid', () => {
       activeOrders: 5,
       outstandingAmount: '1234.50',
       studentsCount: 10,
-      recentDocumentsCount: 3
+      recentDocumentsCount: 3,
     };
     const html = renderToString(React.createElement(OrgKpiGrid, { kpis }));
     expect(html).toContain('href="/organization/orders"');

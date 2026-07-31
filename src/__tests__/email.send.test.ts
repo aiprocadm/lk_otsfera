@@ -8,7 +8,7 @@ vi.mock('@/lib/config/integrationSettings', async (importOriginal) => {
   return {
     ...orig,
     getSettingValue: async (_prisma: unknown, key: keyof typeof orig.SETTING_SPECS) =>
-      process.env[orig.SETTING_SPECS[key].envVar]?.trim() || null
+      process.env[orig.SETTING_SPECS[key].envVar]?.trim() || null,
   };
 });
 
@@ -53,20 +53,14 @@ describe('send()', () => {
   it('skips with no-recipient when "to" is empty', async () => {
     process.env.EMAIL_ENABLED = 'true';
     const transport = makeTransport();
-    const result = await send(
-      { to: '', subject: 'x', html: '<p>x</p>' },
-      { transport },
-    );
+    const result = await send({ to: '', subject: 'x', html: '<p>x</p>' }, { transport });
     expect(result).toEqual({ status: 'skipped', reason: 'no-recipient' });
     expect(transport.calls).toHaveLength(0);
   });
 
   it('skips with disabled when EMAIL_ENABLED is not "true"', async () => {
     const transport = makeTransport();
-    const result = await send(
-      { to: 'a@b.com', subject: 'x', html: '<p>x</p>' },
-      { transport },
-    );
+    const result = await send({ to: 'a@b.com', subject: 'x', html: '<p>x</p>' }, { transport });
     expect(result).toEqual({ status: 'skipped', reason: 'disabled' });
     expect(transport.calls).toHaveLength(0);
   });
@@ -99,7 +93,7 @@ describe('send()', () => {
     const transport = makeTransport();
     const result = await send(
       { to: 'a@b.com', subject: 'x', html: '<p>x</p>', text: 'x' },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
     expect(transport.calls[0]).toMatchObject({
@@ -123,7 +117,7 @@ describe('sendCommissionReadyEmail()', () => {
         amount: '125 000 ₽',
         url: 'https://lk.otsfera.ru/partner/finance/stmt-1',
       },
-      { transport },
+      { transport }
     );
 
     expect(result.status).toBe('sent');
@@ -150,7 +144,7 @@ describe('sendLeadPromotedEmail()', () => {
         orderNumber: 'ORD-2026-0042',
         url: 'https://lk.otsfera.ru/partner/deals/ord-1',
       },
-      { transport },
+      { transport }
     );
 
     const call = transport.calls[0];
@@ -172,7 +166,7 @@ describe('sendDocumentUploadedEmail()', () => {
         filename: 'spec.pdf',
         url: 'https://lk.otsfera.ru/partner/deals/ord-007',
       },
-      { transport },
+      { transport }
     );
 
     const call = transport.calls[0];
@@ -194,7 +188,7 @@ describe('sendNotificationEmail()', () => {
         body: 'Заказ #42: в работе',
         url: 'https://lk.otsfera.ru/orders/42',
       },
-      { transport },
+      { transport }
     );
 
     const call = transport.calls[0];
@@ -215,7 +209,7 @@ describe('sendNotificationEmail()', () => {
         title: 'Хи',
         body: 'Привет',
       },
-      { transport },
+      { transport }
     );
 
     const call = transport.calls[0];

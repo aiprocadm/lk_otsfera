@@ -79,10 +79,11 @@ describe('kpis()', () => {
 
   it('positive partner delta when last30 > prev30', async () => {
     // partner.count called multiple times: isActive, last30, prev30, ...
-    const partnerCount = vi.fn()
-      .mockResolvedValueOnce(10)  // isActive partners
-      .mockResolvedValueOnce(5)   // created last 30 days
-      .mockResolvedValueOnce(2);  // created prev 30 days
+    const partnerCount = vi
+      .fn()
+      .mockResolvedValueOnce(10) // isActive partners
+      .mockResolvedValueOnce(5) // created last 30 days
+      .mockResolvedValueOnce(2); // created prev 30 days
 
     const prisma = makePrisma({ partner: { count: partnerCount } });
     const tiles = await kpis(prisma);
@@ -92,10 +93,11 @@ describe('kpis()', () => {
   });
 
   it('negative partner delta when last30 < prev30', async () => {
-    const partnerCount = vi.fn()
-      .mockResolvedValueOnce(8)   // isActive
-      .mockResolvedValueOnce(1)   // last30
-      .mockResolvedValueOnce(4);  // prev30
+    const partnerCount = vi
+      .fn()
+      .mockResolvedValueOnce(8) // isActive
+      .mockResolvedValueOnce(1) // last30
+      .mockResolvedValueOnce(4); // prev30
 
     const prisma = makePrisma({ partner: { count: partnerCount } });
     const tiles = await kpis(prisma);
@@ -205,7 +207,13 @@ describe('attention()', () => {
 
   it('does not add sync_lag item when lag <=24h', async () => {
     getSyncLagMock.mockResolvedValue([
-      { entity: 'order', lagMs: 23 * 60 * 60 * 1000, lastSuccessAt: new Date(), successCount24h: 10, errorCount24h: 0 },
+      {
+        entity: 'order',
+        lagMs: 23 * 60 * 60 * 1000,
+        lastSuccessAt: new Date(),
+        successCount24h: 10,
+        errorCount24h: 0,
+      },
     ]);
 
     const prisma = makePrisma();
@@ -216,7 +224,14 @@ describe('attention()', () => {
 
   it('adds urgent dlq item when DLQ has jobs', async () => {
     getDlqMock.mockResolvedValue([
-      { queue: 'commission', jobId: 'j1', name: 'calc', failedReason: 'err', failedAt: new Date(), attemptsMade: 3 },
+      {
+        queue: 'commission',
+        jobId: 'j1',
+        name: 'calc',
+        failedReason: 'err',
+        failedAt: new Date(),
+        attemptsMade: 3,
+      },
     ]);
 
     const prisma = makePrisma();
@@ -232,7 +247,10 @@ describe('attention()', () => {
   it('adds warn item for old approved statements', async () => {
     const csCount = vi.fn().mockResolvedValue(3);
     const prisma = makePrisma({
-      commissionStatement: { count: csCount, aggregate: vi.fn().mockResolvedValue({ _sum: { totalCommissionAmount: null } }) },
+      commissionStatement: {
+        count: csCount,
+        aggregate: vi.fn().mockResolvedValue({ _sum: { totalCommissionAmount: null } }),
+      },
     });
 
     const items = await attention(prisma);
@@ -276,24 +294,40 @@ describe('attention()', () => {
 
   it('can return all 4 items simultaneously', async () => {
     getSyncLagMock.mockResolvedValue([
-      { entity: 'order', lagMs: 72 * 60 * 60 * 1000, lastSuccessAt: new Date(), successCount24h: 0, errorCount24h: 5 },
+      {
+        entity: 'order',
+        lagMs: 72 * 60 * 60 * 1000,
+        lastSuccessAt: new Date(),
+        successCount24h: 0,
+        errorCount24h: 5,
+      },
     ]);
     getDlqMock.mockResolvedValue([
-      { queue: 'commission', jobId: 'j1', name: 'calc', failedReason: 'err', failedAt: new Date(), attemptsMade: 3 },
+      {
+        queue: 'commission',
+        jobId: 'j1',
+        name: 'calc',
+        failedReason: 'err',
+        failedAt: new Date(),
+        attemptsMade: 3,
+      },
     ]);
 
     const csCount = vi.fn().mockResolvedValue(2);
     const partnerCount = vi.fn().mockResolvedValue(1);
 
     const prisma = makePrisma({
-      commissionStatement: { count: csCount, aggregate: vi.fn().mockResolvedValue({ _sum: { totalCommissionAmount: null } }) },
+      commissionStatement: {
+        count: csCount,
+        aggregate: vi.fn().mockResolvedValue({ _sum: { totalCommissionAmount: null } }),
+      },
       partner: { count: partnerCount },
     });
 
     const items = await attention(prisma);
     expect(items).toHaveLength(4);
     expect(items.map((i) => i.id).sort()).toEqual(
-      ['dlq', 'no_rate', 'old_approved', 'sync_lag'].sort(),
+      ['dlq', 'no_rate', 'old_approved', 'sync_lag'].sort()
     );
   });
 });
@@ -328,7 +362,7 @@ describe('recentEvents()', () => {
         'commission_statement_paid',
         'partner_commission_rate_changed',
         'lead_created',
-      ]),
+      ])
     );
   });
 
@@ -422,8 +456,16 @@ describe('recentEvents()', () => {
     const events = await recentEvents(prisma);
 
     expect(events).toHaveLength(2);
-    expect(events[0]).toMatchObject({ id: 'e1', actor: 'Менеджер', verb: 'commission_statement_paid' });
-    expect(events[1]).toMatchObject({ id: 'e2', actor: 'partner@example.com', verb: 'lead_created' });
+    expect(events[0]).toMatchObject({
+      id: 'e1',
+      actor: 'Менеджер',
+      verb: 'commission_statement_paid',
+    });
+    expect(events[1]).toMatchObject({
+      id: 'e2',
+      actor: 'partner@example.com',
+      verb: 'lead_created',
+    });
   });
 
   it('falls back to "—" when user is null (actor record deleted)', async () => {

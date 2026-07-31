@@ -5,7 +5,7 @@ export const roleHome: Record<Role, string> = {
   manager: '/manager/dashboard',
   partner: '/partner/dashboard',
   organization: '/organization/dashboard',
-  student: '/student'
+  student: '/student',
 };
 
 // Model A (ось 4 аудита согласованности ролей): каждый кабинетный префикс
@@ -22,5 +22,5 @@ export const protectedPrefixes: Record<string, Role[]> = {
   // /leader — кабинет руководителя: только role=manager; суб-роль managerRole='leader'
   // бьётся серверным гардом requireManagerLeader на layout (middleware суб-роль не режет).
   '/leader': ['manager'],
-  '/student': ['student', 'organization', 'admin', 'manager']
+  '/student': ['student', 'organization', 'admin', 'manager'],
 };

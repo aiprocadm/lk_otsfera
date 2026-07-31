@@ -7,13 +7,13 @@ export {
   updateStatusDefinition,
   deleteStatusDefinition,
   isStatusAnchor,
-  STATUS_ANCHORS
+  STATUS_ANCHORS,
 } from './definitions';
 export type {
   StatusDefinitionsError,
   CreateStatusArgs,
   UpdateStatusPatch,
-  StatusAnchor
+  StatusAnchor,
 } from './definitions';
 
 export { transitionOrderStatus, applyStatusAnchor, listStatusHistory } from './transitions';

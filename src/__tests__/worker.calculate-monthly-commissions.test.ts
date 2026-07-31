@@ -4,17 +4,17 @@ import type { SyncJobPayload } from '@/lib/jobs/types';
 
 // Mock calculateStatementForPartner before importing processor
 vi.mock('@/lib/services/commission/statement', () => ({
-  calculateStatementForPartner: vi.fn()
+  calculateStatementForPartner: vi.fn(),
 }));
 
 // Mock default prisma
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: {}
+  prisma: {},
 }));
 
 // Mock partner notifier (C-02 fan-out)
 vi.mock('@/lib/notifications/partner', () => ({
-  notifyPartnerUsers: vi.fn()
+  notifyPartnerUsers: vi.fn(),
 }));
 
 // Mock late-refund correction detector (A6)
@@ -32,19 +32,29 @@ const mockNotify = notifyPartnerUsers as ReturnType<typeof vi.fn>;
 const mockDetect = detectLateRefundCorrections as ReturnType<typeof vi.fn>;
 
 function statementFixture(over: Record<string, unknown> = {}) {
-  return { id: 's1', periodFrom: new Date(2026, 4, 1), totalCommissionAmount: { toString: () => '125000' }, ...over };
+  return {
+    id: 's1',
+    periodFrom: new Date(2026, 4, 1),
+    totalCommissionAmount: { toString: () => '125000' },
+    ...over,
+  };
 }
 
 function makeJob(id = 'job-1'): Job<SyncJobPayload> {
-  return { id, data: { triggeredAt: new Date().toISOString(), reason: 'cron' } } as Job<SyncJobPayload>;
+  return {
+    id,
+    data: { triggeredAt: new Date().toISOString(), reason: 'cron' },
+  } as Job<SyncJobPayload>;
 }
 
 function makePrisma(partnerIds: { id: string }[]) {
   return {
     payment: {
-      findMany: vi.fn().mockResolvedValue(
-        partnerIds.map((p) => ({ order: { partnerId: p.id }, organization: { partnerId: null } }))
-      ),
+      findMany: vi
+        .fn()
+        .mockResolvedValue(
+          partnerIds.map((p) => ({ order: { partnerId: p.id }, organization: { partnerId: null } }))
+        ),
     },
     syncLog: { create: vi.fn().mockResolvedValue({}) },
   } as any;
@@ -96,8 +106,8 @@ describe('calculateMonthlyCommissionsProcessor', () => {
       data: expect.objectContaining({
         entity: 'commission',
         status: 'warn',
-        errorMessage: expect.stringContaining('p1: DB timeout')
-      })
+        errorMessage: expect.stringContaining('p1: DB timeout'),
+      }),
     });
   });
 
@@ -112,8 +122,8 @@ describe('calculateMonthlyCommissionsProcessor', () => {
       data: expect.objectContaining({
         entity: 'commission',
         status: 'error',
-        errorMessage: expect.stringContaining('ALL failed')
-      })
+        errorMessage: expect.stringContaining('ALL failed'),
+      }),
     });
   });
 
@@ -130,7 +140,12 @@ describe('calculateMonthlyCommissionsProcessor', () => {
 
   it('passes calculatedByUserId=null to calculateStatementForPartner', async () => {
     const db = makePrisma([{ id: 'p1' }]);
-    mockCalc.mockResolvedValue({ ok: true, statement: statementFixture(), itemCount: 1, isNew: true });
+    mockCalc.mockResolvedValue({
+      ok: true,
+      statement: statementFixture(),
+      itemCount: 1,
+      isNew: true,
+    });
 
     await calculateMonthlyCommissionsProcessor(makeJob(), db);
 
@@ -144,7 +159,12 @@ describe('calculateMonthlyCommissionsProcessor', () => {
   // a fresh statement is ready to review.
   it('notifies the partner when a NEW statement with items is created', async () => {
     const db = makePrisma([{ id: 'p1' }]);
-    mockCalc.mockResolvedValue({ ok: true, statement: statementFixture({ id: 's7' }), itemCount: 3, isNew: true });
+    mockCalc.mockResolvedValue({
+      ok: true,
+      statement: statementFixture({ id: 's7' }),
+      itemCount: 3,
+      isNew: true,
+    });
 
     await calculateMonthlyCommissionsProcessor(makeJob(), db);
 
@@ -157,15 +177,20 @@ describe('calculateMonthlyCommissionsProcessor', () => {
           statementId: 's7',
           period: 'май 2026',
           // ru-RU groups thousands with a non-breaking space → match loosely.
-          amount: expect.stringContaining('125')
-        })
+          amount: expect.stringContaining('125'),
+        }),
       })
     );
   });
 
   it('does NOT notify when the statement was an in-place update (isNew=false)', async () => {
     const db = makePrisma([{ id: 'p1' }]);
-    mockCalc.mockResolvedValue({ ok: true, statement: statementFixture(), itemCount: 3, isNew: false });
+    mockCalc.mockResolvedValue({
+      ok: true,
+      statement: statementFixture(),
+      itemCount: 3,
+      isNew: false,
+    });
 
     await calculateMonthlyCommissionsProcessor(makeJob(), db);
 
@@ -174,7 +199,12 @@ describe('calculateMonthlyCommissionsProcessor', () => {
 
   it('does NOT notify when there are no qualifying orders (itemCount=0)', async () => {
     const db = makePrisma([{ id: 'p1' }]);
-    mockCalc.mockResolvedValue({ ok: true, statement: statementFixture(), itemCount: 0, isNew: true });
+    mockCalc.mockResolvedValue({
+      ok: true,
+      statement: statementFixture(),
+      itemCount: 0,
+      isNew: true,
+    });
 
     await calculateMonthlyCommissionsProcessor(makeJob(), db);
 
@@ -183,7 +213,12 @@ describe('calculateMonthlyCommissionsProcessor', () => {
 
   it('a notify failure does not break the batch (best-effort fan-out)', async () => {
     const db = makePrisma([{ id: 'p1' }]);
-    mockCalc.mockResolvedValue({ ok: true, statement: statementFixture(), itemCount: 2, isNew: true });
+    mockCalc.mockResolvedValue({
+      ok: true,
+      statement: statementFixture(),
+      itemCount: 2,
+      isNew: true,
+    });
     mockNotify.mockRejectedValue(new Error('redis down'));
 
     const result = await calculateMonthlyCommissionsProcessor(makeJob(), db);
@@ -198,7 +233,7 @@ describe('calculateMonthlyCommissionsProcessor', () => {
   it('writes syncLog warn (not error) when some partners fail and others are skipped (allFailed=false via skipped)', async () => {
     const db = makePrisma([{ id: 'p1' }, { id: 'p2' }]);
     mockCalc
-      .mockRejectedValueOnce(new Error('timeout'))      // p1 fails
+      .mockRejectedValueOnce(new Error('timeout')) // p1 fails
       .mockResolvedValueOnce({ ok: true, statement: {}, itemCount: 0, isNew: true }); // p2 skipped
 
     const result = await calculateMonthlyCommissionsProcessor(makeJob(), db);
@@ -209,7 +244,7 @@ describe('calculateMonthlyCommissionsProcessor', () => {
     expect(result.errors).toHaveLength(1);
     // status is 'warn', not 'error', because allFailed is false (skipped > 0)
     expect(db.syncLog.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ entity: 'commission', status: 'warn' })
+      data: expect.objectContaining({ entity: 'commission', status: 'warn' }),
     });
   });
 
@@ -250,7 +285,12 @@ describe('calculateMonthlyCommissionsProcessor', () => {
   it('stringifies non-Error notify rejection (String(e) branch in notify catch)', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const db = makePrisma([{ id: 'p1' }]);
-    mockCalc.mockResolvedValue({ ok: true, statement: statementFixture(), itemCount: 2, isNew: true });
+    mockCalc.mockResolvedValue({
+      ok: true,
+      statement: statementFixture(),
+      itemCount: 2,
+      isNew: true,
+    });
     // Reject with a string literal → instanceof Error = false → String(e)
     mockNotify.mockRejectedValue('notify-plain-string');
 

@@ -94,7 +94,9 @@ describe('listCalls (C8 company-scope)', () => {
     expect(ids).toContain(callA.id);
     expect(ids).toContain(callUnresolved.id);
 
-    const outboundResult = await listCalls(prisma, managerSession(companyA.id), { direction: 'outbound' });
+    const outboundResult = await listCalls(prisma, managerSession(companyA.id), {
+      direction: 'outbound',
+    });
     expect(outboundResult.items.map((c) => c.id)).not.toContain(callA.id);
   });
 

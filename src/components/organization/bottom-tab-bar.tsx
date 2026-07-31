@@ -17,7 +17,7 @@ const TABS: Tab[] = [
   { href: '/organization/dashboard', label: 'Главная', icon: '⌂' },
   { href: '/organization/orders', label: 'Заказы', icon: '📋' },
   { href: '/organization/requests', label: 'Заявки', icon: '✚' },
-  { href: '/organization/documents', label: 'Документы', icon: '📄' }
+  { href: '/organization/documents', label: 'Документы', icon: '📄' },
 ];
 
 export function OrganizationBottomTabBar() {
@@ -28,8 +28,8 @@ export function OrganizationBottomTabBar() {
 
   return (
     <nav
-      aria-label='Мобильная навигация'
-      className='fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 grid grid-cols-4 md:hidden'
+      aria-label="Мобильная навигация"
+      className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 grid grid-cols-4 md:hidden"
     >
       {TABS.map((tab) => {
         const active = pathname.startsWith(tab.href);
@@ -42,7 +42,7 @@ export function OrganizationBottomTabBar() {
               active ? 'text-[#F97316]' : 'text-gray-600 active:bg-[#FFF7ED]'
             }`}
           >
-            <span className='text-lg leading-none'>{tab.icon}</span>
+            <span className="text-lg leading-none">{tab.icon}</span>
             {tab.label}
           </Link>
         );

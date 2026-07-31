@@ -11,21 +11,15 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const {
-  getSession,
-  redirect,
-  notFound,
-  orderFindUnique,
-  orgFindUnique,
-  companyFindUnique,
-} = vi.hoisted(() => ({
-  getSession: vi.fn(),
-  redirect: vi.fn(),
-  notFound: vi.fn(),
-  orderFindUnique: vi.fn(),
-  orgFindUnique: vi.fn(),
-  companyFindUnique: vi.fn(),
-}));
+const { getSession, redirect, notFound, orderFindUnique, orgFindUnique, companyFindUnique } =
+  vi.hoisted(() => ({
+    getSession: vi.fn(),
+    redirect: vi.fn(),
+    notFound: vi.fn(),
+    orderFindUnique: vi.fn(),
+    orgFindUnique: vi.fn(),
+    companyFindUnique: vi.fn(),
+  }));
 
 vi.mock('@/lib/auth/session', () => ({ getSession }));
 vi.mock('next/navigation', () => ({ redirect, notFound }));

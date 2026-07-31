@@ -4,16 +4,27 @@ import React from 'react';
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/manager/dashboard',
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
-    React.createElement('a', { href, className }, children)
+  default: ({
+    href,
+    children,
+    className,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => React.createElement('a', { href, className }, children),
 }));
 
 vi.mock('@/components/notifications/notification-bell', () => ({
   NotificationBell: (props: { role: string }) =>
-    React.createElement('span', { 'data-testid': 'notification-bell', 'data-role': props.role }, '🔔')
+    React.createElement(
+      'span',
+      { 'data-testid': 'notification-bell', 'data-role': props.role },
+      '🔔'
+    ),
 }));
 
 import { ManagerAppShell } from '@/components/manager/manager-app-shell';
@@ -32,7 +43,7 @@ function makeSession(overrides: Partial<SessionPayload>): SessionPayload {
     userId: 'u1',
     role: 'manager',
     email: 'ivan@example.com',
-    ...overrides
+    ...overrides,
   } as SessionPayload;
 }
 
@@ -49,7 +60,9 @@ function renderShell(session: SessionPayload, children: React.ReactNode) {
 
 describe('ManagerAppShell', () => {
   it('renders the shell heading, sidebar, and children', () => {
-    const html = renderToString(renderShell(makeSession({}), React.createElement('p', null, 'контент')));
+    const html = renderToString(
+      renderShell(makeSession({}), React.createElement('p', null, 'контент'))
+    );
     expect(html).toContain('Кабинет менеджера');
     expect(html).toContain('контент');
     expect(html).toContain('Выйти');
@@ -71,12 +84,16 @@ describe('ManagerAppShell', () => {
   });
 
   it('leader session includes the "Команда" nav item (isManagerLeader true)', () => {
-    const html = renderToString(renderShell(makeSession({ role: 'manager', managerRole: 'leader' }), 'x'));
+    const html = renderToString(
+      renderShell(makeSession({ role: 'manager', managerRole: 'leader' }), 'x')
+    );
     expect(html).toContain('Команда');
   });
 
   it('plain manager session omits "Команда"', () => {
-    const html = renderToString(renderShell(makeSession({ role: 'manager', managerRole: undefined }), 'x'));
+    const html = renderToString(
+      renderShell(makeSession({ role: 'manager', managerRole: undefined }), 'x')
+    );
     expect(html).not.toContain('Команда');
   });
 });

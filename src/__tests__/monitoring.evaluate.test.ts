@@ -8,7 +8,7 @@ const T: Thresholds = {
   dlqMax: 0,
   syncLagMaxMs: 24 * 3600_000,
   renotifyCooldownMs: 6 * 3600_000,
-  oneCDeadLetterMax: 0
+  oneCDeadLetterMax: 0,
 };
 
 const noCounts = { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 };
@@ -24,7 +24,9 @@ describe('evaluate', () => {
 
   it('flags queue depth over the waiting threshold', () => {
     const r = evaluate(
-      metrics({ queues: [{ queue: 'notifications.dispatch', counts: { ...noCounts, waiting: 101 } }] }),
+      metrics({
+        queues: [{ queue: 'notifications.dispatch', counts: { ...noCounts, waiting: 101 } }],
+      }),
       T
     );
     expect(r).toHaveLength(1);
@@ -45,9 +47,21 @@ describe('evaluate', () => {
     const r = evaluate(
       metrics({
         syncLag: [
-          { entity: 'order', lastSuccessAt: null, lagMs: 25 * 3600_000, successCount24h: 0, errorCount24h: 0 },
-          { entity: 'payment', lastSuccessAt: null, lagMs: null, successCount24h: 0, errorCount24h: 0 }
-        ]
+          {
+            entity: 'order',
+            lastSuccessAt: null,
+            lagMs: 25 * 3600_000,
+            successCount24h: 0,
+            errorCount24h: 0,
+          },
+          {
+            entity: 'payment',
+            lastSuccessAt: null,
+            lagMs: null,
+            successCount24h: 0,
+            errorCount24h: 0,
+          },
+        ],
       }),
       T
     );
@@ -55,10 +69,7 @@ describe('evaluate', () => {
   });
 
   it('flags dead-lettered 1C pending records as critical when above threshold', () => {
-    const r = evaluate(
-      metrics({ pendingDeadLetters: 1 }),
-      getThresholds({})
-    );
+    const r = evaluate(metrics({ pendingDeadLetters: 1 }), getThresholds({}));
     const breach = r.find((b) => b.key === 'onec_dead_letters');
     expect(breach).toBeDefined();
     expect(breach?.severity).toBe('critical');

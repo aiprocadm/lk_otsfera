@@ -20,7 +20,8 @@ export default async function LeaderFunnelPage() {
       <div>
         <h1 className="text-2xl font-bold text-[#111111]">Воронка продаж</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Перетаскивайте карточки между стадиями. «Передано в работу» создаёт заказ, «Отказ» требует причину.
+          Перетаскивайте карточки между стадиями. «Передано в работу» создаёт заказ, «Отказ» требует
+          причину.
         </p>
       </div>
       <FunnelBoard board={board} />

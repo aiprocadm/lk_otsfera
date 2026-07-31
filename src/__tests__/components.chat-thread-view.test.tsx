@@ -23,15 +23,15 @@ describe('ChatThreadView', () => {
         authorId: 'u1',
         authorName: 'Я',
         body: 'Привет от меня',
-        createdAt: new Date('2024-01-15T10:00:00Z')
+        createdAt: new Date('2024-01-15T10:00:00Z'),
       },
       {
         id: 'm2',
         authorId: 'u2',
         authorName: 'Иван Иванов',
         body: 'Привет от другого',
-        createdAt: new Date('2024-01-15T10:01:00Z')
-      }
+        createdAt: new Date('2024-01-15T10:01:00Z'),
+      },
     ];
 
     const html = renderToString(
@@ -60,8 +60,8 @@ describe('ChatThreadView', () => {
         authorName: 'Коллега',
         body: 'Смотри вложение',
         attachmentUrl: '/files/doc.pdf',
-        createdAt: new Date('2024-01-15T10:02:00Z')
-      }
+        createdAt: new Date('2024-01-15T10:02:00Z'),
+      },
     ];
 
     const html = renderToString(
@@ -80,8 +80,8 @@ describe('ChatThreadView', () => {
         authorName: 'Я',
         body: 'моё вложение',
         attachmentUrl: '/files/mine.pdf',
-        createdAt: new Date('2024-01-15T10:02:00Z')
-      }
+        createdAt: new Date('2024-01-15T10:02:00Z'),
+      },
     ];
 
     const html = renderToString(
@@ -99,8 +99,8 @@ describe('ChatThreadView', () => {
         authorId: 'u1',
         authorName: 'Я',
         body: 'строка даты',
-        createdAt: '2024-01-15T10:00:00Z'
-      }
+        createdAt: '2024-01-15T10:00:00Z',
+      },
     ];
     const html = renderToString(
       React.createElement(ChatThreadView, { messages, currentUserId: 'u1' })
@@ -115,8 +115,8 @@ describe('ChatThreadView', () => {
         authorId: 'u1',
         authorName: 'Я',
         body: 'битая дата',
-        createdAt: 'not-a-date'
-      }
+        createdAt: 'not-a-date',
+      },
     ];
     const html = renderToString(
       React.createElement(ChatThreadView, { messages, currentUserId: 'u1' })
@@ -129,7 +129,7 @@ describe('ChatThreadView', () => {
     // but whose getTime() throws, since fmtDateTime itself never throws for
     // valid Date instances. A Date subclass with a poisoned getTime achieves this.
     class ThrowingDate extends Date {
-      getTime(): number {
+      override getTime(): number {
         throw new Error('boom');
       }
     }
@@ -139,8 +139,8 @@ describe('ChatThreadView', () => {
         authorId: 'u1',
         authorName: 'Я',
         body: 'исключение форматирования',
-        createdAt: new ThrowingDate('2024-01-15T10:00:00Z')
-      }
+        createdAt: new ThrowingDate('2024-01-15T10:00:00Z'),
+      },
     ];
     const html = renderToString(
       React.createElement(ChatThreadView, { messages, currentUserId: 'u1' })
@@ -151,9 +151,7 @@ describe('ChatThreadView', () => {
 
 describe('ChatComposer', () => {
   it('renders textarea with correct placeholder and submit button', () => {
-    const html = renderToString(
-      React.createElement(ChatComposer, { onSend: sendNoop })
-    );
+    const html = renderToString(React.createElement(ChatComposer, { onSend: sendNoop }));
     expect(html).toContain('Напишите сообщение');
     expect(html).toContain('Отправить');
   });
@@ -166,9 +164,7 @@ describe('ChatComposer', () => {
   });
 
   it('does NOT render file input when onAttachFile is not provided', () => {
-    const html = renderToString(
-      React.createElement(ChatComposer, { onSend: sendNoop })
-    );
+    const html = renderToString(React.createElement(ChatComposer, { onSend: sendNoop }));
     expect(html).not.toContain('type="file"');
   });
 });

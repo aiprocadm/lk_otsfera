@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getSessionMock, recordAuditMock, userUpdateMock, cookiesMock, cookieDeleteMock } = vi.hoisted(() => ({
-  getSessionMock: vi.fn(),
-  recordAuditMock: vi.fn(),
-  userUpdateMock: vi.fn(),
-  cookiesMock: vi.fn(),
-  cookieDeleteMock: vi.fn()
-}));
+const { getSessionMock, recordAuditMock, userUpdateMock, cookiesMock, cookieDeleteMock } =
+  vi.hoisted(() => ({
+    getSessionMock: vi.fn(),
+    recordAuditMock: vi.fn(),
+    userUpdateMock: vi.fn(),
+    cookiesMock: vi.fn(),
+    cookieDeleteMock: vi.fn(),
+  }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: { user: { update: userUpdateMock } } }));
 vi.mock('@/lib/auth/session', () => ({ getSession: getSessionMock }));
@@ -38,7 +39,7 @@ describe('revokeAllSessionsAction', () => {
     expect(await revokeAllSessionsAction()).toEqual({ ok: true });
     expect(userUpdateMock).toHaveBeenCalledWith({
       where: { id: 'u1' },
-      data: { sessionVersion: { increment: 1 } }
+      data: { sessionVersion: { increment: 1 } },
     });
   });
 
@@ -53,7 +54,7 @@ describe('revokeAllSessionsAction', () => {
         userId: 'u7',
         action: 'sessions_revoked',
         entity: 'user',
-        entityId: 'u7'
+        entityId: 'u7',
       })
     );
   });

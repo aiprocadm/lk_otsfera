@@ -11,7 +11,7 @@ const { ingestMock, uploadMock, recordAuditMock, validateMagicBytesMock } = vi.h
   ingestMock: vi.fn(),
   uploadMock: vi.fn(),
   recordAuditMock: vi.fn(),
-  validateMagicBytesMock: vi.fn()
+  validateMagicBytesMock: vi.fn(),
 }));
 vi.mock('@/lib/services/inbound/ingest', () => ({ ingestInboundMessage: ingestMock }));
 vi.mock('@/lib/storage', () => ({ getObjectStorage: () => ({ upload: uploadMock }) }));
@@ -29,20 +29,32 @@ const orgSession = (over: Record<string, unknown> = {}): SessionPayload =>
     name: 'Иван',
     organizationId: 'org-1',
     organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'admin', isActive: true }],
-    ...over
+    ...over,
   }) as unknown as SessionPayload;
 const partnerSession = (): SessionPayload =>
-  ({ sub: 'p1', role: 'partner', email: 'p@x.ru', name: 'Пётр', partnerId: 'pt-1' }) as unknown as SessionPayload;
-const managerSession = (): SessionPayload => ({ sub: 'm1', role: 'manager' }) as unknown as SessionPayload;
+  ({
+    sub: 'p1',
+    role: 'partner',
+    email: 'p@x.ru',
+    name: 'Пётр',
+    partnerId: 'pt-1',
+  }) as unknown as SessionPayload;
+const managerSession = (): SessionPayload =>
+  ({ sub: 'm1', role: 'manager' }) as unknown as SessionPayload;
 
 function fakePrisma(companyId: string | null = 'co-A') {
   return {
-    organization: { findUnique: vi.fn().mockResolvedValue(companyId ? { companyId } : null) }
+    organization: { findUnique: vi.fn().mockResolvedValue(companyId ? { companyId } : null) },
   } as unknown as PrismaClient;
 }
 
 const VALID = { subject: 'Не открывается документ', body: 'Помогите, пожалуйста' };
-const pdf = { name: 'файл.pdf', type: 'application/pdf', size: 1000, buffer: Buffer.from('%PDF-1.4') };
+const pdf = {
+  name: 'файл.pdf',
+  type: 'application/pdf',
+  size: 1000,
+  buffer: Buffer.from('%PDF-1.4'),
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -59,7 +71,10 @@ describe('questionCode', () => {
 
 describe('submitCabinetQuestion', () => {
   it('сотрудник → forbidden (кабинет-вопрос только клиентским ролям)', async () => {
-    expect(await submitCabinetQuestion(fakePrisma(), managerSession(), VALID)).toEqual({ ok: false, error: 'forbidden' });
+    expect(await submitCabinetQuestion(fakePrisma(), managerSession(), VALID)).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect(ingestMock).not.toHaveBeenCalled();
   });
 
@@ -74,7 +89,7 @@ describe('submitCabinetQuestion', () => {
       senderRef: 'client@x.ru',
       senderDisplay: 'Иван',
       subject: 'Не открывается документ',
-      sender: { userId: 'u1', organizationId: 'org-1', companyId: 'co-A' }
+      sender: { userId: 'u1', organizationId: 'org-1', companyId: 'co-A' },
     });
     expect(dto.externalId).toMatch(/^cabinet:/);
     expect(dto.attachmentPath).toBeUndefined();
@@ -86,15 +101,25 @@ describe('submitCabinetQuestion', () => {
 
   it('партнёр: без организации и компании (общая очередь)', async () => {
     await submitCabinetQuestion(fakePrisma(), partnerSession(), VALID);
-    expect(ingestMock.mock.calls[0]![1].sender).toEqual({ userId: 'p1', organizationId: null, companyId: null });
+    expect(ingestMock.mock.calls[0]![1].sender).toEqual({
+      userId: 'p1',
+      organizationId: null,
+      companyId: null,
+    });
   });
 
   it('валидация: пустая тема/текст и превышение длины — списком, без записи', async () => {
-    const empty = await submitCabinetQuestion(fakePrisma(), orgSession(), { subject: '  ', body: '' });
+    const empty = await submitCabinetQuestion(fakePrisma(), orgSession(), {
+      subject: '  ',
+      body: '',
+    });
     expect(empty.ok).toBe(false);
     if (!empty.ok) expect(empty.messages).toEqual(['Укажите тему обращения', 'Опишите вопрос']);
 
-    const long = await submitCabinetQuestion(fakePrisma(), orgSession(), { subject: 'x'.repeat(201), body: 'y'.repeat(5001) });
+    const long = await submitCabinetQuestion(fakePrisma(), orgSession(), {
+      subject: 'x'.repeat(201),
+      body: 'y'.repeat(5001),
+    });
     expect(long.ok).toBe(false);
     if (!long.ok) expect(long.messages).toHaveLength(2);
     expect(ingestMock).not.toHaveBeenCalled();
@@ -114,23 +139,34 @@ describe('submitCabinetQuestion', () => {
 
   it('вложение: размер, MIME и magic-bytes отбиваются до загрузки', async () => {
     const big = { ...pdf, size: 999_000_000 };
-    expect(await submitCabinetQuestion(fakePrisma(), orgSession(), { ...VALID, file: big })).toEqual({ ok: false, error: 'too_large' });
+    expect(
+      await submitCabinetQuestion(fakePrisma(), orgSession(), { ...VALID, file: big })
+    ).toEqual({ ok: false, error: 'too_large' });
 
     const exe = { ...pdf, type: 'application/x-msdownload' };
-    expect(await submitCabinetQuestion(fakePrisma(), orgSession(), { ...VALID, file: exe })).toEqual({ ok: false, error: 'invalid_mime' });
+    expect(
+      await submitCabinetQuestion(fakePrisma(), orgSession(), { ...VALID, file: exe })
+    ).toEqual({ ok: false, error: 'invalid_mime' });
 
     validateMagicBytesMock.mockReturnValue({ ok: false, reason: 'mime_mismatch' });
-    expect(await submitCabinetQuestion(fakePrisma(), orgSession(), { ...VALID, file: pdf })).toEqual({ ok: false, error: 'invalid_mime' });
+    expect(
+      await submitCabinetQuestion(fakePrisma(), orgSession(), { ...VALID, file: pdf })
+    ).toEqual({ ok: false, error: 'invalid_mime' });
     expect(uploadMock).not.toHaveBeenCalled();
   });
 
   it('сбой хранилища → storage; сбой ingest → storage', async () => {
     uploadMock.mockRejectedValue(new Error('s3 down'));
-    expect(await submitCabinetQuestion(fakePrisma(), orgSession(), { ...VALID, file: pdf })).toEqual({ ok: false, error: 'storage' });
+    expect(
+      await submitCabinetQuestion(fakePrisma(), orgSession(), { ...VALID, file: pdf })
+    ).toEqual({ ok: false, error: 'storage' });
 
     uploadMock.mockResolvedValue(undefined);
     ingestMock.mockResolvedValue({ ok: false, error: 'storage' });
-    expect(await submitCabinetQuestion(fakePrisma(), orgSession(), VALID)).toEqual({ ok: false, error: 'storage' });
+    expect(await submitCabinetQuestion(fakePrisma(), orgSession(), VALID)).toEqual({
+      ok: false,
+      error: 'storage',
+    });
   });
 
   it('организация без активного членства: берётся organizationId сессии', async () => {
@@ -145,7 +181,7 @@ describe('submitCabinetQuestion', () => {
       fakePrisma(),
       orgSession({
         organizationId: 'org-stale',
-        organizationMemberships: [{ organizationId: 'org-2', roleInOrg: 'admin', isActive: true }]
+        organizationMemberships: [{ organizationId: 'org-2', roleInOrg: 'admin', isActive: true }],
       }),
       VALID
     );
@@ -184,7 +220,7 @@ describe('submitCabinetQuestion', () => {
     // ничего, кладём нейтральное «file» вместо пустой строки.
     await submitCabinetQuestion(fakePrisma(), orgSession(), {
       ...VALID,
-      file: { ...pdf, name: 'C:\\Users\\Иван\\' }
+      file: { ...pdf, name: 'C:\\Users\\Иван\\' },
     });
     expect(ingestMock.mock.calls[0]![1].attachmentName).toBe('file');
   });
@@ -207,7 +243,7 @@ describe('submitCabinetQuestion', () => {
     // должно уехать только имя, без каталогов и служебных символов.
     await submitCabinetQuestion(fakePrisma(), orgSession(), {
       ...VALID,
-      file: { ...pdf, name: 'C:\\Users\\Иван\\Мои документы\\счёт №1*?.pdf' }
+      file: { ...pdf, name: 'C:\\Users\\Иван\\Мои документы\\счёт №1*?.pdf' },
     });
     const passed = ingestMock.mock.calls[0]![1].attachmentName as string;
     expect(passed).not.toContain('\\');

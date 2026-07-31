@@ -93,11 +93,26 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 // ---------------------------------------------------------------------------
 
 const ADMIN: SessionPayload = { sub: 'admin', role: 'admin' };
-const PARTNER_ADMIN: SessionPayload = { sub: 'pa', role: 'partner', partnerId: 'p-1', partnerRole: 'admin' };
-const PARTNER_MGR: SessionPayload = { sub: 'pm', role: 'partner', partnerId: 'p-1', partnerRole: 'manager' };
+const PARTNER_ADMIN: SessionPayload = {
+  sub: 'pa',
+  role: 'partner',
+  partnerId: 'p-1',
+  partnerRole: 'admin',
+};
+const PARTNER_MGR: SessionPayload = {
+  sub: 'pm',
+  role: 'partner',
+  partnerId: 'p-1',
+  partnerRole: 'manager',
+};
 const PARTNER_NO_ID: SessionPayload = { sub: 'pni', role: 'partner' };
 const ORG_USER: SessionPayload = { sub: 'ou', role: 'organization', organizationId: 'org-1' };
-const MGR: SessionPayload = { sub: 'mgr', role: 'manager', companyId: 'co-1', managedOrgIds: ['org-1'] };
+const MGR: SessionPayload = {
+  sub: 'mgr',
+  role: 'manager',
+  companyId: 'co-1',
+  managedOrgIds: ['org-1'],
+};
 const STUDENT: SessionPayload = { sub: 'stu', role: 'student' };
 
 beforeEach(() => {
@@ -327,7 +342,12 @@ describe('canReadOrder', () => {
 
   it('manager in scoped mode: canSeeOrder=true → true', async () => {
     getCompanyTeamVisibilityMock.mockResolvedValue(false);
-    orderFindUnique.mockResolvedValue({ id: 'ord-1', managerId: 'mgr', organizationId: 'org-1', companyId: 'co-1' });
+    orderFindUnique.mockResolvedValue({
+      id: 'ord-1',
+      managerId: 'mgr',
+      organizationId: 'org-1',
+      companyId: 'co-1',
+    });
     canSeeOrderMock.mockReturnValue(true);
     expect(await canReadOrder(MGR, ORDER)).toBe(true);
   });
@@ -385,8 +405,12 @@ describe('canReadDocument', () => {
 
   it('returns false when re-fetched doc has no counterpartyType', async () => {
     documentFindUnique.mockResolvedValue({
-      id: 'd', orderId: null, companyId: null,
-      counterpartyType: null, counterpartyId: null, order: null
+      id: 'd',
+      orderId: null,
+      companyId: null,
+      counterpartyType: null,
+      counterpartyId: null,
+      order: null,
     });
     const result = await canReadDocument(ADMIN, { id: 'd', orderId: null });
     expect(result).toBe(false);
@@ -440,11 +464,11 @@ describe('canReadDocument', () => {
     //         = true  → no re-fetch. Then orderId non-null → order-bound. Then L116 triggers.
     const docOrderBoundNoCompany = {
       id: 'doc-no-company',
-      orderId: 'ord-x',       // non-null → order-bound branch
-      companyId: 'co-1',      // keeps haveAll=true without needing order.companyId
+      orderId: 'ord-x', // non-null → order-bound branch
+      companyId: 'co-1', // keeps haveAll=true without needing order.companyId
       counterpartyType: 'partner' as const,
       counterpartyId: 'p-1',
-      order: null,             // null → doc.order?.companyId = undefined → falsy → L116 return false
+      order: null, // null → doc.order?.companyId = undefined → falsy → L116 return false
     };
     const result = await canReadDocument(ADMIN, docOrderBoundNoCompany);
     expect(result).toBe(false);
@@ -475,7 +499,7 @@ describe('canReadDocument', () => {
       companyId: null,
       counterpartyType: 'partner',
       counterpartyId: 'p-1',
-      order: { companyId: 'co-1' }
+      order: { companyId: 'co-1' },
     });
     organizationFindFirst.mockResolvedValue({ id: 'org-1' });
     // Provide a doc missing the fields that trigger re-fetch (no counterpartyType)

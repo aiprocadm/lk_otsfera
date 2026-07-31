@@ -21,15 +21,20 @@ type SearchParams = {
 };
 
 export default async function LeaderOrdersPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
   const session = await requireManagerLeader();
   const sp = await searchParams;
   const [{ rows, nextCursor }, orgs] = await Promise.all([
-    listOrders(prisma, { session, ...sp, unassigned: sp.unassigned === '1', teamModeOverride: true }),
-    listOrganizations(prisma, session, true)
+    listOrders(prisma, {
+      session,
+      ...sp,
+      unassigned: sp.unassigned === '1',
+      teamModeOverride: true,
+    }),
+    listOrganizations(prisma, session, true),
   ]);
   // §10 ТЗ v0.5: фильтр по рабочему статусу — активные строки справочника.
   const statusOptions = (await getOrderedStatuses(prisma))
@@ -38,27 +43,32 @@ export default async function LeaderOrdersPage({
 
   return (
     <>
-      <div className='mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
+      <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <h1 className='text-2xl font-semibold text-[#111111]'>Заказы</h1>
-          <p className='text-sm text-gray-500 mt-0.5'>Все заказы компании</p>
+          <h1 className="text-2xl font-semibold text-[#111111]">Заказы</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Все заказы компании</p>
         </div>
         {/* ФТ-12.2: `scope=company` повторяет company-wide режим экрана лидера. */}
         <ExportLink
-          base='/api/manager/orders/export'
+          base="/api/manager/orders/export"
           params={{
             scope: 'company',
             search: sp.search,
             executionStatus: sp.executionStatus,
             financialStatus: sp.financialStatus,
             organizationId: sp.organizationId,
-            unassigned: sp.unassigned
+            unassigned: sp.unassigned,
           }}
         />
       </div>
-      <ManagerOrdersFilter orgs={orgs} initial={sp} statuses={statusOptions} basePath='/leader' />
-      <ManagerOrdersTable rows={rows} nextCursor={nextCursor} searchParams={sp} basePath='/leader' />
-      <ManagerOrdersCardList rows={rows} basePath='/leader' />
+      <ManagerOrdersFilter orgs={orgs} initial={sp} statuses={statusOptions} basePath="/leader" />
+      <ManagerOrdersTable
+        rows={rows}
+        nextCursor={nextCursor}
+        searchParams={sp}
+        basePath="/leader"
+      />
+      <ManagerOrdersCardList rows={rows} basePath="/leader" />
     </>
   );
 }

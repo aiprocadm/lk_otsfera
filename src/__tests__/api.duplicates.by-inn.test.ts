@@ -51,7 +51,7 @@ describe('GET /api/duplicates/by-inn', () => {
     expect(await res.json()).toEqual({ error: 'rate_limited' });
     expect(vi.mocked(isRateLimited)).toHaveBeenCalledWith('duplicates-inn:mgr-1', {
       windowMs: 60 * 1000,
-      max: 30
+      max: 30,
     });
     expect(vi.mocked(findByInn)).not.toHaveBeenCalled();
   });
@@ -75,7 +75,7 @@ describe('GET /api/duplicates/by-inn', () => {
   it('200 happy: {duplicates}; prisma/сессия/inn прокинуты в сервис', async () => {
     const duplicates = {
       organizations: [{ id: 'o1', name: 'ООО Ромашка' }],
-      leads: [{ id: 'l1', subject: 'Обучение', status: 'new' }]
+      leads: [{ id: 'l1', subject: 'Обучение', status: 'new' }],
     };
     vi.mocked(getSession).mockResolvedValue(manager);
     vi.mocked(findByInn).mockResolvedValue({ ok: true, duplicates });

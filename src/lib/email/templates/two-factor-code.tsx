@@ -16,8 +16,8 @@ export function TwoFactorCodeTemplate({ name, code }: TwoFactorCodeProps) {
         <span style={emailStyles.mono}>{code}</span>
       </p>
       <p style={emailStyles.muted}>
-        Код действует 10 минут. Если вы не входили в кабинет — смените пароль:
-        запрос кода означает, что ваш пароль знает кто-то ещё.
+        Код действует 10 минут. Если вы не входили в кабинет — смените пароль: запрос кода означает,
+        что ваш пароль знает кто-то ещё.
       </p>
     </EmailLayout>
   );
@@ -33,6 +33,6 @@ export function twoFactorCodeText({ name, code }: TwoFactorCodeProps): string {
     '',
     `Ваш код подтверждения входа: ${code}`,
     '',
-    'Код действует 10 минут. Если вы не входили в кабинет — смените пароль.'
+    'Код действует 10 минут. Если вы не входили в кабинет — смените пароль.',
   ].join('\n');
 }

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import LeaderFunnelPage from '@/app/leader/funnel/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManagerLeader } = vi.hoisted(() => ({ requireManagerLeader: vi.fn() }));
@@ -18,13 +19,13 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
 vi.mock('@/components/funnel/funnel-board', () => ({
   FunnelBoard: (props: { board: unknown }) =>
-    React.createElement('div', { 'data-testid': 'funnel-board' }, JSON.stringify(props.board))
+    React.createElement('div', { 'data-testid': 'funnel-board' }, JSON.stringify(props.board)),
 }));
 
 vi.mock('@/components/funnel/stage-config', () => ({
@@ -34,12 +35,15 @@ vi.mock('@/components/funnel/stage-config', () => ({
       { 'data-testid': 'stage-config' },
       String(props.isDefault),
       JSON.stringify(props.stages)
-    )
+    ),
 }));
 
-import LeaderFunnelPage from '@/app/leader/funnel/page';
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'leader' as const,
+  companyId: 'c1',
+};
 
 describe('LeaderFunnelPage', () => {
   beforeEach(() => {
@@ -63,7 +67,7 @@ describe('LeaderFunnelPage', () => {
     requireManagerLeader.mockResolvedValue(SESSION);
     getFunnelBoard.mockResolvedValue({
       stages: [{ id: 'default:new', name: 'Новый' }],
-      columns: []
+      columns: [],
     });
 
     const { container } = await renderServerComponent(LeaderFunnelPage());
@@ -78,7 +82,7 @@ describe('LeaderFunnelPage', () => {
     requireManagerLeader.mockResolvedValue(SESSION);
     getFunnelBoard.mockResolvedValue({
       stages: [{ id: 'custom-1', name: 'Своя стадия' }],
-      columns: []
+      columns: [],
     });
 
     const { container } = await renderServerComponent(LeaderFunnelPage());

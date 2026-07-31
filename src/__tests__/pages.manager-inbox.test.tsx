@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import ManagerInboxPage from '@/app/manager/inbox/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
@@ -12,14 +13,14 @@ vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 vi.mock('next/navigation', () => ({
   notFound: () => {
     throw new Error('NOTFOUND');
-  }
+  },
 }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { listInbox, listOrganizations } = vi.hoisted(() => ({
   listInbox: vi.fn(),
-  listOrganizations: vi.fn()
+  listOrganizations: vi.fn(),
 }));
 vi.mock('@/lib/services/inbound/listInbox', () => ({ listInbox }));
 vi.mock('@/lib/services/manager/organizations', () => ({ listOrganizations }));
@@ -30,7 +31,7 @@ vi.mock('@/components/manager/inbox-filters', () => ({
       'div',
       { 'data-testid': 'inbox-filters' },
       `${String(props.channel)}|${String(props.status)}`
-    )
+    ),
 }));
 
 vi.mock('@/components/manager/inbox-list', () => ({
@@ -40,10 +41,8 @@ vi.mock('@/components/manager/inbox-list', () => ({
       { 'data-testid': 'inbox-list', 'data-contacts-enabled': String(!!props.contactsEnabled) },
       JSON.stringify(props.items),
       JSON.stringify(props.organizations)
-    )
+    ),
 }));
-
-import ManagerInboxPage from '@/app/manager/inbox/page';
 
 const SESSION = { sub: 'u1', role: 'manager' as const, companyId: 'c1' };
 
@@ -65,9 +64,9 @@ describe('ManagerInboxPage', () => {
 
   it('flag inbound_messaging выключен → notFound', async () => {
     mockFlags({ inbound_messaging: false });
-    await expect(
-      ManagerInboxPage({ searchParams: Promise.resolve({}) })
-    ).rejects.toThrow('NOTFOUND');
+    await expect(ManagerInboxPage({ searchParams: Promise.resolve({}) })).rejects.toThrow(
+      'NOTFOUND'
+    );
     expect(requireManager).not.toHaveBeenCalled();
   });
 
@@ -95,9 +94,7 @@ describe('ManagerInboxPage', () => {
       listInbox.mockResolvedValue({ items: [], total: 0 });
       listOrganizations.mockResolvedValue([]);
 
-      await renderServerComponent(
-        ManagerInboxPage({ searchParams: Promise.resolve({ status }) })
-      );
+      await renderServerComponent(ManagerInboxPage({ searchParams: Promise.resolve({ status }) }));
 
       expect(listInbox).toHaveBeenCalledWith({}, SESSION, expect.objectContaining({ status }));
     }
@@ -124,7 +121,7 @@ describe('ManagerInboxPage', () => {
 
     const { getByTestId } = await renderServerComponent(
       ManagerInboxPage({
-        searchParams: Promise.resolve({ status: 'bogus', channel: 'telegram', skip: '25' })
+        searchParams: Promise.resolve({ status: 'bogus', channel: 'telegram', skip: '25' }),
       })
     );
 
@@ -144,7 +141,7 @@ describe('ManagerInboxPage', () => {
 
     const { getByTestId } = await renderServerComponent(
       ManagerInboxPage({
-        searchParams: Promise.resolve({ status: 'bogus', channel: 'bogus' })
+        searchParams: Promise.resolve({ status: 'bogus', channel: 'bogus' }),
       })
     );
 

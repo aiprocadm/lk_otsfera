@@ -1,9 +1,14 @@
-import type { ParsedRow } from './types';
 import { classifyRow } from './classify';
 import {
-  parseRusDate, parseAmount, extractDocNumber, extractAccountCandidates,
-  extractCounterparty, extractInn, extractVat,
+  parseRusDate,
+  parseAmount,
+  extractDocNumber,
+  extractAccountCandidates,
+  extractCounterparty,
+  extractInn,
+  extractVat,
 } from './extractors';
+import type { ParsedRow } from './types';
 
 const START_MARKER = /Сальдо\s+на\s+начало/i;
 const END_MARKER = /Обороты\s+за\s+период/i;
@@ -14,8 +19,12 @@ const COL = { date: 0, document: 1, analyticsCr: 3, debit: 5, corr: 7, credit: 8
 // Callers always pass a guaranteed string (`document ?? ''`), so the `?? ''`
 // nullish fallbacks are unreachable defensive guards.
 /* v8 ignore next 2 */
-function firstLine(s: string): string { return (s ?? '').split('\n')[0].trim(); }
-function restLines(s: string): string { return (s ?? '').split('\n').slice(1).join('\n').trim(); }
+function firstLine(s: string): string {
+  return (s ?? '').split('\n')[0].trim();
+}
+function restLines(s: string): string {
+  return (s ?? '').split('\n').slice(1).join('\n').trim();
+}
 
 /**
  * Карточка счёта 51 (как string[][]) → нормализованные строки-операции.
@@ -28,8 +37,14 @@ export function parseAccountCard(sheet: string[][]): ParsedRow[] {
   let end = sheet.length;
   for (let i = 0; i < sheet.length; i++) {
     const joined = (sheet[i] ?? []).join(' ');
-    if (start === -1 && START_MARKER.test(joined)) { start = i; continue; }
-    if (start !== -1 && END_MARKER.test(joined)) { end = i; break; }
+    if (start === -1 && START_MARKER.test(joined)) {
+      start = i;
+      continue;
+    }
+    if (start !== -1 && END_MARKER.test(joined)) {
+      end = i;
+      break;
+    }
   }
   if (start === -1) return [];
 

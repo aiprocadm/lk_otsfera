@@ -25,7 +25,11 @@ describe('GET /api/partner/portfolio/[orgId]', () => {
   });
 
   it('403 when session role is not partner', async () => {
-    vi.mocked(getSession).mockResolvedValue({ sub: 'u', role: 'organization', organizationId: 'o1' } as any);
+    vi.mocked(getSession).mockResolvedValue({
+      sub: 'u',
+      role: 'organization',
+      organizationId: 'o1',
+    } as any);
     const res = await GET(new Request('http://x/'), ctx('o1'));
     expect(res.status).toBe(403);
     expect(canPartnerAccessOrg).not.toHaveBeenCalled();
@@ -53,9 +57,15 @@ describe('GET /api/partner/portfolio/[orgId]', () => {
     vi.mocked(getSession).mockResolvedValue({ sub: 'u', role: 'partner', partnerId: 'p1' } as any);
     vi.mocked(canPartnerAccessOrg).mockResolvedValue(true);
     vi.mocked(getOrgCard).mockResolvedValue({
-      id: 'o1', name: 'X', inn: '1', kpp: null, legalName: 'X LLC',
-      assignedManagerUserId: null, partnerCommissionRate: null, partnerCommissionRateNote: null,
-      kpi: { ordersCount: 0, debt: '0.00' }
+      id: 'o1',
+      name: 'X',
+      inn: '1',
+      kpp: null,
+      legalName: 'X LLC',
+      assignedManagerUserId: null,
+      partnerCommissionRate: null,
+      partnerCommissionRateNote: null,
+      kpi: { ordersCount: 0, debt: '0.00' },
     });
 
     const res = await GET(new Request('http://x/'), ctx('o1'));

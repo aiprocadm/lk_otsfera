@@ -7,7 +7,7 @@ import { Prisma } from '@prisma/client';
 import { getPartnerDealDetail } from '@/lib/services/partner/dealDetail';
 
 vi.mock('@/lib/auth/documentChannelPolicy', () => ({
-  partnerChannelWhere: vi.fn(() => ({ counterpartyType: 'partner', counterpartyId: 'p1' }))
+  partnerChannelWhere: vi.fn(() => ({ counterpartyType: 'partner', counterpartyId: 'p1' })),
 }));
 
 function dec(n: number) {
@@ -35,12 +35,12 @@ const baseOrder = {
   organization: { id: 'org1', name: 'ООО Тест', inn: '7700000001' },
   manager: { name: 'Менеджер Иванов' },
   documents: [],
-  comments: []
+  comments: [],
 };
 
 function makePrisma(order: object | null) {
   return {
-    order: { findFirst: vi.fn().mockResolvedValue(order) }
+    order: { findFirst: vi.fn().mockResolvedValue(order) },
   } as any;
 }
 
@@ -85,10 +85,18 @@ describe('getPartnerDealDetail — unit', () => {
   it('maps documents with order-level orderNumber and orderTitle', async () => {
     const order = {
       ...baseOrder,
-      documents: [{
-        id: 'd1', name: 'file.pdf', type: 'other', direction: 'incoming',
-        signedAt: null, createdAt: new Date('2024-02-01'), size: 100, orderId: 'o1'
-      }]
+      documents: [
+        {
+          id: 'd1',
+          name: 'file.pdf',
+          type: 'other',
+          direction: 'incoming',
+          signedAt: null,
+          createdAt: new Date('2024-02-01'),
+          size: 100,
+          orderId: 'o1',
+        },
+      ],
     };
     const prisma = makePrisma(order);
     const result = await getPartnerDealDetail(prisma, { dealId: 'o1', partnerId: 'p1' });
@@ -97,17 +105,21 @@ describe('getPartnerDealDetail — unit', () => {
       id: 'd1',
       orderId: 'o1',
       orderNumber: 'N001',
-      orderTitle: 'Заказ 1'
+      orderTitle: 'Заказ 1',
     });
   });
 
   it('maps comments with authorName', async () => {
     const order = {
       ...baseOrder,
-      comments: [{
-        id: 'c1', body: 'Текст', createdAt: new Date('2024-03-01'),
-        author: { name: 'Автор Петров' }
-      }]
+      comments: [
+        {
+          id: 'c1',
+          body: 'Текст',
+          createdAt: new Date('2024-03-01'),
+          author: { name: 'Автор Петров' },
+        },
+      ],
     };
     const prisma = makePrisma(order);
     const result = await getPartnerDealDetail(prisma, { dealId: 'o1', partnerId: 'p1' });
@@ -129,9 +141,9 @@ describe('getPartnerDealDetail — unit', () => {
           directionId: 'd1',
           student: { id: 's1', name: 'Иван Слушатель', email: 'ivan@demo.local' },
           direction: { id: 'd1', name: 'Охрана труда' },
-          certificate: null
-        }
-      ]
+          certificate: null,
+        },
+      ],
     };
     const prisma = makePrisma(orderWithItems);
     const result = await getPartnerDealDetail(prisma, { dealId: 'o1', partnerId: 'p1' });

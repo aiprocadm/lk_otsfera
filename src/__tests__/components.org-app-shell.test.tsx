@@ -6,7 +6,7 @@ const { navItemsFor } = vi.hoisted(() => ({ navItemsFor: vi.fn() }));
 vi.mock('@/lib/navigation/cabinet', () => ({ navItemsFor }));
 
 vi.mock('@/components/ui', () => ({
-  LogoutButton: () => React.createElement('button', null, 'Выйти')
+  LogoutButton: () => React.createElement('button', null, 'Выйти'),
 }));
 
 vi.mock('@/components/organization/org-sidebar', () => ({
@@ -15,19 +15,23 @@ vi.mock('@/components/organization/org-sidebar', () => ({
       'nav',
       { 'data-testid': 'org-sidebar' },
       props.items.map((item) => React.createElement('span', { key: item.href }, item.label))
-    )
+    ),
 }));
 
 vi.mock('@/components/notifications/notification-bell', () => ({
   NotificationBell: (props: { role: string }) =>
-    React.createElement('span', { 'data-testid': 'notification-bell', 'data-role': props.role }, '🔔')
+    React.createElement(
+      'span',
+      { 'data-testid': 'notification-bell', 'data-role': props.role },
+      '🔔'
+    ),
 }));
 
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import type { OrgSidebarMembership } from '@/components/organization/org-sidebar';
 
 const MEMBERSHIPS: OrgSidebarMembership[] = [
-  { organizationId: 'org-A', organizationName: 'ООО Заря', roleInOrg: 'admin' }
+  { organizationId: 'org-A', organizationName: 'ООО Заря', roleInOrg: 'admin' },
 ];
 
 // React.createElement's overloads require `children` up front when a
@@ -52,7 +56,7 @@ describe('OrgAppShell', () => {
         memberships: MEMBERSHIPS,
         activeOrgId: 'org-A',
         viewerRole: 'admin',
-        children: React.createElement('p', null, 'дочерний контент')
+        children: React.createElement('p', null, 'дочерний контент'),
       })
     );
 
@@ -72,7 +76,7 @@ describe('OrgAppShell', () => {
         memberships: MEMBERSHIPS,
         activeOrgId: 'org-A',
         viewerRole: 'admin',
-        children: 'c'
+        children: 'c',
       })
     );
     expect(html).toContain('data-role="organization"');
@@ -80,7 +84,7 @@ describe('OrgAppShell', () => {
 
   it.each([
     ['выключен', undefined, false],
-    ['включён', '1', true]
+    ['включён', '1', true],
   ])('кнопка «Задать вопрос»: флаг %s → показана=%s', (_label, envValue, expected) => {
     // cabinet_questions — флаг с явным включением (по умолчанию выключен,
     // staged rollout). Шапка обязана оставаться рабочей в обоих состояниях.
@@ -95,7 +99,7 @@ describe('OrgAppShell', () => {
           memberships: MEMBERSHIPS,
           activeOrgId: 'org-A',
           viewerRole: 'admin',
-          children: null
+          children: null,
         })
       );
       expect(html.includes('Задать вопрос')).toBe(expected);
@@ -114,7 +118,7 @@ describe('OrgAppShell', () => {
         memberships: MEMBERSHIPS,
         activeOrgId: 'org-A',
         viewerRole: 'admin',
-        children: 'c'
+        children: 'c',
       })
     );
     expect(html).not.toContain('·');

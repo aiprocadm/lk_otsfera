@@ -36,7 +36,7 @@ const CERT = {
   documentId: 'doc1',
   student: { id: 's1', name: 'Иванов Иван' },
   direction: { id: 'd1', name: 'Охрана труда' },
-  organization: { id: 'org1', name: 'ООО Ромашка' }
+  organization: { id: 'org1', name: 'ООО Ромашка' },
 };
 
 const req = (url: string) => new Request(url);
@@ -64,7 +64,9 @@ describe('GET /api/organization/certificates/export', () => {
   it('успех: фильтры из query уходят в сервис, тело — валидный xlsx без колонки «Организация»', async () => {
     getSession.mockResolvedValue(orgSession);
     const res = await orgExport(
-      req('http://x/api/organization/certificates/export?org=org1&direction=d1&status=expiring&search=%D0%98%D0%B2%D0%B0%D0%BD')
+      req(
+        'http://x/api/organization/certificates/export?org=org1&direction=d1&status=expiring&search=%D0%98%D0%B2%D0%B0%D0%BD'
+      )
     );
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('spreadsheetml');
@@ -73,7 +75,7 @@ describe('GET /api/organization/certificates/export', () => {
       organizationId: 'org1',
       directionId: 'd1',
       status: 'expiring',
-      search: 'Иван'
+      search: 'Иван',
     });
 
     const wb = new ExcelJS.Workbook();
@@ -87,7 +89,11 @@ describe('GET /api/organization/certificates/export', () => {
   it('неизвестный status игнорируется (undefined в сервис)', async () => {
     getSession.mockResolvedValue(orgSession);
     await orgExport(req('http://x/export?status=bogus'));
-    expect(listCertificates).toHaveBeenCalledWith({}, orgSession, expect.objectContaining({ status: undefined }));
+    expect(listCertificates).toHaveBeenCalledWith(
+      {},
+      orgSession,
+      expect.objectContaining({ status: undefined })
+    );
   });
 });
 
@@ -114,7 +120,7 @@ describe('GET /api/partner/certificates/export', () => {
       organizationId: undefined,
       directionId: undefined,
       status: undefined,
-      search: undefined
+      search: undefined,
     });
   });
 
@@ -127,7 +133,7 @@ describe('GET /api/partner/certificates/export', () => {
       organizationId: 'org1',
       directionId: undefined,
       status: 'expired',
-      search: undefined
+      search: undefined,
     });
 
     const wb = new ExcelJS.Workbook();

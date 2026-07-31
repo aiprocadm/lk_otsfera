@@ -33,9 +33,7 @@ type UseFormActionOptions<T> = {
 };
 
 type FormActionState<T> =
-  | { status: 'idle' }
-  | { status: 'success'; data: T }
-  | { status: 'error'; errorText: string };
+  { status: 'idle' } | { status: 'success'; data: T } | { status: 'error'; errorText: string };
 
 export function useFormAction<T = object>(opts: UseFormActionOptions<T>) {
   const router = useRouter();
@@ -57,7 +55,11 @@ export function useFormAction<T = object>(opts: UseFormActionOptions<T>) {
         if (opts.refresh) router.refresh();
         return { status: 'success', data: data as T, generation };
       }
-      return { status: 'error', errorText: resolveErrorText(result.error, opts.errorMap), generation };
+      return {
+        status: 'error',
+        errorText: resolveErrorText(result.error, opts.errorMap),
+        generation,
+      };
     },
     { status: 'idle' }
   );

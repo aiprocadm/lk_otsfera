@@ -1,14 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { requireSession, revalidatePath, createAccessProfile, updateAccessProfile, deleteAccessProfile, assignUserProfile } =
-  vi.hoisted(() => ({
-    requireSession: vi.fn(),
-    revalidatePath: vi.fn(),
-    createAccessProfile: vi.fn(),
-    updateAccessProfile: vi.fn(),
-    deleteAccessProfile: vi.fn(),
-    assignUserProfile: vi.fn()
-  }));
+const {
+  requireSession,
+  revalidatePath,
+  createAccessProfile,
+  updateAccessProfile,
+  deleteAccessProfile,
+  assignUserProfile,
+} = vi.hoisted(() => ({
+  requireSession: vi.fn(),
+  revalidatePath: vi.fn(),
+  createAccessProfile: vi.fn(),
+  updateAccessProfile: vi.fn(),
+  deleteAccessProfile: vi.fn(),
+  assignUserProfile: vi.fn(),
+}));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
 vi.mock('next/cache', () => ({ revalidatePath }));
@@ -17,14 +23,14 @@ vi.mock('@/lib/services/access/profiles', () => ({
   createAccessProfile,
   updateAccessProfile,
   deleteAccessProfile,
-  assignUserProfile
+  assignUserProfile,
 }));
 
 import {
   createAccessProfileAction,
   updateAccessProfileAction,
   deleteAccessProfileAction,
-  assignUserProfileAction
+  assignUserProfileAction,
 } from '@/server-actions/access/profiles';
 
 const SESSION = { sub: 'u1', role: 'manager', managerRole: 'leader', companyId: 'co-A' };
@@ -54,7 +60,11 @@ describe('createAccessProfileAction', () => {
     expect(createAccessProfile).toHaveBeenCalledWith(
       {},
       SESSION,
-      expect.objectContaining({ name: 'Оператор', orders: 'own', capabilities: ['see_commission', 'export'] })
+      expect.objectContaining({
+        name: 'Оператор',
+        orders: 'own',
+        capabilities: ['see_commission', 'export'],
+      })
     );
     expect(revalidatePath).toHaveBeenCalledWith('/leader/roles');
     expect(revalidatePath).toHaveBeenCalledWith('/admin/roles');
@@ -81,7 +91,12 @@ describe('updateAccessProfileAction', () => {
     fd.set('id', 'p-9');
     const res = await updateAccessProfileAction(fd);
     expect(res).toEqual({ ok: true });
-    expect(updateAccessProfile).toHaveBeenCalledWith({}, SESSION, 'p-9', expect.objectContaining({ name: 'Оператор' }));
+    expect(updateAccessProfile).toHaveBeenCalledWith(
+      {},
+      SESSION,
+      'p-9',
+      expect.objectContaining({ name: 'Оператор' })
+    );
     expect(revalidatePath).toHaveBeenCalledWith('/admin/roles');
   });
 
@@ -95,7 +110,10 @@ describe('updateAccessProfileAction', () => {
 
 describe('deleteAccessProfileAction', () => {
   it('missing id → validation', async () => {
-    expect(await deleteAccessProfileAction(new FormData())).toEqual({ ok: false, error: 'validation' });
+    expect(await deleteAccessProfileAction(new FormData())).toEqual({
+      ok: false,
+      error: 'validation',
+    });
     expect(deleteAccessProfile).not.toHaveBeenCalled();
   });
 
@@ -110,7 +128,10 @@ describe('deleteAccessProfileAction', () => {
 
 describe('assignUserProfileAction', () => {
   it('missing userId → validation', async () => {
-    expect(await assignUserProfileAction(new FormData())).toEqual({ ok: false, error: 'validation' });
+    expect(await assignUserProfileAction(new FormData())).toEqual({
+      ok: false,
+      error: 'validation',
+    });
     expect(assignUserProfile).not.toHaveBeenCalled();
   });
 
@@ -129,6 +150,9 @@ describe('assignUserProfileAction', () => {
     fd.set('userId', 'u-7');
     fd.set('profileId', 'p-2');
     expect(await assignUserProfileAction(fd)).toEqual({ ok: false, error: 'not_found' });
-    expect(assignUserProfile).toHaveBeenCalledWith({}, SESSION, { userId: 'u-7', profileId: 'p-2' });
+    expect(assignUserProfile).toHaveBeenCalledWith({}, SESSION, {
+      userId: 'u-7',
+      profileId: 'p-2',
+    });
   });
 });

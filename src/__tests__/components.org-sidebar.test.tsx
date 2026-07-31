@@ -9,7 +9,7 @@ const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock('next/navigation', () => ({
   usePathname: vi.fn(),
   useRouter: vi.fn(() => ({ push })),
-  useSearchParams: vi.fn(() => new URLSearchParams())
+  useSearchParams: vi.fn(() => new URLSearchParams()),
 }));
 
 vi.mock('next/link', () => ({
@@ -18,7 +18,7 @@ vi.mock('next/link', () => ({
     children,
     className,
     'data-testid': testId,
-    'data-active': dataActive
+    'data-active': dataActive,
   }: {
     href: string;
     children: React.ReactNode;
@@ -30,7 +30,7 @@ vi.mock('next/link', () => ({
       'a',
       { href, className, 'data-testid': testId, 'data-active': dataActive },
       children
-    )
+    ),
 }));
 
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -42,20 +42,20 @@ import { navByRole, type NavItem } from '@/lib/navigation/cabinet';
 const ALL_ORG_ITEMS: NavItem[] = navByRole.organization;
 
 const SINGLE_ADMIN: OrgSidebarMembership[] = [
-  { organizationId: 'org-A', organizationName: 'ООО Заря', roleInOrg: 'admin' }
+  { organizationId: 'org-A', organizationName: 'ООО Заря', roleInOrg: 'admin' },
 ];
 
 const SINGLE_MEMBER: OrgSidebarMembership[] = [
-  { organizationId: 'org-A', organizationName: 'ООО Заря', roleInOrg: 'member' }
+  { organizationId: 'org-A', organizationName: 'ООО Заря', roleInOrg: 'member' },
 ];
 
 const SINGLE_LEADER: OrgSidebarMembership[] = [
-  { organizationId: 'org-A', organizationName: 'ООО Заря', roleInOrg: 'leader' }
+  { organizationId: 'org-A', organizationName: 'ООО Заря', roleInOrg: 'leader' },
 ];
 
 const MULTI: OrgSidebarMembership[] = [
   { organizationId: 'org-A', organizationName: 'ООО Заря', roleInOrg: 'admin' },
-  { organizationId: 'org-B', organizationName: 'ООО Восход', roleInOrg: 'member' }
+  { organizationId: 'org-B', organizationName: 'ООО Восход', roleInOrg: 'member' },
 ];
 
 describe('OrgSidebar', () => {
@@ -71,7 +71,7 @@ describe('OrgSidebar', () => {
         items: ALL_ORG_ITEMS,
         memberships: SINGLE_ADMIN,
         activeOrgId: 'org-A',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     const matches = html.match(/data-testid="org-nav-/g);
@@ -86,7 +86,7 @@ describe('OrgSidebar', () => {
         items: ALL_ORG_ITEMS,
         memberships: SINGLE_MEMBER,
         activeOrgId: 'org-A',
-        viewerRole: 'member'
+        viewerRole: 'member',
       })
     );
     const matches = html.match(/data-testid="org-nav-/g);
@@ -101,7 +101,7 @@ describe('OrgSidebar', () => {
         items: ALL_ORG_ITEMS,
         memberships: SINGLE_LEADER,
         activeOrgId: 'org-A',
-        viewerRole: 'leader'
+        viewerRole: 'leader',
       })
     );
     const matches = html.match(/data-testid="org-nav-/g);
@@ -116,7 +116,7 @@ describe('OrgSidebar', () => {
         items: ALL_ORG_ITEMS,
         memberships: SINGLE_ADMIN,
         activeOrgId: 'org-A',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     const activeMatches = html.match(/data-active="true"/g);
@@ -131,7 +131,7 @@ describe('OrgSidebar', () => {
         items: ALL_ORG_ITEMS,
         memberships: SINGLE_ADMIN,
         activeOrgId: 'org-A',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(html).toContain('data-testid="org-nav--organization-orders" data-active="true"');
@@ -144,7 +144,7 @@ describe('OrgSidebar', () => {
         items: ALL_ORG_ITEMS,
         memberships: SINGLE_ADMIN,
         activeOrgId: 'org-A',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(html).not.toContain('data-testid="org-selector"');
@@ -157,7 +157,7 @@ describe('OrgSidebar', () => {
         items: ALL_ORG_ITEMS,
         memberships: MULTI,
         activeOrgId: 'org-A',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(html).toContain('data-testid="org-selector"');
@@ -172,7 +172,7 @@ describe('OrgSidebar', () => {
         items: ALL_ORG_ITEMS,
         memberships: MULTI,
         activeOrgId: 'org-A',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(html).toContain('href="/organization/dashboard?org=org-A"');
@@ -185,7 +185,7 @@ describe('OrgSidebar', () => {
         items: ALL_ORG_ITEMS,
         memberships: MULTI,
         activeOrgId: 'org-A',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     const select = screen.getByTestId('org-selector');
@@ -201,7 +201,7 @@ describe('OrgSidebar', () => {
         items: ALL_ORG_ITEMS,
         memberships: SINGLE_ADMIN,
         activeOrgId: 'org-unknown',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(html).toContain('>Организация<');
@@ -215,7 +215,7 @@ describe('OrgSidebar', () => {
         items,
         memberships: SINGLE_ADMIN,
         activeOrgId: 'org-A',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(html).toContain('Без иконки');
@@ -224,13 +224,15 @@ describe('OrgSidebar', () => {
 
   it('falls back to an empty query string when useSearchParams() returns undefined (buildHref + onOrgChange)', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
-    vi.mocked(useSearchParams).mockReturnValueOnce(undefined as unknown as ReturnType<typeof useSearchParams>);
+    vi.mocked(useSearchParams).mockReturnValueOnce(
+      undefined as unknown as ReturnType<typeof useSearchParams>
+    );
     render(
       React.createElement(OrgSidebar, {
         items: ALL_ORG_ITEMS,
         memberships: MULTI,
         activeOrgId: 'org-A',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(screen.getByTestId('org-nav--organization-dashboard').getAttribute('href')).toBe(

@@ -7,7 +7,7 @@ import { clientLog } from '@/lib/logging/client';
 // не быть в документе, поэтому классам здесь доверять нельзя.
 export default function GlobalError({
   error,
-  reset
+  reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
@@ -17,7 +17,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang='ru'>
+    <html lang="ru">
       <body
         style={{
           margin: 0,
@@ -26,9 +26,8 @@ export default function GlobalError({
           alignItems: 'center',
           justifyContent: 'center',
           background: '#F9FAFB',
-          fontFamily:
-            "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-          padding: 24
+          fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+          padding: 24,
         }}
       >
         <div style={{ textAlign: 'center', maxWidth: 420 }}>
@@ -41,7 +40,7 @@ export default function GlobalError({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              margin: '0 auto 24px'
+              margin: '0 auto 24px',
             }}
           >
             <span style={{ color: '#FFFFFF', fontSize: 24, fontWeight: 700 }}>!</span>
@@ -62,7 +61,7 @@ export default function GlobalError({
               borderRadius: 8,
               fontSize: 14,
               border: 'none',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             Попробовать снова

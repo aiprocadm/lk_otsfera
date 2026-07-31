@@ -11,7 +11,7 @@ import { Select } from '@/components/ui';
 export function IntakeFilters({
   managers,
   assigneeId,
-  onlyUnassigned
+  onlyUnassigned,
 }: {
   managers: { id: string; name: string }[];
   assigneeId: string | null;
@@ -28,7 +28,8 @@ export function IntakeFilters({
     const q = new URLSearchParams(searchParams.toString());
     q.delete('skip'); // смена фильтра сбрасывает пагинацию
     const nextAssignee = patch.assigneeId;
-    const nextUnassigned = patch.onlyUnassigned !== undefined ? patch.onlyUnassigned : onlyUnassigned;
+    const nextUnassigned =
+      patch.onlyUnassigned !== undefined ? patch.onlyUnassigned : onlyUnassigned;
     if (nextAssignee) q.set('assignee', nextAssignee);
     else q.delete('assignee');
     if (nextUnassigned) q.set('unassigned', '1');

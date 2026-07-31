@@ -7,13 +7,10 @@ import { assignOrgs, deactivateMember } from '@/lib/services/partner/team';
 import { recordAudit } from '@/lib/auth/audit';
 
 const assignSchema = z.object({
-  assignedOrgIds: z.array(z.string())
+  assignedOrgIds: z.array(z.string()),
 });
 
-export async function PUT(
-  req: Request,
-  ctx: { params: Promise<{ userId: string }> }
-) {
+export async function PUT(req: Request, ctx: { params: Promise<{ userId: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -29,7 +26,7 @@ export async function PUT(
   const res = await assignOrgs(prisma, {
     partnerId: admin.value.partnerId,
     userId,
-    assignedOrgIds: parsed.data.assignedOrgIds
+    assignedOrgIds: parsed.data.assignedOrgIds,
   });
   if (!res.ok) {
     return NextResponse.json({ error: res.error }, { status: 422 });
@@ -50,10 +47,7 @@ export async function PUT(
   return NextResponse.json({ ok: true });
 }
 
-export async function DELETE(
-  _req: Request,
-  ctx: { params: Promise<{ userId: string }> }
-) {
+export async function DELETE(_req: Request, ctx: { params: Promise<{ userId: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

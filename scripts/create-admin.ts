@@ -62,8 +62,8 @@ export async function bootstrapAdmin(
         role: Role.admin,
         passwordHash,
         companyId: company.id,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     await recordAudit(tx, {
@@ -71,7 +71,7 @@ export async function bootstrapAdmin(
       action: 'admin_bootstrapped',
       entity: 'user',
       entityId: created.id,
-      after: { email, role: 'admin', companyId: company.id }
+      after: { email, role: 'admin', companyId: company.id },
     });
 
     return created;
@@ -91,7 +91,9 @@ async function main(): Promise<void> {
 
   if (!email || !password) {
     console.error('✗ Заданы не все обязательные env: ADMIN_EMAIL и ADMIN_PASSWORD.');
-    console.error('  Пример: ADMIN_EMAIL=admin@example.ru ADMIN_PASSWORD=secret12 npm run db:create-admin');
+    console.error(
+      '  Пример: ADMIN_EMAIL=admin@example.ru ADMIN_PASSWORD=secret12 npm run db:create-admin'
+    );
     process.exit(1);
   }
 
@@ -103,7 +105,8 @@ async function main(): Promise<void> {
       const msg: Record<'invalid_email' | 'weak_password' | 'email_taken_non_admin', string> = {
         invalid_email: 'некорректный ADMIN_EMAIL',
         weak_password: `ADMIN_PASSWORD короче ${MIN_PASSWORD_LENGTH} символов`,
-        email_taken_non_admin: 'email уже занят пользователем с другой ролью — повышение до admin запрещено'
+        email_taken_non_admin:
+          'email уже занят пользователем с другой ролью — повышение до admin запрещено',
       };
       console.error(`✗ ${msg[result.error]}`);
       code = 1;

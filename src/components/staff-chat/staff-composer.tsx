@@ -128,7 +128,9 @@ export function StaffComposer({ conversationId, colleagues, onSend }: Props) {
   const canSubmit = !uploading && text.trim().length > 0;
 
   return (
-    <div style={{ position: 'relative', borderTop: '1px solid #E5E7EB', backgroundColor: '#ffffff' }}>
+    <div
+      style={{ position: 'relative', borderTop: '1px solid #E5E7EB', backgroundColor: '#ffffff' }}
+    >
       {showMentions && (
         <ul
           style={{
@@ -145,7 +147,7 @@ export function StaffComposer({ conversationId, colleagues, onSend }: Props) {
             borderRadius: '8px',
             boxShadow: '0 -4px 12px rgba(0,0,0,0.08)',
             maxHeight: '160px',
-            overflowY: 'auto'
+            overflowY: 'auto',
           }}
         >
           {filteredColleagues.map((c) => (
@@ -161,7 +163,7 @@ export function StaffComposer({ conversationId, colleagues, onSend }: Props) {
                   background: 'none',
                   cursor: 'pointer',
                   fontSize: '13px',
-                  color: '#111111'
+                  color: '#111111',
                 }}
               >
                 @{c.name}
@@ -180,7 +182,7 @@ export function StaffComposer({ conversationId, colleagues, onSend }: Props) {
             backgroundColor: '#FFF7ED',
             borderBottom: '1px solid #FED7AA',
             fontSize: '13px',
-            color: '#C2410C'
+            color: '#C2410C',
           }}
         >
           <span>📎 {attachment.name}</span>
@@ -194,14 +196,17 @@ export function StaffComposer({ conversationId, colleagues, onSend }: Props) {
               color: '#9CA3AF',
               fontSize: '16px',
               lineHeight: 1,
-              padding: '0 2px'
+              padding: '0 2px',
             }}
           >
             ✕
           </button>
         </div>
       )}
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 16px' }}>
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 16px' }}
+      >
         <textarea
           ref={textareaRef}
           value={text}
@@ -221,7 +226,7 @@ export function StaffComposer({ conversationId, colleagues, onSend }: Props) {
             color: '#111111',
             outline: 'none',
             fontFamily: 'inherit',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
           }}
         />
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -237,7 +242,7 @@ export function StaffComposer({ conversationId, colleagues, onSend }: Props) {
               lineHeight: 1,
               userSelect: 'none',
               color: '#374151',
-              opacity: uploading ? 0.5 : 1
+              opacity: uploading ? 0.5 : 1,
             }}
           >
             📎
@@ -262,7 +267,7 @@ export function StaffComposer({ conversationId, colleagues, onSend }: Props) {
               color: canSubmit ? '#ffffff' : '#9CA3AF',
               fontSize: '14px',
               fontWeight: 600,
-              cursor: canSubmit ? 'pointer' : 'default'
+              cursor: canSubmit ? 'pointer' : 'default',
             }}
           >
             Отправить

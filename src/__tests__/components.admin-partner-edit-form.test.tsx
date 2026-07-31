@@ -19,7 +19,7 @@ function partner(overrides: Partial<PartnerDetail> = {}): PartnerDetail {
     name: 'Партнёр Х',
     commissionRate: 0.08,
     isActive: true,
-    ...overrides
+    ...overrides,
   } as PartnerDetail;
 }
 
@@ -65,7 +65,9 @@ describe('PartnerEditForm', () => {
     render(React.createElement(PartnerEditForm, { partner: partner({ id: 'p9' }) }));
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
-    await waitFor(() => expect(screen.getByRole('status')).toHaveProperty('textContent', 'Изменения сохранены.'));
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveProperty('textContent', 'Изменения сохранены.')
+    );
     const fd = updatePartnerAction.mock.calls[0][0] as FormData;
     expect(fd.get('id')).toBe('p9');
   });
@@ -82,12 +84,18 @@ describe('PartnerEditForm', () => {
 
   it('busy state shows "Сохраняю…" and disables the submit button', async () => {
     let resolvePromise: (v: unknown) => void = () => {};
-    updatePartnerAction.mockReturnValue(new Promise((resolve) => { resolvePromise = resolve; }));
+    updatePartnerAction.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      })
+    );
     render(React.createElement(PartnerEditForm, { partner: partner() }));
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Сохраняю…' })).toBeTruthy());
-    expect((screen.getByRole('button', { name: 'Сохраняю…' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Сохраняю…' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
     resolvePromise({ ok: true });
     await waitFor(() => expect(screen.getByRole('status')).toBeTruthy());
   });

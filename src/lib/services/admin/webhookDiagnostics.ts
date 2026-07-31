@@ -18,12 +18,12 @@ export async function recordWebhookEvent(prisma: PrismaClient, name: WebhookName
     await prisma.syncState.upsert({
       where: { entity },
       create: { entity, lastSuccessAt: now },
-      update: { lastSuccessAt: now }
+      update: { lastSuccessAt: now },
     });
   } catch (err) {
     log.warn('[webhookDiagnostics] record failed', {
       name,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 }

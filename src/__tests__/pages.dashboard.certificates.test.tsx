@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { renderServerComponent } from './helpers/renderServerComponent';
 
 /**
  * Этап 3 PR-1 (ФТ-6.4): KPI-карточка «Истекают удостоверения» на дашбордах
@@ -28,7 +27,7 @@ const org = vi.hoisted(() => ({
   attention: vi.fn(),
   recentEvents: vi.fn(),
   recentEnrollments: vi.fn(),
-  expiringCertificates: vi.fn()
+  expiringCertificates: vi.fn(),
 }));
 vi.mock('@/lib/services/organization/dashboard', () => org);
 
@@ -37,31 +36,44 @@ const partner = vi.hoisted(() => ({
   attention: vi.fn(),
   recentEvents: vi.fn(),
   recentEnrollments: vi.fn(),
-  expiringCertificates: vi.fn()
+  expiringCertificates: vi.fn(),
 }));
 vi.mock('@/lib/services/partner/dashboard', () => partner);
 
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: (props: { activeOrgName: string; children: React.ReactNode }) =>
-    React.createElement('div', { 'data-testid': 'org-app-shell' }, props.activeOrgName, props.children)
+    React.createElement(
+      'div',
+      { 'data-testid': 'org-app-shell' },
+      props.activeOrgName,
+      props.children
+    ),
 }));
 
 import OrganizationDashboardPage from '@/app/organization/dashboard/page';
 import PartnerDashboard from '@/app/partner/dashboard/page';
+import { renderServerComponent } from './helpers/renderServerComponent';
 
 const ORG_CTX = {
   session: { sub: 'u1', role: 'organization' as const, email: 'org@example.com' },
   activeOrgId: 'org-1',
   activeOrgName: 'ООО Ромашка',
   memberships: [],
-  viewerRole: 'admin' as const
+  viewerRole: 'admin' as const,
 };
-const PARTNER_SESSION = { sub: 'p1', role: 'partner' as const, partnerId: 'pt-1', assignedOrgIds: ['org-9'] };
+const PARTNER_SESSION = {
+  sub: 'p1',
+  role: 'partner' as const,
+  partnerId: 'pt-1',
+  assignedOrgIds: ['org-9'],
+};
 
 // Флаг-роутер: certificates on/off, enrollment всегда off (карточка заявок
 // покрыта своим тестом; здесь изолируем ветку удостоверений).
 function flags(certificatesOn: boolean) {
-  isFeatureEnabled.mockImplementation((flag: string) => flag === 'certificates_registry' && certificatesOn);
+  isFeatureEnabled.mockImplementation(
+    (flag: string) => flag === 'certificates_registry' && certificatesOn
+  );
 }
 
 beforeEach(() => {
@@ -69,14 +81,19 @@ beforeEach(() => {
 
   userFindUnique.mockResolvedValue({ name: 'Иван', welcomeSeenAt: new Date('2026-01-01') });
   getOrgPageContext.mockResolvedValue(ORG_CTX);
-  org.kpis.mockResolvedValue({ activeOrders: 1, outstandingAmount: '0', studentsCount: 2, recentDocumentsCount: 3 });
+  org.kpis.mockResolvedValue({
+    activeOrders: 1,
+    outstandingAmount: '0',
+    studentsCount: 2,
+    recentDocumentsCount: 3,
+  });
   org.attention.mockResolvedValue({ items: [] });
   org.recentEvents.mockResolvedValue([]);
   org.expiringCertificates.mockResolvedValue(4);
 
   requirePartner.mockResolvedValue(PARTNER_SESSION);
   partner.kpis.mockResolvedValue({ openOrders: 1, outstanding: '0', commissionThisMonth: '0' });
-  partner.attention.mockResolvedValue({ stuckOrders: [], overdueOrders: [], });
+  partner.attention.mockResolvedValue({ stuckOrders: [], overdueOrders: [] });
   partner.recentEvents.mockResolvedValue([]);
   partner.expiringCertificates.mockResolvedValue(6);
 });
@@ -106,7 +123,10 @@ describe('PartnerDashboard — KPI удостоверений', () => {
   it('флаг on → карточка с числом, счётчик по скоупу партнёра', async () => {
     flags(true);
     const { container } = await renderServerComponent(PartnerDashboard());
-    expect(partner.expiringCertificates).toHaveBeenCalledWith(expect.anything(), { partnerId: 'pt-1', scopeOrgIds: ['org-9'] });
+    expect(partner.expiringCertificates).toHaveBeenCalledWith(expect.anything(), {
+      partnerId: 'pt-1',
+      scopeOrgIds: ['org-9'],
+    });
     expect(container.textContent).toContain('Истекают удостоверения');
     expect(container.textContent).toContain('6');
   });

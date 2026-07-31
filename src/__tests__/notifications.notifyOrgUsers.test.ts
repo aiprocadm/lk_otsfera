@@ -18,17 +18,17 @@ beforeAll(async () => {
   const stamp = Date.now();
 
   const partner = await prisma.partner.create({
-    data: { name: `NotifyOrgP-${stamp}`, commissionRate: 0.1 }
+    data: { name: `NotifyOrgP-${stamp}`, commissionRate: 0.1 },
   });
   partnerId = partner.id;
   const company = await prisma.company.create({ data: { name: `NotifyOrgC-${stamp}` } });
   companyId = company.id;
 
   const orgA = await prisma.organization.create({
-    data: { name: `NotifyOrgA-${stamp}`, partnerId, companyId }
+    data: { name: `NotifyOrgA-${stamp}`, partnerId, companyId },
   });
   const orgB = await prisma.organization.create({
-    data: { name: `NotifyOrgB-${stamp}`, partnerId, companyId }
+    data: { name: `NotifyOrgB-${stamp}`, partnerId, companyId },
   });
   orgAId = orgA.id;
   orgBId = orgB.id;
@@ -39,27 +39,27 @@ beforeAll(async () => {
       companyId,
       partnerId,
       organizationId: orgAId,
-      executionStatus: 'in_progress'
-    }
+      executionStatus: 'in_progress',
+    },
   });
   orderId = order.id;
 
   const u1 = await prisma.user.create({
-    data: { email: `notify1-${stamp}@t.local`, name: 'Active 1', role: 'organization' }
+    data: { email: `notify1-${stamp}@t.local`, name: 'Active 1', role: 'organization' },
   });
   const u2 = await prisma.user.create({
-    data: { email: `notify2-${stamp}@t.local`, name: 'Active 2', role: 'organization' }
+    data: { email: `notify2-${stamp}@t.local`, name: 'Active 2', role: 'organization' },
   });
   const uDeact = await prisma.user.create({
-    data: { email: `notify3-${stamp}@t.local`, name: 'Deactivated Member', role: 'organization' }
+    data: { email: `notify3-${stamp}@t.local`, name: 'Deactivated Member', role: 'organization' },
   });
   const uInactiveUser = await prisma.user.create({
     data: {
       email: `notify4-${stamp}@t.local`,
       name: 'Inactive User',
       role: 'organization',
-      isActive: false
-    }
+      isActive: false,
+    },
   });
   activeMember1Id = u1.id;
   activeMember2Id = u2.id;
@@ -67,27 +67,27 @@ beforeAll(async () => {
   inactiveUserMemberId = uInactiveUser.id;
 
   await prisma.organizationUser.create({
-    data: { organizationId: orgAId, userId: u1.id, roleInOrg: 'admin', isActive: true }
+    data: { organizationId: orgAId, userId: u1.id, roleInOrg: 'admin', isActive: true },
   });
   await prisma.organizationUser.create({
-    data: { organizationId: orgAId, userId: u2.id, roleInOrg: 'member', isActive: true }
+    data: { organizationId: orgAId, userId: u2.id, roleInOrg: 'member', isActive: true },
   });
   await prisma.organizationUser.create({
-    data: { organizationId: orgAId, userId: uDeact.id, roleInOrg: 'member', isActive: false }
+    data: { organizationId: orgAId, userId: uDeact.id, roleInOrg: 'member', isActive: false },
   });
   await prisma.organizationUser.create({
     data: {
       organizationId: orgAId,
       userId: uInactiveUser.id,
       roleInOrg: 'member',
-      isActive: true
-    }
+      isActive: true,
+    },
   });
 });
 
 afterAll(async () => {
   await prisma.notification.deleteMany({
-    where: { organizationId: { in: [orgAId, orgBId].filter(Boolean) } }
+    where: { organizationId: { in: [orgAId, orgBId].filter(Boolean) } },
   });
   await prisma.organizationUser.deleteMany({ where: { organizationId: orgAId } });
   await prisma.user.deleteMany({
@@ -95,9 +95,9 @@ afterAll(async () => {
       id: {
         in: [activeMember1Id, activeMember2Id, deactivatedMemberId, inactiveUserMemberId].filter(
           Boolean
-        )
-      }
-    }
+        ),
+      },
+    },
   });
   await prisma.order.deleteMany({ where: { id: orderId } });
   await prisma.organization.deleteMany({ where: { id: { in: [orgAId, orgBId] } } });
@@ -109,7 +109,7 @@ afterAll(async () => {
 beforeEach(async () => {
   // Clear notifications between tests to keep assertions isolated.
   await prisma.notification.deleteMany({
-    where: { organizationId: { in: [orgAId, orgBId] } }
+    where: { organizationId: { in: [orgAId, orgBId] } },
   });
   // Email is implicitly off in test env (no EMAIL_ENABLED), so send() returns
   // 'skipped:disabled' — that's the path we exercise here.
@@ -126,8 +126,8 @@ describe('notifyOrgUsers', () => {
         orderNumber: 'ORD-001',
         orderTitle: 'NotifyOrg-Test',
         amount: '12345.00',
-        paidAt: new Date('2026-05-26T10:00:00Z')
-      }
+        paidAt: new Date('2026-05-26T10:00:00Z'),
+      },
     });
 
     expect(summary.recipientsNotified).toBe(2);
@@ -136,7 +136,7 @@ describe('notifyOrgUsers', () => {
 
     const notifications = await prisma.notification.findMany({
       where: { organizationId: orgAId },
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: 'asc' },
     });
     expect(notifications).toHaveLength(2);
 
@@ -164,13 +164,13 @@ describe('notifyOrgUsers', () => {
         orderNumber: 'ORD-002',
         orderTitle: 'NotifyOrg-Test',
         documentName: 'contract.pdf',
-        documentType: 'contract'
-      }
+        documentType: 'contract',
+      },
     });
     expect(summary.recipientsNotified).toBe(2);
 
     const n = await prisma.notification.findFirst({
-      where: { organizationId: orgAId, type: 'document_published' }
+      where: { organizationId: orgAId, type: 'document_published' },
     });
     expect(n).not.toBeNull();
     expect(n!.title).toContain('ORD-002');
@@ -188,13 +188,13 @@ describe('notifyOrgUsers', () => {
         orderTitle: 'NotifyOrg-Test',
         dimension: 'execution',
         oldStatus: 'pending',
-        newStatus: 'in_progress'
-      }
+        newStatus: 'in_progress',
+      },
     });
     expect(summary.recipientsNotified).toBe(2);
 
     const n = await prisma.notification.findFirst({
-      where: { organizationId: orgAId, type: 'order_status_changed' }
+      where: { organizationId: orgAId, type: 'order_status_changed' },
     });
     expect(n).not.toBeNull();
     expect(n!.title).toContain('Статус');
@@ -213,13 +213,13 @@ describe('notifyOrgUsers', () => {
         orderId,
         orderNumber: 'ORD-004',
         orderTitle: 'NotifyOrg-Test',
-        missingLabels: ['ИНН заказчика', 'юр. адрес заказчика']
-      }
+        missingLabels: ['ИНН заказчика', 'юр. адрес заказчика'],
+      },
     });
     expect(summary.recipientsNotified).toBe(2);
 
     const n = await prisma.notification.findFirst({
-      where: { organizationId: orgAId, type: 'requisites_requested' }
+      where: { organizationId: orgAId, type: 'requisites_requested' },
     });
     expect(n).not.toBeNull();
     expect(n!.title).toContain('Заполните реквизиты');
@@ -233,12 +233,12 @@ describe('notifyOrgUsers', () => {
     const summary = await notifyOrgUsers(prisma, {
       organizationId: orgAId,
       type: 'requisites_requested',
-      payload: { orderId: null, orderNumber: null, orderTitle: null, missingLabels: ['БИК'] }
+      payload: { orderId: null, orderNumber: null, orderTitle: null, missingLabels: ['БИК'] },
     });
     expect(summary.recipientsNotified).toBe(2);
     const n = await prisma.notification.findFirst({
       where: { organizationId: orgAId, type: 'requisites_requested' },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     expect(n!.body).not.toContain('по заказу');
   });
@@ -249,11 +249,16 @@ describe('notifyOrgUsers', () => {
     await notifyOrgUsers(prisma, {
       organizationId: orgAId,
       type: 'order_result_delivered',
-      payload: { orderId, orderNumber: 'ORD-005', orderTitle: 'NotifyOrg-Test', serviceType: 'training' }
+      payload: {
+        orderId,
+        orderNumber: 'ORD-005',
+        orderTitle: 'NotifyOrg-Test',
+        serviceType: 'training',
+      },
     });
     const training = await prisma.notification.findFirst({
       where: { organizationId: orgAId, type: 'order_result_delivered' },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     expect(training!.body).toContain('Удостоверения');
     expect((training!.meta as { url?: string }).url).toBe('/organization/certificates');
@@ -261,11 +266,20 @@ describe('notifyOrgUsers', () => {
     await notifyOrgUsers(prisma, {
       organizationId: orgAId,
       type: 'order_result_delivered',
-      payload: { orderId, orderNumber: 'ORD-006', orderTitle: 'NotifyOrg-Test', serviceType: 'document_development' }
+      payload: {
+        orderId,
+        orderNumber: 'ORD-006',
+        orderTitle: 'NotifyOrg-Test',
+        serviceType: 'document_development',
+      },
     });
     const docs = await prisma.notification.findFirst({
-      where: { organizationId: orgAId, type: 'order_result_delivered', body: { contains: 'документы' } },
-      orderBy: { createdAt: 'desc' }
+      where: {
+        organizationId: orgAId,
+        type: 'order_result_delivered',
+        body: { contains: 'документы' },
+      },
+      orderBy: { createdAt: 'desc' },
     });
     expect(docs).not.toBeNull();
     expect((docs!.meta as { url?: string }).url).toContain(`/organization/orders/${orderId}`);
@@ -280,8 +294,8 @@ describe('notifyOrgUsers', () => {
         orderNumber: 'X',
         orderTitle: 'X',
         amount: '0',
-        paidAt: new Date()
-      }
+        paidAt: new Date(),
+      },
     });
     expect(summary).toEqual({ recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 });
   });
@@ -296,8 +310,8 @@ describe('notifyOrgUsers', () => {
         orderNumber: 'X',
         orderTitle: 'X',
         amount: '0',
-        paidAt: new Date()
-      }
+        paidAt: new Date(),
+      },
     });
     expect(summary.recipientsNotified).toBe(0);
     expect(summary.emailsSent).toBe(0);

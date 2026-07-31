@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import ManagerMessagesPage from '@/app/manager/messages/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
@@ -19,7 +20,12 @@ vi.mock('@/lib/services/chat/threads', () => ({ listThreads }));
 
 vi.mock('@/components/manager/manager-messages-inbox', () => ({
   ManagerMessagesInbox: (props: { rows: unknown[]; nextCursor: unknown }) =>
-    React.createElement('div', { 'data-testid': 'messages-inbox' }, JSON.stringify(props.rows), String(props.nextCursor))
+    React.createElement(
+      'div',
+      { 'data-testid': 'messages-inbox' },
+      JSON.stringify(props.rows),
+      String(props.nextCursor)
+    ),
 }));
 
 vi.mock('@/components/chat/order-thread-inbox', () => ({
@@ -30,25 +36,28 @@ vi.mock('@/components/chat/order-thread-inbox', () => ({
       JSON.stringify(props.threads),
       props.currentUserId,
       props.variant
-    )
+    ),
 }));
 
 vi.mock('@/components/chat/unread-badge', () => ({
-  UnreadBadge: () => React.createElement('span', { 'data-testid': 'unread-badge' })
+  UnreadBadge: () => React.createElement('span', { 'data-testid': 'unread-badge' }),
 }));
 
 vi.mock('@/components/staff-chat/staff-chat-section', () => ({
   StaffChatSection: (props: { currentUserId: string }) =>
-    React.createElement('div', { 'data-testid': 'staff-chat-section' }, props.currentUserId)
+    React.createElement('div', { 'data-testid': 'staff-chat-section' }, props.currentUserId),
 }));
 
 vi.mock('@/components/staff-chat/staff-unread-badge', () => ({
-  StaffUnreadBadge: () => React.createElement('span', { 'data-testid': 'staff-unread-badge' })
+  StaffUnreadBadge: () => React.createElement('span', { 'data-testid': 'staff-unread-badge' }),
 }));
 
-import ManagerMessagesPage from '@/app/manager/messages/page';
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 
 /** Per-flag control — the page now reads both 'chat' and 'staff_chat'. */
 function setFlags(flags: Record<string, boolean>) {

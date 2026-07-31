@@ -8,7 +8,7 @@ import { pickInitialFocus, Dialog, type DialogProps } from '@/components/ui/dial
 type El = { tagName: string; getAttribute: (n: string) => string | null };
 const make = (tagName: string, type?: string): El => ({
   tagName,
-  getAttribute: (n) => (n === 'type' ? (type ?? null) : null)
+  getAttribute: (n) => (n === 'type' ? (type ?? null) : null),
 });
 
 // React.createElement's overloads require `children` up front when a
@@ -75,7 +75,13 @@ describe('Dialog (SSR structural contract)', () => {
 
   it('renders the error into an assertive live region', () => {
     const html = renderToString(
-      renderDialog({ open: true, onClose: () => {}, title: 'T', error: 'Сломалось', children: 'тело' })
+      renderDialog({
+        open: true,
+        onClose: () => {},
+        title: 'T',
+        error: 'Сломалось',
+        children: 'тело',
+      })
     );
     expect(html).toContain('role="alert"');
     expect(html).toContain('Сломалось');
@@ -83,7 +89,13 @@ describe('Dialog (SSR structural contract)', () => {
 
   it('renders the notice into a polite live region', () => {
     const html = renderToString(
-      renderDialog({ open: true, onClose: () => {}, title: 'T', notice: 'Готово', children: 'тело' })
+      renderDialog({
+        open: true,
+        onClose: () => {},
+        title: 'T',
+        notice: 'Готово',
+        children: 'тело',
+      })
     );
     expect(html).toContain('role="status"');
     expect(html).toContain('Готово');
@@ -119,8 +131,8 @@ describe('Dialog (imperative showModal/close + handlers, jsdom)', () => {
         title: 'Форма',
         children: [
           React.createElement('input', { key: 'i', 'aria-label': 'Имя' }),
-          React.createElement('button', { key: 'b', type: 'submit' }, 'Сохранить')
-        ]
+          React.createElement('button', { key: 'b', type: 'submit' }, 'Сохранить'),
+        ],
       })
     );
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
@@ -136,7 +148,9 @@ describe('Dialog (imperative showModal/close + handlers, jsdom)', () => {
 
   it('переключение open=true -> false вызывает close()', async () => {
     const onClose = vi.fn();
-    const { rerender } = render(renderDialog({ open: true, onClose, title: 'T', children: 'тело' }));
+    const { rerender } = render(
+      renderDialog({ open: true, onClose, title: 'T', children: 'тело' })
+    );
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
 
     rerender(renderDialog({ open: false, onClose, title: 'T', children: 'тело' }));
@@ -179,7 +193,9 @@ describe('Dialog (imperative showModal/close + handlers, jsdom)', () => {
 
   it('клик по backdrop игнорируется при closeOnBackdrop=false', () => {
     const onClose = vi.fn();
-    render(renderDialog({ open: true, onClose, title: 'T', closeOnBackdrop: false, children: 'тело' }));
+    render(
+      renderDialog({ open: true, onClose, title: 'T', closeOnBackdrop: false, children: 'тело' })
+    );
     const dialogEl = document.querySelector('dialog') as HTMLDialogElement;
     fireEvent.click(dialogEl);
     expect(onClose).not.toHaveBeenCalled();
@@ -200,7 +216,7 @@ describe('Dialog (imperative showModal/close + handlers, jsdom)', () => {
         open: true,
         onClose,
         title: 'Заголовок',
-        children: React.createElement('p', { key: 'p' }, 'тело')
+        children: React.createElement('p', { key: 'p' }, 'тело'),
       })
     );
     fireEvent.click(screen.getByText('тело'));
@@ -228,7 +244,7 @@ describe('Dialog (imperative showModal/close + handlers, jsdom)', () => {
         open: true,
         onClose,
         title: 'T',
-        children: React.createElement('a', { key: 'a', href: '#x' }, 'ссылка')
+        children: React.createElement('a', { key: 'a', href: '#x' }, 'ссылка'),
       })
     );
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));

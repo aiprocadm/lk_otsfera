@@ -2,7 +2,11 @@ import type { ZodType } from 'zod';
 import { oneCHttpTimeoutMs } from './config';
 
 export class OneCHttpError extends Error {
-  constructor(public readonly status: number, message: string, public readonly retryAfter?: number) {
+  constructor(
+    public readonly status: number,
+    message: string,
+    public readonly retryAfter?: number
+  ) {
     super(message);
     this.name = 'OneCHttpError';
   }
@@ -59,7 +63,10 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
   throw lastErr;
 }
 
-export type ParseResult<T> = { valid: T[]; invalid: Array<{ externalId: string | null; issue: string }> };
+export type ParseResult<T> = {
+  valid: T[];
+  invalid: Array<{ externalId: string | null; issue: string }>;
+};
 
 export function parseRecords<T>(schema: ZodType<T>, raw: unknown[]): ParseResult<T> {
   const valid: T[] = [];
@@ -73,7 +80,12 @@ export function parseRecords<T>(schema: ZodType<T>, raw: unknown[]): ParseResult
         item && typeof item === 'object' && 'externalId' in item
           ? String((item as { externalId: unknown }).externalId)
           : null;
-      invalid.push({ externalId, issue: /* v8 ignore next -- zod always produces at least one issue */ res.error.issues[0]?.message ?? 'invalid' });
+      invalid.push({
+        externalId,
+        issue:
+          /* v8 ignore next -- zod always produces at least one issue */ res.error.issues[0]
+            ?.message ?? 'invalid',
+      });
     }
   }
   return { valid, invalid };

@@ -1,7 +1,10 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { oneCPendingMaxAttempts, oneCPendingMaxAgeDays } from '@/lib/services/oneCSync/config';
 
-afterEach(() => { delete process.env.ONE_C_PENDING_MAX_ATTEMPTS; delete process.env.ONE_C_PENDING_MAX_AGE_DAYS; });
+afterEach(() => {
+  delete process.env.ONE_C_PENDING_MAX_ATTEMPTS;
+  delete process.env.ONE_C_PENDING_MAX_AGE_DAYS;
+});
 
 describe('pending dead-letter config', () => {
   it('defaults: 50 attempts, 7 days', () => {

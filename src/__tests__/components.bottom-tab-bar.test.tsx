@@ -3,12 +3,19 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('next/navigation', () => ({
-  usePathname: vi.fn()
+  usePathname: vi.fn(),
 }));
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
-    React.createElement('a', { href, className }, children)
+  default: ({
+    href,
+    children,
+    className,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => React.createElement('a', { href, className }, children),
 }));
 
 import { usePathname } from 'next/navigation';

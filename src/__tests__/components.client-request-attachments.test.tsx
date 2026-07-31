@@ -9,7 +9,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 import { ClientRequestAttachmentDropzone } from '@/components/client-requests/client-request-attachment-dropzone';
 import {
   ClientRequestAttachmentsList,
-  type ClientRequestAttachmentRowVM
+  type ClientRequestAttachmentRowVM,
 } from '@/components/client-requests/client-request-attachments-list';
 
 function pdfFile(name = 'doc.pdf', content = 'pdf-bytes'): File {
@@ -30,7 +30,7 @@ function attachment(
     mimeType: 'application/pdf',
     createdAt: '2024-01-16T09:00:00Z',
     createdByUserName: 'Партнёр 1',
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -145,7 +145,9 @@ describe('ClientRequestAttachmentDropzone', () => {
   it('прочие ошибки: error из json, а при неразбираемом json — статус-код', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue({ ok: false, status: 422, json: async () => ({ error: 'infected' }) })
+      vi
+        .fn()
+        .mockResolvedValue({ ok: false, status: 422, json: async () => ({ error: 'infected' }) })
     );
     const { unmount } = render(
       React.createElement(ClientRequestAttachmentDropzone, { requestId: 'req-1' })
@@ -161,7 +163,7 @@ describe('ClientRequestAttachmentDropzone', () => {
         status: 500,
         json: async () => {
           throw new Error('bad json');
-        }
+        },
       })
     );
     render(React.createElement(ClientRequestAttachmentDropzone, { requestId: 'req-1' }));
@@ -177,14 +179,18 @@ describe('ClientRequestAttachmentDropzone', () => {
     const bad = new File(['x'], 'notes.txt', { type: 'text/plain' });
     fireEvent.change(fileInput(), { target: { files: [bad] } });
 
-    await waitFor(() => expect(screen.getByText('Поддерживаются PDF, JPEG, PNG, DOCX, XLSX')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText('Поддерживаются PDF, JPEG, PNG, DOCX, XLSX')).toBeTruthy()
+    );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('клиентская проверка размера: файл больше лимита отклоняется без запроса', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(ClientRequestAttachmentDropzone, { requestId: 'req-1', maxSizeMb: 1 }));
+    render(
+      React.createElement(ClientRequestAttachmentDropzone, { requestId: 'req-1', maxSizeMb: 1 })
+    );
 
     const big = pdfFile('big.pdf', 'x'.repeat(1024 * 1024 + 1));
     fireEvent.change(fileInput(), { target: { files: [big] } });
@@ -225,8 +231,8 @@ describe('ClientRequestAttachmentsList', () => {
         requestId: 'req-1',
         rows: [
           attachment(),
-          attachment({ id: 'a2', name: 'фото.png', mimeType: 'image/png', size: 5 * 1024 * 1024 })
-        ]
+          attachment({ id: 'a2', name: 'фото.png', mimeType: 'image/png', size: 5 * 1024 * 1024 }),
+        ],
       })
     );
     expect(screen.getByText('договор.pdf')).toBeTruthy();
@@ -251,16 +257,16 @@ describe('ClientRequestAttachmentsList', () => {
             id: 'b2',
             name: 'договор.docx',
             mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            size: 3000
+            size: 3000,
           }),
           attachment({
             id: 'b3',
             name: 'смета.xlsx',
             mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            size: 4000
+            size: 4000,
           }),
-          attachment({ id: 'b4', name: 'скан.jpg', mimeType: 'image/jpeg', size: 6000 })
-        ]
+          attachment({ id: 'b4', name: 'скан.jpg', mimeType: 'image/jpeg', size: 6000 }),
+        ],
       })
     );
     expect(screen.getByText(/512 Б/)).toBeTruthy();
@@ -274,47 +280,71 @@ describe('ClientRequestAttachmentsList', () => {
     // fetch может отвергнуть промис не-Error значением (обрыв соединения в
     // некоторых окружениях). Пользователю нужно увидеть причину, а не пустоту.
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue('connection reset'));
-    render(React.createElement(ClientRequestAttachmentsList, { requestId: 'req-1', rows: [attachment()] }));
+    render(
+      React.createElement(ClientRequestAttachmentsList, {
+        requestId: 'req-1',
+        rows: [attachment()],
+      })
+    );
     fireEvent.click(screen.getByText('договор.pdf'));
     await waitFor(() => expect(screen.getByText('Ошибка сети')).toBeTruthy());
   });
 
   it('скачивание: POST download-роут → window.open(downloadUrl)', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue({ ok: true, json: async () => ({ downloadUrl: 'https://s3.example/presigned-1' }) });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ downloadUrl: 'https://s3.example/presigned-1' }),
+    });
     vi.stubGlobal('fetch', fetchMock);
     const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
-    render(React.createElement(ClientRequestAttachmentsList, { requestId: 'req-1', rows: [attachment()] }));
+    render(
+      React.createElement(ClientRequestAttachmentsList, {
+        requestId: 'req-1',
+        rows: [attachment()],
+      })
+    );
 
     fireEvent.click(screen.getByText('договор.pdf'));
 
     await waitFor(() =>
       expect(openSpy).toHaveBeenCalledWith('https://s3.example/presigned-1', '_blank', 'noopener')
     );
-    expect(fetchMock).toHaveBeenCalledWith(
-      '/api/client-requests/req-1/attachments/a1/download',
-      { method: 'POST' }
-    );
+    expect(fetchMock).toHaveBeenCalledWith('/api/client-requests/req-1/attachments/a1/download', {
+      method: 'POST',
+    });
   });
 
   it('410 (карантин) → «Файл помещён в карантин антивирусом», window.open не зовётся', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 410 }));
     const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
-    render(React.createElement(ClientRequestAttachmentsList, { requestId: 'req-1', rows: [attachment()] }));
+    render(
+      React.createElement(ClientRequestAttachmentsList, {
+        requestId: 'req-1',
+        rows: [attachment()],
+      })
+    );
 
     fireEvent.click(screen.getByText('договор.pdf'));
 
-    await waitFor(() => expect(screen.getByText('Файл помещён в карантин антивирусом')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText('Файл помещён в карантин антивирусом')).toBeTruthy()
+    );
     expect(openSpy).not.toHaveBeenCalled();
   });
 
   it('infected-ветка: error из json ответа показывается как текст ошибки', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue({ ok: false, status: 409, json: async () => ({ error: 'infected' }) })
+      vi
+        .fn()
+        .mockResolvedValue({ ok: false, status: 409, json: async () => ({ error: 'infected' }) })
     );
-    render(React.createElement(ClientRequestAttachmentsList, { requestId: 'req-1', rows: [attachment()] }));
+    render(
+      React.createElement(ClientRequestAttachmentsList, {
+        requestId: 'req-1',
+        rows: [attachment()],
+      })
+    );
 
     fireEvent.click(screen.getByText('договор.pdf'));
 
@@ -329,10 +359,15 @@ describe('ClientRequestAttachmentsList', () => {
         status: 500,
         json: async () => {
           throw new Error('bad json');
-        }
+        },
       })
     );
-    render(React.createElement(ClientRequestAttachmentsList, { requestId: 'req-1', rows: [attachment()] }));
+    render(
+      React.createElement(ClientRequestAttachmentsList, {
+        requestId: 'req-1',
+        rows: [attachment()],
+      })
+    );
 
     fireEvent.click(screen.getByText('договор.pdf'));
 
@@ -341,7 +376,12 @@ describe('ClientRequestAttachmentsList', () => {
 
   it('сетевой сбой при скачивании → текст исключения, кнопка снова активна', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('обрыв сети')));
-    render(React.createElement(ClientRequestAttachmentsList, { requestId: 'req-1', rows: [attachment()] }));
+    render(
+      React.createElement(ClientRequestAttachmentsList, {
+        requestId: 'req-1',
+        rows: [attachment()],
+      })
+    );
 
     fireEvent.click(screen.getByText('договор.pdf'));
 

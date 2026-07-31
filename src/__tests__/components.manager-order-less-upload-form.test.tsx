@@ -27,7 +27,10 @@ function pickFile(input: HTMLInputElement, file: File): void {
 describe('ManagerOrderLessUploadForm', () => {
   it('renders picker + file input', () => {
     const html = renderToString(
-      <ManagerOrderLessUploadForm organizations={[{ id: 'o1', name: 'Org One' }]} partners={[{ id: 'p1', name: 'Partner One' }]} />
+      <ManagerOrderLessUploadForm
+        organizations={[{ id: 'o1', name: 'Org One' }]}
+        partners={[{ id: 'p1', name: 'Partner One' }]}
+      />
     );
     expect(html).toContain('Загрузить общий документ');
     expect(html).toContain('Org One');
@@ -36,7 +39,10 @@ describe('ManagerOrderLessUploadForm', () => {
 
   it('renders accessible labels for all controls', () => {
     const html = renderToString(
-      <ManagerOrderLessUploadForm organizations={[{ id: 'o1', name: 'Org One' }]} partners={[{ id: 'p1', name: 'Partner One' }]} />
+      <ManagerOrderLessUploadForm
+        organizations={[{ id: 'o1', name: 'Org One' }]}
+        partners={[{ id: 'p1', name: 'Partner One' }]}
+      />
     );
     expect(html).toContain('Тип контрагента');
     expect(html).toContain('Контрагент');
@@ -60,7 +66,7 @@ describe('ManagerOrderLessUploadForm (interactive, jsdom)', () => {
     render(
       React.createElement(ManagerOrderLessUploadForm, {
         organizations: [{ id: 'o1', name: 'Org One' }],
-        partners: [{ id: 'p1', name: 'Partner One' }]
+        partners: [{ id: 'p1', name: 'Partner One' }],
       })
     );
     const typeSelect = document.getElementById('orderless-counterparty-type') as HTMLSelectElement;
@@ -76,7 +82,7 @@ describe('ManagerOrderLessUploadForm (interactive, jsdom)', () => {
     render(
       React.createElement(ManagerOrderLessUploadForm, {
         organizations: [{ id: 'o1', name: 'Org One' }],
-        partners: [{ id: 'p1', name: 'Partner One' }]
+        partners: [{ id: 'p1', name: 'Partner One' }],
       })
     );
 
@@ -98,7 +104,7 @@ describe('ManagerOrderLessUploadForm (interactive, jsdom)', () => {
     render(
       React.createElement(ManagerOrderLessUploadForm, {
         organizations: [{ id: 'o1', name: 'Org One' }],
-        partners: [{ id: 'p1', name: 'Partner One' }]
+        partners: [{ id: 'p1', name: 'Partner One' }],
       })
     );
     const fileInput = document.getElementById('orderless-file') as HTMLInputElement;
@@ -117,7 +123,7 @@ describe('ManagerOrderLessUploadForm (interactive, jsdom)', () => {
     render(
       React.createElement(ManagerOrderLessUploadForm, {
         organizations: [{ id: 'o1', name: 'Org One' }],
-        partners: [{ id: 'p1', name: 'Partner One' }]
+        partners: [{ id: 'p1', name: 'Partner One' }],
       })
     );
     const fileInput = document.getElementById('orderless-file') as HTMLInputElement;

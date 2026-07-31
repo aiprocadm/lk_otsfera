@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import AdminUsersPage from '@/app/admin/users/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
@@ -13,15 +14,18 @@ vi.mock('@/lib/services/admin/users', () => ({ listUsers }));
 
 vi.mock('@/components/admin/users-filters', () => ({
   UsersFilters: (props: Record<string, unknown>) =>
-    React.createElement('div', { 'data-testid': 'users-filters' }, JSON.stringify(props))
+    React.createElement('div', { 'data-testid': 'users-filters' }, JSON.stringify(props)),
 }));
 
 vi.mock('@/components/admin/users-table', () => ({
   UsersTable: (props: { rows: unknown[]; currentUserId: string }) =>
-    React.createElement('div', { 'data-testid': 'users-table' }, JSON.stringify(props.rows), props.currentUserId)
+    React.createElement(
+      'div',
+      { 'data-testid': 'users-table' },
+      JSON.stringify(props.rows),
+      props.currentUserId
+    ),
 }));
-
-import AdminUsersPage from '@/app/admin/users/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 
@@ -43,8 +47,8 @@ describe('AdminUsersPage', () => {
           q: ' test ',
           partnerId: 'p1',
           organizationId: 'o1',
-          skip: '10'
-        })
+          skip: '10',
+        }),
       })
     );
 
@@ -59,7 +63,7 @@ describe('AdminUsersPage', () => {
         partnerId: 'p1',
         organizationId: 'o1',
         skip: 10,
-        take: 50
+        take: 50,
       })
     );
     expect(container.textContent).toContain('Пользователи');
@@ -72,7 +76,9 @@ describe('AdminUsersPage', () => {
     listUsers.mockResolvedValue({ rows: [], total: 0 });
 
     await renderServerComponent(
-      AdminUsersPage({ searchParams: Promise.resolve({ role: 'bogus', active: 'false', skip: '-5' }) })
+      AdminUsersPage({
+        searchParams: Promise.resolve({ role: 'bogus', active: 'false', skip: '-5' }),
+      })
     );
 
     expect(listUsers).toHaveBeenCalledWith(
@@ -90,7 +96,11 @@ describe('AdminUsersPage', () => {
       AdminUsersPage({ searchParams: Promise.resolve({ skip: '50', q: 'abc' }) })
     );
 
-    expect(listUsers).toHaveBeenCalledWith({}, SESSION, expect.objectContaining({ active: undefined }));
+    expect(listUsers).toHaveBeenCalledWith(
+      {},
+      SESSION,
+      expect.objectContaining({ active: undefined })
+    );
     const links = Array.from(container.querySelectorAll('a')).filter(
       (a) => a.textContent === 'Назад' || a.textContent === 'Вперёд'
     );

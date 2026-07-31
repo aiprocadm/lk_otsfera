@@ -13,7 +13,9 @@ describe('EmptyState', () => {
   });
 
   it('renders emoji circle only when icon is provided', () => {
-    const withIcon = renderToString(React.createElement(EmptyState, { icon: '✚', message: 'Пусто' }));
+    const withIcon = renderToString(
+      React.createElement(EmptyState, { icon: '✚', message: 'Пусто' })
+    );
     expect(withIcon).toContain('✚');
     expect(withIcon).toContain('rounded-full');
     const withoutIcon = renderToString(React.createElement(EmptyState, { message: 'Пусто' }));
@@ -30,7 +32,11 @@ describe('EmptyState', () => {
 
   it('renders children after the message (CTA slot)', () => {
     const html = renderToString(
-      React.createElement(EmptyState, { message: 'Пусто' }, React.createElement('a', { href: '/x' }, 'Создать'))
+      React.createElement(
+        EmptyState,
+        { message: 'Пусто' },
+        React.createElement('a', { href: '/x' }, 'Создать')
+      )
     );
     expect(html).toContain('Создать');
   });

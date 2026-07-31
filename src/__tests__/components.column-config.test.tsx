@@ -6,14 +6,23 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
-const { createTaskColumnAction, updateTaskColumnAction, deleteTaskColumnAction } = vi.hoisted(() => ({
-  createTaskColumnAction: vi.fn(),
-  updateTaskColumnAction: vi.fn(),
-  deleteTaskColumnAction: vi.fn()
+const { createTaskColumnAction, updateTaskColumnAction, deleteTaskColumnAction } = vi.hoisted(
+  () => ({
+    createTaskColumnAction: vi.fn(),
+    updateTaskColumnAction: vi.fn(),
+    deleteTaskColumnAction: vi.fn(),
+  })
+);
+vi.mock('@/server-actions/tasks', () => ({
+  createTaskColumnAction,
+  updateTaskColumnAction,
+  deleteTaskColumnAction,
 }));
-vi.mock('@/server-actions/tasks', () => ({ createTaskColumnAction, updateTaskColumnAction, deleteTaskColumnAction }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { ColumnConfig } from '@/components/tasks/column-config';
@@ -25,10 +34,16 @@ const column: TaskColumnView = {
   position: 0,
   statusAnchor: 'todo',
   isDoneColumn: false,
-  color: null
+  color: null,
 };
 
-const doneColumn: TaskColumnView = { ...column, id: 'col-2', name: 'Готово', statusAnchor: 'done', isDoneColumn: true };
+const doneColumn: TaskColumnView = {
+  ...column,
+  id: 'col-2',
+  name: 'Готово',
+  statusAnchor: 'done',
+  isDoneColumn: true,
+};
 
 function renderConfig(props: React.ComponentProps<typeof ColumnConfig>) {
   return React.createElement(ColumnConfig, props);
@@ -74,7 +89,10 @@ describe('ColumnConfig', () => {
   });
 
   it('unknown anchor value falls back to the raw value (anchorLabel fallback)', () => {
-    const weird: TaskColumnView = { ...column, statusAnchor: 'weird_anchor' as TaskColumnView['statusAnchor'] };
+    const weird: TaskColumnView = {
+      ...column,
+      statusAnchor: 'weird_anchor' as TaskColumnView['statusAnchor'],
+    };
     render(renderConfig({ columns: [weird], isDefault: false }));
     expect(screen.getByText('weird_anchor')).toBeTruthy();
   });
@@ -139,7 +157,9 @@ describe('ColumnConfig', () => {
     await screen.findByText('Изменить колонку');
     const swatch = screen.getByRole('radio', { name: 'Красный' }) as HTMLInputElement;
     expect(swatch.checked).toBe(true);
-    expect((screen.getByRole('radio', { name: 'Без цвета' }) as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByRole('radio', { name: 'Без цвета' }) as HTMLInputElement).checked).toBe(
+      false
+    );
   });
 
   it('edit flow: submits with the target id set and toasts "updated"', async () => {

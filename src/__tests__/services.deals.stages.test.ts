@@ -13,7 +13,7 @@ import {
   DEFAULT_DEAL_STAGES,
   resolveDealStages,
   stageForDeal,
-  type DealStageView
+  type DealStageView,
 } from '@/lib/services/deals/stages';
 
 function makePrisma(rows: unknown[]) {
@@ -28,16 +28,22 @@ describe('DEFAULT_DEAL_STAGES', () => {
       'default:negotiation',
       'default:proposal',
       'default:won',
-      'default:lost'
+      'default:lost',
     ]);
-    expect(DEFAULT_DEAL_STAGES.map((s) => s.statusAnchor)).toEqual(['open', 'open', 'open', 'won', 'lost']);
+    expect(DEFAULT_DEAL_STAGES.map((s) => s.statusAnchor)).toEqual([
+      'open',
+      'open',
+      'open',
+      'won',
+      'lost',
+    ]);
     expect(DEFAULT_DEAL_STAGES.map((s) => s.position)).toEqual([0, 1, 2, 3, 4]);
   });
 
   it('терминальны ровно won/lost; у всех дефолтов color=null', () => {
     expect(DEFAULT_DEAL_STAGES.filter((s) => s.isTerminal).map((s) => s.id)).toEqual([
       'default:won',
-      'default:lost'
+      'default:lost',
     ]);
     expect(DEFAULT_DEAL_STAGES.every((s) => s.color === null)).toBe(true);
   });
@@ -49,7 +55,10 @@ describe('resolveDealStages', () => {
     const stages = await resolveDealStages(prisma, 'c1');
     expect(stages).toEqual([...DEFAULT_DEAL_STAGES]);
     expect(stages[0]).not.toBe(DEFAULT_DEAL_STAGES[0]); // копия, не ссылка
-    expect(findMany).toHaveBeenCalledWith({ where: { companyId: 'c1' }, orderBy: { position: 'asc' } });
+    expect(findMany).toHaveBeenCalledWith({
+      where: { companyId: 'c1' },
+      orderBy: { position: 'asc' },
+    });
   });
 
   it('кастомные стадии → маппинг только view-полей (лишние колонки отбрасываются)', async () => {
@@ -62,12 +71,19 @@ describe('resolveDealStages', () => {
       position: 3,
       statusAnchor: 'open',
       isTerminal: false,
-      color: '#22C55E'
+      color: '#22C55E',
     };
     const { prisma } = makePrisma([row]);
     const stages = await resolveDealStages(prisma, 'c1');
     expect(stages).toEqual([
-      { id: 'st-1', name: 'Первичный контакт', position: 3, statusAnchor: 'open', isTerminal: false, color: '#22C55E' }
+      {
+        id: 'st-1',
+        name: 'Первичный контакт',
+        position: 3,
+        statusAnchor: 'open',
+        isTerminal: false,
+        color: '#22C55E',
+      },
     ]);
   });
 });
@@ -76,11 +92,15 @@ describe('stageForDeal', () => {
   const defaults: DealStageView[] = DEFAULT_DEAL_STAGES.map((s) => ({ ...s }));
 
   it('явная stageId, существующая в наборе', () => {
-    expect(stageForDeal(defaults, { status: 'open', stageId: 'default:proposal' })?.id).toBe('default:proposal');
+    expect(stageForDeal(defaults, { status: 'open', stageId: 'default:proposal' })?.id).toBe(
+      'default:proposal'
+    );
   });
 
   it('несуществующая stageId → фолбэк по якорю status', () => {
-    expect(stageForDeal(defaults, { status: 'won', stageId: 'stale-cuid' })?.id).toBe('default:won');
+    expect(stageForDeal(defaults, { status: 'won', stageId: 'stale-cuid' })?.id).toBe(
+      'default:won'
+    );
   });
 
   it('stageId=null при нескольких open-стадиях → ПЕРВАЯ подходящая', () => {

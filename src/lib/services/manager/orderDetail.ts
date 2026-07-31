@@ -33,19 +33,19 @@ export async function loadManagerOrderDetail(
       where: {
         entityId: id,
         entity: 'order',
-        action: { in: ['order_status_changed', 'document_uploaded', 'comment_posted'] }
+        action: { in: ['order_status_changed', 'document_uploaded', 'comment_posted'] },
       },
       orderBy: { createdAt: 'desc' },
-      take: 50
+      take: 50,
     }),
     prisma.comment.findMany({
       where: { orderId: id },
       include: {
-        author: { select: { id: true, name: true, email: true, role: true } }
+        author: { select: { id: true, name: true, email: true, role: true } },
       },
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: 'asc' },
     }),
-    listOrderItems(prisma, session, { orderId: id })
+    listOrderItems(prisma, session, { orderId: id }),
   ]);
 
   // The DocumentsList client component expects the partner/org doc row shape
@@ -61,7 +61,7 @@ export async function loadManagerOrderDetail(
     size: d.size,
     orderId: order.id,
     orderNumber: order.orderNumber,
-    orderTitle: order.title
+    orderTitle: order.title,
   }));
 
   const items = itemsResult.ok ? itemsResult.items : [];

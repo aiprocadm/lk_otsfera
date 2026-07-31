@@ -15,7 +15,7 @@ function makeRow(overrides: Partial<AuditRow> = {}): AuditRow {
     entity: 'user',
     entityId: 'u1',
     meta: null,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -41,13 +41,17 @@ describe('AuditDetailButton', () => {
   });
 
   it('opens the AuditDiffDialog on click', () => {
-    render(React.createElement(AuditDetailButton, { row: makeRow({ action: 'partner_created', entity: 'partner' }) }));
+    render(
+      React.createElement(AuditDetailButton, {
+        row: makeRow({ action: 'partner_created', entity: 'partner' }),
+      })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Подробно' }));
     expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
     expect(screen.getByText('partner_created · partner')).toBeTruthy();
   });
 
-  it('closes the dialog when the dialog\'s X (aria-label Закрыть) button is clicked', () => {
+  it("closes the dialog when the dialog's X (aria-label Закрыть) button is clicked", () => {
     render(React.createElement(AuditDetailButton, { row: makeRow() }));
     fireEvent.click(screen.getByRole('button', { name: 'Подробно' }));
     expect(screen.getByText('user_updated · user')).toBeTruthy();
@@ -63,7 +67,7 @@ describe('AuditDetailButton', () => {
     expect(screen.queryByText('user_updated · user')).toBeNull();
   });
 
-  it('closes the dialog when the panel\'s footer close button is clicked', () => {
+  it("closes the dialog when the panel's footer close button is clicked", () => {
     render(React.createElement(AuditDetailButton, { row: makeRow() }));
     fireEvent.click(screen.getByRole('button', { name: 'Подробно' }));
 

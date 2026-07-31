@@ -11,7 +11,14 @@ export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 50;
 
-type SP = { role?: string; active?: string; q?: string; partnerId?: string; organizationId?: string; skip?: string };
+type SP = {
+  role?: string;
+  active?: string;
+  q?: string;
+  partnerId?: string;
+  organizationId?: string;
+  skip?: string;
+};
 
 function parseRole(v?: string): Role | undefined {
   const allowed = ['admin', 'manager', 'partner', 'organization', 'student'];
@@ -30,7 +37,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
     partnerId: sp.partnerId || undefined,
     organizationId: sp.organizationId || undefined,
     take: PAGE_SIZE,
-    skip
+    skip,
   };
 
   const { rows, total } = await listUsers(prisma, session, filters);
@@ -42,7 +49,10 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
           <h1 className="text-2xl font-bold text-[#111111]">Пользователи</h1>
           <p className="text-sm text-gray-500 mt-0.5">{total} всего</p>
         </div>
-        <Link href="/admin/users/new" className="px-3 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C]">
+        <Link
+          href="/admin/users/new"
+          className="px-3 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C]"
+        >
           + Пригласить
         </Link>
       </div>
@@ -57,14 +67,22 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
 
       <UsersTable rows={rows} currentUserId={session.sub} />
 
-      {total > PAGE_SIZE && (
-        <Paginator skip={skip} take={PAGE_SIZE} total={total} sp={sp} />
-      )}
+      {total > PAGE_SIZE && <Paginator skip={skip} take={PAGE_SIZE} total={total} sp={sp} />}
     </div>
   );
 }
 
-function Paginator({ skip, take, total, sp }: { skip: number; take: number; total: number; sp: SP }) {
+function Paginator({
+  skip,
+  take,
+  total,
+  sp,
+}: {
+  skip: number;
+  take: number;
+  total: number;
+  sp: SP;
+}) {
   function url(s: number): string {
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries(sp)) if (v && k !== 'skip') p.set(k, v);
@@ -75,13 +93,25 @@ function Paginator({ skip, take, total, sp }: { skip: number; take: number; tota
   const pages = Math.max(1, Math.ceil(total / take));
   return (
     <div className="flex items-center justify-between text-sm text-gray-500">
-      <span>Страница {page} из {pages} · {total} всего</span>
+      <span>
+        Страница {page} из {pages} · {total} всего
+      </span>
       <div className="flex gap-2">
         {skip > 0 && (
-          <a href={url(Math.max(0, skip - take))} className="px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50">Назад</a>
+          <a
+            href={url(Math.max(0, skip - take))}
+            className="px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50"
+          >
+            Назад
+          </a>
         )}
         {skip + take < total && (
-          <a href={url(skip + take)} className="px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50">Вперёд</a>
+          <a
+            href={url(skip + take)}
+            className="px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50"
+          >
+            Вперёд
+          </a>
         )}
       </div>
     </div>

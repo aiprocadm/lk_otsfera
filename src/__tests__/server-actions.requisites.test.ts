@@ -11,7 +11,7 @@ const {
   setPartnerRequisites,
   setCompanyRequisites,
   setOrgRequisitesByAdmin,
-  setPartnerRequisitesByAdmin
+  setPartnerRequisitesByAdmin,
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   revalidatePath: vi.fn(),
@@ -19,7 +19,7 @@ const {
   setPartnerRequisites: vi.fn(),
   setCompanyRequisites: vi.fn(),
   setOrgRequisitesByAdmin: vi.fn(),
-  setPartnerRequisitesByAdmin: vi.fn()
+  setPartnerRequisitesByAdmin: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
@@ -28,14 +28,17 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/services/organization/requisites', () => ({ setOrgRequisites }));
 vi.mock('@/lib/services/partner/requisites', () => ({ setPartnerRequisites }));
 vi.mock('@/lib/services/admin/companyRequisites', () => ({ setCompanyRequisites }));
-vi.mock('@/lib/services/admin/counterpartyRequisites', () => ({ setOrgRequisitesByAdmin, setPartnerRequisitesByAdmin }));
+vi.mock('@/lib/services/admin/counterpartyRequisites', () => ({
+  setOrgRequisitesByAdmin,
+  setPartnerRequisitesByAdmin,
+}));
 
 import {
   setOrgRequisitesAction,
   setPartnerRequisitesAction,
   setCompanyRequisitesAction,
   setOrgRequisitesByAdminAction,
-  setPartnerRequisitesByAdminAction
+  setPartnerRequisitesByAdminAction,
 } from '@/server-actions/requisites';
 
 const SESSION = { sub: 'u1', role: 'organization' };
@@ -54,7 +57,9 @@ beforeEach(() => {
 describe('requisites actions', () => {
   it('org: собирает input (пустые → null), передаёт orgId, ревалидирует', async () => {
     setOrgRequisites.mockResolvedValue({ ok: true });
-    const res = await setOrgRequisitesAction(form({ orgId: 'org-1', legalName: 'ООО', inn: '7707083893' }));
+    const res = await setOrgRequisitesAction(
+      form({ orgId: 'org-1', legalName: 'ООО', inn: '7707083893' })
+    );
     expect(res).toEqual({ ok: true });
     expect(setOrgRequisites).toHaveBeenCalledWith(
       {},
@@ -68,7 +73,11 @@ describe('requisites actions', () => {
   it('org: без orgId → validation; ошибка сервиса с messages пробрасывается', async () => {
     expect(await setOrgRequisitesAction(form({}))).toEqual({ ok: false, error: 'validation' });
     setOrgRequisites.mockResolvedValue({ ok: false, error: 'validation', messages: ['ИНН'] });
-    expect(await setOrgRequisitesAction(form({ orgId: 'o' }))).toEqual({ ok: false, error: 'validation', messages: ['ИНН'] });
+    expect(await setOrgRequisitesAction(form({ orgId: 'o' }))).toEqual({
+      ok: false,
+      error: 'validation',
+      messages: ['ИНН'],
+    });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
@@ -96,16 +105,26 @@ describe('requisites actions', () => {
     expect(await setPartnerRequisitesAction(form({}))).toEqual({ ok: false, error: 'forbidden' });
 
     setCompanyRequisites.mockResolvedValue({ ok: false, error: 'not_found' });
-    expect(await setCompanyRequisitesAction(form({ companyId: 'c1' }))).toEqual({ ok: false, error: 'not_found' });
+    expect(await setCompanyRequisitesAction(form({ companyId: 'c1' }))).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
 
     setOrgRequisitesByAdmin.mockResolvedValue({ ok: false, error: 'forbidden' });
-    expect(await setOrgRequisitesByAdminAction(form({ orgId: 'o1' }))).toEqual({ ok: false, error: 'forbidden' });
+    expect(await setOrgRequisitesByAdminAction(form({ orgId: 'o1' }))).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
 
-    setPartnerRequisitesByAdmin.mockResolvedValue({ ok: false, error: 'validation', messages: ['БИК'] });
+    setPartnerRequisitesByAdmin.mockResolvedValue({
+      ok: false,
+      error: 'validation',
+      messages: ['БИК'],
+    });
     expect(await setPartnerRequisitesByAdminAction(form({ partnerId: 'p1' }))).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['БИК']
+      messages: ['БИК'],
     });
 
     expect(revalidatePath).not.toHaveBeenCalled();
@@ -133,7 +152,13 @@ describe('requisites actions', () => {
     await setPartnerRequisitesByAdminAction(form({ partnerId: 'pt-9' }));
     expect(revalidatePath).toHaveBeenCalledWith('/admin/partners/pt-9');
 
-    expect(await setOrgRequisitesByAdminAction(form({}))).toEqual({ ok: false, error: 'validation' });
-    expect(await setPartnerRequisitesByAdminAction(form({}))).toEqual({ ok: false, error: 'validation' });
+    expect(await setOrgRequisitesByAdminAction(form({}))).toEqual({
+      ok: false,
+      error: 'validation',
+    });
+    expect(await setPartnerRequisitesByAdminAction(form({}))).toEqual({
+      ok: false,
+      error: 'validation',
+    });
   });
 });

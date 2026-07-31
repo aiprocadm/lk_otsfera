@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { type NextRequest } from 'next/server';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { getDocumentForDownload } from '@/lib/services/manager/documents';
@@ -29,10 +29,7 @@ import { log } from '@/lib/logging';
 
 const SIGNED_URL_TTL_SEC = 600;
 
-export async function POST(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const disabled = notFoundIfDisabled('manager_cabinet');
   if (disabled) return disabled;
 
@@ -59,7 +56,7 @@ export async function POST(
       documentId: id,
       storagePath: result.path,
       ttl: SIGNED_URL_TTL_SEC,
-      providerError: error instanceof Error ? error.message : String(error)
+      providerError: error instanceof Error ? error.message : String(error),
     });
     return new Response('Storage error', { status: 502 });
   }
@@ -69,12 +66,12 @@ export async function POST(
     entity: 'document',
     entityId: id,
     userId: session.sub,
-    after: { ttl: SIGNED_URL_TTL_SEC, viewer: 'manager' }
+    after: { ttl: SIGNED_URL_TTL_SEC, viewer: 'manager' },
   });
 
   return Response.json({
     downloadUrl: signedUrl,
     expiresInSec: SIGNED_URL_TTL_SEC,
-    fileName: result.name
+    fileName: result.name,
   });
 }

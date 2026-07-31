@@ -5,29 +5,28 @@ const {
   createOrgAdminInvite,
   sendOrgInviteEmail,
   revalidatePath,
-  organizationFindUnique
+  organizationFindUnique,
 } = vi.hoisted(() => ({
   requirePartnerAdmin: vi.fn(),
   createOrgAdminInvite: vi.fn(),
   sendOrgInviteEmail: vi.fn(),
   revalidatePath: vi.fn(),
-  organizationFindUnique: vi.fn()
+  organizationFindUnique: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requirePartnerAdmin }));
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: { organization: { findUnique: organizationFindUnique } }
+  prisma: { organization: { findUnique: organizationFindUnique } },
 }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/email/send', () => ({ sendOrgInviteEmail }));
 vi.mock('@/lib/services/organization/invite', async () => {
-  const actual =
-    await vi.importActual<typeof import('@/lib/services/organization/invite')>(
-      '@/lib/services/organization/invite'
-    );
+  const actual = await vi.importActual<typeof import('@/lib/services/organization/invite')>(
+    '@/lib/services/organization/invite'
+  );
   return {
     ...actual,
-    createOrgAdminInvite
+    createOrgAdminInvite,
   };
 });
 
@@ -46,7 +45,7 @@ beforeEach(() => {
   requirePartnerAdmin.mockResolvedValue({
     sub: 'partner-actor-1',
     partnerId: 'partner-1',
-    name: 'Partner Admin'
+    name: 'Partner Admin',
   });
 });
 
@@ -64,7 +63,7 @@ describe('invitePartnerOrgAdminAction', () => {
     createOrgAdminInvite.mockResolvedValue({
       user: { id: 'u-new', email: 'cust@t.local' },
       inviteUrl: 'https://app.test/reset-password?token=abc',
-      alreadyHasPassword: false
+      alreadyHasPassword: false,
     });
 
     const res = await invitePartnerOrgAdminAction(
@@ -78,7 +77,7 @@ describe('invitePartnerOrgAdminAction', () => {
       {
         actorUserId: 'partner-actor-1',
         source: 'partner',
-        actorPartnerId: 'partner-1'
+        actorPartnerId: 'partner-1',
       }
     );
     expect(sendOrgInviteEmail).toHaveBeenCalled();
@@ -115,7 +114,7 @@ describe('invitePartnerOrgAdminAction', () => {
     createOrgAdminInvite.mockResolvedValue({
       user: { id: 'u-exist', email: 'exist@t.local' },
       inviteUrl: null,
-      alreadyHasPassword: true
+      alreadyHasPassword: true,
     });
 
     const res = await invitePartnerOrgAdminAction(
@@ -130,7 +129,7 @@ describe('invitePartnerOrgAdminAction', () => {
     createOrgAdminInvite.mockResolvedValue({
       user: { id: 'u-new', email: 'cust@t.local' },
       inviteUrl: 'https://app.test/reset-password?token=tok',
-      alreadyHasPassword: false
+      alreadyHasPassword: false,
     });
     sendOrgInviteEmail.mockRejectedValue(new Error('SMTP error'));
 
@@ -148,7 +147,7 @@ describe('invitePartnerOrgAdminAction', () => {
     createOrgAdminInvite.mockResolvedValue({
       user: { id: 'u-n2', email: 'n2@t.local' },
       inviteUrl: 'https://app.test/reset-password?token=tok2',
-      alreadyHasPassword: false
+      alreadyHasPassword: false,
     });
     sendOrgInviteEmail.mockResolvedValue({ status: 'sent' });
 
@@ -165,13 +164,13 @@ describe('invitePartnerOrgAdminAction', () => {
     requirePartnerAdmin.mockResolvedValue({
       sub: 'partner-actor-1',
       partnerId: 'partner-1',
-      name: null
+      name: null,
     });
     organizationFindUnique.mockResolvedValue({ name: 'ООО Клиент' });
     createOrgAdminInvite.mockResolvedValue({
       user: { id: 'u-n3', email: 'n3@t.local' },
       inviteUrl: 'https://app.test/reset-password?token=tok3',
-      alreadyHasPassword: false
+      alreadyHasPassword: false,
     });
     sendOrgInviteEmail.mockResolvedValue({ status: 'sent' });
 

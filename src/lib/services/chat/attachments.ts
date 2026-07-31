@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { PrismaClient, ThreadSide } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { canSeeThread } from './policy';
 import { getObjectStorage } from '@/lib/storage';
 import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
 import { maxFileSizeBytes } from '@/lib/config/upload';
 import { log } from '@/lib/logging';
+import { canSeeThread } from './policy';
 
 /**
  * Chat attachment upload + signed-URL download service.
@@ -53,7 +53,10 @@ export type UploadChatAttachmentArgs = {
 
 export type UploadChatAttachmentResult =
   | { ok: true; attachmentPath: string }
-  | { ok: false; error: 'forbidden' | 'order_not_found' | 'too_large' | 'invalid_mime' | 'storage' };
+  | {
+      ok: false;
+      error: 'forbidden' | 'order_not_found' | 'too_large' | 'invalid_mime' | 'storage';
+    };
 
 export async function uploadChatAttachment(
   prisma: PrismaClient,
@@ -118,8 +121,7 @@ export async function uploadChatAttachment(
 // ---------------------------------------------------------------------------
 
 export type GetChatAttachmentSignedUrlResult =
-  | { ok: true; url: string }
-  | { ok: false; error: 'forbidden' | 'not_found' | 'storage' };
+  { ok: true; url: string } | { ok: false; error: 'forbidden' | 'not_found' | 'storage' };
 
 export async function getChatAttachmentSignedUrl(
   prisma: PrismaClient,

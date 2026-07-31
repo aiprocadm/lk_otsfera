@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
-
 import { listAudit, listAuditFilters } from '@/lib/services/admin/auditLog';
 
 // ---------------------------------------------------------------------------
@@ -8,7 +7,7 @@ import { listAudit, listAuditFilters } from '@/lib/services/admin/auditLog';
 // ---------------------------------------------------------------------------
 function makePrisma(
   findManyImpl?: ReturnType<typeof vi.fn>,
-  queryRawImpl?: ReturnType<typeof vi.fn>,
+  queryRawImpl?: ReturnType<typeof vi.fn>
 ) {
   return {
     auditLog: {
@@ -40,9 +39,7 @@ describe('listAudit() — cursor pagination', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('returns exactly `take` rows and a non-null nextCursor when findMany returns take+1 rows', async () => {
-    const rows = Array.from({ length: 51 }, (_, i) =>
-      makeRow({ id: `row-${i + 1}` })
-    );
+    const rows = Array.from({ length: 51 }, (_, i) => makeRow({ id: `row-${i + 1}` }));
     const findMany = vi.fn().mockResolvedValue(rows);
     const prisma = makePrisma(findMany);
 
@@ -55,9 +52,7 @@ describe('listAudit() — cursor pagination', () => {
   });
 
   it('returns null nextCursor when findMany returns fewer than take+1 rows', async () => {
-    const rows = Array.from({ length: 3 }, (_, i) =>
-      makeRow({ id: `row-${i + 1}` })
-    );
+    const rows = Array.from({ length: 3 }, (_, i) => makeRow({ id: `row-${i + 1}` }));
     const findMany = vi.fn().mockResolvedValue(rows);
     const prisma = makePrisma(findMany);
 
@@ -228,9 +223,7 @@ describe('listAudit() — row mapping', () => {
   });
 
   it('sets actor to null when user is null', async () => {
-    const findMany = vi.fn().mockResolvedValue([
-      makeRow({ user: null }),
-    ]);
+    const findMany = vi.fn().mockResolvedValue([makeRow({ user: null })]);
     const prisma = makePrisma(findMany);
 
     const result = await listAudit(prisma, {});
@@ -303,7 +296,7 @@ describe('listAuditFilters() — query args', () => {
   it('issues entity distinct query with correct distinct/select/orderBy', async () => {
     const auditFindMany = vi
       .fn()
-      .mockResolvedValueOnce([{ entity: 'lead' }])   // entity distinct
+      .mockResolvedValueOnce([{ entity: 'lead' }]) // entity distinct
       .mockResolvedValueOnce([{ action: 'lead_created' }]) // action distinct
       .mockResolvedValueOnce([]); // userId distinct
     const userFindMany = vi.fn().mockResolvedValue([]);

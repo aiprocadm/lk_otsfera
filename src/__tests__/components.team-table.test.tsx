@@ -5,7 +5,7 @@ import React from 'react';
 vi.mock('@/server-actions/organization/team', () => ({
   updateOrgMemberRoleFormAction: vi.fn(),
   deactivateOrgMemberFormAction: vi.fn(),
-  reactivateOrgMemberFormAction: vi.fn()
+  reactivateOrgMemberFormAction: vi.fn(),
 }));
 
 // InviteResendButtons — 'use client' с server-action импортом; для SSR-string
@@ -26,7 +26,7 @@ function member(overrides: Partial<OrgMemberRow> = {}): OrgMemberRow {
     invitePending: false,
     invitedAt: new Date('2026-01-01'),
     lastLoginAt: null,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -37,7 +37,7 @@ describe('TeamTable', () => {
         members: [],
         organizationId: 'org1',
         currentUserId: 'me',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(html).toContain('В команде пока нет участников');
@@ -49,7 +49,7 @@ describe('TeamTable', () => {
         members: [member({ userId: 'me' })],
         organizationId: 'org1',
         currentUserId: 'me',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(html).toContain('(это вы)');
@@ -62,7 +62,7 @@ describe('TeamTable', () => {
         members: [member({ userId: 'other', roleInOrg: 'member', isActive: true })],
         organizationId: 'org1',
         currentUserId: 'me',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(html).toContain('Активен');
@@ -76,7 +76,7 @@ describe('TeamTable', () => {
         members: [member({ userId: 'other', isActive: false })],
         organizationId: 'org1',
         currentUserId: 'me',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(html).toContain('Деактивирован');
@@ -91,7 +91,7 @@ describe('TeamTable', () => {
         members: [member({ userId: 'other', roleInOrg: 'member' })],
         organizationId: 'org1',
         currentUserId: 'me',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(html).toContain('Администратор');
@@ -103,7 +103,7 @@ describe('TeamTable', () => {
         members: [member({ userId: 'other', roleInOrg: 'admin', isActive: true })],
         organizationId: 'org1',
         currentUserId: 'me',
-        viewerRole: 'leader'
+        viewerRole: 'leader',
       })
     );
     expect(html).not.toContain('Деактивировать');
@@ -117,7 +117,7 @@ describe('TeamTable', () => {
         members: [member({ userId: 'other', roleInOrg: 'leader', isActive: true })],
         organizationId: 'org1',
         currentUserId: 'me',
-        viewerRole: 'leader'
+        viewerRole: 'leader',
       })
     );
     expect(html).toContain('Деактивировать');
@@ -130,7 +130,7 @@ describe('TeamTable', () => {
         members: [member({ userId: 'other', invitePending: true })],
         organizationId: 'org1',
         currentUserId: 'me',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(html).toContain('Ожидает установки пароля');
@@ -144,7 +144,7 @@ describe('TeamTable', () => {
         members: [member({ userId: 'me', invitePending: true })],
         organizationId: 'org1',
         currentUserId: 'me',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(html).toContain('Ожидает установки пароля');
@@ -158,7 +158,7 @@ describe('TeamTable', () => {
         members: [member({ userId: 'other', roleInOrg: 'admin', invitePending: true })],
         organizationId: 'org1',
         currentUserId: 'me',
-        viewerRole: 'leader'
+        viewerRole: 'leader',
       })
     );
     expect(html).toContain('Ожидает установки пароля');
@@ -171,7 +171,7 @@ describe('TeamTable', () => {
         members: [member({ userId: 'other', invitePending: true, isActive: false })],
         organizationId: 'org1',
         currentUserId: 'me',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(html).not.toContain('Ожидает установки пароля');
@@ -184,7 +184,7 @@ describe('TeamTable', () => {
         members: [member({ userId: 'other' })],
         organizationId: 'org1',
         currentUserId: 'me',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(html).not.toContain('Ожидает установки пароля');
@@ -200,7 +200,7 @@ describe('TeamTable', () => {
         members: [member({ userId: 'other', lastLoginAt: new Date('2025-11-05T10:00:00Z') })],
         organizationId: 'org1',
         currentUserId: 'me',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(html).toContain('Последний вход');
@@ -215,7 +215,7 @@ describe('TeamTable', () => {
         members: [member({ userId: 'other', lastLoginAt: null })],
         organizationId: 'org1',
         currentUserId: 'me',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(html).toContain('Последний вход');
@@ -228,11 +228,11 @@ describe('TeamTable', () => {
         members: [
           member({ organizationUserId: 'a', userId: 'a', roleInOrg: 'admin' }),
           member({ organizationUserId: 'l', userId: 'l', roleInOrg: 'leader' }),
-          member({ organizationUserId: 'm', userId: 'm', roleInOrg: 'member' })
+          member({ organizationUserId: 'm', userId: 'm', roleInOrg: 'member' }),
         ],
         organizationId: 'org1',
         currentUserId: 'me',
-        viewerRole: 'admin'
+        viewerRole: 'admin',
       })
     );
     expect(html).toContain('>Администратор<');

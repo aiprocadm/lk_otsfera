@@ -20,7 +20,12 @@ let prisma: PrismaClient;
 let companyA: string, companyB: string, orgA: string;
 let leaderAId: string, mgrA1Id: string, mgrA2Id: string, mgrBId: string;
 
-const leaderA = (): SessionPayload => ({ sub: leaderAId, role: 'manager', managerRole: 'leader', companyId: companyA });
+const leaderA = (): SessionPayload => ({
+  sub: leaderAId,
+  role: 'manager',
+  managerRole: 'leader',
+  companyId: companyA,
+});
 const mgrA1 = (): SessionPayload => ({ sub: mgrA1Id, role: 'manager', companyId: companyA });
 const mgrA2 = (): SessionPayload => ({ sub: mgrA2Id, role: 'manager', companyId: companyA });
 const mgrB = (): SessionPayload => ({ sub: mgrBId, role: 'manager', companyId: companyB });
@@ -30,9 +35,15 @@ function boardCardIds(board: Awaited<ReturnType<typeof getDealBoard>>): string[]
 }
 
 async function cleanup() {
-  const users = await prisma.user.findMany({ where: { email: { contains: P } }, select: { id: true } });
+  const users = await prisma.user.findMany({
+    where: { email: { contains: P } },
+    select: { id: true },
+  });
   const userIds = users.map((u) => u.id);
-  const companies = await prisma.company.findMany({ where: { name: { startsWith: P } }, select: { id: true } });
+  const companies = await prisma.company.findMany({
+    where: { name: { startsWith: P } },
+    select: { id: true },
+  });
   const companyIds = companies.map((c) => c.id);
   if (userIds.length) await prisma.auditLog.deleteMany({ where: { userId: { in: userIds } } });
   if (companyIds.length) {
@@ -49,11 +60,49 @@ beforeAll(async () => {
   await cleanup(); // хвосты упавших прошлых прогонов
   companyA = (await prisma.company.create({ data: { name: `${P}-coA` } })).id;
   companyB = (await prisma.company.create({ data: { name: `${P}-coB` } })).id;
-  orgA = (await prisma.organization.create({ data: { name: `${P}-orgA`, companyId: companyA } })).id;
-  leaderAId = (await prisma.user.create({ data: { email: `${P}-leaderA@t.local`, name: 'Лидер А', role: 'manager', managerRole: 'leader', companyId: companyA } })).id;
-  mgrA1Id = (await prisma.user.create({ data: { email: `${P}-mgrA1@t.local`, name: 'Менеджер А1', role: 'manager', companyId: companyA } })).id;
-  mgrA2Id = (await prisma.user.create({ data: { email: `${P}-mgrA2@t.local`, name: 'Менеджер А2', role: 'manager', companyId: companyA } })).id;
-  mgrBId = (await prisma.user.create({ data: { email: `${P}-mgrB@t.local`, name: 'Менеджер Б', role: 'manager', companyId: companyB } })).id;
+  orgA = (await prisma.organization.create({ data: { name: `${P}-orgA`, companyId: companyA } }))
+    .id;
+  leaderAId = (
+    await prisma.user.create({
+      data: {
+        email: `${P}-leaderA@t.local`,
+        name: 'Лидер А',
+        role: 'manager',
+        managerRole: 'leader',
+        companyId: companyA,
+      },
+    })
+  ).id;
+  mgrA1Id = (
+    await prisma.user.create({
+      data: {
+        email: `${P}-mgrA1@t.local`,
+        name: 'Менеджер А1',
+        role: 'manager',
+        companyId: companyA,
+      },
+    })
+  ).id;
+  mgrA2Id = (
+    await prisma.user.create({
+      data: {
+        email: `${P}-mgrA2@t.local`,
+        name: 'Менеджер А2',
+        role: 'manager',
+        companyId: companyA,
+      },
+    })
+  ).id;
+  mgrBId = (
+    await prisma.user.create({
+      data: {
+        email: `${P}-mgrB@t.local`,
+        name: 'Менеджер Б',
+        role: 'manager',
+        companyId: companyB,
+      },
+    })
+  ).id;
 });
 
 afterAll(async () => {
@@ -73,7 +122,7 @@ describe('полный цикл сделки', () => {
       title: `${P} Поставка обучения`,
       amount: '1500,50',
       organizationId: orgA,
-      expectedCloseAt: '2026-12-01'
+      expectedCloseAt: '2026-12-01',
     });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
@@ -84,7 +133,9 @@ describe('полный цикл сделки', () => {
     expect(row.amount?.toFixed(2)).toBe('1500.50');
     expect(row.status).toBe('open');
     expect(
-      await prisma.auditLog.findFirst({ where: { entity: 'deal', entityId: deal1, action: 'deal_created' } })
+      await prisma.auditLog.findFirst({
+        where: { entity: 'deal', entityId: deal1, action: 'deal_created' },
+      })
     ).not.toBeNull();
 
     const res2 = await createDeal(prisma, mgrA2(), { title: `${P} Вторая сделка` });
@@ -99,7 +150,7 @@ describe('полный цикл сделки', () => {
       'default:negotiation',
       'default:proposal',
       'default:won',
-      'default:lost'
+      'default:lost',
     ]);
     const ids = boardCardIds(board);
     expect(ids).toContain(deal1);
@@ -125,7 +176,11 @@ describe('полный цикл сделки', () => {
 
   it('кастомные стадии (createDealStage) заменяют дефолты на доске', async () => {
     const mk = async (name: string, position: number, statusAnchor: 'open' | 'won' | 'lost') => {
-      const r = await createDealStage(prisma, leaderA(), { name: `${P} ${name}`, position, statusAnchor });
+      const r = await createDealStage(prisma, leaderA(), {
+        name: `${P} ${name}`,
+        position,
+        statusAnchor,
+      });
       expect(r.ok).toBe(true);
       return r.ok ? r.id : '';
     };
@@ -140,7 +195,7 @@ describe('полный цикл сделки', () => {
       `${P} Первичный контакт`,
       `${P} В работе`,
       `${P} Успех`,
-      `${P} Провал`
+      `${P} Провал`,
     ]);
     // stageId у сделок null → фолбэк по якорю open = ПЕРВАЯ open-стадия.
     const firstCol = board.columns.find((c) => c.stage.id === stFirst)!;
@@ -148,24 +203,34 @@ describe('полный цикл сделки', () => {
   });
 
   it('moveDeal в кастомную open-стадию персистит stageId + аудит', async () => {
-    expect(await moveDeal(prisma, mgrA1(), { dealId: deal1, toStageId: stWork })).toEqual({ ok: true });
+    expect(await moveDeal(prisma, mgrA1(), { dealId: deal1, toStageId: stWork })).toEqual({
+      ok: true,
+    });
     const row = await prisma.deal.findUniqueOrThrow({ where: { id: deal1 } });
     expect(row.stageId).toBe(stWork);
     expect(row.status).toBe('open');
     expect(
-      await prisma.auditLog.findFirst({ where: { entity: 'deal', entityId: deal1, action: 'deal_stage_changed' } })
+      await prisma.auditLog.findFirst({
+        where: { entity: 'deal', entityId: deal1, action: 'deal_stage_changed' },
+      })
     ).not.toBeNull();
     // deal2 переводит leader (company-скоуп) — для SetNull-сценария ниже.
-    expect(await moveDeal(prisma, leaderA(), { dealId: deal2, toStageId: stWork })).toEqual({ ok: true });
+    expect(await moveDeal(prisma, leaderA(), { dealId: deal2, toStageId: stWork })).toEqual({
+      ok: true,
+    });
   });
 
   it('lost: без причины → reason_required; с причиной → status/lostAt/lostReason', async () => {
     expect(await moveDeal(prisma, mgrA1(), { dealId: deal1, toStageId: stLost })).toEqual({
       ok: false,
-      error: 'reason_required'
+      error: 'reason_required',
     });
     expect(
-      await moveDeal(prisma, mgrA1(), { dealId: deal1, toStageId: stLost, lostReason: 'Клиент выбрал конкурента' })
+      await moveDeal(prisma, mgrA1(), {
+        dealId: deal1,
+        toStageId: stLost,
+        lostReason: 'Клиент выбрал конкурента',
+      })
     ).toEqual({ ok: true });
     const row = await prisma.deal.findUniqueOrThrow({ where: { id: deal1 } });
     expect(row.status).toBe('lost');
@@ -177,7 +242,7 @@ describe('полный цикл сделки', () => {
   it('повторный move завершённой сделки → lifecycle_violation', async () => {
     expect(await moveDeal(prisma, mgrA1(), { dealId: deal1, toStageId: stWork })).toEqual({
       ok: false,
-      error: 'lifecycle_violation'
+      error: 'lifecycle_violation',
     });
     expect((await prisma.deal.findUniqueOrThrow({ where: { id: deal1 } })).status).toBe('lost');
   });

@@ -28,10 +28,10 @@ vi.mock('@/lib/rateLimit', () => ({
 // ---------------------------------------------------------------------------
 // Imports after mocks
 // ---------------------------------------------------------------------------
+import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db/prisma';
 import { recordAudit } from '@/lib/auth/audit';
 import { verifyAndConsumeToken } from '@/lib/auth/passwordReset';
-import bcrypt from 'bcryptjs';
 import { POST } from '@/app/api/auth/reset-password/confirm/route';
 
 // ---------------------------------------------------------------------------

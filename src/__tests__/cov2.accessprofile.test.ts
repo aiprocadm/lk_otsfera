@@ -7,7 +7,7 @@ import {
   taskWhereForLevel,
   canSeeTask,
   NO_COMPANY_SENTINEL,
-  type SessionAccessProfile
+  type SessionAccessProfile,
 } from '@/lib/auth/accessProfile';
 
 /**
@@ -38,7 +38,7 @@ const assignedLeadsProfile = (): SessionAccessProfile => ({
   finance: 'all',
   leads: 'assigned',
   tasks: 'all',
-  capabilities: []
+  capabilities: [],
 });
 
 const assignedTasksProfile = (): SessionAccessProfile => ({
@@ -51,7 +51,7 @@ const assignedTasksProfile = (): SessionAccessProfile => ({
   finance: 'all',
   leads: 'all',
   tasks: 'assigned',
-  capabilities: []
+  capabilities: [],
 });
 
 describe('managedOrgIds ?? [] fallback (managedOrgIds undefined)', () => {
@@ -59,14 +59,14 @@ describe('managedOrgIds ?? [] fallback (managedOrgIds undefined)', () => {
     const session = mgrNoOrgs({ companyId: 'co-1' });
     expect(session.managedOrgIds).toBeUndefined();
     expect(orderWhereForLevel(session, 'assigned')).toEqual({
-      AND: [{ companyId: 'co-1' }, { organizationId: { in: [] } }]
+      AND: [{ companyId: 'co-1' }, { organizationId: { in: [] } }],
     });
   });
 
   it('@90 orderWhereForLevel assigned honours null-company sentinel with empty fallback', () => {
     const session = mgrNoOrgs({ companyId: null });
     expect(orderWhereForLevel(session, 'assigned')).toEqual({
-      AND: [{ companyId: NO_COMPANY_SENTINEL }, { organizationId: { in: [] } }]
+      AND: [{ companyId: NO_COMPANY_SENTINEL }, { organizationId: { in: [] } }],
     });
   });
 
@@ -74,7 +74,7 @@ describe('managedOrgIds ?? [] fallback (managedOrgIds undefined)', () => {
     const session = mgrNoOrgs({ sub: 'u7' });
     expect(session.managedOrgIds).toBeUndefined();
     expect(leadWhereForLevel(session, 'assigned')).toEqual({
-      OR: [{ assignedManagerId: 'u7' }, { organizationId: { in: [] } }]
+      OR: [{ assignedManagerId: 'u7' }, { organizationId: { in: [] } }],
     });
   });
 
@@ -82,7 +82,9 @@ describe('managedOrgIds ?? [] fallback (managedOrgIds undefined)', () => {
     const session = mgrNoOrgs({ sub: 'u7', accessProfile: assignedLeadsProfile() });
     expect(session.managedOrgIds).toBeUndefined();
     // Not assigned to self AND managedOrgIds empty → org membership check is false.
-    expect(canSeeLead(session, { assignedManagerId: 'someone-else', organizationId: 'o1' })).toBe(false);
+    expect(canSeeLead(session, { assignedManagerId: 'someone-else', organizationId: 'o1' })).toBe(
+      false
+    );
     // Own lead still visible (short-circuits before the org check).
     expect(canSeeLead(session, { assignedManagerId: 'u7', organizationId: 'o1' })).toBe(true);
   });
@@ -97,15 +99,19 @@ describe('managedOrgIds ?? [] fallback (managedOrgIds undefined)', () => {
           OR: [
             { createdById: 'u7' },
             { assignees: { some: { userId: 'u7' } } },
-            { linkedOrganizationId: { in: [] } }
-          ]
-        }
-      ]
+            { linkedOrganizationId: { in: [] } },
+          ],
+        },
+      ],
     });
   });
 
   it('@168 canSeeTask assigned → org branch uses empty fallback (managed set empty → deny non-mine org task)', () => {
-    const session = mgrNoOrgs({ sub: 'u7', companyId: 'co-1', accessProfile: assignedTasksProfile() });
+    const session = mgrNoOrgs({
+      sub: 'u7',
+      companyId: 'co-1',
+      accessProfile: assignedTasksProfile(),
+    });
     expect(session.managedOrgIds).toBeUndefined();
     // Not creator, not assignee, and managedOrgIds empty → org branch false → deny.
     expect(
@@ -113,7 +119,7 @@ describe('managedOrgIds ?? [] fallback (managedOrgIds undefined)', () => {
         companyId: 'co-1',
         createdById: 'other',
         assigneeUserIds: ['other2'],
-        linkedOrganizationId: 'o1'
+        linkedOrganizationId: 'o1',
       })
     ).toBe(false);
     // Mine (creator) still visible, short-circuits before org check.
@@ -122,7 +128,7 @@ describe('managedOrgIds ?? [] fallback (managedOrgIds undefined)', () => {
         companyId: 'co-1',
         createdById: 'u7',
         assigneeUserIds: [],
-        linkedOrganizationId: 'o1'
+        linkedOrganizationId: 'o1',
       })
     ).toBe(true);
   });

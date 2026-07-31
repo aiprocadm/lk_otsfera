@@ -47,6 +47,6 @@ export async function getCustomFieldsScreen(
   return {
     entity,
     definitions: res.ok ? res.rows : [],
-    systemFields: systemFieldsFor(entity)
+    systemFields: systemFieldsFor(entity),
   };
 }

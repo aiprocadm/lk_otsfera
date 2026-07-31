@@ -30,8 +30,8 @@ export function OrderCustomFields({ fields, orderId, editable = true }: OrderCus
     ? fields
     : fields.map((f) => ({
         ...f,
-        definition: { ...f.definition, editable: false }
+        definition: { ...f.definition, editable: false },
       }));
 
-  return <EntityCustomFields fields={effective} entityType='order' entityId={orderId} />;
+  return <EntityCustomFields fields={effective} entityType="order" entityId={orderId} />;
 }

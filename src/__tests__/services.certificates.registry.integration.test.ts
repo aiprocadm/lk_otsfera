@@ -30,11 +30,13 @@ const orgASession = () =>
   ({
     sub: `${T}-org-user`,
     role: 'organization',
-    organizationMemberships: [{ organizationId: orgA, roleInOrg: 'admin', isActive: true }]
+    organizationMemberships: [{ organizationId: orgA, roleInOrg: 'admin', isActive: true }],
   }) as never as SessionPayload;
 
 beforeAll(async () => {
-  const dir = await prisma.trainingDirection.create({ data: { name: `${T}-Направление`, sortOrder: 920 } });
+  const dir = await prisma.trainingDirection.create({
+    data: { name: `${T}-Направление`, sortOrder: 920 },
+  });
   dirId = dir.id;
   const partner = await prisma.partner.create({ data: { name: `${T}-Партнёр` } });
   partnerId = partner.id;
@@ -46,7 +48,9 @@ beforeAll(async () => {
   orgC = c.id;
 
   const mk = (orgId: string, name: string) =>
-    prisma.student.create({ data: { name, email: `${T}-${name}-${orgId}@x.test`, organizationId: orgId } });
+    prisma.student.create({
+      data: { name, email: `${T}-${name}-${orgId}@x.test`, organizationId: orgId },
+    });
 
   const s1 = await mk(orgA, 'Истёкший Иван');
   studentExpired = s1.id;
@@ -56,9 +60,21 @@ beforeAll(async () => {
   const s5 = await mk(orgB, 'Соседний Николай');
   const s6 = await mk(orgC, 'Чужой Максим');
 
-  const cert = (studentId: string, organizationId: string, number: string, validUntil: Date | null) =>
+  const cert = (
+    studentId: string,
+    organizationId: string,
+    number: string,
+    validUntil: Date | null
+  ) =>
     prisma.certificate.create({
-      data: { studentId, organizationId, directionId: dirId, number: `${T}-${number}`, issuedAt: days(-365), validUntil }
+      data: {
+        studentId,
+        organizationId,
+        directionId: dirId,
+        number: `${T}-${number}`,
+        issuedAt: days(-365),
+        validUntil,
+      },
     });
 
   await cert(s1.id, orgA, '01', days(-5)); // истекло
@@ -83,17 +99,31 @@ describe('listCertificates (integration): статусы и скоупы', () =>
     const all = await listCertificates(prisma, orgASession(), { organizationId: orgA });
     if (!all.ok) throw new Error('expected ok');
     expect(all.total).toBe(4);
-    expect(all.certificates.map((c) => c.number).sort()).toEqual([`${T}-01`, `${T}-02`, `${T}-03`, `${T}-04`]);
+    expect(all.certificates.map((c) => c.number).sort()).toEqual([
+      `${T}-01`,
+      `${T}-02`,
+      `${T}-03`,
+      `${T}-04`,
+    ]);
 
-    const expired = await listCertificates(prisma, orgASession(), { organizationId: orgA, status: 'expired' });
+    const expired = await listCertificates(prisma, orgASession(), {
+      organizationId: orgA,
+      status: 'expired',
+    });
     if (!expired.ok) throw new Error('expected ok');
     expect(expired.certificates.map((c) => c.number)).toEqual([`${T}-01`]);
 
-    const expiring = await listCertificates(prisma, orgASession(), { organizationId: orgA, status: 'expiring' });
+    const expiring = await listCertificates(prisma, orgASession(), {
+      organizationId: orgA,
+      status: 'expiring',
+    });
     if (!expiring.ok) throw new Error('expected ok');
     expect(expiring.certificates.map((c) => c.number)).toEqual([`${T}-02`]);
 
-    const active = await listCertificates(prisma, orgASession(), { organizationId: orgA, status: 'active' });
+    const active = await listCertificates(prisma, orgASession(), {
+      organizationId: orgA,
+      status: 'active',
+    });
     if (!active.ok) throw new Error('expected ok');
     // Действующие: за горизонтом + бессрочное.
     expect(active.certificates.map((c) => c.number).sort()).toEqual([`${T}-03`, `${T}-04`]);
@@ -106,7 +136,12 @@ describe('listCertificates (integration): статусы и скоупы', () =>
   });
 
   it('партнёр-админ видит организации партнёра (5), чужую — нет; фильтр организации работает', async () => {
-    const pa = { sub: `${T}-pa`, role: 'partner', partnerId, partnerRole: 'admin' } as never as SessionPayload;
+    const pa = {
+      sub: `${T}-pa`,
+      role: 'partner',
+      partnerId,
+      partnerRole: 'admin',
+    } as never as SessionPayload;
     const all = await listCertificates(prisma, pa, {});
     if (!all.ok) throw new Error('expected ok');
     expect(all.total).toBe(5);
@@ -124,7 +159,7 @@ describe('listCertificates (integration): статусы и скоупы', () =>
       role: 'partner',
       partnerId,
       partnerRole: 'manager',
-      assignedOrgIds: [orgA]
+      assignedOrgIds: [orgA],
     } as never as SessionPayload;
     const res = await listCertificates(prisma, pm, {});
     if (!res.ok) throw new Error('expected ok');
@@ -133,11 +168,18 @@ describe('listCertificates (integration): статусы и скоупы', () =>
   });
 
   it('поиск по ФИО и пагинация с total', async () => {
-    const found = await listCertificates(prisma, orgASession(), { organizationId: orgA, search: 'истёкший' });
+    const found = await listCertificates(prisma, orgASession(), {
+      organizationId: orgA,
+      search: 'истёкший',
+    });
     if (!found.ok) throw new Error('expected ok');
     expect(found.certificates.map((c) => c.student.id)).toEqual([studentExpired]);
 
-    const page = await listCertificates(prisma, orgASession(), { organizationId: orgA, take: 2, skip: 2 });
+    const page = await listCertificates(prisma, orgASession(), {
+      organizationId: orgA,
+      take: 2,
+      skip: 2,
+    });
     if (!page.ok) throw new Error('expected ok');
     expect(page.total).toBe(4);
     expect(page.certificates).toHaveLength(2);

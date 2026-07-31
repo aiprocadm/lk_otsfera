@@ -48,7 +48,8 @@ describe('E4 — the suite never touches the real network', () => {
       const src = readFileSync(f, 'utf8');
       const constructs = /new\s+S3Client\b|new\s+Resend\b|from\s+['"]nodemailer['"]/.test(src);
       if (!constructs) continue;
-      const mocksModule = /vi\.mock\(\s*['"](resend|@aws-sdk\/client-s3|@\/lib\/storage|nodemailer)['"]/.test(src);
+      const mocksModule =
+        /vi\.mock\(\s*['"](resend|@aws-sdk\/client-s3|@\/lib\/storage|nodemailer)['"]/.test(src);
       if (!mocksModule) offenders.push(path.basename(f));
     }
     expect(
@@ -65,8 +66,7 @@ describe('E4 — the suite never touches the real network', () => {
       const callsFetch = /[^.\w-]fetch\s*\(/.test(src);
       if (!callsFetch) continue;
       const stubsFetch =
-        /stubGlobal\(\s*['"]fetch['"]/.test(src) ||
-        /(global(This)?|window)\.fetch\s*=/.test(src);
+        /stubGlobal\(\s*['"]fetch['"]/.test(src) || /(global(This)?|window)\.fetch\s*=/.test(src);
       if (!stubsFetch) offenders.push(path.basename(f));
     }
     expect(

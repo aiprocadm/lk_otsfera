@@ -1,17 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { triggerSync, setSchedulePaused, rewindCursor } = vi.hoisted(() => ({
-  triggerSync: vi.fn(), setSchedulePaused: vi.fn(), rewindCursor: vi.fn(),
+  triggerSync: vi.fn(),
+  setSchedulePaused: vi.fn(),
+  rewindCursor: vi.fn(),
 }));
 const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
 const { revalidatePath } = vi.hoisted(() => ({ revalidatePath: vi.fn() }));
 
-vi.mock('@/lib/services/admin/syncControl', () => ({ triggerSync, setSchedulePaused, rewindCursor }));
+vi.mock('@/lib/services/admin/syncControl', () => ({
+  triggerSync,
+  setSchedulePaused,
+  rewindCursor,
+}));
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
-import { triggerSyncAction, setSchedulePausedAction, rewindCursorAction } from '@/server-actions/admin/syncControl';
+import {
+  triggerSyncAction,
+  setSchedulePausedAction,
+  rewindCursorAction,
+} from '@/server-actions/admin/syncControl';
 
 function fd(entries: Record<string, string>) {
   const f = new FormData();
@@ -42,14 +52,19 @@ describe('triggerSyncAction', () => {
 
   it('passes through service errors', async () => {
     triggerSync.mockResolvedValue({ ok: false, error: 'already_running' });
-    expect(await triggerSyncAction(fd({ entity: 'order' }))).toEqual({ ok: false, error: 'already_running' });
+    expect(await triggerSyncAction(fd({ entity: 'order' }))).toEqual({
+      ok: false,
+      error: 'already_running',
+    });
   });
 });
 
 describe('setSchedulePausedAction', () => {
   it('coerces paused and calls the service', async () => {
     setSchedulePaused.mockResolvedValue({ ok: true, paused: true });
-    const res = await setSchedulePausedAction(fd({ schedulerId: 'oneCSync.pullOrders.cron', paused: 'true' }));
+    const res = await setSchedulePausedAction(
+      fd({ schedulerId: 'oneCSync.pullOrders.cron', paused: 'true' })
+    );
     expect(setSchedulePaused).toHaveBeenCalledWith({}, 'admin-1', 'oneCSync.pullOrders.cron', true);
     expect(res).toEqual({ ok: true, paused: true });
   });
@@ -69,7 +84,11 @@ describe('rewindCursorAction', () => {
   });
 
   it('forwards an ISO cursor', async () => {
-    rewindCursor.mockResolvedValue({ ok: true, entity: 'order', cursor: '2026-06-01T00:00:00.000Z' });
+    rewindCursor.mockResolvedValue({
+      ok: true,
+      entity: 'order',
+      cursor: '2026-06-01T00:00:00.000Z',
+    });
     await rewindCursorAction(fd({ entity: 'order', cursor: '2026-06-01T00:00:00.000Z' }));
     expect(rewindCursor).toHaveBeenCalledWith({}, 'admin-1', 'order', '2026-06-01T00:00:00.000Z');
   });

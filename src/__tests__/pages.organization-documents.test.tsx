@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import OrganizationDocumentsPage from '@/app/organization/documents/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { getOrgPageContext } = vi.hoisted(() => ({ getOrgPageContext: vi.fn() }));
 vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
 
-const { viewedDocumentIds } = vi.hoisted(() => ({ viewedDocumentIds: vi.fn(async () => new Set<string>()) }));
+const { viewedDocumentIds } = vi.hoisted(() => ({
+  viewedDocumentIds: vi.fn(async () => new Set<string>()),
+}));
 vi.mock('@/lib/services/documents/viewMarks', () => ({ viewedDocumentIds }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
@@ -19,22 +22,25 @@ vi.mock('@/lib/services/organization/documents', () => ({ listOrgDocuments }));
 // does not provide. Stub next/navigation for this page's client-side children.
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
-  useSearchParams: () => new URLSearchParams()
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: (props: { activeOrgName: string; children: React.ReactNode }) =>
-    React.createElement('div', { 'data-testid': 'org-app-shell' }, props.activeOrgName, props.children)
+    React.createElement(
+      'div',
+      { 'data-testid': 'org-app-shell' },
+      props.activeOrgName,
+      props.children
+    ),
 }));
-
-import OrganizationDocumentsPage from '@/app/organization/documents/page';
 
 const CTX = {
   session: { sub: 'u1', role: 'organization' as const, email: 'org@example.com' },
   activeOrgId: 'org-1',
   activeOrgName: 'ООО Ромашка',
   memberships: [],
-  viewerRole: 'admin' as const
+  viewerRole: 'admin' as const,
 };
 
 describe('OrganizationDocumentsPage', () => {
@@ -48,19 +54,22 @@ describe('OrganizationDocumentsPage', () => {
     listOrgDocuments.mockResolvedValue({
       rows: [],
       total: 2,
-      countsByType: { contract: 1, act: 1 }
+      countsByType: { contract: 1, act: 1 },
     });
 
     const { container } = await renderServerComponent(
       OrganizationDocumentsPage({ searchParams: Promise.resolve({ org: 'org-1' }) })
     );
 
-    expect(listOrgDocuments).toHaveBeenCalledWith({}, expect.objectContaining({
-      organizationId: 'org-1',
-      orderLess: false,
-      take: 50,
-      skip: 0
-    }));
+    expect(listOrgDocuments).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        organizationId: 'org-1',
+        orderLess: false,
+        take: 50,
+        skip: 0,
+      })
+    );
     expect(container.textContent).toContain('Документы');
     expect(container.textContent).toContain('По заказам');
     expect(container.textContent).toContain('Договоры');
@@ -80,12 +89,12 @@ describe('OrganizationDocumentsPage', () => {
       size: 100,
       orderId: 'ord1',
       orderNumber: '42',
-      orderTitle: 'Обучение'
+      orderTitle: 'Обучение',
     });
     listOrgDocuments.mockResolvedValue({
       rows: [doc('dA', 'Новый.pdf'), doc('dB', 'Старый.pdf')],
       total: 2,
-      countsByType: { contract: 2 }
+      countsByType: { contract: 2 },
     });
     viewedDocumentIds.mockResolvedValue(new Set(['dB']));
 
@@ -100,7 +109,9 @@ describe('OrganizationDocumentsPage', () => {
     expect(rowA?.textContent).toContain('новый');
     expect(rowB?.textContent).not.toContain('новый');
     // Вкладка orders → секция «Заказ № 42».
-    expect(Array.from(container.querySelectorAll('h3')).map((h) => h.textContent)).toContain('Заказ № 42');
+    expect(Array.from(container.querySelectorAll('h3')).map((h) => h.textContent)).toContain(
+      'Заказ № 42'
+    );
   });
 
   it('renders the "general" tab, applies a valid type filter, and shows the order-less upload form', async () => {
@@ -108,20 +119,23 @@ describe('OrganizationDocumentsPage', () => {
     listOrgDocuments.mockResolvedValue({
       rows: [],
       total: 1,
-      countsByType: { invoice: 1 }
+      countsByType: { invoice: 1 },
     });
 
     const { container } = await renderServerComponent(
       OrganizationDocumentsPage({
-        searchParams: Promise.resolve({ tab: 'general', type: 'invoice', search: 'счёт' })
+        searchParams: Promise.resolve({ tab: 'general', type: 'invoice', search: 'счёт' }),
       })
     );
 
-    expect(listOrgDocuments).toHaveBeenCalledWith({}, expect.objectContaining({
-      type: 'invoice',
-      search: 'счёт',
-      orderLess: true
-    }));
+    expect(listOrgDocuments).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        type: 'invoice',
+        search: 'счёт',
+        orderLess: true,
+      })
+    );
     expect(container.textContent).toContain('Общие документы');
     expect(container.textContent).toContain('по запросу «счёт»');
   });
@@ -132,15 +146,18 @@ describe('OrganizationDocumentsPage', () => {
 
     await renderServerComponent(
       OrganizationDocumentsPage({
-        searchParams: Promise.resolve({ type: 'not-a-real-type', take: '99999', skip: 'abc' })
+        searchParams: Promise.resolve({ type: 'not-a-real-type', take: '99999', skip: 'abc' }),
       })
     );
 
-    expect(listOrgDocuments).toHaveBeenCalledWith({}, expect.objectContaining({
-      type: undefined,
-      take: 200,
-      skip: 0
-    }));
+    expect(listOrgDocuments).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        type: undefined,
+        take: 200,
+        skip: 0,
+      })
+    );
   });
 
   it('accepts a finite skip param, and renders the "Все" chip (no org/search/type/tab) when no filters are set', async () => {
@@ -150,7 +167,7 @@ describe('OrganizationDocumentsPage', () => {
     listOrgDocuments.mockResolvedValue({
       rows: [],
       total: 3,
-      countsByType: { contract: undefined, act: 3 }
+      countsByType: { contract: undefined, act: 3 },
     });
 
     const { container } = await renderServerComponent(
@@ -159,8 +176,8 @@ describe('OrganizationDocumentsPage', () => {
 
     expect(listOrgDocuments).toHaveBeenCalledWith({}, expect.objectContaining({ skip: 10 }));
     // "Все" chip's href() has no org/tab/search/type set -> the bare '/organization/documents' branch.
-    const allChip = Array.from(container.querySelectorAll('a')).find(
-      (a) => a.textContent?.includes('Все')
+    const allChip = Array.from(container.querySelectorAll('a')).find((a) =>
+      a.textContent?.includes('Все')
     );
     expect(allChip?.getAttribute('href')).toBe('/organization/documents');
   });

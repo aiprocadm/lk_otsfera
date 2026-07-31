@@ -2,18 +2,18 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const { createNotificationMock, deliverToUserMock } = vi.hoisted(() => ({
   createNotificationMock: vi.fn(),
-  deliverToUserMock: vi.fn()
+  deliverToUserMock: vi.fn(),
 }));
 vi.mock('@/lib/notifications', () => ({
   createNotification: createNotificationMock,
-  deliverNotificationToUser: deliverToUserMock
+  deliverNotificationToUser: deliverToUserMock,
 }));
 
 import { deliverAlert } from '@/lib/monitoring/deliver';
 
 function fakePrisma(adminIds: string[]) {
   return {
-    user: { findMany: vi.fn().mockResolvedValue(adminIds.map((id) => ({ id }))) }
+    user: { findMany: vi.fn().mockResolvedValue(adminIds.map((id) => ({ id }))) },
   } as never;
 }
 
@@ -34,7 +34,10 @@ describe('deliverAlert', () => {
     expect(deliverToUserMock).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'a1', channels: ['email'] })
     );
-    expect(createNotificationMock.mock.calls[0][0]).toMatchObject({ userId: 'a1', type: 'ops_alert' });
+    expect(createNotificationMock.mock.calls[0][0]).toMatchObject({
+      userId: 'a1',
+      type: 'ops_alert',
+    });
   });
 
   it('posts to Telegram when configured', async () => {
@@ -44,7 +47,9 @@ describe('deliverAlert', () => {
     vi.stubGlobal('fetch', fetchMock);
     await deliverAlert(fakePrisma(['a1']), { kind: 'fire', message: 'boom' });
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(String(fetchMock.mock.calls[0][0])).toContain('https://api.telegram.org/botbot123/sendMessage');
+    expect(String(fetchMock.mock.calls[0][0])).toContain(
+      'https://api.telegram.org/botbot123/sendMessage'
+    );
   });
 
   it('skips Telegram when not configured', async () => {
@@ -71,7 +76,7 @@ describe('deliverAlert', () => {
     await deliverAlert(fakePrisma(['a1']), { kind: 'resolve', message: 'all good' });
     expect(createNotificationMock.mock.calls[0][0]).toMatchObject({
       title: 'Восстановление',
-      body: expect.stringContaining('✅')
+      body: expect.stringContaining('✅'),
     });
   });
 
@@ -86,10 +91,7 @@ describe('deliverAlert', () => {
     await expect(
       deliverAlert(fakePrisma(['a1']), { kind: 'fire', message: 'boom' })
     ).resolves.toBeUndefined();
-    expect(errorSpy).toHaveBeenCalledWith(
-      '[alerts] in-app notification failed',
-      expect.anything()
-    );
+    expect(errorSpy).toHaveBeenCalledWith('[alerts] in-app notification failed', expect.anything());
     // Email should still be called despite in-app failure
     expect(deliverToUserMock).toHaveBeenCalledTimes(1);
     errorSpy.mockRestore();
@@ -101,10 +103,7 @@ describe('deliverAlert', () => {
     await expect(
       deliverAlert(fakePrisma(['a1']), { kind: 'fire', message: 'boom' })
     ).resolves.toBeUndefined();
-    expect(errorSpy).toHaveBeenCalledWith(
-      '[alerts] email failed',
-      expect.anything()
-    );
+    expect(errorSpy).toHaveBeenCalledWith('[alerts] email failed', expect.anything());
     errorSpy.mockRestore();
   });
 

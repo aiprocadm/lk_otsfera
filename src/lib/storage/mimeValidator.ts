@@ -10,7 +10,7 @@ export const SUPPORTED_MIME_TYPES: ReadonlyArray<SupportedMimeType> = [
   'image/jpeg',
   'image/png',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ];
 
 export type MimeValidationResult =
@@ -50,10 +50,7 @@ function detectOpenXmlKind(buf: Uint8Array): 'docx' | 'xlsx' | null {
   return null;
 }
 
-export function validateMagicBytes(
-  declaredMime: string,
-  buffer: Uint8Array
-): MimeValidationResult {
+export function validateMagicBytes(declaredMime: string, buffer: Uint8Array): MimeValidationResult {
   if (buffer.length < 8) return { ok: false, reason: 'too_short' };
 
   if (hasSignature(buffer, [0x25, 0x50, 0x44, 0x46])) {

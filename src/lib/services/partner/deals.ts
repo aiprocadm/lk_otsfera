@@ -52,10 +52,10 @@ export async function listPartnerDeals(
       ? {
           OR: [
             { title: { contains: filter.search, mode: 'insensitive' as const } },
-            { orderNumber: { contains: filter.search, mode: 'insensitive' as const } }
-          ]
+            { orderNumber: { contains: filter.search, mode: 'insensitive' as const } },
+          ],
         }
-      : {})
+      : {}),
   };
 
   const [total, orders] = await Promise.all([
@@ -76,9 +76,9 @@ export async function listPartnerDeals(
         createdAt: true,
         deadline: true,
         closedAt: true,
-        organization: { select: { id: true, name: true } }
-      }
-    })
+        organization: { select: { id: true, name: true } },
+      },
+    }),
   ]);
 
   const rows: DealRow[] = orders.map((o) => {
@@ -97,13 +97,13 @@ export async function listPartnerDeals(
         executionStatus: o.executionStatus,
         financialStatus: o.financialStatus,
         amount: Number(o.totalAmount),
-        paidTotal: Number(o.paidAmount)
+        paidTotal: Number(o.paidAmount),
       }),
       organizationName: o.organization?.name ?? '—',
       organizationId: o.organization?.id ?? null,
       createdAt: o.createdAt,
       deadline: o.deadline,
-      closedAt: o.closedAt
+      closedAt: o.closedAt,
     };
   });
 

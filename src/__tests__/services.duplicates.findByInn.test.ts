@@ -27,7 +27,7 @@ function makePrisma(
   const leadFindMany = vi.fn().mockResolvedValue(leads);
   const prisma = {
     organization: { findMany: orgFindMany },
-    lead: { findMany: leadFindMany }
+    lead: { findMany: leadFindMany },
   };
   return { prisma: prisma as never, orgFindMany, leadFindMany };
 }
@@ -42,12 +42,12 @@ describe('ФТ-13.4: клиентские роли → forbidden, БД не оп
   it.each([
     ['partner', PARTNER],
     ['organization', ORGANIZATION],
-    ['student', STUDENT]
+    ['student', STUDENT],
   ] as const)('%s → forbidden без единого запроса к БД', async (_role, session) => {
     const { prisma, orgFindMany, leadFindMany } = makePrisma();
     expect(await findByInn(prisma, session, { inn: '7707083893' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect(orgFindMany).not.toHaveBeenCalled();
     expect(leadFindMany).not.toHaveBeenCalled();
@@ -57,7 +57,7 @@ describe('ФТ-13.4: клиентские роли → forbidden, БД не оп
     const { prisma } = makePrisma();
     expect(await findByInn(prisma, PARTNER, { inn: 'abc' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 });
@@ -71,12 +71,12 @@ describe('findByInn — валидация ИНН', () => {
     ['11 цифр', '12345678901'],
     ['13 цифр', '1234567890123'],
     ['буквы', '77070838ab'],
-    ['цифры с буквой внутри', '7707x83893']
+    ['цифры с буквой внутри', '7707x83893'],
   ])('%s → validation, БД не опрашивается', async (_label, inn) => {
     const { prisma, orgFindMany, leadFindMany } = makePrisma();
     expect(await findByInn(prisma, MANAGER, { inn })).toEqual({
       ok: false,
-      error: 'validation'
+      error: 'validation',
     });
     expect(orgFindMany).not.toHaveBeenCalled();
     expect(leadFindMany).not.toHaveBeenCalled();
@@ -88,7 +88,7 @@ describe('findByInn — валидация ИНН', () => {
     const { prisma, orgFindMany, leadFindMany } = makePrisma();
     expect(await findByInn(prisma, MANAGER, {} as never)).toEqual({
       ok: false,
-      error: 'validation'
+      error: 'validation',
     });
     expect(orgFindMany).not.toHaveBeenCalled();
     expect(leadFindMany).not.toHaveBeenCalled();
@@ -123,7 +123,7 @@ describe('findByInn — нормализация пробелов и дефис�
     const { prisma } = makePrisma();
     expect(await findByInn(prisma, MANAGER, { inn: '12-34' })).toEqual({
       ok: false,
-      error: 'validation'
+      error: 'validation',
     });
   });
 });
@@ -142,7 +142,7 @@ describe('findByInn — happy path (manager/admin)', () => {
     expect(orgFindMany).toHaveBeenCalledWith({
       where: { inn: '7707083893' },
       select: { id: true, name: true },
-      take: 5
+      take: 5,
     });
   });
 
@@ -154,7 +154,7 @@ describe('findByInn — happy path (manager/admin)', () => {
       where: { clientInn: '7707083893', status: { notIn: ['rejected', 'promoted_to_order'] } },
       select: { id: true, subject: true, status: true },
       orderBy: { createdAt: 'desc' },
-      take: 5
+      take: 5,
     });
   });
 
@@ -169,7 +169,7 @@ describe('findByInn — happy path (manager/admin)', () => {
     const { prisma } = makePrisma([], []);
     expect(await findByInn(prisma, ADMIN, { inn: '770708389312' })).toEqual({
       ok: true,
-      duplicates: { organizations: [], leads: [] }
+      duplicates: { organizations: [], leads: [] },
     });
   });
 });

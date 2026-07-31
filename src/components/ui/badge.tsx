@@ -8,13 +8,13 @@ const TONE: Record<Tone, string> = {
   info: 'bg-[#FFF7ED] text-[#9A3412]',
   success: 'bg-green-50 text-green-700',
   warning: 'bg-amber-50 text-amber-700',
-  danger: 'bg-red-50 text-red-700'
+  danger: 'bg-red-50 text-red-700',
 };
 
 export function Badge({
   tone = 'neutral',
   className,
-  children
+  children,
 }: {
   tone?: Tone;
   className?: string;

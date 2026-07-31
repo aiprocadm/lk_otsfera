@@ -7,23 +7,33 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
-const { refresh, push, replace } = vi.hoisted(() => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }));
+const { refresh, push, replace } = vi.hoisted(() => ({
+  refresh: vi.fn(),
+  push: vi.fn(),
+  replace: vi.fn(),
+}));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh, push, replace }),
   usePathname: () => '/leader/intake',
-  useSearchParams: () => new URLSearchParams('skip=50')
+  useSearchParams: () => new URLSearchParams('skip=50'),
 }));
 
 const { createLeadFromInboundAction, createLeadFromCallAction } = vi.hoisted(() => ({
   createLeadFromInboundAction: vi.fn(),
-  createLeadFromCallAction: vi.fn()
+  createLeadFromCallAction: vi.fn(),
 }));
-vi.mock('@/server-actions/intake', () => ({ createLeadFromInboundAction, createLeadFromCallAction }));
+vi.mock('@/server-actions/intake', () => ({
+  createLeadFromInboundAction,
+  createLeadFromCallAction,
+}));
 
 const { createTaskAction } = vi.hoisted(() => ({ createTaskAction: vi.fn() }));
 vi.mock('@/server-actions/tasks', () => ({ createTaskAction }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { CreateLeadFromSourceDialog } from '@/components/intake/create-lead-from-source-dialog';
@@ -31,7 +41,13 @@ import { QuickTaskDialog } from '@/components/intake/quick-task-dialog';
 import { IntakeFilters } from '@/components/intake/intake-filters';
 import { SourceIntakeActions } from '@/components/intake/source-intake-actions';
 
-const PREFILL = { companyName: 'ООО Тест', contactName: 'Иван', contactPhone: '+7999', contactEmail: 'a@b.ru', subject: 'Тема' };
+const PREFILL = {
+  companyName: 'ООО Тест',
+  contactName: 'Иван',
+  contactPhone: '+7999',
+  contactEmail: 'a@b.ru',
+  subject: 'Тема',
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -46,7 +62,14 @@ beforeEach(() => {
 describe('CreateLeadFromSourceDialog', () => {
   it('префилл в полях; сабмит inbound-экшеном с sourceId; успех → переход на лид', async () => {
     createLeadFromInboundAction.mockResolvedValue({ ok: true, leadId: 'lead-5' });
-    render(<CreateLeadFromSourceDialog kind="inbound" sourceId="i1" prefill={PREFILL} onClose={vi.fn()} />);
+    render(
+      <CreateLeadFromSourceDialog
+        kind="inbound"
+        sourceId="i1"
+        prefill={PREFILL}
+        onClose={vi.fn()}
+      />
+    );
 
     expect((screen.getByLabelText('Компания клиента') as HTMLInputElement).value).toBe('ООО Тест');
     expect((screen.getByLabelText('Email') as HTMLInputElement).value).toBe('a@b.ru');
@@ -62,19 +85,35 @@ describe('CreateLeadFromSourceDialog', () => {
 
   it('kind=call использует call-экшен', async () => {
     createLeadFromCallAction.mockResolvedValue({ ok: true, leadId: 'lead-6' });
-    render(<CreateLeadFromSourceDialog kind="call" sourceId="c1" prefill={PREFILL} onClose={vi.fn()} />);
+    render(
+      <CreateLeadFromSourceDialog kind="call" sourceId="c1" prefill={PREFILL} onClose={vi.fn()} />
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
     await waitFor(() => expect(createLeadFromCallAction).toHaveBeenCalled());
     expect(createLeadFromInboundAction).not.toHaveBeenCalled();
   });
 
   it('validation с messages → список role=alert, без toast/перехода', async () => {
-    createLeadFromInboundAction.mockResolvedValue({ ok: false, error: 'validation', messages: ['Укажите компанию'] });
-    render(<CreateLeadFromSourceDialog kind="inbound" sourceId="i1" prefill={PREFILL} onClose={vi.fn()} />);
+    createLeadFromInboundAction.mockResolvedValue({
+      ok: false,
+      error: 'validation',
+      messages: ['Укажите компанию'],
+    });
+    render(
+      <CreateLeadFromSourceDialog
+        kind="inbound"
+        sourceId="i1"
+        prefill={PREFILL}
+        onClose={vi.fn()}
+      />
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
     // В Dialog есть собственный always-mounted alert-регион — ищем по всем.
     await waitFor(() => {
-      const alerts = screen.getAllByRole('alert').map((a) => a.textContent).join(' ');
+      const alerts = screen
+        .getAllByRole('alert')
+        .map((a) => a.textContent)
+        .join(' ');
       expect(alerts).toContain('Укажите компанию');
     });
     expect(push).not.toHaveBeenCalled();
@@ -82,16 +121,32 @@ describe('CreateLeadFromSourceDialog', () => {
 
   it('already_converted → понятный toast', async () => {
     createLeadFromInboundAction.mockResolvedValue({ ok: false, error: 'already_converted' });
-    render(<CreateLeadFromSourceDialog kind="inbound" sourceId="i1" prefill={PREFILL} onClose={vi.fn()} />);
+    render(
+      <CreateLeadFromSourceDialog
+        kind="inbound"
+        sourceId="i1"
+        prefill={PREFILL}
+        onClose={vi.fn()}
+      />
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
-    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Из этого источника лид уже создан.'));
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('Из этого источника лид уже создан.')
+    );
   });
 
   it('незнакомый код ошибки → общий русский текст, а не пустой toast', async () => {
     // У диалога свой словарь понятных сообщений. Если сервис вернёт код, которого
     // там нет, пользователь всё равно должен увидеть осмысленную фразу.
     createLeadFromInboundAction.mockResolvedValue({ ok: false, error: 'storage' });
-    render(<CreateLeadFromSourceDialog kind="inbound" sourceId="i1" prefill={PREFILL} onClose={vi.fn()} />);
+    render(
+      <CreateLeadFromSourceDialog
+        kind="inbound"
+        sourceId="i1"
+        prefill={PREFILL}
+        onClose={vi.fn()}
+      />
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
     await waitFor(() => expect(toastError).toHaveBeenCalled());
     expect(String(toastError.mock.calls[0][0]).length).toBeGreaterThan(0);
@@ -99,7 +154,14 @@ describe('CreateLeadFromSourceDialog', () => {
 
   it('«Отмена» зовёт onClose', () => {
     const onClose = vi.fn();
-    render(<CreateLeadFromSourceDialog kind="inbound" sourceId="i1" prefill={PREFILL} onClose={onClose} />);
+    render(
+      <CreateLeadFromSourceDialog
+        kind="inbound"
+        sourceId="i1"
+        prefill={PREFILL}
+        onClose={onClose}
+      />
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
     expect(onClose).toHaveBeenCalled();
   });
@@ -109,9 +171,18 @@ describe('QuickTaskDialog', () => {
   it('сабмит: префилл названия, орг-привязка, «на себя»; успех → toast + onClose + refresh', async () => {
     createTaskAction.mockResolvedValue({ ok: true, id: 't1' });
     const onClose = vi.fn();
-    render(<QuickTaskDialog titlePrefill="Перезвонить: +7999" organizationId="org-1" currentUserId="m1" onClose={onClose} />);
+    render(
+      <QuickTaskDialog
+        titlePrefill="Перезвонить: +7999"
+        organizationId="org-1"
+        currentUserId="m1"
+        onClose={onClose}
+      />
+    );
 
-    expect((screen.getByLabelText('Название') as HTMLInputElement).value).toBe('Перезвонить: +7999');
+    expect((screen.getByLabelText('Название') as HTMLInputElement).value).toBe(
+      'Перезвонить: +7999'
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
     await waitFor(() => expect(createTaskAction).toHaveBeenCalled());
     const fd = createTaskAction.mock.calls[0]![0] as FormData;
@@ -125,7 +196,14 @@ describe('QuickTaskDialog', () => {
   it('без организации и со снятым «на себя»; ошибка → toast, диалог жив', async () => {
     createTaskAction.mockResolvedValue({ ok: false, error: 'validation' });
     const onClose = vi.fn();
-    render(<QuickTaskDialog titlePrefill="Задача" organizationId={null} currentUserId="m1" onClose={onClose} />);
+    render(
+      <QuickTaskDialog
+        titlePrefill="Задача"
+        organizationId={null}
+        currentUserId="m1"
+        onClose={onClose}
+      />
+    );
     fireEvent.click(screen.getByText('на себя'));
     fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
     await waitFor(() => expect(toastError).toHaveBeenCalled());
@@ -153,7 +231,9 @@ describe('IntakeFilters', () => {
   });
 
   it('«Без ответственного» включается, глушит фильтр менеджера и убирается', () => {
-    const { rerender } = render(<IntakeFilters managers={managers} assigneeId="m2" onlyUnassigned={false} />);
+    const { rerender } = render(
+      <IntakeFilters managers={managers} assigneeId="m2" onlyUnassigned={false} />
+    );
     fireEvent.click(screen.getByLabelText('Без ответственного'));
     expect(replace).toHaveBeenCalledWith('/leader/intake?unassigned=1');
 
@@ -168,7 +248,14 @@ describe('IntakeFilters', () => {
 describe('SourceIntakeActions', () => {
   it('открывает диалог лида по кнопке «Создать лид»', () => {
     render(
-      <SourceIntakeActions kind="call" sourceId="c1" leadPrefill={PREFILL} taskTitle="Перезвонить" organizationId={null} currentUserId="m1" />
+      <SourceIntakeActions
+        kind="call"
+        sourceId="c1"
+        leadPrefill={PREFILL}
+        taskTitle="Перезвонить"
+        organizationId={null}
+        currentUserId="m1"
+      />
     );
     fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
     expect(screen.getByLabelText('Компания клиента')).toBeTruthy();
@@ -178,7 +265,14 @@ describe('SourceIntakeActions', () => {
     // Диалоги монтируются условно. Их onClose обязан вернуть кнопку в исходное
     // состояние, иначе второй раз создать лид уже не получится.
     render(
-      <SourceIntakeActions kind="call" sourceId="c1" leadPrefill={PREFILL} taskTitle="Перезвонить" organizationId={null} currentUserId="m1" />
+      <SourceIntakeActions
+        kind="call"
+        sourceId="c1"
+        leadPrefill={PREFILL}
+        taskTitle="Перезвонить"
+        organizationId={null}
+        currentUserId="m1"
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
@@ -192,7 +286,15 @@ describe('SourceIntakeActions', () => {
 
   it('showLead=false прячет «Создать лид»; «Задача» открывает quick-диалог', () => {
     render(
-      <SourceIntakeActions kind="call" sourceId="c1" leadPrefill={PREFILL} taskTitle="Перезвонить" organizationId={null} currentUserId="m1" showLead={false} />
+      <SourceIntakeActions
+        kind="call"
+        sourceId="c1"
+        leadPrefill={PREFILL}
+        taskTitle="Перезвонить"
+        organizationId={null}
+        currentUserId="m1"
+        showLead={false}
+      />
     );
     expect(screen.queryByRole('button', { name: 'Создать лид' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Задача' }));

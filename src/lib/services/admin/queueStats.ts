@@ -28,16 +28,15 @@ const DLQ_LIMIT_PER_QUEUE = 50;
 /**
  * Injection seam: the page/route loaders pass `getQueue` (or a stub in tests).
  */
-export type QueueProvider = (name: QueueName) => Pick<
-  Queue,
-  'getJobCounts' | 'getFailed' | 'getJob'
->;
+export type QueueProvider = (
+  name: QueueName
+) => Pick<Queue, 'getJobCounts' | 'getFailed' | 'getJob'>;
 
 /* v8 ignore next 1 — default provider is only used in production/integration; unit tests always inject a mock provider */
 const defaultProvider: QueueProvider = (name) => getQueue(name);
 
 export async function getQueueStats(
-  provider: QueueProvider = defaultProvider,
+  provider: QueueProvider = defaultProvider
 ): Promise<QueueStatsRow[]> {
   const rows = await Promise.all(
     QUEUE_NAMES.map(async (queue) => {
@@ -46,7 +45,7 @@ export async function getQueueStats(
         'active',
         'completed',
         'failed',
-        'delayed',
+        'delayed'
       )) as Partial<QueueCounts>;
       return {
         queue,
@@ -58,7 +57,7 @@ export async function getQueueStats(
           delayed: counts.delayed ?? 0,
         },
       };
-    }),
+    })
   );
   return rows;
 }
@@ -83,12 +82,13 @@ export async function getDlq(provider: QueueProvider = defaultProvider): Promise
   return all.slice(0, DLQ_LIMIT_PER_QUEUE);
 }
 
-export type RetryResult = { ok: true; queue: QueueName; jobId: string } | { ok: false; reason: string };
+export type RetryResult =
+  { ok: true; queue: QueueName; jobId: string } | { ok: false; reason: string };
 
 export async function retryDlqJob(
   queue: QueueName,
   jobId: string,
-  provider: QueueProvider = defaultProvider,
+  provider: QueueProvider = defaultProvider
 ): Promise<RetryResult> {
   const job = await provider(queue).getJob(jobId);
   if (!job) return { ok: false, reason: 'JOB_NOT_FOUND' };
@@ -117,7 +117,7 @@ export type BulkRetryResult =
  */
 export async function retryAllDlq(
   queue: QueueName,
-  provider: QueueProvider = defaultProvider,
+  provider: QueueProvider = defaultProvider
 ): Promise<BulkRetryResult> {
   try {
     const jobs = await provider(queue).getFailed(0, BULK_RETRY_CAP - 1);

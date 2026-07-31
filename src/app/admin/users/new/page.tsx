@@ -17,7 +17,7 @@ export default async function NewUserPage() {
   return (
     <div className="space-y-4 max-w-3xl">
       <div>
-        <BackLink href='/admin/users' label='Все пользователи' />
+        <BackLink href="/admin/users" label="Все пользователи" />
         <h1 className="text-2xl font-bold text-[#111111] mt-1">Пригласить пользователя</h1>
       </div>
       <UserInviteForm partners={partners} />

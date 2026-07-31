@@ -18,7 +18,7 @@ function validEnv(overrides: Record<string, string | undefined> = {}): NodeJS.Pr
     S3_ACCESS_KEY_ID: 'real-access-key',
     S3_SECRET_ACCESS_KEY: 'real-secret-key',
     S3_BUCKET: 'documents',
-    ...overrides
+    ...overrides,
   } as NodeJS.ProcessEnv;
 }
 
@@ -72,7 +72,10 @@ describe('validateProductionEnv — базовый набор', () => {
   });
 
   it('S3-креды minioadmin → issue про dev-креды', () => {
-    const issues = issuesFor({ S3_ACCESS_KEY_ID: 'minioadmin', S3_SECRET_ACCESS_KEY: 'minioadmin' });
+    const issues = issuesFor({
+      S3_ACCESS_KEY_ID: 'minioadmin',
+      S3_SECRET_ACCESS_KEY: 'minioadmin',
+    });
     expect(issues.join('\n')).toContain('MinIO');
   });
 
@@ -99,9 +102,9 @@ describe('validateProductionEnv — STUDENT_BRIDGE_JWT_SECRET (опционал�
   });
 
   it('задан валидным → ok', () => {
-    expect(
-      validateProductionEnv(validEnv({ STUDENT_BRIDGE_JWT_SECRET: 's'.repeat(32) })).ok
-    ).toBe(true);
+    expect(validateProductionEnv(validEnv({ STUDENT_BRIDGE_JWT_SECRET: 's'.repeat(32) })).ok).toBe(
+      true
+    );
   });
 });
 
@@ -118,7 +121,7 @@ describe('validateProductionEnv — условные требования', () =
         validEnv({
           ONE_C_ADAPTER: 'rest',
           ONE_C_API_URL: 'https://1c.example.ru',
-          ONE_C_API_TOKEN: 'token-123'
+          ONE_C_API_TOKEN: 'token-123',
         })
       ).ok
     ).toBe(true);
@@ -154,7 +157,7 @@ describe('validateProductionEnv — условные требования', () =
           INBOUND_EMAIL_ADAPTER: 'imap',
           IMAP_HOST: 'imap.example.ru',
           IMAP_USER: 'inbox@example.ru',
-          IMAP_PASSWORD: 'pass'
+          IMAP_PASSWORD: 'pass',
         })
       ).ok
     ).toBe(true);

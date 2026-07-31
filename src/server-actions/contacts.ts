@@ -3,7 +3,11 @@
 import { prisma } from '@/lib/db/prisma';
 import { requireManager } from '@/lib/auth/requireRole';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
-import { bindCall, type BindCallArgs, type BindCallResult } from '@/lib/services/telephony/bindCall';
+import {
+  bindCall,
+  type BindCallArgs,
+  type BindCallResult,
+} from '@/lib/services/telephony/bindCall';
 import { createContact } from '@/lib/services/manager/contacts';
 import { bindInboundMessageAction, CHANNEL_TO_CONTACT_TYPE } from '@/server-actions/inbound';
 
@@ -37,19 +41,21 @@ export type CreateContactFromCallArgs = {
  */
 export async function createContactFromCallAction(
   args: CreateContactFromCallArgs
-): Promise<{ ok: true; contactId: string } | { ok: false; error: 'forbidden' | 'invalid' | 'not_found' }> {
+): Promise<
+  { ok: true; contactId: string } | { ok: false; error: 'forbidden' | 'invalid' | 'not_found' }
+> {
   if (notFoundIfDisabled('contacts')) return { ok: false, error: 'forbidden' };
   const session = await requireManager();
   const created = await createContact(prisma, session, {
     name: args.name,
     organizationId: args.organizationId,
-    channels: [{ type: 'phone', value: args.phone }]
+    channels: [{ type: 'phone', value: args.phone }],
   });
   if (!created.ok) return created;
   const bound = await bindCall(prisma, session, {
     callId: args.callId,
     organizationId: args.organizationId,
-    contactId: created.contactId
+    contactId: created.contactId,
   });
   if (!bound.ok) return { ok: false, error: bound.error };
   return created;
@@ -75,25 +81,28 @@ export type CreateContactFromInboundArgs = {
  */
 export async function createContactFromInboundAction(
   args: CreateContactFromInboundArgs
-): Promise<{ ok: true; contactId: string } | { ok: false; error: 'forbidden' | 'invalid' | 'not_found' }> {
+): Promise<
+  { ok: true; contactId: string } | { ok: false; error: 'forbidden' | 'invalid' | 'not_found' }
+> {
   if (notFoundIfDisabled('contacts')) return { ok: false, error: 'forbidden' };
   const session = await requireManager();
   const message = await prisma.inboundMessage.findUnique({
     where: { id: args.inboundMessageId },
-    select: { channel: true, senderRef: true }
+    select: { channel: true, senderRef: true },
   });
   if (!message) return { ok: false, error: 'not_found' };
-  const channelType = CHANNEL_TO_CONTACT_TYPE[message.channel as keyof typeof CHANNEL_TO_CONTACT_TYPE];
+  const channelType =
+    CHANNEL_TO_CONTACT_TYPE[message.channel as keyof typeof CHANNEL_TO_CONTACT_TYPE];
   const created = await createContact(prisma, session, {
     name: args.name,
     organizationId: args.organizationId,
-    channels: [{ type: channelType, value: message.senderRef }]
+    channels: [{ type: channelType, value: message.senderRef }],
   });
   if (!created.ok) return created;
   const bound = await bindInboundMessageAction({
     inboundMessageId: args.inboundMessageId,
     organizationId: args.organizationId,
-    contactId: created.contactId
+    contactId: created.contactId,
   });
   if (!bound.ok) return { ok: false, error: bound.error };
   return created;

@@ -48,12 +48,16 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await cleanupRecords();
-  await db.auditLog.deleteMany({ where: { userId: adminUserId, action: 'one_c_pending_requeued' } });
+  await db.auditLog.deleteMany({
+    where: { userId: adminUserId, action: 'one_c_pending_requeued' },
+  });
 });
 
 afterAll(async () => {
   await cleanupRecords();
-  await db.auditLog.deleteMany({ where: { userId: adminUserId, action: 'one_c_pending_requeued' } });
+  await db.auditLog.deleteMany({
+    where: { userId: adminUserId, action: 'one_c_pending_requeued' },
+  });
   await db.user.deleteMany({ where: { email: ADMIN_EMAIL } });
   await db.$disconnect();
 });
@@ -102,7 +106,14 @@ describe('admin pending records (integration)', () => {
     for (const row of ours) {
       expect(row).not.toHaveProperty('dto'); // сырые ПДн из 1С не покидают сервис
       expect(Object.keys(row).sort()).toEqual([
-        'attempts', 'entity', 'externalId', 'firstSeenAt', 'id', 'lastTriedAt', 'reason', 'status',
+        'attempts',
+        'entity',
+        'externalId',
+        'firstSeenAt',
+        'id',
+        'lastTriedAt',
+        'reason',
+        'status',
       ]);
     }
 
@@ -147,7 +158,13 @@ describe('admin pending records (integration)', () => {
   });
 
   it('requeueDeadRecord: несуществующий id → not_found; не-admin → forbidden', async () => {
-    expect(await requeueDeadRecord(db, ADMIN, 'apr-missing-id')).toEqual({ ok: false, error: 'not_found' });
-    expect(await requeueDeadRecord(db, MANAGER, 'apr-missing-id')).toEqual({ ok: false, error: 'forbidden' });
+    expect(await requeueDeadRecord(db, ADMIN, 'apr-missing-id')).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+    expect(await requeueDeadRecord(db, MANAGER, 'apr-missing-id')).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
   });
 });

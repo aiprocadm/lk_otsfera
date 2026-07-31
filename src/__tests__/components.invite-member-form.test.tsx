@@ -10,7 +10,7 @@ import { InviteMemberForm } from '@/components/partner/invite-member-form';
 
 const orgs = [
   { id: 'o1', name: 'ООО Один' },
-  { id: 'o2', name: 'ООО Два' }
+  { id: 'o2', name: 'ООО Два' },
 ];
 
 /** Успешный ответ POST /api/partner/team (этап 4: ссылка + статус письма). */
@@ -19,7 +19,7 @@ function invitePayload(emailStatus: 'sent' | 'skipped' = 'sent') {
     userId: 'nu1',
     partnerUserId: 'npu1',
     inviteUrl: 'https://lk.example/invite/tok-1',
-    emailStatus
+    emailStatus,
   };
 }
 
@@ -65,7 +65,9 @@ describe('InviteMemberForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /Пригласить/ }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
     fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Пётр' } });
-    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), { target: { value: 'p@x.com' } });
+    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), {
+      target: { value: 'p@x.com' },
+    });
     const submit = screen.getByRole('button', { name: 'Пригласить' }) as HTMLButtonElement;
     expect(submit.disabled).toBe(false);
   });
@@ -75,7 +77,9 @@ describe('InviteMemberForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /Пригласить/ }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
     fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Пётр' } });
-    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), { target: { value: 'notanemail' } });
+    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), {
+      target: { value: 'notanemail' },
+    });
     const submit = screen.getByRole('button', { name: 'Пригласить' }) as HTMLButtonElement;
     expect(submit.disabled).toBe(true);
   });
@@ -120,7 +124,9 @@ describe('InviteMemberForm', () => {
     expect(submit.disabled).toBe(true); // no org selected yet + no valid email
 
     fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Пётр' } });
-    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), { target: { value: 'p@x.com' } });
+    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), {
+      target: { value: 'p@x.com' },
+    });
     expect(submit.disabled).toBe(true); // still no org selected
 
     fireEvent.click(screen.getByText('ООО Один'));
@@ -147,13 +153,17 @@ describe('InviteMemberForm', () => {
   });
 
   it('success (emailStatus=sent): submits assignedOrgIds=[], показывает success-вид со ссылкой, диалог НЕ закрывается, refresh вызван', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => invitePayload('sent') });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => invitePayload('sent') });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(InviteMemberForm, { orgs }));
     fireEvent.click(screen.getByRole('button', { name: /Пригласить/ }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
     fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Пётр' } });
-    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), { target: { value: 'p@x.com' } });
+    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), {
+      target: { value: 'p@x.com' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
@@ -161,7 +171,12 @@ describe('InviteMemberForm', () => {
       '/api/partner/team',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ email: 'p@x.com', name: 'Пётр', roleInPartner: 'manager', assignedOrgIds: [] })
+        body: JSON.stringify({
+          email: 'p@x.com',
+          name: 'Пётр',
+          roleInPartner: 'manager',
+          assignedOrgIds: [],
+        }),
       })
     );
     await waitFor(() => expect(screen.getByText(/Письмо приглашения отправлено/)).toBeTruthy());
@@ -175,12 +190,17 @@ describe('InviteMemberForm', () => {
   });
 
   it('success (emailStatus=skipped): текст «Отправка почты выключена», ссылка тоже показана', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => invitePayload('skipped') }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => invitePayload('skipped') })
+    );
     render(React.createElement(InviteMemberForm, { orgs }));
     fireEvent.click(screen.getByRole('button', { name: /Пригласить/ }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
     fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Пётр' } });
-    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), { target: { value: 'p@x.com' } });
+    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), {
+      target: { value: 'p@x.com' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
 
     await waitFor(() => expect(screen.getByText(/Отправка почты\s*выключена/)).toBeTruthy());
@@ -192,14 +212,19 @@ describe('InviteMemberForm', () => {
   });
 
   it('success-вид: «Скопировать» пишет ссылку в clipboard и меняет подпись на «Скопировано ✓»', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => invitePayload('sent') }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => invitePayload('sent') })
+    );
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     render(React.createElement(InviteMemberForm, { orgs }));
     fireEvent.click(screen.getByRole('button', { name: /Пригласить/ }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
     fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Пётр' } });
-    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), { target: { value: 'p@x.com' } });
+    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), {
+      target: { value: 'p@x.com' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Скопировать' })).toBeTruthy());
 
@@ -210,14 +235,19 @@ describe('InviteMemberForm', () => {
   });
 
   it('success-вид: сбой clipboard оставляет подпись «Скопировать»', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => invitePayload('sent') }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => invitePayload('sent') })
+    );
     const writeText = vi.fn().mockRejectedValue(new Error('denied'));
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     render(React.createElement(InviteMemberForm, { orgs }));
     fireEvent.click(screen.getByRole('button', { name: /Пригласить/ }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
     fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Пётр' } });
-    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), { target: { value: 'p@x.com' } });
+    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), {
+      target: { value: 'p@x.com' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Скопировать' })).toBeTruthy());
 
@@ -229,12 +259,17 @@ describe('InviteMemberForm', () => {
   });
 
   it('success-вид: «Готово» закрывает диалог; повторное открытие возвращает чистую форму', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => invitePayload('sent') }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => invitePayload('sent') })
+    );
     render(React.createElement(InviteMemberForm, { orgs }));
     fireEvent.click(screen.getByRole('button', { name: /Пригласить/ }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
     fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Пётр' } });
-    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), { target: { value: 'p@x.com' } });
+    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), {
+      target: { value: 'p@x.com' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Готово' })).toBeTruthy());
 
@@ -258,7 +293,9 @@ describe('InviteMemberForm', () => {
     fireEvent.click(screen.getByText('Все организации партнёра'));
     fireEvent.click(screen.getByText('ООО Два'));
     fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Оля' } });
-    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), { target: { value: 'o@x.com' } });
+    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), {
+      target: { value: 'o@x.com' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
@@ -268,16 +305,22 @@ describe('InviteMemberForm', () => {
   });
 
   it('error path shows the mapped error text and keeps the dialog open', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 409, json: async () => ({ error: 'email_taken' }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 409, json: async () => ({ error: 'email_taken' }) });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(InviteMemberForm, { orgs }));
     fireEvent.click(screen.getByRole('button', { name: /Пригласить/ }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
     fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Пётр' } });
-    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), { target: { value: 'dup@x.com' } });
+    fireEvent.change(screen.getByPlaceholderText('ivanov@company.ru'), {
+      target: { value: 'dup@x.com' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
 
-    await waitFor(() => expect(screen.getByText('Пользователь с таким email уже существует')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText('Пользователь с таким email уже существует')).toBeTruthy()
+    );
     expect(close).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });

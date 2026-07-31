@@ -10,7 +10,7 @@ import { CallsOrgFilter } from '@/components/manager/calls-org-filter';
 
 const ORGS = [
   { id: 'org-1', name: 'Альфа Пром' },
-  { id: 'org-2', name: 'Бета Сталь' }
+  { id: 'org-2', name: 'Бета Сталь' },
 ];
 
 function getSelect(container: HTMLElement): HTMLSelectElement {
@@ -34,12 +34,12 @@ describe('CallsOrgFilter', () => {
   });
 
   it('orgId из searchParams выбирает соответствующую опцию', () => {
-    const { container } = render(<CallsOrgFilter orgs={ORGS} orgId='org-2' />);
+    const { container } = render(<CallsOrgFilter orgs={ORGS} orgId="org-2" />);
     expect(getSelect(container).value).toBe('org-2');
   });
 
   it('выбор организации пушит ?orgId=<id>&direction=<текущий> без page (сброс пагинации)', () => {
-    const { container } = render(<CallsOrgFilter orgs={ORGS} direction='inbound' />);
+    const { container } = render(<CallsOrgFilter orgs={ORGS} direction="inbound" />);
     fireEvent.change(getSelect(container), { target: { value: 'org-1' } });
     expect(push).toHaveBeenCalledTimes(1);
     expect(push).toHaveBeenCalledWith('/manager/calls?orgId=org-1&direction=inbound');
@@ -52,13 +52,13 @@ describe('CallsOrgFilter', () => {
   });
 
   it('«Все организации» пушит без orgId, direction сохраняется', () => {
-    const { container } = render(<CallsOrgFilter orgs={ORGS} orgId='org-1' direction='outbound' />);
+    const { container } = render(<CallsOrgFilter orgs={ORGS} orgId="org-1" direction="outbound" />);
     fireEvent.change(getSelect(container), { target: { value: '' } });
     expect(push).toHaveBeenCalledWith('/manager/calls?direction=outbound');
   });
 
   it('«Все организации» без direction пушит чистый /manager/calls', () => {
-    const { container } = render(<CallsOrgFilter orgs={ORGS} orgId='org-1' />);
+    const { container } = render(<CallsOrgFilter orgs={ORGS} orgId="org-1" />);
     fireEvent.change(getSelect(container), { target: { value: '' } });
     expect(push).toHaveBeenCalledWith('/manager/calls');
   });

@@ -12,7 +12,7 @@ const TABS: Tab[] = [
   // обращения (этап 5).
   // Этап 11 PR-3 (ФТ-15.4): термин ТЗ — «Мои заявки».
   { href: '/partner/requests', label: 'Мои заявки', icon: '✚' },
-  { href: '/partner/documents', label: 'Документы', icon: '📄' }
+  { href: '/partner/documents', label: 'Документы', icon: '📄' },
 ];
 
 export function BottomTabBar() {
@@ -20,8 +20,8 @@ export function BottomTabBar() {
 
   return (
     <nav
-      aria-label='Mobile navigation'
-      className='fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 grid grid-cols-4 md:hidden'
+      aria-label="Mobile navigation"
+      className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 grid grid-cols-4 md:hidden"
     >
       {TABS.map((tab) => {
         const active = pathname.startsWith(tab.href);
@@ -34,7 +34,7 @@ export function BottomTabBar() {
         // dead code and has been removed.
         return (
           <Link key={tab.href} href={tab.href} className={className}>
-            <span className='text-lg leading-none'>{tab.icon}</span>
+            <span className="text-lg leading-none">{tab.icon}</span>
             {tab.label}
           </Link>
         );

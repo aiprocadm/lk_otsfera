@@ -21,7 +21,7 @@ type SearchParams = {
 const PAGE_SIZE = 25;
 
 export default async function ManagerCallsPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
@@ -33,12 +33,13 @@ export default async function ManagerCallsPage({
   // skip-конвенция общего Paginator (см. organization/orders): page выводится из skip
   const skip = Number.isFinite(Number(sp.skip)) ? Math.max(0, Number(sp.skip)) : 0;
   const page = Math.floor(skip / PAGE_SIZE) + 1;
-  const direction = sp.direction === 'inbound' || sp.direction === 'outbound' ? sp.direction : undefined;
+  const direction =
+    sp.direction === 'inbound' || sp.direction === 'outbound' ? sp.direction : undefined;
   const filters: CallsFilters = {
     ...(direction ? { direction } : {}),
     ...(sp.orgId ? { orgId: sp.orgId } : {}),
     page,
-    pageSize: PAGE_SIZE
+    pageSize: PAGE_SIZE,
   };
 
   // Организации нужны безусловно (org-фильтр журнала); флаг `contacts` гейтит
@@ -46,7 +47,7 @@ export default async function ManagerCallsPage({
   const contactsEnabled = isFeatureEnabled('contacts');
   const [{ items, total }, orgs] = await Promise.all([
     listCalls(prisma, session, filters),
-    listOrganizations(prisma, session)
+    listOrganizations(prisma, session),
   ]);
 
   return (
@@ -62,7 +63,12 @@ export default async function ManagerCallsPage({
         <CallsOrgFilter orgs={orgs} orgId={sp.orgId} direction={direction} />
       </CallsFiltersBar>
 
-      <CallsList items={items} orgs={orgs} contactsEnabled={contactsEnabled} currentUserId={session.sub} />
+      <CallsList
+        items={items}
+        orgs={orgs}
+        contactsEnabled={contactsEnabled}
+        currentUserId={session.sub}
+      />
 
       <Paginator
         basePath="/manager/calls"

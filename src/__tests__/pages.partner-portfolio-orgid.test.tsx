@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import OrgCardPage from '@/app/partner/portfolio/[orgId]/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requirePartner } = vi.hoisted(() => ({ requirePartner: vi.fn() }));
@@ -10,7 +11,7 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { canPartnerAccessOrg, isPartnerAdmin } = vi.hoisted(() => ({
   canPartnerAccessOrg: vi.fn(),
-  isPartnerAdmin: vi.fn()
+  isPartnerAdmin: vi.fn(),
 }));
 vi.mock('@/lib/auth/policy', () => ({ canPartnerAccessOrg, isPartnerAdmin }));
 
@@ -23,7 +24,7 @@ const nav = vi.hoisted(() => ({
   }),
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
-  })
+  }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -32,22 +33,30 @@ vi.mock('next/navigation', () => nav);
 // mock them at module level per the recipe rather than rendering them live.
 vi.mock('@/components/partner/org-employees-tab', () => ({
   EmployeesTab: ({ orgId }: { orgId: string }) =>
-    React.createElement('div', { 'data-testid': 'employees-tab' }, `employees:${orgId}`)
+    React.createElement('div', { 'data-testid': 'employees-tab' }, `employees:${orgId}`),
 }));
 vi.mock('@/components/partner/org-comments-tab', () => ({
   CommentsTab: ({ orgId }: { orgId: string }) =>
-    React.createElement('div', { 'data-testid': 'comments-tab' }, `comments:${orgId}`)
+    React.createElement('div', { 'data-testid': 'comments-tab' }, `comments:${orgId}`),
 }));
 vi.mock('@/components/partner/org-history-tab', () => ({
   HistoryTab: ({ orgId }: { orgId: string }) =>
-    React.createElement('div', { 'data-testid': 'history-tab' }, `history:${orgId}`)
+    React.createElement('div', { 'data-testid': 'history-tab' }, `history:${orgId}`),
 }));
 vi.mock('@/components/partner/customer-access-section', () => ({
-  CustomerAccessSection: ({ organizationId, canInvite }: { organizationId: string; canInvite: boolean }) =>
-    React.createElement('div', { 'data-testid': 'customer-access' }, `access:${organizationId}:${String(canInvite)}`)
+  CustomerAccessSection: ({
+    organizationId,
+    canInvite,
+  }: {
+    organizationId: string;
+    canInvite: boolean;
+  }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'customer-access' },
+      `access:${organizationId}:${String(canInvite)}`
+    ),
 }));
-
-import OrgCardPage from '@/app/partner/portfolio/[orgId]/page';
 
 const SESSION = { sub: 'u1', role: 'partner' as const, partnerId: 'p1', assignedOrgIds: ['org-1'] };
 
@@ -60,7 +69,7 @@ const BASE_CARD = {
   assignedManagerUserId: null,
   partnerCommissionRate: null,
   partnerCommissionRateNote: null,
-  kpi: { ordersCount: 3, debt: '1000.00' }
+  kpi: { ordersCount: 3, debt: '1000.00' },
 };
 
 describe('OrgCardPage', () => {
@@ -81,7 +90,7 @@ describe('OrgCardPage', () => {
       renderServerComponent(
         OrgCardPage({
           params: Promise.resolve({ orgId: 'org-1' }),
-          searchParams: Promise.resolve({})
+          searchParams: Promise.resolve({}),
         })
       )
     ).rejects.toThrow('REDIRECT:/forbidden');
@@ -98,7 +107,7 @@ describe('OrgCardPage', () => {
       renderServerComponent(
         OrgCardPage({
           params: Promise.resolve({ orgId: 'org-1' }),
-          searchParams: Promise.resolve({})
+          searchParams: Promise.resolve({}),
         })
       )
     ).rejects.toThrow('NOT_FOUND');
@@ -113,7 +122,7 @@ describe('OrgCardPage', () => {
     const { container } = await renderServerComponent(
       OrgCardPage({
         params: Promise.resolve({ orgId: 'org-1' }),
-        searchParams: Promise.resolve({ tab: 'bogus' })
+        searchParams: Promise.resolve({ tab: 'bogus' }),
       })
     );
 
@@ -132,7 +141,7 @@ describe('OrgCardPage', () => {
     const { container } = await renderServerComponent(
       OrgCardPage({
         params: Promise.resolve({ orgId: 'org-1' }),
-        searchParams: Promise.resolve({ tab: 'comments' })
+        searchParams: Promise.resolve({ tab: 'comments' }),
       })
     );
 
@@ -150,7 +159,7 @@ describe('OrgCardPage', () => {
     const { container } = await renderServerComponent(
       OrgCardPage({
         params: Promise.resolve({ orgId: 'org-1' }),
-        searchParams: Promise.resolve({ tab: 'history' })
+        searchParams: Promise.resolve({ tab: 'history' }),
       })
     );
 

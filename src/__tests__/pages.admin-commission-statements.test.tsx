@@ -9,9 +9,12 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { listAdminStatements, listPartnersForFilter } = vi.hoisted(() => ({
   listAdminStatements: vi.fn(),
-  listPartnersForFilter: vi.fn()
+  listPartnersForFilter: vi.fn(),
 }));
-vi.mock('@/lib/services/admin/commissionStatements', () => ({ listAdminStatements, listPartnersForFilter }));
+vi.mock('@/lib/services/admin/commissionStatements', () => ({
+  listAdminStatements,
+  listPartnersForFilter,
+}));
 
 import AdminCommissionStatementsPage from '@/app/admin/commission-statements/page';
 
@@ -34,14 +37,19 @@ describe('AdminCommissionStatementsPage', () => {
         periodTo: new Date('2024-01-31'),
         status: 'draft',
         itemCount: 3,
-        totalCommissionAmount: '1000'
-      }
+        totalCommissionAmount: '1000',
+      },
     ]);
     listPartnersForFilter.mockResolvedValue([{ id: 'p1', name: 'Партнёр 1' }]);
 
     const { container } = await renderServerComponent(
       AdminCommissionStatementsPage({
-        searchParams: Promise.resolve({ status: 'draft', partnerId: 'p1', from: '2024-01-01', to: '2024-01-31' })
+        searchParams: Promise.resolve({
+          status: 'draft',
+          partnerId: 'p1',
+          from: '2024-01-01',
+          to: '2024-01-31',
+        }),
       })
     );
 
@@ -63,12 +71,19 @@ describe('AdminCommissionStatementsPage', () => {
     listPartnersForFilter.mockResolvedValue([]);
 
     const { container } = await renderServerComponent(
-      AdminCommissionStatementsPage({ searchParams: Promise.resolve({ status: 'bogus', from: 'not-a-date' }) })
+      AdminCommissionStatementsPage({
+        searchParams: Promise.resolve({ status: 'bogus', from: 'not-a-date' }),
+      })
     );
 
     expect(listAdminStatements).toHaveBeenCalledWith(
       {},
-      expect.objectContaining({ status: undefined, partnerId: undefined, from: undefined, to: undefined })
+      expect.objectContaining({
+        status: undefined,
+        partnerId: undefined,
+        from: undefined,
+        to: undefined,
+      })
     );
     expect(container.textContent).toContain('не найдены');
   });
@@ -83,8 +98,8 @@ describe('AdminCommissionStatementsPage', () => {
         periodTo: new Date('2024-02-15'),
         status: 'unknown_status',
         itemCount: 1,
-        totalCommissionAmount: 'abc'
-      }
+        totalCommissionAmount: 'abc',
+      },
     ]);
     listPartnersForFilter.mockResolvedValue([]);
 

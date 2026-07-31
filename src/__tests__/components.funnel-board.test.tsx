@@ -9,7 +9,10 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 const { moveFunnelLeadAction } = vi.hoisted(() => ({ moveFunnelLeadAction: vi.fn() }));
 vi.mock('@/server-actions/funnel', () => ({ moveFunnelLeadAction }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { FunnelBoard } from '@/components/funnel/funnel-board';
@@ -19,7 +22,14 @@ const board: FunnelBoardData = {
   stages: [],
   columns: [
     {
-      stage: { id: 'stage-new', name: 'Новый лид', position: 0, statusAnchor: 'new', isTerminal: false, color: null },
+      stage: {
+        id: 'stage-new',
+        name: 'Новый лид',
+        position: 0,
+        statusAnchor: 'new',
+        isTerminal: false,
+        color: null,
+      },
       cards: [
         {
           id: 'lead-1',
@@ -28,15 +38,22 @@ const board: FunnelBoardData = {
           estimatedAmount: '5000',
           organizationName: null,
           assignedManagerName: 'Иван',
-          createdAt: new Date('2026-01-01')
-        }
-      ]
+          createdAt: new Date('2026-01-01'),
+        },
+      ],
     },
     {
-      stage: { id: 'stage-review', name: 'В работе', position: 1, statusAnchor: 'in_review', isTerminal: false, color: null },
-      cards: []
-    }
-  ]
+      stage: {
+        id: 'stage-review',
+        name: 'В работе',
+        position: 1,
+        statusAnchor: 'in_review',
+        isTerminal: false,
+        color: null,
+      },
+      cards: [],
+    },
+  ],
 };
 
 function dataTransfer(id: string) {
@@ -46,7 +63,7 @@ function dataTransfer(id: string) {
       store[type] = value;
       if (id) store['text/plain'] = id;
     },
-    getData: (type: string) => store[type] ?? id
+    getData: (type: string) => store[type] ?? id,
   };
 }
 
@@ -80,8 +97,8 @@ describe('FunnelBoard', () => {
       stages: [],
       columns: [
         { stage: { ...board.columns[0].stage, color: '#22C55E' }, cards: [] },
-        { stage: board.columns[1].stage, cards: [] } // color: null → transparent placeholder
-      ]
+        { stage: board.columns[1].stage, cards: [] }, // color: null → transparent placeholder
+      ],
     };
     render(React.createElement(FunnelBoard, { board: colored }));
     const strips = screen.getAllByTestId('stage-color-strip');
@@ -101,9 +118,11 @@ describe('FunnelBoard', () => {
       columns: [
         {
           stage: board.columns[0].stage,
-          cards: [{ ...board.columns[0].cards[0], estimatedAmount: null, assignedManagerName: null }]
-        }
-      ]
+          cards: [
+            { ...board.columns[0].cards[0], estimatedAmount: null, assignedManagerName: null },
+          ],
+        },
+      ],
     };
     render(React.createElement(FunnelBoard, { board: b }));
     expect(screen.getByText('—')).toBeTruthy();
@@ -201,11 +220,15 @@ describe('FunnelBoard', () => {
     const column = screen.getByText('В работе').closest('div')!.parentElement as HTMLElement;
     fireEvent.drop(column, { dataTransfer: dataTransfer('lead-1') });
 
-    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось переместить карточку.'));
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('Не удалось переместить карточку.')
+    );
   });
 
   it('reason dialog: submitting with a reason resubmits the move including the reason, then closes', async () => {
-    moveFunnelLeadAction.mockResolvedValueOnce({ ok: false, error: 'reason_required' }).mockResolvedValueOnce({ ok: true });
+    moveFunnelLeadAction
+      .mockResolvedValueOnce({ ok: false, error: 'reason_required' })
+      .mockResolvedValueOnce({ ok: true });
     render(React.createElement(FunnelBoard, { board }));
     const column = screen.getByText('В работе').closest('div')!.parentElement as HTMLElement;
     fireEvent.drop(column, { dataTransfer: dataTransfer('lead-1') });

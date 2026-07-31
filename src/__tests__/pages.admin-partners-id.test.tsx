@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import EditPartnerPage from '@/app/admin/partners/[id]/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
@@ -8,7 +9,7 @@ const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
 // сервис, иначе он полезет в реальный prisma. Обычная функция, а не vi.fn:
 // в файле есть resetAllMocks, он снёс бы заготовленный ответ.
 vi.mock('@/lib/services/customFields', () => ({
-  getFieldsForEntity: async () => []
+  getFieldsForEntity: async () => [],
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
@@ -18,15 +19,19 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 // Этап 8 (PR-1): реквизиты для документов — сервис и карточка стабятся.
 const { getOrgRequisitesByAdmin, getPartnerRequisitesByAdmin } = vi.hoisted(() => ({
   getOrgRequisitesByAdmin: vi.fn().mockResolvedValue(null),
-  getPartnerRequisitesByAdmin: vi.fn().mockResolvedValue(null)
+  getPartnerRequisitesByAdmin: vi.fn().mockResolvedValue(null),
 }));
-vi.mock('@/lib/services/admin/counterpartyRequisites', () => ({ getOrgRequisitesByAdmin, getPartnerRequisitesByAdmin }));
+vi.mock('@/lib/services/admin/counterpartyRequisites', () => ({
+  getOrgRequisitesByAdmin,
+  getPartnerRequisitesByAdmin,
+}));
 vi.mock('@/server-actions/requisites', () => ({
   setOrgRequisitesByAdminAction: vi.fn(),
-  setPartnerRequisitesByAdminAction: vi.fn()
+  setPartnerRequisitesByAdminAction: vi.fn(),
 }));
 vi.mock('@/components/requisites/requisites-card', () => ({
-  RequisitesCard: (props: { title: string }) => React.createElement('div', { 'data-testid': 'requisites-card' }, props.title)
+  RequisitesCard: (props: { title: string }) =>
+    React.createElement('div', { 'data-testid': 'requisites-card' }, props.title),
 }));
 
 const { getPartner } = vi.hoisted(() => ({ getPartner: vi.fn() }));
@@ -39,16 +44,18 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
 vi.mock('@/components/admin/partner-edit-form', () => ({
   PartnerEditForm: (props: { partner: unknown }) =>
-    React.createElement('div', { 'data-testid': 'partner-edit-form' }, JSON.stringify(props.partner))
+    React.createElement(
+      'div',
+      { 'data-testid': 'partner-edit-form' },
+      JSON.stringify(props.partner)
+    ),
 }));
-
-import EditPartnerPage from '@/app/admin/partners/[id]/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 
@@ -57,8 +64,15 @@ const PARTNER = {
   name: 'Партнёр 1',
   slug: 'partner-1',
   admins: [
-    { partnerUserId: 'pu1', userId: 'u1', email: 'a@x.com', name: 'Admin', isActive: true, createdAt: new Date('2024-01-01') }
-  ]
+    {
+      partnerUserId: 'pu1',
+      userId: 'u1',
+      email: 'a@x.com',
+      name: 'Admin',
+      isActive: true,
+      createdAt: new Date('2024-01-01'),
+    },
+  ],
 };
 
 describe('EditPartnerPage', () => {
@@ -98,7 +112,7 @@ describe('EditPartnerPage', () => {
       bic: null,
       signerName: null,
       signerPosition: null,
-      signerBasis: null
+      signerBasis: null,
     });
 
     const { container } = await renderServerComponent(
@@ -121,9 +135,9 @@ describe('EditPartnerPage', () => {
           effectiveFrom: new Date('2024-01-01'),
           oldRate: 0.05,
           newRate: 0.1,
-          changedByName: 'Admin'
-        }
-      ]
+          changedByName: 'Admin',
+        },
+      ],
     });
 
     const { container } = await renderServerComponent(
@@ -147,8 +161,15 @@ describe('EditPartnerPage', () => {
     getPartner.mockResolvedValue({
       ...PARTNER,
       admins: [
-        { partnerUserId: 'pu2', userId: 'u2', email: 'b@x.com', name: 'Admin2', isActive: false, createdAt: new Date('2024-02-01') }
-      ]
+        {
+          partnerUserId: 'pu2',
+          userId: 'u2',
+          email: 'b@x.com',
+          name: 'Admin2',
+          isActive: false,
+          createdAt: new Date('2024-02-01'),
+        },
+      ],
     });
     listRateHistory.mockResolvedValue({ ok: false, error: 'forbidden' });
 
@@ -171,9 +192,9 @@ describe('EditPartnerPage', () => {
           effectiveFrom: new Date('2024-03-01'),
           oldRate: null,
           newRate: 0.08,
-          changedByName: null
-        }
-      ]
+          changedByName: null,
+        },
+      ],
     });
 
     const { container } = await renderServerComponent(

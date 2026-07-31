@@ -37,7 +37,7 @@ describe('канон leader', () => {
       // §11 ТЗ v0.5: зеркало настройки полей — руководителя в /admin/* не пускаем
       '/leader/settings/custom-fields',
       // §10 ТЗ v0.5: там же зеркало справочника статусов
-      '/leader/settings/order-statuses'
+      '/leader/settings/order-statuses',
     ]);
   });
 

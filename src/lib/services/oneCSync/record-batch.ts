@@ -14,7 +14,17 @@ export type BatchSummary = {
 };
 
 export function emptySummary(): BatchSummary {
-  return { pulled: 0, created: 0, updated: 0, skipped: 0, invalid: 0, failed: 0, skips: [], invalids: [], failures: [] };
+  return {
+    pulled: 0,
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    invalid: 0,
+    failed: 0,
+    skips: [],
+    invalids: [],
+    failures: [],
+  };
 }
 
 export async function runRecordBatch<T>(
@@ -35,7 +45,10 @@ export async function runRecordBatch<T>(
       await handler(record, summary);
     } catch (err) {
       summary.failed += 1;
-      summary.failures.push({ externalId: getExternalId(record), error: err instanceof Error ? err.message : String(err) });
+      summary.failures.push({
+        externalId: getExternalId(record),
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
   return summary;

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { syncReconcileProcessor } from '@/worker/processors/sync-reconcile';
 import type { PrismaClient } from '@prisma/client';
 import type { Job } from 'bullmq';
+import { syncReconcileProcessor } from '@/worker/processors/sync-reconcile';
 
 type FindFirstQuery = { where: { entity: string } };
 
@@ -15,8 +15,8 @@ function makePrismaMock(freshEntities: Set<string>): {
       findFirst: vi.fn(async (q: FindFirstQuery) =>
         freshEntities.has(q.where.entity) ? { id: 'log-id' } : null
       ),
-      create: logSpy
-    }
+      create: logSpy,
+    },
   } as unknown as PrismaClient;
   return { prisma, logSpy };
 }
@@ -27,7 +27,9 @@ function fakeJob(): Job {
 
 describe('syncReconcileProcessor', () => {
   it('status=success when all 4 entities have fresh inbound success', async () => {
-    const { prisma, logSpy } = makePrismaMock(new Set(['organization', 'order', 'payment', 'document']));
+    const { prisma, logSpy } = makePrismaMock(
+      new Set(['organization', 'order', 'payment', 'document'])
+    );
     const result = await syncReconcileProcessor(fakeJob(), prisma);
     expect(result.status).toBe('success');
     expect(result.staleEntities).toHaveLength(0);

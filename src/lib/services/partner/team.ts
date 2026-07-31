@@ -21,10 +21,7 @@ export type TeamRow = {
   lastLoginAt: Date | null;
 };
 
-export async function listTeam(
-  prisma: PrismaClient,
-  partnerId: string
-): Promise<TeamRow[]> {
+export async function listTeam(prisma: PrismaClient, partnerId: string): Promise<TeamRow[]> {
   const rows = await prisma.partnerUser.findMany({
     where: { partnerId },
     // Этап 10 (§7 ТЗ): явный select вместо include — из PartnerUser берём ровно
@@ -38,9 +35,9 @@ export async function listTeam(
       assignedOrgIds: true,
       isActive: true,
       createdAt: true,
-      user: { select: { email: true, name: true, passwordHash: true, lastLoginAt: true } }
+      user: { select: { email: true, name: true, passwordHash: true, lastLoginAt: true } },
     },
-    orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }]
+    orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }],
   });
 
   return rows.map((r) => ({
@@ -53,7 +50,7 @@ export async function listTeam(
     isActive: r.isActive,
     createdAt: r.createdAt,
     invitePending: r.user.passwordHash === null,
-    lastLoginAt: r.user.lastLoginAt ?? null
+    lastLoginAt: r.user.lastLoginAt ?? null,
   }));
 }
 
@@ -74,7 +71,7 @@ export async function inviteMember(
 > {
   if (input.assignedOrgIds.length > 0) {
     const inScope = await prisma.organization.count({
-      where: { partnerId: input.partnerId, id: { in: input.assignedOrgIds } }
+      where: { partnerId: input.partnerId, id: { in: input.assignedOrgIds } },
     });
     if (inScope !== input.assignedOrgIds.length) {
       return { ok: false, error: 'org_out_of_scope' };
@@ -87,7 +84,7 @@ export async function inviteMember(
   // граница безопасности); истинная атомарность потребовала бы Serializable +
   // retry-обработки, чего в проекте нет ни для одного пути.
   const activeCount = await prisma.partnerUser.count({
-    where: { partnerId: input.partnerId, isActive: true }
+    where: { partnerId: input.partnerId, isActive: true },
   });
   if (activeCount >= MAX_PARTNER_USERS) {
     return { ok: false, error: 'member_limit_reached' };
@@ -106,8 +103,8 @@ export async function inviteMember(
         name: input.name,
         role: 'partner',
         partnerId: input.partnerId,
-        passwordHash: null
-      }
+        passwordHash: null,
+      },
     });
 
     const partnerUser = await tx.partnerUser.create({
@@ -116,8 +113,8 @@ export async function inviteMember(
         userId: user.id,
         roleInPartner: input.roleInPartner,
         assignedOrgIds: input.assignedOrgIds,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     const { token } = await createInviteToken(tx, user.id);
@@ -133,7 +130,7 @@ export async function assignOrgs(
 ): Promise<{ ok: true; partnerUser: PartnerUser } | { ok: false; error: 'org_out_of_scope' }> {
   if (args.assignedOrgIds.length > 0) {
     const inScope = await prisma.organization.count({
-      where: { partnerId: args.partnerId, id: { in: args.assignedOrgIds } }
+      where: { partnerId: args.partnerId, id: { in: args.assignedOrgIds } },
     });
     if (inScope !== args.assignedOrgIds.length) {
       return { ok: false, error: 'org_out_of_scope' };
@@ -142,7 +139,7 @@ export async function assignOrgs(
 
   const partnerUser = await prisma.partnerUser.update({
     where: { partnerId_userId: { partnerId: args.partnerId, userId: args.userId } },
-    data: { assignedOrgIds: args.assignedOrgIds }
+    data: { assignedOrgIds: args.assignedOrgIds },
   });
   return { ok: true, partnerUser };
 }
@@ -155,26 +152,26 @@ export async function deactivateMember(
   | { ok: false; error: 'not_found' | 'last_admin_protected' }
 > {
   const target = await prisma.partnerUser.findUnique({
-    where: { partnerId_userId: { partnerId: args.partnerId, userId: args.userId } }
+    where: { partnerId_userId: { partnerId: args.partnerId, userId: args.userId } },
   });
   if (!target) return { ok: false, error: 'not_found' };
 
   if (target.roleInPartner === 'admin' && target.isActive) {
     const activeAdmins = await prisma.partnerUser.count({
-      where: { partnerId: args.partnerId, roleInPartner: 'admin', isActive: true }
+      where: { partnerId: args.partnerId, roleInPartner: 'admin', isActive: true },
     });
     if (activeAdmins <= 1) return { ok: false, error: 'last_admin_protected' };
   }
 
   const partnerUser = await prisma.partnerUser.update({
     where: { id: target.id },
-    data: { isActive: false }
+    data: { isActive: false },
   });
   // Этап 9 (ФТ-11.2): партнёрские клеймы (partnerRole/assignedOrgIds) живут в
   // токене — гасим и сессии, иначе снятый участник работает до истечения JWT.
   await prisma.user.update({
     where: { id: args.userId },
-    data: { sessionVersion: { increment: 1 } }
+    data: { sessionVersion: { increment: 1 } },
   });
   return { ok: true, partnerUser };
 }

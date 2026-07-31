@@ -27,7 +27,7 @@ const STATIC_GUARDRAILS = [
   'security.redirect.test.ts', // student bridge redirect URL allowlist
   // Этап 10 (ТЗ §3.2/§7): домен лидов не возвращается в клиентские кабинеты,
   // запрещённые §7 поля не просачиваются в клиентские сервисы.
-  'security.client-visibility.guardrail.test.ts'
+  'security.client-visibility.guardrail.test.ts',
 ];
 
 // DB-backed invariants — MUST be integration-tier so `gate` runs them.
@@ -44,7 +44,7 @@ const INTEGRATION_INVARIANTS = [
   'security.idor-calls.integration.test.ts', // telephony: listCalls C8 + recording IDOR
   'security.idor-inbox.integration.test.ts', // inbound inbox: C8 list + bind/reply cross-company
   'services.tasks.isolation.test.ts', // internal tasks: клиентские роли + cross-company deny
-  'services.funnel.isolation.test.ts' // sales funnel: staff-гейт (клиентские роли deny)
+  'services.funnel.isolation.test.ts', // sales funnel: staff-гейт (клиентские роли deny)
 ];
 
 function read(file: string): string {
@@ -69,6 +69,9 @@ describe('E2-D — security suite manifest', () => {
 
   it('static guardrails stay in the unit tier (no live DB)', () => {
     const unexpectedIntegration = STATIC_GUARDRAILS.filter((f) => read(f).includes(PRISMA_MARKER));
-    expect(unexpectedIntegration, `Unexpected PrismaClient in static guardrails:\n  ${unexpectedIntegration.join('\n  ')}`).toEqual([]);
+    expect(
+      unexpectedIntegration,
+      `Unexpected PrismaClient in static guardrails:\n  ${unexpectedIntegration.join('\n  ')}`
+    ).toEqual([]);
   });
 });

@@ -18,10 +18,19 @@ const ALLOWED_MIME_TYPES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'image/png',
   'image/jpeg',
-  'application/zip'
+  'application/zip',
 ] as const;
 
-const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xlsx', '.png', '.jpg', '.jpeg', '.zip'] as const;
+const ALLOWED_EXTENSIONS = [
+  '.pdf',
+  '.doc',
+  '.docx',
+  '.xlsx',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.zip',
+] as const;
 const ALLOWED_FORMATS_ERROR = `Unsupported file format. Allowed formats: ${ALLOWED_EXTENSIONS.join(', ')}`;
 
 const MAX_FILE_SIZE_MB = resolveMaxFileSizeMb();
@@ -29,7 +38,10 @@ const MAX_FILE_SIZE_BYTES = maxFileSizeBytes();
 
 function errorResponse(code: string, message: string, status: number, correlationId?: string) {
   /* v8 ignore next -- correlationId is always crypto.randomUUID(); the {} branch is unreachable in practice */
-  return NextResponse.json({ code, message, ...(correlationId ? { correlationId } : {}) }, { status });
+  return NextResponse.json(
+    { code, message, ...(correlationId ? { correlationId } : {}) },
+    { status }
+  );
 }
 
 function sanitizeFilename(filename: string) {
@@ -50,7 +62,8 @@ export async function POST(req: Request) {
   if (!roleResult.ok) return roleResult.response;
 
   const form = await req.formData().catch(() => null);
-  if (!form) return errorResponse('BAD_REQUEST', 'Expected multipart form-data', 400, correlationId);
+  if (!form)
+    return errorResponse('BAD_REQUEST', 'Expected multipart form-data', 400, correlationId);
   const orderId = String(form.get('orderId') ?? '');
   const file = form.get('file');
 
@@ -61,12 +74,20 @@ export async function POST(req: Request) {
   const fileName = file.name.toLowerCase();
   const hasAllowedExtension = ALLOWED_EXTENSIONS.some((ext) => fileName.endsWith(ext));
 
-  if (!ALLOWED_MIME_TYPES.includes(file.type as (typeof ALLOWED_MIME_TYPES)[number]) || !hasAllowedExtension) {
+  if (
+    !ALLOWED_MIME_TYPES.includes(file.type as (typeof ALLOWED_MIME_TYPES)[number]) ||
+    !hasAllowedExtension
+  ) {
     return errorResponse('INVALID_FILE_FORMAT', ALLOWED_FORMATS_ERROR, 400, correlationId);
   }
 
   if (file.size > MAX_FILE_SIZE_BYTES) {
-    return errorResponse('FILE_TOO_LARGE', `File exceeds ${MAX_FILE_SIZE_MB}MB limit`, 400, correlationId);
+    return errorResponse(
+      'FILE_TOO_LARGE',
+      `File exceeds ${MAX_FILE_SIZE_MB}MB limit`,
+      400,
+      correlationId
+    );
   }
 
   const order = await prisma.order.findUnique({ where: { id: orderId } });
@@ -74,9 +95,17 @@ export async function POST(req: Request) {
   const orderAccess = await requireOrderAccess(s, order);
   if (!orderAccess.ok) return orderAccess.response;
 
-  const organization = await prisma.organization.findFirst({ where: { companyId: order.companyId }, select: { id: true, partnerId: true } });
+  const organization = await prisma.organization.findFirst({
+    where: { companyId: order.companyId },
+    select: { id: true, partnerId: true },
+  });
   if (!organization) {
-    return errorResponse('ORGANIZATION_CONTEXT_NOT_FOUND', 'Organization context not found', 400, correlationId);
+    return errorResponse(
+      'ORGANIZATION_CONTEXT_NOT_FOUND',
+      'Organization context not found',
+      400,
+      correlationId
+    );
   }
 
   const tenantPath = `partner/${organization.partnerId}/org/${organization.id}/order/${order.id}`;
@@ -97,7 +126,7 @@ export async function POST(req: Request) {
 
   try {
     await getObjectStorage().upload(internalPath, Buffer.from(arrayBuffer), {
-      contentType: file.type
+      contentType: file.type,
     });
   } catch (uploadError) {
     log.error('Document upload failed', {
@@ -107,7 +136,7 @@ export async function POST(req: Request) {
       fileSize: file.size,
       mimeType: file.type,
       storagePath: internalPath,
-      providerError: uploadError instanceof Error ? uploadError.message : String(uploadError)
+      providerError: uploadError instanceof Error ? uploadError.message : String(uploadError),
     });
     return errorResponse('STORAGE_UPLOAD_FAILED', 'Failed to upload document', 502, correlationId);
   }
@@ -120,8 +149,8 @@ export async function POST(req: Request) {
       name: file.name,
       path: internalPath,
       mimeType: file.type,
-      uploadedById: s.sub
-    }
+      uploadedById: s.sub,
+    },
   });
 
   await recordAudit(prisma, {
@@ -141,7 +170,7 @@ export async function POST(req: Request) {
     log.warn('[documents/upload] enqueue scan failed', {
       correlationId,
       documentId: doc.id,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 
@@ -156,22 +185,27 @@ export async function POST(req: Request) {
       partnerId: s.partnerId,
       title: 'Новый документ',
       body: `Загружен документ ${file.name}`,
-      meta: { orderId, documentId: doc.id }
+      meta: { orderId, documentId: doc.id },
     });
     await deliverNotificationToUser({
       userId: s.sub,
       title: 'Новый документ',
       body: `Загружен документ ${file.name}`,
       type: 'document_created',
-      dedupKey: row.id
+      dedupKey: row.id,
     });
   } catch (err) {
     log.warn('[documents/upload] notification fan-out failed', {
       correlationId,
       documentId: doc.id,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 
-  return NextResponse.json({ id: doc.id, name: doc.name, mimeType: doc.mimeType, createdAt: doc.createdAt });
+  return NextResponse.json({
+    id: doc.id,
+    name: doc.name,
+    mimeType: doc.mimeType,
+    createdAt: doc.createdAt,
+  });
 }

@@ -17,9 +17,9 @@ vi.mock('@/lib/storage', () => ({
 }));
 vi.mock('jose', () => ({ jwtVerify: vi.fn() }));
 
+import { jwtVerify } from 'jose';
 import { GET as pdfGet } from '@/app/api/partner/finance/statements/[id]/pdf/route';
 import { GET as xlsxGet } from '@/app/api/partner/finance/statements/[id]/xlsx/route';
-import { jwtVerify } from 'jose';
 import { middleware } from '@/middleware';
 
 const ORIGINAL_ENV = { ...process.env };
@@ -28,7 +28,7 @@ function middlewareReq(pathname: string) {
   return {
     url: `https://app.local${pathname}`,
     nextUrl: { pathname },
-    cookies: { get: vi.fn().mockReturnValue({ value: 'tkn' }) }
+    cookies: { get: vi.fn().mockReturnValue({ value: 'tkn' }) },
   } as any;
 }
 

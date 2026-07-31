@@ -8,7 +8,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 
 const order = { id: 'o1', organizationId: 'org1', partnerId: 'p1', companyId: 'c1' };
 const s = (over: Partial<SessionPayload>): SessionPayload =>
-  ({ sub: 'u', role: 'manager', ...over } as SessionPayload);
+  ({ sub: 'u', role: 'manager', ...over }) as SessionPayload;
 
 describe('deriveSide — additional roles', () => {
   it('manager role → null (already tested but kept for completeness)', () =>
@@ -17,11 +17,9 @@ describe('deriveSide — additional roles', () => {
   it('admin role → null (teams choose side explicitly)', () =>
     expect(deriveSide(s({ role: 'admin' }))).toBeNull());
 
-  it('leader role → null', () =>
-    expect(deriveSide(s({ role: 'leader' as any }))).toBeNull());
+  it('leader role → null', () => expect(deriveSide(s({ role: 'leader' as any }))).toBeNull());
 
-  it('student role → null', () =>
-    expect(deriveSide(s({ role: 'student' as any }))).toBeNull());
+  it('student role → null', () => expect(deriveSide(s({ role: 'student' as any }))).toBeNull());
 });
 
 describe('canSeeThread — fallback false for unknown roles', () => {
@@ -44,7 +42,9 @@ describe('canSeeThread — fallback false for unknown roles', () => {
   it('org session with null organizationId in order → false', () => {
     const sess = s({
       role: 'organization',
-      organizationMemberships: [{ organizationId: 'org1', isActive: true, roleInOrg: 'member' }] as any
+      organizationMemberships: [
+        { organizationId: 'org1', isActive: true, roleInOrg: 'member' },
+      ] as any,
     });
     expect(canSeeThread(sess, 'org', { ...order, organizationId: null })).toBe(false);
   });

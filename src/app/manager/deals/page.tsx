@@ -24,13 +24,15 @@ export default async function ManagerDealsPage() {
       ? prisma.organization.findMany({
           where: { companyId: session.companyId },
           select: { id: true, name: true },
-          orderBy: { name: 'asc' }
+          orderBy: { name: 'asc' },
         })
       : Promise.resolve([]),
-    session.companyId ? listCompanyManagers(prisma, session.companyId) : Promise.resolve([])
+    session.companyId ? listCompanyManagers(prisma, session.companyId) : Promise.resolve([]),
   ]);
 
-  const managerOptions = managers.filter((m) => m.isActive).map((m) => ({ id: m.id, name: m.name }));
+  const managerOptions = managers
+    .filter((m) => m.isActive)
+    .map((m) => ({ id: m.id, name: m.name }));
 
   return (
     <div className="space-y-6">
@@ -41,9 +43,19 @@ export default async function ManagerDealsPage() {
             Перетаскивайте карточки между стадиями. «Проиграна» требует причину.
           </p>
         </div>
-        <NewDealButton organizations={organizations} managers={managerOptions} currentUserId={session.sub} />
+        <NewDealButton
+          organizations={organizations}
+          managers={managerOptions}
+          currentUserId={session.sub}
+        />
       </div>
-      <DealBoard board={board} organizations={organizations} managers={managerOptions} currentUserId={session.sub} tasksEnabled={isFeatureEnabled('internal_tasks')} />
+      <DealBoard
+        board={board}
+        organizations={organizations}
+        managers={managerOptions}
+        currentUserId={session.sub}
+        tasksEnabled={isFeatureEnabled('internal_tasks')}
+      />
     </div>
   );
 }

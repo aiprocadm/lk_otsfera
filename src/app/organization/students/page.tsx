@@ -18,7 +18,7 @@ const DEFAULT_TAKE = 50;
 const MAX_TAKE = 200;
 
 export default async function OrganizationStudentsPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
@@ -35,7 +35,7 @@ export default async function OrganizationStudentsPage({
     organizationId: ctx.activeOrgId,
     search: sp.search,
     take,
-    skip
+    skip,
   });
 
   const page = Math.floor(skip / take) + 1;
@@ -49,22 +49,20 @@ export default async function OrganizationStudentsPage({
       activeOrgId={ctx.activeOrgId}
       viewerRole={ctx.viewerRole}
     >
-      <div className='space-y-4'>
-        <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <h1 className='text-2xl font-bold text-[#111111]'>Сотрудники</h1>
-            <p className='text-sm text-gray-500 mt-0.5'>
+            <h1 className="text-2xl font-bold text-[#111111]">Сотрудники</h1>
+            <p className="text-sm text-gray-500 mt-0.5">
               {total} {pluralizeStudents(total)} в {ctx.activeOrgName}
-              {sp.search && (
-                <span className='text-gray-400'> · по запросу «{sp.search}»</span>
-              )}
+              {sp.search && <span className="text-gray-400"> · по запросу «{sp.search}»</span>}
             </p>
           </div>
-          <div className='flex flex-col sm:flex-row sm:items-center gap-3'>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <SearchForm initial={sp.search ?? ''} org={sp.org ?? ''} />
             {/* ФТ-12.2: выгрузка уважает активный поиск. */}
             <ExportLink
-              base='/api/organization/students/export'
+              base="/api/organization/students/export"
               params={{ org: ctx.activeOrgId, search: sp.search }}
             />
           </div>
@@ -72,7 +70,7 @@ export default async function OrganizationStudentsPage({
 
         {rows.length === 0 ? (
           <EmptyState
-            icon='👥'
+            icon="👥"
             message={
               sp.search
                 ? 'По запросу никого не нашли — попробуйте другой текст.'
@@ -110,24 +108,24 @@ function fmtDate(d: Date): string {
   return new Intl.DateTimeFormat('ru-RU', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric'
+    year: 'numeric',
   }).format(d);
 }
 
 function SearchForm({ initial, org }: { initial: string; org: string }) {
   return (
-    <form method='get' className='flex gap-2 items-center'>
-      {org && <input type='hidden' name='org' value={org} />}
+    <form method="get" className="flex gap-2 items-center">
+      {org && <input type="hidden" name="org" value={org} />}
       <input
-        type='search'
-        name='search'
+        type="search"
+        name="search"
         defaultValue={initial}
-        placeholder='Поиск по ФИО или email…'
-        className='border border-gray-200 rounded-lg px-3 py-2 text-sm w-full md:w-72 focus:outline-none focus:border-[#F97316]'
+        placeholder="Поиск по ФИО или email…"
+        className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-full md:w-72 focus:outline-none focus:border-[#F97316]"
       />
       <button
-        type='submit'
-        className='px-3 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C]'
+        type="submit"
+        className="px-3 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C]"
       >
         Найти
       </button>
@@ -147,19 +145,22 @@ function StudentsTable({ rows, linkToCard }: { rows: OrgStudentRow[]; linkToCard
       <tbody>
         {rows.map((s) => (
           <Tr key={s.id}>
-            <Td className='font-medium text-[#111111]'>
+            <Td className="font-medium text-[#111111]">
               {/* Этап 3 (ФТ-6.3): карточка сотрудника — под флагом реестров. */}
               {linkToCard ? (
-                <Link href={`/organization/students/${s.id}`} className='hover:text-[#F97316] hover:underline'>
+                <Link
+                  href={`/organization/students/${s.id}`}
+                  className="hover:text-[#F97316] hover:underline"
+                >
                   {s.name}
                 </Link>
               ) : (
                 s.name
               )}
             </Td>
-            <Td className='text-gray-600'>{s.email}</Td>
-            <Td className='text-gray-500 font-mono text-xs'>{s.externalStudentId ?? '—'}</Td>
-            <Td className='text-gray-500'>{fmtDate(s.createdAt)}</Td>
+            <Td className="text-gray-600">{s.email}</Td>
+            <Td className="text-gray-500 font-mono text-xs">{s.externalStudentId ?? '—'}</Td>
+            <Td className="text-gray-500">{fmtDate(s.createdAt)}</Td>
           </Tr>
         ))}
       </tbody>
@@ -173,7 +174,7 @@ function Paginator({
   page,
   pages,
   total,
-  searchParams
+  searchParams,
 }: {
   take: number;
   skip: number;
@@ -194,15 +195,15 @@ function Paginator({
   const prev = Math.max(0, skip - take);
   const next = Math.min((pages - 1) * take, skip + take);
   return (
-    <div className='flex items-center justify-between text-sm text-gray-500'>
+    <div className="flex items-center justify-between text-sm text-gray-500">
       <span>
         Страница {page} из {pages} · {total} всего
       </span>
-      <div className='flex gap-2'>
+      <div className="flex gap-2">
         {skip > 0 && (
           <a
             href={link(prev)}
-            className='px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50'
+            className="px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50"
           >
             Назад
           </a>
@@ -210,7 +211,7 @@ function Paginator({
         {skip + take < total && (
           <a
             href={link(next)}
-            className='px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50'
+            className="px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50"
           >
             Вперёд
           </a>

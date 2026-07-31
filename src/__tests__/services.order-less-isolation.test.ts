@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import { getDocumentForDownload, listManagerOrderLessDocuments } from '@/lib/services/manager/documents';
+import {
+  getDocumentForDownload,
+  listManagerOrderLessDocuments,
+} from '@/lib/services/manager/documents';
 
 let prisma: PrismaClient;
 let companyA: string, companyB: string, partnerId: string, orgA: string;
@@ -12,13 +15,44 @@ beforeAll(async () => {
   companyA = (await prisma.company.create({ data: { name: `OLA-${s}` } })).id;
   companyB = (await prisma.company.create({ data: { name: `OLB-${s}` } })).id;
   partnerId = (await prisma.partner.create({ data: { name: `OLP-${s}`, commissionRate: 0 } })).id;
-  orgA = (await prisma.organization.create({ data: { name: `OLO-${s}`, companyId: companyA, partnerId } })).id;
-  mgrA = (await prisma.user.create({ data: { email: `ola-${s}@x.io`, name: 'Mgr A', role: 'manager', companyId: companyA, isActive: true } })).id;
-  mgrB = (await prisma.user.create({ data: { email: `olb-${s}@x.io`, name: 'Mgr B', role: 'manager', companyId: companyB, isActive: true } })).id;
-  orderLessDocId = (await prisma.document.create({
-    data: { name: 'general.pdf', path: 'fake://ol', mimeType: 'application/pdf', type: 'other',
-      counterpartyType: 'partner', counterpartyId: partnerId, companyId: companyA }
-  })).id;
+  orgA = (
+    await prisma.organization.create({ data: { name: `OLO-${s}`, companyId: companyA, partnerId } })
+  ).id;
+  mgrA = (
+    await prisma.user.create({
+      data: {
+        email: `ola-${s}@x.io`,
+        name: 'Mgr A',
+        role: 'manager',
+        companyId: companyA,
+        isActive: true,
+      },
+    })
+  ).id;
+  mgrB = (
+    await prisma.user.create({
+      data: {
+        email: `olb-${s}@x.io`,
+        name: 'Mgr B',
+        role: 'manager',
+        companyId: companyB,
+        isActive: true,
+      },
+    })
+  ).id;
+  orderLessDocId = (
+    await prisma.document.create({
+      data: {
+        name: 'general.pdf',
+        path: 'fake://ol',
+        mimeType: 'application/pdf',
+        type: 'other',
+        counterpartyType: 'partner',
+        counterpartyId: partnerId,
+        companyId: companyA,
+      },
+    })
+  ).id;
 });
 
 afterAll(async () => {

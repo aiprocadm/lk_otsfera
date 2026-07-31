@@ -10,7 +10,12 @@ const ACTOR = 'integration-admin';
 
 // Provider stub: pause must not require live Redis in this test.
 const noopProvider = () =>
-  ({ getJobCounts: async () => ({}), add: async () => ({}), upsertJobScheduler: async () => ({}), removeJobScheduler: async () => true }) as never;
+  ({
+    getJobCounts: async () => ({}),
+    add: async () => ({}),
+    upsertJobScheduler: async () => ({}),
+    removeJobScheduler: async () => true,
+  }) as never;
 
 beforeAll(async () => {
   // Self-seed the actor user: AuditLog.userId is an FK to User, and rewindCursor
@@ -20,7 +25,12 @@ beforeAll(async () => {
   await prisma.user.upsert({
     where: { id: ACTOR },
     update: {},
-    create: { id: ACTOR, email: `${ACTOR}@synccontrol.test`, name: 'Sync Control Integration Admin', role: 'admin' },
+    create: {
+      id: ACTOR,
+      email: `${ACTOR}@synccontrol.test`,
+      name: 'Sync Control Integration Admin',
+      role: 'admin',
+    },
   });
   await prisma.syncSchedulePause.deleteMany({ where: { schedulerId: SCHED } });
 });
@@ -67,6 +77,6 @@ describe('setSchedulePaused (integration)', () => {
       const res = await setSchedulePaused(prisma, ACTOR, schedulerId, true, noopProvider);
       expect(res).toEqual({ ok: false, error: 'unknown_schedule' });
       expect(await loadPausedSchedulerIds(prisma)).not.toContain(schedulerId);
-    },
+    }
   );
 });

@@ -16,7 +16,7 @@ const { prtCreate, prtFindUnique, prtUpdate, userUpdate, txFn } = vi.hoisted(() 
   const txFn = vi.fn((cb: (tx: unknown) => unknown) =>
     cb({
       passwordResetToken: { findUnique: prtFindUnique, update: prtUpdate },
-      user: { update: userUpdate }
+      user: { update: userUpdate },
     })
   );
 
@@ -26,10 +26,14 @@ const { prtCreate, prtFindUnique, prtUpdate, userUpdate, txFn } = vi.hoisted(() 
 // Build a mock PrismaClient that the module under test will receive directly
 const mockPrisma = {
   passwordResetToken: { create: prtCreate, findUnique: prtFindUnique },
-  $transaction: txFn
+  $transaction: txFn,
 } as unknown as import('@prisma/client').PrismaClient;
 
-import { createInviteToken, peekTokenPurpose, verifyAndConsumeToken } from '@/lib/auth/passwordReset';
+import {
+  createInviteToken,
+  peekTokenPurpose,
+  verifyAndConsumeToken,
+} from '@/lib/auth/passwordReset';
 
 // ---------------------------------------------------------------------------
 // createInviteToken
@@ -40,7 +44,7 @@ describe('createInviteToken', () => {
     txFn.mockImplementation((cb: (tx: unknown) => unknown) =>
       cb({
         passwordResetToken: { findUnique: prtFindUnique, update: prtUpdate },
-        user: { update: userUpdate }
+        user: { update: userUpdate },
       })
     );
     prtCreate.mockResolvedValue(undefined);
@@ -179,7 +183,7 @@ describe('peekTokenPurpose', () => {
       { purpose: 'reset', usedAt: null, expiresAt: FUTURE },
       null,
       { purpose: 'invite', usedAt: new Date(), expiresAt: FUTURE },
-      { purpose: 'invite', usedAt: null, expiresAt: PAST }
+      { purpose: 'invite', usedAt: null, expiresAt: PAST },
     ]) {
       prtFindUnique.mockResolvedValue(record);
       await peekTokenPurpose(mockPrisma, 'tok');
@@ -202,7 +206,7 @@ describe('verifyAndConsumeToken', () => {
     txFn.mockImplementation((cb: (tx: unknown) => unknown) =>
       cb({
         passwordResetToken: { findUnique: prtFindUnique, update: prtUpdate },
-        user: { update: userUpdate }
+        user: { update: userUpdate },
       })
     );
   });
@@ -212,7 +216,7 @@ describe('verifyAndConsumeToken', () => {
       token: sha256('tok'),
       userId: 'user-1',
       expiresAt: FUTURE,
-      usedAt: null
+      usedAt: null,
     });
     prtUpdate.mockResolvedValue(undefined);
     userUpdate.mockResolvedValue(undefined);
@@ -226,11 +230,11 @@ describe('verifyAndConsumeToken', () => {
     // токены перестают проходить проверку в getSession.
     expect(userUpdate).toHaveBeenCalledWith({
       where: { id: 'user-1' },
-      data: { passwordHash: 'hash-new', sessionVersion: { increment: 1 } }
+      data: { passwordHash: 'hash-new', sessionVersion: { increment: 1 } },
     });
     expect(prtUpdate).toHaveBeenCalledWith({
       where: { token: sha256('tok') },
-      data: { usedAt: expect.any(Date) }
+      data: { usedAt: expect.any(Date) },
     });
   });
 
@@ -249,7 +253,7 @@ describe('verifyAndConsumeToken', () => {
       token: 'tok',
       userId: 'user-1',
       expiresAt: PAST,
-      usedAt: null
+      usedAt: null,
     });
 
     const result = await verifyAndConsumeToken(mockPrisma, 'tok', 'hash');
@@ -263,7 +267,7 @@ describe('verifyAndConsumeToken', () => {
       token: 'tok',
       userId: 'user-1',
       expiresAt: FUTURE,
-      usedAt: new Date()
+      usedAt: new Date(),
     });
 
     const result = await verifyAndConsumeToken(mockPrisma, 'tok', 'hash');
@@ -279,7 +283,7 @@ describe('verifyAndConsumeToken', () => {
       token: sha256('tok'),
       userId: 'user-77',
       expiresAt: FUTURE,
-      usedAt: null
+      usedAt: null,
     });
     prtUpdate.mockResolvedValue(undefined);
     userUpdate.mockResolvedValue(undefined);
@@ -299,7 +303,7 @@ describe('verifyAndConsumeToken', () => {
     for (const record of [
       null,
       { token: sha256('tok'), userId: 'user-1', expiresAt: FUTURE, usedAt: new Date() },
-      { token: sha256('tok'), userId: 'user-1', expiresAt: PAST, usedAt: null }
+      { token: sha256('tok'), userId: 'user-1', expiresAt: PAST, usedAt: null },
     ]) {
       prtFindUnique.mockResolvedValue(record);
       await verifyAndConsumeToken(mockPrisma, 'tok', 'hash');

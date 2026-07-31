@@ -7,7 +7,7 @@ const TABS: Array<{ value: string; label: string }> = [
   { value: 'in_review', label: 'На рассмотрении' },
   { value: 'qualified', label: 'Квалифицированы' },
   { value: 'promoted_to_order', label: 'Стали заказом' },
-  { value: 'rejected', label: 'Отклонены' }
+  { value: 'rejected', label: 'Отклонены' },
 ];
 
 type Query = { status?: string; q?: string; assignedToMe?: string };
@@ -26,8 +26,8 @@ export function ManagerLeadsFilter({ query }: { query: Query }) {
   const active = query.status ?? '';
   const mine = query.assignedToMe === '1';
   return (
-    <div className='mb-4 space-y-3'>
-      <div className='flex flex-wrap gap-2'>
+    <div className="mb-4 space-y-3">
+      <div className="flex flex-wrap gap-2">
         {TABS.map((t) => (
           <Link
             key={t.value || 'all'}
@@ -42,25 +42,30 @@ export function ManagerLeadsFilter({ query }: { query: Query }) {
           </Link>
         ))}
       </div>
-      <div className='flex items-center gap-3'>
-        <form method='get' action='/manager/leads' className='flex gap-2'>
-          {query.status && <input type='hidden' name='status' value={query.status} />}
-          {mine && <input type='hidden' name='assignedToMe' value='1' />}
+      <div className="flex items-center gap-3">
+        <form method="get" action="/manager/leads" className="flex gap-2">
+          {query.status && <input type="hidden" name="status" value={query.status} />}
+          {mine && <input type="hidden" name="assignedToMe" value="1" />}
           <input
-            type='text'
-            name='q'
+            type="text"
+            name="q"
             defaultValue={query.q ?? ''}
-            placeholder='Поиск: клиент, тема, ИНН'
-            className='px-3 py-1.5 text-sm border border-gray-200 rounded-lg w-64'
+            placeholder="Поиск: клиент, тема, ИНН"
+            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg w-64"
           />
-          <button type='submit' className='px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:border-[#F97316]'>
+          <button
+            type="submit"
+            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:border-[#F97316]"
+          >
             Найти
           </button>
         </form>
         <Link
           href={href({ status: query.status, q: query.q }, { assignedToMe: mine ? '' : '1' })}
           className={`px-3 py-1.5 text-sm rounded-lg border ${
-            mine ? 'bg-[#FFF7ED] text-[#9A3412] border-[#FED7AA]' : 'border-gray-200 text-gray-700 hover:border-[#F97316]'
+            mine
+              ? 'bg-[#FFF7ED] text-[#9A3412] border-[#FED7AA]'
+              : 'border-gray-200 text-gray-700 hover:border-[#F97316]'
           }`}
         >
           {mine ? '✓ Мои заявки' : 'Мои заявки'}

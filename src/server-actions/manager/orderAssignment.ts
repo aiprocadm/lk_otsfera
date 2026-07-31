@@ -20,7 +20,9 @@ export type ClaimOrderActionResult =
   | { ok: false; error: 'validation' | 'not_found' | 'forbidden' | 'already_assigned' };
 
 /** §5.3 self-assign: менеджер забирает незакреплённую заявку в работу. */
-export async function claimOrderAction(input: { orderId: string }): Promise<ClaimOrderActionResult> {
+export async function claimOrderAction(input: {
+  orderId: string;
+}): Promise<ClaimOrderActionResult> {
   const parsed = ClaimSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'validation' };
 
@@ -34,7 +36,7 @@ export async function claimOrderAction(input: { orderId: string }): Promise<Clai
 
 const AssignSchema = z.object({
   orderId: z.string().min(1),
-  managerUserId: z.string().min(1).nullable()
+  managerUserId: z.string().min(1).nullable(),
 });
 
 export type AssignManagerLeaderActionResult =
@@ -57,7 +59,7 @@ export async function assignOrderManagerLeaderAction(input: {
 
   const order = await prisma.order.findUnique({
     where: { id: parsed.data.orderId },
-    select: { companyId: true }
+    select: { companyId: true },
   });
   if (!order) return { ok: false, error: 'order_not_found' };
   if (!session.companyId || order.companyId !== session.companyId) {
@@ -68,7 +70,7 @@ export async function assignOrderManagerLeaderAction(input: {
     orderId: parsed.data.orderId,
     managerUserId: parsed.data.managerUserId,
     // C8: candidate manager must belong to the leader's (= order's) company.
-    restrictToCompanyId: session.companyId
+    restrictToCompanyId: session.companyId,
   });
   if (!result.ok) return result;
 

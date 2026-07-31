@@ -29,21 +29,21 @@ export default async function ManagerStudentDetailPage({
   const customFields = await getFieldsForEntity(prisma, session, 'student', id);
 
   return (
-    <div className='space-y-6'>
-      <div className='flex items-center gap-2'>
-        <Link href='/manager/students' className='text-sm text-[#F97316] hover:underline'>
+    <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <Link href="/manager/students" className="text-sm text-[#F97316] hover:underline">
           ← Сотрудники
         </Link>
       </div>
 
-      <div className='bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-1'>
-        <h1 className='text-2xl font-semibold text-[#111111]'>{student.name}</h1>
-        <p className='text-gray-500 text-sm'>{student.email}</p>
-        <p className='text-gray-400 text-xs mt-1'>
+      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-1">
+        <h1 className="text-2xl font-semibold text-[#111111]">{student.name}</h1>
+        <p className="text-gray-500 text-sm">{student.email}</p>
+        <p className="text-gray-400 text-xs mt-1">
           Организация:{' '}
           <Link
             href={`/manager/organizations/${student.organization.id}`}
-            className='text-[#F97316] hover:underline'
+            className="text-[#F97316] hover:underline"
           >
             {student.organization.name}
           </Link>{' '}
@@ -51,12 +51,12 @@ export default async function ManagerStudentDetailPage({
         </p>
       </div>
 
-      <div className='space-y-2'>
-        <h2 className='text-xl font-semibold text-[#111111]'>Удостоверения</h2>
+      <div className="space-y-2">
+        <h2 className="text-xl font-semibold text-[#111111]">Удостоверения</h2>
         <CertificateList certificates={certificates} />
       </div>
 
-      <EntityCustomFields fields={customFields} entityType='student' entityId={id} />
+      <EntityCustomFields fields={customFields} entityType="student" entityId={id} />
     </div>
   );
 }

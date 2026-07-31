@@ -23,10 +23,11 @@ export function AdminUserInviteTemplate({
 }: AdminUserInviteProps) {
   const roleLabel = ROLE_LABELS[role];
   return (
-    <EmailLayout title='Приглашение в кабинет Промтехносферы'>
+    <EmailLayout title="Приглашение в кабинет Промтехносферы">
       <p style={emailStyles.paragraph}>Здравствуйте, {name}!</p>
       <p style={emailStyles.paragraph}>
-        {invitedByName ? `${invitedByName} пригласил вас` : 'Вас пригласили'} к {roleLabel} Промтехносферы.
+        {invitedByName ? `${invitedByName} пригласил вас` : 'Вас пригласили'} к {roleLabel}{' '}
+        Промтехносферы.
       </p>
       <p style={emailStyles.paragraph}>Установите пароль, чтобы войти:</p>
       <p style={emailStyles.paragraph}>
@@ -55,9 +56,7 @@ export function adminUserInviteText({
   invitedByName,
 }: AdminUserInviteProps): string {
   const roleLabel = ROLE_LABELS[role];
-  const intro = invitedByName
-    ? `${invitedByName} пригласил вас`
-    : 'Вас пригласили';
+  const intro = invitedByName ? `${invitedByName} пригласил вас` : 'Вас пригласили';
   return [
     `Здравствуйте, ${name}!`,
     '',

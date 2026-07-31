@@ -44,7 +44,7 @@ describe('admin auth on /api/admin/* health endpoints', () => {
     vi.mocked(getSession).mockResolvedValue(adminSession());
     const res = await queuesGet();
     expect(res.status).toBe(200);
-    expect((await res.json())).toEqual({ rows: [] });
+    expect(await res.json()).toEqual({ rows: [] });
   });
 
   it('dlq GET enforces admin RBAC the same way', async () => {

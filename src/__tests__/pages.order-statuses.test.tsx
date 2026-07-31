@@ -6,11 +6,10 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireAdmin, requireManagerLeader } = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
-  requireManagerLeader: vi.fn()
+  requireManagerLeader: vi.fn(),
 }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin, requireManagerLeader }));
 
@@ -21,11 +20,12 @@ vi.mock('@/lib/services/orderStatuses', () => ({ listStatusDefinitions }));
 
 vi.mock('@/components/admin/order-statuses-admin', () => ({
   OrderStatusesAdmin: (props: { rows: { id: string }[] }) =>
-    React.createElement('div', { 'data-testid': 'statuses' }, JSON.stringify(props.rows))
+    React.createElement('div', { 'data-testid': 'statuses' }, JSON.stringify(props.rows)),
 }));
 
 import AdminOrderStatusesPage from '@/app/admin/order-statuses/page';
 import LeaderOrderStatusesPage from '@/app/leader/settings/order-statuses/page';
+import { renderServerComponent } from './helpers/renderServerComponent';
 
 const ADMIN = { sub: 'a1', role: 'admin' as const };
 const LEADER = { sub: 'l1', role: 'manager' as const, managerRole: 'leader' as const };

@@ -3,8 +3,15 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
-    React.createElement('a', { href, className }, children)
+  default: ({
+    href,
+    children,
+    className,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => React.createElement('a', { href, className }, children),
 }));
 
 import { AuditLogFilters } from '@/components/admin/audit-log-filters';
@@ -14,13 +21,18 @@ const ENTITIES: AuditEntity[] = ['user', 'partner', 'organization'];
 const ACTIONS = ['user_created', 'user_updated', 'partner_created'];
 const ACTORS = [
   { id: 'a1', name: 'Иван Иванов', email: 'ivan@example.com' },
-  { id: 'a2', name: 'Пётр Петров', email: 'petr@example.com' }
+  { id: 'a2', name: 'Пётр Петров', email: 'petr@example.com' },
 ];
 
 describe('AuditLogFilters', () => {
   it('renders with no active filters: no reset link, all-options defaults', () => {
     const html = renderToString(
-      React.createElement(AuditLogFilters, { entities: ENTITIES, actions: ACTIONS, actors: ACTORS, current: {} })
+      React.createElement(AuditLogFilters, {
+        entities: ENTITIES,
+        actions: ACTIONS,
+        actors: ACTORS,
+        current: {},
+      })
     );
     expect(html).not.toContain('Сбросить');
     expect(html).toContain('Все сущности');
@@ -30,7 +42,12 @@ describe('AuditLogFilters', () => {
 
   it('groups actions by prefix into optgroups', () => {
     const html = renderToString(
-      React.createElement(AuditLogFilters, { entities: ENTITIES, actions: ACTIONS, actors: ACTORS, current: {} })
+      React.createElement(AuditLogFilters, {
+        entities: ENTITIES,
+        actions: ACTIONS,
+        actors: ACTORS,
+        current: {},
+      })
     );
     expect(html).toContain('<optgroup label="user"');
     expect(html).toContain('<optgroup label="partner"');
@@ -41,7 +58,12 @@ describe('AuditLogFilters', () => {
 
   it('lists entity options and actor options', () => {
     const html = renderToString(
-      React.createElement(AuditLogFilters, { entities: ENTITIES, actions: ACTIONS, actors: ACTORS, current: {} })
+      React.createElement(AuditLogFilters, {
+        entities: ENTITIES,
+        actions: ACTIONS,
+        actors: ACTORS,
+        current: {},
+      })
     );
     expect(html).toContain('>user<');
     expect(html).toContain('>partner<');
@@ -56,7 +78,7 @@ describe('AuditLogFilters', () => {
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
-        current: { entity: 'user' }
+        current: { entity: 'user' },
       })
     );
     expect(html).toContain('Сбросить');
@@ -69,7 +91,7 @@ describe('AuditLogFilters', () => {
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
-        current: { action: 'user_created' }
+        current: { action: 'user_created' },
       })
     );
     expect(html).toContain('Сбросить');
@@ -81,7 +103,7 @@ describe('AuditLogFilters', () => {
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
-        current: { actorUserId: 'a1' }
+        current: { actorUserId: 'a1' },
       })
     );
     expect(html).toContain('Сбросить');
@@ -93,7 +115,7 @@ describe('AuditLogFilters', () => {
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
-        current: { from: '2026-01-01' }
+        current: { from: '2026-01-01' },
       })
     );
     expect(html).toContain('Сбросить');
@@ -106,7 +128,7 @@ describe('AuditLogFilters', () => {
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
-        current: { to: '2026-02-01' }
+        current: { to: '2026-02-01' },
       })
     );
     expect(html).toContain('Сбросить');
@@ -118,7 +140,7 @@ describe('AuditLogFilters', () => {
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
-        current: { q: 'foo' }
+        current: { q: 'foo' },
       })
     );
     expect(html).toContain('Сбросить');

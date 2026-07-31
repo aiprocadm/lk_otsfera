@@ -51,40 +51,48 @@ export function ForgotPasswordForm() {
 
   if (sent) {
     return (
-      <p ref={statusRef} tabIndex={-1} role='status' className='text-sm text-gray-600 focus:outline-none'>
+      <p
+        ref={statusRef}
+        tabIndex={-1}
+        role="status"
+        className="text-sm text-gray-600 focus:outline-none"
+      >
         Если такой email зарегистрирован, мы отправили письмо со ссылкой для сброса пароля.
       </p>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className='space-y-4'>
+    <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className='flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3'>
-          <span className='mt-0.5'>⚠</span>
+        <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+          <span className="mt-0.5">⚠</span>
           <span>{error}</span>
         </div>
       )}
       <div>
-        <label htmlFor='forgot-password-email' className='block text-sm font-medium text-gray-700 mb-1.5'>
+        <label
+          htmlFor="forgot-password-email"
+          className="block text-sm font-medium text-gray-700 mb-1.5"
+        >
           Email
         </label>
         <input
-          id='forgot-password-email'
-          type='email'
+          id="forgot-password-email"
+          type="email"
           required
-          autoComplete='email'
+          autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={pending}
-          placeholder='user@company.ru'
-          className='w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:border-transparent disabled:opacity-60 transition-all'
+          placeholder="user@company.ru"
+          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:border-transparent disabled:opacity-60 transition-all"
         />
       </div>
       <button
-        type='submit'
+        type="submit"
         disabled={pending}
-        className='w-full bg-[#F97316] hover:bg-[#EA580C] text-white font-semibold rounded-lg py-3 text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed mt-2'
+        className="w-full bg-[#F97316] hover:bg-[#EA580C] text-white font-semibold rounded-lg py-3 text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed mt-2"
       >
         {pending ? 'Отправляем…' : 'Отправить ссылку'}
       </button>

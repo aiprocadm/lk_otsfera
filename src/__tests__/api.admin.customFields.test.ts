@@ -2,16 +2,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { requireSession, requireFieldsAdmin } = vi.hoisted(() => ({
   requireSession: vi.fn(),
-  requireFieldsAdmin: vi.fn()
+  requireFieldsAdmin: vi.fn(),
 }));
 const { createDefinition, updateDefinition, deactivateDefinition } = vi.hoisted(() => ({
   createDefinition: vi.fn(),
   updateDefinition: vi.fn(),
-  deactivateDefinition: vi.fn()
+  deactivateDefinition: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/guard', () => ({ requireSession, requireFieldsAdmin }));
-vi.mock('@/lib/services/customFields', () => ({ createDefinition, updateDefinition, deactivateDefinition }));
+vi.mock('@/lib/services/customFields', () => ({
+  createDefinition,
+  updateDefinition,
+  deactivateDefinition,
+}));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 import { POST } from '@/app/api/admin/custom-fields/route';
@@ -36,7 +40,12 @@ describe('POST /api/admin/custom-fields', () => {
     createDefinition.mockResolvedValue({ ok: true, definition: { id: 'cf1', key: 'field_one' } });
     const req = new Request('http://x', {
       method: 'POST',
-      body: JSON.stringify({ entityType: 'order', key: 'field_one', label: 'Поле', fieldType: 'text' })
+      body: JSON.stringify({
+        entityType: 'order',
+        key: 'field_one',
+        label: 'Поле',
+        fieldType: 'text',
+      }),
     });
     const res = await POST(req as Request);
     expect(res.status).toBe(201);
@@ -49,7 +58,7 @@ describe('POST /api/admin/custom-fields', () => {
     createDefinition.mockResolvedValue({ ok: false, error: 'forbidden' });
     const req = new Request('http://x', {
       method: 'POST',
-      body: JSON.stringify({ entityType: 'order', key: 'x', label: 'X', fieldType: 'text' })
+      body: JSON.stringify({ entityType: 'order', key: 'x', label: 'X', fieldType: 'text' }),
     });
     const res = await POST(req as Request);
     expect(res.status).toBe(403);
@@ -61,7 +70,7 @@ describe('POST /api/admin/custom-fields', () => {
     createDefinition.mockResolvedValue({ ok: false, error: 'invalid_key' });
     const req = new Request('http://x', {
       method: 'POST',
-      body: JSON.stringify({ entityType: 'order', key: '123bad', label: 'X', fieldType: 'text' })
+      body: JSON.stringify({ entityType: 'order', key: '123bad', label: 'X', fieldType: 'text' }),
     });
     const res = await POST(req as Request);
     expect(res.status).toBe(400);
@@ -73,7 +82,12 @@ describe('POST /api/admin/custom-fields', () => {
     createDefinition.mockResolvedValue({ ok: false, error: 'options_required' });
     const req = new Request('http://x', {
       method: 'POST',
-      body: JSON.stringify({ entityType: 'order', key: 'sel', label: 'Выбор', fieldType: 'select' })
+      body: JSON.stringify({
+        entityType: 'order',
+        key: 'sel',
+        label: 'Выбор',
+        fieldType: 'select',
+      }),
     });
     const res = await POST(req as Request);
     expect(res.status).toBe(400);
@@ -85,7 +99,7 @@ describe('POST /api/admin/custom-fields', () => {
     createDefinition.mockResolvedValue({ ok: false, error: 'duplicate_key' });
     const req = new Request('http://x', {
       method: 'POST',
-      body: JSON.stringify({ entityType: 'order', key: 'dup', label: 'Дубль', fieldType: 'text' })
+      body: JSON.stringify({ entityType: 'order', key: 'dup', label: 'Дубль', fieldType: 'text' }),
     });
     const res = await POST(req as Request);
     expect(res.status).toBe(400);
@@ -94,10 +108,13 @@ describe('POST /api/admin/custom-fields', () => {
   });
 
   it('401 если нет сессии', async () => {
-    requireSession.mockResolvedValue({ ok: false, response: new Response('Unauthorized', { status: 401 }) });
+    requireSession.mockResolvedValue({
+      ok: false,
+      response: new Response('Unauthorized', { status: 401 }),
+    });
     const req = new Request('http://x', {
       method: 'POST',
-      body: JSON.stringify({ entityType: 'order', key: 'x', label: 'X', fieldType: 'text' })
+      body: JSON.stringify({ entityType: 'order', key: 'x', label: 'X', fieldType: 'text' }),
     });
     const res = await POST(req as Request);
     expect(res.status).toBe(401);
@@ -105,10 +122,13 @@ describe('POST /api/admin/custom-fields', () => {
   });
 
   it('403 если не admin (guard)', async () => {
-    requireFieldsAdmin.mockReturnValue({ ok: false, response: new Response('Forbidden', { status: 403 }) });
+    requireFieldsAdmin.mockReturnValue({
+      ok: false,
+      response: new Response('Forbidden', { status: 403 }),
+    });
     const req = new Request('http://x', {
       method: 'POST',
-      body: JSON.stringify({ entityType: 'order', key: 'x', label: 'X', fieldType: 'text' })
+      body: JSON.stringify({ entityType: 'order', key: 'x', label: 'X', fieldType: 'text' }),
     });
     const res = await POST(req as Request);
     expect(res.status).toBe(403);
@@ -123,7 +143,7 @@ describe('PATCH /api/admin/custom-fields/[id]', () => {
     updateDefinition.mockResolvedValue({ ok: true, definition: { id: 'cf1', label: 'Обновлено' } });
     const req = new Request('http://x', {
       method: 'PATCH',
-      body: JSON.stringify({ label: 'Обновлено' })
+      body: JSON.stringify({ label: 'Обновлено' }),
     });
     const res = await PATCH(req as Request, idCtx('cf1'));
     expect(res.status).toBe(200);
@@ -135,7 +155,7 @@ describe('PATCH /api/admin/custom-fields/[id]', () => {
     updateDefinition.mockResolvedValue({ ok: false, error: 'not_found' });
     const req = new Request('http://x', {
       method: 'PATCH',
-      body: JSON.stringify({ label: 'X' })
+      body: JSON.stringify({ label: 'X' }),
     });
     const res = await PATCH(req as Request, idCtx('missing'));
     expect(res.status).toBe(404);
@@ -145,17 +165,20 @@ describe('PATCH /api/admin/custom-fields/[id]', () => {
     updateDefinition.mockResolvedValue({ ok: false, error: 'forbidden' });
     const req = new Request('http://x', {
       method: 'PATCH',
-      body: JSON.stringify({ label: 'X' })
+      body: JSON.stringify({ label: 'X' }),
     });
     const res = await PATCH(req as Request, idCtx('cf1'));
     expect(res.status).toBe(403);
   });
 
   it('401 если нет сессии', async () => {
-    requireSession.mockResolvedValue({ ok: false, response: new Response('Unauthorized', { status: 401 }) });
+    requireSession.mockResolvedValue({
+      ok: false,
+      response: new Response('Unauthorized', { status: 401 }),
+    });
     const req = new Request('http://x', {
       method: 'PATCH',
-      body: JSON.stringify({ label: 'X' })
+      body: JSON.stringify({ label: 'X' }),
     });
     const res = await PATCH(req as Request, idCtx('cf1'));
     expect(res.status).toBe(401);
@@ -167,7 +190,10 @@ describe('PATCH /api/admin/custom-fields/[id]', () => {
 
 describe('DELETE /api/admin/custom-fields/[id]', () => {
   it('200 при успехе', async () => {
-    deactivateDefinition.mockResolvedValue({ ok: true, definition: { id: 'cf1', isActive: false } });
+    deactivateDefinition.mockResolvedValue({
+      ok: true,
+      definition: { id: 'cf1', isActive: false },
+    });
     const req = new Request('http://x', { method: 'DELETE' });
     const res = await DELETE(req as Request, idCtx('cf1'));
     expect(res.status).toBe(200);
@@ -188,7 +214,10 @@ describe('DELETE /api/admin/custom-fields/[id]', () => {
   });
 
   it('401 если нет сессии', async () => {
-    requireSession.mockResolvedValue({ ok: false, response: new Response('Unauthorized', { status: 401 }) });
+    requireSession.mockResolvedValue({
+      ok: false,
+      response: new Response('Unauthorized', { status: 401 }),
+    });
     const req = new Request('http://x', { method: 'DELETE' });
     const res = await DELETE(req as Request, idCtx('cf1'));
     expect(res.status).toBe(401);

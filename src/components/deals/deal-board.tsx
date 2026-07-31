@@ -21,13 +21,13 @@ const MOVE_ERRORS: Record<string, string> = {
   lifecycle_violation: 'Такой переход недопустим: сделка уже завершена.',
   reason_required: 'Укажите причину проигрыша.',
   won_requires_order: 'Выигрыш оформляется через диалог «Выиграна — создать заказ».',
-  forbidden: 'Нет доступа.'
+  forbidden: 'Нет доступа.',
 };
 
 const WIN_ERRORS: Record<string, string> = {
   not_found: 'Сделка не найдена или недоступна.',
   lifecycle_violation: 'Такой переход недопустим: сделка уже завершена.',
-  forbidden: 'Нет доступа.'
+  forbidden: 'Нет доступа.',
 };
 
 function columnAmount(col: DealColumn): string | null {
@@ -48,7 +48,7 @@ export function DealBoard({
   organizations,
   managers,
   currentUserId,
-  tasksEnabled
+  tasksEnabled,
 }: {
   board: DealBoardData;
   /** Заданы вместе с currentUserId → клик по открытой сделке открывает редактирование. */
@@ -65,7 +65,8 @@ export function DealBoard({
   const [wonError, setWonError] = useState<string | null>(null);
   const [wonBusy, setWonBusy] = useState(false);
   const [editTarget, setEditTarget] = useState<DealDialogTarget | null>(null);
-  const canEdit = organizations !== undefined && managers !== undefined && currentUserId !== undefined;
+  const canEdit =
+    organizations !== undefined && managers !== undefined && currentUserId !== undefined;
 
   function openEdit(card: DealCard) {
     // Редактируются только открытые сделки (завершённые сервис отклонит).
@@ -77,7 +78,7 @@ export function DealBoard({
       organizationId: card.organizationId,
       managerId: card.managerId,
       expectedCloseAt: card.expectedCloseAt,
-      orderId: card.orderId
+      orderId: card.orderId,
     });
   }
 
@@ -191,15 +192,21 @@ export function DealBoard({
                   className="bg-white border border-gray-200 rounded-lg p-3 cursor-grab active:cursor-grabbing shadow-sm"
                 >
                   <p className="text-sm font-medium text-[#111111]">{card.title}</p>
-                  {card.organizationName && <p className="text-xs text-gray-500 mt-0.5">{card.organizationName}</p>}
+                  {card.organizationName && (
+                    <p className="text-xs text-gray-500 mt-0.5">{card.organizationName}</p>
+                  )}
                   <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
                     <span>{card.amount ? fmtMoney(card.amount) : '—'}</span>
                     <span>{card.managerName ?? 'без ответственного'}</span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">{fmtDate(card.expectedCloseAt ?? card.createdAt)}</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {fmtDate(card.expectedCloseAt ?? card.createdAt)}
+                  </p>
                 </article>
               ))}
-              {col.cards.length === 0 && <p className="text-xs text-gray-400 text-center py-4">Пусто</p>}
+              {col.cards.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-4">Пусто</p>
+              )}
             </div>
           </div>
         );
@@ -240,11 +247,14 @@ export function DealBoard({
         busy={wonBusy}
         error={wonError}
       >
-        <p className="text-sm text-gray-600 mb-3">
-          Из выигранной сделки сразу будет создан заказ.
-        </p>
+        <p className="text-sm text-gray-600 mb-3">Из выигранной сделки сразу будет создан заказ.</p>
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={() => setWonFor(null)} disabled={wonBusy}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setWonFor(null)}
+            disabled={wonBusy}
+          >
             Отмена
           </Button>
           <Button type="button" onClick={() => void doWin()} disabled={wonBusy}>

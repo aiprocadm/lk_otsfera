@@ -8,25 +8,31 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh, push }) }));
 
 const { claimIntakeAction, closeCallIntakeAction } = vi.hoisted(() => ({
   claimIntakeAction: vi.fn(),
-  closeCallIntakeAction: vi.fn()
+  closeCallIntakeAction: vi.fn(),
 }));
 vi.mock('@/server-actions/intake', () => ({ claimIntakeAction, closeCallIntakeAction }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
-const { leadDialogSpy, taskDialogSpy } = vi.hoisted(() => ({ leadDialogSpy: vi.fn(), taskDialogSpy: vi.fn() }));
+const { leadDialogSpy, taskDialogSpy } = vi.hoisted(() => ({
+  leadDialogSpy: vi.fn(),
+  taskDialogSpy: vi.fn(),
+}));
 vi.mock('@/components/intake/create-lead-from-source-dialog', () => ({
   CreateLeadFromSourceDialog: (props: { kind: string; sourceId: string; onClose: () => void }) => {
     leadDialogSpy(props);
     return React.createElement('div', { 'data-testid': 'lead-dialog-stub' });
-  }
+  },
 }));
 vi.mock('@/components/intake/quick-task-dialog', () => ({
   QuickTaskDialog: (props: { titlePrefill: string; onClose: () => void }) => {
     taskDialogSpy(props);
     return React.createElement('div', { 'data-testid': 'task-dialog-stub' });
-  }
+  },
 }));
 
 import { IntakeTable, waitingLabel, sourceHref } from '@/components/intake/intake-table';
@@ -47,7 +53,7 @@ function item(over: Partial<IntakeItem>): IntakeItem {
     leadPrefill: null,
     taskTitle: 'Обращение клиента: Обучение',
     organizationId: null,
-    ...over
+    ...over,
   };
 }
 
@@ -88,7 +94,13 @@ describe('IntakeTable', () => {
   });
 
   it('строка: тип, от кого, суть, ожидание, «нет» ответственного, действия', () => {
-    render(<IntakeTable items={[item({ slaLevel: 'breach', waitingMs: 30 * 3_600_000 })]} viewerPrefix="/manager" currentUserId="m1" />);
+    render(
+      <IntakeTable
+        items={[item({ slaLevel: 'breach', waitingMs: 30 * 3_600_000 })]}
+        viewerPrefix="/manager"
+        currentUserId="m1"
+      />
+    );
     expect(screen.getByText('Заявка клиента')).toBeTruthy();
     expect(screen.getByText('ООО Ромашка')).toBeTruthy();
     expect(screen.getByText('30 ч')).toBeTruthy();
@@ -99,7 +111,13 @@ describe('IntakeTable', () => {
 
   it('«Взять в работу» вызывает claim с типом и id; успех → toast + refresh', async () => {
     claimIntakeAction.mockResolvedValue({ ok: true });
-    render(<IntakeTable items={[item({ type: 'inbound', id: 'i1', leadPrefill: null })]} viewerPrefix="/manager" currentUserId="m1" />);
+    render(
+      <IntakeTable
+        items={[item({ type: 'inbound', id: 'i1', leadPrefill: null })]}
+        viewerPrefix="/manager"
+        currentUserId="m1"
+      />
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
     await waitFor(() => expect(claimIntakeAction).toHaveBeenCalled());
     const fd = claimIntakeAction.mock.calls[0]![0] as FormData;
@@ -120,9 +138,7 @@ describe('IntakeTable', () => {
     claimIntakeAction.mockResolvedValue({ ok: false });
     render(<IntakeTable items={[item({})]} viewerPrefix="/manager" currentUserId="m1" />);
     fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
-    await waitFor(() =>
-      expect(toastError).toHaveBeenCalledWith('Не удалось выполнить действие.')
-    );
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось выполнить действие.'));
   });
 
   it('незнакомый код ошибки claim → общий русский текст', async () => {
@@ -131,9 +147,7 @@ describe('IntakeTable', () => {
     claimIntakeAction.mockResolvedValue({ ok: false, error: 'quota_exceeded' });
     render(<IntakeTable items={[item({})]} viewerPrefix="/manager" currentUserId="m1" />);
     fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
-    await waitFor(() =>
-      expect(toastError).toHaveBeenCalledWith('Не удалось выполнить действие.')
-    );
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось выполнить действие.'));
   });
 
   it('ответственный назначен, но имя ещё не подгрузилось → многоточие вместо «нет»', () => {
@@ -165,7 +179,12 @@ describe('IntakeTable', () => {
     fetchMock.mockResolvedValue({ ok: true, json: () => Promise.resolve({ leadId: 'lead-9' }) });
     render(<IntakeTable items={[item({ id: 'r1' })]} viewerPrefix="/manager" currentUserId="m1" />);
     fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/client-requests/r1', expect.objectContaining({ method: 'PATCH' })));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/client-requests/r1',
+        expect.objectContaining({ method: 'PATCH' })
+      )
+    );
     await waitFor(() => expect(push).toHaveBeenCalledWith('/manager/leads/lead-9'));
   });
 
@@ -188,27 +207,67 @@ describe('IntakeTable', () => {
   });
 
   it('inbound/call: «Создать лид» открывает диалог с префиллом', () => {
-    const prefill = { companyName: '', contactName: '+7999', contactPhone: '+7999', contactEmail: '', subject: 'Входящий звонок' };
-    render(<IntakeTable items={[item({ type: 'call', id: 'c1', leadPrefill: prefill })]} viewerPrefix="/manager" currentUserId="m1" />);
+    const prefill = {
+      companyName: '',
+      contactName: '+7999',
+      contactPhone: '+7999',
+      contactEmail: '',
+      subject: 'Входящий звонок',
+    };
+    render(
+      <IntakeTable
+        items={[item({ type: 'call', id: 'c1', leadPrefill: prefill })]}
+        viewerPrefix="/manager"
+        currentUserId="m1"
+      />
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
     expect(screen.getByTestId('lead-dialog-stub')).toBeTruthy();
-    expect(leadDialogSpy).toHaveBeenCalledWith(expect.objectContaining({ kind: 'call', sourceId: 'c1' }));
+    expect(leadDialogSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'call', sourceId: 'c1' })
+    );
   });
 
   it('обращение (не звонок): диалог лида открывается с типом inbound', () => {
     // Тип источника определяет, каким сервисом создаётся лид. Перепутать их
     // нельзя: лид уедет к другому источнику и обращение останется неразобранным.
-    const prefill = { companyName: 'ООО Ромашка', contactName: 'Иван', contactPhone: '', contactEmail: 'i@x.ru', subject: 'Вопрос' };
-    render(<IntakeTable items={[item({ type: 'inbound', id: 'i1', leadPrefill: prefill })]} viewerPrefix="/manager" currentUserId="m1" />);
+    const prefill = {
+      companyName: 'ООО Ромашка',
+      contactName: 'Иван',
+      contactPhone: '',
+      contactEmail: 'i@x.ru',
+      subject: 'Вопрос',
+    };
+    render(
+      <IntakeTable
+        items={[item({ type: 'inbound', id: 'i1', leadPrefill: prefill })]}
+        viewerPrefix="/manager"
+        currentUserId="m1"
+      />
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
-    expect(leadDialogSpy).toHaveBeenCalledWith(expect.objectContaining({ kind: 'inbound', sourceId: 'i1' }));
+    expect(leadDialogSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'inbound', sourceId: 'i1' })
+    );
   });
 
   it('закрытие диалогов снимает их с экрана', async () => {
     // Диалоги монтируются условно. Если бы onClose потерялся, второй раз
     // открыть их уже не вышло бы.
-    const prefill = { companyName: '', contactName: '+7999', contactPhone: '+7999', contactEmail: '', subject: 'Звонок' };
-    render(<IntakeTable items={[item({ type: 'call', id: 'c1', leadPrefill: prefill })]} viewerPrefix="/manager" currentUserId="m1" />);
+    const prefill = {
+      companyName: '',
+      contactName: '+7999',
+      contactPhone: '+7999',
+      contactEmail: '',
+      subject: 'Звонок',
+    };
+    render(
+      <IntakeTable
+        items={[item({ type: 'call', id: 'c1', leadPrefill: prefill })]}
+        viewerPrefix="/manager"
+        currentUserId="m1"
+      />
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
     const leadClose = leadDialogSpy.mock.calls.at(-1)![0].onClose as () => void;
@@ -225,13 +284,17 @@ describe('IntakeTable', () => {
     closeCallIntakeAction.mockResolvedValue({ ok: true });
     render(
       <IntakeTable
-        items={[item({ type: 'call', id: 'c1', taskTitle: 'Перезвонить: +7999', leadPrefill: null })]}
+        items={[
+          item({ type: 'call', id: 'c1', taskTitle: 'Перезвонить: +7999', leadPrefill: null }),
+        ]}
         viewerPrefix="/manager"
         currentUserId="m1"
       />
     );
     fireEvent.click(screen.getByRole('button', { name: 'Задача' }));
-    expect(taskDialogSpy).toHaveBeenCalledWith(expect.objectContaining({ titlePrefill: 'Перезвонить: +7999' }));
+    expect(taskDialogSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ titlePrefill: 'Перезвонить: +7999' })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Закрыть' }));
     await waitFor(() => expect(closeCallIntakeAction).toHaveBeenCalled());

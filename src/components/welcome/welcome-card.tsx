@@ -31,32 +31,32 @@ export function WelcomeCard({ name, actions }: { name: string; actions: WelcomeA
   }
 
   return (
-    <section className='bg-[#FFF7ED] border border-orange-200 rounded-xl p-5'>
-      <div className='flex items-start justify-between gap-3'>
+    <section className="bg-[#FFF7ED] border border-orange-200 rounded-xl p-5">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className='font-semibold text-[#111111]'>Добро пожаловать{name ? `, ${name}` : ''}!</h2>
-          <p className='text-sm text-gray-600 mt-0.5'>
-            С чего удобно начать работу в кабинете:
-          </p>
+          <h2 className="font-semibold text-[#111111]">
+            Добро пожаловать{name ? `, ${name}` : ''}!
+          </h2>
+          <p className="text-sm text-gray-600 mt-0.5">С чего удобно начать работу в кабинете:</p>
         </div>
         <button
-          type='button'
+          type="button"
           onClick={dismiss}
           disabled={busy}
-          className='text-xs text-gray-500 hover:text-[#111111] hover:underline disabled:text-gray-300 whitespace-nowrap'
+          className="text-xs text-gray-500 hover:text-[#111111] hover:underline disabled:text-gray-300 whitespace-nowrap"
         >
           {busy ? 'Скрываем…' : 'Скрыть'}
         </button>
       </div>
-      <div className='grid gap-3 sm:grid-cols-3 mt-4'>
+      <div className="grid gap-3 sm:grid-cols-3 mt-4">
         {actions.map((a) => (
           <Link
             key={a.href}
             href={a.href}
-            className='block bg-white border border-orange-100 rounded-lg p-3 hover:border-[#F97316] transition-colors'
+            className="block bg-white border border-orange-100 rounded-lg p-3 hover:border-[#F97316] transition-colors"
           >
-            <div className='text-sm font-medium text-[#111111]'>{a.title}</div>
-            <div className='text-xs text-gray-500 mt-0.5'>{a.hint}</div>
+            <div className="text-sm font-medium text-[#111111]">{a.title}</div>
+            <div className="text-xs text-gray-500 mt-0.5">{a.hint}</div>
           </Link>
         ))}
       </div>

@@ -1,14 +1,12 @@
 import { Prisma } from '@prisma/client';
 import type { PrismaClient, ThreadSide, OrderThread } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { canSeeThread } from './policy';
 import { activeOrgIds } from '@/lib/auth/organizationPolicy';
+import { canSeeThread } from './policy';
 
 export type ChatError = 'forbidden' | 'order_not_found';
 
-export type ThreadResult =
-  | { ok: true; thread: OrderThread }
-  | { ok: false; error: ChatError };
+export type ThreadResult = { ok: true; thread: OrderThread } | { ok: false; error: ChatError };
 
 export type ThreadRow = {
   id: string;
@@ -100,9 +98,9 @@ export async function listThreads(
       readStates: {
         where: { userId: session.sub },
         select: { lastReadAt: true },
-        take: 1
-      }
-    }
+        take: 1,
+      },
+    },
   });
 
   const rows: ThreadRow[] = threads.map((t) => ({
@@ -112,7 +110,7 @@ export async function listThreads(
     orderNumber: t.order.orderNumber,
     orderTitle: t.order.title,
     lastMessageAt: t.lastMessageAt,
-    unread: t.lastMessageAt > (t.readStates[0]?.lastReadAt ?? new Date(0))
+    unread: t.lastMessageAt > (t.readStates[0]?.lastReadAt ?? new Date(0)),
   }));
 
   return { ok: true, rows };
@@ -132,8 +130,8 @@ export async function markRead(
     select: {
       id: true,
       side: true,
-      order: { select: { id: true, organizationId: true, partnerId: true, companyId: true } }
-    }
+      order: { select: { id: true, organizationId: true, partnerId: true, companyId: true } },
+    },
   });
   if (!thread) return { ok: false, error: 'thread_not_found' };
   if (!canSeeThread(session, thread.side, thread.order)) return { ok: false, error: 'forbidden' };
@@ -141,7 +139,7 @@ export async function markRead(
   await prisma.threadReadState.upsert({
     where: { threadId_userId: { threadId, userId: session.sub } },
     update: { lastReadAt: new Date() },
-    create: { threadId, userId: session.sub }
+    create: { threadId, userId: session.sub },
   });
 
   return { ok: true };
@@ -184,7 +182,7 @@ export async function findOrCreateThread(
 ): Promise<ThreadResult> {
   const order = await prisma.order.findUnique({
     where: { id: args.orderId },
-    select: { id: true, organizationId: true, partnerId: true, companyId: true }
+    select: { id: true, organizationId: true, partnerId: true, companyId: true },
   });
   if (!order) return { ok: false, error: 'order_not_found' };
   if (!canSeeThread(session, args.side, order)) return { ok: false, error: 'forbidden' };
@@ -192,7 +190,7 @@ export async function findOrCreateThread(
   const thread = await prisma.orderThread.upsert({
     where: { orderId_side: { orderId: args.orderId, side: args.side } },
     update: {},
-    create: { orderId: args.orderId, side: args.side }
+    create: { orderId: args.orderId, side: args.side },
   });
   return { ok: true, thread };
 }

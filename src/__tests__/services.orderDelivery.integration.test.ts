@@ -30,7 +30,7 @@ const manager = (): SessionPayload =>
     sub: managerId,
     role: 'manager',
     companyId,
-    managedOrgIds: [orgId]
+    managedOrgIds: [orgId],
   }) as unknown as SessionPayload;
 
 beforeAll(async () => {
@@ -40,21 +40,23 @@ beforeAll(async () => {
   orgId = org.id;
 
   const mgr = await prisma.user.create({
-    data: { email: `${RUN}-m@t.local`, name: 'M', role: 'manager', passwordHash: 'x', companyId }
+    data: { email: `${RUN}-m@t.local`, name: 'M', role: 'manager', passwordHash: 'x', companyId },
   });
   managerId = mgr.id;
   const ou = await prisma.user.create({
-    data: { email: `${RUN}-o@t.local`, name: 'O', role: 'organization', passwordHash: 'x' }
+    data: { email: `${RUN}-o@t.local`, name: 'O', role: 'organization', passwordHash: 'x' },
   });
   orgUserId = ou.id;
   await prisma.organizationUser.create({
-    data: { organizationId: orgId, userId: orgUserId, roleInOrg: 'admin', isActive: true }
+    data: { organizationId: orgId, userId: orgUserId, roleInOrg: 'admin', isActive: true },
   });
 
-  const dir = await prisma.trainingDirection.create({ data: { name: `${RUN}-dir`, isActive: true } });
+  const dir = await prisma.trainingDirection.create({
+    data: { name: `${RUN}-dir`, isActive: true },
+  });
   directionId = dir.id;
   const student = await prisma.student.create({
-    data: { name: `${RUN} Слушатель`, email: `${RUN}-s@t.local`, organizationId: orgId }
+    data: { name: `${RUN} Слушатель`, email: `${RUN}-s@t.local`, organizationId: orgId },
   });
   studentId = student.id;
 
@@ -68,14 +70,14 @@ beforeAll(async () => {
       totalAmount: new Prisma.Decimal('1000.00'),
       paidAmount: new Prisma.Decimal('1000.00'),
       financialStatus: 'paid',
-      executionStatus: 'completed'
-    }
+      executionStatus: 'completed',
+    },
   });
   orderId = order.id;
 
   // Позиция: обучение завершено, удостоверение выдано, скан ещё НЕ загружен.
   const item = await prisma.orderItem.create({
-    data: { orderId, studentId, directionId, trainingStatus: 'certificate_issued' }
+    data: { orderId, studentId, directionId, trainingStatus: 'certificate_issued' },
   });
   const cert = await prisma.certificate.create({
     data: {
@@ -84,8 +86,8 @@ beforeAll(async () => {
       organizationId: orgId,
       directionId,
       orderItemId: item.id,
-      issuedAt: new Date('2026-06-01')
-    }
+      issuedAt: new Date('2026-06-01'),
+    },
   });
   certificateId = cert.id;
 });
@@ -137,13 +139,13 @@ describe('полный путь передачи результата', () => {
         counterpartyId: orgId,
         size: 1024,
         order: { connect: { id: orderId } },
-        uploadedBy: { connect: { id: managerId } }
-      }
+        uploadedBy: { connect: { id: managerId } },
+      },
     });
     documentId = doc.id;
     await prisma.certificate.update({
       where: { id: certificateId },
-      data: { documentId: doc.id }
+      data: { documentId: doc.id },
     });
 
     const readiness = await getOrderReadiness(prisma, manager(), orderId);
@@ -159,7 +161,7 @@ describe('полный путь передачи результата', () => {
 
     // Аудит записан.
     const audit = await prisma.auditLog.findMany({
-      where: { entityId: orderId, action: 'order_result_delivered' }
+      where: { entityId: orderId, action: 'order_result_delivered' },
     });
     expect(audit).toHaveLength(1);
 
@@ -175,7 +177,7 @@ describe('полный путь передачи результата', () => {
       financialStatus: order!.financialStatus,
       amount: order!.totalAmount.toString(),
       paidTotal: order!.paidAmount.toString(),
-      resultDeliveredAt: order!.resultDeliveredAt
+      resultDeliveredAt: order!.resultDeliveredAt,
     });
     expect(stage.label).toBe('Результат передан');
   });

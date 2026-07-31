@@ -12,7 +12,7 @@ import { resolveCorrection } from '@/lib/services/commission/corrections';
 const schema = z.object({
   correctionId: z.string().min(1),
   action: z.enum(['apply', 'waive']),
-  reason: z.string().optional()
+  reason: z.string().optional(),
 });
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -21,7 +21,7 @@ export async function resolveCorrectionAction(fd: FormData): Promise<Result> {
   const parsed = schema.safeParse({
     correctionId: fd.get('correctionId'),
     action: fd.get('action'),
-    reason: (fd.get('reason') as string) || undefined
+    reason: (fd.get('reason') as string) || undefined,
   });
   if (!parsed.success) return { ok: false, error: 'validation' };
 

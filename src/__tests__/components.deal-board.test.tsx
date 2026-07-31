@@ -6,25 +6,34 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
-const { moveDealAction, createDealAction, updateDealAction, winDealAction, addDealNoteAction, listDealNotesAction } =
-  vi.hoisted(() => ({
-    moveDealAction: vi.fn(),
-    createDealAction: vi.fn(),
-    updateDealAction: vi.fn(),
-    winDealAction: vi.fn(),
-    addDealNoteAction: vi.fn(),
-    listDealNotesAction: vi.fn()
-  }));
+const {
+  moveDealAction,
+  createDealAction,
+  updateDealAction,
+  winDealAction,
+  addDealNoteAction,
+  listDealNotesAction,
+} = vi.hoisted(() => ({
+  moveDealAction: vi.fn(),
+  createDealAction: vi.fn(),
+  updateDealAction: vi.fn(),
+  winDealAction: vi.fn(),
+  addDealNoteAction: vi.fn(),
+  listDealNotesAction: vi.fn(),
+}));
 vi.mock('@/server-actions/deals', () => ({
   moveDealAction,
   createDealAction,
   updateDealAction,
   winDealAction,
   addDealNoteAction,
-  listDealNotesAction
+  listDealNotesAction,
 }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { DealBoard } from '@/components/deals/deal-board';
@@ -41,7 +50,7 @@ const cardOpen: DealCard = {
   status: 'open',
   orderId: null,
   expectedCloseAt: new Date('2026-08-15'),
-  createdAt: new Date('2026-01-01')
+  createdAt: new Date('2026-01-01'),
 };
 
 const cardNoAmount: DealCard = {
@@ -55,7 +64,7 @@ const cardNoAmount: DealCard = {
   status: 'open',
   orderId: null,
   expectedCloseAt: null,
-  createdAt: new Date('2026-02-01')
+  createdAt: new Date('2026-02-01'),
 };
 
 const cardWon: DealCard = {
@@ -69,13 +78,41 @@ const cardWon: DealCard = {
   status: 'won',
   orderId: 'order-77',
   expectedCloseAt: null,
-  createdAt: new Date('2026-03-01')
+  createdAt: new Date('2026-03-01'),
 };
 
-const stNew = { id: 'st-new', name: 'Новая', position: 0, statusAnchor: 'open' as const, isTerminal: false, color: null };
-const stWork = { id: 'st-work', name: 'В работе', position: 1, statusAnchor: 'open' as const, isTerminal: false, color: null };
-const stWon = { id: 'st-won', name: 'Выиграна', position: 2, statusAnchor: 'won' as const, isTerminal: true, color: null };
-const stLost = { id: 'st-lost', name: 'Проиграна', position: 3, statusAnchor: 'lost' as const, isTerminal: true, color: null };
+const stNew = {
+  id: 'st-new',
+  name: 'Новая',
+  position: 0,
+  statusAnchor: 'open' as const,
+  isTerminal: false,
+  color: null,
+};
+const stWork = {
+  id: 'st-work',
+  name: 'В работе',
+  position: 1,
+  statusAnchor: 'open' as const,
+  isTerminal: false,
+  color: null,
+};
+const stWon = {
+  id: 'st-won',
+  name: 'Выиграна',
+  position: 2,
+  statusAnchor: 'won' as const,
+  isTerminal: true,
+  color: null,
+};
+const stLost = {
+  id: 'st-lost',
+  name: 'Проиграна',
+  position: 3,
+  statusAnchor: 'lost' as const,
+  isTerminal: true,
+  color: null,
+};
 
 const board: DealBoardData = {
   stages: [stNew, stWork, stWon, stLost],
@@ -83,14 +120,14 @@ const board: DealBoardData = {
     { stage: stNew, cards: [cardOpen, cardNoAmount] },
     { stage: stWork, cards: [] },
     { stage: stWon, cards: [cardWon] },
-    { stage: stLost, cards: [] }
-  ]
+    { stage: stLost, cards: [] },
+  ],
 };
 
 const organizations = [{ id: 'org-1', name: 'ООО Ромашка' }];
 const managers = [
   { id: 'm-1', name: 'Иван' },
-  { id: 'u-me', name: 'Я Сам' }
+  { id: 'u-me', name: 'Я Сам' },
 ];
 
 function dataTransfer(id: string) {
@@ -99,7 +136,7 @@ function dataTransfer(id: string) {
     setData: (type: string, value: string) => {
       store[type] = value;
     },
-    getData: (type: string) => store[type] ?? id
+    getData: (type: string) => store[type] ?? id,
   };
 }
 
@@ -203,8 +240,8 @@ describe('DealBoard', () => {
         ...board,
         columns: [
           { stage: stNew, cards: [cardOpen, { ...cardOpen, id: 'd-bad', amount: 'мусор' }] },
-          ...board.columns.slice(1)
-        ]
+          ...board.columns.slice(1),
+        ],
       };
       render(React.createElement(DealBoard, { board: dirty }));
       expect(document.body.textContent).not.toContain('NaN');
@@ -240,7 +277,7 @@ describe('DealBoard', () => {
       fireEvent.drop(columnOf('Проиграна'), { dataTransfer: dataTransfer('deal-1') });
 
       fireEvent.change(screen.getByPlaceholderText('Укажите причину проигрыша'), {
-        target: { value: 'Клиент отказался' }
+        target: { value: 'Клиент отказался' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Отметить проигранной' }));
 
@@ -256,7 +293,9 @@ describe('DealBoard', () => {
     it('Escape закрывает диалог причины/подтверждения/редактирования (onClose)', async () => {
       // У каждой кнопки закрытия свой обработчик, а Escape идёт через onClose
       // самого диалога — это отдельные точки, обе должны работать.
-      render(React.createElement(DealBoard, { board, organizations, managers, currentUserId: 'u-me' }));
+      render(
+        React.createElement(DealBoard, { board, organizations, managers, currentUserId: 'u-me' })
+      );
 
       // Диалог причины проигрыша.
       fireEvent.drop(columnOf('Проиграна'), { dataTransfer: dataTransfer('d-open') });
@@ -281,7 +320,9 @@ describe('DealBoard', () => {
     it('cancel closes the reason dialog without calling the action', async () => {
       render(React.createElement(DealBoard, { board }));
       fireEvent.drop(columnOf('Проиграна'), { dataTransfer: dataTransfer('deal-1') });
-      fireEvent.click(within(dialogOf('Причина проигрыша')).getByRole('button', { name: 'Отмена' }));
+      fireEvent.click(
+        within(dialogOf('Причина проигрыша')).getByRole('button', { name: 'Отмена' })
+      );
       await waitFor(() => expect(dialogOf('Причина проигрыша').hasAttribute('open')).toBe(false));
       expect(moveDealAction).not.toHaveBeenCalled();
     });
@@ -327,7 +368,11 @@ describe('DealBoard', () => {
 
       const dlg = dialogOf('Отметить сделку выигранной?');
       await waitFor(() =>
-        expect(within(dlg).getByText('У сделки не указана организация — откройте сделку и привяжите организацию.')).toBeTruthy()
+        expect(
+          within(dlg).getByText(
+            'У сделки не указана организация — откройте сделку и привяжите организацию.'
+          )
+        ).toBeTruthy()
       );
       expect(dlg.hasAttribute('open')).toBe(true);
       expect(toastError).not.toHaveBeenCalled();
@@ -337,7 +382,7 @@ describe('DealBoard', () => {
     it.each([
       ['not_found', 'Сделка не найдена или недоступна.'],
       ['lifecycle_violation', 'Такой переход недопустим: сделка уже завершена.'],
-      ['forbidden', 'Нет доступа.']
+      ['forbidden', 'Нет доступа.'],
     ])('error %s → closes the dialog and toasts "%s"', async (code, message) => {
       winDealAction.mockResolvedValue({ ok: false, error: code });
       render(React.createElement(DealBoard, { board }));
@@ -345,7 +390,9 @@ describe('DealBoard', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Выиграна — создать заказ' }));
       await waitFor(() => expect(toastError).toHaveBeenCalledWith(message));
-      await waitFor(() => expect(dialogOf('Отметить сделку выигранной?').hasAttribute('open')).toBe(false));
+      await waitFor(() =>
+        expect(dialogOf('Отметить сделку выигранной?').hasAttribute('open')).toBe(false)
+      );
       expect(refresh).not.toHaveBeenCalled();
     });
 
@@ -375,7 +422,7 @@ describe('DealBoard', () => {
       ['not_found', 'Сделка не найдена или недоступна.'],
       ['invalid_stage', 'Неизвестная стадия.'],
       ['lifecycle_violation', 'Такой переход недопустим: сделка уже завершена.'],
-      ['forbidden', 'Нет доступа.']
+      ['forbidden', 'Нет доступа.'],
     ])('error %s → russian toast "%s"', async (code, message) => {
       moveDealAction.mockResolvedValue({ ok: false, error: code });
       render(React.createElement(DealBoard, { board }));
@@ -396,7 +443,9 @@ describe('DealBoard', () => {
       moveDealAction.mockResolvedValue({ ok: false, error: 'weird_code' });
       render(React.createElement(DealBoard, { board }));
       fireEvent.drop(columnOf('В работе'), { dataTransfer: dataTransfer('deal-1') });
-      await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось переместить карточку.'));
+      await waitFor(() =>
+        expect(toastError).toHaveBeenCalledWith('Не удалось переместить карточку.')
+      );
     });
   });
 

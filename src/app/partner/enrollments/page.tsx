@@ -14,18 +14,22 @@ export default async function PartnerEnrollmentsPage() {
   const session = await requirePartner();
   const [{ rows }, orgs, directions] = await Promise.all([
     listEnrollmentRequests(prisma, session, {}),
-    prisma.organization.findMany({ where: { partnerId: session.partnerId }, select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+    prisma.organization.findMany({
+      where: { partnerId: session.partnerId },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
     prisma.trainingDirection.findMany({
       where: { isActive: true },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-      select: { id: true, name: true }
-    })
+      select: { id: true, name: true },
+    }),
   ]);
   return (
-    <div className='space-y-5'>
-      <h1 className='text-2xl font-semibold text-[#111111]'>Заявки на обучение</h1>
+    <div className="space-y-5">
+      <h1 className="text-2xl font-semibold text-[#111111]">Заявки на обучение</h1>
       <EnrollmentWizard directions={directions} organizations={orgs} />
-      <EnrollmentList rows={rows} detailHrefBase='/partner/enrollments' />
+      <EnrollmentList rows={rows} detailHrefBase="/partner/enrollments" />
     </div>
   );
 }

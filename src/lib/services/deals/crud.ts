@@ -25,7 +25,9 @@ type ParsedInput = {
   expectedCloseAt: Date | null;
 };
 
-function parseInput(input: DealInput): { ok: true; values: ParsedInput } | { ok: false; messages: string[] } {
+function parseInput(
+  input: DealInput
+): { ok: true; values: ParsedInput } | { ok: false; messages: string[] } {
   const messages: string[] = [];
   const title = input.title?.trim() ?? '';
   if (!title) messages.push('Укажите название сделки');
@@ -34,7 +36,8 @@ function parseInput(input: DealInput): { ok: true; values: ParsedInput } | { ok:
   const rawAmount = input.amount?.trim();
   if (rawAmount) {
     const normalized = rawAmount.replace(',', '.');
-    if (!/^\d+(\.\d{1,2})?$/.test(normalized)) messages.push('Сумма — число, до двух знаков после запятой');
+    if (!/^\d+(\.\d{1,2})?$/.test(normalized))
+      messages.push('Сумма — число, до двух знаков после запятой');
     else amount = normalized;
   }
 
@@ -65,7 +68,7 @@ async function resolveOrganizationId(
   if (!organizationId) return { ok: true, organizationId: null };
   const org = await prisma.organization.findUnique({
     where: { id: organizationId },
-    select: { companyId: true }
+    select: { companyId: true },
   });
   if (!org) return { ok: false };
   if (session.role !== 'admin' && org.companyId !== session.companyId) return { ok: false };
@@ -82,7 +85,7 @@ async function resolveManagerId(
   if (managerId === session.sub) return { ok: true, managerId };
   const candidate = await prisma.user.findUnique({
     where: { id: managerId },
-    select: { role: true, isActive: true, companyId: true }
+    select: { role: true, isActive: true, companyId: true },
   });
   if (!candidate || candidate.role !== 'manager' || !candidate.isActive) return { ok: false };
   if (session.role !== 'admin' && candidate.companyId !== session.companyId) return { ok: false };
@@ -107,7 +110,8 @@ export async function createDeal(
   const org = await resolveOrganizationId(prisma, session, input.organizationId);
   if (!org.ok) return { ok: false, error: 'forbidden' };
   const manager = await resolveManagerId(prisma, session, input.managerId);
-  if (!manager.ok) return { ok: false, error: 'validation', messages: ['Ответственный менеджер не найден'] };
+  if (!manager.ok)
+    return { ok: false, error: 'validation', messages: ['Ответственный менеджер не найден'] };
 
   const deal = await prisma.deal.create({
     data: {
@@ -116,8 +120,8 @@ export async function createDeal(
       amount: parsed.values.amount,
       expectedCloseAt: parsed.values.expectedCloseAt,
       organizationId: org.organizationId,
-      managerId: manager.managerId
-    }
+      managerId: manager.managerId,
+    },
   });
 
   await recordAudit(prisma, {
@@ -125,7 +129,7 @@ export async function createDeal(
     action: 'deal_created',
     entity: 'deal',
     entityId: deal.id,
-    after: { organizationId: org.organizationId, managerId: manager.managerId }
+    after: { organizationId: org.organizationId, managerId: manager.managerId },
   });
 
   return { ok: true, deal };
@@ -140,10 +144,15 @@ export async function updateDeal(
 
   const existing = await prisma.deal.findFirst({
     where: { AND: [{ id: args.dealId }, dealScopeWhere(session)] },
-    select: { id: true, status: true }
+    select: { id: true, status: true },
   });
   if (!existing) return { ok: false, error: 'not_found' };
-  if (existing.status !== 'open') return { ok: false, error: 'validation', messages: ['Завершённую сделку нельзя редактировать'] };
+  if (existing.status !== 'open')
+    return {
+      ok: false,
+      error: 'validation',
+      messages: ['Завершённую сделку нельзя редактировать'],
+    };
 
   const parsed = parseInput(args);
   if (!parsed.ok) return { ok: false, error: 'validation', messages: parsed.messages };
@@ -151,7 +160,8 @@ export async function updateDeal(
   const org = await resolveOrganizationId(prisma, session, args.organizationId);
   if (!org.ok) return { ok: false, error: 'forbidden' };
   const manager = await resolveManagerId(prisma, session, args.managerId);
-  if (!manager.ok) return { ok: false, error: 'validation', messages: ['Ответственный менеджер не найден'] };
+  if (!manager.ok)
+    return { ok: false, error: 'validation', messages: ['Ответственный менеджер не найден'] };
 
   const deal = await prisma.deal.update({
     where: { id: existing.id },
@@ -160,8 +170,8 @@ export async function updateDeal(
       amount: parsed.values.amount,
       expectedCloseAt: parsed.values.expectedCloseAt,
       organizationId: org.organizationId,
-      managerId: manager.managerId
-    }
+      managerId: manager.managerId,
+    },
   });
 
   await recordAudit(prisma, {
@@ -169,7 +179,7 @@ export async function updateDeal(
     action: 'deal_updated',
     entity: 'deal',
     entityId: deal.id,
-    after: { organizationId: org.organizationId, managerId: manager.managerId }
+    after: { organizationId: org.organizationId, managerId: manager.managerId },
   });
 
   return { ok: true, deal };

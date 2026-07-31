@@ -1,11 +1,6 @@
 import * as React from 'react';
 import { log } from '@/lib/logging';
-import {
-  defaultTransport,
-  getEmailFrom,
-  isEmailEnabled,
-  type EmailTransport,
-} from './transport';
+import { defaultTransport, getEmailFrom, isEmailEnabled, type EmailTransport } from './transport';
 import {
   CommissionReadyTemplate,
   commissionReadySubject,
@@ -106,7 +101,7 @@ async function renderHtml(element: React.ReactElement): Promise<string> {
  */
 export async function send(
   input: { to: string; subject: string; html: string; text?: string },
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   if (!input.to) return { status: 'skipped', reason: 'no-recipient' };
   if (!(await isEmailEnabled())) return { status: 'skipped', reason: 'disabled' };
@@ -131,7 +126,7 @@ export async function send(
 
 export async function sendNotificationEmail(
   args: { to: string } & NotificationProps,
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const { to, ...props } = args;
   return send(
@@ -141,13 +136,13 @@ export async function sendNotificationEmail(
       html: await renderHtml(<NotificationTemplate {...props} />),
       text: notificationText(props),
     },
-    options,
+    options
   );
 }
 
 export async function sendCommissionReadyEmail(
   args: { to: string } & CommissionReadyProps,
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const { to, ...props } = args;
   return send(
@@ -157,13 +152,13 @@ export async function sendCommissionReadyEmail(
       html: await renderHtml(<CommissionReadyTemplate {...props} />),
       text: commissionReadyText(props),
     },
-    options,
+    options
   );
 }
 
 export async function sendLeadPromotedEmail(
   args: { to: string } & LeadPromotedProps,
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const { to, ...props } = args;
   return send(
@@ -173,13 +168,13 @@ export async function sendLeadPromotedEmail(
       html: await renderHtml(<LeadPromotedTemplate {...props} />),
       text: leadPromotedText(props),
     },
-    options,
+    options
   );
 }
 
 export async function sendDocumentUploadedEmail(
   args: { to: string } & DocumentUploadedProps,
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const { to, ...props } = args;
   return send(
@@ -189,13 +184,13 @@ export async function sendDocumentUploadedEmail(
       html: await renderHtml(<DocumentUploadedTemplate {...props} />),
       text: documentUploadedText(props),
     },
-    options,
+    options
   );
 }
 
 export async function sendOrgInviteEmail(
   args: { to: string } & OrgInviteProps,
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const { to, ...props } = args;
   return send(
@@ -205,13 +200,13 @@ export async function sendOrgInviteEmail(
       html: await renderHtml(<OrgInviteTemplate {...props} />),
       text: orgInviteText(props),
     },
-    options,
+    options
   );
 }
 
 export async function sendPartnerInviteEmail(
   args: { to: string } & PartnerInviteProps,
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const { to, ...props } = args;
   return send(
@@ -221,13 +216,13 @@ export async function sendPartnerInviteEmail(
       html: await renderHtml(<PartnerInviteTemplate {...props} />),
       text: partnerInviteText(props),
     },
-    options,
+    options
   );
 }
 
 export async function sendOrgDocumentPublishedEmail(
   args: { to: string } & OrgDocumentPublishedProps,
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const { to, ...props } = args;
   return send(
@@ -237,13 +232,13 @@ export async function sendOrgDocumentPublishedEmail(
       html: await renderHtml(<OrgDocumentPublishedTemplate {...props} />),
       text: orgDocumentPublishedText(props),
     },
-    options,
+    options
   );
 }
 
 export async function sendOrgPaymentReceivedEmail(
   args: { to: string } & OrgPaymentReceivedProps,
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const { to, ...props } = args;
   return send(
@@ -253,13 +248,13 @@ export async function sendOrgPaymentReceivedEmail(
       html: await renderHtml(<OrgPaymentReceivedTemplate {...props} />),
       text: orgPaymentReceivedText(props),
     },
-    options,
+    options
   );
 }
 
 export async function sendOrgOrderStatusChangedEmail(
   args: { to: string } & OrgOrderStatusChangedProps,
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const { to, ...props } = args;
   return send(
@@ -269,13 +264,13 @@ export async function sendOrgOrderStatusChangedEmail(
       html: await renderHtml(<OrgOrderStatusChangedTemplate {...props} />),
       text: orgOrderStatusChangedText(props),
     },
-    options,
+    options
   );
 }
 
 export async function sendOrgManagerRepliedEmail(
   args: { to: string } & OrgManagerRepliedProps,
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const { to, ...props } = args;
   return send(
@@ -285,13 +280,13 @@ export async function sendOrgManagerRepliedEmail(
       html: await renderHtml(<OrgManagerRepliedTemplate {...props} />),
       text: orgManagerRepliedText(props),
     },
-    options,
+    options
   );
 }
 
 export async function sendManagerCommentFromOrgEmail(
   args: { to: string } & ManagerCommentFromOrgProps,
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const { to, ...props } = args;
   return send(
@@ -301,13 +296,13 @@ export async function sendManagerCommentFromOrgEmail(
       html: await renderHtml(<ManagerCommentFromOrg {...props} />),
       text: managerCommentFromOrgText(props),
     },
-    options,
+    options
   );
 }
 
 export async function sendManagerDocumentUploadedByOrgEmail(
   args: { to: string } & ManagerDocumentUploadedByOrgProps,
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const { to, ...props } = args;
   return send(
@@ -317,13 +312,13 @@ export async function sendManagerDocumentUploadedByOrgEmail(
       html: await renderHtml(<ManagerDocumentUploadedByOrg {...props} />),
       text: managerDocumentUploadedByOrgText(props),
     },
-    options,
+    options
   );
 }
 
 export async function sendManagerOrderMarkedPaidBy1CEmail(
   args: { to: string } & ManagerOrderMarkedPaidBy1CProps,
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const { to, ...props } = args;
   return send(
@@ -333,13 +328,13 @@ export async function sendManagerOrderMarkedPaidBy1CEmail(
       html: await renderHtml(<ManagerOrderMarkedPaidBy1C {...props} />),
       text: managerOrderMarkedPaidBy1CText(props),
     },
-    options,
+    options
   );
 }
 
 export async function sendManagerOrderStatusChangedEmail(
   args: { to: string } & ManagerOrderStatusChangedProps,
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const { to, ...props } = args;
   return send(
@@ -349,13 +344,13 @@ export async function sendManagerOrderStatusChangedEmail(
       html: await renderHtml(<ManagerOrderStatusChanged {...props} />),
       text: managerOrderStatusChangedText(props),
     },
-    options,
+    options
   );
 }
 
 export async function sendManagerInviteEmail(
   args: { to: string } & ManagerInviteProps,
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const { to, ...props } = args;
   return send(
@@ -365,13 +360,13 @@ export async function sendManagerInviteEmail(
       html: await renderHtml(<ManagerInviteTemplate {...props} />),
       text: managerInviteText(props),
     },
-    options,
+    options
   );
 }
 
 export async function sendAdminUserInviteEmail(
   args: { to: string } & AdminUserInviteProps,
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const { to, ...props } = args;
   return send(
@@ -381,13 +376,13 @@ export async function sendAdminUserInviteEmail(
       html: await renderHtml(<AdminUserInviteTemplate {...props} />),
       text: adminUserInviteText(props),
     },
-    options,
+    options
   );
 }
 
 export async function sendPartnerDocumentPublishedEmail(
   args: { to: string } & PartnerDocumentPublishedProps,
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const { to, ...props } = args;
   return send(
@@ -397,13 +392,13 @@ export async function sendPartnerDocumentPublishedEmail(
       html: await renderHtml(<PartnerDocumentPublished {...props} />),
       text: partnerDocumentPublishedText(props),
     },
-    options,
+    options
   );
 }
 
 export async function sendManagerDocumentUploadedByPartnerEmail(
   args: { to: string } & ManagerDocumentUploadedByPartnerProps,
-  options: SendOptions = {},
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const { to, ...props } = args;
   return send(
@@ -413,6 +408,6 @@ export async function sendManagerDocumentUploadedByPartnerEmail(
       html: await renderHtml(<ManagerDocumentUploadedByPartner {...props} />),
       text: managerDocumentUploadedByPartnerText(props),
     },
-    options,
+    options
   );
 }

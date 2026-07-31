@@ -3,8 +3,15 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
-    React.createElement('a', { href, className }, children)
+  default: ({
+    href,
+    children,
+    className,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => React.createElement('a', { href, className }, children),
 }));
 
 import { ManagerKpiGrid } from '@/components/manager/manager-kpi-grid';
@@ -15,7 +22,7 @@ const base: KpiData = {
   activeOrdersDelta: 0,
   attentionCount: 0,
   unreadComments: 2,
-  urgentDeadlines: 1
+  urgentDeadlines: 1,
 };
 
 describe('ManagerKpiGrid', () => {
@@ -25,17 +32,23 @@ describe('ManagerKpiGrid', () => {
   });
 
   it('positive delta renders a leading +', () => {
-    const html = renderToString(React.createElement(ManagerKpiGrid, { data: { ...base, activeOrdersDelta: 3 } }));
+    const html = renderToString(
+      React.createElement(ManagerKpiGrid, { data: { ...base, activeOrdersDelta: 3 } })
+    );
     expect(html).toContain('+3 / 30д');
   });
 
   it('negative delta renders without an extra sign (native minus)', () => {
-    const html = renderToString(React.createElement(ManagerKpiGrid, { data: { ...base, activeOrdersDelta: -2 } }));
+    const html = renderToString(
+      React.createElement(ManagerKpiGrid, { data: { ...base, activeOrdersDelta: -2 } })
+    );
     expect(html).toContain('-2 / 30д');
   });
 
   it('attentionCount > 0 sets accent on the card', () => {
-    const html = renderToString(React.createElement(ManagerKpiGrid, { data: { ...base, attentionCount: 4 } }));
+    const html = renderToString(
+      React.createElement(ManagerKpiGrid, { data: { ...base, attentionCount: 4 } })
+    );
     expect(html).toContain('bg-[#F97316] border-[#EA580C]');
   });
 

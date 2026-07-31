@@ -31,7 +31,11 @@ export async function fetchAndStore1CDocument(args: {
         const res = await fetch(args.url, { signal });
         // OneCHttpError so withRetry's isTransient applies HTTP semantics: 404 fails
         // fast (no retry), 503/504 retry.
-        if (!res.ok) throw new OneCHttpError(res.status, `1C document fetch responded ${res.status} for ${args.url}`);
+        if (!res.ok)
+          throw new OneCHttpError(
+            res.status,
+            `1C document fetch responded ${res.status} for ${args.url}`
+          );
         return Buffer.from(await res.arrayBuffer());
       })
     );
@@ -42,7 +46,7 @@ export async function fetchAndStore1CDocument(args: {
     } catch (e) {
       log.warn('[1c] document store failed', {
         url: args.url,
-        error: e instanceof Error ? e.message : String(e)
+        error: e instanceof Error ? e.message : String(e),
       });
       return null;
     }
@@ -50,7 +54,7 @@ export async function fetchAndStore1CDocument(args: {
   } catch (err) {
     log.warn('[1c] document fetch failed', {
       url: args.url,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
     return null;
   }

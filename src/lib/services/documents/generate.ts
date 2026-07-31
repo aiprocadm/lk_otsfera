@@ -3,11 +3,15 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { listMissingRequisites, type MissingRequisite } from '@/lib/documents/requisites-check';
-import { renderOrderDocumentPdf, type OrderDocumentData, type PartyBlock } from './orderDocumentPdf';
-import { renderContractDocumentPdf, type ContractDocumentData } from './contractDocumentPdf';
 import { getObjectStorage } from '@/lib/storage';
 import { notifyOrgUsers } from '@/lib/notifications';
 import { log } from '@/lib/logging';
+import { renderContractDocumentPdf, type ContractDocumentData } from './contractDocumentPdf';
+import {
+  renderOrderDocumentPdf,
+  type OrderDocumentData,
+  type PartyBlock,
+} from './orderDocumentPdf';
 
 /**
  * Этап 8 (ФТ-9.4/9.5, PR-2) — генерация счёта/акта по заказу в 1 клик.
@@ -45,20 +49,20 @@ const LEADER_OF: Record<GenerateDocType, 'invoice' | 'contract' | null> = {
   invoice: null,
   act: 'invoice',
   contract: null,
-  extra_agreement: 'contract'
+  extra_agreement: 'contract',
 };
 const NUMBER_PREFIX: Record<GenerateDocType, string> = {
   invoice: 'С',
   act: 'А',
   contract: 'Д',
-  extra_agreement: 'ДС'
+  extra_agreement: 'ДС',
 };
 /** Последовательность номеров: счёт и договор нумеруются независимо. */
 const COUNTER_KIND: Record<GenerateDocType, string> = {
   invoice: 'invoice',
   act: 'invoice',
   contract: 'contract',
-  extra_agreement: 'contract'
+  extra_agreement: 'contract',
 };
 
 const fmtMoney = (v: unknown): string =>
@@ -97,7 +101,7 @@ function party(row: {
     signerPosition: row.signerPosition,
     signerBasis: row.signerBasis,
     phone: row.phone ?? null,
-    email: row.email ?? null
+    email: row.email ?? null,
   };
 }
 
@@ -113,7 +117,7 @@ const PARTY_SELECT = {
   bic: true,
   signerName: true,
   signerPosition: true,
-  signerBasis: true
+  signerBasis: true,
 } as const;
 
 export async function generateOrderDocument(
@@ -121,7 +125,8 @@ export async function generateOrderDocument(
   session: SessionPayload,
   args: { orderId: string; docType: GenerateDocType; now?: Date }
 ): Promise<GenerateResult> {
-  if (session.role !== 'manager' && session.role !== 'admin') return { ok: false, error: 'forbidden' };
+  if (session.role !== 'manager' && session.role !== 'admin')
+    return { ok: false, error: 'forbidden' };
 
   const order = await prisma.order.findUnique({
     where: { id: args.orderId },
@@ -136,9 +141,14 @@ export async function generateOrderDocument(
       vatIncluded: true,
       vatRate: true,
       items: {
-        select: { amount: true, note: true, direction: { select: { name: true } }, student: { select: { name: true } } }
-      }
-    }
+        select: {
+          amount: true,
+          note: true,
+          direction: { select: { name: true } },
+          student: { select: { name: true } },
+        },
+      },
+    },
   });
   if (!order) return { ok: false, error: 'not_found' };
 
@@ -146,17 +156,29 @@ export async function generateOrderDocument(
     const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
     const visible = canSeeOrder(
       session,
-      { managerId: order.managerId, organizationId: order.organizationId, companyId: order.companyId },
+      {
+        managerId: order.managerId,
+        organizationId: order.organizationId,
+        companyId: order.companyId,
+      },
       teamMode
     );
     if (!visible) return { ok: false, error: 'not_found' };
   }
   if (!order.organizationId) return { ok: false, error: 'no_organization' };
-  if (!order.companyId) return { ok: false, error: 'missing_requisites', missing: [{ side: 'company', label: 'компания-исполнитель заказа' }] };
+  if (!order.companyId)
+    return {
+      ok: false,
+      error: 'missing_requisites',
+      missing: [{ side: 'company', label: 'компания-исполнитель заказа' }],
+    };
 
   const [company, organization] = await Promise.all([
-    prisma.company.findUnique({ where: { id: order.companyId }, select: { ...PARTY_SELECT, phone: true, email: true } }),
-    prisma.organization.findUnique({ where: { id: order.organizationId }, select: PARTY_SELECT })
+    prisma.company.findUnique({
+      where: { id: order.companyId },
+      select: { ...PARTY_SELECT, phone: true, email: true },
+    }),
+    prisma.organization.findUnique({ where: { id: order.organizationId }, select: PARTY_SELECT }),
   ]);
   if (!company || !organization) return { ok: false, error: 'not_found' };
 
@@ -171,12 +193,20 @@ export async function generateOrderDocument(
   const items =
     priced.length > 0
       ? priced.map((i) => ({
-          name: [i.direction?.name, i.student?.name].filter(Boolean).join(' — ') || i.note || 'Услуга',
-          amount: fmtMoney(i.amount)
+          name:
+            [i.direction?.name, i.student?.name].filter(Boolean).join(' — ') || i.note || 'Услуга',
+          amount: fmtMoney(i.amount),
         }))
-      : [{ name: `Услуги по заказу ${order.orderNumber ? `№${order.orderNumber}` : ''}: ${order.title}`.trim(), amount: fmtMoney(order.totalAmount) }];
+      : [
+          {
+            name: `Услуги по заказу ${order.orderNumber ? `№${order.orderNumber}` : ''}: ${order.title}`.trim(),
+            amount: fmtMoney(order.totalAmount),
+          },
+        ];
   const total = fmtMoney(
-    priced.length > 0 ? priced.reduce((sum, i) => sum + Number(i.amount), 0) : Number(order.totalAmount)
+    priced.length > 0
+      ? priced.reduce((sum, i) => sum + Number(i.amount), 0)
+      : Number(order.totalAmount)
   );
   const vatLine = order.vatIncluded
     ? `В том числе НДС${order.vatRate ? ` ${(Number(order.vatRate) * 100).toFixed(0)}%` : ''}.`
@@ -193,16 +223,27 @@ export async function generateOrderDocument(
       let baseDoc: { number: string; createdAt: Date } | null = null;
       if (leader === null) {
         const counter = await tx.documentCounter.upsert({
-          where: { companyId_year_kind: { companyId: order.companyId!, year, kind: COUNTER_KIND[args.docType] } },
-          create: { companyId: order.companyId!, year, kind: COUNTER_KIND[args.docType], lastNumber: 1 },
-          update: { lastNumber: { increment: 1 } }
+          where: {
+            companyId_year_kind: {
+              companyId: order.companyId!,
+              year,
+              kind: COUNTER_KIND[args.docType],
+            },
+          },
+          create: {
+            companyId: order.companyId!,
+            year,
+            kind: COUNTER_KIND[args.docType],
+            lastNumber: 1,
+          },
+          update: { lastNumber: { increment: 1 } },
         });
         numeric = counter.lastNumber;
       } else {
         const found = await tx.document.findFirst({
           where: { orderId: order.id, type: leader, generatedBy: 'system', number: { not: null } },
           orderBy: { createdAt: 'desc' },
-          select: { number: true, createdAt: true }
+          select: { number: true, createdAt: true },
         });
         const parsed = found?.number?.match(/(\d+)$/);
         if (!parsed) throw new LeaderRequiredError(leader);
@@ -214,7 +255,7 @@ export async function generateOrderDocument(
       const previous = await tx.document.findFirst({
         where: { orderId: order.id, type: args.docType, generatedBy: 'system' },
         orderBy: { version: 'desc' },
-        select: { id: true, version: true }
+        select: { id: true, version: true },
       });
 
       const isContractKind = args.docType === 'contract' || args.docType === 'extra_agreement';
@@ -230,7 +271,7 @@ export async function generateOrderDocument(
           items,
           total,
           vatLine,
-          baseContract: baseDoc ? { number: baseDoc.number, date: baseDoc.createdAt } : null
+          baseContract: baseDoc ? { number: baseDoc.number, date: baseDoc.createdAt } : null,
         };
         buffer = await renderContractDocumentPdf(contractData);
       } else {
@@ -243,7 +284,7 @@ export async function generateOrderDocument(
           orderLabel: `Заказ ${order.orderNumber ? `№${order.orderNumber} ` : ''}«${order.title}»`,
           items,
           total,
-          vatLine
+          vatLine,
         };
         buffer = await renderOrderDocumentPdf(data);
       }
@@ -269,8 +310,8 @@ export async function generateOrderDocument(
           counterpartyId: order.organizationId!,
           uploadedById: session.sub,
           scanStatus: 'clean',
-          scannedAt: now
-        } as Prisma.DocumentUncheckedCreateInput
+          scannedAt: now,
+        } as Prisma.DocumentUncheckedCreateInput,
       });
 
       await recordAudit(tx, {
@@ -278,14 +319,17 @@ export async function generateOrderDocument(
         action: 'document_generated',
         entity: 'document',
         entityId: doc.id,
-        after: { orderId: order.id, docType: args.docType, number, version: doc.version }
+        after: { orderId: order.id, docType: args.docType, number, version: doc.version },
       });
 
       return { id: doc.id, number };
     });
   } catch (e) {
     if (e instanceof LeaderRequiredError) {
-      return { ok: false, error: e.leader === 'invoice' ? 'invoice_required' : 'contract_required' };
+      return {
+        ok: false,
+        error: e.leader === 'invoice' ? 'invoice_required' : 'contract_required',
+      };
     }
     if (e instanceof Error && e.name === 'StorageError') return { ok: false, error: 'storage' };
     throw e;
@@ -301,11 +345,14 @@ export async function generateOrderDocument(
         orderNumber: order.orderNumber,
         orderTitle: order.title,
         documentName: `${created.number}.pdf`,
-        documentType: args.docType
-      }
+        documentType: args.docType,
+      },
     });
   } catch (err) {
-    log.warn('[documents/generate] notify failed', { orderId: order.id, error: (err as Error).message });
+    log.warn('[documents/generate] notify failed', {
+      orderId: order.id,
+      error: (err as Error).message,
+    });
   }
 
   return { ok: true, documentId: created.id, number: created.number };

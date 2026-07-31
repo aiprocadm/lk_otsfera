@@ -35,8 +35,20 @@ const styles = StyleSheet.create({
   preamble: { marginBottom: 10 },
   sectionTitle: { fontSize: 10, fontWeight: 'bold', marginTop: 10, marginBottom: 3 },
   paragraph: { marginBottom: 3 },
-  tableHeader: { flexDirection: 'row', backgroundColor: '#F3F4F6', padding: 4, marginTop: 6, fontWeight: 'bold' },
-  tableRow: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: '#e5e7eb', paddingVertical: 3, paddingHorizontal: 4 },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    padding: 4,
+    marginTop: 6,
+    fontWeight: 'bold',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#e5e7eb',
+    paddingVertical: 3,
+    paddingHorizontal: 4,
+  },
   colN: { width: '6%' },
   colName: { width: '70%' },
   colAmount: { width: '24%', textAlign: 'right' },
@@ -44,7 +56,14 @@ const styles = StyleSheet.create({
   reqBlock: { width: '48%' },
   reqTitle: { fontSize: 9, fontWeight: 'bold', marginBottom: 3 },
   reqLine: { fontSize: 8, color: '#333' },
-  signLine: { borderTopWidth: 0.5, borderTopColor: '#111', marginTop: 24, paddingTop: 3, fontSize: 8, color: '#444' }
+  signLine: {
+    borderTopWidth: 0.5,
+    borderTopColor: '#111',
+    marginTop: 24,
+    paddingTop: 3,
+    fontSize: 8,
+    color: '#444',
+  },
 });
 
 function requisiteLines(p: PartyBlock): string[] {
@@ -82,11 +101,17 @@ function ContractPdf({ data }: { data: ContractDocumentData }) {
     e(
       Page,
       { size: 'A4', style: styles.page },
-      e(Text, { style: styles.title }, `${isExtra ? 'Дополнительное соглашение' : 'Договор'} № ${data.number}`),
+      e(
+        Text,
+        { style: styles.title },
+        `${isExtra ? 'Дополнительное соглашение' : 'Договор'} № ${data.number}`
+      ),
       e(
         Text,
         { style: styles.subtitle },
-        isExtra ? 'на оказание услуг (изменение условий)' : 'на оказание услуг в области охраны труда'
+        isExtra
+          ? 'на оказание услуг (изменение условий)'
+          : 'на оказание услуг в области охраны труда'
       ),
       e(
         View,
@@ -122,7 +147,11 @@ function ContractPdf({ data }: { data: ContractDocumentData }) {
       ),
 
       e(Text, { style: styles.sectionTitle }, '2. Цена и порядок расчётов'),
-      e(Text, { style: styles.paragraph }, `2.1. Общая стоимость услуг составляет ${data.total} ₽. ${data.vatLine}`),
+      e(
+        Text,
+        { style: styles.paragraph },
+        `2.1. Общая стоимость услуг составляет ${data.total} ₽. ${data.vatLine}`
+      ),
       e(
         Text,
         { style: styles.paragraph },

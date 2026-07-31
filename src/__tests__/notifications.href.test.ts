@@ -8,7 +8,7 @@ const MANAGER_ORDER_TYPES = [
   'document_uploaded_by_partner',
   'order_marked_paid_by_1c',
   'order_status_changed_by_manager',
-  'chat_message'
+  'chat_message',
 ] as const;
 
 describe('notificationHref', () => {
@@ -17,9 +17,9 @@ describe('notificationHref', () => {
       expect(notificationHref('partner', 'lead_status_changed', { url: '/partner/leads/l1' })).toBe(
         '/partner/leads/l1'
       );
-      expect(notificationHref('organization', 'payment_received', { url: '/organization/orders/o1' })).toBe(
-        '/organization/orders/o1'
-      );
+      expect(
+        notificationHref('organization', 'payment_received', { url: '/organization/orders/o1' })
+      ).toBe('/organization/orders/o1');
     });
 
     it('meta.url приоритетнее ролевых веток (manager order-bound, admin ops_alert)', () => {
@@ -39,22 +39,28 @@ describe('notificationHref', () => {
       // org/partner-продьюсеры пишут абсолютный url через getAppBaseUrl
       // (org.ts, partner.ts) — берётся только локальная часть
       expect(
-        notificationHref('partner', 'lead_status_changed', { url: 'https://lk.otsfera.ru/partner/leads/l1?x=1' })
+        notificationHref('partner', 'lead_status_changed', {
+          url: 'https://lk.otsfera.ru/partner/leads/l1?x=1',
+        })
       ).toBe('/partner/leads/l1?x=1');
       expect(
-        notificationHref('organization', 'payment_received', { url: 'http://localhost:3000/organization/orders/o1' })
+        notificationHref('organization', 'payment_received', {
+          url: 'http://localhost:3000/organization/orders/o1',
+        })
       ).toBe('/organization/orders/o1');
-      expect(notificationHref('partner', 'document_published', { url: 'https://lk.otsfera.ru/partner/documents?tab=general#top' })).toBe(
-        '/partner/documents?tab=general#top'
-      );
+      expect(
+        notificationHref('partner', 'document_published', {
+          url: 'https://lk.otsfera.ru/partner/documents?tab=general#top',
+        })
+      ).toBe('/partner/documents?tab=general#top');
     });
 
     it('чужой хост не даёт внешнего редиректа: берётся только локальный путь', () => {
       // хост игнорируется по построению — в router.push уходит локальный
       // pathname, наружу уйти невозможно даже при вредоносном meta.url
-      expect(notificationHref('partner', 'x', { url: 'https://evil.example/partner/leads/l1' })).toBe(
-        '/partner/leads/l1'
-      );
+      expect(
+        notificationHref('partner', 'x', { url: 'https://evil.example/partner/leads/l1' })
+      ).toBe('/partner/leads/l1');
     });
 
     it('отвергает не-http(s) протоколы и невалидные URL', () => {
@@ -103,7 +109,9 @@ describe('notificationHref', () => {
 
     it('те же order-bound типы у других ролей → null', () => {
       expect(notificationHref('organization', 'chat_message', { orderId: 'ord-1' })).toBeNull();
-      expect(notificationHref('partner', 'document_uploaded_by_partner', { orderId: 'ord-1' })).toBeNull();
+      expect(
+        notificationHref('partner', 'document_uploaded_by_partner', { orderId: 'ord-1' })
+      ).toBeNull();
       expect(notificationHref('admin', 'comment_from_org', { orderId: 'ord-1' })).toBeNull();
     });
   });
@@ -126,7 +134,9 @@ describe('notificationHref', () => {
 
   describe('fallback: null → некликабельная строка', () => {
     it('partner/organization без url в meta → null', () => {
-      expect(notificationHref('partner', 'commission_statement_ready', { statementId: 's1' })).toBeNull();
+      expect(
+        notificationHref('partner', 'commission_statement_ready', { statementId: 's1' })
+      ).toBeNull();
       expect(notificationHref('organization', 'certificate_expiring', {})).toBeNull();
     });
   });

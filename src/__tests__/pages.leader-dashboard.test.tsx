@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import LeaderDashboardPage from '@/app/leader/dashboard/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManagerLeader } = vi.hoisted(() => ({ requireManagerLeader: vi.fn() }));
@@ -16,17 +17,20 @@ vi.mock('@/lib/services/manager/dashboard', () => ({ recentEvents }));
 
 vi.mock('@/components/leader/leader-managers-table', () => ({
   LeaderManagersTable: (props: { rows: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'managers-table' }, JSON.stringify(props.rows))
+    React.createElement('div', { 'data-testid': 'managers-table' }, JSON.stringify(props.rows)),
 }));
 
 vi.mock('@/components/manager/manager-events-feed', () => ({
   ManagerEventsFeed: (props: { events: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'events-feed' }, JSON.stringify(props.events))
+    React.createElement('div', { 'data-testid': 'events-feed' }, JSON.stringify(props.events)),
 }));
 
-import LeaderDashboardPage from '@/app/leader/dashboard/page';
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'leader' as const,
+  companyId: 'c1',
+};
 
 describe('LeaderDashboardPage', () => {
   beforeEach(() => {
@@ -39,7 +43,17 @@ describe('LeaderDashboardPage', () => {
     requireManagerLeader.mockResolvedValue(SESSION);
     leaderDashboard.mockResolvedValue({
       kpis: { managers: 3, activeOrders: 5, debt: '1000.00', commission: '250.00' },
-      perManager: [{ managerId: 'm1', name: 'M', email: 'm@x.com', activeOrders: 2, totalAmount: '100.00', paidAmount: '50.00', overdue: 0 }]
+      perManager: [
+        {
+          managerId: 'm1',
+          name: 'M',
+          email: 'm@x.com',
+          activeOrders: 2,
+          totalAmount: '100.00',
+          paidAmount: '50.00',
+          overdue: 0,
+        },
+      ],
     });
     recentEvents.mockResolvedValue([]);
 
@@ -58,7 +72,7 @@ describe('LeaderDashboardPage', () => {
     requireManagerLeader.mockResolvedValue(SESSION);
     leaderDashboard.mockResolvedValue({
       kpis: { managers: 0, activeOrders: 0, debt: '0.00', commission: null },
-      perManager: []
+      perManager: [],
     });
     recentEvents.mockResolvedValue([]);
 

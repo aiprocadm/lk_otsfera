@@ -6,14 +6,23 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
-const { createFunnelStageAction, updateFunnelStageAction, deleteFunnelStageAction } = vi.hoisted(() => ({
-  createFunnelStageAction: vi.fn(),
-  updateFunnelStageAction: vi.fn(),
-  deleteFunnelStageAction: vi.fn()
+const { createFunnelStageAction, updateFunnelStageAction, deleteFunnelStageAction } = vi.hoisted(
+  () => ({
+    createFunnelStageAction: vi.fn(),
+    updateFunnelStageAction: vi.fn(),
+    deleteFunnelStageAction: vi.fn(),
+  })
+);
+vi.mock('@/server-actions/funnel', () => ({
+  createFunnelStageAction,
+  updateFunnelStageAction,
+  deleteFunnelStageAction,
 }));
-vi.mock('@/server-actions/funnel', () => ({ createFunnelStageAction, updateFunnelStageAction, deleteFunnelStageAction }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { StageConfig } from '@/components/funnel/stage-config';
@@ -25,10 +34,16 @@ const stage: FunnelStageView = {
   position: 0,
   statusAnchor: 'new',
   isTerminal: false,
-  color: null
+  color: null,
 };
 
-const terminalStage: FunnelStageView = { ...stage, id: 'st-2', name: 'Отказ', statusAnchor: 'rejected', isTerminal: true };
+const terminalStage: FunnelStageView = {
+  ...stage,
+  id: 'st-2',
+  name: 'Отказ',
+  statusAnchor: 'rejected',
+  isTerminal: true,
+};
 
 function renderConfig(props: React.ComponentProps<typeof StageConfig>) {
   return React.createElement(StageConfig, props);
@@ -75,7 +90,10 @@ describe('StageConfig', () => {
   });
 
   it('unknown anchor value falls back to the raw value (anchorLabel fallback)', () => {
-    const weird: FunnelStageView = { ...stage, statusAnchor: 'weird_anchor' as FunnelStageView['statusAnchor'] };
+    const weird: FunnelStageView = {
+      ...stage,
+      statusAnchor: 'weird_anchor' as FunnelStageView['statusAnchor'],
+    };
     render(renderConfig({ stages: [weird], isDefault: false }));
     expect(screen.getByText('weird_anchor')).toBeTruthy();
   });
@@ -94,7 +112,9 @@ describe('StageConfig', () => {
     expect(await screen.findByText('Изменить стадию')).toBeTruthy();
     const nameInput = screen.getByLabelText('Название') as HTMLInputElement;
     expect(nameInput.value).toBe('Отказ');
-    const checkbox = screen.getByRole('checkbox', { name: 'Терминальная стадия' }) as HTMLInputElement;
+    const checkbox = screen.getByRole('checkbox', {
+      name: 'Терминальная стадия',
+    }) as HTMLInputElement;
     expect(checkbox.checked).toBe(true);
   });
 
@@ -140,7 +160,9 @@ describe('StageConfig', () => {
     await screen.findByText('Изменить стадию');
     const swatch = screen.getByRole('radio', { name: 'Зелёный' }) as HTMLInputElement;
     expect(swatch.checked).toBe(true);
-    expect((screen.getByRole('radio', { name: 'Без цвета' }) as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByRole('radio', { name: 'Без цвета' }) as HTMLInputElement).checked).toBe(
+      false
+    );
   });
 
   it('edit flow: submits with the target id set and toasts "updated"', async () => {

@@ -20,13 +20,18 @@ const nav = vi.hoisted(() => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
 import OrgSettingsPage from '@/app/partner/portfolio/[orgId]/settings/page';
 
-const SESSION = { sub: 'u1', role: 'partner' as const, partnerId: 'p1', partnerRole: 'admin' as const };
+const SESSION = {
+  sub: 'u1',
+  role: 'partner' as const,
+  partnerId: 'p1',
+  partnerRole: 'admin' as const,
+};
 
 const BASE_CARD = {
   id: 'org-1',
@@ -37,7 +42,7 @@ const BASE_CARD = {
   assignedManagerUserId: null,
   partnerCommissionRate: '0.1000',
   partnerCommissionRateNote: 'Индивидуальная ставка',
-  kpi: { ordersCount: 3, debt: '1000.00' }
+  kpi: { ordersCount: 3, debt: '1000.00' },
 };
 
 describe('OrgSettingsPage', () => {
@@ -54,9 +59,7 @@ describe('OrgSettingsPage', () => {
     canPartnerAccessOrg.mockResolvedValue(false);
 
     await expect(
-      renderServerComponent(
-        OrgSettingsPage({ params: Promise.resolve({ orgId: 'org-1' }) })
-      )
+      renderServerComponent(OrgSettingsPage({ params: Promise.resolve({ orgId: 'org-1' }) }))
     ).rejects.toThrow('REDIRECT:/forbidden');
 
     expect(getOrgCard).not.toHaveBeenCalled();
@@ -68,9 +71,7 @@ describe('OrgSettingsPage', () => {
     getOrgCard.mockResolvedValue(null);
 
     await expect(
-      renderServerComponent(
-        OrgSettingsPage({ params: Promise.resolve({ orgId: 'org-1' }) })
-      )
+      renderServerComponent(OrgSettingsPage({ params: Promise.resolve({ orgId: 'org-1' }) }))
     ).rejects.toThrow('NOT_FOUND');
   });
 
@@ -84,10 +85,7 @@ describe('OrgSettingsPage', () => {
     );
 
     expect(canPartnerAccessOrg).toHaveBeenCalledWith(SESSION, 'org-1');
-    expect(getOrgCard).toHaveBeenCalledWith(
-      expect.anything(),
-      { orgId: 'org-1', partnerId: 'p1' }
-    );
+    expect(getOrgCard).toHaveBeenCalledWith(expect.anything(), { orgId: 'org-1', partnerId: 'p1' });
     expect(container.textContent).toContain('ООО Ромашка');
   });
 });

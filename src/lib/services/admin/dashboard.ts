@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
+import { fmtMoney } from '@/lib/format';
 import { getSyncLag } from './syncHealth';
 import { getDlq } from './queueStats';
-import { fmtMoney } from '@/lib/format';
 
 export type KpiTile = {
   label: string;
@@ -201,10 +201,7 @@ export async function attention(prisma: PrismaClient): Promise<AttentionItem[]> 
   return items;
 }
 
-export async function recentEvents(
-  prisma: PrismaClient,
-  take = 20,
-): Promise<EventItem[]> {
+export async function recentEvents(prisma: PrismaClient, take = 20): Promise<EventItem[]> {
   const rows = await prisma.auditLog.findMany({
     where: { action: { in: TRACKED_ACTIONS } },
     orderBy: { createdAt: 'desc' },

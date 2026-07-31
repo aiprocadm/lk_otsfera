@@ -1,6 +1,10 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { managerOrderScope, managerOrgScope, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import {
+  managerOrderScope,
+  managerOrgScope,
+  getCompanyTeamVisibility,
+} from '@/lib/auth/managerPolicy';
 import { fmtMoney } from '@/lib/format';
 import { DEFAULT_EVENTS } from './constants';
 
@@ -24,8 +28,7 @@ export async function recentEvents(
   take = DEFAULT_EVENTS,
   teamModeOverride?: boolean
 ): Promise<EventItem[]> {
-  const teamMode =
-    teamModeOverride ?? (await getCompanyTeamVisibility(prisma, session.companyId));
+  const teamMode = teamModeOverride ?? (await getCompanyTeamVisibility(prisma, session.companyId));
   const scope = managerOrderScope(session, teamMode);
   const orgScope = managerOrgScope(session, teamMode);
   const fetchLimit = Math.max(20, take);
@@ -41,8 +44,8 @@ export async function recentEvents(
         name: true,
         createdAt: true,
         orderId: true,
-        order: { select: { orderNumber: true } }
-      }
+        order: { select: { orderNumber: true } },
+      },
     }),
     prisma.payment.findMany({
       where: { organization: orgScope },
@@ -54,13 +57,13 @@ export async function recentEvents(
         paidAt: true,
         orderId: true,
         order: { select: { orderNumber: true } },
-        organization: { select: { id: true, name: true } }
-      }
+        organization: { select: { id: true, name: true } },
+      },
     }),
     prisma.auditLog.findMany({
       where: {
         entity: 'order',
-        action: { in: ['order_status_changed', 'comment_posted'] }
+        action: { in: ['order_status_changed', 'comment_posted'] },
       },
       orderBy: { createdAt: 'desc' },
       take: fetchLimit * 2,
@@ -69,8 +72,8 @@ export async function recentEvents(
         action: true,
         entityId: true,
         createdAt: true,
-        meta: true
-      }
+        meta: true,
+      },
     }),
     prisma.comment.findMany({
       where: { order: scope },
@@ -82,9 +85,9 @@ export async function recentEvents(
         body: true,
         orderId: true,
         author: { select: { name: true } },
-        order: { select: { orderNumber: true } }
-      }
-    })
+        order: { select: { orderNumber: true } },
+      },
+    }),
   ]);
 
   // Status-changed audits are not directly scoped via the OrderWhereInput; we
@@ -94,11 +97,9 @@ export async function recentEvents(
   if (auditEntityIds.length > 0) {
     const scopedOrders = await prisma.order.findMany({
       where: { AND: [scope, { id: { in: auditEntityIds } }] },
-      select: { id: true, orderNumber: true }
+      select: { id: true, orderNumber: true },
     });
-    scopedAuditOrderInfo = new Map(
-      scopedOrders.map((o) => [o.id, { orderNumber: o.orderNumber }])
-    );
+    scopedAuditOrderInfo = new Map(scopedOrders.map((o) => [o.id, { orderNumber: o.orderNumber }]));
   }
 
   const events: EventItem[] = [
@@ -107,7 +108,7 @@ export async function recentEvents(
       kind: 'document_created',
       when: d.createdAt,
       text: `Загружен документ ${d.name}${d.order?.orderNumber ? ` по заказу ${d.order.orderNumber}` : ''}`,
-      href: d.orderId ? `/manager/orders/${d.orderId}` : '/manager/documents'
+      href: d.orderId ? `/manager/orders/${d.orderId}` : '/manager/documents',
     })),
     ...payments.map((p): EventItem =>
       p.order
@@ -116,14 +117,14 @@ export async function recentEvents(
             kind: 'payment_received',
             when: p.paidAt,
             text: `Поступила оплата ${fmtMoney(Number(p.amount))} по заказу ${p.order.orderNumber ?? p.orderId}`,
-            href: `/manager/orders/${p.orderId}`
+            href: `/manager/orders/${p.orderId}`,
           }
         : {
             id: `pay-${p.id}`,
             kind: 'payment_received',
             when: p.paidAt,
             text: `Поступила оплата ${fmtMoney(Number(p.amount))} (организация ${p.organization.name})`,
-            href: `/manager/dashboard`
+            href: `/manager/dashboard`,
           }
     ),
     ...statusAudits
@@ -144,7 +145,7 @@ export async function recentEvents(
           kind: a.action,
           when: a.createdAt,
           text,
-          href: `/manager/orders/${a.entityId}`
+          href: `/manager/orders/${a.entityId}`,
         };
       }),
     ...comments.map((c): EventItem => ({
@@ -152,8 +153,8 @@ export async function recentEvents(
       kind: 'comment',
       when: c.createdAt,
       text: `${c.author?.name ?? 'Аноним'}: ${c.body.slice(0, 100)}`,
-      href: `/manager/orders/${c.orderId}`
-    }))
+      href: `/manager/orders/${c.orderId}`,
+    })),
   ];
 
   events.sort((a, b) => b.when.getTime() - a.when.getTime());

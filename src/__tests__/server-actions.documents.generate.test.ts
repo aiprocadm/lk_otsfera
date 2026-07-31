@@ -14,7 +14,7 @@ const {
   companyFindUnique,
   organizationFindUnique,
   getCompanyTeamVisibility,
-  canSeeOrderMock
+  canSeeOrderMock,
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   revalidatePath: vi.fn(),
@@ -25,7 +25,7 @@ const {
   companyFindUnique: vi.fn(),
   organizationFindUnique: vi.fn(),
   getCompanyTeamVisibility: vi.fn(),
-  canSeeOrderMock: vi.fn()
+  canSeeOrderMock: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
@@ -33,23 +33,45 @@ vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 vi.mock('@/lib/services/documents/generate', () => ({ generateOrderDocument }));
 vi.mock('@/lib/notifications', () => ({ notifyOrgUsers }));
-vi.mock('@/lib/auth/managerPolicy', () => ({ getCompanyTeamVisibility, canSeeOrder: canSeeOrderMock }));
+vi.mock('@/lib/auth/managerPolicy', () => ({
+  getCompanyTeamVisibility,
+  canSeeOrder: canSeeOrderMock,
+}));
 vi.mock('@/lib/logging', () => ({ log: { warn: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     order: { findUnique: orderFindUnique },
     company: { findUnique: companyFindUnique },
-    organization: { findUnique: organizationFindUnique }
-  }
+    organization: { findUnique: organizationFindUnique },
+  },
 }));
 
-import { generateOrderDocumentAction, requestRequisitesAction } from '@/server-actions/documents/generate';
+import {
+  generateOrderDocumentAction,
+  requestRequisitesAction,
+} from '@/server-actions/documents/generate';
 
 const SESSION = { sub: 'm1', role: 'manager', companyId: 'co-A' };
-const ORDER = { id: 'ord-1', title: 'Заказ', orderNumber: '1', companyId: 'co-A', organizationId: 'org-1', managerId: 'm1' };
+const ORDER = {
+  id: 'ord-1',
+  title: 'Заказ',
+  orderNumber: '1',
+  companyId: 'co-A',
+  organizationId: 'org-1',
+  managerId: 'm1',
+};
 const FULL = {
-  name: 'x', legalName: 'x', inn: '1', kpp: '1', legalAddress: 'x', bankName: 'x',
-  bankAccount: '1', corrAccount: '1', bic: '1', signerName: 'x', signerPosition: 'x'
+  name: 'x',
+  legalName: 'x',
+  inn: '1',
+  kpp: '1',
+  legalAddress: 'x',
+  bankName: 'x',
+  bankAccount: '1',
+  corrAccount: '1',
+  bic: '1',
+  signerName: 'x',
+  signerPosition: 'x',
 };
 
 function form(entries: Record<string, string>): FormData {
@@ -73,38 +95,61 @@ beforeEach(() => {
 describe('generateOrderDocumentAction', () => {
   it('флаг выключен → forbidden без вызова сервиса', async () => {
     isFeatureEnabled.mockReturnValue(false);
-    expect(await generateOrderDocumentAction(form({ orderId: 'o', docType: 'invoice' }))).toEqual({ ok: false, error: 'forbidden' });
+    expect(await generateOrderDocumentAction(form({ orderId: 'o', docType: 'invoice' }))).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect(generateOrderDocument).not.toHaveBeenCalled();
   });
 
   it('мусорный вход → not_found; успех ревалидирует деталку', async () => {
-    expect(await generateOrderDocumentAction(form({ docType: 'invoice' }))).toEqual({ ok: false, error: 'not_found' });
-    expect(await generateOrderDocumentAction(form({ orderId: 'o', docType: 'bogus' }))).toEqual({ ok: false, error: 'not_found' });
+    expect(await generateOrderDocumentAction(form({ docType: 'invoice' }))).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+    expect(await generateOrderDocumentAction(form({ orderId: 'o', docType: 'bogus' }))).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
 
     generateOrderDocument.mockResolvedValue({ ok: true, documentId: 'd1', number: 'С-2026-1' });
     const res = await generateOrderDocumentAction(form({ orderId: 'ord-1', docType: 'invoice' }));
     expect(res).toEqual({ ok: true, documentId: 'd1', number: 'С-2026-1' });
-    expect(generateOrderDocument).toHaveBeenCalledWith(expect.anything(), SESSION, { orderId: 'ord-1', docType: 'invoice' });
+    expect(generateOrderDocument).toHaveBeenCalledWith(expect.anything(), SESSION, {
+      orderId: 'ord-1',
+      docType: 'invoice',
+    });
     expect(revalidatePath).toHaveBeenCalledWith('/manager/orders/ord-1');
   });
 
   it('PR-3: типы contract/extra_agreement принимаются', async () => {
     generateOrderDocument.mockResolvedValue({ ok: true, documentId: 'd2', number: 'Д-2026-1' });
-    expect(await generateOrderDocumentAction(form({ orderId: 'ord-1', docType: 'contract' }))).toEqual({
+    expect(
+      await generateOrderDocumentAction(form({ orderId: 'ord-1', docType: 'contract' }))
+    ).toEqual({
       ok: true,
       documentId: 'd2',
-      number: 'Д-2026-1'
+      number: 'Д-2026-1',
     });
-    expect(generateOrderDocument).toHaveBeenCalledWith(expect.anything(), SESSION, { orderId: 'ord-1', docType: 'contract' });
+    expect(generateOrderDocument).toHaveBeenCalledWith(expect.anything(), SESSION, {
+      orderId: 'ord-1',
+      docType: 'contract',
+    });
 
     generateOrderDocument.mockResolvedValue({ ok: true, documentId: 'd3', number: 'ДС-2026-1' });
     await generateOrderDocumentAction(form({ orderId: 'ord-1', docType: 'extra_agreement' }));
-    expect(generateOrderDocument).toHaveBeenLastCalledWith(expect.anything(), SESSION, { orderId: 'ord-1', docType: 'extra_agreement' });
+    expect(generateOrderDocument).toHaveBeenLastCalledWith(expect.anything(), SESSION, {
+      orderId: 'ord-1',
+      docType: 'extra_agreement',
+    });
   });
 
   it('ошибка сервиса пробрасывается без ревалидации', async () => {
     generateOrderDocument.mockResolvedValue({ ok: false, error: 'invoice_required' });
-    expect(await generateOrderDocumentAction(form({ orderId: 'ord-1', docType: 'act' }))).toEqual({ ok: false, error: 'invoice_required' });
+    expect(await generateOrderDocumentAction(form({ orderId: 'ord-1', docType: 'act' }))).toEqual({
+      ok: false,
+      error: 'invoice_required',
+    });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
@@ -121,45 +166,86 @@ describe('requestRequisitesAction', () => {
   });
 
   it('без orderId в форме → not_found, в базу не ходим', async () => {
-    expect(await requestRequisitesAction(new FormData())).toEqual({ ok: false, error: 'not_found' });
+    expect(await requestRequisitesAction(new FormData())).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
     expect(orderFindUnique).not.toHaveBeenCalled();
   });
 
   it('заказ без организации или компании → not_found: запрашивать реквизиты не у кого', async () => {
     // Заказ может быть заведён без клиента (черновик из 1С). Слать уведомление
     // некуда — честный not_found вместо падения на пустом organizationId.
-    orderFindUnique.mockResolvedValue({ id: 'ord-1', title: 'З', orderNumber: '1', companyId: 'c1', organizationId: null, managerId: 'm1' });
-    expect(await requestRequisitesAction(form({ orderId: 'ord-1' }))).toEqual({ ok: false, error: 'not_found' });
+    orderFindUnique.mockResolvedValue({
+      id: 'ord-1',
+      title: 'З',
+      orderNumber: '1',
+      companyId: 'c1',
+      organizationId: null,
+      managerId: 'm1',
+    });
+    expect(await requestRequisitesAction(form({ orderId: 'ord-1' }))).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
 
-    orderFindUnique.mockResolvedValue({ id: 'ord-1', title: 'З', orderNumber: '1', companyId: null, organizationId: 'org-1', managerId: 'm1' });
-    expect(await requestRequisitesAction(form({ orderId: 'ord-1' }))).toEqual({ ok: false, error: 'not_found' });
+    orderFindUnique.mockResolvedValue({
+      id: 'ord-1',
+      title: 'З',
+      orderNumber: '1',
+      companyId: null,
+      organizationId: 'org-1',
+      managerId: 'm1',
+    });
+    expect(await requestRequisitesAction(form({ orderId: 'ord-1' }))).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
 
     orderFindUnique.mockResolvedValue(null);
-    expect(await requestRequisitesAction(form({ orderId: 'ord-1' }))).toEqual({ ok: false, error: 'not_found' });
+    expect(await requestRequisitesAction(form({ orderId: 'ord-1' }))).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
     expect(notifyOrgUsers).not.toHaveBeenCalled();
   });
 
   it('карточка компании или организации исчезла → not_found, а не падение', async () => {
     companyFindUnique.mockResolvedValue(null);
-    expect(await requestRequisitesAction(form({ orderId: 'ord-1' }))).toEqual({ ok: false, error: 'not_found' });
+    expect(await requestRequisitesAction(form({ orderId: 'ord-1' }))).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
 
     companyFindUnique.mockResolvedValue(FULL);
     organizationFindUnique.mockResolvedValue(null);
-    expect(await requestRequisitesAction(form({ orderId: 'ord-1' }))).toEqual({ ok: false, error: 'not_found' });
+    expect(await requestRequisitesAction(form({ orderId: 'ord-1' }))).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
     expect(notifyOrgUsers).not.toHaveBeenCalled();
   });
 
   it('флаг/роль/скоуп: off → forbidden; клиент → forbidden; чужой заказ → not_found; сбой notify не ломает', async () => {
     isFeatureEnabled.mockReturnValue(false);
-    expect(await requestRequisitesAction(form({ orderId: 'o' }))).toEqual({ ok: false, error: 'forbidden' });
+    expect(await requestRequisitesAction(form({ orderId: 'o' }))).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
 
     isFeatureEnabled.mockReturnValue(true);
     requireSession.mockResolvedValue({ sub: 'p', role: 'partner' });
-    expect(await requestRequisitesAction(form({ orderId: 'o' }))).toEqual({ ok: false, error: 'forbidden' });
+    expect(await requestRequisitesAction(form({ orderId: 'o' }))).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
 
     requireSession.mockResolvedValue(SESSION);
     canSeeOrderMock.mockReturnValue(false);
-    expect(await requestRequisitesAction(form({ orderId: 'ord-1' }))).toEqual({ ok: false, error: 'not_found' });
+    expect(await requestRequisitesAction(form({ orderId: 'ord-1' }))).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
 
     canSeeOrderMock.mockReturnValue(true);
     notifyOrgUsers.mockRejectedValue(new Error('down'));

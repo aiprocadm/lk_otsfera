@@ -49,13 +49,13 @@ export async function POST(req: Request): Promise<Response> {
           : 'Код недействителен или истёк.';
         await sendMaxMessage(chatId, reply).catch((e: unknown) => {
           log.warn('[webhook/max] reply send failed', {
-            error: e instanceof Error ? e.message : String(e)
+            error: e instanceof Error ? e.message : String(e),
           });
         });
       } catch (e) {
         // Swallow — 200 ниже. Код привязки НЕ логируем (§12).
         log.error('[webhook/max] link handling failed', {
-          error: e instanceof Error ? e.message : String(e)
+          error: e instanceof Error ? e.message : String(e),
         });
       }
     } else if (
@@ -78,7 +78,7 @@ export async function POST(req: Request): Promise<Response> {
       }).catch((e: unknown) => {
         log.error('[webhook/max] ingest failed', {
           externalId: `max:${chatId}:${messageId}`,
-          error: e instanceof Error ? e.message : String(e)
+          error: e instanceof Error ? e.message : String(e),
         });
       });
     }

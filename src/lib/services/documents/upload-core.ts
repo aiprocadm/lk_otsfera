@@ -22,9 +22,11 @@ import { log } from '@/lib/logging';
  * issuing any DB query (e.g. manager uploads.ts checks this before the order
  * lookup).
  */
-export function validateUploadFile(file: { size: number; mimeType: string; buffer: Buffer }):
-  | { ok: true }
-  | { ok: false; error: 'too_large' | 'invalid_mime' } {
+export function validateUploadFile(file: {
+  size: number;
+  mimeType: string;
+  buffer: Buffer;
+}): { ok: true } | { ok: false; error: 'too_large' | 'invalid_mime' } {
   if (file.size > maxFileSizeBytes()) return { ok: false, error: 'too_large' };
   if (!ALLOWED_MIME_TYPES.has(file.mimeType)) return { ok: false, error: 'invalid_mime' };
   if ((SUPPORTED_MIME_TYPES as readonly string[]).includes(file.mimeType)) {
@@ -35,8 +37,15 @@ export function validateUploadFile(file: { size: number; mimeType: string; buffe
 }
 
 const VALID_DOC_TYPES = new Set<DocumentType>([
-  'contract', 'extra_agreement', 'invoice', 'act', 'waybill',
-  'certificate', 'report', 'commission_statement', 'other'
+  'contract',
+  'extra_agreement',
+  'invoice',
+  'act',
+  'waybill',
+  'certificate',
+  'report',
+  'commission_statement',
+  'other',
 ]);
 
 export type UploadSource = 'manager' | 'organization' | 'partner';
@@ -53,8 +62,7 @@ export type PersistDocumentArgs = {
 };
 
 export type PersistDocumentResult =
-  | { ok: true; documentId: string }
-  | { ok: false; error: 'too_large' | 'invalid_mime' | 'storage' };
+  { ok: true; documentId: string } | { ok: false; error: 'too_large' | 'invalid_mime' | 'storage' };
 
 function sanitizeFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -84,13 +92,13 @@ export async function persistUploadedDocument(
     : `counterparty/${args.counterparty.type}/${args.counterparty.id}/${randomUUID()}-${safeName}`;
   try {
     await getObjectStorage().upload(storagePath, args.file.buffer, {
-      contentType: args.file.mimeType
+      contentType: args.file.mimeType,
     });
   } catch (uploadError) {
     log.error('[documents/upload-core] storage upload failed', {
       orderId: args.orderId,
       storagePath,
-      providerError: uploadError instanceof Error ? uploadError.message : String(uploadError)
+      providerError: uploadError instanceof Error ? uploadError.message : String(uploadError),
     });
     return { ok: false, error: 'storage' };
   }
@@ -110,8 +118,8 @@ export async function persistUploadedDocument(
       direction: args.direction,
       generatedBy: 'user',
       scanStatus: 'pending',
-      uploadedById: args.uploadedById
-    } as Prisma.DocumentUncheckedCreateInput
+      uploadedById: args.uploadedById,
+    } as Prisma.DocumentUncheckedCreateInput,
   });
 
   // Best-effort: enqueue ClamAV scan. Failure leaves scanStatus='pending'.
@@ -121,7 +129,7 @@ export async function persistUploadedDocument(
   } catch (err) {
     log.warn('[documents/upload-core] enqueue scan failed', {
       documentId: doc.id,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 
@@ -140,8 +148,8 @@ export async function persistUploadedDocument(
       source: args.source,
       path: storagePath,
       mimeType: args.file.mimeType,
-      size: args.file.size
-    }
+      size: args.file.size,
+    },
   });
 
   return { ok: true, documentId: doc.id };

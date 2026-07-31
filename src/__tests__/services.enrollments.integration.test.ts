@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { submitEnrollmentRequest } from '@/lib/services/enrollments/submit';
-import { approveEnrollment, rejectEnrollment, markProvisioned } from '@/lib/services/enrollments/lifecycle';
+import {
+  approveEnrollment,
+  rejectEnrollment,
+  markProvisioned,
+} from '@/lib/services/enrollments/lifecycle';
 import { listEnrollmentRequests } from '@/lib/services/enrollments/list';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -27,24 +31,31 @@ beforeAll(async () => {
   await prisma.user.upsert({
     where: { id: ACTOR },
     update: {},
-    create: { id: ACTOR, email: `${ACTOR}@enr.test`, name: 'Enrollment Integration Admin', role: 'admin' }
+    create: {
+      id: ACTOR,
+      email: `${ACTOR}@enr.test`,
+      name: 'Enrollment Integration Admin',
+      role: 'admin',
+    },
   });
-  const dir = await prisma.trainingDirection.create({ data: { name: `${T}-Охрана труда`, sortOrder: 900 } });
+  const dir = await prisma.trainingDirection.create({
+    data: { name: `${T}-Охрана труда`, sortOrder: 900 },
+  });
   directionId = dir.id;
   const off = await prisma.trainingDirection.create({
-    data: { name: `${T}-Выключенное`, isActive: false, sortOrder: 901 }
+    data: { name: `${T}-Выключенное`, isActive: false, sortOrder: 901 },
   });
   inactiveDirectionId = off.id;
 
   const org = await prisma.organization.create({ data: { name: `${T}-Организация` } });
   orgId = org.id;
   const st = await prisma.student.create({
-    data: { name: 'Пётр Интеграционный', email: `${T}-p@org.test`, organizationId: orgId }
+    data: { name: 'Пётр Интеграционный', email: `${T}-p@org.test`, organizationId: orgId },
   });
   studentId = st.id;
   const org2 = await prisma.organization.create({ data: { name: `${T}-Чужая` } });
   const st2 = await prisma.student.create({
-    data: { name: 'Чужой Слушатель', email: `${T}-alien@org.test`, organizationId: org2.id }
+    data: { name: 'Чужой Слушатель', email: `${T}-alien@org.test`, organizationId: org2.id },
   });
   foreignStudentId = st2.id;
 });
@@ -75,16 +86,16 @@ describe('submitEnrollmentRequest (integration)', () => {
           position: 'инженер',
           snils: '112-233-445 95',
           birthDate: '1990-01-02',
-          extra: 'нужна группа выходного дня'
-        }
-      ]
+          extra: 'нужна группа выходного дня',
+        },
+      ],
     });
     if (!res.ok) throw new Error(`expected ok, got ${JSON.stringify(res)}`);
     expect(res.itemCount).toBe(2);
 
     const saved = await prisma.enrollmentRequest.findUniqueOrThrow({
       where: { id: res.request.id },
-      include: { items: { orderBy: { createdAt: 'asc' } }, direction: true }
+      include: { items: { orderBy: { createdAt: 'asc' } }, direction: true },
     });
     expect(saved.direction?.name).toBe(`${T}-Охрана труда`);
     expect(saved.items).toHaveLength(2);
@@ -95,7 +106,7 @@ describe('submitEnrollmentRequest (integration)', () => {
       fullName: 'Иван Ручной',
       position: 'инженер',
       snils: '11223344595',
-      extra: 'нужна группа выходного дня'
+      extra: 'нужна группа выходного дня',
     });
     expect(manual.birthDate?.toISOString()).toBe('1990-01-02T00:00:00.000Z');
   });
@@ -106,18 +117,20 @@ describe('submitEnrollmentRequest (integration)', () => {
     const badDir = await submitEnrollmentRequest(prisma, admin, {
       directionId: inactiveDirectionId,
       organizationId: orgId,
-      items: [{ fullName: 'X', email: `${T}-x@org.test` }]
+      items: [{ fullName: 'X', email: `${T}-x@org.test` }],
     });
     expect(badDir).toMatchObject({ ok: false, error: 'validation' });
 
     const alien = await submitEnrollmentRequest(prisma, admin, {
       directionId,
       organizationId: orgId,
-      items: [{ studentId: foreignStudentId }]
+      items: [{ studentId: foreignStudentId }],
     });
     expect(alien).toEqual({ ok: false, error: 'forbidden' });
 
-    expect(await prisma.enrollmentRequest.count({ where: { submittedByUserId: ACTOR } })).toBe(before);
+    expect(await prisma.enrollmentRequest.count({ where: { submittedByUserId: ACTOR } })).toBe(
+      before
+    );
   });
 });
 
@@ -128,8 +141,8 @@ describe('lifecycle (integration): статусы зеркалируются в 
       organizationId: orgId,
       items: [
         { fullName: 'А', email: `${T}-a-${Date.now()}@org.test` },
-        { fullName: 'Б', email: `${T}-b-${Date.now()}@org.test` }
-      ]
+        { fullName: 'Б', email: `${T}-b-${Date.now()}@org.test` },
+      ],
     });
     if (!res.ok) throw new Error('seed failed');
     return res.request.id;
@@ -150,7 +163,11 @@ describe('lifecycle (integration): статусы зеркалируются в 
 
   it('reject → все позиции rejected', async () => {
     const id = await createRequest();
-    const rj = await rejectEnrollment(prisma, { id, reviewerId: ACTOR, reason: 'интеграционный отказ' });
+    const rj = await rejectEnrollment(prisma, {
+      id,
+      reviewerId: ACTOR,
+      reason: 'интеграционный отказ',
+    });
     expect(rj.ok).toBe(true);
     const items = await prisma.enrollmentRequestItem.findMany({ where: { requestId: id } });
     expect(items.every((i) => i.status === 'rejected')).toBe(true);

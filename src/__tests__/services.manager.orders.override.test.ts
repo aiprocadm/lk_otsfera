@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const { getCompanyTeamVisibility } = vi.hoisted(() => ({
-  getCompanyTeamVisibility: vi.fn()
+  getCompanyTeamVisibility: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/managerPolicy', async () => {
@@ -15,11 +15,11 @@ vi.mock('@/lib/auth/managerPolicy', async () => {
 import { listOrders } from '@/lib/services/manager/orders';
 
 const session = (over: Partial<SessionPayload>): SessionPayload =>
-  ({ sub: 'm1', role: 'manager', email: 'm@x', ...over } as unknown as SessionPayload);
+  ({ sub: 'm1', role: 'manager', email: 'm@x', ...over }) as unknown as SessionPayload;
 
 function fakePrisma() {
   return {
-    order: { findMany: vi.fn().mockResolvedValue([]) }
+    order: { findMany: vi.fn().mockResolvedValue([]) },
   } as any;
 }
 
@@ -34,7 +34,7 @@ describe('listOrders teamModeOverride', () => {
 
     await listOrders(prisma, {
       session: session({ companyId: 'c1', managedOrgIds: [] }),
-      teamModeOverride: true
+      teamModeOverride: true,
     });
 
     // toggle ignored — override forces company-wide branch (no DB read needed,
@@ -49,7 +49,7 @@ describe('listOrders teamModeOverride', () => {
     const prisma = fakePrisma();
 
     await listOrders(prisma, {
-      session: session({ companyId: 'c1', managedOrgIds: ['o1'] })
+      session: session({ companyId: 'c1', managedOrgIds: ['o1'] }),
     });
 
     expect(getCompanyTeamVisibility).toHaveBeenCalledWith(prisma, 'c1');
@@ -63,7 +63,7 @@ describe('listOrders teamModeOverride', () => {
     const prisma = fakePrisma();
 
     await listOrders(prisma, {
-      session: session({ companyId: 'c1', managedOrgIds: [] })
+      session: session({ companyId: 'c1', managedOrgIds: [] }),
     });
 
     expect(getCompanyTeamVisibility).toHaveBeenCalledWith(prisma, 'c1');

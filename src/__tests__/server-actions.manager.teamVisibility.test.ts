@@ -1,13 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const {
-  requireManagerLeader,
-  revalidatePath,
-  setTeamVisibility
-} = vi.hoisted(() => ({
+const { requireManagerLeader, revalidatePath, setTeamVisibility } = vi.hoisted(() => ({
   requireManagerLeader: vi.fn(),
   revalidatePath: vi.fn(),
-  setTeamVisibility: vi.fn()
+  setTeamVisibility: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManagerLeader }));
@@ -22,7 +18,7 @@ const LEADER_SESSION = {
   role: 'manager' as const,
   managerRole: 'leader' as const,
   companyId: 'co-A',
-  managedOrgIds: ['org-1']
+  managedOrgIds: ['org-1'],
 };
 
 beforeEach(() => {
@@ -68,12 +64,7 @@ describe('setTeamVisibilityAction — happy path', () => {
     const res = await setTeamVisibilityAction({ enabled: true });
 
     expect(res).toEqual({ ok: true, changed: true });
-    expect(setTeamVisibility).toHaveBeenCalledWith(
-      expect.anything(),
-      'leader-1',
-      'co-A',
-      true
-    );
+    expect(setTeamVisibility).toHaveBeenCalledWith(expect.anything(), 'leader-1', 'co-A', true);
     expect(revalidatePath).toHaveBeenCalledWith('/manager/team');
     expect(revalidatePath).toHaveBeenCalledWith('/manager/dashboard');
   });
@@ -84,12 +75,7 @@ describe('setTeamVisibilityAction — happy path', () => {
     const res = await setTeamVisibilityAction({ enabled: false });
 
     expect(res).toEqual({ ok: true, changed: false });
-    expect(setTeamVisibility).toHaveBeenCalledWith(
-      expect.anything(),
-      'leader-1',
-      'co-A',
-      false
-    );
+    expect(setTeamVisibility).toHaveBeenCalledWith(expect.anything(), 'leader-1', 'co-A', false);
     // revalidatePath still fires (idempotent, harmless)
     expect(revalidatePath).toHaveBeenCalledWith('/manager/team');
     expect(revalidatePath).toHaveBeenCalledWith('/manager/dashboard');

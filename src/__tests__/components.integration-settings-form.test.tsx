@@ -7,14 +7,27 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 import {
   IntegrationSettingsForm,
-  type IntegrationFormField
+  type IntegrationFormField,
 } from '@/components/admin/integration-settings-form';
 
 const action = vi.fn();
 
 const FIELDS: IntegrationFormField[] = [
-  { name: 'g_username', label: 'Имя бота', kind: 'text', initialValue: 'bot1', placeholder: 'ph-user' },
-  { name: 'g_token', label: 'Токен', kind: 'secret', placeholder: 'ph-token', secretSet: false, secretSource: 'none' },
+  {
+    name: 'g_username',
+    label: 'Имя бота',
+    kind: 'text',
+    initialValue: 'bot1',
+    placeholder: 'ph-user',
+  },
+  {
+    name: 'g_token',
+    label: 'Токен',
+    kind: 'secret',
+    placeholder: 'ph-token',
+    secretSet: false,
+    secretSource: 'none',
+  },
   { name: 'g_tls', label: 'TLS', kind: 'checkbox', initialChecked: true },
   {
     name: 'g_mode',
@@ -23,9 +36,9 @@ const FIELDS: IntegrationFormField[] = [
     initialValue: 'b',
     options: [
       { value: 'a', label: 'Вариант А' },
-      { value: 'b', label: 'Вариант Б' }
-    ]
-  }
+      { value: 'b', label: 'Вариант Б' },
+    ],
+  },
 ];
 
 function renderForm(overrides?: Partial<React.ComponentProps<typeof IntegrationSettingsForm>>) {
@@ -35,7 +48,7 @@ function renderForm(overrides?: Partial<React.ComponentProps<typeof IntegrationS
       description: 'Описание группы',
       action,
       fields: FIELDS,
-      ...overrides
+      ...overrides,
     })
   );
 }
@@ -58,7 +71,9 @@ describe('IntegrationSettingsForm', () => {
 
   it('заданный секрет: подсказка «задан (в конфиге сервера)» и placeholder «оставьте пустым»', () => {
     renderForm({
-      fields: [{ name: 's', label: 'Секрет', kind: 'secret', secretSet: true, secretSource: 'env' }]
+      fields: [
+        { name: 's', label: 'Секрет', kind: 'secret', secretSet: true, secretSource: 'env' },
+      ],
     });
     expect(screen.getByText(/задан/)).toBeTruthy();
     expect(screen.getByText(/в конфиге сервера/)).toBeTruthy();
@@ -72,7 +87,7 @@ describe('IntegrationSettingsForm', () => {
 
   it('заданный секрет из БД — без пометки про конфиг сервера', () => {
     renderForm({
-      fields: [{ name: 's', label: 'Секрет', kind: 'secret', secretSet: true, secretSource: 'db' }]
+      fields: [{ name: 's', label: 'Секрет', kind: 'secret', secretSet: true, secretSource: 'db' }],
     });
     expect(screen.getByText(/задан/)).toBeTruthy();
     expect(screen.queryByText(/в конфиге сервера/)).toBeNull();
@@ -114,13 +129,19 @@ describe('IntegrationCheckPanel (через IntegrationSettingsForm)', () => {
   });
 
   it('успешная последняя проверка: дата + «успешно»', () => {
-    renderForm({ testAction, check: { lastAt: '23.07.2026, 10:00', lastOk: true, lastError: null } });
+    renderForm({
+      testAction,
+      check: { lastAt: '23.07.2026, 10:00', lastOk: true, lastError: null },
+    });
     expect(screen.getByText(/23\.07\.2026/)).toBeTruthy();
     expect(screen.getByText('успешно')).toBeTruthy();
   });
 
   it('провальная последняя проверка: текст ошибки (fallback «ошибка» при null)', () => {
-    renderForm({ testAction, check: { lastAt: 'дата', lastOk: false, lastError: 'Сервер ответил HTTP 500' } });
+    renderForm({
+      testAction,
+      check: { lastAt: 'дата', lastOk: false, lastError: 'Сервер ответил HTTP 500' },
+    });
     expect(screen.getByText('Сервер ответил HTTP 500')).toBeTruthy();
 
     renderForm({ testAction, check: { lastAt: 'дата2', lastOk: false, lastError: null } });
@@ -136,10 +157,12 @@ describe('IntegrationCheckPanel (через IntegrationSettingsForm)', () => {
         headerName: 'x-telegram-bot-api-secret-token',
         secretSet: true,
         lastEventAt: '23.07.2026, 09:30',
-        note: 'Прим.'
-      }
+        note: 'Прим.',
+      },
     });
-    expect(screen.getByText('https://lk.example.ru/api/integrations/telegram/webhook')).toBeTruthy();
+    expect(
+      screen.getByText('https://lk.example.ru/api/integrations/telegram/webhook')
+    ).toBeTruthy();
     expect(screen.getByText('x-telegram-bot-api-secret-token')).toBeTruthy();
     expect(screen.getByText('задан')).toBeTruthy();
     expect(screen.getByText('Прим.')).toBeTruthy();
@@ -150,7 +173,7 @@ describe('IntegrationCheckPanel (через IntegrationSettingsForm)', () => {
     renderForm({
       testAction,
       check: null,
-      webhook: { url: 'https://u', headerName: 'x-h', secretSet: false, lastEventAt: null }
+      webhook: { url: 'https://u', headerName: 'x-h', secretSet: false, lastEventAt: null },
     });
     expect(screen.getByText('не задан')).toBeTruthy();
     expect(screen.getByText(/Последнее входящее: —/)).toBeTruthy();
@@ -167,7 +190,11 @@ describe('IntegrationCheckPanel (через IntegrationSettingsForm)', () => {
   });
 
   it('неуспешная проба → сообщение в role=alert', async () => {
-    testAction.mockResolvedValue({ ok: true, success: false, message: 'Авторизация отклонена (HTTP 401)' });
+    testAction.mockResolvedValue({
+      ok: true,
+      success: false,
+      message: 'Авторизация отклонена (HTTP 401)',
+    });
     renderForm({ testAction, check: null });
     const btn = screen.getByText('Проверить подключение');
     fireEvent.click(btn);

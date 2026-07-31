@@ -17,7 +17,7 @@ import {
   TEXT_MAX,
   TEXTAREA_MAX,
   EMAIL_MAX,
-  URL_MAX
+  URL_MAX,
 } from '@/lib/services/customFields/coerce';
 
 const OPTS = ['low', 'medium', 'high'];
@@ -99,7 +99,7 @@ describe('coerce — таблица «тип × значение»', () => {
     ['url', 'data:text/html,<h1>x</h1>', false, 'data:'],
     ['url', 'file:///etc/passwd', false, 'file:'],
     ['url', 'example.com', false, 'без схемы'],
-    ['url', `https://e.com/${'x'.repeat(URL_MAX)}`, false, 'длиннее предела']
+    ['url', `https://e.com/${'x'.repeat(URL_MAX)}`, false, 'длиннее предела'],
   ];
 
   for (const [type, value, expected, note] of cases) {

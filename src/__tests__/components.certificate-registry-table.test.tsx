@@ -3,11 +3,11 @@ import React from 'react';
 import { renderToString } from 'react-dom/server';
 import {
   CertificateRegistryTable,
-  type CertificateRegistryRow
+  type CertificateRegistryRow,
 } from '@/components/certificates/certificate-registry-table';
 import {
   CertificateRegistryFilters,
-  CERTIFICATE_STATUS_OPTIONS
+  CERTIFICATE_STATUS_OPTIONS,
 } from '@/components/certificates/certificate-registry-filters';
 
 /**
@@ -24,7 +24,7 @@ const row = (over: Partial<CertificateRegistryRow> = {}): CertificateRegistryRow
   student: { id: 's1', name: 'Иванов Иван' },
   direction: { name: 'Охрана труда' },
   organization: { id: 'org1', name: 'ООО Ромашка' },
-  ...over
+  ...over,
 });
 
 describe('CertificateRegistryTable', () => {
@@ -45,7 +45,11 @@ describe('CertificateRegistryTable', () => {
 
   it('showOrganization → колонка «Организация»; studentHrefBase → ФИО ссылкой', () => {
     const html = renderToString(
-      <CertificateRegistryTable rows={[row()]} showOrganization studentHrefBase='/organization/students' />
+      <CertificateRegistryTable
+        rows={[row()]}
+        showOrganization
+        studentHrefBase="/organization/students"
+      />
     );
     expect(html).toContain('ООО Ромашка');
     expect(html).toContain('href="/organization/students/s1"');

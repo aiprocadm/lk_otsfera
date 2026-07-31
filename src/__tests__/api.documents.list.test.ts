@@ -3,15 +3,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { requireSession, requireRole, documentFindMany } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   requireRole: vi.fn(),
-  documentFindMany: vi.fn()
+  documentFindMany: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/guard', () => ({ requireSession, requireRole }));
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: { document: { findMany: documentFindMany } }
+  prisma: { document: { findMany: documentFindMany } },
 }));
 vi.mock('@/lib/services/scan/visibility', () => ({
-  hideInfectedForSession: vi.fn(() => ({}))
+  hideInfectedForSession: vi.fn(() => ({})),
 }));
 
 import { GET } from '@/app/api/documents/route';
@@ -47,12 +47,18 @@ describe('GET /api/documents', () => {
     requireSession.mockResolvedValue({ ok: true, value: adminSession });
     requireRole.mockReturnValue({ ok: true, value: adminSession });
     documentFindMany.mockResolvedValue([
-      { id: 'd1', name: 'contract.pdf', mimeType: 'application/pdf', createdAt: new Date(), orderId: 'ord-1' }
+      {
+        id: 'd1',
+        name: 'contract.pdf',
+        mimeType: 'application/pdf',
+        createdAt: new Date(),
+        orderId: 'ord-1',
+      },
     ]);
 
     const res = await GET();
     expect(res.status).toBe(200);
-    const body = await res.json() as { id: string }[];
+    const body = (await res.json()) as { id: string }[];
     expect(body).toHaveLength(1);
     expect(body[0].id).toBe('d1');
   });

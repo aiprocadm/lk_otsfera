@@ -37,23 +37,34 @@ export type FunnelBoard = { stages: FunnelStageView[]; columns: FunnelColumn[] }
 
 const CARD_INCLUDE = {
   organization: { select: { name: true } },
-  assignedManager: { select: { name: true } }
+  assignedManager: { select: { name: true } },
 } as const;
 
-export async function getFunnelBoard(prisma: PrismaClient, session: SessionPayload): Promise<FunnelBoard> {
+export async function getFunnelBoard(
+  prisma: PrismaClient,
+  session: SessionPayload
+): Promise<FunnelBoard> {
   // Клиентская роль → пустая доска (не leak-аем ни лиды, ни словарь стадий).
   if (!isStaff(session)) return { stages: [], columns: [] };
   const stages = await resolveFunnelStages(prisma, session.companyId ?? '');
-  const where = session.accessProfile ? leadWhereForLevel(session, session.accessProfile.leads) : {};
+  const where = session.accessProfile
+    ? leadWhereForLevel(session, session.accessProfile.leads)
+    : {};
 
   const leads = await prisma.lead.findMany({
     where,
     orderBy: { createdAt: 'desc' },
     take: 500,
     select: {
-      id: true, clientCompanyName: true, subject: true, estimatedAmount: true,
-      status: true, funnelStageId: true, createdAt: true, ...CARD_INCLUDE
-    }
+      id: true,
+      clientCompanyName: true,
+      subject: true,
+      estimatedAmount: true,
+      status: true,
+      funnelStageId: true,
+      createdAt: true,
+      ...CARD_INCLUDE,
+    },
   });
 
   const columns: FunnelColumn[] = stages.map((stage) => ({ stage, cards: [] }));
@@ -69,7 +80,7 @@ export async function getFunnelBoard(prisma: PrismaClient, session: SessionPaylo
       estimatedAmount: l.estimatedAmount ? l.estimatedAmount.toFixed(2) : null,
       organizationName: l.organization?.name ?? null,
       assignedManagerName: l.assignedManager?.name ?? null,
-      createdAt: l.createdAt
+      createdAt: l.createdAt,
     });
   }
 
@@ -97,7 +108,13 @@ export async function moveFunnelLead(
 
   const lead = await prisma.lead.findUnique({
     where: { id: args.leadId },
-    select: { id: true, status: true, funnelStageId: true, organizationId: true, assignedManagerId: true }
+    select: {
+      id: true,
+      status: true,
+      funnelStageId: true,
+      organizationId: true,
+      assignedManagerId: true,
+    },
   });
   if (!lead) return { ok: false, error: 'not_found' };
   if (!canSeeLead(session, lead)) return { ok: false, error: 'not_found' }; // scope: не leak-аем
@@ -120,24 +137,39 @@ export async function moveFunnelLead(
     // lead was pre-checked to exist (L85-90), so the inner `not_found` mapping is an
     // unreachable race guard here — only lifecycle_violation is reachable.
     /* v8 ignore next */
-    if (!r.ok) return { ok: false, error: r.error === 'not_found' ? 'not_found' : 'lifecycle_violation' };
+    if (!r.ok)
+      return { ok: false, error: r.error === 'not_found' ? 'not_found' : 'lifecycle_violation' };
   } else if (anchor === 'promoted_to_deal') {
     // Этап 6 (ФТ-4.4): перенос в «Передан в сделку» создаёт Deal из лида.
     const r = await convertLeadToDeal(prisma, session, { leadId: lead.id });
     if (!r.ok) {
       /* v8 ignore next -- pre-checked lead → inner not_found unreachable (see above) */
-      return { ok: false, error: r.error === 'not_found' ? 'not_found' : r.error === 'forbidden' ? 'forbidden' : 'lifecycle_violation' };
+      return {
+        ok: false,
+        error:
+          r.error === 'not_found'
+            ? 'not_found'
+            : r.error === 'forbidden'
+              ? 'forbidden'
+              : 'lifecycle_violation',
+      };
     }
   } else if (anchor === 'rejected') {
     const reason = (args.reason ?? '').trim();
     if (!reason) return { ok: false, error: 'reason_required' };
     const r = await rejectLead(prisma, { leadId: lead.id, managerId: session.sub, reason });
     /* v8 ignore next -- pre-checked lead → inner not_found unreachable (see above) */
-    if (!r.ok) return { ok: false, error: r.error === 'not_found' ? 'not_found' : 'lifecycle_violation' };
+    if (!r.ok)
+      return { ok: false, error: r.error === 'not_found' ? 'not_found' : 'lifecycle_violation' };
   } else {
-    const r = await setLeadStatus(prisma, { leadId: lead.id, managerId: session.sub, status: anchor });
+    const r = await setLeadStatus(prisma, {
+      leadId: lead.id,
+      managerId: session.sub,
+      status: anchor,
+    });
     /* v8 ignore next -- pre-checked lead → inner not_found unreachable (see above) */
-    if (!r.ok) return { ok: false, error: r.error === 'not_found' ? 'not_found' : 'lifecycle_violation' };
+    if (!r.ok)
+      return { ok: false, error: r.error === 'not_found' ? 'not_found' : 'lifecycle_violation' };
   }
 
   await prisma.lead.update({ where: { id: lead.id }, data: { funnelStageId: persistStageId } });

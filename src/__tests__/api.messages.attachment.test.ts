@@ -4,15 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Hoisted mocks — declared before any module import that might transitively
 // load the real implementations.
 // ---------------------------------------------------------------------------
-const {
-  requireSessionMock,
-  uploadChatAttachmentMock,
-  getChatAttachmentSignedUrlMock,
-} = vi.hoisted(() => ({
-  requireSessionMock: vi.fn(),
-  uploadChatAttachmentMock: vi.fn(),
-  getChatAttachmentSignedUrlMock: vi.fn(),
-}));
+const { requireSessionMock, uploadChatAttachmentMock, getChatAttachmentSignedUrlMock } = vi.hoisted(
+  () => ({
+    requireSessionMock: vi.fn(),
+    uploadChatAttachmentMock: vi.fn(),
+    getChatAttachmentSignedUrlMock: vi.fn(),
+  })
+);
 
 vi.mock('@/lib/auth/guard', () => ({ requireSession: requireSessionMock }));
 vi.mock('@/lib/services/chat/attachments', () => ({
@@ -30,18 +28,26 @@ import { POST, GET } from '@/app/api/messages/attachment/route';
 // Helpers
 // ---------------------------------------------------------------------------
 function orgSession(overrides: Record<string, unknown> = {}) {
-  return { sub: 'u-org-1', role: 'organization', email: 'org@local', orgIds: ['org-1'], ...overrides };
+  return {
+    sub: 'u-org-1',
+    role: 'organization',
+    email: 'org@local',
+    orgIds: ['org-1'],
+    ...overrides,
+  };
 }
 
 function managerSession(overrides: Record<string, unknown> = {}) {
-  return { sub: 'u-mgr-1', role: 'manager', email: 'mgr@local', managedOrgIds: ['org-1'], ...overrides };
+  return {
+    sub: 'u-mgr-1',
+    role: 'manager',
+    email: 'mgr@local',
+    managedOrgIds: ['org-1'],
+    ...overrides,
+  };
 }
 
-function buildFormData(opts: {
-  file?: File | null;
-  orderId?: string;
-  side?: string;
-}) {
+function buildFormData(opts: { file?: File | null; orderId?: string; side?: string }) {
   const fd = new FormData();
   if (opts.file !== null && opts.file !== undefined) {
     fd.set('file', opts.file);
@@ -76,14 +82,17 @@ describe('POST /api/messages/attachment', () => {
   });
 
   it('org session + valid PDF file → 201 with attachmentPath', async () => {
-    uploadChatAttachmentMock.mockResolvedValue({ ok: true, attachmentPath: 'chat/ord-1/uuid-file.pdf' });
+    uploadChatAttachmentMock.mockResolvedValue({
+      ok: true,
+      attachmentPath: 'chat/ord-1/uuid-file.pdf',
+    });
     const fd = buildFormData({
       file: new File(['%PDF-1.4'], 'doc.pdf', { type: 'application/pdf' }),
       orderId: 'ord-1',
     });
     const res = await POST(postReq(fd));
     expect(res.status).toBe(201);
-    const json = await res.json() as { ok: boolean; attachmentPath: string };
+    const json = (await res.json()) as { ok: boolean; attachmentPath: string };
     expect(json).toEqual({ ok: true, attachmentPath: 'chat/ord-1/uuid-file.pdf' });
     expect(uploadChatAttachmentMock).toHaveBeenCalledTimes(1);
   });
@@ -103,7 +112,7 @@ describe('POST /api/messages/attachment', () => {
     const fd = buildFormData({ orderId: 'ord-1' });
     const res = await POST(postReq(fd));
     expect(res.status).toBe(400);
-    const json = await res.json() as { ok: boolean; error: string };
+    const json = (await res.json()) as { ok: boolean; error: string };
     expect(json).toEqual({ ok: false, error: 'bad_request' });
     expect(uploadChatAttachmentMock).not.toHaveBeenCalled();
   });
@@ -114,7 +123,7 @@ describe('POST /api/messages/attachment', () => {
     });
     const res = await POST(postReq(fd));
     expect(res.status).toBe(400);
-    const json = await res.json() as { ok: boolean; error: string };
+    const json = (await res.json()) as { ok: boolean; error: string };
     expect(json).toEqual({ ok: false, error: 'bad_request' });
     expect(uploadChatAttachmentMock).not.toHaveBeenCalled();
   });
@@ -127,7 +136,7 @@ describe('POST /api/messages/attachment', () => {
     });
     const res = await POST(postReq(fd));
     expect(res.status).toBe(403);
-    const json = await res.json() as { ok: boolean; error: string };
+    const json = (await res.json()) as { ok: boolean; error: string };
     expect(json).toEqual({ ok: false, error: 'forbidden' });
   });
 
@@ -139,7 +148,7 @@ describe('POST /api/messages/attachment', () => {
     });
     const res = await POST(postReq(fd));
     expect(res.status).toBe(413);
-    const json = await res.json() as { ok: boolean; error: string };
+    const json = (await res.json()) as { ok: boolean; error: string };
     expect(json).toEqual({ ok: false, error: 'too_large' });
   });
 
@@ -151,7 +160,7 @@ describe('POST /api/messages/attachment', () => {
     });
     const res = await POST(postReq(fd));
     expect(res.status).toBe(415);
-    const json = await res.json() as { ok: boolean; error: string };
+    const json = (await res.json()) as { ok: boolean; error: string };
     expect(json).toEqual({ ok: false, error: 'invalid_mime' });
   });
 
@@ -173,7 +182,7 @@ describe('POST /api/messages/attachment', () => {
     });
     const res = await POST(postReq(fd));
     expect(res.status).toBe(500);
-    const json = await res.json() as { ok: boolean; error: string };
+    const json = (await res.json()) as { ok: boolean; error: string };
     expect(json).toEqual({ ok: false, error: 'storage' });
   });
 
@@ -199,7 +208,7 @@ describe('POST /api/messages/attachment', () => {
     });
     const res = await POST(postReq(fd));
     expect(res.status).toBe(400);
-    const json = await res.json() as { ok: boolean; error: string };
+    const json = (await res.json()) as { ok: boolean; error: string };
     expect(json).toEqual({ ok: false, error: 'bad_request' });
     expect(uploadChatAttachmentMock).not.toHaveBeenCalled();
   });
@@ -227,7 +236,7 @@ describe('POST /api/messages/attachment', () => {
     });
     const res = await POST(badReq);
     expect(res.status).toBe(400);
-    const json = await res.json() as { ok: boolean; error: string };
+    const json = (await res.json()) as { ok: boolean; error: string };
     expect(json).toEqual({ ok: false, error: 'bad_request' });
     expect(uploadChatAttachmentMock).not.toHaveBeenCalled();
   });

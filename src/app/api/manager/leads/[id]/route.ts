@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
+import type { LeadStatus } from '@prisma/client';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { getManagerLead } from '@/lib/services/manager/leads';
-import { assignLead, setLeadStatus, promoteLead, rejectLead } from '@/lib/services/manager/leadLifecycle';
-import type { LeadStatus } from '@prisma/client';
+import {
+  assignLead,
+  setLeadStatus,
+  promoteLead,
+  rejectLead,
+} from '@/lib/services/manager/leadLifecycle';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -31,12 +36,20 @@ export async function PATCH(req: Request, { params }: Params) {
   const managerId = session.sub;
 
   if (action === 'assign') {
-    const res = await assignLead(prisma, { leadId: id, managerId, assignToUserId: body?.assignToUserId });
+    const res = await assignLead(prisma, {
+      leadId: id,
+      managerId,
+      assignToUserId: body?.assignToUserId,
+    });
     if (!res.ok) return NextResponse.json({ error: res.error }, { status: statusFor(res.error) });
     return NextResponse.json({ lead: res.lead });
   }
   if (action === 'setStatus') {
-    const res = await setLeadStatus(prisma, { leadId: id, managerId, status: body?.status as LeadStatus });
+    const res = await setLeadStatus(prisma, {
+      leadId: id,
+      managerId,
+      status: body?.status as LeadStatus,
+    });
     if (!res.ok) return NextResponse.json({ error: res.error }, { status: statusFor(res.error) });
     return NextResponse.json({ lead: res.lead });
   }
@@ -46,9 +59,16 @@ export async function PATCH(req: Request, { params }: Params) {
     return NextResponse.json({ lead: res.lead, orderId: res.order.id }, { status: 201 });
   }
   if (action === 'reject') {
-    const res = await rejectLead(prisma, { leadId: id, managerId, reason: String(body?.reason ?? '') });
+    const res = await rejectLead(prisma, {
+      leadId: id,
+      managerId,
+      reason: String(body?.reason ?? ''),
+    });
     if (!res.ok) return NextResponse.json({ error: res.error }, { status: statusFor(res.error) });
     return NextResponse.json({ lead: res.lead });
   }
-  return NextResponse.json({ error: 'Invalid action. Use assign|setStatus|promote|reject' }, { status: 400 });
+  return NextResponse.json(
+    { error: 'Invalid action. Use assign|setStatus|promote|reject' },
+    { status: 400 }
+  );
 }

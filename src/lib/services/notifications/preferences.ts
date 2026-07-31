@@ -115,7 +115,9 @@ export async function saveWhatsappPhone(
   prisma: PrismaClient,
   session: SessionPayload,
   args: { phone: string }
-): Promise<{ ok: true; phone: string | null } | { ok: false; error: 'invalid_phone' | 'phone_taken' }> {
+): Promise<
+  { ok: true; phone: string | null } | { ok: false; error: 'invalid_phone' | 'phone_taken' }
+> {
   // Пустая строка = отвязка номера.
   if (args.phone.trim() === '') {
     await prisma.user.update({

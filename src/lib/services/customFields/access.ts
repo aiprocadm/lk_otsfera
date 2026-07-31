@@ -21,7 +21,7 @@ import {
   canSeeOrder,
   canManagerAccessOrg,
   getCompanyTeamVisibility,
-  isLeaderSameCompany
+  isLeaderSameCompany,
 } from '@/lib/auth/managerPolicy';
 import type { CustomFieldEntity } from './entities';
 
@@ -106,8 +106,8 @@ async function resolveOrder(
       partnerId: true,
       // Историческая ветка видимости менеджера (комментировал заказ). Выбираем
       // всегда: условный select оставил бы в типе `false` и мёртвую ветку.
-      comments: { where: { authorId: session.sub }, take: 1, select: { id: true } }
-    }
+      comments: { where: { authorId: session.sub }, take: 1, select: { id: true } },
+    },
   });
   if (!order) return DENIED;
 
@@ -135,7 +135,7 @@ async function resolveOrganization(
 ): Promise<EntityAccess> {
   const org = await prisma.organization.findUnique({
     where: { id: orgId },
-    select: { id: true, partnerId: true }
+    select: { id: true, partnerId: true },
   });
   if (!org) return DENIED;
 
@@ -160,7 +160,7 @@ async function resolvePartner(
 ): Promise<EntityAccess> {
   const partner = await prisma.partner.findUnique({
     where: { id: partnerId },
-    select: { id: true }
+    select: { id: true },
   });
   if (!partner) return DENIED;
 
@@ -175,7 +175,7 @@ async function resolvePartner(
     if (!session.companyId) return DENIED;
     const inCompany = await prisma.organization.findFirst({
       where: { partnerId, companyId: session.companyId },
-      select: { id: true }
+      select: { id: true },
     });
     return inCompany ? GRANTED : DENIED;
   }
@@ -193,7 +193,7 @@ async function resolveStudent(
 ): Promise<EntityAccess> {
   const student = await prisma.student.findUnique({
     where: { id: studentId },
-    select: { id: true, organizationId: true }
+    select: { id: true, organizationId: true },
   });
   if (!student) return DENIED;
 
@@ -223,10 +223,10 @@ async function resolveDocument(
           organizationId: true,
           companyId: true,
           partnerId: true,
-          comments: { where: { authorId: session.sub }, take: 1, select: { id: true } }
-        }
-      }
-    }
+          comments: { where: { authorId: session.sub }, take: 1, select: { id: true } },
+        },
+      },
+    },
   });
   if (!doc) return DENIED;
 
@@ -238,9 +238,7 @@ async function resolveDocument(
       if (isLeaderSameCompany(session, doc.order.companyId)) return GRANTED;
       // canSeeDocument делегирует в canSeeOrder, но его тип не несёт
       // commentsCountByMe (историческая ветка видимости) — зовём напрямую.
-      return canSeeOrder(session, { ...doc.order, commentsCountByMe }, teamMode)
-        ? GRANTED
-        : DENIED;
+      return canSeeOrder(session, { ...doc.order, commentsCountByMe }, teamMode) ? GRANTED : DENIED;
     }
     if (session.role === 'partner') {
       return !!session.partnerId && doc.order.partnerId === session.partnerId ? GRANTED : DENIED;
@@ -264,7 +262,9 @@ async function resolveDocument(
  */
 function orgInSession(session: SessionPayload, orgId: string): boolean {
   if (session.organizationId === orgId) return true;
-  if ((session.organizationMemberships ?? []).some((m) => m.organizationId === orgId && m.isActive)) {
+  if (
+    (session.organizationMemberships ?? []).some((m) => m.organizationId === orgId && m.isActive)
+  ) {
     return true;
   }
   return (session.assignedOrgIds ?? []).includes(orgId);

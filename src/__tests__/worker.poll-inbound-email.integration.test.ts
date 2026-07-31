@@ -4,11 +4,11 @@ import type { Job } from 'bullmq';
 
 const { fetchNewMessages, ingestInboundMessage } = vi.hoisted(() => ({
   fetchNewMessages: vi.fn(),
-  ingestInboundMessage: vi.fn()
+  ingestInboundMessage: vi.fn(),
 }));
 
 vi.mock('@/lib/inbound/email', () => ({
-  getInboundEmailAdapter: () => ({ fetchNewMessages })
+  getInboundEmailAdapter: () => ({ fetchNewMessages }),
 }));
 vi.mock('@/lib/services/inbound/ingest', () => ({ ingestInboundMessage }));
 
@@ -36,8 +36,10 @@ const job = {} as Job;
 describe('pollInboundEmailProcessor', () => {
   it('ingests each fetched message and advances the SyncState cursor', async () => {
     fetchNewMessages.mockResolvedValue({
-      messages: [{ externalId: 'abc123', from: 'Sender@Example.com', subject: 'Hello', text: 'body text' }],
-      cursor: '1'
+      messages: [
+        { externalId: 'abc123', from: 'Sender@Example.com', subject: 'Hello', text: 'body text' },
+      ],
+      cursor: '1',
     });
     ingestInboundMessage.mockResolvedValue({ ok: true, id: 'im1', deduped: false });
 
@@ -53,7 +55,7 @@ describe('pollInboundEmailProcessor', () => {
         externalId: 'email:abc123',
         senderRef: 'sender@example.com',
         subject: 'Hello',
-        body: 'body text'
+        body: 'body text',
       })
     );
 
@@ -67,7 +69,12 @@ describe('pollInboundEmailProcessor', () => {
 
   it('passes the persisted cursor from a prior run into fetchNewMessages', async () => {
     await prisma.syncState.create({
-      data: { entity: 'inbound.email', cursor: '5', lastRunAt: new Date(), lastSuccessAt: new Date() }
+      data: {
+        entity: 'inbound.email',
+        cursor: '5',
+        lastRunAt: new Date(),
+        lastSuccessAt: new Date(),
+      },
     });
     fetchNewMessages.mockResolvedValue({ messages: [], cursor: '5' });
 
@@ -78,14 +85,19 @@ describe('pollInboundEmailProcessor', () => {
 
   it('failing ingest does not abort the batch, but holds the cursor for a retry', async () => {
     await prisma.syncState.create({
-      data: { entity: 'inbound.email', cursor: '1', lastRunAt: new Date(), lastSuccessAt: new Date() }
+      data: {
+        entity: 'inbound.email',
+        cursor: '1',
+        lastRunAt: new Date(),
+        lastSuccessAt: new Date(),
+      },
     });
     fetchNewMessages.mockResolvedValue({
       messages: [
         { externalId: 'ok1', from: 'a@example.com', text: 'body1' },
-        { externalId: 'bad1', from: 'b@example.com', text: 'body2' }
+        { externalId: 'bad1', from: 'b@example.com', text: 'body2' },
       ],
-      cursor: '2'
+      cursor: '2',
     });
     ingestInboundMessage
       .mockResolvedValueOnce({ ok: true, id: 'im1', deduped: false })
@@ -105,7 +117,7 @@ describe('pollInboundEmailProcessor', () => {
   it('first-run failure creates SyncState without advancing past the null cursor', async () => {
     fetchNewMessages.mockResolvedValue({
       messages: [{ externalId: 'bad3', from: 'd@example.com', text: 'body' }],
-      cursor: '7'
+      cursor: '7',
     });
     ingestInboundMessage.mockRejectedValueOnce(new Error('boom'));
 
@@ -123,7 +135,7 @@ describe('pollInboundEmailProcessor', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     fetchNewMessages.mockResolvedValue({
       messages: [{ externalId: 'bad2', from: 'c@example.com', text: 'body' }],
-      cursor: '3'
+      cursor: '3',
     });
     ingestInboundMessage.mockRejectedValueOnce('smtp gone');
 

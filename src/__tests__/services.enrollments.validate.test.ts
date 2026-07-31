@@ -3,7 +3,7 @@ import {
   normalizeSnils,
   parseBirthDate,
   isValidEmail,
-  validateEnrollmentItems
+  validateEnrollmentItems,
 } from '@/lib/services/enrollments/validate';
 
 describe('normalizeSnils (решение §10: только формат 11 цифр)', () => {
@@ -29,7 +29,10 @@ describe('parseBirthDate', () => {
     expect(parseBirthDate(undefined)).toEqual({ ok: true, value: null });
   });
   it('ISO-дата → Date (UTC-полночь)', () => {
-    expect(parseBirthDate('1990-01-02')).toEqual({ ok: true, value: new Date('1990-01-02T00:00:00.000Z') });
+    expect(parseBirthDate('1990-01-02')).toEqual({
+      ok: true,
+      value: new Date('1990-01-02T00:00:00.000Z'),
+    });
   });
   it('кривой формат / несуществующая дата / будущее → ok:false', () => {
     expect(parseBirthDate('02.01.1990')).toEqual({ ok: false });
@@ -48,11 +51,17 @@ describe('isValidEmail', () => {
 
 describe('validateEnrollmentItems', () => {
   it('пустой список → русская ошибка', () => {
-    expect(validateEnrollmentItems([])).toEqual({ ok: false, errors: ['Добавьте хотя бы одного слушателя'] });
+    expect(validateEnrollmentItems([])).toEqual({
+      ok: false,
+      errors: ['Добавьте хотя бы одного слушателя'],
+    });
   });
 
   it('новый слушатель без ФИО/email → адресные ошибки по номеру строки', () => {
-    const r = validateEnrollmentItems([{ fullName: '', email: '' }, { fullName: 'Иван', email: 'плохо' }]);
+    const r = validateEnrollmentItems([
+      { fullName: '', email: '' },
+      { fullName: 'Иван', email: 'плохо' },
+    ]);
     expect(r).toMatchObject({ ok: false });
     const errors = (r as { errors: string[] }).errors;
     expect(errors).toContain('Слушатель 1: не указано ФИО');
@@ -74,7 +83,7 @@ describe('validateEnrollmentItems', () => {
 
   it('СНИЛС и дата рождения валидируются только если заполнены', () => {
     const r = validateEnrollmentItems([
-      { fullName: 'Иван', email: 'i@x.ru', snils: '123', birthDate: 'зимой' }
+      { fullName: 'Иван', email: 'i@x.ru', snils: '123', birthDate: 'зимой' },
     ]);
     const errors = (r as { errors: string[] }).errors;
     expect(errors.some((e) => e.includes('СНИЛС'))).toBe(true);
@@ -89,8 +98,8 @@ describe('validateEnrollmentItems', () => {
         position: '  ',
         snils: '112-233-445 95',
         birthDate: '1990-01-02',
-        extra: ' примечание '
-      }
+        extra: ' примечание ',
+      },
     ]);
     if (!r.ok) throw new Error('expected ok');
     expect(r.items[0]).toEqual({
@@ -100,7 +109,7 @@ describe('validateEnrollmentItems', () => {
       position: null,
       snils: '11223344595',
       birthDate: new Date('1990-01-02T00:00:00.000Z'),
-      extra: 'примечание'
+      extra: 'примечание',
     });
     expect(r.warnings).toEqual([]);
   });
@@ -110,7 +119,7 @@ describe('validateEnrollmentItems', () => {
       { fullName: 'Иван', email: 'i@x.ru' },
       { fullName: 'Иван Дубль', email: 'I@X.RU' },
       { studentId: 'st1' },
-      { studentId: 'st1' }
+      { studentId: 'st1' },
     ]);
     if (!r.ok) throw new Error('expected ok');
     expect(r.items).toHaveLength(2);
@@ -121,7 +130,7 @@ describe('validateEnrollmentItems', () => {
   it('все позиции — дубликаты одной → остаётся одна (ошибки нет)', () => {
     const r = validateEnrollmentItems([
       { fullName: 'Иван', email: 'i@x.ru' },
-      { fullName: 'Иван', email: 'i@x.ru' }
+      { fullName: 'Иван', email: 'i@x.ru' },
     ]);
     if (!r.ok) throw new Error('expected ok');
     expect(r.items).toHaveLength(1);

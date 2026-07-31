@@ -19,21 +19,20 @@ export type OrgPageContext = {
  * every /organization/* page. Encapsulates session loading, query/cookie
  * org resolution, and organization name lookup.
  */
-export async function getOrgPageContext(
-  searchParams?: { org?: string | string[] }
-): Promise<OrgPageContext> {
+export async function getOrgPageContext(searchParams?: {
+  org?: string | string[];
+}): Promise<OrgPageContext> {
   const session = await requireOrganization();
   const cookieStore = await cookies();
   const cookieOrg = cookieStore.get('org_ctx')?.value ?? null;
-  const queryOrg =
-    typeof searchParams?.org === 'string' ? searchParams.org : undefined;
+  const queryOrg = typeof searchParams?.org === 'string' ? searchParams.org : undefined;
 
   const activeOrgId = resolveActiveOrgId(session, queryOrg, cookieOrg);
   const allowedIds = activeOrgIds(session);
 
   const orgs = await prisma.organization.findMany({
     where: { id: { in: allowedIds } },
-    select: { id: true, name: true }
+    select: { id: true, name: true },
   });
   const nameById = new Map(orgs.map((o) => [o.id, o.name]));
 
@@ -42,7 +41,7 @@ export async function getOrgPageContext(
     .map((m) => ({
       organizationId: m.organizationId,
       organizationName: nameById.get(m.organizationId) ?? '—',
-      roleInOrg: m.roleInOrg
+      roleInOrg: m.roleInOrg,
     }));
 
   return {
@@ -54,6 +53,6 @@ export async function getOrgPageContext(
       ? 'admin'
       : isOrgLeader(session, activeOrgId)
         ? 'leader'
-        : 'member'
+        : 'member',
   };
 }

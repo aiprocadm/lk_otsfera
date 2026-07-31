@@ -18,10 +18,7 @@ export async function GET(req: NextRequest) {
   if (!expected) {
     // Fail closed: a misconfigured probe reads as "not ready", surfaced loudly
     // on the first readiness check after deploy rather than silently public.
-    return Response.json(
-      { status: 'down', reason: 'health_token_unconfigured' },
-      { status: 503 }
-    );
+    return Response.json({ status: 'down', reason: 'health_token_unconfigured' }, { status: 503 });
   }
   if (!bearerMatches(req, expected)) {
     return Response.json({ status: 'unauthorized' }, { status: 401 });

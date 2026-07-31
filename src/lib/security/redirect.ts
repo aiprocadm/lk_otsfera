@@ -16,7 +16,9 @@ export function assertAllowedStudentPortalUrl(
     throw new Error('Student portal URL must use HTTPS protocol.');
   }
 
-  const allowedHostnames = parseAllowedHostnames(options?.allowlist ?? [...DEFAULT_ALLOWED_HOSTNAMES]);
+  const allowedHostnames = parseAllowedHostnames(
+    options?.allowlist ?? [...DEFAULT_ALLOWED_HOSTNAMES]
+  );
   const hostname = normalizeHost(parsedUrl.hostname);
 
   if (!allowedHostnames.has(hostname)) {

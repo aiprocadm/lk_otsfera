@@ -17,11 +17,18 @@ import { createFunnelStage, type FunnelStageInput } from '@/lib/services/access/
 import { createTaskColumn, type TaskColumnInput } from '@/lib/services/tasks/columns';
 
 const leaderA = (): SessionPayload =>
-  ({ sub: 'l1', role: 'manager', managerRole: 'leader', companyId: 'co-A' } as unknown as SessionPayload);
+  ({
+    sub: 'l1',
+    role: 'manager',
+    managerRole: 'leader',
+    companyId: 'co-A',
+  }) as unknown as SessionPayload;
 
 /** Prisma fake that runs a $transaction callback against the supplied `tx`. */
 function txRuns(tx: unknown): PrismaClient {
-  return { $transaction: vi.fn().mockImplementation((fn: (t: unknown) => unknown) => fn(tx)) } as unknown as PrismaClient;
+  return {
+    $transaction: vi.fn().mockImplementation((fn: (t: unknown) => unknown) => fn(tx)),
+  } as unknown as PrismaClient;
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -30,17 +37,27 @@ const INVALID_COLORS = ['#ZZZZZZ', '#FFF', '22C55E', '#22C55E0', 'red'];
 
 describe('funnelStages — color schema', () => {
   const input = (color: FunnelStageInput['color']): FunnelStageInput => ({
-    name: 'Стадия', position: 0, statusAnchor: 'new', color
+    name: 'Стадия',
+    position: 0,
+    statusAnchor: 'new',
+    color,
   });
 
-  it.each(INVALID_COLORS)('невалидный color %s → validation до обращения к prisma', async (color) => {
-    const r = await createFunnelStage({} as unknown as PrismaClient, leaderA(), input(color));
-    expect(r).toEqual({ ok: false, error: 'validation' });
-  });
+  it.each(INVALID_COLORS)(
+    'невалидный color %s → validation до обращения к prisma',
+    async (color) => {
+      const r = await createFunnelStage({} as unknown as PrismaClient, leaderA(), input(color));
+      expect(r).toEqual({ ok: false, error: 'validation' });
+    }
+  );
 
   it('валидный #22C55E → ok, цвет уходит в insert', async () => {
     const create = vi.fn().mockResolvedValue({ id: 's1' });
-    const r = await createFunnelStage(txRuns({ funnelStage: { create } }), leaderA(), input('#22C55E'));
+    const r = await createFunnelStage(
+      txRuns({ funnelStage: { create } }),
+      leaderA(),
+      input('#22C55E')
+    );
     expect(r).toEqual({ ok: true, id: 's1' });
     expect(create.mock.calls[0][0].data.color).toBe('#22C55E');
   });
@@ -55,17 +72,27 @@ describe('funnelStages — color schema', () => {
 
 describe('tasks/columns — color schema', () => {
   const input = (color: TaskColumnInput['color']): TaskColumnInput => ({
-    name: 'Колонка', position: 0, statusAnchor: 'todo', color
+    name: 'Колонка',
+    position: 0,
+    statusAnchor: 'todo',
+    color,
   });
 
-  it.each(INVALID_COLORS)('невалидный color %s → validation до обращения к prisma', async (color) => {
-    const r = await createTaskColumn({} as unknown as PrismaClient, leaderA(), input(color));
-    expect(r).toEqual({ ok: false, error: 'validation' });
-  });
+  it.each(INVALID_COLORS)(
+    'невалидный color %s → validation до обращения к prisma',
+    async (color) => {
+      const r = await createTaskColumn({} as unknown as PrismaClient, leaderA(), input(color));
+      expect(r).toEqual({ ok: false, error: 'validation' });
+    }
+  );
 
   it('валидный #22C55E → ok, цвет уходит в insert', async () => {
     const create = vi.fn().mockResolvedValue({ id: 'c1' });
-    const r = await createTaskColumn(txRuns({ taskColumn: { create } }), leaderA(), input('#22C55E'));
+    const r = await createTaskColumn(
+      txRuns({ taskColumn: { create } }),
+      leaderA(),
+      input('#22C55E')
+    );
     expect(r).toEqual({ ok: true, id: 'c1' });
     expect(create.mock.calls[0][0].data.color).toBe('#22C55E');
   });

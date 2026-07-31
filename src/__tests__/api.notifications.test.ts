@@ -6,22 +6,22 @@ const {
   orderFindMany,
   queryRaw,
   requireSession,
-  requireRole
+  requireRole,
 } = vi.hoisted(() => ({
   notificationFindMany: vi.fn(),
   notificationUpdateMany: vi.fn(),
   orderFindMany: vi.fn(),
   queryRaw: vi.fn(),
   requireSession: vi.fn(),
-  requireRole: vi.fn()
+  requireRole: vi.fn(),
 }));
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     notification: { findMany: notificationFindMany, updateMany: notificationUpdateMany },
     order: { findMany: orderFindMany },
-    $queryRaw: queryRaw
-  }
+    $queryRaw: queryRaw,
+  },
 }));
 vi.mock('@/lib/auth/guard', () => ({ requireSession, requireRole }));
 
@@ -33,17 +33,17 @@ const managerSession = {
   sub: 'mgr-1',
   role: 'manager' as const,
   managedOrgIds: ['orgA'],
-  companyId: 'cmp-1'
+  companyId: 'cmp-1',
 };
 const partnerSession = {
   sub: 'u-partner',
   role: 'partner' as const,
-  partnerId: 'p1'
+  partnerId: 'p1',
 };
 const orgSession = {
   sub: 'u-org',
   role: 'organization' as const,
-  organizationId: 'org-1'
+  organizationId: 'org-1',
 };
 
 const unauthorizedResponse = Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -53,7 +53,7 @@ function jsonReq(body: unknown, method = 'PATCH') {
   return new Request('http://x/api/notifications', {
     method,
     body: JSON.stringify(body),
-    headers: { 'content-type': 'application/json' }
+    headers: { 'content-type': 'application/json' },
   });
 }
 
@@ -61,7 +61,7 @@ function badJsonReq() {
   return new Request('http://x/api/notifications', {
     method: 'PATCH',
     body: 'NOT JSON',
-    headers: { 'content-type': 'application/json' }
+    headers: { 'content-type': 'application/json' },
   });
 }
 
@@ -86,7 +86,7 @@ describe('GET /api/notifications', () => {
   it('returns 403 when requireRole fails (e.g. student role)', async () => {
     requireSession.mockResolvedValue({
       ok: true,
-      value: { sub: 'u-student', role: 'student' }
+      value: { sub: 'u-student', role: 'student' },
     });
     requireRole.mockReturnValue({ ok: false, response: forbiddenResponse });
     const res = await GET();
@@ -132,7 +132,7 @@ describe('GET /api/notifications', () => {
       sub: 'mgr-2',
       role: 'manager' as const,
       managedOrgIds: [] as string[],
-      companyId: 'cmp-1'
+      companyId: 'cmp-1',
     };
     requireSession.mockResolvedValue({ ok: true, value: noOrgManagerSession });
     requireRole.mockReturnValue({ ok: true, value: noOrgManagerSession });
@@ -230,7 +230,7 @@ describe('PATCH /api/notifications', () => {
   it('returns 403 when requireRole fails', async () => {
     requireSession.mockResolvedValue({
       ok: true,
-      value: { sub: 'u-student', role: 'student' }
+      value: { sub: 'u-student', role: 'student' },
     });
     requireRole.mockReturnValue({ ok: false, response: forbiddenResponse });
     const res = await PATCH(jsonReq({ id: 'n1' }));

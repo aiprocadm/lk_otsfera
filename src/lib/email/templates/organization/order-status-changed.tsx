@@ -7,7 +7,7 @@ const EXECUTION_LABELS: Record<ExecutionStatus, string> = {
   in_progress: 'В работе',
   on_hold: 'На паузе',
   completed: 'Завершён',
-  cancelled: 'Отменён'
+  cancelled: 'Отменён',
 };
 
 const FINANCIAL_LABELS: Record<FinancialStatus, string> = {
@@ -15,7 +15,7 @@ const FINANCIAL_LABELS: Record<FinancialStatus, string> = {
   billed: 'Счёт выставлен',
   partially_paid: 'Частично оплачен',
   paid: 'Оплачен',
-  refunded: 'Возврат'
+  refunded: 'Возврат',
 };
 
 export type OrgOrderStatusChangedProps = {
@@ -69,14 +69,13 @@ export function orgOrderStatusChangedSubject(props: OrgOrderStatusChangedProps):
 
 export function orgOrderStatusChangedText(props: OrgOrderStatusChangedProps): string {
   const orderLabel = props.orderNumber ? `№ ${props.orderNumber}` : `«${props.orderTitle}»`;
-  const dimensionLabel =
-    props.dimension === 'execution' ? 'Статус заказа' : 'Финансовый статус';
+  const dimensionLabel = props.dimension === 'execution' ? 'Статус заказа' : 'Финансовый статус';
   const oldLabel = statusLabel(props.dimension, props.oldStatus);
   const newLabel = statusLabel(props.dimension, props.newStatus);
   return [
     `По заказу ${orderLabel} (${props.organizationName}) ${dimensionLabel.toLowerCase()} изменён:`,
     `${oldLabel} → ${newLabel}.`,
     '',
-    `Открыть заказ: ${props.orderUrl}`
+    `Открыть заказ: ${props.orderUrl}`,
   ].join('\n');
 }

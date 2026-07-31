@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React, { useState } from 'react';
-import { render, screen, fireEvent, act , cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
 import {
   PartyAutocomplete,
-  type PartyAutocompleteSuggestion
+  type PartyAutocompleteSuggestion,
 } from '@/components/party/party-autocomplete';
 
 /**
@@ -22,21 +22,27 @@ const SUGGESTION: PartyAutocompleteSuggestion = {
   inn: '7707083893',
   kpp: '770701001',
   ogrn: '1027700092661',
-  address: 'г. Москва, ул. Ленина, 1'
+  address: 'г. Москва, ул. Ленина, 1',
 };
 const SUGGESTION_2: PartyAutocompleteSuggestion = {
   name: 'ООО Василёк',
   inn: '7707083894',
   kpp: null,
   ogrn: null,
-  address: null
+  address: null,
 };
 
 function okJson(body: unknown) {
   return { ok: true, json: async () => body };
 }
 
-function Harness({ onSelect, noId }: { onSelect: (s: PartyAutocompleteSuggestion) => void; noId?: boolean }) {
+function Harness({
+  onSelect,
+  noId,
+}: {
+  onSelect: (s: PartyAutocompleteSuggestion) => void;
+  noId?: boolean;
+}) {
   const [value, setValue] = useState('');
   return (
     <PartyAutocomplete
@@ -47,7 +53,7 @@ function Harness({ onSelect, noId }: { onSelect: (s: PartyAutocompleteSuggestion
         setValue(s.name);
         onSelect(s);
       }}
-      placeholder='Название компании'
+      placeholder="Название компании"
     />
   );
 }
@@ -217,7 +223,12 @@ describe('PartyAutocomplete — клавиатура', () => {
     // Первый запрос завис и упадёт позже; второй успел показать список.
     // Ошибка первого не должна закрыть список второго.
     let rejectStale: ((e: unknown) => void) | null = null;
-    fetchMock.mockImplementationOnce(() => new Promise((_r, rej) => { rejectStale = rej; }));
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise((_r, rej) => {
+          rejectStale = rej;
+        })
+    );
     fireEvent.change(input(), { target: { value: 'ром' } });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(300);

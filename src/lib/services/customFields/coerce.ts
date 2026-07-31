@@ -51,7 +51,7 @@ export const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
   multiselect: 'Множественный выбор',
   phone: 'Телефон',
   email: 'E-mail',
-  url: 'Ссылка'
+  url: 'Ссылка',
 };
 
 /** Типы, которым обязателен непустой список вариантов. */

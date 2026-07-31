@@ -9,29 +9,31 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createNotification, deliverNotificationToUser, resolveOrgManagerRecipients } = vi.hoisted(() => ({
-  createNotification: vi.fn(),
-  deliverNotificationToUser: vi.fn(),
-  resolveOrgManagerRecipients: vi.fn()
-}));
+const { createNotification, deliverNotificationToUser, resolveOrgManagerRecipients } = vi.hoisted(
+  () => ({
+    createNotification: vi.fn(),
+    deliverNotificationToUser: vi.fn(),
+    resolveOrgManagerRecipients: vi.fn(),
+  })
+);
 vi.mock('@/lib/notifications', () => ({
   createNotification,
   deliverNotificationToUser,
-  resolveOrgManagerRecipients
+  resolveOrgManagerRecipients,
 }));
 
 const { logWarn } = vi.hoisted(() => ({ logWarn: vi.fn() }));
 vi.mock('@/lib/logging', () => ({
-  log: { warn: logWarn, info: vi.fn(), error: vi.fn(), debug: vi.fn() }
+  log: { warn: logWarn, info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
+import type { ClientRequest } from '@prisma/client';
 import { CHANNEL_RECIPIENT_SELECT } from '@/lib/notifications/channels/types';
 import {
   notifyManagersClientRequestSubmitted,
   notifySubmitterClientRequestStatus,
-  submitterRequestUrl
+  submitterRequestUrl,
 } from '@/lib/services/clientRequests/notify';
-import type { ClientRequest } from '@prisma/client';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -46,7 +48,7 @@ const request = (over: Partial<ClientRequest> = {}): ClientRequest =>
     companyName: 'ООО Ромашка',
     subject: 'Обучение',
     rejectedReason: null,
-    ...over
+    ...over,
   }) as ClientRequest;
 
 function db(over: Record<string, unknown> = {}) {
@@ -55,14 +57,16 @@ function db(over: Record<string, unknown> = {}) {
   const prisma = {
     organizationManager: { findMany: omFindMany },
     user: { findMany: userFindMany },
-    ...over
+    ...over,
   };
   return { prisma: prisma as never, omFindMany, userFindMany };
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  createNotification.mockImplementation(async ({ userId }: { userId: string }) => ({ id: `n-${userId}` }));
+  createNotification.mockImplementation(async ({ userId }: { userId: string }) => ({
+    id: `n-${userId}`,
+  }));
   deliverNotificationToUser.mockResolvedValue({});
   resolveOrgManagerRecipients.mockResolvedValue([]);
 });
@@ -71,8 +75,12 @@ beforeEach(() => {
 
 describe('submitterRequestUrl', () => {
   it('partner_cabinet → /partner/requests/<id>, иначе — /organization/requests/<id>', () => {
-    expect(submitterRequestUrl({ id: 'R1', source: 'partner_cabinet' })).toBe('/partner/requests/R1');
-    expect(submitterRequestUrl({ id: 'R2', source: 'organization_cabinet' })).toBe('/organization/requests/R2');
+    expect(submitterRequestUrl({ id: 'R1', source: 'partner_cabinet' })).toBe(
+      '/partner/requests/R1'
+    );
+    expect(submitterRequestUrl({ id: 'R2', source: 'organization_cabinet' })).toBe(
+      '/organization/requests/R2'
+    );
     expect(submitterRequestUrl({ id: 'R3', source: 'website' })).toBe('/organization/requests/R3');
   });
 });
@@ -86,7 +94,9 @@ describe('notifyManagersClientRequestSubmitted — org-заявка', () => {
     const req = request({ source: 'organization_cabinet', organizationId: 'o1', partnerId: null });
     await notifyManagersClientRequestSubmitted(prisma, req);
 
-    expect(resolveOrgManagerRecipients).toHaveBeenCalledWith(prisma, 'o1', { excludeUserId: 'sub-1' });
+    expect(resolveOrgManagerRecipients).toHaveBeenCalledWith(prisma, 'o1', {
+      excludeUserId: 'sub-1',
+    });
     expect(omFindMany).not.toHaveBeenCalled(); // партнёрская ветка не задействована
     expect(createNotification).toHaveBeenCalledTimes(2);
     expect(createNotification).toHaveBeenCalledWith({
@@ -96,7 +106,7 @@ describe('notifyManagersClientRequestSubmitted — org-заявка', () => {
       type: 'client_request_submitted',
       title: 'Новое обращение клиента',
       body: 'ООО Ромашка: Обучение',
-      meta: { requestId: 'R1', url: '/manager/requests' }
+      meta: { requestId: 'R1', url: '/manager/requests' },
     });
     expect(deliverNotificationToUser).toHaveBeenCalledWith({
       userId: 'm2',
@@ -104,7 +114,7 @@ describe('notifyManagersClientRequestSubmitted — org-заявка', () => {
       body: 'ООО Ромашка: Обучение',
       type: 'client_request_submitted',
       url: '/manager/requests',
-      dedupKey: 'n-m2'
+      dedupKey: 'n-m2',
     });
   });
 });
@@ -116,7 +126,7 @@ describe('notifyManagersClientRequestSubmitted — партнёрская зая
       { userId: 'm1' },
       { userId: 'm1' }, // дубль (менеджер на двух организациях)
       { userId: 'sub-1' }, // сам податель
-      { userId: 'm2' }
+      { userId: 'm2' },
     ]);
     userFindMany.mockResolvedValue([{ id: 'm1' }, { id: 'm2' }]);
 
@@ -125,11 +135,11 @@ describe('notifyManagersClientRequestSubmitted — партнёрская зая
     expect(resolveOrgManagerRecipients).not.toHaveBeenCalled();
     expect(omFindMany).toHaveBeenCalledWith({
       where: { isActive: true, organization: { partnerId: 'p1' } },
-      select: { userId: true }
+      select: { userId: true },
     });
     expect(userFindMany).toHaveBeenCalledWith({
       where: { id: { in: ['m1', 'm2'] }, role: 'manager', isActive: true },
-      select: CHANNEL_RECIPIENT_SELECT
+      select: CHANNEL_RECIPIENT_SELECT,
     });
     expect(createNotification).toHaveBeenCalledTimes(2);
     expect(deliverNotificationToUser).toHaveBeenCalledTimes(2);
@@ -137,8 +147,9 @@ describe('notifyManagersClientRequestSubmitted — партнёрская зая
 
   it('после дедупа/исключения никого → user.findMany не зовётся, уведомлений нет', async () => {
     const { prisma, userFindMany } = db();
-    (prisma as { organizationManager: { findMany: ReturnType<typeof vi.fn> } }).organizationManager.findMany =
-      vi.fn().mockResolvedValue([{ userId: 'sub-1' }]);
+    (
+      prisma as { organizationManager: { findMany: ReturnType<typeof vi.fn> } }
+    ).organizationManager.findMany = vi.fn().mockResolvedValue([{ userId: 'sub-1' }]);
     await notifyManagersClientRequestSubmitted(prisma, request());
     expect(userFindMany).not.toHaveBeenCalled();
     expect(createNotification).not.toHaveBeenCalled();
@@ -147,7 +158,10 @@ describe('notifyManagersClientRequestSubmitted — партнёрская зая
 
   it('нет ни организации, ни партнёра (website) → тихо без fan-out', async () => {
     const { prisma, omFindMany } = db();
-    await notifyManagersClientRequestSubmitted(prisma, request({ source: 'website', partnerId: null }));
+    await notifyManagersClientRequestSubmitted(
+      prisma,
+      request({ source: 'website', partnerId: null })
+    );
     expect(resolveOrgManagerRecipients).not.toHaveBeenCalled();
     expect(omFindMany).not.toHaveBeenCalled();
     expect(createNotification).not.toHaveBeenCalled();
@@ -193,7 +207,7 @@ describe('notifySubmitterClientRequestStatus', () => {
       type: 'client_request_status_changed',
       title: 'Обращение — статус «В работе»',
       body: 'Обращение «Обучение» (ООО Ромашка) — статус «В работе».',
-      meta: { requestId: 'R1', status: 'in_triage', url: '/partner/requests/R1' }
+      meta: { requestId: 'R1', status: 'in_triage', url: '/partner/requests/R1' },
     });
     expect(deliverNotificationToUser).toHaveBeenCalledWith({
       userId: 'sub-1',
@@ -201,7 +215,7 @@ describe('notifySubmitterClientRequestStatus', () => {
       body: 'Обращение «Обучение» (ООО Ромашка) — статус «В работе».',
       type: 'client_request_status_changed',
       url: '/partner/requests/R1',
-      dedupKey: 'n-sub-1'
+      dedupKey: 'n-sub-1',
     });
   });
 
@@ -209,12 +223,17 @@ describe('notifySubmitterClientRequestStatus', () => {
     const { prisma } = db();
     await notifySubmitterClientRequestStatus(
       prisma,
-      request({ source: 'organization_cabinet', organizationId: 'o1', partnerId: null, status: 'converted' })
+      request({
+        source: 'organization_cabinet',
+        organizationId: 'o1',
+        partnerId: null,
+        status: 'converted',
+      })
     );
     expect(createNotification).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Обращение — статус «Принята»',
-        meta: { requestId: 'R1', status: 'converted', url: '/organization/requests/R1' }
+        meta: { requestId: 'R1', status: 'converted', url: '/organization/requests/R1' },
       })
     );
   });
@@ -227,14 +246,17 @@ describe('notifySubmitterClientRequestStatus', () => {
     );
     expect(createNotification).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: 'Обращение «Обучение» (ООО Ромашка) — статус «Отклонена». Причина: нет мест'
+        body: 'Обращение «Обучение» (ООО Ромашка) — статус «Отклонена». Причина: нет мест',
       })
     );
   });
 
   it('rejected без причины: хвоста «Причина:» нет', async () => {
     const { prisma } = db();
-    await notifySubmitterClientRequestStatus(prisma, request({ status: 'rejected', rejectedReason: null }));
+    await notifySubmitterClientRequestStatus(
+      prisma,
+      request({ status: 'rejected', rejectedReason: null })
+    );
     const body = createNotification.mock.calls[0][0].body as string;
     expect(body).toBe('Обращение «Обучение» (ООО Ромашка) — статус «Отклонена».');
   });

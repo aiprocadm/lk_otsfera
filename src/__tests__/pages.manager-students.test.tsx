@@ -13,12 +13,17 @@ vi.mock('@/lib/services/manager/students', () => ({ listStudents }));
 
 vi.mock('@/components/manager/manager-students-table', () => ({
   ManagerStudentsTable: (props: { rows: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'students-table' }, JSON.stringify(props.rows))
+    React.createElement('div', { 'data-testid': 'students-table' }, JSON.stringify(props.rows)),
 }));
 
 import ManagerStudentsPage from '@/app/manager/students/page';
 
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 
 describe('ManagerStudentsPage', () => {
   beforeEach(() => {
@@ -34,7 +39,10 @@ describe('ManagerStudentsPage', () => {
       ManagerStudentsPage({ searchParams: Promise.resolve({ q: 'Иван' }) })
     );
 
-    expect(listStudents).toHaveBeenCalledWith({}, expect.objectContaining({ session: SESSION, q: 'Иван', cursor: undefined }));
+    expect(listStudents).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ session: SESSION, q: 'Иван', cursor: undefined })
+    );
     expect(container.textContent).toContain('Сотрудники');
     expect(container.querySelector('input[name="q"]')?.getAttribute('value')).toBe('Иван');
     expect(container.textContent).not.toContain('Дальше');
@@ -49,7 +57,9 @@ describe('ManagerStudentsPage', () => {
     );
 
     const link = container.querySelector('a');
-    expect(link?.getAttribute('href')).toBe('/manager/students?q=%D0%98%D0%B2%D0%B0%D0%BD&cursor=cur-2');
+    expect(link?.getAttribute('href')).toBe(
+      '/manager/students?q=%D0%98%D0%B2%D0%B0%D0%BD&cursor=cur-2'
+    );
   });
 
   it('renders with no query and no cursor (defaults)', async () => {
@@ -60,7 +70,10 @@ describe('ManagerStudentsPage', () => {
       ManagerStudentsPage({ searchParams: Promise.resolve({}) })
     );
 
-    expect(listStudents).toHaveBeenCalledWith({}, expect.objectContaining({ q: undefined, cursor: undefined }));
+    expect(listStudents).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ q: undefined, cursor: undefined })
+    );
     expect(container.querySelector('input[name="q"]')?.getAttribute('value')).toBe('');
   });
 });

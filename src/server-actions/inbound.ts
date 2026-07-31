@@ -20,11 +20,14 @@ import { log } from '@/lib/logging';
  * `createContactFromInboundAction` (src/server-actions/contacts.ts) to seed
  * the new contact's channel from the message that created it.
  */
-export const CHANNEL_TO_CONTACT_TYPE: Record<'telegram' | 'max' | 'whatsapp' | 'email', ContactChannelType> = {
+export const CHANNEL_TO_CONTACT_TYPE: Record<
+  'telegram' | 'max' | 'whatsapp' | 'email',
+  ContactChannelType
+> = {
   telegram: 'telegram',
   max: 'max',
   whatsapp: 'whatsapp',
-  email: 'email'
+  email: 'email',
 };
 
 export type BindInboundMessageArgs = {
@@ -35,8 +38,7 @@ export type BindInboundMessageArgs = {
 };
 
 export type BindInboundMessageResult =
-  | { ok: true }
-  | { ok: false; error: 'forbidden' | 'not_found' };
+  { ok: true } | { ok: false; error: 'forbidden' | 'not_found' };
 
 /**
  * Binds an unresolved/mis-resolved InboundMessage to a specific organization
@@ -63,7 +65,7 @@ export async function bindInboundMessageAction(
 
   const message = await prisma.inboundMessage.findUnique({
     where: { id: args.inboundMessageId },
-    select: { id: true, channel: true, senderRef: true, companyId: true, status: true }
+    select: { id: true, channel: true, senderRef: true, companyId: true, status: true },
   });
   if (!message) return { ok: false, error: 'not_found' };
 
@@ -76,7 +78,7 @@ export async function bindInboundMessageAction(
 
   const org = await prisma.organization.findUnique({
     where: { id: args.organizationId },
-    select: { id: true, companyId: true }
+    select: { id: true, companyId: true },
   });
   if (!org) return { ok: false, error: 'not_found' };
 
@@ -104,9 +106,10 @@ export async function bindInboundMessageAction(
   if (args.contactId) {
     const contact = await prisma.contact.findUnique({
       where: { id: args.contactId },
-      select: { id: true, companyId: true, organizationId: true }
+      select: { id: true, companyId: true, organizationId: true },
     });
-    if (!contact || contact.companyId !== session.companyId) return { ok: false, error: 'forbidden' };
+    if (!contact || contact.companyId !== session.companyId)
+      return { ok: false, error: 'forbidden' };
     if (contact.organizationId && contact.organizationId !== args.organizationId) {
       return { ok: false, error: 'forbidden' };
     }
@@ -119,7 +122,7 @@ export async function bindInboundMessageAction(
   if (args.orderId) {
     const order = await prisma.order.findUnique({
       where: { id: args.orderId },
-      select: { id: true, organizationId: true, companyId: true }
+      select: { id: true, organizationId: true, companyId: true },
     });
     const orderInScope =
       !!order &&
@@ -129,7 +132,7 @@ export async function bindInboundMessageAction(
     if (orderInScope) {
       const thread = await prisma.orderThread.findUnique({
         where: { orderId_side: { orderId: args.orderId, side: 'org' } },
-        select: { id: true }
+        select: { id: true },
       });
       threadId = thread?.id ?? null;
     }
@@ -144,17 +147,18 @@ export async function bindInboundMessageAction(
       contactId,
       status: 'bound',
       boundAt: new Date(),
-      boundById: session.sub
-    }
+      boundById: session.sub,
+    },
   });
 
   if (contactId) {
-    const channelType = CHANNEL_TO_CONTACT_TYPE[message.channel as keyof typeof CHANNEL_TO_CONTACT_TYPE];
+    const channelType =
+      CHANNEL_TO_CONTACT_TYPE[message.channel as keyof typeof CHANNEL_TO_CONTACT_TYPE];
     await captureChannel(prisma, {
       contactId,
       companyId: org.companyId,
       type: channelType,
-      value: message.senderRef
+      value: message.senderRef,
     });
   }
 
@@ -163,7 +167,7 @@ export async function bindInboundMessageAction(
     entity: 'order_thread',
     entityId: args.inboundMessageId,
     userId: session.sub,
-    after: { organizationId: args.organizationId, threadId, contactId }
+    after: { organizationId: args.organizationId, threadId, contactId },
   });
 
   return { ok: true };
@@ -176,7 +180,10 @@ export type ReplyInboundArgs = {
 
 export type ReplyInboundResult =
   | { ok: true }
-  | { ok: false; error: 'forbidden' | 'not_found' | 'invalid' | 'reply_failed' | 'email_unsupported' };
+  | {
+      ok: false;
+      error: 'forbidden' | 'not_found' | 'invalid' | 'reply_failed' | 'email_unsupported';
+    };
 
 /**
  * Sends a manager reply to an inbound message through the existing outbound
@@ -186,14 +193,20 @@ export type ReplyInboundResult =
  * cross-company message is `forbidden`; bind it first via
  * `bindInboundMessageAction`.
  */
-export async function replyInboundAction(
-  args: ReplyInboundArgs
-): Promise<ReplyInboundResult> {
+export async function replyInboundAction(args: ReplyInboundArgs): Promise<ReplyInboundResult> {
   const session = await requireManager();
 
   const message = await prisma.inboundMessage.findUnique({
     where: { id: args.inboundMessageId },
-    select: { id: true, channel: true, senderRef: true, subject: true, companyId: true, threadId: true, resolvedUserId: true }
+    select: {
+      id: true,
+      channel: true,
+      senderRef: true,
+      subject: true,
+      companyId: true,
+      threadId: true,
+      resolvedUserId: true,
+    },
   });
   if (!message) return { ok: false, error: 'not_found' };
 
@@ -216,16 +229,16 @@ export async function replyInboundAction(
   if (message.threadId) {
     try {
       await prisma.message.create({
-        data: { threadId: message.threadId, authorId: session.sub, body: text }
+        data: { threadId: message.threadId, authorId: session.sub, body: text },
       });
       const thread = await prisma.orderThread.update({
         where: { id: message.threadId },
         data: { lastMessageAt: new Date() },
-        select: { orderId: true }
+        select: { orderId: true },
       });
       const order = await prisma.order.findUnique({
         where: { id: thread.orderId },
-        select: { id: true, organizationId: true, orderNumber: true, title: true }
+        select: { id: true, organizationId: true, orderNumber: true, title: true },
       });
       if (order?.organizationId) {
         await notifyOrgUsers(prisma, {
@@ -235,14 +248,14 @@ export async function replyInboundAction(
             orderId: order.id,
             orderNumber: order.orderNumber,
             orderTitle: order.title,
-            commentExcerpt: text.slice(0, 200)
-          }
+            commentExcerpt: text.slice(0, 200),
+          },
         });
       }
     } catch (err) {
       log.warn('[inbound/replyInboundAction] thread mirror failed', {
         inboundMessageId: args.inboundMessageId,
-        error: err instanceof Error ? err.message : String(err)
+        error: err instanceof Error ? err.message : String(err),
       });
     }
   }
@@ -252,14 +265,14 @@ export async function replyInboundAction(
     entity: 'order_thread',
     entityId: args.inboundMessageId,
     userId: session.sub,
-    after: { channel: message.channel }
+    after: { channel: message.channel },
   });
 
   await writeSyncLog({
     entity: 'inbound',
     direction: 'outbound',
     operation: 'create',
-    status: 'success'
+    status: 'success',
   });
 
   return { ok: true };
@@ -268,8 +281,7 @@ export async function replyInboundAction(
 const ArchiveInboundSchema = z.object({ inboundMessageId: z.string().min(1).max(64) });
 
 export type ArchiveInboundResult =
-  | { ok: true }
-  | { ok: false; error: 'validation' | 'forbidden' | 'not_found' };
+  { ok: true } | { ok: false; error: 'validation' | 'forbidden' | 'not_found' };
 
 /**
  * Archives an inbound message (E2). Scope: the shared C8 predicate
@@ -302,7 +314,7 @@ export async function archiveInboundMessageAction(input: {
 
   const message = await prisma.inboundMessage.findUnique({
     where: { id: parsed.data.inboundMessageId },
-    select: { companyId: true, status: true }
+    select: { companyId: true, status: true },
   });
   if (!message) return { ok: false, error: 'not_found' };
 
@@ -323,7 +335,7 @@ export async function archiveInboundMessageAction(input: {
   // CAS on the status we based the decision on (see JSDoc: TOCTOU guard).
   const updated = await prisma.inboundMessage.updateMany({
     where: { id: parsed.data.inboundMessageId, status: message.status },
-    data
+    data,
   });
   if (updated.count === 0) return { ok: false, error: 'not_found' };
 
@@ -333,7 +345,7 @@ export async function archiveInboundMessageAction(input: {
     entityId: parsed.data.inboundMessageId,
     userId: session.sub,
     before: { status: message.status },
-    after: data
+    after: data,
   });
 
   revalidatePath('/manager/inbox');
@@ -362,7 +374,7 @@ export async function restoreInboundMessageAction(input: {
 
   const message = await prisma.inboundMessage.findUnique({
     where: { id: parsed.data.inboundMessageId },
-    select: { companyId: true, status: true, boundAt: true }
+    select: { companyId: true, status: true, boundAt: true },
   });
   if (!message) return { ok: false, error: 'not_found' };
 
@@ -374,7 +386,7 @@ export async function restoreInboundMessageAction(input: {
   // CAS on 'archived' (see JSDoc: TOCTOU guard).
   const updated = await prisma.inboundMessage.updateMany({
     where: { id: parsed.data.inboundMessageId, status: 'archived' },
-    data: { status: restoredStatus }
+    data: { status: restoredStatus },
   });
   if (updated.count === 0) return { ok: false, error: 'not_found' };
 
@@ -384,7 +396,7 @@ export async function restoreInboundMessageAction(input: {
     entityId: parsed.data.inboundMessageId,
     userId: session.sub,
     before: { status: 'archived' },
-    after: { status: restoredStatus }
+    after: { status: restoredStatus },
   });
 
   revalidatePath('/manager/inbox');

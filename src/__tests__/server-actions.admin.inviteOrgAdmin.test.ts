@@ -5,26 +5,25 @@ const {
   createOrgAdminInvite,
   sendOrgInviteEmail,
   revalidatePath,
-  organizationFindUnique
+  organizationFindUnique,
 } = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
   createOrgAdminInvite: vi.fn(),
   sendOrgInviteEmail: vi.fn(),
   revalidatePath: vi.fn(),
-  organizationFindUnique: vi.fn()
+  organizationFindUnique: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: { organization: { findUnique: organizationFindUnique } }
+  prisma: { organization: { findUnique: organizationFindUnique } },
 }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/email/send', () => ({ sendOrgInviteEmail }));
 vi.mock('@/lib/services/organization/invite', async () => {
-  const actual =
-    await vi.importActual<typeof import('@/lib/services/organization/invite')>(
-      '@/lib/services/organization/invite'
-    );
+  const actual = await vi.importActual<typeof import('@/lib/services/organization/invite')>(
+    '@/lib/services/organization/invite'
+  );
   return { ...actual, createOrgAdminInvite };
 });
 
@@ -49,7 +48,7 @@ describe('inviteAdminOrgAdminAction', () => {
     createOrgAdminInvite.mockResolvedValue({
       user: { id: 'u-1', email: 'cust@t.local' },
       inviteUrl: 'https://app/reset-password?token=xyz',
-      alreadyHasPassword: false
+      alreadyHasPassword: false,
     });
 
     const res = await inviteAdminOrgAdminAction(
@@ -99,7 +98,7 @@ describe('inviteAdminOrgAdminAction', () => {
     createOrgAdminInvite.mockResolvedValue({
       user: { id: 'u-exist', email: 'exist@t.local' },
       inviteUrl: null,
-      alreadyHasPassword: true
+      alreadyHasPassword: true,
     });
 
     const res = await inviteAdminOrgAdminAction(
@@ -114,7 +113,7 @@ describe('inviteAdminOrgAdminAction', () => {
     createOrgAdminInvite.mockResolvedValue({
       user: { id: 'u-new', email: 'new@t.local' },
       inviteUrl: 'https://app/reset-password?token=xyz',
-      alreadyHasPassword: false
+      alreadyHasPassword: false,
     });
     sendOrgInviteEmail.mockRejectedValue(new Error('SMTP error'));
 
@@ -132,7 +131,7 @@ describe('inviteAdminOrgAdminAction', () => {
     createOrgAdminInvite.mockResolvedValue({
       user: { id: 'u-new2', email: 'new2@t.local' },
       inviteUrl: 'https://app/reset-password?token=abc',
-      alreadyHasPassword: false
+      alreadyHasPassword: false,
     });
     sendOrgInviteEmail.mockResolvedValue({ status: 'sent' });
 
@@ -151,7 +150,7 @@ describe('inviteAdminOrgAdminAction', () => {
     createOrgAdminInvite.mockResolvedValue({
       user: { id: 'u-3', email: 'new3@t.local' },
       inviteUrl: 'https://app/reset-password?token=ghi',
-      alreadyHasPassword: false
+      alreadyHasPassword: false,
     });
     sendOrgInviteEmail.mockResolvedValue({ status: 'sent' });
 

@@ -24,13 +24,10 @@ describe('manager_cabinet (opt-in flag)', () => {
     expect(isFeatureEnabled('manager_cabinet')).toBe(false);
   });
 
-  it.each(['0', 'false', 'off', 'no', 'disabled'])(
-    'stays disabled for falsy value %s',
-    (val) => {
-      process.env.FEATURE_MANAGER_CABINET = val;
-      expect(isFeatureEnabled('manager_cabinet')).toBe(false);
-    }
-  );
+  it.each(['0', 'false', 'off', 'no', 'disabled'])('stays disabled for falsy value %s', (val) => {
+    process.env.FEATURE_MANAGER_CABINET = val;
+    expect(isFeatureEnabled('manager_cabinet')).toBe(false);
+  });
 
   it.each(['1', 'true', 'on', 'yes', 'enabled', 'True', ' 1 '])(
     'is ENABLED for truthy value %s',
@@ -91,7 +88,7 @@ describe('navByRole.manager — feature-flag gated', () => {
       '/manager/calls',
       '/manager/team',
       '/leader/dashboard',
-      '/manager/settings'
+      '/manager/settings',
     ]);
   });
 
@@ -152,7 +149,7 @@ describe('navByRole.manager — feature-flag gated', () => {
       'Документы',
       'Сотрудники',
       'Сообщения',
-      'Настройки'
+      'Настройки',
     ]);
   });
 
@@ -172,7 +169,7 @@ describe('navByRole.manager — feature-flag gated', () => {
       'Сотрудники',
       'Сообщения',
       'Команда',
-      'Настройки'
+      'Настройки',
     ]);
   });
 });

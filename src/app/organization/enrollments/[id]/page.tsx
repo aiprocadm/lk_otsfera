@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 /** Деталка заявки на обучение подателя-организации (этап 2 PR-2, ФТ-2.3). */
 export default async function OrganizationEnrollmentDetailPage({
-  params
+  params,
 }: {
   params: Promise<{ id: string }>;
 }) {
@@ -29,7 +29,7 @@ export default async function OrganizationEnrollmentDetailPage({
       activeOrgId={ctx.activeOrgId}
       viewerRole={ctx.viewerRole}
     >
-      <EnrollmentDetailView detail={r.request} backHref='/organization/enrollments' />
+      <EnrollmentDetailView detail={r.request} backHref="/organization/enrollments" />
     </OrgAppShell>
   );
 }

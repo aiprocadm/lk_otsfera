@@ -39,10 +39,7 @@ export function maxDeepLink(code: string): string {
  * не бросается наружу важный путь, возвращается `{ ok: false }` (диспетчер/
  * воркер решают, ретраить ли).
  */
-export async function sendMaxMessage(
-  chatId: string,
-  text: string
-): Promise<{ ok: boolean }> {
+export async function sendMaxMessage(chatId: string, text: string): Promise<{ ok: boolean }> {
   const token = cachedIntegrationSetting('max.botToken');
   if (!token) return { ok: false };
 
@@ -58,7 +55,7 @@ export async function sendMaxMessage(
     return { ok: res.ok };
   } catch {
     return { ok: false };
-  /* v8 ignore next 2 -- V8 marks the finally as a branch; the exceptional-completion edge is unreachable (bare catch catches all, clearTimeout cannot throw) */
+    /* v8 ignore next 2 -- V8 marks the finally as a branch; the exceptional-completion edge is unreachable (bare catch catches all, clearTimeout cannot throw) */
   } finally {
     clearTimeout(timer);
   }

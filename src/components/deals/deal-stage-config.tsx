@@ -2,10 +2,27 @@
 
 import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Input, Select, Field, Dialog, TableShell, THead, Th, Tr, Td, Badge, ColorSwatchPicker } from '@/components/ui';
+import {
+  Button,
+  Input,
+  Select,
+  Field,
+  Dialog,
+  TableShell,
+  THead,
+  Th,
+  Tr,
+  Td,
+  Badge,
+  ColorSwatchPicker,
+} from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
-import { createDealStageAction, updateDealStageAction, deleteDealStageAction } from '@/server-actions/deals';
+import {
+  createDealStageAction,
+  updateDealStageAction,
+  deleteDealStageAction,
+} from '@/server-actions/deals';
 import type { DealStageView } from '@/lib/services/deals/stages';
 
 /** Этап 6 (PR-1) — CRUD стадий сделок (клон funnel/stage-config под DealStageInput). */
@@ -13,11 +30,17 @@ import type { DealStageView } from '@/lib/services/deals/stages';
 const ANCHORS: { value: string; label: string }[] = [
   { value: 'open', label: 'В работе' },
   { value: 'won', label: 'Выиграна' },
-  { value: 'lost', label: 'Проиграна' }
+  { value: 'lost', label: 'Проиграна' },
 ];
 const anchorLabel = (a: string) => ANCHORS.find((x) => x.value === a)?.label ?? a;
 
-export function DealStageConfig({ stages, isDefault }: { stages: DealStageView[]; isDefault: boolean }) {
+export function DealStageConfig({
+  stages,
+  isDefault,
+}: {
+  stages: DealStageView[];
+  isDefault: boolean;
+}) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [editing, setEditing] = useState<{ target: DealStageView | null } | null>(null);
@@ -41,11 +64,13 @@ export function DealStageConfig({ stages, isDefault }: { stages: DealStageView[]
           <h2 className="text-lg font-semibold text-[#111111]">Стадии сделок</h2>
           {isDefault && (
             <p className="text-xs text-gray-500 mt-0.5">
-              Сейчас используются стадии по умолчанию. Создав свою первую стадию, вы замените набор — задайте все нужные стадии.
+              Сейчас используются стадии по умолчанию. Создав свою первую стадию, вы замените набор
+              — задайте все нужные стадии.
             </p>
           )}
           <p className="text-xs text-gray-500 mt-0.5">
-            Стадии с якорем «Выиграна» / «Проиграна» — терминальные: попавшая туда сделка завершается.
+            Стадии с якорем «Выиграна» / «Проиграна» — терминальные: попавшая туда сделка
+            завершается.
           </p>
         </div>
         <Button size="sm" onClick={() => setEditing({ target: null })}>
@@ -107,7 +132,7 @@ export function DealStageConfig({ stages, isDefault }: { stages: DealStageView[]
 function DealStageDialog({
   target,
   onClose,
-  onSaved
+  onSaved,
 }: {
   target: DealStageView | null;
   onClose: () => void;
@@ -131,13 +156,32 @@ function DealStageDialog({
   }
 
   return (
-    <Dialog open onClose={onClose} title={target ? 'Изменить стадию' : 'Новая стадия'} size="md" busy={submitting}>
+    <Dialog
+      open
+      onClose={onClose}
+      title={target ? 'Изменить стадию' : 'Новая стадия'}
+      size="md"
+      busy={submitting}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field htmlFor="ds-name" label="Название">
-          <Input id="ds-name" name="name" required maxLength={60} defaultValue={target?.name ?? ''} autoFocus />
+          <Input
+            id="ds-name"
+            name="name"
+            required
+            maxLength={60}
+            defaultValue={target?.name ?? ''}
+            autoFocus
+          />
         </Field>
         <Field htmlFor="ds-position" label="Позиция (порядок колонки)">
-          <Input id="ds-position" name="position" type="number" min={0} defaultValue={target?.position ?? 0} />
+          <Input
+            id="ds-position"
+            name="position"
+            type="number"
+            min={0}
+            defaultValue={target?.position ?? 0}
+          />
         </Field>
         <Field htmlFor="ds-anchor" label="Якорь статуса (переход lifecycle)">
           <Select id="ds-anchor" name="statusAnchor" defaultValue={target?.statusAnchor ?? 'open'}>
@@ -150,7 +194,12 @@ function DealStageDialog({
         </Field>
         <ColorSwatchPicker name="color" value={target?.color ?? null} />
         <label className="flex items-center gap-2 cursor-pointer text-sm">
-          <input type="checkbox" name="isTerminal" defaultChecked={target?.isTerminal ?? false} className="h-4 w-4 rounded" />
+          <input
+            type="checkbox"
+            name="isTerminal"
+            defaultChecked={target?.isTerminal ?? false}
+            className="h-4 w-4 rounded"
+          />
           <span>Терминальная стадия</span>
         </label>
         <div className="flex justify-end gap-2">

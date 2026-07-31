@@ -6,7 +6,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 const { actionMock, toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
   actionMock: vi.fn(),
   toastErrorMock: vi.fn(),
-  toastSuccessMock: vi.fn()
+  toastSuccessMock: vi.fn(),
 }));
 
 vi.mock('@/server-actions/staff/backupCodes', () => ({ regenerateBackupCodesAction: actionMock }));
@@ -26,7 +26,10 @@ describe('StaffBackupCodesSection', () => {
   });
 
   it('generating shows the 10 codes and the one-time warning', async () => {
-    actionMock.mockResolvedValue({ ok: true, codes: Array.from({ length: 10 }, (_, i) => `CODE${i}`) });
+    actionMock.mockResolvedValue({
+      ok: true,
+      codes: Array.from({ length: 10 }, (_, i) => `CODE${i}`),
+    });
     render(React.createElement(StaffBackupCodesSection, null));
 
     fireEvent.click(screen.getByRole('button', { name: 'Сгенерировать коды восстановления' }));
@@ -39,9 +42,12 @@ describe('StaffBackupCodesSection', () => {
 
   it('re-generating from the codes-shown state shows the pending label', async () => {
     let releaseSecond: (v: unknown) => void = () => {};
-    actionMock
-      .mockResolvedValueOnce({ ok: true, codes: ['AAAA', 'BBBB'] })
-      .mockImplementationOnce(() => new Promise((r) => { releaseSecond = r; }));
+    actionMock.mockResolvedValueOnce({ ok: true, codes: ['AAAA', 'BBBB'] }).mockImplementationOnce(
+      () =>
+        new Promise((r) => {
+          releaseSecond = r;
+        })
+    );
     render(React.createElement(StaffBackupCodesSection, null));
 
     fireEvent.click(screen.getByRole('button', { name: 'Сгенерировать коды восстановления' }));

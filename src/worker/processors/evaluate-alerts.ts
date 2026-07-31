@@ -1,5 +1,5 @@
-import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
+import type { Job } from 'bullmq';
 import { prisma } from '@/lib/db/prisma';
 import { getQueueStats } from '@/lib/services/admin/queueStats';
 import { getSyncLag } from '@/lib/services/admin/syncHealth';
@@ -21,13 +21,13 @@ export async function evaluateAlertsProcessor(
   const [queues, syncLag, pendingDeadLetters] = await Promise.all([
     getQueueStats(),
     getSyncLag(db),
-    db.oneCPendingRecord.count({ where: { status: 'dead' } })
+    db.oneCPendingRecord.count({ where: { status: 'dead' } }),
   ]);
   const breaches = evaluate({ queues, syncLag, pendingDeadLetters }, t);
 
   const active = await db.alertState.findMany({
     where: { status: 'firing' },
-    select: { key: true, lastNotifiedAt: true, message: true }
+    select: { key: true, lastNotifiedAt: true, message: true },
   });
   const now = new Date();
   const { toFire, toRenotify, toResolve } = diffAlerts(breaches, active, now, t.renotifyCooldownMs);
@@ -43,7 +43,7 @@ export async function evaluateAlertsProcessor(
         message: b.message,
         value: Math.min(Math.trunc(b.value), INT32_MAX),
         firstSeenAt: now,
-        lastNotifiedAt: now
+        lastNotifiedAt: now,
       },
       update: {
         status: 'firing',
@@ -51,8 +51,8 @@ export async function evaluateAlertsProcessor(
         message: b.message,
         value: Math.min(Math.trunc(b.value), INT32_MAX),
         lastNotifiedAt: now,
-        resolvedAt: null
-      }
+        resolvedAt: null,
+      },
     });
   }
 
@@ -62,7 +62,7 @@ export async function evaluateAlertsProcessor(
     await deliverAlert(db, { kind: 'resolve', message: `Восстановлено: ${prev?.message ?? key}` });
     await db.alertState.update({
       where: { key },
-      data: { status: 'resolved', resolvedAt: now }
+      data: { status: 'resolved', resolvedAt: now },
     });
   }
 

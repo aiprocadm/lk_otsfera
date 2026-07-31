@@ -1,7 +1,10 @@
 import { requireSession, requireRole } from '@/lib/auth/guard';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
-import { uploadStaffAttachment, getStaffAttachmentSignedUrl } from '@/lib/services/staffChat/attachments';
+import {
+  uploadStaffAttachment,
+  getStaffAttachmentSignedUrl,
+} from '@/lib/services/staffChat/attachments';
 
 /**
  * POST /api/staff-chat/attachment
@@ -55,11 +58,15 @@ export async function POST(req: Request) {
 
   if (!result.ok) {
     const status =
-      result.error === 'forbidden' ? 403 :
-      result.error === 'conversation_not_found' ? 404 :
-      result.error === 'too_large' ? 413 :
-      result.error === 'invalid_mime' ? 415 :
-      500; // 'storage'
+      result.error === 'forbidden'
+        ? 403
+        : result.error === 'conversation_not_found'
+          ? 404
+          : result.error === 'too_large'
+            ? 413
+            : result.error === 'invalid_mime'
+              ? 415
+              : 500; // 'storage'
     return Response.json({ ok: false, error: result.error }, { status });
   }
 
@@ -84,11 +91,15 @@ export async function GET(req: Request) {
 
   if (!result.ok) {
     const status =
-      result.error === 'forbidden' ? 403 :
-      result.error === 'not_found' ? 404 :
-      result.error === 'not_ready' ? 409 :
-      result.error === 'infected' ? 410 :
-      502; // 'storage'
+      result.error === 'forbidden'
+        ? 403
+        : result.error === 'not_found'
+          ? 404
+          : result.error === 'not_ready'
+            ? 409
+            : result.error === 'infected'
+              ? 410
+              : 502; // 'storage'
     return new Response(null, { status });
   }
 

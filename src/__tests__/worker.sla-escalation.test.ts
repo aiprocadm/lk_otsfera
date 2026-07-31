@@ -9,7 +9,7 @@ import { Prisma, type PrismaClient } from '@prisma/client';
 const { createNotification, deliverNotificationToUser, logError } = vi.hoisted(() => ({
   createNotification: vi.fn(),
   deliverNotificationToUser: vi.fn(),
-  logError: vi.fn()
+  logError: vi.fn(),
 }));
 vi.mock('@/lib/notifications', () => ({ createNotification, deliverNotificationToUser }));
 vi.mock('@/lib/logging', () => ({ log: { error: logError, info: vi.fn(), warn: vi.fn() } }));
@@ -19,8 +19,8 @@ vi.mock('@/lib/db/prisma', () => ({
     clientRequest: { findMany: vi.fn().mockResolvedValue([]) },
     enrollmentRequest: { findMany: vi.fn().mockResolvedValue([]) },
     inboundMessage: { findMany: vi.fn().mockResolvedValue([]) },
-    call: { findMany: vi.fn().mockResolvedValue([]) }
-  }
+    call: { findMany: vi.fn().mockResolvedValue([]) },
+  },
 }));
 
 import { runSlaEscalation, slaEscalationProcessor } from '@/worker/processors/sla-escalation';
@@ -29,9 +29,14 @@ const NOW = new Date('2026-07-26T12:00:00Z');
 const H = 3_600_000;
 const ago = (hours: number) => new Date(NOW.getTime() - hours * H);
 
-const P2002 = new Prisma.PrismaClientKnownRequestError('dup', { code: 'P2002', clientVersion: '5.0.0' });
+const P2002 = new Prisma.PrismaClientKnownRequestError('dup', {
+  code: 'P2002',
+  clientVersion: '5.0.0',
+});
 
-type Over = Partial<Record<'companies' | 'requests' | 'enrollments' | 'inbound' | 'calls', unknown[]>>;
+type Over = Partial<
+  Record<'companies' | 'requests' | 'enrollments' | 'inbound' | 'calls', unknown[]>
+>;
 
 function makePrisma(over: Over = {}, journalCreate?: ReturnType<typeof vi.fn>) {
   const create = journalCreate ?? vi.fn().mockResolvedValue({});
@@ -41,7 +46,7 @@ function makePrisma(over: Over = {}, journalCreate?: ReturnType<typeof vi.fn>) {
     enrollmentRequest: { findMany: vi.fn().mockResolvedValue(over.enrollments ?? []) },
     inboundMessage: { findMany: vi.fn().mockResolvedValue(over.inbound ?? []) },
     call: { findMany: vi.fn().mockResolvedValue(over.calls ?? []) },
-    slaEscalation: { create }
+    slaEscalation: { create },
   } as unknown as PrismaClient;
   return { prisma, create };
 }
@@ -60,13 +65,19 @@ describe('runSlaEscalation', () => {
     const { prisma, create } = makePrisma({
       companies: [COMPANY_A, COMPANY_B],
       requests: [
-        { id: 'r1', createdAt: ago(7), companyName: 'ООО', subject: 'Тема', organization: { companyId: 'co-A' } }
-      ]
+        {
+          id: 'r1',
+          createdAt: ago(7),
+          companyName: 'ООО',
+          subject: 'Тема',
+          organization: { companyId: 'co-A' },
+        },
+      ],
     });
     const res = await runSlaEscalation(prisma, NOW);
     expect(res).toEqual({ escalated: 1 });
     expect(create).toHaveBeenCalledWith({
-      data: { sourceType: 'client_request', sourceId: 'r1', companyId: 'co-A' }
+      data: { sourceType: 'client_request', sourceId: 'r1', companyId: 'co-A' },
     });
     // Только руководитель компании A (7ч > 6ч порога A; порог B не при чём).
     expect(createNotification).toHaveBeenCalledTimes(1);
@@ -74,7 +85,7 @@ describe('runSlaEscalation', () => {
       expect.objectContaining({
         userId: 'lead-A',
         type: 'sla_escalation',
-        meta: expect.objectContaining({ url: '/leader/intake' })
+        meta: expect.objectContaining({ url: '/leader/intake' }),
       })
     );
     const body = createNotification.mock.calls[0]![0].body as string;
@@ -86,9 +97,21 @@ describe('runSlaEscalation', () => {
     const { prisma, create } = makePrisma({
       companies: [COMPANY_A, COMPANY_B],
       requests: [
-        { id: 'r-young', createdAt: ago(5), companyName: 'X', subject: 's', organization: { companyId: 'co-A' } },
-        { id: 'r-b', createdAt: ago(50), companyName: 'Y', subject: 's', organization: { companyId: 'co-B' } }
-      ]
+        {
+          id: 'r-young',
+          createdAt: ago(5),
+          companyName: 'X',
+          subject: 's',
+          organization: { companyId: 'co-A' },
+        },
+        {
+          id: 'r-b',
+          createdAt: ago(50),
+          companyName: 'Y',
+          subject: 's',
+          organization: { companyId: 'co-B' },
+        },
+      ],
     });
     const res = await runSlaEscalation(prisma, NOW);
     expect(res).toEqual({ escalated: 0 });
@@ -98,8 +121,17 @@ describe('runSlaEscalation', () => {
   it('общая очередь (companyId=null): дефолт-порог 24ч, получатели — руководители всех компаний', async () => {
     const { prisma } = makePrisma({
       companies: [COMPANY_A, COMPANY_B],
-      inbound: [{ id: 'i1', createdAt: ago(25), companyId: null, senderDisplay: 'Пётр', senderRef: 'p@x.ru', subject: 'Вопрос' }],
-      calls: [{ id: 'c1', createdAt: ago(30), companyId: null, callerNumber: '+7999' }]
+      inbound: [
+        {
+          id: 'i1',
+          createdAt: ago(25),
+          companyId: null,
+          senderDisplay: 'Пётр',
+          senderRef: 'p@x.ru',
+          subject: 'Вопрос',
+        },
+      ],
+      calls: [{ id: 'c1', createdAt: ago(30), companyId: null, callerNumber: '+7999' }],
     });
     const res = await runSlaEscalation(prisma, NOW);
     expect(res).toEqual({ escalated: 2 });
@@ -117,12 +149,41 @@ describe('runSlaEscalation', () => {
     // руководитель понимает, что именно зависло.
     const { prisma } = makePrisma({
       companies: [COMPANY_A],
-      requests: [{ id: 'r-no-org', createdAt: ago(30), companyName: 'ООО Без-орг', subject: 'Тема', organization: null }],
-      enrollments: [
-        { id: 'e-legacy', createdAt: ago(30), organization: null, direction: null, legacyCourseTitle: 'Старый курс' },
-        { id: 'e-bare', createdAt: ago(30), organization: null, direction: null, legacyCourseTitle: null }
+      requests: [
+        {
+          id: 'r-no-org',
+          createdAt: ago(30),
+          companyName: 'ООО Без-орг',
+          subject: 'Тема',
+          organization: null,
+        },
       ],
-      inbound: [{ id: 'i-bare', createdAt: ago(30), companyId: null, senderDisplay: '   ', senderRef: 'anon@x.ru', subject: null }]
+      enrollments: [
+        {
+          id: 'e-legacy',
+          createdAt: ago(30),
+          organization: null,
+          direction: null,
+          legacyCourseTitle: 'Старый курс',
+        },
+        {
+          id: 'e-bare',
+          createdAt: ago(30),
+          organization: null,
+          direction: null,
+          legacyCourseTitle: null,
+        },
+      ],
+      inbound: [
+        {
+          id: 'i-bare',
+          createdAt: ago(30),
+          companyId: null,
+          senderDisplay: '   ',
+          senderRef: 'anon@x.ru',
+          subject: null,
+        },
+      ],
     });
 
     const res = await runSlaEscalation(prisma, NOW);
@@ -138,7 +199,18 @@ describe('runSlaEscalation', () => {
   it('дедуп: P2002 из журнала пропускает единицу без уведомлений; иные ошибки пробрасываются', async () => {
     const dup = vi.fn().mockRejectedValue(P2002);
     const { prisma } = makePrisma(
-      { companies: [COMPANY_A], enrollments: [{ id: 'e1', createdAt: ago(10), organization: { name: 'О', companyId: 'co-A' }, direction: { name: 'Высота' }, legacyCourseTitle: null }] },
+      {
+        companies: [COMPANY_A],
+        enrollments: [
+          {
+            id: 'e1',
+            createdAt: ago(10),
+            organization: { name: 'О', companyId: 'co-A' },
+            direction: { name: 'Высота' },
+            legacyCourseTitle: null,
+          },
+        ],
+      },
       dup
     );
     expect(await runSlaEscalation(prisma, NOW)).toEqual({ escalated: 0 });
@@ -146,7 +218,18 @@ describe('runSlaEscalation', () => {
 
     const boom = vi.fn().mockRejectedValue(new Error('db down'));
     const { prisma: p2 } = makePrisma(
-      { companies: [COMPANY_A], requests: [{ id: 'r1', createdAt: ago(10), companyName: 'X', subject: 's', organization: { companyId: 'co-A' } }] },
+      {
+        companies: [COMPANY_A],
+        requests: [
+          {
+            id: 'r1',
+            createdAt: ago(10),
+            companyName: 'X',
+            subject: 's',
+            organization: { companyId: 'co-A' },
+          },
+        ],
+      },
       boom
     );
     await expect(runSlaEscalation(p2, NOW)).rejects.toThrow('db down');
@@ -155,18 +238,36 @@ describe('runSlaEscalation', () => {
   it('без руководителей — единица пропускается (журнал не пишется)', async () => {
     const { prisma, create } = makePrisma({
       companies: [{ id: 'co-A', slaResponseHours: 6, users: [] }],
-      requests: [{ id: 'r1', createdAt: ago(10), companyName: 'X', subject: 's', organization: { companyId: 'co-A' } }]
+      requests: [
+        {
+          id: 'r1',
+          createdAt: ago(10),
+          companyName: 'X',
+          subject: 's',
+          organization: { companyId: 'co-A' },
+        },
+      ],
     });
     expect(await runSlaEscalation(prisma, NOW)).toEqual({ escalated: 0 });
     expect(create).not.toHaveBeenCalled();
   });
 
   it('сбой доставки одному получателю логируется, единица остаётся эскалированной', async () => {
-    createNotification.mockRejectedValueOnce(new Error('smtp down')).mockResolvedValue({ id: 'n2' });
+    createNotification
+      .mockRejectedValueOnce(new Error('smtp down'))
+      .mockResolvedValue({ id: 'n2' });
     const twoLeaders = { id: 'co-A', slaResponseHours: 6, users: [{ id: 'l1' }, { id: 'l2' }] };
     const { prisma } = makePrisma({
       companies: [twoLeaders],
-      requests: [{ id: 'r1', createdAt: ago(10), companyName: 'X', subject: 's', organization: { companyId: 'co-A' } }]
+      requests: [
+        {
+          id: 'r1',
+          createdAt: ago(10),
+          companyName: 'X',
+          subject: 's',
+          organization: { companyId: 'co-A' },
+        },
+      ],
     });
     expect(await runSlaEscalation(prisma, NOW)).toEqual({ escalated: 1 });
     expect(logError).toHaveBeenCalledTimes(1);

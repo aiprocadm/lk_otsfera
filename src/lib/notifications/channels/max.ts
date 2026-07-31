@@ -11,19 +11,14 @@ export const maxChannel: NotificationChannel = {
   key: 'max',
   isEnabledFor(user) {
     return (
-      isMaxEnabled() &&
-      !!user.maxChatId &&
-      channelPrefEnabled(user.notificationChannels, 'max')
+      isMaxEnabled() && !!user.maxChatId && channelPrefEnabled(user.notificationChannels, 'max')
     );
   },
   async send(user, payload) {
     if (!user.maxChatId) {
       return { status: 'skipped', reason: 'not_linked' };
     }
-    const result = await sendMaxMessage(
-      user.maxChatId,
-      `${payload.title}\n\n${payload.body}`
-    );
+    const result = await sendMaxMessage(user.maxChatId, `${payload.title}\n\n${payload.body}`);
     return result.ok ? { status: 'sent' } : { status: 'failed', reason: 'transport' };
   },
 };

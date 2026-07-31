@@ -19,7 +19,7 @@ describe('validateRequisites', () => {
       bic: '04 452 5225',
       bankAccount: '4070 2810 4000 0000 0001',
       kpp: '',
-      signerName: '   '
+      signerName: '   ',
     });
     expect(r.ok).toBe(true);
     if (r.ok) {
@@ -40,7 +40,7 @@ describe('validateRequisites', () => {
     [{ ogrn: '12345678901234' }, 'ОГРН'],
     [{ bic: '12345678' }, 'БИК'],
     [{ bankAccount: '123' }, 'Расчётный'],
-    [{ corrAccount: '1234567890123456789' }, 'Корреспондентский']
+    [{ corrAccount: '1234567890123456789' }, 'Корреспондентский'],
   ])('неверный формат %j → ошибка с «%s»', (input, word) => {
     const r = validateRequisites(input);
     expect(r.ok).toBe(false);
@@ -53,7 +53,7 @@ describe('validateRequisites', () => {
       { inn: '770708389301' },
       { ogrn: '1027700132195' },
       { ogrn: '304770000000000' },
-      { corrAccount: '30101810400000000225' }
+      { corrAccount: '30101810400000000225' },
     ]) {
       expect(validateRequisites(input).ok).toBe(true);
     }

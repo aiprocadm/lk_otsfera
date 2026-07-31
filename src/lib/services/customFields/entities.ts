@@ -11,7 +11,7 @@ export const CUSTOM_FIELD_ENTITIES = [
   'organization',
   'partner',
   'student',
-  'document'
+  'document',
 ] as const;
 
 export type CustomFieldEntity = (typeof CUSTOM_FIELD_ENTITIES)[number];
@@ -22,7 +22,7 @@ export const CUSTOM_FIELD_ENTITY_LABELS: Record<CustomFieldEntity, string> = {
   organization: 'Организация',
   partner: 'Партнёр',
   student: 'Сотрудник организации',
-  document: 'Документ'
+  document: 'Документ',
 };
 
 export function isCustomFieldEntity(value: string): value is CustomFieldEntity {

@@ -1,9 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import {
-  listOrganizations,
-  getOrganization
-} from '@/lib/services/manager/organizations';
+import { listOrganizations, getOrganization } from '@/lib/services/manager/organizations';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 let prisma: PrismaClient;
@@ -32,22 +29,22 @@ beforeAll(async () => {
   const company = await prisma.company.create({ data: { name: `MgrOrgC-${stamp}` } });
   companyId = company.id;
   const partner = await prisma.partner.create({
-    data: { name: `MgrOrgP-${stamp}`, commissionRate: 0.1 }
+    data: { name: `MgrOrgP-${stamp}`, commissionRate: 0.1 },
   });
   partnerId = partner.id;
 
   const orgA = await prisma.organization.create({
-    data: { name: `MgrOrg-AAA-${stamp}`, partnerId, companyId }
+    data: { name: `MgrOrg-AAA-${stamp}`, partnerId, companyId },
   });
   orgAId = orgA.id;
   const orgB = await prisma.organization.create({
-    data: { name: `MgrOrg-BBB-${stamp}`, partnerId, companyId }
+    data: { name: `MgrOrg-BBB-${stamp}`, partnerId, companyId },
   });
   orgBId = orgB.id;
   // orgC is *not* assigned to any of the test users — it's used to assert
   // out-of-scope visibility.
   const orgC = await prisma.organization.create({
-    data: { name: `MgrOrg-CCC-${stamp}`, partnerId, companyId }
+    data: { name: `MgrOrg-CCC-${stamp}`, partnerId, companyId },
   });
   orgCId = orgC.id;
 
@@ -56,8 +53,8 @@ beforeAll(async () => {
       email: `mgr-org-a-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Manager A',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   userAId = userA.id;
   const userB = await prisma.user.create({
@@ -65,8 +62,8 @@ beforeAll(async () => {
       email: `mgr-org-b-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Manager B',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   userBId = userB.id;
   const userGhost = await prisma.user.create({
@@ -74,20 +71,20 @@ beforeAll(async () => {
       email: `mgr-org-ghost-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Ghost Manager',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   userGhostId = userGhost.id;
 
   // userA → orgA + orgB (multi-assignment manager), userB → orgB only.
   await prisma.organizationManager.create({
-    data: { organizationId: orgAId, userId: userAId, isActive: true }
+    data: { organizationId: orgAId, userId: userAId, isActive: true },
   });
   await prisma.organizationManager.create({
-    data: { organizationId: orgBId, userId: userAId, isActive: true }
+    data: { organizationId: orgBId, userId: userAId, isActive: true },
   });
   await prisma.organizationManager.create({
-    data: { organizationId: orgBId, userId: userBId, isActive: true }
+    data: { organizationId: orgBId, userId: userBId, isActive: true },
   });
 
   // Counts seed: one student in orgA, one order each in orgA / orgB so the
@@ -96,8 +93,8 @@ beforeAll(async () => {
     data: {
       email: `mgr-org-stud-${stamp}@t.local`,
       name: 'Stud A',
-      organizationId: orgAId
-    }
+      organizationId: orgAId,
+    },
   });
   studentAId = studentA.id;
 
@@ -109,8 +106,8 @@ beforeAll(async () => {
       partnerId,
       organizationId: orgAId,
       executionStatus: 'in_progress',
-      totalAmount: 1000
-    }
+      totalAmount: 1000,
+    },
   });
   orderOrgAId = oA.id;
 
@@ -122,8 +119,8 @@ beforeAll(async () => {
       partnerId,
       organizationId: orgBId,
       executionStatus: 'pending',
-      totalAmount: 2000
-    }
+      totalAmount: 2000,
+    },
   });
   orderOrgBId = oB.id;
 });
@@ -135,7 +132,7 @@ afterAll(async () => {
   await prisma.notification.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.auditLog.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.comment.deleteMany({
-    where: { OR: [{ authorId: { in: userIds } }, { order: { organizationId: { in: orgIds } } }] }
+    where: { OR: [{ authorId: { in: userIds } }, { order: { organizationId: { in: orgIds } } }] },
   });
   await prisma.payment.deleteMany({ where: { order: { organizationId: { in: orgIds } } } });
   await prisma.document.deleteMany({ where: { order: { organizationId: { in: orgIds } } } });

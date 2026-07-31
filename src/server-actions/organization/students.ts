@@ -7,8 +7,7 @@ import { activeOrgIds } from '@/lib/auth/organizationPolicy';
 import { updateOrgStudentPosition } from '@/lib/services/organization/students';
 
 export type UpdateStudentPositionResult =
-  | { ok: true }
-  | { ok: false; error: 'forbidden' | 'validation' };
+  { ok: true } | { ok: false; error: 'forbidden' | 'validation' };
 
 /**
  * Правка должности сотрудника из его карточки (этап 9 PR-3, ФТ-12.2).
@@ -29,7 +28,7 @@ export async function updateStudentPositionAction(
   const res = await updateOrgStudentPosition(prisma, {
     organizationId,
     studentId,
-    position: String(formData.get('position') ?? '')
+    position: String(formData.get('position') ?? ''),
   });
   if (!res.ok) return res;
 

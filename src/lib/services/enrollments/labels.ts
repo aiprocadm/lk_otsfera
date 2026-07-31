@@ -11,7 +11,7 @@ export const ENROLLMENT_STATUS_LABEL: Record<EnrollmentStatus, string> = {
   rejected: 'Отклонена',
   provisioned: 'Зачислены',
   in_training: 'Идёт обучение',
-  certificates_ready: 'Удостоверения готовы'
+  certificates_ready: 'Удостоверения готовы',
 };
 
 export function enrollmentStatusLabel(status: EnrollmentStatus): string {

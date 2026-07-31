@@ -15,11 +15,11 @@ vi.mock('@/lib/ui/toast', () => ({ toast: { success } }));
 
 const { deliverOrderResultAction, approveDeliverablesAction } = vi.hoisted(() => ({
   deliverOrderResultAction: vi.fn(),
-  approveDeliverablesAction: vi.fn()
+  approveDeliverablesAction: vi.fn(),
 }));
 vi.mock('@/server-actions/manager/orderDelivery', () => ({
   deliverOrderResultAction,
-  approveDeliverablesAction
+  approveDeliverablesAction,
 }));
 
 import { OrderReadinessPanel } from '@/components/manager/order-readiness-panel';
@@ -28,7 +28,7 @@ const READY: OrderReadiness = { ready: true, gaps: [], items: [] };
 const NOT_READY: OrderReadiness = {
   ready: false,
   gaps: ['items_not_ready'],
-  items: [{ itemId: 'i1', studentName: 'Иванов Иван', gaps: ['certificate_scan_missing'] }]
+  items: [{ itemId: 'i1', studentName: 'Иванов Иван', gaps: ['certificate_scan_missing'] }],
 };
 
 const props = {
@@ -36,7 +36,7 @@ const props = {
   serviceType: 'training' as const,
   readiness: READY,
   deliveredAt: null,
-  deliverablesApproved: false
+  deliverablesApproved: false,
 };
 
 beforeEach(() => {
@@ -44,7 +44,7 @@ beforeEach(() => {
   deliverOrderResultAction.mockResolvedValue({
     ok: true,
     deliveredAt: '2026-07-27T10:00:00.000Z',
-    alreadyDelivered: false
+    alreadyDelivered: false,
   });
   approveDeliverablesAction.mockResolvedValue({ ok: true, approvedAt: '2026-07-27T09:00:00.000Z' });
 });
@@ -79,7 +79,7 @@ describe('OrderReadinessPanel', () => {
     render(
       React.createElement(OrderReadinessPanel, {
         ...props,
-        deliveredAt: '2026-07-27T10:00:00.000Z'
+        deliveredAt: '2026-07-27T10:00:00.000Z',
       })
     );
     expect(screen.queryByText('Передать результат клиенту')).toBeNull();
@@ -91,7 +91,7 @@ describe('OrderReadinessPanel', () => {
     deliverOrderResultAction.mockResolvedValue({
       ok: true,
       deliveredAt: '2026-07-01T10:00:00.000Z',
-      alreadyDelivered: true
+      alreadyDelivered: true,
     });
     render(React.createElement(OrderReadinessPanel, props));
     fireEvent.click(screen.getByText('Передать результат клиенту'));
@@ -99,7 +99,11 @@ describe('OrderReadinessPanel', () => {
   });
 
   it('ошибка «не готов» от сервиса показывается по-русски', async () => {
-    deliverOrderResultAction.mockResolvedValue({ ok: false, error: 'not_ready', readiness: NOT_READY });
+    deliverOrderResultAction.mockResolvedValue({
+      ok: false,
+      error: 'not_ready',
+      readiness: NOT_READY,
+    });
     render(React.createElement(OrderReadinessPanel, props));
     fireEvent.click(screen.getByText('Передать результат клиенту'));
     await waitFor(() =>
@@ -121,7 +125,7 @@ describe('OrderReadinessPanel', () => {
       React.createElement(OrderReadinessPanel, {
         ...props,
         serviceType: 'document_development',
-        readiness: { ready: false, gaps: ['deliverables_not_approved'], items: [] }
+        readiness: { ready: false, gaps: ['deliverables_not_approved'], items: [] },
       })
     );
     expect(screen.getByText('Менеджер не отметил работу согласованной')).toBeTruthy();
@@ -136,7 +140,7 @@ describe('OrderReadinessPanel', () => {
       React.createElement(OrderReadinessPanel, {
         ...props,
         serviceType: 'document_development',
-        readiness: { ready: false, gaps: ['deliverables_not_approved'], items: [] }
+        readiness: { ready: false, gaps: ['deliverables_not_approved'], items: [] },
       })
     );
     fireEvent.click(screen.getByText('Отметить работу согласованной'));
@@ -152,7 +156,7 @@ describe('OrderReadinessPanel', () => {
         ...props,
         serviceType: 'document_development',
         deliverablesApproved: true,
-        readiness: { ready: false, gaps: ['deliverables_missing'], items: [] }
+        readiness: { ready: false, gaps: ['deliverables_missing'], items: [] },
       })
     );
     expect(screen.queryByText('Отметить работу согласованной')).toBeNull();
@@ -163,7 +167,7 @@ describe('OrderReadinessPanel', () => {
       React.createElement(OrderReadinessPanel, {
         ...props,
         serviceType: 'document_development',
-        readiness: { ready: false, gaps: ['deliverables_not_approved'], items: [] }
+        readiness: { ready: false, gaps: ['deliverables_not_approved'], items: [] },
       })
     );
     fireEvent.click(screen.getByText('Отметить работу согласованной'));

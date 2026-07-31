@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { getSession, notFoundIfDisabled, listOrgStudents, recordPiiAccess, orgFindFirst } = vi.hoisted(() => ({
-  getSession: vi.fn(),
-  notFoundIfDisabled: vi.fn(),
-  listOrgStudents: vi.fn(),
-  recordPiiAccess: vi.fn().mockResolvedValue(undefined),
-  orgFindFirst: vi.fn()
-}));
+const { getSession, notFoundIfDisabled, listOrgStudents, recordPiiAccess, orgFindFirst } =
+  vi.hoisted(() => ({
+    getSession: vi.fn(),
+    notFoundIfDisabled: vi.fn(),
+    listOrgStudents: vi.fn(),
+    recordPiiAccess: vi.fn().mockResolvedValue(undefined),
+    orgFindFirst: vi.fn(),
+  }));
 vi.mock('@/lib/auth/session', () => ({ getSession }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: { organization: { findFirst: orgFindFirst } } }));
@@ -16,7 +17,9 @@ vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
 import { GET } from '@/app/api/enrollments/students/route';
 
 const req = (qs: string) => new Request(`http://x/api/enrollments/students${qs}`);
-const STUDENTS = [{ id: 'st1', name: 'Иван', email: 'i@x.ru', externalStudentId: null, createdAt: new Date() }];
+const STUDENTS = [
+  { id: 'st1', name: 'Иван', email: 'i@x.ru', externalStudentId: null, createdAt: new Date() },
+];
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -48,8 +51,8 @@ describe('GET /api/enrollments/students', () => {
       role: 'organization',
       organizationMemberships: [
         { organizationId: 'o1', isActive: true },
-        { organizationId: 'o2', isActive: false }
-      ]
+        { organizationId: 'o2', isActive: false },
+      ],
     });
     expect((await GET(req('?organizationId=o1'))).status).toBe(200);
     expect((await GET(req('?organizationId=o2'))).status).toBe(403); // неактивное членство
@@ -97,7 +100,7 @@ describe('GET /api/enrollments/students', () => {
       expect.objectContaining({
         context: 'enrollment_wizard_students',
         subjectIds: ['st1'],
-        meta: { take: 200, hasQuery: true }
+        meta: { take: 200, hasQuery: true },
       })
     );
   });

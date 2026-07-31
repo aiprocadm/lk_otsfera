@@ -5,7 +5,7 @@ import { notFoundIfDisabled } from '@/lib/featureFlags';
 import {
   listClientRequestAttachments,
   uploadClientRequestAttachment,
-  type ClientRequestAttachmentFailure
+  type ClientRequestAttachmentFailure,
 } from '@/lib/services/clientRequests/attachments';
 import { log } from '@/lib/logging';
 
@@ -33,10 +33,7 @@ function mapFailureToResponse(f: ClientRequestAttachmentFailure): Response {
   }
 }
 
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const disabled = notFoundIfDisabled('client_requests');
   if (disabled) return disabled;
 
@@ -54,10 +51,7 @@ export async function GET(
   }
 }
 
-export async function POST(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const disabled = notFoundIfDisabled('client_requests');
   if (disabled) return disabled;
 
@@ -82,8 +76,8 @@ export async function POST(
         name: file.name,
         /* v8 ignore next -- file.type is always '' in test env (FormData re-parsing strips MIME); tested in e2e */
         declaredMimeType: file.type || 'application/octet-stream',
-        size: file.size
-      }
+        size: file.size,
+      },
     });
     if (!result.ok) return mapFailureToResponse(result);
     const { attachment } = result;
@@ -93,7 +87,7 @@ export async function POST(
         name: attachment.name,
         size: attachment.size,
         mimeType: attachment.mimeType,
-        createdAt: attachment.createdAt
+        createdAt: attachment.createdAt,
       },
       { status: 201 }
     );

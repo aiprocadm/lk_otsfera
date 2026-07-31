@@ -11,13 +11,13 @@ const { IORedisConstructorMock, fakeQuit } = vi.hoisted(() => {
   const fakeQuit = vi.fn().mockResolvedValue('OK');
   const IORedisConstructorMock = vi.fn().mockImplementation(() => ({
     quit: fakeQuit,
-    ping: vi.fn().mockResolvedValue('PONG')
+    ping: vi.fn().mockResolvedValue('PONG'),
   }));
   return { IORedisConstructorMock, fakeQuit };
 });
 
 vi.mock('ioredis', () => ({
-  default: IORedisConstructorMock
+  default: IORedisConstructorMock,
 }));
 
 beforeEach(() => {
@@ -43,10 +43,10 @@ describe('getRedisConnection', () => {
     vi.stubEnv('REDIS_URL', 'redis://localhost:6379');
     const { getRedisConnection } = await import('@/lib/jobs/connection');
     const conn = getRedisConnection();
-    expect(IORedisConstructorMock).toHaveBeenCalledWith(
-      'redis://localhost:6379',
-      { maxRetriesPerRequest: null, enableReadyCheck: false }
-    );
+    expect(IORedisConstructorMock).toHaveBeenCalledWith('redis://localhost:6379', {
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+    });
     expect(conn).toBeDefined();
   });
 

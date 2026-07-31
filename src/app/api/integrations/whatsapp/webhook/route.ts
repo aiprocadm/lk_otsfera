@@ -51,7 +51,7 @@ export async function POST(req: Request): Promise<Response> {
     }).catch((e: unknown) => {
       log.error('[webhook/whatsapp] ingest failed', {
         externalId: m.externalId,
-        error: e instanceof Error ? e.message : String(e)
+        error: e instanceof Error ? e.message : String(e),
       });
     });
   }

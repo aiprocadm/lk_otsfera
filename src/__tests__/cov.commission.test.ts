@@ -78,11 +78,13 @@ function makeDetectDb(opts: {
     payment: { findMany: vi.fn().mockResolvedValue(opts.refunds) },
     commissionStatement: { findFirst: vi.fn().mockResolvedValue(opts.liveStatement ?? null) },
     commissionRateChange: { findMany: vi.fn().mockResolvedValue(opts.rateChanges ?? []) },
-    organizationCommissionRateChange: { findMany: vi.fn().mockResolvedValue(opts.orgChanges ?? []) },
+    organizationCommissionRateChange: {
+      findMany: vi.fn().mockResolvedValue(opts.orgChanges ?? []),
+    },
     commissionCorrection: {
-      create: vi.fn().mockImplementation(
-        opts.createImpl ?? (({ data }: any) => ({ id: 'new', ...data }))
-      ),
+      create: vi
+        .fn()
+        .mockImplementation(opts.createImpl ?? (({ data }: any) => ({ id: 'new', ...data }))),
     },
     partner: {
       findUnique: vi
@@ -216,8 +218,18 @@ describe('detectLateRefundCorrections — stray branches', () => {
 // corrections.ts — listCorrectionQueue branch@107 + resolveCorrection 140/141-146/148
 // ═════════════════════════════════════════════════════════════════════════════
 
-const leaderNoCompany = { role: 'manager', managerRole: 'leader', sub: 'u-leader', companyId: undefined } as any;
-const leaderSession = { role: 'manager', managerRole: 'leader', sub: 'u-leader', companyId: 'co-1' } as any;
+const leaderNoCompany = {
+  role: 'manager',
+  managerRole: 'leader',
+  sub: 'u-leader',
+  companyId: undefined,
+} as any;
+const leaderSession = {
+  role: 'manager',
+  managerRole: 'leader',
+  sub: 'u-leader',
+  companyId: 'co-1',
+} as any;
 const adminSession = { role: 'admin', sub: 'u-admin', companyId: null } as any;
 
 describe('listCorrectionQueue — branch@107 nullish', () => {
@@ -265,14 +277,18 @@ describe('resolveCorrection — leader-scope branch@140 + lines 141-146 + waive 
     const db = makeResolveDb({ id: 'c1', status: 'needs_review', partnerId: 'p1' }, null);
     await resolveCorrection(db, leaderNoCompany, { correctionId: 'c1', action: 'apply' });
     const scopeWhere = db.commissionCorrection.findFirst.mock.calls[0][0].where;
-    expect(scopeWhere.partner).toMatchObject({ organizations: { some: { companyId: '__none__' } } });
+    expect(scopeWhere.partner).toMatchObject({
+      organizations: { some: { companyId: '__none__' } },
+    });
   });
 
   it('branch@148 waive side: admin waive with reason → status waived', async () => {
     let updateArg: any;
     const db = {
       commissionCorrection: {
-        findUnique: vi.fn().mockResolvedValue({ id: 'c1', status: 'needs_review', partnerId: 'p1' }),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ id: 'c1', status: 'needs_review', partnerId: 'p1' }),
         findFirst: vi.fn(),
       },
       $transaction: vi.fn().mockImplementation(async (fn: any) =>
@@ -304,7 +320,7 @@ describe('resolveCorrection — leader-scope branch@140 + lines 141-146 + waive 
 // ═════════════════════════════════════════════════════════════════════════════
 
 describe('approveStatement — branch@67 parentId ?? null', () => {
-  it("clamp remainder with only an empty-string correctionId → find() falsy → parentCorrectionId null", async () => {
+  it('clamp remainder with only an empty-string correctionId → find() falsy → parentCorrectionId null', async () => {
     // hasCorrections is true because '' !== null, but lines.find((l)=>l.correctionId)
     // is falsy for '' → the `?? null` arm of parentId fires. Total is negative → clamp.
     const items = [

@@ -10,7 +10,7 @@ import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fie
 export const dynamic = 'force-dynamic';
 
 export default async function PartnerDocumentDetailPage({
-  params
+  params,
 }: {
   params: Promise<{ id: string }>;
 }) {
@@ -25,10 +25,10 @@ export default async function PartnerDocumentDetailPage({
   return (
     <DocumentDetailView
       document={res.document}
-      backHref='/partner/documents'
-      orderHrefBase='/partner/deals'
+      backHref="/partner/documents"
+      orderHrefBase="/partner/deals"
     >
-      <EntityCustomFields fields={customFields} entityType='document' entityId={id} />
+      <EntityCustomFields fields={customFields} entityType="document" entityId={id} />
     </DocumentDetailView>
   );
 }

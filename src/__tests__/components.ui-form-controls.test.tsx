@@ -21,8 +21,11 @@ describe('form controls', () => {
   });
   it('Select renders its option children', () => {
     const html = renderToString(
-      React.createElement(Select, { value: 'a', onChange: () => {} },
-        React.createElement('option', { value: 'a' }, 'A'))
+      React.createElement(
+        Select,
+        { value: 'a', onChange: () => {} },
+        React.createElement('option', { value: 'a' }, 'A')
+      )
     );
     expect(html).toContain('<select');
     expect(html).toContain('A');

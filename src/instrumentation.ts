@@ -37,7 +37,7 @@ export async function register(): Promise<void> {
     // 152-ФЗ: не отправлять ip/cookies/user автоматически…
     sendDefaultPii: false,
     // …и вычищать ПДн/секреты из того, что всё же попало в событие
-    beforeSend: (event) => scrubSentryEvent(event)
+    beforeSend: (event) => scrubSentryEvent(event),
   });
 }
 

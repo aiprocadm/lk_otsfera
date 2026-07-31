@@ -14,8 +14,8 @@ function makePrisma(orders: object[], total = orders.length) {
   return {
     order: {
       count: vi.fn().mockResolvedValue(total),
-      findMany: vi.fn().mockResolvedValue(orders)
-    }
+      findMany: vi.fn().mockResolvedValue(orders),
+    },
   } as any;
 }
 
@@ -30,7 +30,7 @@ const baseOrder = {
   createdAt: new Date('2024-01-01'),
   deadline: null,
   closedAt: null,
-  organization: { id: 'org1', name: 'ООО Тест' }
+  organization: { id: 'org1', name: 'ООО Тест' },
 };
 
 describe('listPartnerDeals — unit', () => {
@@ -39,7 +39,7 @@ describe('listPartnerDeals — unit', () => {
     const result = await listPartnerDeals(prisma, {
       partnerId: 'p1',
       take: 10,
-      skip: 0
+      skip: 0,
     });
     expect(result.total).toBe(1);
     expect(result.rows[0]).toMatchObject({
@@ -48,7 +48,7 @@ describe('listPartnerDeals — unit', () => {
       paidAmount: '200.00',
       debt: '800.00',
       organizationName: 'ООО Тест',
-      organizationId: 'org1'
+      organizationId: 'org1',
     });
   });
 
@@ -66,7 +66,7 @@ describe('listPartnerDeals — unit', () => {
       partnerId: 'p1',
       scopeOrgIds: ['org1', 'org2'],
       take: 10,
-      skip: 0
+      skip: 0,
     });
     const whereArg = prisma.order.findMany.mock.calls[0][0].where;
     expect(whereArg.organizationId).toEqual({ in: ['org1', 'org2'] });
@@ -78,7 +78,7 @@ describe('listPartnerDeals — unit', () => {
       partnerId: 'p1',
       scopeOrgIds: [],
       take: 10,
-      skip: 0
+      skip: 0,
     });
     const whereArg = prisma.order.findMany.mock.calls[0][0].where;
     expect(whereArg.organizationId).toBeUndefined();
@@ -90,7 +90,7 @@ describe('listPartnerDeals — unit', () => {
       partnerId: 'p1',
       executionStatus: 'completed',
       take: 10,
-      skip: 0
+      skip: 0,
     });
     const whereArg = prisma.order.findMany.mock.calls[0][0].where;
     expect(whereArg.executionStatus).toBe('completed');
@@ -102,7 +102,7 @@ describe('listPartnerDeals — unit', () => {
       partnerId: 'p1',
       financialStatus: 'paid',
       take: 10,
-      skip: 0
+      skip: 0,
     });
     const whereArg = prisma.order.findMany.mock.calls[0][0].where;
     expect(whereArg.financialStatus).toBe('paid');
@@ -114,13 +114,15 @@ describe('listPartnerDeals — unit', () => {
       partnerId: 'p1',
       search: 'тест',
       take: 10,
-      skip: 0
+      skip: 0,
     });
     const whereArg = prisma.order.findMany.mock.calls[0][0].where;
     expect(whereArg.OR).toBeDefined();
     expect(whereArg.OR).toHaveLength(2);
     expect(whereArg.OR[0]).toMatchObject({ title: { contains: 'тест', mode: 'insensitive' } });
-    expect(whereArg.OR[1]).toMatchObject({ orderNumber: { contains: 'тест', mode: 'insensitive' } });
+    expect(whereArg.OR[1]).toMatchObject({
+      orderNumber: { contains: 'тест', mode: 'insensitive' },
+    });
   });
 
   it('returns empty rows and zero total when no orders found', async () => {

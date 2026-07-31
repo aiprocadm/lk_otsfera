@@ -7,12 +7,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { getCompanyTeamVisibility, managedOrgIds } = vi.hoisted(() => ({
   getCompanyTeamVisibility: vi.fn(),
-  managedOrgIds: vi.fn()
+  managedOrgIds: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/managerPolicy', () => ({
   getCompanyTeamVisibility,
-  managedOrgIds
+  managedOrgIds,
 }));
 
 const { recordPiiAccess } = vi.hoisted(() => ({ recordPiiAccess: vi.fn() }));
@@ -25,7 +25,7 @@ const SESSION: SessionPayload = {
   sub: 'mgr-1',
   role: 'manager',
   managedOrgIds: ['org-1'],
-  companyId: 'co-1'
+  companyId: 'co-1',
 };
 
 function studentRow(id: string) {
@@ -33,14 +33,14 @@ function studentRow(id: string) {
     id,
     name: `Student ${id}`,
     email: `${id}@s.local`,
-    organization: { id: 'org-1', name: 'Org One' }
+    organization: { id: 'org-1', name: 'Org One' },
   };
 }
 
 function makePrisma(rows: ReturnType<typeof studentRow>[]) {
   return {
     student: { findMany: vi.fn().mockResolvedValue(rows) },
-    company: { findUnique: vi.fn() }
+    company: { findUnique: vi.fn() },
   } as never;
 }
 
@@ -65,7 +65,9 @@ describe('listStudents', () => {
     const p = { student: { findMany }, company: { findUnique: vi.fn() } } as never;
     await listStudents(p, { session: SESSION });
     const where = findMany.mock.calls[0][0].where;
-    expect(where).toMatchObject({ AND: expect.arrayContaining([{ organizationId: { in: ['org-1', 'org-2'] } }]) });
+    expect(where).toMatchObject({
+      AND: expect.arrayContaining([{ organizationId: { in: ['org-1', 'org-2'] } }]),
+    });
   });
 
   it('uses teamMode=ON scope: organization.companyId filter', async () => {
@@ -74,7 +76,9 @@ describe('listStudents', () => {
     const p = { student: { findMany }, company: { findUnique: vi.fn() } } as never;
     await listStudents(p, { session: SESSION });
     const where = findMany.mock.calls[0][0].where;
-    expect(where).toMatchObject({ AND: expect.arrayContaining([{ organization: { companyId: 'co-1' } }]) });
+    expect(where).toMatchObject({
+      AND: expect.arrayContaining([{ organization: { companyId: 'co-1' } }]),
+    });
   });
 
   it('uses __no_company__ sentinel when session.companyId is null in teamMode=ON', async () => {
@@ -84,7 +88,9 @@ describe('listStudents', () => {
     const p = { student: { findMany }, company: { findUnique: vi.fn() } } as never;
     await listStudents(p, { session: nullSession as never });
     const where = findMany.mock.calls[0][0].where;
-    expect(where).toMatchObject({ AND: expect.arrayContaining([{ organization: { companyId: '__no_company__' } }]) });
+    expect(where).toMatchObject({
+      AND: expect.arrayContaining([{ organization: { companyId: '__no_company__' } }]),
+    });
   });
 
   it('adds search filter when q is provided', async () => {
@@ -98,10 +104,10 @@ describe('listStudents', () => {
         {
           OR: [
             { name: { contains: 'иванов', mode: 'insensitive' } },
-            { email: { contains: 'иванов', mode: 'insensitive' } }
-          ]
-        }
-      ])
+            { email: { contains: 'иванов', mode: 'insensitive' } },
+          ],
+        },
+      ]),
     });
   });
 
@@ -148,7 +154,7 @@ describe('PII journal capture', () => {
       session: SESSION,
       context: 'manager_students_list',
       subjectIds: ['s1', 's2'],
-      meta: { take: 50, hasQuery: true, cursor: false }
+      meta: { take: 50, hasQuery: true, cursor: false },
     });
   });
 });
@@ -157,11 +163,20 @@ describe('getStudent', () => {
   function makeDetailPrisma(student: unknown, orgCompanyId?: string) {
     return {
       student: { findUnique: vi.fn().mockResolvedValue(student) },
-      organization: { findUnique: vi.fn().mockResolvedValue(orgCompanyId ? { companyId: orgCompanyId } : null) },
-      company: { findUnique: vi.fn() }
+      organization: {
+        findUnique: vi.fn().mockResolvedValue(orgCompanyId ? { companyId: orgCompanyId } : null),
+      },
+      company: { findUnique: vi.fn() },
     } as never;
   }
-  const STUDENT = { id: 's1', name: 'Иван', email: 'i@x.ru', organizationId: 'org-1', createdAt: new Date(), organization: { id: 'org-1', name: 'Org' } };
+  const STUDENT = {
+    id: 's1',
+    name: 'Иван',
+    email: 'i@x.ru',
+    organizationId: 'org-1',
+    createdAt: new Date(),
+    organization: { id: 'org-1', name: 'Org' },
+  };
 
   it('teamMode=OFF: отдаёт студента из managed-org и журналирует view', async () => {
     getCompanyTeamVisibility.mockResolvedValue(false);
@@ -172,7 +187,7 @@ describe('getStudent', () => {
     expect(recordPiiAccess).toHaveBeenCalledWith(p, {
       session: SESSION,
       context: 'manager_student_view',
-      subjectIds: ['s1']
+      subjectIds: ['s1'],
     });
   });
 

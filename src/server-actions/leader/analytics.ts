@@ -3,7 +3,11 @@
 import { prisma } from '@/lib/db/prisma';
 import { requireManagerLeader } from '@/lib/auth/requireRole';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
-import { upsertSalesTarget, type UpsertSalesTargetArgs, type UpsertSalesTargetError } from '@/lib/services/leader/analytics';
+import {
+  upsertSalesTarget,
+  type UpsertSalesTargetArgs,
+  type UpsertSalesTargetError,
+} from '@/lib/services/leader/analytics';
 
 /**
  * M3 — тонкий server-action поверх upsertSalesTarget (§3 Result-контракт).

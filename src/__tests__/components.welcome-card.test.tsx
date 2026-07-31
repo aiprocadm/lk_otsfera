@@ -10,18 +10,21 @@ vi.mock('next/link', () => ({
   default: ({
     href,
     children,
-    className
+    className,
   }: {
     href: string;
     children: React.ReactNode;
     className?: string;
-  }) => React.createElement('a', { href, className }, children)
+  }) => React.createElement('a', { href, className }, children),
 }));
 
 const { dismissWelcomeAction } = vi.hoisted(() => ({ dismissWelcomeAction: vi.fn() }));
 vi.mock('@/server-actions/welcome', () => ({ dismissWelcomeAction }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { WelcomeCard, type WelcomeAction } from '@/components/welcome/welcome-card';
@@ -29,7 +32,7 @@ import { WelcomeCard, type WelcomeAction } from '@/components/welcome/welcome-ca
 const actions: WelcomeAction[] = [
   { href: '/partner/orgs', title: 'Добавить организацию', hint: 'Клиенты и их заказы' },
   { href: '/partner/team', title: 'Пригласить команду', hint: 'Коллеги получат письмо' },
-  { href: '/partner/enrollments', title: 'Отправить заявку', hint: 'Первая заявка на обучение' }
+  { href: '/partner/enrollments', title: 'Отправить заявку', hint: 'Первая заявка на обучение' },
 ];
 
 describe('WelcomeCard', () => {
@@ -102,7 +105,9 @@ describe('WelcomeCard', () => {
   });
 
   it('после сбоя повторный клик снова зовёт action (retry работает)', async () => {
-    dismissWelcomeAction.mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce({ ok: true });
+    dismissWelcomeAction
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValueOnce({ ok: true });
     render(React.createElement(WelcomeCard, { name: 'Ирина', actions }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Скрыть' }));

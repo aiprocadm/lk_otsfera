@@ -15,15 +15,13 @@ export default async function LeaderTeamPage() {
   const teamMode = session.companyId
     ? await getCompanyTeamVisibility(prisma, session.companyId)
     : false;
-  const roster = session.companyId
-    ? await listCompanyManagers(prisma, session.companyId)
-    : [];
+  const roster = session.companyId ? await listCompanyManagers(prisma, session.companyId) : [];
   // Этап 7 (PR-3): пороги SLA входящих — карточка рядом с видимостью команды.
   const sla = session.companyId ? await getSlaSettings(prisma, session.companyId) : null;
 
   return (
-    <div className='space-y-6'>
-      <h1 className='text-2xl font-semibold text-[#111111]'>Команда</h1>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-semibold text-[#111111]">Команда</h1>
       <TeamVisibilityToggle initial={teamMode} />
       {sla && <SlaSettingsCard initial={sla} />}
       <ManagerRosterPanel roster={roster} />

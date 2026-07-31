@@ -17,8 +17,8 @@ describe('Phase 0 schema integration', () => {
       data: {
         name: 'TestPartner-' + Date.now(),
         commissionRate: 0.1,
-        legalName: 'ООО ТестПартнёр'
-      }
+        legalName: 'ООО ТестПартнёр',
+      },
     });
 
     expect(partner.commissionRate.toString()).toBe('0.1');
@@ -28,8 +28,8 @@ describe('Phase 0 schema integration', () => {
         email: `user-${Date.now()}@test.local`,
         passwordHash: 'fake',
         name: 'Test',
-        role: 'partner'
-      }
+        role: 'partner',
+      },
     });
 
     const pu = await prisma.partnerUser.create({
@@ -37,8 +37,8 @@ describe('Phase 0 schema integration', () => {
         partnerId: partner.id,
         userId: user.id,
         roleInPartner: 'admin',
-        assignedOrgIds: []
-      }
+        assignedOrgIds: [],
+      },
     });
 
     expect(pu.roleInPartner).toBe('admin');
@@ -51,15 +51,15 @@ describe('Phase 0 schema integration', () => {
 
   it('can create Lead with attachments and read them back', async () => {
     const partner = await prisma.partner.create({
-      data: { name: 'P-' + Date.now() }
+      data: { name: 'P-' + Date.now() },
     });
     const user = await prisma.user.create({
       data: {
         email: `lead-${Date.now()}@test.local`,
         passwordHash: 'x',
         name: 'L',
-        role: 'partner'
-      }
+        role: 'partner',
+      },
     });
 
     const lead = await prisma.lead.create({
@@ -73,11 +73,11 @@ describe('Phase 0 schema integration', () => {
         status: 'new',
         attachments: {
           create: [
-            { name: 'tz.pdf', path: 'leads/x/tz.pdf', mimeType: 'application/pdf', size: 1024 }
-          ]
-        }
+            { name: 'tz.pdf', path: 'leads/x/tz.pdf', mimeType: 'application/pdf', size: 1024 },
+          ],
+        },
       },
-      include: { attachments: true }
+      include: { attachments: true },
     });
 
     expect(lead.attachments).toHaveLength(1);
@@ -99,8 +99,8 @@ describe('Phase 0 schema integration', () => {
         operation: 'create',
         status: 'success',
         payload: { totalAmount: '10000.00', externalUpdatedAt: new Date().toISOString() },
-        durationMs: 42
-      }
+        durationMs: 42,
+      },
     });
 
     expect(log.status).toBe('success');

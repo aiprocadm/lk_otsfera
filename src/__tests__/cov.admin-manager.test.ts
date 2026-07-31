@@ -28,7 +28,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 const { recordAuditMock, createInviteTokenMock, notifyPartnerUsersMock } = vi.hoisted(() => ({
   recordAuditMock: vi.fn(),
   createInviteTokenMock: vi.fn().mockResolvedValue({ token: 'tok', expiresAt: new Date() }),
-  notifyPartnerUsersMock: vi.fn()
+  notifyPartnerUsersMock: vi.fn(),
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
 vi.mock('@/lib/auth/passwordReset', () => ({ createInviteToken: createInviteTokenMock }));
@@ -38,7 +38,7 @@ import {
   updatePartner,
   deactivatePartner,
   reactivatePartner,
-  createPartnerWithAdmin
+  createPartnerWithAdmin,
 } from '@/lib/services/admin/partners';
 import { updateOrganization } from '@/lib/services/admin/organizations';
 import { createAndAssignManager } from '@/lib/services/manager/invite';
@@ -52,7 +52,7 @@ import { managerOrgScope } from '@/lib/auth/managerPolicy';
 // try/catch hits `throw e` (the re-throw arm) instead of mapping a code.
 function txThrows(err: unknown): PrismaClient {
   return {
-    $transaction: vi.fn().mockRejectedValue(err)
+    $transaction: vi.fn().mockRejectedValue(err),
   } as unknown as PrismaClient;
 }
 
@@ -64,7 +64,9 @@ describe('admin/partners — boundary-catch re-throws non-domain errors', () => 
 
   it('updatePartner re-throws a non-AdminPartnerError (branch@215, lines216-217)', async () => {
     const boom = new Error('db exploded');
-    await expect(updatePartner(txThrows(boom), 'actor1', 'p1', { name: 'X' })).rejects.toThrow('db exploded');
+    await expect(updatePartner(txThrows(boom), 'actor1', 'p1', { name: 'X' })).rejects.toThrow(
+      'db exploded'
+    );
   });
 
   it('deactivatePartner re-throws a non-AdminPartnerError (branch@243, lines244-245)', async () => {
@@ -84,7 +86,7 @@ describe('admin/partners — boundary-catch re-throws non-domain errors', () => 
         name: 'N',
         slug: 's',
         adminEmail: 'a@t.local',
-        adminName: 'A'
+        adminName: 'A',
       })
     ).rejects.toThrow('unique violation not mapped');
   });
@@ -99,17 +101,22 @@ describe('admin/partners — rate change from a null prior rate', () => {
   // CommissionRateChange row is written with oldRate=null.
   it('writes a CommissionRateChange with oldRate=null when the prior rate was null', async () => {
     const before = { name: 'Partner', commissionRate: null, isActive: true };
-    const updated = { id: 'p1', name: 'Partner', commissionRate: new Prisma.Decimal('0.05'), isActive: true };
+    const updated = {
+      id: 'p1',
+      name: 'Partner',
+      commissionRate: new Prisma.Decimal('0.05'),
+      isActive: true,
+    };
     const tx = {
       partner: {
         findUnique: vi.fn().mockResolvedValue(before),
-        update: vi.fn().mockResolvedValue(updated)
+        update: vi.fn().mockResolvedValue(updated),
       },
       commissionRateChange: { create: vi.fn().mockResolvedValue({}) },
-      auditLog: { create: vi.fn().mockResolvedValue({}) }
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((fn: (t: unknown) => unknown) => fn(tx))
+      $transaction: vi.fn().mockImplementation((fn: (t: unknown) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
 
     const result = await updatePartner(prisma, 'actor-x', 'p1', { commissionRate: 0.05 });
@@ -133,7 +140,9 @@ describe('admin/organizations — boundary-catch re-throws non-domain errors', (
 
   it('updateOrganization re-throws a non-AdminOrgError', async () => {
     const boom = new Error('org tx failed');
-    await expect(updateOrganization(txThrows(boom), 'actor1', 'org1', { name: 'X' })).rejects.toThrow('org tx failed');
+    await expect(
+      updateOrganization(txThrows(boom), 'actor1', 'org1', { name: 'X' })
+    ).rejects.toThrow('org tx failed');
   });
 });
 
@@ -146,7 +155,11 @@ describe('manager/invite — boundary-catch re-throws non-domain errors', () => 
   it('createAndAssignManager re-throws a non-ManagerInviteError', async () => {
     const boom = new Error('invite tx failed');
     await expect(
-      createAndAssignManager(txThrows(boom), { mode: 'existing', organizationId: 'org1', email: 'a@t.local' }, 'actor1')
+      createAndAssignManager(
+        txThrows(boom),
+        { mode: 'existing', organizationId: 'org1', email: 'a@t.local' },
+        'actor1'
+      )
     ).rejects.toThrow('invite tx failed');
   });
 });
@@ -163,7 +176,7 @@ describe('manager/messages — profile threads-level order scope', () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const prisma = {
       comment: { findMany },
-      company: { findUnique: vi.fn().mockResolvedValue({ managerTeamVisibility: false }) }
+      company: { findUnique: vi.fn().mockResolvedValue({ managerTeamVisibility: false }) },
     } as unknown as PrismaClient;
 
     const session = {
@@ -181,8 +194,8 @@ describe('manager/messages — profile threads-level order scope', () => {
         finance: 'all',
         leads: 'all',
         tasks: 'all',
-        capabilities: []
-      }
+        capabilities: [],
+      },
     } as unknown as SessionPayload;
 
     await listIncomingComments(prisma, { session });
@@ -198,7 +211,7 @@ describe('manager/messages — profile threads-level order scope', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 const { getOrderMock, listOrderItemsMock } = vi.hoisted(() => ({
   getOrderMock: vi.fn(),
-  listOrderItemsMock: vi.fn()
+  listOrderItemsMock: vi.fn(),
 }));
 vi.mock('@/lib/services/manager/orders', () => ({ getOrder: getOrderMock }));
 vi.mock('@/lib/services/training', () => ({ listOrderItems: listOrderItemsMock }));
@@ -213,16 +226,21 @@ describe('manager/orderDetail — items fallback when listOrderItems fails', () 
       id: 'order-1',
       orderNumber: 'A-1',
       title: 'Заказ',
-      documents: []
+      documents: [],
     } as never);
     listOrderItemsMock.mockResolvedValue({ ok: false, error: 'forbidden' });
 
     const prisma = {
       auditLog: { findMany: vi.fn().mockResolvedValue([]) },
-      comment: { findMany: vi.fn().mockResolvedValue([]) }
+      comment: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
 
-    const session = { sub: 'mgr-1', role: 'manager', managedOrgIds: ['org-1'], companyId: 'co-1' } as SessionPayload;
+    const session = {
+      sub: 'mgr-1',
+      role: 'manager',
+      managedOrgIds: ['org-1'],
+      companyId: 'co-1',
+    } as SessionPayload;
     const result = await loadManagerOrderDetail(prisma, session, 'order-1');
 
     expect(result).not.toBeNull();
@@ -236,7 +254,7 @@ describe('manager/orderDetail — items fallback when listOrderItems fails', () 
 // ─────────────────────────────────────────────────────────────────────────────
 function leadDbNull(): PrismaClient {
   return {
-    lead: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() }
+    lead: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
   } as unknown as PrismaClient;
 }
 
@@ -247,7 +265,11 @@ describe('manager/leadLifecycle — not_found when the lead is missing', () => {
   });
 
   it('setLeadStatus returns not_found for a missing lead (branch@86)', async () => {
-    const r = await setLeadStatus(leadDbNull(), { leadId: 'missing', managerId: 'm1', status: 'in_review' });
+    const r = await setLeadStatus(leadDbNull(), {
+      leadId: 'missing',
+      managerId: 'm1',
+      status: 'in_review',
+    });
     expect(r).toEqual({ ok: false, error: 'not_found' });
   });
 
@@ -283,8 +305,8 @@ describe('auth/managerPolicy — managerOrgScope profile floor without companyId
         finance: 'all',
         leads: 'all',
         tasks: 'all',
-        capabilities: []
-      }
+        capabilities: [],
+      },
     } as unknown as SessionPayload; // no companyId
 
     expect(managerOrgScope(session, false)).toEqual({ companyId: '__no_company__' });
@@ -315,22 +337,28 @@ describe('manager/organizationCard — residual aggregation branches (integratio
       role: 'manager',
       managerRole: 'leader',
       companyId,
-      managedOrgIds: [orgNoMoney]
-    } as unknown as SessionPayload);
+      managedOrgIds: [orgNoMoney],
+    }) as unknown as SessionPayload;
 
   beforeAll(async () => {
     prisma = new PrismaClient();
     companyId = (await prisma.company.create({ data: { name: `covAM-co-${STAMP}` } })).id;
     leaderId = (
       await prisma.user.create({
-        data: { email: `covAM-leader-${STAMP}@t.local`, name: 'Leader', role: 'manager', managerRole: 'leader', companyId }
+        data: {
+          email: `covAM-leader-${STAMP}@t.local`,
+          name: 'Leader',
+          role: 'manager',
+          managerRole: 'leader',
+          companyId,
+        },
       })
     ).id;
     // Org with NO partnerCommissionRate override and NO payments/refunds — so both
     // aggregate `_sum.amount` come back null AND partnerCommissionRate is null.
     orgNoMoney = (
       await prisma.organization.create({
-        data: { name: `covAM-org-${STAMP}`, companyId, partnerCommissionRate: null }
+        data: { name: `covAM-org-${STAMP}`, companyId, partnerCommissionRate: null },
       })
     ).id;
   });

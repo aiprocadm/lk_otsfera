@@ -141,7 +141,9 @@ describe('AssignOrderManagerForm', () => {
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'm2' } });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
-    await waitFor(() => expect(screen.getByRole('status')).toHaveProperty('textContent', 'Менеджер обновлён.'));
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveProperty('textContent', 'Менеджер обновлён.')
+    );
     const fd = assignOrderManagerAction.mock.calls[0][0] as FormData;
     expect(fd.get('orderId')).toBe('o1');
     expect(fd.get('managerUserId')).toBe('m2');
@@ -159,7 +161,9 @@ describe('AssignOrderManagerForm', () => {
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'm2' } });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
-    await waitFor(() => expect(screen.getByRole('status')).toHaveProperty('textContent', 'Без изменений.'));
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveProperty('textContent', 'Без изменений.')
+    );
   });
 
   it('error path (invalid_manager) renders the mapped alert', async () => {
@@ -184,7 +188,11 @@ describe('AssignOrderManagerForm', () => {
 
   it('busy state shows "Сохраняем…" on the submit button', async () => {
     let resolvePromise: (v: unknown) => void = () => {};
-    assignOrderManagerAction.mockReturnValue(new Promise((resolve) => { resolvePromise = resolve; }));
+    assignOrderManagerAction.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      })
+    );
     render(
       React.createElement(AssignOrderManagerForm, {
         orderId: 'o1',

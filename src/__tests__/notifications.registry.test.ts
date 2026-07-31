@@ -3,7 +3,7 @@ import {
   NOTIFICATION_TYPES,
   isKnownNotificationType,
   notificationLabelRu,
-  notificationTypesFor
+  notificationTypesFor,
 } from '@/lib/notifications/registry';
 
 /**
@@ -19,7 +19,7 @@ describe('NOTIFICATION_TYPES', () => {
     const byTz = new Map(
       Object.entries(NOTIFICATION_TYPES).map(([key, spec]) => [
         (spec as { tzAlias?: string }).tzAlias ?? key,
-        key
+        key,
       ])
     );
     for (const tzType of [
@@ -30,7 +30,7 @@ describe('NOTIFICATION_TYPES', () => {
       'task_due_soon',
       'order_result_delivered',
       'sla_escalation',
-      'requisites_requested'
+      'requisites_requested',
     ]) {
       expect(byTz.has(tzType), `ФТ-15.7 требует тип ${tzType}`).toBe(true);
     }

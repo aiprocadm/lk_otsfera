@@ -3,7 +3,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 const { useClientResource } = vi.hoisted(() => ({ useClientResource: vi.fn() }));
@@ -16,9 +19,12 @@ import { StaffUnreadBadge } from '@/components/staff-chat/staff-unread-badge';
 import {
   StaffConversationList,
   type StaffConversationRowVM,
-  type StaffColleagueVM
+  type StaffColleagueVM,
 } from '@/components/staff-chat/staff-conversation-list';
-import { StaffThreadView, type StaffThreadMessageVM } from '@/components/staff-chat/staff-thread-view';
+import {
+  StaffThreadView,
+  type StaffThreadMessageVM,
+} from '@/components/staff-chat/staff-thread-view';
 import { StaffComposer } from '@/components/staff-chat/staff-composer';
 import { StaffChatSection } from '@/components/staff-chat/staff-chat-section';
 import type { StaffPolledRow } from '@/hooks/useStaffChatPolling';
@@ -64,11 +70,13 @@ describe('StaffUnreadBadge', () => {
   it('reads /api/staff-chat/unread with a select() defaulting to 0', () => {
     let capturedUrl: string | undefined;
     let capturedSelect: ((d: unknown) => number) | undefined;
-    useClientResource.mockImplementation((url: string, opts: { select: (d: unknown) => number }) => {
-      capturedUrl = url;
-      capturedSelect = opts.select;
-      return { data: 0 };
-    });
+    useClientResource.mockImplementation(
+      (url: string, opts: { select: (d: unknown) => number }) => {
+        capturedUrl = url;
+        capturedSelect = opts.select;
+        return { data: 0 };
+      }
+    );
     render(React.createElement(StaffUnreadBadge));
     expect(capturedUrl).toBe('/api/staff-chat/unread');
     expect(capturedSelect!({})).toBe(0);
@@ -88,19 +96,39 @@ describe('StaffConversationList', () => {
       title: '# Общий',
       companyName: 'Промтехносфера',
       lastMessageAt: '2024-01-01T10:00:00Z',
-      unread: false
+      unread: false,
     },
-    { id: 'dm1', kind: 'dm', title: 'Иван Иванов', companyName: null, lastMessageAt: '2024-01-02T10:00:00Z', unread: true },
-    { id: 'dm2', kind: 'dm', title: 'Пётр Петров', companyName: null, lastMessageAt: '2024-01-03T10:00:00Z', unread: false }
+    {
+      id: 'dm1',
+      kind: 'dm',
+      title: 'Иван Иванов',
+      companyName: null,
+      lastMessageAt: '2024-01-02T10:00:00Z',
+      unread: true,
+    },
+    {
+      id: 'dm2',
+      kind: 'dm',
+      title: 'Пётр Петров',
+      companyName: null,
+      lastMessageAt: '2024-01-03T10:00:00Z',
+      unread: false,
+    },
   ];
   const COLLEAGUES: StaffColleagueVM[] = [
     { id: 'u2', name: 'Иван Иванов' },
-    { id: 'u3', name: 'Пётр Петров' }
+    { id: 'u3', name: 'Пётр Петров' },
   ];
 
   it('orders general(s) first, then DMs by lastMessageAt desc', () => {
     render(
-      <StaffConversationList rows={ROWS} activeId={null} onSelect={vi.fn()} onNewDm={vi.fn()} colleagues={COLLEAGUES} />
+      <StaffConversationList
+        rows={ROWS}
+        activeId={null}
+        onSelect={vi.fn()}
+        onNewDm={vi.fn()}
+        colleagues={COLLEAGUES}
+      />
     );
     const rowButtons = screen.getAllByRole('button').filter((b) => b.hasAttribute('data-active'));
     expect(rowButtons.length).toBe(3);
@@ -112,16 +140,30 @@ describe('StaffConversationList', () => {
 
   it('marks only the active row with data-active="true"', () => {
     render(
-      <StaffConversationList rows={ROWS} activeId="dm1" onSelect={vi.fn()} onNewDm={vi.fn()} colleagues={COLLEAGUES} />
+      <StaffConversationList
+        rows={ROWS}
+        activeId="dm1"
+        onSelect={vi.fn()}
+        onNewDm={vi.fn()}
+        colleagues={COLLEAGUES}
+      />
     );
-    const active = screen.getAllByRole('button').filter((b) => b.getAttribute('data-active') === 'true');
+    const active = screen
+      .getAllByRole('button')
+      .filter((b) => b.getAttribute('data-active') === 'true');
     expect(active.length).toBe(1);
     expect(active[0].textContent).toContain('Иван Иванов');
   });
 
   it('shows the unread dot only for unread rows', () => {
     render(
-      <StaffConversationList rows={ROWS} activeId={null} onSelect={vi.fn()} onNewDm={vi.fn()} colleagues={COLLEAGUES} />
+      <StaffConversationList
+        rows={ROWS}
+        activeId={null}
+        onSelect={vi.fn()}
+        onNewDm={vi.fn()}
+        colleagues={COLLEAGUES}
+      />
     );
     expect(screen.getAllByLabelText('Непрочитано').length).toBe(1);
   });
@@ -129,29 +171,64 @@ describe('StaffConversationList', () => {
   it('clicking a row calls onSelect with its id', () => {
     const onSelect = vi.fn();
     render(
-      <StaffConversationList rows={ROWS} activeId={null} onSelect={onSelect} onNewDm={vi.fn()} colleagues={COLLEAGUES} />
+      <StaffConversationList
+        rows={ROWS}
+        activeId={null}
+        onSelect={onSelect}
+        onNewDm={vi.fn()}
+        colleagues={COLLEAGUES}
+      />
     );
     fireEvent.click(screen.getByText('Пётр Петров'));
     expect(onSelect).toHaveBeenCalledWith('dm2');
   });
 
   it('shows "Нет бесед" when rows is empty', () => {
-    render(<StaffConversationList rows={[]} activeId={null} onSelect={vi.fn()} onNewDm={vi.fn()} colleagues={[]} />);
+    render(
+      <StaffConversationList
+        rows={[]}
+        activeId={null}
+        onSelect={vi.fn()}
+        onNewDm={vi.fn()}
+        colleagues={[]}
+      />
+    );
     expect(screen.getByText('Нет бесед')).toBeTruthy();
   });
 
   it('does not render a companyName suffix for a general row without one', () => {
     const rows: StaffConversationRowVM[] = [
-      { id: 'g2', kind: 'general', title: '# Общий', companyName: null, lastMessageAt: '2024-01-01T10:00:00Z', unread: false }
+      {
+        id: 'g2',
+        kind: 'general',
+        title: '# Общий',
+        companyName: null,
+        lastMessageAt: '2024-01-01T10:00:00Z',
+        unread: false,
+      },
     ];
-    render(<StaffConversationList rows={rows} activeId={null} onSelect={vi.fn()} onNewDm={vi.fn()} colleagues={[]} />);
+    render(
+      <StaffConversationList
+        rows={rows}
+        activeId={null}
+        onSelect={vi.fn()}
+        onNewDm={vi.fn()}
+        colleagues={[]}
+      />
+    );
     expect(screen.queryByText('Промтехносфера')).toBeNull();
   });
 
   it('picker: toggling opens the colleague list; picking a colleague calls onNewDm and closes the picker', () => {
     const onNewDm = vi.fn();
     render(
-      <StaffConversationList rows={ROWS} activeId={null} onSelect={vi.fn()} onNewDm={onNewDm} colleagues={COLLEAGUES} />
+      <StaffConversationList
+        rows={ROWS}
+        activeId={null}
+        onSelect={vi.fn()}
+        onNewDm={onNewDm}
+        colleagues={COLLEAGUES}
+      />
     );
     // Closed by default: only the row's <span> shows "Иван Иванов" (the row is
     // unread, so its button's *accessible name* also includes the "Непрочитано"
@@ -170,7 +247,15 @@ describe('StaffConversationList', () => {
   });
 
   it('picker shows "Нет доступных коллег" when colleagues is empty', () => {
-    render(<StaffConversationList rows={ROWS} activeId={null} onSelect={vi.fn()} onNewDm={vi.fn()} colleagues={[]} />);
+    render(
+      <StaffConversationList
+        rows={ROWS}
+        activeId={null}
+        onSelect={vi.fn()}
+        onNewDm={vi.fn()}
+        colleagues={[]}
+      />
+    );
     fireEvent.click(screen.getByRole('button', { name: '+ Новое сообщение' }));
     expect(screen.getByText('Нет доступных коллег')).toBeTruthy();
   });
@@ -190,7 +275,7 @@ function makeMsg(overrides: Partial<StaffThreadMessageVM> & { id: string }): Sta
     scanStatus: 'none',
     createdAt: '2024-01-01T09:00:00Z',
     reactions: [],
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -202,8 +287,15 @@ describe('StaffThreadView', () => {
 
   it('aligns own messages (data-mine=true, no author label) vs others (data-mine=false, author shown)', () => {
     const mine = makeMsg({ id: 'm1', authorId: 'me', authorName: 'Я', body: 'моё' });
-    const other = makeMsg({ id: 'm2', authorId: 'colleague', authorName: 'Коллега', body: 'чужое' });
-    render(<StaffThreadView messages={[mine, other]} currentUserId="me" onToggleReaction={vi.fn()} />);
+    const other = makeMsg({
+      id: 'm2',
+      authorId: 'colleague',
+      authorName: 'Коллега',
+      body: 'чужое',
+    });
+    render(
+      <StaffThreadView messages={[mine, other]} currentUserId="me" onToggleReaction={vi.fn()} />
+    );
 
     const mineEl = screen.getByText('моё').closest('[data-mine]');
     expect(mineEl?.getAttribute('data-mine')).toBe('true');
@@ -216,8 +308,13 @@ describe('StaffThreadView', () => {
   it('renders one date separator per day and repeats it for a later day', () => {
     const rows = [
       makeMsg({ id: 'm1', createdAt: '2024-01-01T09:00:00Z' }),
-      makeMsg({ id: 'm2', authorId: 'colleague', authorName: 'Коллега', createdAt: '2024-01-01T10:00:00Z' }),
-      makeMsg({ id: 'm3', createdAt: '2024-01-02T09:00:00Z' })
+      makeMsg({
+        id: 'm2',
+        authorId: 'colleague',
+        authorName: 'Коллега',
+        createdAt: '2024-01-01T10:00:00Z',
+      }),
+      makeMsg({ id: 'm3', createdAt: '2024-01-02T09:00:00Z' }),
     ];
     render(<StaffThreadView messages={rows} currentUserId="me" onToggleReaction={vi.fn()} />);
     expect(screen.getAllByText('01.01.2024').length).toBe(1);
@@ -236,10 +333,12 @@ describe('StaffThreadView', () => {
       id: 'r1',
       reactions: [
         { emoji: '👍', count: 3, mine: true },
-        { emoji: '🔥', count: 1, mine: false }
-      ]
+        { emoji: '🔥', count: 1, mine: false },
+      ],
     });
-    render(<StaffThreadView messages={[msg]} currentUserId="me" onToggleReaction={onToggleReaction} />);
+    render(
+      <StaffThreadView messages={[msg]} currentUserId="me" onToggleReaction={onToggleReaction} />
+    );
 
     const thumbsUp = screen.getByRole('button', { name: 'Реакция 👍' });
     expect(thumbsUp.getAttribute('data-mine')).toBe('true');
@@ -262,9 +361,14 @@ describe('StaffThreadView', () => {
     const rows = [
       makeMsg({ id: 'p1', hasAttachment: true, scanStatus: 'pending', attachmentName: 'doc.pdf' }),
       makeMsg({ id: 'i1', hasAttachment: true, scanStatus: 'infected', attachmentName: 'bad.exe' }),
-      makeMsg({ id: 'c1', hasAttachment: true, scanStatus: 'clean', attachmentName: 'report.xlsx' }),
+      makeMsg({
+        id: 'c1',
+        hasAttachment: true,
+        scanStatus: 'clean',
+        attachmentName: 'report.xlsx',
+      }),
       makeMsg({ id: 'c2', hasAttachment: true, scanStatus: 'clean', attachmentName: null }),
-      makeMsg({ id: 'n1', hasAttachment: false, scanStatus: 'none', attachmentName: null })
+      makeMsg({ id: 'n1', hasAttachment: false, scanStatus: 'none', attachmentName: null }),
     ];
     render(<StaffThreadView messages={rows} currentUserId="me" onToggleReaction={vi.fn()} />);
 
@@ -283,15 +387,29 @@ describe('StaffThreadView', () => {
     // this suite already exercises this (false) branch implicitly; this test
     // documents the invariant explicitly.
     expect(() =>
-      render(<StaffThreadView messages={[makeMsg({ id: 'm1' })]} currentUserId="me" onToggleReaction={vi.fn()} />)
+      render(
+        <StaffThreadView
+          messages={[makeMsg({ id: 'm1' })]}
+          currentUserId="me"
+          onToggleReaction={vi.fn()}
+        />
+      )
     ).not.toThrow();
   });
 
   it('calls scrollIntoView on the bottom sentinel when the browser supports it', () => {
     const scrollSpy = vi.fn();
-    (HTMLElement.prototype as unknown as { scrollIntoView: (arg: unknown) => void }).scrollIntoView = scrollSpy;
+    (
+      HTMLElement.prototype as unknown as { scrollIntoView: (arg: unknown) => void }
+    ).scrollIntoView = scrollSpy;
     try {
-      render(<StaffThreadView messages={[makeMsg({ id: 'm1' })]} currentUserId="me" onToggleReaction={vi.fn()} />);
+      render(
+        <StaffThreadView
+          messages={[makeMsg({ id: 'm1' })]}
+          currentUserId="me"
+          onToggleReaction={vi.fn()}
+        />
+      );
       expect(scrollSpy).toHaveBeenCalledWith({ block: 'end' });
     } finally {
       delete (HTMLElement.prototype as unknown as { scrollIntoView?: unknown }).scrollIntoView;
@@ -306,7 +424,7 @@ describe('StaffThreadView', () => {
 describe('StaffComposer', () => {
   const COLLEAGUES: StaffColleagueVM[] = [
     { id: 'u2', name: 'Иван Иванов' },
-    { id: 'u3', name: 'Игорь Петров' }
+    { id: 'u3', name: 'Игорь Петров' },
   ];
 
   let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
@@ -321,7 +439,9 @@ describe('StaffComposer', () => {
 
   it('submit button is disabled while the textarea is empty', () => {
     render(<StaffComposer conversationId="c1" colleagues={[]} onSend={vi.fn()} />);
-    expect((screen.getByRole('button', { name: 'Отправить' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Отправить' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
   });
 
   it('Enter submits the trimmed body (no attachment) and clears the textarea', () => {
@@ -402,7 +522,7 @@ describe('StaffComposer', () => {
   it('attaching a file uploads it, shows a removable chip, and the send includes the attachment fields', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ ok: true, attachmentPath: 'staff-chat/c1/x-doc.pdf' })
+      json: async () => ({ ok: true, attachmentPath: 'staff-chat/c1/x-doc.pdf' }),
     });
     vi.stubGlobal('fetch', fetchMock);
     const onSend = vi.fn();
@@ -414,7 +534,10 @@ describe('StaffComposer', () => {
     fireEvent.change(input);
 
     await waitFor(() => expect(screen.getByText('📎 doc.pdf')).toBeTruthy());
-    expect(fetchMock).toHaveBeenCalledWith('/api/staff-chat/attachment', expect.objectContaining({ method: 'POST' }));
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/staff-chat/attachment',
+      expect.objectContaining({ method: 'POST' })
+    );
 
     const textarea = screen.getByLabelText('Сообщение') as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: 'вот файл' } });
@@ -423,7 +546,7 @@ describe('StaffComposer', () => {
     expect(onSend).toHaveBeenCalledWith('вот файл', {
       path: 'staff-chat/c1/x-doc.pdf',
       name: 'doc.pdf',
-      mime: 'application/pdf'
+      mime: 'application/pdf',
     });
     expect(screen.queryByText('📎 doc.pdf')).toBeNull();
   });
@@ -456,20 +579,27 @@ describe('StaffComposer', () => {
   it('shows a mapped RU toast when the upload fails with a known error code', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue({ ok: false, json: async () => ({ ok: false, error: 'too_large' }) })
+      vi
+        .fn()
+        .mockResolvedValue({ ok: false, json: async () => ({ ok: false, error: 'too_large' }) })
     );
     render(<StaffComposer conversationId="c1" colleagues={[]} onSend={vi.fn()} />);
     const input = screen.getByTitle('Прикрепить файл').nextElementSibling as HTMLInputElement;
     const file = new File(['x'], 'huge.pdf', { type: 'application/pdf' });
     Object.defineProperty(input, 'files', { value: [file] });
     fireEvent.change(input);
-    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Файл превышает допустимый размер.'));
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('Файл превышает допустимый размер.')
+    );
   });
 
   it('falls back to a generic message for an unmapped upload error code', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue({ ok: false, json: async () => ({ ok: false, error: 'conversation_not_found' }) })
+      vi.fn().mockResolvedValue({
+        ok: false,
+        json: async () => ({ ok: false, error: 'conversation_not_found' }),
+      })
     );
     render(<StaffComposer conversationId="c1" colleagues={[]} onSend={vi.fn()} />);
     const input = screen.getByTitle('Прикрепить файл').nextElementSibling as HTMLInputElement;
@@ -486,7 +616,7 @@ describe('StaffComposer', () => {
         ok: true,
         json: async () => {
           throw new Error('bad json');
-        }
+        },
       })
     );
     render(<StaffComposer conversationId="c1" colleagues={[]} onSend={vi.fn()} />);
@@ -505,7 +635,9 @@ describe('StaffComposer', () => {
     Object.defineProperty(input, 'files', { value: [file] });
     fireEvent.change(input);
     await waitFor(() =>
-      expect(toastError).toHaveBeenCalledWith('Сетевая ошибка. Проверьте соединение и попробуйте снова.')
+      expect(toastError).toHaveBeenCalledWith(
+        'Сетевая ошибка. Проверьте соединение и попробуйте снова.'
+      )
     );
   });
 
@@ -530,7 +662,9 @@ describe('StaffComposer', () => {
     fireEvent.change(input);
 
     await waitFor(() => expect(input.disabled).toBe(true));
-    expect((screen.getByRole('button', { name: 'Отправить' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Отправить' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
 
     // Enter is a no-op while uploading (uploading guard inside submit()).
     fireEvent.keyDown(textarea, { key: 'Enter' });
@@ -541,7 +675,9 @@ describe('StaffComposer', () => {
       await Promise.resolve();
     });
     await waitFor(() => expect(input.disabled).toBe(false));
-    expect((screen.getByRole('button', { name: 'Отправить' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Отправить' }) as HTMLButtonElement).disabled).toBe(
+      false
+    );
   });
 });
 
@@ -551,15 +687,29 @@ describe('StaffComposer', () => {
 
 describe('StaffChatSection', () => {
   const CONVERSATIONS: StaffConversationRowVM[] = [
-    { id: 'g1', kind: 'general', title: '# Общий', companyName: null, lastMessageAt: '2024-01-01T10:00:00Z', unread: false },
+    {
+      id: 'g1',
+      kind: 'general',
+      title: '# Общий',
+      companyName: null,
+      lastMessageAt: '2024-01-01T10:00:00Z',
+      unread: false,
+    },
     // Deliberately distinct from the colleague name below — a DM row titled the
     // same as a colleague would make the "+ Новое сообщение" picker button
     // ambiguous to query by role+name.
-    { id: 'dm1', kind: 'dm', title: 'Иван Смирнов', companyName: null, lastMessageAt: '2024-01-02T10:00:00Z', unread: false }
+    {
+      id: 'dm1',
+      kind: 'dm',
+      title: 'Иван Смирнов',
+      companyName: null,
+      lastMessageAt: '2024-01-02T10:00:00Z',
+      unread: false,
+    },
   ];
   const COLLEAGUES_RAW: StaffColleagueVM[] = [
     { id: 'me', name: 'Я' },
-    { id: 'u2', name: 'Коллега' }
+    { id: 'u2', name: 'Коллега' },
   ];
 
   let refetchConversations: ReturnType<typeof vi.fn>;
@@ -581,7 +731,11 @@ describe('StaffChatSection', () => {
     });
     useStaffChatPolling.mockReset();
     useStaffChatPolling.mockImplementation(
-      (_conversationId: string | null, _latest: string | null, onNew: (rows: StaffPolledRow[], forConversationId: string) => void) => {
+      (
+        _conversationId: string | null,
+        _latest: string | null,
+        onNew: (rows: StaffPolledRow[], forConversationId: string) => void
+      ) => {
         capturedOnNew = onNew;
       }
     );
@@ -621,26 +775,35 @@ describe('StaffChatSection', () => {
 
   it('passes select() mappers to useClientResource that default missing rows to []', () => {
     const captured: Record<string, (raw: unknown) => unknown> = {};
-    useClientResource.mockImplementation((url: string, opts: { select: (raw: unknown) => unknown }) => {
-      captured[url] = opts.select;
-      if (url === '/api/staff-chat/conversations') return { data: CONVERSATIONS, refetch: refetchConversations };
-      if (url === '/api/staff-chat/colleagues') return { data: COLLEAGUES_RAW, refetch: vi.fn() };
-      return { data: null, refetch: vi.fn() };
-    });
+    useClientResource.mockImplementation(
+      (url: string, opts: { select: (raw: unknown) => unknown }) => {
+        captured[url] = opts.select;
+        if (url === '/api/staff-chat/conversations')
+          return { data: CONVERSATIONS, refetch: refetchConversations };
+        if (url === '/api/staff-chat/colleagues') return { data: COLLEAGUES_RAW, refetch: vi.fn() };
+        return { data: null, refetch: vi.fn() };
+      }
+    );
 
     render(<StaffChatSection currentUserId="me" />);
 
     expect(captured['/api/staff-chat/conversations']({})).toEqual([]);
-    expect(captured['/api/staff-chat/conversations']({ rows: CONVERSATIONS })).toEqual(CONVERSATIONS);
+    expect(captured['/api/staff-chat/conversations']({ rows: CONVERSATIONS })).toEqual(
+      CONVERSATIONS
+    );
     expect(captured['/api/staff-chat/colleagues']({})).toEqual([]);
-    expect(captured['/api/staff-chat/colleagues']({ rows: COLLEAGUES_RAW })).toEqual(COLLEAGUES_RAW);
+    expect(captured['/api/staff-chat/colleagues']({ rows: COLLEAGUES_RAW })).toEqual(
+      COLLEAGUES_RAW
+    );
   });
 
   it('selecting a conversation loads its messages, marks it read, and refetches conversations on success', async () => {
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
       if (typeof url === 'string' && url.startsWith('/api/staff-chat/messages?conversationId=g1')) {
         return Promise.resolve(
-          messagesResponse([makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега', body: 'привет' })])
+          messagesResponse([
+            makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега', body: 'привет' }),
+          ])
         );
       }
       if (url === '/api/staff-chat/read') return Promise.resolve({ ok: true });
@@ -668,9 +831,14 @@ describe('StaffChatSection', () => {
           resolveA = res;
         });
       }
-      if (typeof url === 'string' && url.startsWith('/api/staff-chat/messages?conversationId=dm1')) {
+      if (
+        typeof url === 'string' &&
+        url.startsWith('/api/staff-chat/messages?conversationId=dm1')
+      ) {
         return Promise.resolve(
-          messagesResponse([makeMsg({ id: 'b1', authorId: 'u2', authorName: 'Коллега', body: 'сообщение B' })])
+          messagesResponse([
+            makeMsg({ id: 'b1', authorId: 'u2', authorName: 'Коллега', body: 'сообщение B' }),
+          ])
         );
       }
       if (url === '/api/staff-chat/read') return Promise.resolve({ ok: true });
@@ -685,7 +853,11 @@ describe('StaffChatSection', () => {
 
     // A's response lands after the switch — must be dropped, not rendered under B.
     await act(async () => {
-      resolveA(messagesResponse([makeMsg({ id: 'a1', authorId: 'u2', authorName: 'Коллега', body: 'сообщение A' })]));
+      resolveA(
+        messagesResponse([
+          makeMsg({ id: 'a1', authorId: 'u2', authorName: 'Коллега', body: 'сообщение A' }),
+        ])
+      );
       await Promise.resolve();
     });
 
@@ -780,7 +952,10 @@ describe('StaffChatSection', () => {
       }
       if (url === '/api/staff-chat/read') return Promise.resolve({ ok: true });
       if (url === '/api/staff-chat/attachment' && init?.method === 'POST') {
-        return Promise.resolve({ ok: true, json: async () => ({ ok: true, attachmentPath: 'staff-chat/g1/f.pdf' }) });
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ ok: true, attachmentPath: 'staff-chat/g1/f.pdf' }),
+        });
       }
       if (url === '/api/staff-chat/messages' && init?.method === 'POST') {
         sendBody = init.body as string;
@@ -810,7 +985,7 @@ describe('StaffChatSection', () => {
       body: 'с файлом',
       attachmentPath: 'staff-chat/g1/f.pdf',
       attachmentName: 'f.pdf',
-      attachmentMime: 'application/pdf'
+      attachmentMime: 'application/pdf',
     });
   });
 
@@ -823,7 +998,10 @@ describe('StaffChatSection', () => {
       }
       if (url === '/api/staff-chat/read') return Promise.resolve({ ok: true });
       if (url === '/api/staff-chat/messages' && init?.method === 'POST') {
-        return Promise.resolve({ ok: false, json: async () => ({ ok: false, error: 'empty_body' }) });
+        return Promise.resolve({
+          ok: false,
+          json: async () => ({ ok: false, error: 'empty_body' }),
+        });
       }
       throw new Error('unexpected fetch ' + url);
     });
@@ -888,7 +1066,9 @@ describe('StaffChatSection', () => {
     fireEvent.keyDown(textarea, { key: 'Enter' });
 
     await waitFor(() =>
-      expect(toastError).toHaveBeenCalledWith('Сетевая ошибка. Проверьте соединение и попробуйте снова.')
+      expect(toastError).toHaveBeenCalledWith(
+        'Сетевая ошибка. Проверьте соединение и попробуйте снова.'
+      )
     );
   });
 
@@ -903,8 +1083,8 @@ describe('StaffChatSection', () => {
               id: 'm1',
               authorId: 'u2',
               authorName: 'Коллега',
-              reactions: messagesCallCount > 1 ? [{ emoji: '👍', count: 1, mine: true }] : []
-            })
+              reactions: messagesCallCount > 1 ? [{ emoji: '👍', count: 1, mine: true }] : [],
+            }),
           ])
         );
       }
@@ -922,12 +1102,14 @@ describe('StaffChatSection', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Реакция 👍' }));
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Реакция 👍' }).textContent).toContain('1'));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Реакция 👍' }).textContent).toContain('1')
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/staff-chat/reactions',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ messageId: 'm1', emoji: '👍' })
+        body: JSON.stringify({ messageId: 'm1', emoji: '👍' }),
       })
     );
   });
@@ -937,7 +1119,9 @@ describe('StaffChatSection', () => {
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
       if (typeof url === 'string' && url.startsWith('/api/staff-chat/messages?')) {
         messagesCallCount += 1;
-        return Promise.resolve(messagesResponse([makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега' })]));
+        return Promise.resolve(
+          messagesResponse([makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега' })])
+        );
       }
       if (url === '/api/staff-chat/read') return Promise.resolve({ ok: true });
       if (url === '/api/staff-chat/reactions' && init?.method === 'POST') {
@@ -955,7 +1139,10 @@ describe('StaffChatSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Реакция 👍' }));
 
     await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith('/api/staff-chat/reactions', expect.objectContaining({ method: 'POST' }))
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/staff-chat/reactions',
+        expect.objectContaining({ method: 'POST' })
+      )
     );
     expect(messagesCallCount).toBe(callsAfterSelect);
   });
@@ -963,7 +1150,9 @@ describe('StaffChatSection', () => {
   it('toggling a reaction that throws a network error does not crash', async () => {
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
       if (typeof url === 'string' && url.startsWith('/api/staff-chat/messages?')) {
-        return Promise.resolve(messagesResponse([makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега' })]));
+        return Promise.resolve(
+          messagesResponse([makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега' })])
+        );
       }
       if (url === '/api/staff-chat/read') return Promise.resolve({ ok: true });
       if (url === '/api/staff-chat/reactions' && init?.method === 'POST') {
@@ -983,9 +1172,15 @@ describe('StaffChatSection', () => {
   it('starting a new DM posts it, refetches conversations, and selects the returned conversation', async () => {
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
       if (url === '/api/staff-chat/dm' && init?.method === 'POST') {
-        return Promise.resolve({ ok: true, json: async () => ({ ok: true, conversationId: 'dm-new' }) });
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ ok: true, conversationId: 'dm-new' }),
+        });
       }
-      if (typeof url === 'string' && url.startsWith('/api/staff-chat/messages?conversationId=dm-new')) {
+      if (
+        typeof url === 'string' &&
+        url.startsWith('/api/staff-chat/messages?conversationId=dm-new')
+      ) {
         return Promise.resolve(messagesResponse([]));
       }
       if (url === '/api/staff-chat/read') return Promise.resolve({ ok: true });
@@ -1009,7 +1204,10 @@ describe('StaffChatSection', () => {
   it('starting a new DM that fails (ok:false) shows a mapped toast and does not select a conversation', async () => {
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
       if (url === '/api/staff-chat/dm' && init?.method === 'POST') {
-        return Promise.resolve({ ok: false, json: async () => ({ ok: false, error: 'forbidden' }) });
+        return Promise.resolve({
+          ok: false,
+          json: async () => ({ ok: false, error: 'forbidden' }),
+        });
       }
       throw new Error('unexpected fetch ' + url);
     });
@@ -1047,7 +1245,9 @@ describe('StaffChatSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Коллега' }));
 
     await waitFor(() =>
-      expect(toastError).toHaveBeenCalledWith('Сетевая ошибка. Проверьте соединение и попробуйте снова.')
+      expect(toastError).toHaveBeenCalledWith(
+        'Сетевая ошибка. Проверьте соединение и попробуйте снова.'
+      )
     );
   });
 
@@ -1055,7 +1255,9 @@ describe('StaffChatSection', () => {
     const fetchMock = vi.fn().mockImplementation((url: string) => {
       if (typeof url === 'string' && url.startsWith('/api/staff-chat/messages?')) {
         return Promise.resolve(
-          messagesResponse([makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега', body: 'исходное' })])
+          messagesResponse([
+            makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега', body: 'исходное' }),
+          ])
         );
       }
       if (url === '/api/staff-chat/read') return Promise.resolve({ ok: true });
@@ -1067,13 +1269,15 @@ describe('StaffChatSection', () => {
     fireEvent.click(screen.getByText('# Общий'));
     await waitFor(() => expect(screen.getByText('исходное')).toBeTruthy());
     expect(capturedOnNew).toBeDefined();
-    const readCallsAfterSelect = fetchMock.mock.calls.filter((c) => c[0] === '/api/staff-chat/read').length;
+    const readCallsAfterSelect = fetchMock.mock.calls.filter(
+      (c) => c[0] === '/api/staff-chat/read'
+    ).length;
 
     act(() => {
       capturedOnNew!(
         [
           makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега', body: 'дубликат' }),
-          makeMsg({ id: 'm2', authorId: 'u2', authorName: 'Коллега', body: 'новое сообщение' })
+          makeMsg({ id: 'm2', authorId: 'u2', authorName: 'Коллега', body: 'новое сообщение' }),
         ],
         'g1'
       );
@@ -1091,7 +1295,9 @@ describe('StaffChatSection', () => {
     const fetchMock = vi.fn().mockImplementation((url: string) => {
       if (typeof url === 'string' && url.startsWith('/api/staff-chat/messages?')) {
         return Promise.resolve(
-          messagesResponse([makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега', body: 'исходное' })])
+          messagesResponse([
+            makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега', body: 'исходное' }),
+          ])
         );
       }
       if (url === '/api/staff-chat/read') return Promise.resolve({ ok: true });
@@ -1104,7 +1310,10 @@ describe('StaffChatSection', () => {
     await waitFor(() => expect(screen.getByText('исходное')).toBeTruthy());
 
     act(() => {
-      capturedOnNew!([makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега', body: 'исходное-дубликат' })], 'g1');
+      capturedOnNew!(
+        [makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега', body: 'исходное-дубликат' })],
+        'g1'
+      );
     });
 
     expect(screen.queryByText('исходное-дубликат')).toBeNull();
@@ -1114,7 +1323,9 @@ describe('StaffChatSection', () => {
     const fetchMock = vi.fn().mockImplementation((url: string) => {
       if (typeof url === 'string' && url.startsWith('/api/staff-chat/messages?')) {
         return Promise.resolve(
-          messagesResponse([makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега', body: 'исходное' })])
+          messagesResponse([
+            makeMsg({ id: 'm1', authorId: 'u2', authorName: 'Коллега', body: 'исходное' }),
+          ])
         );
       }
       if (url === '/api/staff-chat/read') return Promise.resolve({ ok: true });
@@ -1125,16 +1336,30 @@ describe('StaffChatSection', () => {
     render(<StaffChatSection currentUserId="me" />);
     fireEvent.click(screen.getByText('# Общий')); // activeId = 'g1'
     await waitFor(() => expect(screen.getByText('исходное')).toBeTruthy());
-    const readCallsAfterSelect = fetchMock.mock.calls.filter((c) => c[0] === '/api/staff-chat/read').length;
+    const readCallsAfterSelect = fetchMock.mock.calls.filter(
+      (c) => c[0] === '/api/staff-chat/read'
+    ).length;
 
     // An in-flight poll response for the previously open dm1 lands after the switch.
     act(() => {
-      capturedOnNew!([makeMsg({ id: 'stale-1', authorId: 'u2', authorName: 'Коллега', body: 'устаревшая пачка' })], 'dm1');
+      capturedOnNew!(
+        [
+          makeMsg({
+            id: 'stale-1',
+            authorId: 'u2',
+            authorName: 'Коллега',
+            body: 'устаревшая пачка',
+          }),
+        ],
+        'dm1'
+      );
     });
 
     // Dropped: not appended into g1's thread, and no extra read POST fired.
     expect(screen.queryByText('устаревшая пачка')).toBeNull();
-    const readCallsAfterStale = fetchMock.mock.calls.filter((c) => c[0] === '/api/staff-chat/read').length;
+    const readCallsAfterStale = fetchMock.mock.calls.filter(
+      (c) => c[0] === '/api/staff-chat/read'
+    ).length;
     expect(readCallsAfterStale).toBe(readCallsAfterSelect);
   });
 

@@ -22,21 +22,21 @@ const VALID_EXECUTION: ExecutionStatus[] = [
   'in_progress',
   'completed',
   'cancelled',
-  'on_hold'
+  'on_hold',
 ];
 const VALID_FINANCIAL: FinancialStatus[] = [
   'not_billed',
   'billed',
   'partially_paid',
   'paid',
-  'refunded'
+  'refunded',
 ];
 
 const DEFAULT_TAKE = 25;
 const MAX_TAKE = 100;
 
 export default async function PartnerDealsPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
@@ -56,9 +56,10 @@ export default async function PartnerDealsPage({
     ? (sp.financial as FinancialStatus)
     : undefined;
 
-  const scope = session.assignedOrgIds && session.assignedOrgIds.length > 0
-    ? session.assignedOrgIds
-    : undefined;
+  const scope =
+    session.assignedOrgIds && session.assignedOrgIds.length > 0
+      ? session.assignedOrgIds
+      : undefined;
 
   const { rows, total } = await listPartnerDeals(prisma, {
     partnerId: session.partnerId,
@@ -67,14 +68,14 @@ export default async function PartnerDealsPage({
     executionStatus,
     financialStatus,
     take,
-    skip
+    skip,
   });
 
   return (
-    <div className='space-y-4'>
+    <div className="space-y-4">
       <div>
-        <h1 className='text-2xl font-semibold text-[#111111]'>Заказы</h1>
-        <p className='text-sm text-gray-500 mt-0.5'>
+        <h1 className="text-2xl font-semibold text-[#111111]">Заказы</h1>
+        <p className="text-sm text-gray-500 mt-0.5">
           {total} {pluralizeRu(total, 'заказ', 'заказа', 'заказов')}
         </p>
       </div>
@@ -84,8 +85,13 @@ export default async function PartnerDealsPage({
       <DealsTable rows={rows} />
       <DealsCardList rows={rows} />
 
-      <Paginator basePath='/partner/deals' searchParams={sp} take={take} skip={skip} total={total} />
+      <Paginator
+        basePath="/partner/deals"
+        searchParams={sp}
+        take={take}
+        skip={skip}
+        total={total}
+      />
     </div>
   );
 }
-

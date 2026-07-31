@@ -20,10 +20,10 @@ const ERROR_LABELS: Record<string, string> = {
 export function RequeuePendingButton({ id }: { id: string }) {
   return (
     <ActionToastButton
-      variant='secondary'
-      size='sm'
-      label='Вернуть в очередь'
-      successText='Запись возвращена в очередь'
+      variant="secondary"
+      size="sm"
+      label="Вернуть в очередь"
+      successText="Запись возвращена в очередь"
       errorLabels={ERROR_LABELS}
       action={() => {
         const fd = new FormData();

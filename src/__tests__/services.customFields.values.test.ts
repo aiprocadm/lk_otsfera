@@ -29,12 +29,16 @@ let defSelectId: string;
 let defBooleanId: string;
 
 // Orders
-let orderId: string;          // in scope for manager
-let foreignOrderId: string;   // NOT in scope for manager
+let orderId: string; // in scope for manager
+let foreignOrderId: string; // NOT in scope for manager
 
 const ET = 'order';
 
-function makeSession(userId: string, role: string, extra: Partial<SessionPayload> = {}): SessionPayload {
+function makeSession(
+  userId: string,
+  role: string,
+  extra: Partial<SessionPayload> = {}
+): SessionPayload {
   return { sub: userId, role: role as SessionPayload['role'], ...extra } as SessionPayload;
 }
 
@@ -43,22 +47,42 @@ beforeAll(async () => {
 
   // Create users
   const admin = await prisma.user.create({
-    data: { email: `cfv-admin-${stamp}@t.local`, passwordHash: 'x', name: 'CFV Admin', role: 'admin' },
+    data: {
+      email: `cfv-admin-${stamp}@t.local`,
+      passwordHash: 'x',
+      name: 'CFV Admin',
+      role: 'admin',
+    },
   });
   adminUserId = admin.id;
 
   const manager = await prisma.user.create({
-    data: { email: `cfv-mgr-${stamp}@t.local`, passwordHash: 'x', name: 'CFV Manager', role: 'manager' },
+    data: {
+      email: `cfv-mgr-${stamp}@t.local`,
+      passwordHash: 'x',
+      name: 'CFV Manager',
+      role: 'manager',
+    },
   });
   managerUserId = manager.id;
 
   const outMgr = await prisma.user.create({
-    data: { email: `cfv-out-mgr-${stamp}@t.local`, passwordHash: 'x', name: 'CFV OutMgr', role: 'manager' },
+    data: {
+      email: `cfv-out-mgr-${stamp}@t.local`,
+      passwordHash: 'x',
+      name: 'CFV OutMgr',
+      role: 'manager',
+    },
   });
   outOfScopeManagerUserId = outMgr.id;
 
   const orgUser = await prisma.user.create({
-    data: { email: `cfv-org-${stamp}@t.local`, passwordHash: 'x', name: 'CFV OrgUser', role: 'organization' },
+    data: {
+      email: `cfv-org-${stamp}@t.local`,
+      passwordHash: 'x',
+      name: 'CFV OrgUser',
+      role: 'organization',
+    },
   });
   orgUserId = orgUser.id;
 
@@ -66,7 +90,9 @@ beforeAll(async () => {
   const company = await prisma.company.create({ data: { name: `CFV-Co-${stamp}` } });
   companyId = company.id;
 
-  const partner = await prisma.partner.create({ data: { name: `CFV-P-${stamp}`, commissionRate: 0.1 } });
+  const partner = await prisma.partner.create({
+    data: { name: `CFV-P-${stamp}`, commissionRate: 0.1 },
+  });
   partnerId = partner.id;
 
   const org = await prisma.organization.create({
@@ -115,36 +141,56 @@ beforeAll(async () => {
   const adminSession = makeSession(adminUserId, 'admin');
 
   const dText = await createDefinition(prisma, adminSession, {
-    entityType: ET, key: 'contract_number', label: 'Номер договора', fieldType: 'text', sortOrder: 1,
+    entityType: ET,
+    key: 'contract_number',
+    label: 'Номер договора',
+    fieldType: 'text',
+    sortOrder: 1,
     editableByRoles: ['admin', 'leader', 'manager'],
   });
   if (!dText.ok) throw new Error('Failed to create text def');
   defTextId = dText.definition.id;
 
   const dNum = await createDefinition(prisma, adminSession, {
-    entityType: ET, key: 'amount_override', label: 'Сумма', fieldType: 'number', sortOrder: 2,
+    entityType: ET,
+    key: 'amount_override',
+    label: 'Сумма',
+    fieldType: 'number',
+    sortOrder: 2,
     editableByRoles: ['admin', 'leader', 'manager'],
   });
   if (!dNum.ok) throw new Error('Failed to create number def');
   defNumberId = dNum.definition.id;
 
   const dDate = await createDefinition(prisma, adminSession, {
-    entityType: ET, key: 'deadline', label: 'Срок', fieldType: 'date', sortOrder: 3,
+    entityType: ET,
+    key: 'deadline',
+    label: 'Срок',
+    fieldType: 'date',
+    sortOrder: 3,
     editableByRoles: ['admin', 'leader', 'manager'],
   });
   if (!dDate.ok) throw new Error('Failed to create date def');
   defDateId = dDate.definition.id;
 
   const dSelect = await createDefinition(prisma, adminSession, {
-    entityType: ET, key: 'priority', label: 'Приоритет', fieldType: 'select',
-    options: ['low', 'medium', 'high'], sortOrder: 4,
+    entityType: ET,
+    key: 'priority',
+    label: 'Приоритет',
+    fieldType: 'select',
+    options: ['low', 'medium', 'high'],
+    sortOrder: 4,
     editableByRoles: ['admin', 'leader', 'manager'],
   });
   if (!dSelect.ok) throw new Error('Failed to create select def');
   defSelectId = dSelect.definition.id;
 
   const dBool = await createDefinition(prisma, adminSession, {
-    entityType: ET, key: 'is_urgent', label: 'Срочно', fieldType: 'boolean', sortOrder: 5,
+    entityType: ET,
+    key: 'is_urgent',
+    label: 'Срочно',
+    fieldType: 'boolean',
+    sortOrder: 5,
     editableByRoles: ['admin', 'leader', 'manager'],
   });
   if (!dBool.ok) throw new Error('Failed to create boolean def');
@@ -166,7 +212,16 @@ afterAll(async () => {
   await prisma.customFieldDefinition.deleteMany({
     where: {
       entityType: { in: [ET, 'other_entity'] },
-      key: { in: ['contract_number', 'amount_override', 'deadline', 'priority', 'is_urgent', 'wrong_key'] },
+      key: {
+        in: [
+          'contract_number',
+          'amount_override',
+          'deadline',
+          'priority',
+          'is_urgent',
+          'wrong_key',
+        ],
+      },
     },
   });
   await prisma.order.deleteMany({ where: { title: { startsWith: 'CFV-' } } });
@@ -263,7 +318,12 @@ describe('values service', () => {
   it('setValues: partner role → not_found (заказ не его)', async () => {
     // Create a temp partner user for this test
     const partnerUser = await prisma.user.create({
-      data: { email: `cfv-ptr-${stamp}@t.local`, passwordHash: 'x', name: 'CFV Ptr', role: 'partner' },
+      data: {
+        email: `cfv-ptr-${stamp}@t.local`,
+        passwordHash: 'x',
+        name: 'CFV Ptr',
+        role: 'partner',
+      },
     });
     const pSession = makeSession(partnerUser.id, 'partner');
     const res = await setValues(prisma, pSession, ET, orderId, {

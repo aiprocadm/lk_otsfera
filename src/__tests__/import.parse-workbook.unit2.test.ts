@@ -9,9 +9,7 @@ import { parseWorkbook } from '@/lib/services/import/parse-workbook';
 import { SHEET_NAMES, PAYMENT_COLS } from '@/lib/services/import/column-map';
 
 /** Build an xlsx buffer and inject a raw value into a cell via a patch callback */
-async function buildCustomBook(
-  patch: (ws: ExcelJS.Worksheet) => void
-): Promise<Buffer> {
+async function buildCustomBook(patch: (ws: ExcelJS.Worksheet) => void): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet(SHEET_NAMES.payments);
   // Header row
@@ -43,7 +41,9 @@ describe('parseWorkbook — cellToString branches', () => {
     });
     const { payments } = await parseWorkbook(buf);
     // 99 → "99" → trimmed
-    expect(String(payments[0] as Record<string, unknown>).includes || payments.length > 0).toBeTruthy();
+    expect(
+      String(payments[0] as Record<string, unknown>).includes || payments.length > 0
+    ).toBeTruthy();
   });
 
   it('handles a number cell value in HEADER (column matching via number→string)', async () => {
@@ -145,7 +145,11 @@ describe('parseWorkbook — cellToString branches', () => {
     });
     const { payments } = await parseWorkbook(buf);
     // Should have 2 real rows (empty row skipped)
-    const valid = payments.filter((p) => (p as Record<string, unknown>).externalId !== null && (p as Record<string, unknown>).externalId !== undefined);
+    const valid = payments.filter(
+      (p) =>
+        (p as Record<string, unknown>).externalId !== null &&
+        (p as Record<string, unknown>).externalId !== undefined
+    );
     expect(valid.length).toBe(2);
   });
 
@@ -157,7 +161,13 @@ describe('parseWorkbook — cellToString branches', () => {
     const ws = wb.addWorksheet(SHEET_NAMES.payments);
     // Add a header row where the FIRST cell is explicitly set to undefined
     // ExcelJS may store undefined differently from null; use an empty row cell
-    ws.addRow([PAYMENT_COLS.externalId, PAYMENT_COLS.orgInn, PAYMENT_COLS.amount, PAYMENT_COLS.paidAt, PAYMENT_COLS.purpose]);
+    ws.addRow([
+      PAYMENT_COLS.externalId,
+      PAYMENT_COLS.orgInn,
+      PAYMENT_COLS.amount,
+      PAYMENT_COLS.paidAt,
+      PAYMENT_COLS.purpose,
+    ]);
     // Override the first cell value with undefined via setting .value on the cell
     const headerCell = ws.getRow(1).getCell(2); // target orgInn header
     (headerCell as any).value = undefined; // force undefined (distinct from null)
@@ -174,7 +184,13 @@ describe('parseWorkbook — cellToString branches', () => {
     // To trigger: header cell with boolean true → typeof true === 'boolean' is true
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet(SHEET_NAMES.payments);
-    ws.addRow([PAYMENT_COLS.externalId, PAYMENT_COLS.orgInn, PAYMENT_COLS.amount, PAYMENT_COLS.paidAt, PAYMENT_COLS.purpose]);
+    ws.addRow([
+      PAYMENT_COLS.externalId,
+      PAYMENT_COLS.orgInn,
+      PAYMENT_COLS.amount,
+      PAYMENT_COLS.paidAt,
+      PAYMENT_COLS.purpose,
+    ]);
     // Override first header with boolean (not a number, is a boolean → arm 0 of ||, then boolean branch taken)
     (ws.getRow(1).getCell(1) as any).value = true;
     ws.addRow(['DOC-BOOL', '7700', 500, '2026-04-01', null]);
@@ -213,7 +229,13 @@ describe('parseWorkbook — cellToString branches', () => {
     // Use a workbook where first header cell IS null — ExcelJS allows addRow with null
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet(SHEET_NAMES.payments);
-    ws.addRow([null, PAYMENT_COLS.orgInn, PAYMENT_COLS.amount, PAYMENT_COLS.paidAt, PAYMENT_COLS.purpose]);
+    ws.addRow([
+      null,
+      PAYMENT_COLS.orgInn,
+      PAYMENT_COLS.amount,
+      PAYMENT_COLS.paidAt,
+      PAYMENT_COLS.purpose,
+    ]);
     ws.addRow([null, '7700', 500, '2026-04-01', null]);
     const buf = (await wb.xlsx.writeBuffer()) as unknown as Buffer;
     // parseWorkbook should not throw; externalId won't be matched (header was null → empty string → no match)

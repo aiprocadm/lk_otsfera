@@ -50,7 +50,7 @@ function AttachmentLine({ msg }: { msg: StaffThreadMessageVM }) {
         marginTop: '4px',
         fontSize: '12px',
         color: '#F97316',
-        textDecoration: 'underline'
+        textDecoration: 'underline',
       }}
     >
       📎 {msg.attachmentName ?? 'вложение'}
@@ -96,7 +96,9 @@ export function StaffThreadView({ messages, currentUserId, onToggleReaction }: P
         return (
           <React.Fragment key={msg.id}>
             {showSeparator && (
-              <div style={{ textAlign: 'center', fontSize: '11px', color: '#9CA3AF', margin: '4px 0' }}>
+              <div
+                style={{ textAlign: 'center', fontSize: '11px', color: '#9CA3AF', margin: '4px 0' }}
+              >
                 {day}
               </div>
             )}
@@ -105,11 +107,18 @@ export function StaffThreadView({ messages, currentUserId, onToggleReaction }: P
               style={{
                 display: 'flex',
                 flexDirection: 'column',
-                alignItems: isMine ? 'flex-end' : 'flex-start'
+                alignItems: isMine ? 'flex-end' : 'flex-start',
               }}
             >
               {!isMine && (
-                <span style={{ fontSize: '12px', color: '#6B7280', marginBottom: '4px', fontWeight: 500 }}>
+                <span
+                  style={{
+                    fontSize: '12px',
+                    color: '#6B7280',
+                    marginBottom: '4px',
+                    fontWeight: 500,
+                  }}
+                >
                   {msg.authorName}
                 </span>
               )}
@@ -122,7 +131,7 @@ export function StaffThreadView({ messages, currentUserId, onToggleReaction }: P
                   color: isMine ? '#ffffff' : '#111111',
                   fontSize: '14px',
                   lineHeight: '1.5',
-                  wordBreak: 'break-word'
+                  wordBreak: 'break-word',
                 }}
               >
                 <p style={{ margin: 0 }}>{msg.body}</p>
@@ -151,7 +160,7 @@ export function StaffThreadView({ messages, currentUserId, onToggleReaction }: P
                         backgroundColor: mine ? '#FFF7ED' : '#ffffff',
                         color: mine ? '#C2410C' : '#374151',
                         fontSize: '12px',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
                       }}
                     >
                       <span>{emoji}</span>

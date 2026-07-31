@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import AdminCommissionStatementDetailPage from '@/app/admin/commission-statements/[id]/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
@@ -10,24 +11,30 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { getAdminStatement, getStatementAuditLog } = vi.hoisted(() => ({
   getAdminStatement: vi.fn(),
-  getStatementAuditLog: vi.fn()
+  getStatementAuditLog: vi.fn(),
 }));
-vi.mock('@/lib/services/admin/commissionStatements', () => ({ getAdminStatement, getStatementAuditLog }));
+vi.mock('@/lib/services/admin/commissionStatements', () => ({
+  getAdminStatement,
+  getStatementAuditLog,
+}));
 
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
 vi.mock('@/components/admin/mark-paid-form', () => ({
   MarkPaidForm: (props: { statementId: string; status: string }) =>
-    React.createElement('div', { 'data-testid': 'mark-paid-form' }, props.statementId, props.status)
+    React.createElement(
+      'div',
+      { 'data-testid': 'mark-paid-form' },
+      props.statementId,
+      props.status
+    ),
 }));
-
-import AdminCommissionStatementDetailPage from '@/app/admin/commission-statements/[id]/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 
@@ -42,7 +49,7 @@ const BASE_STATEMENT = {
   paidAt: null,
   pdfPath: null,
   xlsxPath: null,
-  items: []
+  items: [],
 };
 
 describe('AdminCommissionStatementDetailPage', () => {
@@ -79,7 +86,7 @@ describe('AdminCommissionStatementDetailPage', () => {
           organizationName: 'Org',
           baseAmount: '500',
           rate: '0.1',
-          commissionAmount: '50'
+          commissionAmount: '50',
         },
         {
           id: 'i2',
@@ -87,12 +94,17 @@ describe('AdminCommissionStatementDetailPage', () => {
           organizationName: 'Org 2',
           baseAmount: '300',
           rate: '0.05',
-          commissionAmount: '15'
-        }
-      ]
+          commissionAmount: '15',
+        },
+      ],
     });
     getStatementAuditLog.mockResolvedValue([
-      { id: 'a1', action: 'commission_statement_approved', userName: 'Иванов', createdAt: new Date('2024-01-02') }
+      {
+        id: 'a1',
+        action: 'commission_statement_approved',
+        userName: 'Иванов',
+        createdAt: new Date('2024-01-02'),
+      },
     ]);
 
     const { container } = await renderServerComponent(
@@ -113,7 +125,13 @@ describe('AdminCommissionStatementDetailPage', () => {
     requireAdmin.mockResolvedValue(SESSION);
     getAdminStatement.mockResolvedValue({ ...BASE_STATEMENT, status: 'weird_status' });
     getStatementAuditLog.mockResolvedValue([
-      { id: 'a2', action: 'unknown_action', userName: null, userId: 'u9', createdAt: new Date('2024-01-03') }
+      {
+        id: 'a2',
+        action: 'unknown_action',
+        userName: null,
+        userId: 'u9',
+        createdAt: new Date('2024-01-03'),
+      },
     ]);
 
     const { container } = await renderServerComponent(
@@ -145,7 +163,7 @@ describe('AdminCommissionStatementDetailPage', () => {
     getAdminStatement.mockResolvedValue({
       ...BASE_STATEMENT,
       periodFrom: new Date('2024-01-15'),
-      periodTo: new Date('2024-02-15')
+      periodTo: new Date('2024-02-15'),
     });
     getStatementAuditLog.mockResolvedValue([]);
 

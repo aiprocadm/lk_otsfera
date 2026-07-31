@@ -2,7 +2,10 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 
-vi.mock('@/server-actions/payment-import', () => ({ previewPaymentImportAction: vi.fn(), commitPaymentImportAction: vi.fn() }));
+vi.mock('@/server-actions/payment-import', () => ({
+  previewPaymentImportAction: vi.fn(),
+  commitPaymentImportAction: vi.fn(),
+}));
 
 import { PaymentImportForm } from '@/components/import/payment-import-form';
 

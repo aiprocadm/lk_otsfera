@@ -2,12 +2,18 @@ import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 
-vi.mock('next/link', () => ({ default: ({ href, children }: { href: string; children: React.ReactNode }) => React.createElement('a', { href }, children) }));
+vi.mock('next/link', () => ({
+  default: ({ href, children }: { href: string; children: React.ReactNode }) =>
+    React.createElement('a', { href }, children),
+}));
 vi.mock('@/components/manager/manager-order-header', () => ({ ManagerOrderHeader: () => null }));
 vi.mock('@/components/manager/manager-order-amounts', () => ({ ManagerOrderAmounts: () => null }));
-vi.mock('@/components/manager/manager-order-timeline', () => ({ ManagerOrderTimeline: () => null }));
+vi.mock('@/components/manager/manager-order-timeline', () => ({
+  ManagerOrderTimeline: () => null,
+}));
 vi.mock('@/components/manager/manager-status-change-form', () => ({
-  ManagerStatusChangeForm: () => React.createElement('div', { 'data-testid': 'status-change-form' })
+  ManagerStatusChangeForm: () =>
+    React.createElement('div', { 'data-testid': 'status-change-form' }),
 }));
 vi.mock('@/components/manager/order-lifecycle-panel', () => ({
   OrderLifecyclePanel: (props: {
@@ -21,7 +27,7 @@ vi.mock('@/components/manager/order-lifecycle-panel', () => ({
       props.orderId,
       String(props.accountingSigned),
       String(props.returnReason)
-    )
+    ),
 }));
 vi.mock('@/components/manager/manager-payments-list', () => ({ ManagerPaymentsList: () => null }));
 vi.mock('@/components/partner/documents-list', () => ({ DocumentsList: () => null }));
@@ -29,7 +35,7 @@ vi.mock('@/components/training/order-items-section', () => ({ OrderItemsSection:
 vi.mock('@/components/orders/order-custom-fields', () => ({ OrderCustomFields: () => null }));
 vi.mock('@/components/orders/order-status-panel', () => ({
   OrderStatusPanel: (props: { orderId: string }) =>
-    React.createElement('div', { 'data-testid': 'status-panel' }, props.orderId)
+    React.createElement('div', { 'data-testid': 'status-panel' }, props.orderId),
 }));
 vi.mock('@/components/manager/claim-order-button', () => ({
   ClaimOrderButton: (props: { orderId: string; managerId: string | null }) =>
@@ -38,7 +44,7 @@ vi.mock('@/components/manager/claim-order-button', () => ({
       { 'data-testid': 'claim-order-button' },
       props.orderId,
       String(props.managerId)
-    )
+    ),
 }));
 vi.mock('@/components/manager/deal-activity/deal-activity-thread', () => ({
   DealActivityThread: (props: {
@@ -54,7 +60,7 @@ vi.mock('@/components/manager/deal-activity/deal-activity-thread', () => ({
       String(props.items.length),
       String(props.inboundEnabled),
       String(props.telephonyEnabled)
-    )
+    ),
 }));
 
 import { ManagerOrderDetailView } from '@/components/manager/manager-order-detail-view';
@@ -70,7 +76,7 @@ const BASE_ORDER = {
   managerId: null,
   documents: [],
   payments: [],
-  commentsCountByMe: 0
+  commentsCountByMe: 0,
 };
 
 // order shallow-merge'ится с BASE_ORDER — тестам достаточно передать дельту полей.
@@ -82,7 +88,7 @@ function makeData(overrides: Record<string, unknown>) {
     comments: [],
     documentRows: [],
     items: [],
-    ...rest
+    ...rest,
   } as never;
 }
 
@@ -93,7 +99,7 @@ describe('ManagerOrderDetailView', () => {
         data: makeData({}),
         backHref: '/leader/orders',
         directions: [],
-        students: []
+        students: [],
       })
     );
     expect(html).toContain('href="/leader/orders"');
@@ -110,7 +116,7 @@ describe('ManagerOrderDetailView', () => {
         backHref: '/manager/orders',
         directions: [],
         students: [],
-        breadcrumbs: [{ href: '/manager/organizations/g1', label: 'ООО Ромашка' }]
+        breadcrumbs: [{ href: '/manager/organizations/g1', label: 'ООО Ромашка' }],
       })
     );
     expect(withCrumbs).toContain('ООО Ромашка');
@@ -120,7 +126,7 @@ describe('ManagerOrderDetailView', () => {
         data: makeData({}),
         backHref: '/manager/orders',
         directions: [],
-        students: []
+        students: [],
       })
     );
     expect(without).not.toContain('ООО Ромашка');
@@ -135,7 +141,7 @@ describe('ManagerOrderDetailView', () => {
         backHref: '/manager/orders',
         directions: [],
         students: [],
-        statusPanel: { current: null, forward: [], backward: [], terminal: null, history: [] }
+        statusPanel: { current: null, forward: [], backward: [], terminal: null, history: [] },
       })
     );
     expect(withPanel).toContain('status-panel');
@@ -145,7 +151,7 @@ describe('ManagerOrderDetailView', () => {
         data: makeData({}),
         backHref: '/manager/orders',
         directions: [],
-        students: []
+        students: [],
       })
     );
     expect(withoutPanel).not.toContain('status-panel');
@@ -157,7 +163,7 @@ describe('ManagerOrderDetailView', () => {
         data: makeData({ documentRows: [{ id: 'd1' }] }),
         backHref: '/manager/orders',
         directions: [],
-        students: []
+        students: [],
       })
     );
     expect(html).toContain('Документы');
@@ -170,7 +176,7 @@ describe('ManagerOrderDetailView', () => {
         data: makeData({ documentRows: [] }),
         backHref: '/manager/orders',
         directions: [],
-        students: []
+        students: [],
       })
     );
     expect(html).not.toContain('Документы<!-- --> <span');
@@ -182,7 +188,7 @@ describe('ManagerOrderDetailView', () => {
         data: makeData({}),
         backHref: '/manager/orders',
         directions: [],
-        students: [{ id: 's1', name: 'Студент', email: 's@x.com' }]
+        students: [{ id: 's1', name: 'Студент', email: 's@x.com' }],
       })
     );
     expect(html).toContain('Все заказы');
@@ -194,7 +200,7 @@ describe('ManagerOrderDetailView', () => {
         data: makeData({}),
         backHref: '/manager/orders',
         directions: [],
-        students: []
+        students: [],
       })
     );
     expect(html).toContain('data-testid="deal-activity-thread"');
@@ -207,7 +213,7 @@ describe('ManagerOrderDetailView', () => {
         data: makeData({}),
         backHref: '/manager/orders',
         directions: [],
-        students: []
+        students: [],
       })
     );
     expect(html).toContain('data-testid="claim-order-button"');
@@ -220,7 +226,7 @@ describe('ManagerOrderDetailView', () => {
         data: makeData({ order: { managerId: 'm1' } }),
         backHref: '/manager/orders',
         directions: [],
-        students: []
+        students: [],
       })
     );
     expect(html).toContain('o1<!-- -->m1');
@@ -232,7 +238,7 @@ describe('ManagerOrderDetailView', () => {
         data: makeData({}),
         backHref: '/manager/orders',
         directions: [],
-        students: []
+        students: [],
       })
     );
     expect(html).toContain('data-testid="order-lifecycle-panel"');
@@ -252,12 +258,12 @@ describe('ManagerOrderDetailView', () => {
           order: {
             status: 'waiting_client',
             accountingSignedAt: new Date('2026-07-01'),
-            returnReason: 'нет сканов'
-          }
+            returnReason: 'нет сканов',
+          },
         }),
         backHref: '/manager/orders',
         directions: [],
-        students: []
+        students: [],
       })
     );
     expect(html).toContain('o1<!-- -->true<!-- -->нет сканов');
@@ -271,10 +277,10 @@ describe('ManagerOrderDetailView', () => {
         directions: [],
         students: [],
         activityItems: [
-          { kind: 'event', id: 'e1', at: new Date('2026-01-01'), label: 'Смена статуса заказа' }
+          { kind: 'event', id: 'e1', at: new Date('2026-01-01'), label: 'Смена статуса заказа' },
         ],
         inboundEnabled: true,
-        telephonyEnabled: true
+        telephonyEnabled: true,
       })
     );
     expect(html).toContain('o1<!-- -->1<!-- -->true<!-- -->true');

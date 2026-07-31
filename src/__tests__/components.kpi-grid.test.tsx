@@ -3,8 +3,15 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
-    React.createElement('a', { href, className }, children)
+  default: ({
+    href,
+    children,
+    className,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => React.createElement('a', { href, className }, children),
 }));
 
 import { KpiGrid, type DashboardKpis } from '@/components/partner/kpi-grid';
@@ -14,7 +21,7 @@ describe('KpiGrid', () => {
     const kpis: DashboardKpis = {
       openOrders: 7,
       outstanding: '15000.00',
-      commissionThisMonth: '2500.00'
+      commissionThisMonth: '2500.00',
     };
     const html = renderToString(React.createElement(KpiGrid, { kpis }));
     expect(html).toContain('Открытые заказы');

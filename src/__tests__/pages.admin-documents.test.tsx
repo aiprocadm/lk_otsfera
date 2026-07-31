@@ -8,7 +8,7 @@ vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 
 const { documentFindMany } = vi.hoisted(() => ({ documentFindMany: vi.fn() }));
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: { document: { findMany: documentFindMany } }
+  prisma: { document: { findMany: documentFindMany } },
 }));
 
 vi.mock('@/components/partner/documents-list', () => ({
@@ -18,11 +18,11 @@ vi.mock('@/components/partner/documents-list', () => ({
       { 'data-testid': 'documents-list' },
       props.downloadEndpointBase,
       JSON.stringify(props.rows)
-    )
+    ),
 }));
 
 vi.mock('@/components/documents/documents-panel', () => ({
-  DocumentsPanel: () => React.createElement('div', { 'data-testid': 'documents-panel' })
+  DocumentsPanel: () => React.createElement('div', { 'data-testid': 'documents-panel' }),
 }));
 
 import AdminDocumentsPage from '@/app/admin/documents/page';
@@ -62,8 +62,8 @@ describe('AdminDocumentsPage', () => {
         direction: 'incoming',
         signedAt: null,
         createdAt: new Date('2024-01-01'),
-        size: 100
-      }
+        size: 100,
+      },
     ]);
 
     const { container } = await renderServerComponent(

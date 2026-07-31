@@ -10,7 +10,7 @@ function cert(overrides: Partial<CertificateListItem> = {}): CertificateListItem
     direction: { name: 'Охрана труда' },
     issuedAt: new Date('2024-01-15T10:00:00Z'),
     validUntil: null,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -46,7 +46,9 @@ describe('CertificateList', () => {
     const farFuture = new Date();
     farFuture.setFullYear(farFuture.getFullYear() + 5);
     const html = renderToString(
-      React.createElement(CertificateList, { certificates: [cert({ validUntil: farFuture.toISOString() })] })
+      React.createElement(CertificateList, {
+        certificates: [cert({ validUntil: farFuture.toISOString() })],
+      })
     );
     expect(html).toContain('Истекает через');
   });
@@ -54,7 +56,10 @@ describe('CertificateList', () => {
   it('renders multiple certificate rows', () => {
     const html = renderToString(
       React.createElement(CertificateList, {
-        certificates: [cert({ id: 'c1', number: 'УТ-0001' }), cert({ id: 'c2', number: 'УТ-0002' })]
+        certificates: [
+          cert({ id: 'c1', number: 'УТ-0001' }),
+          cert({ id: 'c2', number: 'УТ-0002' }),
+        ],
       })
     );
     expect(html).toContain('УТ-0001');

@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 :root {
-  --brand-orange: #F97316;
-  --brand-orange-dark: #EA580C;
-  --brand-orange-light: #FFF7ED;
+  --brand-orange: #f97316;
+  --brand-orange-dark: #ea580c;
+  --brand-orange-light: #fff7ed;
   --brand-black: #111111;
 }
 
@@ -14,7 +14,15 @@ body {
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { @apply bg-gray-100; }
-::-webkit-scrollbar-thumb { @apply bg-gray-300 rounded-full; }
-::-webkit-scrollbar-thumb:hover { background: var(--brand-orange); }
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-gray-100;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--brand-orange);
+}

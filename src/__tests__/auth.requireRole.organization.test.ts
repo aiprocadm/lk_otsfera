@@ -2,25 +2,29 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { getSession, redirect } = vi.hoisted(() => ({
   getSession: vi.fn(),
-  redirect: vi.fn()
+  redirect: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/session', () => ({ getSession }));
 vi.mock('next/navigation', () => ({ redirect }));
 
-import { requireOrganization, requireOrganizationAdmin, requireOrganizationAdminOrLeader } from '@/lib/auth/requireRole';
+import {
+  requireOrganization,
+  requireOrganizationAdmin,
+  requireOrganizationAdminOrLeader,
+} from '@/lib/auth/requireRole';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const ORG_MEMBER: SessionPayload = {
   sub: 'u-1',
   role: 'organization',
-  organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'member', isActive: true }]
+  organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'member', isActive: true }],
 };
 
 const ORG_ADMIN_A: SessionPayload = {
   sub: 'u-2',
   role: 'organization',
-  organizationMemberships: [{ organizationId: 'org-A', roleInOrg: 'admin', isActive: true }]
+  organizationMemberships: [{ organizationId: 'org-A', roleInOrg: 'admin', isActive: true }],
 };
 
 const ORG_MULTI: SessionPayload = {
@@ -28,19 +32,19 @@ const ORG_MULTI: SessionPayload = {
   role: 'organization',
   organizationMemberships: [
     { organizationId: 'org-A', roleInOrg: 'admin', isActive: true },
-    { organizationId: 'org-B', roleInOrg: 'member', isActive: true }
-  ]
+    { organizationId: 'org-B', roleInOrg: 'member', isActive: true },
+  ],
 };
 
 const ORG_DEACTIVATED: SessionPayload = {
   sub: 'u-4',
   role: 'organization',
-  organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'admin', isActive: false }]
+  organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'admin', isActive: false }],
 };
 
 const ORG_NO_MEMBERSHIPS: SessionPayload = {
   sub: 'u-5',
-  role: 'organization'
+  role: 'organization',
 };
 
 const PARTNER_SESSION: SessionPayload = { sub: 'u-6', role: 'partner', partnerRole: 'admin' };
@@ -97,7 +101,7 @@ describe('requireOrganization', () => {
 const ORG_LEADER: SessionPayload = {
   sub: 'u-7',
   role: 'organization',
-  organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'leader', isActive: true }]
+  organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'leader', isActive: true }],
 };
 
 describe('requireOrganizationAdmin', () => {

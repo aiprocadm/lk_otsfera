@@ -35,23 +35,45 @@ const idCtx = (id: string) => ({ params: Promise.resolve({ id }) });
 
 beforeAll(async () => {
   prisma = new PrismaClient();
-  const pA = await prisma.partner.create({ data: { name: `commIdorPA-${STAMP}`, commissionRate: new Prisma.Decimal('0.1') } });
+  const pA = await prisma.partner.create({
+    data: { name: `commIdorPA-${STAMP}`, commissionRate: new Prisma.Decimal('0.1') },
+  });
   partnerA = pA.id;
-  const pB = await prisma.partner.create({ data: { name: `commIdorPB-${STAMP}`, commissionRate: new Prisma.Decimal('0.2') } });
+  const pB = await prisma.partner.create({
+    data: { name: `commIdorPB-${STAMP}`, commissionRate: new Prisma.Decimal('0.2') },
+  });
   partnerB = pB.id;
 
   const sA = await prisma.commissionStatement.create({
-    data: { partnerId: partnerA, periodFrom: new Date('2026-04-01'), periodTo: new Date('2026-04-30'), totalBaseAmount: 100000, averageRate: 0.1, totalCommissionAmount: 10000, status: 'approved' }
+    data: {
+      partnerId: partnerA,
+      periodFrom: new Date('2026-04-01'),
+      periodTo: new Date('2026-04-30'),
+      totalBaseAmount: 100000,
+      averageRate: 0.1,
+      totalCommissionAmount: 10000,
+      status: 'approved',
+    },
   });
   stmtA = sA.id;
   const sB = await prisma.commissionStatement.create({
-    data: { partnerId: partnerB, periodFrom: new Date('2026-04-01'), periodTo: new Date('2026-04-30'), totalBaseAmount: 200000, averageRate: 0.2, totalCommissionAmount: 40000, status: 'approved' }
+    data: {
+      partnerId: partnerB,
+      periodFrom: new Date('2026-04-01'),
+      periodTo: new Date('2026-04-30'),
+      totalBaseAmount: 200000,
+      averageRate: 0.2,
+      totalCommissionAmount: 40000,
+      status: 'approved',
+    },
   });
   stmtB = sB.id;
 });
 
 afterAll(async () => {
-  await prisma.commissionStatement.deleteMany({ where: { partnerId: { in: [partnerA, partnerB] } } });
+  await prisma.commissionStatement.deleteMany({
+    where: { partnerId: { in: [partnerA, partnerB] } },
+  });
   await prisma.partner.deleteMany({ where: { id: { in: [partnerA, partnerB] } } });
   await prisma.$disconnect();
 });

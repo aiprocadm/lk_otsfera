@@ -16,7 +16,9 @@ export default async function OrganizationSettingsPage() {
   const status = await getTelegramStatus(prisma, ctx.session);
   const settings = await getNotificationSettings(prisma, ctx.session);
   // Этап 8 (ФТ-9.2): реквизиты активной организации; правка — admin|leader.
-  const requisites = ctx.activeOrgId ? await getOrgRequisites(prisma, ctx.session, ctx.activeOrgId) : null;
+  const requisites = ctx.activeOrgId
+    ? await getOrgRequisites(prisma, ctx.session, ctx.activeOrgId)
+    : null;
   const canEditRequisites = ctx.viewerRole === 'admin' || ctx.viewerRole === 'leader';
 
   return (
@@ -27,16 +29,16 @@ export default async function OrganizationSettingsPage() {
       activeOrgId={ctx.activeOrgId}
       viewerRole={ctx.viewerRole}
     >
-      <div className='space-y-6'>
-        <h1 className='text-2xl font-semibold text-[#111111]'>Настройки</h1>
+      <div className="space-y-6">
+        <h1 className="text-2xl font-semibold text-[#111111]">Настройки</h1>
         <TelegramLinkCard status={status} />
         <NotificationChannelsCard settings={settings.view} />
         {requisites?.ok && ctx.activeOrgId && (
           <RequisitesCard
-            title='Реквизиты организации'
-            description='Нужны для автоматического формирования счетов и актов. Начните вводить название или ИНН — остальное подставится само.'
+            title="Реквизиты организации"
+            description="Нужны для автоматического формирования счетов и актов. Начните вводить название или ИНН — остальное подставится само."
             defaults={requisites.requisites}
-            idPrefix='org-req'
+            idPrefix="org-req"
             action={setOrgRequisitesAction}
             hidden={{ orgId: ctx.activeOrgId }}
             canEdit={canEditRequisites}

@@ -33,12 +33,14 @@ const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 const { getSession } = vi.hoisted(() => ({ getSession: vi.fn() }));
 const { notFoundIfDisabled } = vi.hoisted(() => ({ notFoundIfDisabled: vi.fn() }));
 
-const { createDirection, listDirections, updateDirection, deactivateDirection } = vi.hoisted(() => ({
-  createDirection: vi.fn(),
-  listDirections: vi.fn(),
-  updateDirection: vi.fn(),
-  deactivateDirection: vi.fn(),
-}));
+const { createDirection, listDirections, updateDirection, deactivateDirection } = vi.hoisted(
+  () => ({
+    createDirection: vi.fn(),
+    listDirections: vi.fn(),
+    updateDirection: vi.fn(),
+    deactivateDirection: vi.fn(),
+  })
+);
 const { createCertificate, issueFromOrderItem } = vi.hoisted(() => ({
   createCertificate: vi.fn(),
   issueFromOrderItem: vi.fn(),
@@ -54,16 +56,25 @@ const { getManagerLead, assignLead, setLeadStatus, promoteLead, rejectLead } = v
   promoteLead: vi.fn(),
   rejectLead: vi.fn(),
 }));
-const { canReviewEnrollments, approveEnrollment, rejectEnrollment, markProvisioned } = vi.hoisted(() => ({
-  canReviewEnrollments: vi.fn(),
-  approveEnrollment: vi.fn(),
-  rejectEnrollment: vi.fn(),
-  markProvisioned: vi.fn(),
-}));
+const { canReviewEnrollments, approveEnrollment, rejectEnrollment, markProvisioned } = vi.hoisted(
+  () => ({
+    canReviewEnrollments: vi.fn(),
+    approveEnrollment: vi.fn(),
+    rejectEnrollment: vi.fn(),
+    markProvisioned: vi.fn(),
+  })
+);
 const {
-  orderFindUnique, orgFindFirst, docCreate, auditCreate,
-  canReadOrder, upload, enqueueAdd,
-  notifyDocumentCreated, deliverNotificationToUser, getPrimaryOrganizationId,
+  orderFindUnique,
+  orgFindFirst,
+  docCreate,
+  auditCreate,
+  canReadOrder,
+  upload,
+  enqueueAdd,
+  notifyDocumentCreated,
+  deliverNotificationToUser,
+  getPrimaryOrganizationId,
 } = vi.hoisted(() => ({
   orderFindUnique: vi.fn(),
   orgFindFirst: vi.fn(),
@@ -79,7 +90,12 @@ const {
 const { upsertPaymentRecord } = vi.hoisted(() => ({ upsertPaymentRecord: vi.fn() }));
 
 // Guards / auth
-vi.mock('@/lib/auth/guard', () => ({ requireSession, requireAdmin, requireRole, requireOrderAccess }));
+vi.mock('@/lib/auth/guard', () => ({
+  requireSession,
+  requireAdmin,
+  requireRole,
+  requireOrderAccess,
+}));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 vi.mock('@/lib/auth/session', () => ({ getSession }));
 vi.mock('@/lib/auth/policy', () => ({ canReadOrder }));
@@ -98,20 +114,42 @@ vi.mock('@/lib/db/prisma', () => ({
 }));
 
 // Services (mocked so routes only map result → HTTP)
-vi.mock('@/lib/services/training', () => ({ createDirection, listDirections, updateDirection, deactivateDirection }));
+vi.mock('@/lib/services/training', () => ({
+  createDirection,
+  listDirections,
+  updateDirection,
+  deactivateDirection,
+}));
 vi.mock('@/lib/services/training/certificates', () => ({ createCertificate, issueFromOrderItem }));
 vi.mock('@/lib/services/training/orderItems', () => ({ updateItemStatus, removeOrderItem }));
 vi.mock('@/lib/services/manager/leads', () => ({ getManagerLead }));
-vi.mock('@/lib/services/manager/leadLifecycle', () => ({ assignLead, setLeadStatus, promoteLead, rejectLead }));
+vi.mock('@/lib/services/manager/leadLifecycle', () => ({
+  assignLead,
+  setLeadStatus,
+  promoteLead,
+  rejectLead,
+}));
 vi.mock('@/lib/services/enrollments/policy', () => ({ canReviewEnrollments }));
-vi.mock('@/lib/services/enrollments/lifecycle', () => ({ approveEnrollment, rejectEnrollment, markProvisioned }));
+vi.mock('@/lib/services/enrollments/lifecycle', () => ({
+  approveEnrollment,
+  rejectEnrollment,
+  markProvisioned,
+}));
 
 // documents/upload infra
 vi.mock('@/lib/notifications', () => ({ notifyDocumentCreated, deliverNotificationToUser }));
 vi.mock('@/lib/storage', () => ({
-  getObjectStorage: () => ({ upload, createSignedUrl: vi.fn(), remove: vi.fn(), download: vi.fn() }),
+  getObjectStorage: () => ({
+    upload,
+    createSignedUrl: vi.fn(),
+    remove: vi.fn(),
+    download: vi.fn(),
+  }),
 }));
-vi.mock('@/lib/jobs/queues', () => ({ getQueue: () => ({ add: enqueueAdd }), QUEUE_NAMES: ['docs.scanDocument'] }));
+vi.mock('@/lib/jobs/queues', () => ({
+  getQueue: () => ({ add: enqueueAdd }),
+  QUEUE_NAMES: ['docs.scanDocument'],
+}));
 
 // oneCSync writers (replay dispatches to these)
 vi.mock('@/lib/services/oneCSync/writers', () => ({
@@ -123,24 +161,28 @@ vi.mock('@/lib/services/oneCSync/writers', () => ({
 
 // ── imports under test (after mocks) ─────────────────────────────────────────
 import { GET as dirGet, POST as dirPost } from '@/app/api/admin/training-directions/route';
-import { PATCH as dirPatch, DELETE as dirDelete } from '@/app/api/admin/training-directions/[id]/route';
+import {
+  PATCH as dirPatch,
+  DELETE as dirDelete,
+} from '@/app/api/admin/training-directions/[id]/route';
 import { POST as certPost } from '@/app/api/manager/certificates/route';
 import { PATCH as itemPatch, DELETE as itemDelete } from '@/app/api/manager/order-items/[id]/route';
 import { PATCH as leadPatch } from '@/app/api/manager/leads/[id]/route';
 import { PATCH as enrollPatch } from '@/app/api/enrollments/[id]/route';
 import { POST as uploadPost } from '@/app/api/documents/upload/route';
 import { replayPendingRecords } from '@/lib/services/oneCSync/pending';
-import {
-  getOrgFinanceKpis,
-  listOrgPayments,
-} from '@/lib/services/organization/finance';
+import { getOrgFinanceKpis, listOrgPayments } from '@/lib/services/organization/finance';
 import { inviteMember } from '@/lib/services/organization/team';
 
 const adminSession = { sub: 'admin-1', role: 'admin', partnerId: null } as never;
 const managerSession = { sub: 'm1', role: 'manager', companyId: 'c1' } as never;
-const idCtx = (id: string) => ({ params: Promise.resolve({ id }) } as never);
+const idCtx = (id: string) => ({ params: Promise.resolve({ id }) }) as never;
 const patchReq = (body: unknown) =>
-  new Request('http://x/', { method: 'PATCH', body: JSON.stringify(body), headers: { 'content-type': 'application/json' } });
+  new Request('http://x/', {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+    headers: { 'content-type': 'application/json' },
+  });
 
 // ── §A admin/training-directions ─────────────────────────────────────────────
 
@@ -164,7 +206,10 @@ describe('§A admin/training-directions', () => {
   });
 
   it('POST → 403 when requireAdmin fails (guard branch @27)', async () => {
-    requireAdmin.mockReturnValue({ ok: false, response: new Response('Forbidden', { status: 403 }) });
+    requireAdmin.mockReturnValue({
+      ok: false,
+      response: new Response('Forbidden', { status: 403 }),
+    });
     const req = new Request('http://x', { method: 'POST', body: JSON.stringify({ name: 'X' }) });
     const res = await dirPost(req as Request);
     expect(res.status).toBe(403);
@@ -172,14 +217,20 @@ describe('§A admin/training-directions', () => {
   });
 
   it('PATCH → 401 when session missing (guard branch @16)', async () => {
-    requireSession.mockResolvedValue({ ok: false, response: new Response('Unauthorized', { status: 401 }) });
+    requireSession.mockResolvedValue({
+      ok: false,
+      response: new Response('Unauthorized', { status: 401 }),
+    });
     const res = await dirPatch(patchReq({ name: 'X' }) as Request, idCtx('d1'));
     expect(res.status).toBe(401);
     expect(updateDirection).not.toHaveBeenCalled();
   });
 
   it('PATCH → 403 when requireAdmin fails (guard branch @18)', async () => {
-    requireAdmin.mockReturnValue({ ok: false, response: new Response('Forbidden', { status: 403 }) });
+    requireAdmin.mockReturnValue({
+      ok: false,
+      response: new Response('Forbidden', { status: 403 }),
+    });
     const res = await dirPatch(patchReq({ name: 'X' }) as Request, idCtx('d1'));
     expect(res.status).toBe(403);
     expect(updateDirection).not.toHaveBeenCalled();
@@ -192,8 +243,14 @@ describe('§A admin/training-directions', () => {
   });
 
   it('DELETE → 403 when requireAdmin fails (guard branch @35)', async () => {
-    requireAdmin.mockReturnValue({ ok: false, response: new Response('Forbidden', { status: 403 }) });
-    const res = await dirDelete(new Request('http://x', { method: 'DELETE' }) as Request, idCtx('d1'));
+    requireAdmin.mockReturnValue({
+      ok: false,
+      response: new Response('Forbidden', { status: 403 }),
+    });
+    const res = await dirDelete(
+      new Request('http://x', { method: 'DELETE' }) as Request,
+      idCtx('d1')
+    );
     expect(res.status).toBe(403);
     expect(deactivateDirection).not.toHaveBeenCalled();
   });
@@ -212,7 +269,12 @@ describe('§B manager/certificates validUntil truthy branch', () => {
     issueFromOrderItem.mockResolvedValue({ ok: true, certificate: { id: 'c1' } });
     const req = new Request('http://x', {
       method: 'POST',
-      body: JSON.stringify({ orderItemId: 'oi1', number: 'N', issuedAt: '2026-01-01', validUntil: '2027-01-01' }),
+      body: JSON.stringify({
+        orderItemId: 'oi1',
+        number: 'N',
+        issuedAt: '2026-01-01',
+        validUntil: '2027-01-01',
+      }),
     });
     const res = await certPost(req as never);
     expect(res.status).toBe(201);
@@ -225,7 +287,13 @@ describe('§B manager/certificates validUntil truthy branch', () => {
     createCertificate.mockResolvedValue({ ok: true, certificate: { id: 'c2' } });
     const req = new Request('http://x', {
       method: 'POST',
-      body: JSON.stringify({ studentId: 's1', directionId: 'd1', number: 'N', issuedAt: '2026-01-01', validUntil: '2027-06-01' }),
+      body: JSON.stringify({
+        studentId: 's1',
+        directionId: 'd1',
+        number: 'N',
+        issuedAt: '2026-01-01',
+        validUntil: '2027-06-01',
+      }),
     });
     const res = await certPost(req as never);
     expect(res.status).toBe(201);
@@ -281,7 +349,10 @@ describe('§D manager/order-items/[id] mapError branches', () => {
 
   it('DELETE → 400 on direction_inactive (default @13, DELETE path)', async () => {
     removeOrderItem.mockResolvedValue({ ok: false, error: 'direction_inactive' });
-    const res = await itemDelete(new Request('http://x', { method: 'DELETE' }) as never, idCtx('it1'));
+    const res = await itemDelete(
+      new Request('http://x', { method: 'DELETE' }) as never,
+      idCtx('it1')
+    );
     expect(res.status).toBe(400);
   });
 });
@@ -317,7 +388,12 @@ describe('§F documents/upload fan-out: deliver throws after notify succeeds', (
     canReadOrder.mockResolvedValue(true);
     upload.mockResolvedValue(undefined);
     enqueueAdd.mockResolvedValue(undefined);
-    docCreate.mockResolvedValue({ id: 'd1', name: 'good.pdf', mimeType: 'application/pdf', createdAt: new Date() });
+    docCreate.mockResolvedValue({
+      id: 'd1',
+      name: 'good.pdf',
+      mimeType: 'application/pdf',
+      createdAt: new Date(),
+    });
     auditCreate.mockResolvedValue({});
     getPrimaryOrganizationId.mockResolvedValue('o1');
     // notify SUCCEEDS (so the try-block reaches deliverNotificationToUser at line 160)
@@ -329,7 +405,9 @@ describe('§F documents/upload fan-out: deliver throws after notify succeeds', (
     const fd = new FormData();
     fd.set('orderId', 'ord1');
     fd.set('file', new File(['%PDF-1.4 minimal'], 'good.pdf', { type: 'application/pdf' }));
-    const res = await uploadPost(new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd }));
+    const res = await uploadPost(
+      new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd })
+    );
     expect(res.status).toBe(200);
     // notify DID run (row.id consumed as dedupKey at line 165 before the throw)
     expect(notifyDocumentCreated).toHaveBeenCalledTimes(1);
@@ -343,29 +421,54 @@ describe('§F documents/upload fan-out: deliver throws after notify succeeds', (
 
 function pendingRow(over: Record<string, unknown> = {}) {
   return {
-    id: 'pr1', entity: 'payment', externalId: 'P1',
-    dto: { externalId: 'P1', amount: 1, paidAt: '2026-06-01T00:00:00Z', isRefund: false, organizationInn: '77', updatedAt: '2026-06-01T00:00:00Z' },
-    reason: 'organization_not_found', attempts: 0, status: 'pending',
-    firstSeenAt: new Date('2026-06-20T00:00:00Z'), lastTriedAt: new Date('2026-06-20T00:00:00Z'),
+    id: 'pr1',
+    entity: 'payment',
+    externalId: 'P1',
+    dto: {
+      externalId: 'P1',
+      amount: 1,
+      paidAt: '2026-06-01T00:00:00Z',
+      isRefund: false,
+      organizationInn: '77',
+      updatedAt: '2026-06-01T00:00:00Z',
+    },
+    reason: 'organization_not_found',
+    attempts: 0,
+    status: 'pending',
+    firstSeenAt: new Date('2026-06-20T00:00:00Z'),
+    lastTriedAt: new Date('2026-06-20T00:00:00Z'),
     ...over,
   };
 }
 
 describe('§G oneCSync replayPendingRecords remaining branches', () => {
-  beforeEach(() => { upsertPaymentRecord.mockReset(); });
+  beforeEach(() => {
+    upsertPaymentRecord.mockReset();
+  });
 
   it('warns and processes when findMany returns exactly the 500-row cap (lines 79-80, branch @78)', async () => {
     // 500 identical-shape rows with unique ids so update targets are distinct.
     const rows = Array.from({ length: 500 }, (_, i) => pendingRow({ id: `pr-${i}`, attempts: 0 }));
     // Writer keeps skipping (transient) → each row stays pending; exercises the cap warn once.
-    upsertPaymentRecord.mockImplementation(async (_db: unknown, _dto: unknown, sum: { skipped: number; skips: Array<{ externalId: string; reason: string }> }) => {
-      sum.skipped += 1; sum.skips.push({ externalId: 'P1', reason: 'organization_not_found' });
-    });
+    upsertPaymentRecord.mockImplementation(
+      async (
+        _db: unknown,
+        _dto: unknown,
+        sum: { skipped: number; skips: Array<{ externalId: string; reason: string }> }
+      ) => {
+        sum.skipped += 1;
+        sum.skips.push({ externalId: 'P1', reason: 'organization_not_found' });
+      }
+    );
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const findMany = vi.fn().mockResolvedValue(rows);
     const update = vi.fn().mockResolvedValue({});
     const db = { oneCPendingRecord: { findMany, delete: vi.fn(), update } } as never;
-    const res = await replayPendingRecords(db, 'payment', { now: new Date('2026-06-21T00:00:00Z'), maxAttempts: 50, maxAgeDays: 7 });
+    const res = await replayPendingRecords(db, 'payment', {
+      now: new Date('2026-06-21T00:00:00Z'),
+      maxAttempts: 50,
+      maxAgeDays: 7,
+    });
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('500-row cap'), 'payment');
     expect(res.stillPending).toBe(500);
     warnSpy.mockRestore();
@@ -376,7 +479,11 @@ describe('§G oneCSync replayPendingRecords remaining branches', () => {
     const findMany = vi.fn().mockResolvedValue([pendingRow({ dto: { garbage: true } })]);
     const update = vi.fn().mockResolvedValue({});
     const db = { oneCPendingRecord: { findMany, delete: vi.fn(), update } } as never;
-    const res = await replayPendingRecords(db, 'payment', { now: new Date('2026-06-21T00:00:00Z'), maxAttempts: 50, maxAgeDays: 7 });
+    const res = await replayPendingRecords(db, 'payment', {
+      now: new Date('2026-06-21T00:00:00Z'),
+      maxAttempts: 50,
+      maxAgeDays: 7,
+    });
     expect(update).toHaveBeenCalledWith({
       where: { id: 'pr1' },
       data: { attempts: 1, status: 'dead', reason: 'invalid_stored_dto' },
@@ -387,14 +494,23 @@ describe('§G oneCSync replayPendingRecords remaining branches', () => {
 
   it('uses reason "replay_threw" when the writer throws a non-Error (branch @101)', async () => {
     // Throwing a plain string exercises the `: 'replay_threw'` side of the ternary.
-    upsertPaymentRecord.mockImplementation(async () => { throw 'not-an-error-object'; });
+    upsertPaymentRecord.mockImplementation(async () => {
+      throw 'not-an-error-object';
+    });
     const findMany = vi.fn().mockResolvedValue([pendingRow({ attempts: 2 })]);
     const update = vi.fn().mockResolvedValue({});
     const del = vi.fn();
     const db = { oneCPendingRecord: { findMany, delete: del, update } } as never;
-    const res = await replayPendingRecords(db, 'payment', { now: new Date('2026-06-21T00:00:00Z'), maxAttempts: 50, maxAgeDays: 7 });
+    const res = await replayPendingRecords(db, 'payment', {
+      now: new Date('2026-06-21T00:00:00Z'),
+      maxAttempts: 50,
+      maxAgeDays: 7,
+    });
     // thrown, below cap, transient-treated (no skip) → stays pending, reason = replay_threw
-    expect(update).toHaveBeenCalledWith({ where: { id: 'pr1' }, data: { attempts: 3, reason: 'replay_threw' } });
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'pr1' },
+      data: { attempts: 3, reason: 'replay_threw' },
+    });
     expect(del).not.toHaveBeenCalled();
     expect(res).toMatchObject({ resolved: 0, deadLettered: 0, stillPending: 1 });
   });
@@ -412,14 +528,23 @@ describe('§H organization/finance enteredByName present', () => {
 
   beforeAll(async () => {
     prisma = new PrismaClient();
-    const partner = await prisma.partner.create({ data: { name: `CovFinP-${STAMP}`, commissionRate: new Prisma.Decimal('0.1') } });
+    const partner = await prisma.partner.create({
+      data: { name: `CovFinP-${STAMP}`, commissionRate: new Prisma.Decimal('0.1') },
+    });
     partnerId = partner.id;
     const company = await prisma.company.create({ data: { name: `CovFinC-${STAMP}` } });
     companyId = company.id;
-    const org = await prisma.organization.create({ data: { name: `CovFinOrg-${STAMP}`, partnerId, companyId } });
+    const org = await prisma.organization.create({
+      data: { name: `CovFinOrg-${STAMP}`, partnerId, companyId },
+    });
     orgId = org.id;
     const u = await prisma.user.create({
-      data: { email: `cov-fin-actor-${STAMP}@t.local`, name: 'Payment Clerk', role: 'admin', passwordHash: 'x' },
+      data: {
+        email: `cov-fin-actor-${STAMP}@t.local`,
+        name: 'Payment Clerk',
+        role: 'admin',
+        passwordHash: 'x',
+      },
     });
     enteredByUserId = u.id;
     await prisma.payment.create({
@@ -471,23 +596,37 @@ describe('§I organization/team getAppBaseUrl APP_URL branch', () => {
   beforeAll(async () => {
     prisma = new PrismaClient();
     savedAppUrl = process.env.APP_URL;
-    const partner = await prisma.partner.create({ data: { name: `CovTeamP-${STAMP}`, commissionRate: new Prisma.Decimal('0.1') } });
+    const partner = await prisma.partner.create({
+      data: { name: `CovTeamP-${STAMP}`, commissionRate: new Prisma.Decimal('0.1') },
+    });
     partnerId = partner.id;
     const company = await prisma.company.create({ data: { name: `CovTeamC-${STAMP}` } });
     companyId = company.id;
-    const org = await prisma.organization.create({ data: { name: `CovTeamOrg-${STAMP}`, partnerId, companyId } });
+    const org = await prisma.organization.create({
+      data: { name: `CovTeamOrg-${STAMP}`, partnerId, companyId },
+    });
     orgId = org.id;
     const actor = await prisma.user.create({
-      data: { email: `cov-team-actor-${STAMP}@t.local`, name: 'Actor', role: 'organization', passwordHash: 'x' },
+      data: {
+        email: `cov-team-actor-${STAMP}@t.local`,
+        name: 'Actor',
+        role: 'organization',
+        passwordHash: 'x',
+      },
     });
     actorUserId = actor.id;
-    await prisma.organizationUser.create({ data: { organizationId: orgId, userId: actorUserId, roleInOrg: 'admin', isActive: true } });
+    await prisma.organizationUser.create({
+      data: { organizationId: orgId, userId: actorUserId, roleInOrg: 'admin', isActive: true },
+    });
   });
 
   afterAll(async () => {
     if (savedAppUrl === undefined) delete process.env.APP_URL;
     else process.env.APP_URL = savedAppUrl;
-    const testUsers = await prisma.user.findMany({ where: { email: { contains: 'cov-team-' } }, select: { id: true } });
+    const testUsers = await prisma.user.findMany({
+      where: { email: { contains: 'cov-team-' } },
+      select: { id: true },
+    });
     const userIds = testUsers.map((u) => u.id);
     await prisma.auditLog.deleteMany({ where: { entity: 'organization_user' } });
     if (userIds.length) {
@@ -505,8 +644,13 @@ describe('§I organization/team getAppBaseUrl APP_URL branch', () => {
     process.env.APP_URL = 'https://custom.example.test';
     const res = await inviteMember(
       prisma,
-      { organizationId: orgId, email: `cov-team-inv1-${Date.now()}@t.local`, name: 'Inv One', roleInOrg: 'member' },
-      actorUserId,
+      {
+        organizationId: orgId,
+        email: `cov-team-inv1-${Date.now()}@t.local`,
+        name: 'Inv One',
+        roleInOrg: 'member',
+      },
+      actorUserId
     );
     expect(res.ok).toBe(true);
     if (!res.ok) throw new Error('expected ok');
@@ -517,8 +661,13 @@ describe('§I organization/team getAppBaseUrl APP_URL branch', () => {
     process.env.APP_URL = '   '; // whitespace → trim() is falsy → fallback
     const res = await inviteMember(
       prisma,
-      { organizationId: orgId, email: `cov-team-inv2-${Date.now()}@t.local`, name: 'Inv Two', roleInOrg: 'member' },
-      actorUserId,
+      {
+        organizationId: orgId,
+        email: `cov-team-inv2-${Date.now()}@t.local`,
+        name: 'Inv Two',
+        roleInOrg: 'member',
+      },
+      actorUserId
     );
     expect(res.ok).toBe(true);
     if (!res.ok) throw new Error('expected ok');

@@ -7,13 +7,13 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
 const { transitionOrderStatusAction } = vi.hoisted(() => ({
-  transitionOrderStatusAction: vi.fn()
+  transitionOrderStatusAction: vi.fn(),
 }));
 vi.mock('@/server-actions/orderStatuses', () => ({ transitionOrderStatusAction }));
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
-  toastError: vi.fn()
+  toastError: vi.fn(),
 }));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
@@ -24,7 +24,7 @@ const OPT = (id: string, label: string, extra = {}) => ({
   label,
   isTerminal: false,
   isAuto: false,
-  ...extra
+  ...extra,
 });
 
 beforeEach(() => {
@@ -43,7 +43,7 @@ describe('OrderStatusPanel — показ', () => {
   it('текущий статус в бейдже; без статуса — «Без статуса»', () => {
     const { rerender } = render(
       <OrderStatusPanel
-        orderId='o1'
+        orderId="o1"
         current={{ id: 'a', label: 'Принято в работу', isTerminal: false }}
         forward={[]}
         backward={[]}
@@ -54,14 +54,28 @@ describe('OrderStatusPanel — показ', () => {
     expect(screen.getByText('Принято в работу')).toBeTruthy();
 
     rerender(
-      <OrderStatusPanel orderId='o1' current={null} forward={[]} backward={[]} terminal={null} history={[]} />
+      <OrderStatusPanel
+        orderId="o1"
+        current={null}
+        forward={[]}
+        backward={[]}
+        terminal={null}
+        history={[]}
+      />
     );
     expect(screen.getByText('Без статуса')).toBeTruthy();
   });
 
   it('нет переходов — так и написано', () => {
     render(
-      <OrderStatusPanel orderId='o1' current={null} forward={[]} backward={[]} terminal={null} history={[]} />
+      <OrderStatusPanel
+        orderId="o1"
+        current={null}
+        forward={[]}
+        backward={[]}
+        terminal={null}
+        history={[]}
+      />
     );
     expect(screen.getByText('Доступных переходов нет.')).toBeTruthy();
   });
@@ -69,7 +83,7 @@ describe('OrderStatusPanel — показ', () => {
   it('кнопки вперёд и назад подписаны по-разному', () => {
     render(
       <OrderStatusPanel
-        orderId='o1'
+        orderId="o1"
         current={{ id: 'p', label: 'Оплата поступила', isTerminal: false }}
         forward={[OPT('c', 'Заявка закрыта')]}
         backward={[OPT('a', 'Принято в работу')]}
@@ -85,7 +99,7 @@ describe('OrderStatusPanel — показ', () => {
   it('у отменённой заявки кнопки отмены нет', () => {
     render(
       <OrderStatusPanel
-        orderId='o1'
+        orderId="o1"
         current={{ id: 'x', label: 'Отменена', isTerminal: true }}
         forward={[]}
         backward={[OPT('a', 'Принято в работу')]}
@@ -99,7 +113,7 @@ describe('OrderStatusPanel — показ', () => {
   it('история показывает переход, автора и причину', () => {
     render(
       <OrderStatusPanel
-        orderId='o1'
+        orderId="o1"
         current={null}
         forward={[]}
         backward={[]}
@@ -111,7 +125,7 @@ describe('OrderStatusPanel — показ', () => {
             fromLabel: 'Принято в работу',
             toLabel: 'Отменена',
             userName: 'Иванов',
-            reason: 'клиент отказался'
+            reason: 'клиент отказался',
           },
           {
             id: 'h2',
@@ -119,8 +133,8 @@ describe('OrderStatusPanel — показ', () => {
             fromLabel: null,
             toLabel: 'Принято в работу',
             userName: null,
-            reason: null
-          }
+            reason: null,
+          },
         ]}
       />
     );
@@ -137,7 +151,7 @@ describe('OrderStatusPanel — переходы', () => {
   it('обычный переход уходит без причины', async () => {
     render(
       <OrderStatusPanel
-        orderId='o7'
+        orderId="o7"
         current={{ id: 'a', label: 'Принято в работу', isTerminal: false }}
         forward={[OPT('c', 'Заявка закрыта')]}
         backward={[]}
@@ -157,7 +171,7 @@ describe('OrderStatusPanel — переходы', () => {
   it('отмена требует причину и шлёт её', async () => {
     render(
       <OrderStatusPanel
-        orderId='o7'
+        orderId="o7"
         current={{ id: 'a', label: 'Принято в работу', isTerminal: false }}
         forward={[]}
         backward={[]}
@@ -169,7 +183,7 @@ describe('OrderStatusPanel — переходы', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Отменена' }));
     const dialog = document.querySelector('dialog[open]') as HTMLElement;
     fireEvent.change(within(dialog).getByLabelText(/Причина/), {
-      target: { value: '  клиент передумал  ' }
+      target: { value: '  клиент передумал  ' },
     });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Подтвердить' }));
 
@@ -177,7 +191,7 @@ describe('OrderStatusPanel — переходы', () => {
       expect(transitionOrderStatusAction).toHaveBeenCalledWith({
         orderId: 'o7',
         toId: 'x',
-        reason: 'клиент передумал'
+        reason: 'клиент передумал',
       })
     );
   });
@@ -186,11 +200,11 @@ describe('OrderStatusPanel — переходы', () => {
     transitionOrderStatusAction.mockResolvedValue({
       ok: false,
       error: 'completion_conditions_unmet',
-      unmet: ['documents_uploaded', 'accounting_signed']
+      unmet: ['documents_uploaded', 'accounting_signed'],
     });
     render(
       <OrderStatusPanel
-        orderId='o7'
+        orderId="o7"
         current={{ id: 'a', label: 'Принято в работу', isTerminal: false }}
         forward={[OPT('c', 'Заявка закрыта')]}
         backward={[]}
@@ -211,7 +225,7 @@ describe('OrderStatusPanel — переходы', () => {
     transitionOrderStatusAction.mockResolvedValue({ ok: false, error: 'backward_forbidden' });
     render(
       <OrderStatusPanel
-        orderId='o7'
+        orderId="o7"
         current={{ id: 'p', label: 'Оплата поступила', isTerminal: false }}
         forward={[]}
         backward={[OPT('a', 'Принято в работу')]}
@@ -232,7 +246,7 @@ describe('OrderStatusPanel — переходы', () => {
   it('окно отмены закрывается кнопкой «Не отменять»', async () => {
     render(
       <OrderStatusPanel
-        orderId='o7'
+        orderId="o7"
         current={{ id: 'a', label: 'Принято в работу', isTerminal: false }}
         forward={[]}
         backward={[]}
@@ -254,7 +268,7 @@ describe('OrderStatusPanel — закрытие окна отмены', () => {
   it('Escape закрывает окно, статус не меняется', async () => {
     render(
       <OrderStatusPanel
-        orderId='o7'
+        orderId="o7"
         current={{ id: 'a', label: 'Принято в работу', isTerminal: false }}
         forward={[]}
         backward={[]}

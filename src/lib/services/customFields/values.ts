@@ -11,9 +11,7 @@ import { normalizeValue, validateFieldValue } from './coerce';
 
 export type ValuesError = 'forbidden' | 'not_found' | 'invalid_value' | 'invalid_entity_type';
 
-type Result<T> =
-  | ({ ok: true } & T)
-  | { ok: false; error: ValuesError };
+type Result<T> = ({ ok: true } & T) | { ok: false; error: ValuesError };
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 

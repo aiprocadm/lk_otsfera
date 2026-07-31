@@ -41,15 +41,31 @@ export const SETTING_SPECS = {
   'mango.vpbxBaseUrl': { key: 'mango.vpbxBaseUrl', envVar: 'MANGO_VPBX_BASE_URL', isSecret: false },
   // Telegram
   'telegram.botToken': { key: 'telegram.botToken', envVar: 'TELEGRAM_BOT_TOKEN', isSecret: true },
-  'telegram.botUsername': { key: 'telegram.botUsername', envVar: 'TELEGRAM_BOT_USERNAME', isSecret: false },
+  'telegram.botUsername': {
+    key: 'telegram.botUsername',
+    envVar: 'TELEGRAM_BOT_USERNAME',
+    isSecret: false,
+  },
   // Max
   'max.botToken': { key: 'max.botToken', envVar: 'MAX_BOT_TOKEN', isSecret: true },
   'max.botUsername': { key: 'max.botUsername', envVar: 'MAX_BOT_USERNAME', isSecret: false },
   'max.baseUrl': { key: 'max.baseUrl', envVar: 'MAX_API_BASE_URL', isSecret: false },
   // WhatsApp
-  'whatsapp.apiKey': { key: 'whatsapp.apiKey', envVar: 'WHATSAPP_AGGREGATOR_API_KEY', isSecret: true },
-  'whatsapp.channelId': { key: 'whatsapp.channelId', envVar: 'WHATSAPP_AGGREGATOR_CHANNEL_ID', isSecret: true },
-  'whatsapp.baseUrl': { key: 'whatsapp.baseUrl', envVar: 'WHATSAPP_AGGREGATOR_BASE_URL', isSecret: false },
+  'whatsapp.apiKey': {
+    key: 'whatsapp.apiKey',
+    envVar: 'WHATSAPP_AGGREGATOR_API_KEY',
+    isSecret: true,
+  },
+  'whatsapp.channelId': {
+    key: 'whatsapp.channelId',
+    envVar: 'WHATSAPP_AGGREGATOR_CHANNEL_ID',
+    isSecret: true,
+  },
+  'whatsapp.baseUrl': {
+    key: 'whatsapp.baseUrl',
+    envVar: 'WHATSAPP_AGGREGATOR_BASE_URL',
+    isSecret: false,
+  },
   // Обмен с 1С. Выбор адаптера (fake|rest), адрес API, токен и опциональный
   // путь для проверки связи — всё настраивается в UI (env — fallback).
   'onec.adapter': { key: 'onec.adapter', envVar: 'ONE_C_ADAPTER', isSecret: false },
@@ -58,7 +74,7 @@ export const SETTING_SPECS = {
   'onec.healthPath': { key: 'onec.healthPath', envVar: 'ONE_C_HEALTH_PATH', isSecret: false },
   // DaData (подсказки по ИНН). Включение + ключ; сам ключ на клиент не уходит.
   'dadata.enabled': { key: 'dadata.enabled', envVar: 'DADATA_ENABLED', isSecret: false },
-  'dadata.apiKey': { key: 'dadata.apiKey', envVar: 'DADATA_API_KEY', isSecret: true }
+  'dadata.apiKey': { key: 'dadata.apiKey', envVar: 'DADATA_API_KEY', isSecret: true },
 } as const satisfies Record<string, SettingSpec>;
 
 export type SettingKey = keyof typeof SETTING_SPECS;
@@ -71,9 +87,15 @@ function specOf(key: SettingKey): SettingSpec {
  * Эффективное значение настройки: БД (расшифровка секретов) → env fallback → null.
  * Пустая строка трактуется как «не задано» и уходит в fallback.
  */
-export async function getSettingValue(prisma: PrismaClient, key: SettingKey): Promise<string | null> {
+export async function getSettingValue(
+  prisma: PrismaClient,
+  key: SettingKey
+): Promise<string | null> {
   const spec = specOf(key);
-  const row = await prisma.integrationSetting.findUnique({ where: { key }, select: { value: true, isSecret: true } });
+  const row = await prisma.integrationSetting.findUnique({
+    where: { key },
+    select: { value: true, isSecret: true },
+  });
   if (row && row.value !== null && row.value !== '') {
     if (row.isSecret) {
       try {
@@ -94,7 +116,11 @@ export async function getSettingValues(
   keys: SettingKey[]
 ): Promise<Record<string, string | null>> {
   const out: Record<string, string | null> = {};
-  await Promise.all(keys.map(async (k) => { out[k] = await getSettingValue(prisma, k); }));
+  await Promise.all(
+    keys.map(async (k) => {
+      out[k] = await getSettingValue(prisma, k);
+    })
+  );
   return out;
 }
 
@@ -116,7 +142,7 @@ export async function getSettingsView(
 ): Promise<SettingViewRow[]> {
   const rows = await prisma.integrationSetting.findMany({
     where: { key: { in: keys } },
-    select: { key: true, value: true, isSecret: true }
+    select: { key: true, value: true, isSecret: true },
   });
   const byKey = new Map(rows.map((r) => [r.key, r]));
 
@@ -131,8 +157,8 @@ export async function getSettingsView(
       key,
       isSecret: spec.isSecret,
       isSet: dbSet || envSet,
-      value: spec.isSecret ? null : dbSet ? dbRow!.value : envVal ?? null,
-      source
+      value: spec.isSecret ? null : dbSet ? dbRow!.value : (envVal ?? null),
+      source,
     };
   });
 }
@@ -182,7 +208,7 @@ export async function saveSettings(
     await prisma.integrationSetting.upsert({
       where: { key: entry.key },
       create: { key: entry.key, value: stored, isSecret: spec.isSecret, updatedBy: actorUserId },
-      update: { value: stored, isSecret: spec.isSecret, updatedBy: actorUserId }
+      update: { value: stored, isSecret: spec.isSecret, updatedBy: actorUserId },
     });
     changedKeys.push(entry.key);
   }
@@ -195,7 +221,7 @@ export async function saveSettings(
       action: 'integration_settings_updated',
       entity: 'integration_setting',
       entityId: changedKeys.join(','),
-      after: { keys: changedKeys } // только ключи, без значений секретов
+      after: { keys: changedKeys }, // только ключи, без значений секретов
     });
   }
   return { ok: true };

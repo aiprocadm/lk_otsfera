@@ -1,7 +1,11 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
-import { validateRequisites, type RequisitesInput, type RequisitesValues } from '@/lib/requisites/validate';
+import {
+  validateRequisites,
+  type RequisitesInput,
+  type RequisitesValues,
+} from '@/lib/requisites/validate';
 
 /**
  * Этап 8 (ФТ-9.2, PR-1) — реквизиты Company (исполнитель). Только admin
@@ -9,7 +13,12 @@ import { validateRequisites, type RequisitesInput, type RequisitesValues } from 
  * несколько); дополнительно phone/email для шапки документов.
  */
 
-export type CompanyRequisites = RequisitesValues & { id: string; name: string; phone: string | null; email: string | null };
+export type CompanyRequisites = RequisitesValues & {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+};
 
 const REQ_SELECT = {
   id: true,
@@ -27,7 +36,7 @@ const REQ_SELECT = {
   signerPosition: true,
   signerBasis: true,
   phone: true,
-  email: true
+  email: true,
 } as const;
 
 export async function listCompaniesRequisites(
@@ -35,7 +44,11 @@ export async function listCompaniesRequisites(
   session: SessionPayload
 ): Promise<{ ok: true; companies: CompanyRequisites[] } | { ok: false; error: 'forbidden' }> {
   if (session.role !== 'admin') return { ok: false, error: 'forbidden' };
-  const companies = await prisma.company.findMany({ select: REQ_SELECT, orderBy: { name: 'asc' }, take: 50 });
+  const companies = await prisma.company.findMany({
+    select: REQ_SELECT,
+    orderBy: { name: 'asc' },
+    take: 50,
+  });
   return { ok: true, companies };
 }
 
@@ -44,7 +57,9 @@ export async function setCompanyRequisites(
   session: SessionPayload,
   companyId: string,
   input: RequisitesInput & { phone?: string | null; email?: string | null }
-): Promise<{ ok: true } | { ok: false; error: 'forbidden' | 'not_found' | 'validation'; messages?: string[] }> {
+): Promise<
+  { ok: true } | { ok: false; error: 'forbidden' | 'not_found' | 'validation'; messages?: string[] }
+> {
   if (session.role !== 'admin') return { ok: false, error: 'forbidden' };
 
   const validated = validateRequisites(input);
@@ -56,7 +71,10 @@ export async function setCompanyRequisites(
     return { ok: false, error: 'validation', messages: [`Некорректный email «${email}»`] };
   }
 
-  const before = await prisma.company.findUnique({ where: { id: companyId }, select: { id: true } });
+  const before = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { id: true },
+  });
   if (!before) return { ok: false, error: 'not_found' };
 
   await prisma.company.update({ where: { id: companyId }, data: { ...v, phone, email } });
@@ -65,7 +83,13 @@ export async function setCompanyRequisites(
     action: 'requisites_changed',
     entity: 'company',
     entityId: companyId,
-    after: { inn: v.inn, kpp: v.kpp, ogrn: v.ogrn, bic: v.bic, bankAccountTail: v.bankAccount?.slice(-4) ?? null }
+    after: {
+      inn: v.inn,
+      kpp: v.kpp,
+      ogrn: v.ogrn,
+      bic: v.bic,
+      bankAccountTail: v.bankAccount?.slice(-4) ?? null,
+    },
   });
   return { ok: true };
 }

@@ -1,5 +1,9 @@
 import type { PrismaClient, EnrollmentRequest } from '@prisma/client';
-import { createNotification, deliverNotificationToUser, resolveOrgManagerRecipients } from '@/lib/notifications';
+import {
+  createNotification,
+  deliverNotificationToUser,
+  resolveOrgManagerRecipients,
+} from '@/lib/notifications';
 import { log } from '@/lib/logging';
 import { pluralizeRu } from '@/lib/format';
 import { ENROLLMENT_STATUS_LABEL } from './labels';
@@ -26,14 +30,14 @@ async function requestSummary(prisma: PrismaClient, requestId: string) {
       direction: { select: { name: true } },
       legacyCourseTitle: true,
       organization: { select: { name: true } },
-      _count: { select: { items: true } }
-    }
+      _count: { select: { items: true } },
+    },
   });
   const count = detail?._count.items ?? 0;
   return {
     directionName: detail?.direction?.name ?? detail?.legacyCourseTitle ?? 'обучение',
     orgName: detail?.organization?.name ?? null,
-    countText: `${count} ${pluralizeRu(count, 'слушатель', 'слушателя', 'слушателей')}`
+    countText: `${count} ${pluralizeRu(count, 'слушатель', 'слушателя', 'слушателей')}`,
   };
 }
 
@@ -46,7 +50,10 @@ export async function notifySubmitterEnrollmentStatus(
     const { directionName, countText } = await requestSummary(prisma, request.id);
     const statusLabel = ENROLLMENT_STATUS_LABEL[request.status];
     const title = `Заявка на обучение — статус «${statusLabel}»`;
-    const reason = request.status === 'rejected' && request.rejectedReason ? ` Причина: ${request.rejectedReason}` : '';
+    const reason =
+      request.status === 'rejected' && request.rejectedReason
+        ? ` Причина: ${request.rejectedReason}`
+        : '';
     const body = `Заявка на обучение: ${countText}, направление «${directionName}» — статус «${statusLabel}».${reason}`;
     const url = submitterEnrollmentUrl(request.submitterRole, request.id);
     const row = await createNotification({
@@ -56,7 +63,7 @@ export async function notifySubmitterEnrollmentStatus(
       type: 'enrollment_status_changed',
       title,
       body,
-      meta: { requestId: request.id, status: request.status, ...(url ? { url } : {}) }
+      meta: { requestId: request.id, status: request.status, ...(url ? { url } : {}) },
     });
     await deliverNotificationToUser({
       userId: request.submittedByUserId,
@@ -64,12 +71,12 @@ export async function notifySubmitterEnrollmentStatus(
       body,
       type: 'enrollment_status_changed',
       ...(url ? { url } : {}),
-      dedupKey: row.id
+      dedupKey: row.id,
     });
   } catch (err) {
     log.warn('[enrollments/notify] status notify failed', {
       requestId: request.id,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 }
@@ -85,7 +92,7 @@ export async function notifyManagersEnrollmentSubmitted(
   try {
     if (!request.organizationId) return;
     const recipients = await resolveOrgManagerRecipients(prisma, request.organizationId, {
-      excludeUserId: request.submittedByUserId
+      excludeUserId: request.submittedByUserId,
     });
     if (!recipients.length) return;
     const { directionName, orgName, countText } = await requestSummary(prisma, request.id);
@@ -98,7 +105,7 @@ export async function notifyManagersEnrollmentSubmitted(
         type: 'enrollment_submitted',
         title,
         body,
-        meta: { requestId: request.id, url: '/manager/enrollments' }
+        meta: { requestId: request.id, url: '/manager/enrollments' },
       });
       await deliverNotificationToUser({
         userId: r.id,
@@ -106,13 +113,13 @@ export async function notifyManagersEnrollmentSubmitted(
         body,
         type: 'enrollment_submitted',
         url: '/manager/enrollments',
-        dedupKey: row.id
+        dedupKey: row.id,
       });
     }
   } catch (err) {
     log.warn('[enrollments/notify] submit notify failed', {
       requestId: request.id,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 }

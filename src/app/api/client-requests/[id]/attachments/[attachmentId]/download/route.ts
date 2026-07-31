@@ -28,13 +28,21 @@ export async function POST(
       }
       if (result.error === 'INFECTED') {
         return NextResponse.json(
-          { code: 'INFECTED', error: result.message, scanReason: result.meta?.scanReason ?? undefined },
+          {
+            code: 'INFECTED',
+            error: result.message,
+            scanReason: result.meta?.scanReason ?? undefined,
+          },
           { status: 410 }
         );
       }
       return NextResponse.json({ error: result.message }, { status: 500 });
     }
-    return NextResponse.json({ downloadUrl: result.url, name: result.name, mimeType: result.mimeType });
+    return NextResponse.json({
+      downloadUrl: result.url,
+      name: result.name,
+      mimeType: result.mimeType,
+    });
   } catch (err) {
     log.error('[client-requests/attachments] download failed unexpectedly', { attachmentId, err });
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });

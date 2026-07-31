@@ -30,7 +30,7 @@ const CHANNEL_KINDS = new Set<ActivityItem['kind']>(['message_in', 'message_out'
 
 const NOTE_ERROR_LABEL: Record<string, string> = {
   invalid: 'Введите текст заметки.',
-  not_found: 'Заказ не найден.'
+  not_found: 'Заказ не найден.',
 };
 
 /**
@@ -41,7 +41,7 @@ const NOTE_ERROR_LABEL: Record<string, string> = {
 const COMMENT_ERROR_LABEL: Record<string, string> = {
   'Invalid request': 'Введите текст комментария.',
   'Not found': 'Заказ не найден.',
-  'Access denied': 'Нет доступа к заказу.'
+  'Access denied': 'Нет доступа к заказу.',
 };
 
 /**
@@ -51,14 +51,14 @@ const COMMENT_ERROR_LABEL: Record<string, string> = {
  */
 const REPLY_ERROR_LABEL: Record<string, string> = {
   forbidden: 'Обращение недоступно вашей компании.',
-  not_found: 'Обращение не найдено.'
+  not_found: 'Обращение не найдено.',
 };
 
 const CALL_ERROR_LABEL: Record<string, string> = {
   disabled: 'Звонки недоступны (модуль не подключён).',
   not_found: 'Заказ не найден.',
   call_failed: 'Звонок недоступен (не настроено).',
-  no_internal_phone: 'Укажите ваш внутренний номер в настройках, чтобы звонить.'
+  no_internal_phone: 'Укажите ваш внутренний номер в настройках, чтобы звонить.',
 };
 
 const COMPOSER_META: Record<
@@ -69,20 +69,20 @@ const COMPOSER_META: Record<
     pill: 'Заметка',
     ariaLabel: 'Текст заметки',
     placeholder: 'Внутренняя заметка — клиент её не видит…',
-    submitLabel: 'Добавить заметку'
+    submitLabel: 'Добавить заметку',
   },
   comment: {
     pill: 'Комментарий',
     ariaLabel: 'Текст комментария',
     placeholder: 'Комментарий клиенту…',
-    submitLabel: 'Отправить комментарий'
+    submitLabel: 'Отправить комментарий',
   },
   channel: {
     pill: 'Ответ в канал',
     ariaLabel: 'Текст ответа',
     placeholder: 'Ответ клиенту в канал…',
-    submitLabel: 'Ответить в канал'
-  }
+    submitLabel: 'Ответить в канал',
+  },
 };
 
 type InboundItem = Extract<ActivityItem, { kind: 'message_in' }>;
@@ -91,7 +91,7 @@ export function DealActivityThread({
   orderId,
   items,
   inboundEnabled,
-  telephonyEnabled
+  telephonyEnabled,
 }: {
   orderId: string;
   items: ActivityItem[];
@@ -117,14 +117,15 @@ export function DealActivityThread({
   // последний элемент ленты.
   const lastInbound = items.reduce<InboundItem | null>(
     (last, item) =>
-      item.kind === 'message_in' && (!last || item.at.getTime() >= last.at.getTime())
-        ? item
-        : last,
+      item.kind === 'message_in' && (!last || item.at.getTime() >= last.at.getTime()) ? item : last,
     null
   );
   // email — replyToInbound всегда отказ (email_unsupported): режим не показываем.
-  const channelAvailable = inboundEnabled && lastInbound !== null && lastInbound.channel !== 'email';
-  const channelLabel = lastInbound ? (CHANNEL_LABEL[lastInbound.channel] ?? lastInbound.channel) : '';
+  const channelAvailable =
+    inboundEnabled && lastInbound !== null && lastInbound.channel !== 'email';
+  const channelLabel = lastInbound
+    ? (CHANNEL_LABEL[lastInbound.channel] ?? lastInbound.channel)
+    : '';
   const mode: ComposerMode = rawMode === 'channel' && !channelAvailable ? 'note' : rawMode;
 
   const note = useFormAction<{ id: string }>({
@@ -134,7 +135,7 @@ export function DealActivityThread({
     onSuccess: () => {
       toast.success('Заметка добавлена');
       composerFormRef.current?.reset();
-    }
+    },
   });
 
   const comment = useFetchSubmit({
@@ -145,7 +146,7 @@ export function DealActivityThread({
     onSuccess: () => {
       toast.success('Комментарий отправлен');
       composerFormRef.current?.reset();
-    }
+    },
   });
 
   const reply = useFormAction<{ ok: true }>({
@@ -153,34 +154,36 @@ export function DealActivityThread({
       replyInboundAction({
         /* v8 ignore next -- unreachable: сабмит режима «channel» рендерится только при channelAvailable ⇒ lastInbound non-null; `?? ''` — defensive */
         inboundMessageId: lastInbound?.id ?? '',
-        text: String(formData.get('body') ?? '')
+        text: String(formData.get('body') ?? ''),
       }),
     errorMap: REPLY_ERROR_LABEL,
     refresh: true,
     onSuccess: () => {
       toast.success('Ответ отправлен');
       composerFormRef.current?.reset();
-    }
+    },
   });
 
   const call = useFormAction<{ callId: string }>({
     action: (formData) =>
       initiateCallAction({
         orderId,
-        toNumber: String(formData.get('toNumber') ?? '')
+        toNumber: String(formData.get('toNumber') ?? ''),
       }),
     errorMap: CALL_ERROR_LABEL,
     onSuccess: () => {
       toast.success('Звонок инициирован');
       callFormRef.current?.reset();
       setCallFormOpen(false);
-    }
+    },
   });
 
   const composerByMode = { note, comment, channel: reply } as const;
   const composer = composerByMode[mode];
   const meta = COMPOSER_META[mode];
-  const modes: ComposerMode[] = channelAvailable ? ['note', 'comment', 'channel'] : ['note', 'comment'];
+  const modes: ComposerMode[] = channelAvailable
+    ? ['note', 'comment', 'channel']
+    : ['note', 'comment'];
   const caption =
     mode === 'note'
       ? 'Внутренняя заметка — клиент её не видит'
@@ -198,13 +201,13 @@ export function DealActivityThread({
   };
 
   return (
-    <div className='bg-white border border-gray-200 rounded-xl p-5 space-y-4'>
-      <div className='flex flex-wrap items-center justify-between gap-2'>
-        <h2 className='text-sm font-semibold text-[#111111]'>Активность</h2>
-        <div className='flex gap-1'>
+    <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-[#111111]">Активность</h2>
+        <div className="flex gap-1">
           <Button
-            type='button'
-            size='sm'
+            type="button"
+            size="sm"
             aria-pressed={view === 'dialogue'}
             variant={view === 'dialogue' ? 'primary' : 'secondary'}
             onClick={() => setView('dialogue')}
@@ -212,8 +215,8 @@ export function DealActivityThread({
             Диалог
           </Button>
           <Button
-            type='button'
-            size='sm'
+            type="button"
+            size="sm"
             aria-pressed={view === 'all'}
             variant={view === 'all' ? 'primary' : 'secondary'}
             onClick={() => setView('all')}
@@ -224,26 +227,26 @@ export function DealActivityThread({
       </div>
 
       {visible.length === 0 ? (
-        <p className='text-sm text-gray-500'>Активности пока нет.</p>
+        <p className="text-sm text-gray-500">Активности пока нет.</p>
       ) : (
-        <ul className='space-y-2'>
+        <ul className="space-y-2">
           {visible.map((item) => (
             <ActivityItemView key={`${item.kind}-${item.id}`} item={item} />
           ))}
         </ul>
       )}
 
-      <div className='border-t border-gray-100 pt-3 space-y-3'>
-        <form ref={composerFormRef} action={composer.formAction} className='flex flex-col gap-2'>
+      <div className="border-t border-gray-100 pt-3 space-y-3">
+        <form ref={composerFormRef} action={composer.formAction} className="flex flex-col gap-2">
           {/* Пиллы-переключатели — toggle-кнопки (aria-pressed), не radio:
               полная radio-семантика требует roving tabindex + стрелки
               (прецедент — team-visibility-toggle.tsx). */}
-          <div className='flex flex-wrap gap-1'>
+          <div className="flex flex-wrap gap-1">
             {modes.map((m) => (
               <Button
                 key={m}
-                type='button'
-                size='sm'
+                type="button"
+                size="sm"
                 aria-pressed={mode === m}
                 variant={mode === m ? 'primary' : 'secondary'}
                 disabled={composer.pending}
@@ -254,7 +257,7 @@ export function DealActivityThread({
             ))}
           </div>
           <Textarea
-            name='body'
+            name="body"
             rows={2}
             required
             disabled={composer.pending}
@@ -267,16 +270,18 @@ export function DealActivityThread({
               textarea через aria-describedby. */}
           <p
             id={captionId}
-            className={mode === 'note' ? 'text-xs text-gray-500' : 'text-xs text-amber-700 font-medium'}
+            className={
+              mode === 'note' ? 'text-xs text-gray-500' : 'text-xs text-amber-700 font-medium'
+            }
           >
             {caption}
           </p>
-          <div className='flex items-center justify-between gap-2'>
-            <Button type='submit' size='sm' loading={composer.pending} disabled={composer.pending}>
+          <div className="flex items-center justify-between gap-2">
+            <Button type="submit" size="sm" loading={composer.pending} disabled={composer.pending}>
               {meta.submitLabel}
             </Button>
             {composer.errorText && (
-              <p role='alert' className='text-xs text-red-600'>
+              <p role="alert" className="text-xs text-red-600">
                 {composer.errorText}
               </p>
             )}
@@ -286,34 +291,43 @@ export function DealActivityThread({
         {telephonyEnabled && (
           <div>
             {!callFormOpen ? (
-              <Button type='button' variant='secondary' size='sm' onClick={() => setCallFormOpen(true)}>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setCallFormOpen(true)}
+              >
                 Позвонить
               </Button>
             ) : (
-              <form ref={callFormRef} action={call.formAction} className='flex flex-wrap items-center gap-2'>
+              <form
+                ref={callFormRef}
+                action={call.formAction}
+                className="flex flex-wrap items-center gap-2"
+              >
                 <Input
-                  name='toNumber'
-                  type='tel'
+                  name="toNumber"
+                  type="tel"
                   required
                   disabled={call.pending}
-                  placeholder='Номер телефона'
-                  aria-label='Номер телефона'
-                  className='max-w-[200px]'
+                  placeholder="Номер телефона"
+                  aria-label="Номер телефона"
+                  className="max-w-[200px]"
                 />
-                <Button type='submit' size='sm' loading={call.pending} disabled={call.pending}>
+                <Button type="submit" size="sm" loading={call.pending} disabled={call.pending}>
                   Позвонить
                 </Button>
                 <Button
-                  type='button'
-                  variant='ghost'
-                  size='sm'
+                  type="button"
+                  variant="ghost"
+                  size="sm"
                   disabled={call.pending}
                   onClick={() => setCallFormOpen(false)}
                 >
                   Отмена
                 </Button>
                 {call.errorText && (
-                  <p role='alert' className='text-xs text-red-600'>
+                  <p role="alert" className="text-xs text-red-600">
                     {call.errorText}
                   </p>
                 )}

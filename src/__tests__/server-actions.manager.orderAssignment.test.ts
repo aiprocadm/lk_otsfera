@@ -6,14 +6,14 @@ const {
   revalidatePath,
   orderFindUnique,
   claimOrder,
-  assignOrderManager
+  assignOrderManager,
 } = vi.hoisted(() => ({
   requireManager: vi.fn(),
   requireManagerLeader: vi.fn(),
   revalidatePath: vi.fn(),
   orderFindUnique: vi.fn(),
   claimOrder: vi.fn(),
-  assignOrderManager: vi.fn()
+  assignOrderManager: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager, requireManagerLeader }));
@@ -23,11 +23,17 @@ vi.mock('@/lib/services/manager/distribution', () => ({ claimOrder, assignOrderM
 
 import {
   claimOrderAction,
-  assignOrderManagerLeaderAction
+  assignOrderManagerLeaderAction,
 } from '@/server-actions/manager/orderAssignment';
 
 const MGR = { sub: 'mgr-1', role: 'manager', managedOrgIds: [], companyId: 'co-1' };
-const LEADER = { sub: 'ldr-1', role: 'manager', managerRole: 'leader', managedOrgIds: [], companyId: 'co-1' };
+const LEADER = {
+  sub: 'ldr-1',
+  role: 'manager',
+  managerRole: 'leader',
+  managedOrgIds: [],
+  companyId: 'co-1',
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -93,7 +99,7 @@ describe('assignOrderManagerLeaderAction', () => {
     expect(assignOrderManager).toHaveBeenCalledWith(expect.anything(), LEADER, {
       orderId: 'o1',
       managerUserId: 'm-2',
-      restrictToCompanyId: 'co-1'
+      restrictToCompanyId: 'co-1',
     });
     expect(revalidatePath).toHaveBeenCalledWith('/leader/orders/o1');
   });

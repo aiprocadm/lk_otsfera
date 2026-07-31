@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import ExcelJS from 'exceljs';
-import { renderCertificatesXlsx, CERTIFICATES_EXPORT_LIMIT } from '@/lib/services/certificates/xlsx';
+import {
+  renderCertificatesXlsx,
+  CERTIFICATES_EXPORT_LIMIT,
+} from '@/lib/services/certificates/xlsx';
 import type { CertificateRow } from '@/lib/services/training/certificates';
 
 /**
@@ -21,7 +24,7 @@ const row = (over: Partial<CertificateRow> = {}): CertificateRow =>
     student: { id: 's1', name: 'Иванов Иван' },
     direction: { id: 'd1', name: 'Охрана труда' },
     organization: { id: 'o1', name: 'ООО Ромашка' },
-    ...over
+    ...over,
   }) as never as CertificateRow;
 
 async function parse(buf: ExcelJS.Buffer) {
@@ -41,7 +44,16 @@ describe('renderCertificatesXlsx', () => {
     const ws = await parse(
       await renderCertificatesXlsx({ rows: [row()], total: 1, showOrganization: false, now: NOW })
     );
-    expect(headerValues(ws)).toEqual(['№', 'Сотрудник', 'Направление', 'Номер', 'Выдано', 'Действует до', 'Статус', 'Скан']);
+    expect(headerValues(ws)).toEqual([
+      '№',
+      'Сотрудник',
+      'Направление',
+      'Номер',
+      'Выдано',
+      'Действует до',
+      'Статус',
+      'Скан',
+    ]);
     const r2 = ws.getRow(2);
     expect(String(r2.getCell(2).value)).toBe('Иванов Иван');
     expect(String(r2.getCell(7).value)).toBe('Действует');
@@ -54,11 +66,11 @@ describe('renderCertificatesXlsx', () => {
         rows: [
           row({ id: 'a', validUntil: new Date(NOW.getTime() - 3 * DAY) }),
           row({ id: 'b', validUntil: new Date(NOW.getTime() + 5 * DAY) }),
-          row({ id: 'c', validUntil: null, documentId: null })
+          row({ id: 'c', validUntil: null, documentId: null }),
         ],
         total: 3,
         showOrganization: true,
-        now: NOW
+        now: NOW,
       })
     );
     expect(headerValues(ws)).toContain('Организация');
@@ -77,7 +89,7 @@ describe('renderCertificatesXlsx', () => {
         rows: [row({ student: { id: 's1', name: '=CMD()' }, number: '+SUM(A1)' } as never)],
         total: 1,
         showOrganization: false,
-        now: NOW
+        now: NOW,
       })
     );
     expect(String(ws.getRow(2).getCell(2).value)).toBe("'=CMD()");
@@ -90,7 +102,7 @@ describe('renderCertificatesXlsx', () => {
         rows: [row()],
         total: CERTIFICATES_EXPORT_LIMIT + 5,
         showOrganization: false,
-        now: NOW
+        now: NOW,
       })
     );
     let warning = '';

@@ -1,19 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { findUserUnique, updateUser, findPartnerUserUnique, compareFn, signTokenFn } = vi.hoisted(() => ({
-  findUserUnique: vi.fn(),
-  // Этап 9 (ФТ-11.3): отметка lastLoginAt на успешном входе.
-  updateUser: vi.fn(),
-  findPartnerUserUnique: vi.fn(),
-  compareFn: vi.fn(),
-  signTokenFn: vi.fn()
-}));
+const { findUserUnique, updateUser, findPartnerUserUnique, compareFn, signTokenFn } = vi.hoisted(
+  () => ({
+    findUserUnique: vi.fn(),
+    // Этап 9 (ФТ-11.3): отметка lastLoginAt на успешном входе.
+    updateUser: vi.fn(),
+    findPartnerUserUnique: vi.fn(),
+    compareFn: vi.fn(),
+    signTokenFn: vi.fn(),
+  })
+);
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     user: { findUnique: findUserUnique, update: updateUser },
-    partnerUser: { findUnique: findPartnerUserUnique }
-  }
+    partnerUser: { findUnique: findPartnerUserUnique },
+  },
 }));
 vi.mock('bcryptjs', () => ({ default: { compare: compareFn } }));
 vi.mock('@/lib/auth/jwt', () => ({ signToken: signTokenFn }));
@@ -21,16 +23,22 @@ vi.mock('@/lib/auth/jwt', () => ({ signToken: signTokenFn }));
 import { POST } from '@/app/api/auth/login/route';
 
 const partnerUser = {
-  id: 'user-1', email: 'p@test.local', passwordHash: 'hash', name: 'Партнёр',
-  role: 'partner', partnerId: 'partner-1',
-  companyId: null, organizationId: null, externalStudentId: null
+  id: 'user-1',
+  email: 'p@test.local',
+  passwordHash: 'hash',
+  name: 'Партнёр',
+  role: 'partner',
+  partnerId: 'partner-1',
+  companyId: null,
+  organizationId: null,
+  externalStudentId: null,
 };
 
 function makeRequest(body: object) {
   return new Request('https://app.local/api/auth/login', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
 }
 
@@ -45,35 +53,47 @@ describe('POST /api/auth/login partner enrichment', () => {
   it('signs JWT with partnerRole=admin and assignedOrgIds=[] for partner admin', async () => {
     findUserUnique.mockResolvedValue(partnerUser);
     findPartnerUserUnique.mockResolvedValue({
-      id: 'pu-1', partnerId: 'partner-1', userId: 'user-1',
-      roleInPartner: 'admin', assignedOrgIds: [], isActive: true
+      id: 'pu-1',
+      partnerId: 'partner-1',
+      userId: 'user-1',
+      roleInPartner: 'admin',
+      assignedOrgIds: [],
+      isActive: true,
     });
 
     const res = await POST(makeRequest({ email: 'p@test.local', password: 'x' }));
     expect(res.status).toBe(200);
 
-    expect(signTokenFn).toHaveBeenCalledWith(expect.objectContaining({
-      sub: 'user-1',
-      role: 'partner',
-      partnerId: 'partner-1',
-      partnerRole: 'admin',
-      assignedOrgIds: []
-    }));
+    expect(signTokenFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sub: 'user-1',
+        role: 'partner',
+        partnerId: 'partner-1',
+        partnerRole: 'admin',
+        assignedOrgIds: [],
+      })
+    );
   });
 
   it('signs JWT with partnerRole=manager and assignedOrgIds=[orgA,orgB] for scoped manager', async () => {
     findUserUnique.mockResolvedValue(partnerUser);
     findPartnerUserUnique.mockResolvedValue({
-      id: 'pu-2', partnerId: 'partner-1', userId: 'user-1',
-      roleInPartner: 'manager', assignedOrgIds: ['orgA', 'orgB'], isActive: true
+      id: 'pu-2',
+      partnerId: 'partner-1',
+      userId: 'user-1',
+      roleInPartner: 'manager',
+      assignedOrgIds: ['orgA', 'orgB'],
+      isActive: true,
     });
 
     await POST(makeRequest({ email: 'p@test.local', password: 'x' }));
 
-    expect(signTokenFn).toHaveBeenCalledWith(expect.objectContaining({
-      partnerRole: 'manager',
-      assignedOrgIds: ['orgA', 'orgB']
-    }));
+    expect(signTokenFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        partnerRole: 'manager',
+        assignedOrgIds: ['orgA', 'orgB'],
+      })
+    );
   });
 
   it('omits partner sub-role fields if user has no PartnerUser record (legacy partner)', async () => {
@@ -90,8 +110,12 @@ describe('POST /api/auth/login partner enrichment', () => {
   it('refuses login (403) if PartnerUser exists but isActive=false', async () => {
     findUserUnique.mockResolvedValue(partnerUser);
     findPartnerUserUnique.mockResolvedValue({
-      id: 'pu-3', partnerId: 'partner-1', userId: 'user-1',
-      roleInPartner: 'manager', assignedOrgIds: [], isActive: false
+      id: 'pu-3',
+      partnerId: 'partner-1',
+      userId: 'user-1',
+      roleInPartner: 'manager',
+      assignedOrgIds: [],
+      isActive: false,
     });
 
     const res = await POST(makeRequest({ email: 'p@test.local', password: 'x' }));

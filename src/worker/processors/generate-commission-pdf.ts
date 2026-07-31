@@ -1,5 +1,5 @@
-import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
+import type { Job } from 'bullmq';
 import { prisma } from '@/lib/db/prisma';
 import { getObjectStorage } from '@/lib/storage';
 import { renderStatementPdf } from '@/lib/services/commission/pdf';
@@ -20,7 +20,7 @@ export async function generateCommissionPdfProcessor(
 
   const statement = await db.commissionStatement.findUnique({
     where: { id: statementId },
-    include: { items: true, partner: true }
+    include: { items: true, partner: true },
   });
   if (!statement) throw new Error(`NOT_FOUND: CommissionStatement ${statementId}`);
 
@@ -28,7 +28,7 @@ export async function generateCommissionPdfProcessor(
     statement,
     items: statement.items,
     partner: { name: statement.partner.name, legalName: statement.partner.legalName },
-    verifyUrl: null
+    verifyUrl: null,
   });
 
   const path = `partners/${statement.partnerId}/commission/${statementId}.pdf`;
@@ -38,7 +38,7 @@ export async function generateCommissionPdfProcessor(
 
   await db.commissionStatement.update({
     where: { id: statementId },
-    data: { pdfPath: path }
+    data: { pdfPath: path },
   });
 
   return { statementId, path };

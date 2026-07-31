@@ -128,8 +128,8 @@ describe('parseWazzupInbound — defensive parsing of untrusted JSON', () => {
         { messageId: 42, chatId: '79990001122', text: 'нет' },
         { messageId: 'ok-echo', chatId: '79990001122', text: 'наше же', isEcho: true },
         { messageId: 'no-text', chatId: '79990001122', text: 123 },
-        { messageId: 'real', chatId: 79990001122, text: 'привет' }
-      ]
+        { messageId: 'real', chatId: 79990001122, text: 'привет' },
+      ],
     });
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({ externalId: 'wa:real', phone: '+79990001122', text: 'привет' });
@@ -137,24 +137,24 @@ describe('parseWazzupInbound — defensive parsing of untrusted JSON', () => {
 
   it('contact.name строка → name; иначе undefined', () => {
     const [withName] = parseWazzupInbound({
-      messages: [{ messageId: 'm1', chatId: '7999', text: 'а', contact: { name: 'Ольга' } }]
+      messages: [{ messageId: 'm1', chatId: '7999', text: 'а', contact: { name: 'Ольга' } }],
     });
     expect(withName.name).toBe('Ольга');
 
     const [noContact] = parseWazzupInbound({
-      messages: [{ messageId: 'm2', chatId: '7999', text: 'б' }]
+      messages: [{ messageId: 'm2', chatId: '7999', text: 'б' }],
     });
     expect(noContact.name).toBeUndefined();
 
     const [badName] = parseWazzupInbound({
-      messages: [{ messageId: 'm3', chatId: '7999', text: 'в', contact: { name: 7 } }]
+      messages: [{ messageId: 'm3', chatId: '7999', text: 'в', contact: { name: 7 } }],
     });
     expect(badName.name).toBeUndefined();
   });
 
   it('chatId без цифр → пустой phone (в резолвинг не совпадёт, останется unresolved)', () => {
     const [row] = parseWazzupInbound({
-      messages: [{ messageId: 'm4', chatId: 'abc', text: 'г' }]
+      messages: [{ messageId: 'm4', chatId: 'abc', text: 'г' }],
     });
     expect(row.phone).toBe('');
   });

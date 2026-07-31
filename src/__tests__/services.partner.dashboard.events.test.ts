@@ -14,33 +14,54 @@ beforeAll(async () => {
 
   const order = await prisma.order.create({
     data: {
-      title: 'Заказ', companyId: c.id, partnerId, organizationId: org.id,
-      totalAmount: 1000, paidAmount: 0,
-      executionStatus: 'in_progress', financialStatus: 'billed'
-    }
+      title: 'Заказ',
+      companyId: c.id,
+      partnerId,
+      organizationId: org.id,
+      totalAmount: 1000,
+      paidAmount: 0,
+      executionStatus: 'in_progress',
+      financialStatus: 'billed',
+    },
   });
 
   await prisma.payment.create({
-    data: { organizationId: org.id, orderId: order.id, amount: 500, paidAt: new Date() }
+    data: { organizationId: org.id, orderId: order.id, amount: 500, paidAt: new Date() },
   });
 
   const u = await prisma.user.create({
-    data: { email: `ev-${Date.now()}@t.local`, passwordHash: 'x', name: 'L', role: 'partner', partnerId }
+    data: {
+      email: `ev-${Date.now()}@t.local`,
+      passwordHash: 'x',
+      name: 'L',
+      role: 'partner',
+      partnerId,
+    },
   });
   await prisma.lead.create({
     data: {
-      partnerId, createdByUserId: u.id,
-      clientCompanyName: 'Лид', clientContactName: 'X', subject: 'S',
-      status: 'new', productType: []
-    }
+      partnerId,
+      createdByUserId: u.id,
+      clientCompanyName: 'Лид',
+      clientContactName: 'X',
+      subject: 'S',
+      status: 'new',
+      productType: [],
+    },
   });
   // F2: order events surface only for lead-linked orders → promote the seeded order.
   await prisma.lead.create({
     data: {
-      partnerId, createdByUserId: u.id, organizationId: org.id,
-      clientCompanyName: 'Лид-заказ', clientContactName: 'X', subject: 'S',
-      status: 'promoted_to_order', productType: [], promotedOrderId: order.id
-    }
+      partnerId,
+      createdByUserId: u.id,
+      organizationId: org.id,
+      clientCompanyName: 'Лид-заказ',
+      clientContactName: 'X',
+      subject: 'S',
+      status: 'promoted_to_order',
+      productType: [],
+      promotedOrderId: order.id,
+    },
   });
 });
 

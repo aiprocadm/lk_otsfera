@@ -12,7 +12,11 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 const { recordPiiAccess } = vi.hoisted(() => ({ recordPiiAccess: vi.fn() }));
 vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
 
-import { clientRequestScopeWhere, listClientRequests, getClientRequest } from '@/lib/services/clientRequests/list';
+import {
+  clientRequestScopeWhere,
+  listClientRequests,
+  getClientRequest,
+} from '@/lib/services/clientRequests/list';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,7 +43,7 @@ const row = (id: string, over: Record<string, unknown> = {}) => ({
   organization: null,
   convertedLead: null,
   _count: { attachments: 0 },
-  ...over
+  ...over,
 });
 
 function db(rows: unknown[] = []) {
@@ -61,19 +65,21 @@ describe('clientRequestScopeWhere', () => {
 
   it('manager: OR — организации своей компании + общая очередь (organizationId=null)', () => {
     expect(clientRequestScopeWhere(s({ role: 'manager', companyId: 'c1' }))).toEqual({
-      OR: [{ organization: { companyId: 'c1' } }, { organizationId: null }]
+      OR: [{ organization: { companyId: 'c1' } }, { organizationId: null }],
     });
   });
 
   it('leader — тот же manager-скоуп', () => {
-    expect(clientRequestScopeWhere(s({ role: 'manager', managerRole: 'leader', companyId: 'c1' }))).toEqual({
-      OR: [{ organization: { companyId: 'c1' } }, { organizationId: null }]
+    expect(
+      clientRequestScopeWhere(s({ role: 'manager', managerRole: 'leader', companyId: 'c1' }))
+    ).toEqual({
+      OR: [{ organization: { companyId: 'c1' } }, { organizationId: null }],
     });
   });
 
   it("manager без companyId → sentinel '__none__' (только общая очередь)", () => {
     expect(clientRequestScopeWhere(s({ role: 'manager', companyId: null }))).toEqual({
-      OR: [{ organization: { companyId: '__none__' } }, { organizationId: null }]
+      OR: [{ organization: { companyId: '__none__' } }, { organizationId: null }],
     });
   });
 
@@ -127,7 +133,7 @@ describe('listClientRequests', () => {
       session,
       context: 'client_requests_list',
       subjectIds: ['R1', 'R2'],
-      meta: { take: 2, cursor: true }
+      meta: { take: 2, cursor: true },
     });
   });
 });
@@ -139,11 +145,14 @@ describe('getClientRequest', () => {
     const { prisma, findFirst } = db([]);
     expect(await getClientRequest(prisma, s({ role: 'manager', companyId: 'c1' }), 'RX')).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
     // Сам скоуп зашит в запрос: чужая заявка неотличима от несуществующей.
     expect(findFirst.mock.calls[0][0].where).toEqual({
-      AND: [{ id: 'RX' }, { OR: [{ organization: { companyId: 'c1' } }, { organizationId: null }] }]
+      AND: [
+        { id: 'RX' },
+        { OR: [{ organization: { companyId: 'c1' } }, { organizationId: null }] },
+      ],
     });
     expect(recordPiiAccess).not.toHaveBeenCalled();
   });
@@ -155,7 +164,7 @@ describe('getClientRequest', () => {
       organization: { name: 'Орг А' },
       convertedLead: { id: 'L1' },
       triagedAt: new Date('2026-01-11T00:00:00Z'),
-      _count: { attachments: 3 }
+      _count: { attachments: 3 },
     });
     const { prisma } = db([src]);
     const r = await getClientRequest(prisma, s({ role: 'admin' }), 'R1');
@@ -178,7 +187,7 @@ describe('getClientRequest', () => {
       rejectedReason: null,
       createdAt: new Date('2026-01-10T00:00:00Z'),
       triagedAt: new Date('2026-01-11T00:00:00Z'),
-      attachmentCount: 3
+      attachmentCount: 3,
     });
   });
 
@@ -190,12 +199,12 @@ describe('getClientRequest', () => {
     expect(r.request).toMatchObject({
       partnerName: null,
       organizationName: null,
-      attachmentCount: 0
+      attachmentCount: 0,
     });
     expect(recordPiiAccess).toHaveBeenCalledWith(prisma, {
       session,
       context: 'client_request_view',
-      subjectIds: ['R2']
+      subjectIds: ['R2'],
     });
   });
 });

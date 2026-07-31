@@ -11,11 +11,19 @@ import { TaskDialog, type TaskFormOptions } from '@/components/tasks/task-dialog
 const MOVE_ERRORS: Record<string, string> = {
   invalid_column: 'Неизвестная колонка.',
   not_found: 'Задача не найдена или недоступна.',
-  forbidden: 'Нет доступа.'
+  forbidden: 'Нет доступа.',
 };
 
-const PRIORITY_LABEL: Record<string, string> = { low: 'Низкий', medium: 'Средний', high: 'Высокий' };
-const PRIORITY_TONE: Record<string, 'neutral' | 'warning' | 'danger'> = { low: 'neutral', medium: 'warning', high: 'danger' };
+const PRIORITY_LABEL: Record<string, string> = {
+  low: 'Низкий',
+  medium: 'Средний',
+  high: 'Высокий',
+};
+const PRIORITY_TONE: Record<string, 'neutral' | 'warning' | 'danger'> = {
+  low: 'neutral',
+  medium: 'warning',
+  high: 'danger',
+};
 
 function fmtDate(d: Date | null): string | null {
   if (!d) return null;
@@ -93,28 +101,39 @@ export function TaskBoard({ board, options }: { board: TaskBoardData; options: T
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-medium text-[#111111]">{card.title}</p>
                     {card.priority && (
-                      <Badge tone={PRIORITY_TONE[card.priority] ?? 'neutral'}>{PRIORITY_LABEL[card.priority]}</Badge>
+                      <Badge tone={PRIORITY_TONE[card.priority] ?? 'neutral'}>
+                        {PRIORITY_LABEL[card.priority]}
+                      </Badge>
                     )}
                   </div>
-                  {(card.linkedOrganizationName || card.linkedOrderTitle || card.linkedLeadSubject || card.linkedDealTitle) && (
+                  {(card.linkedOrganizationName ||
+                    card.linkedOrderTitle ||
+                    card.linkedLeadSubject ||
+                    card.linkedDealTitle) && (
                     <p className="text-xs text-gray-500 mt-1">
                       {[
                         card.linkedOrganizationName,
                         card.linkedOrderTitle,
                         card.linkedLeadSubject && `Лид: ${card.linkedLeadSubject}`,
-                        card.linkedDealTitle && `Сделка: ${card.linkedDealTitle}`
+                        card.linkedDealTitle && `Сделка: ${card.linkedDealTitle}`,
                       ]
                         .filter(Boolean)
                         .join(' · ')}
                     </p>
                   )}
                   <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-                    <span>{card.assigneeNames.length > 0 ? card.assigneeNames.join(', ') : 'без исполнителя'}</span>
+                    <span>
+                      {card.assigneeNames.length > 0
+                        ? card.assigneeNames.join(', ')
+                        : 'без исполнителя'}
+                    </span>
                     {fmtDate(card.dueDate) && <span>до {fmtDate(card.dueDate)}</span>}
                   </div>
                 </article>
               ))}
-              {col.cards.length === 0 && <p className="text-xs text-gray-400 text-center py-4">Пусто</p>}
+              {col.cards.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-4">Пусто</p>
+              )}
             </div>
           </div>
         ))}

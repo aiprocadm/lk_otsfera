@@ -45,12 +45,12 @@ const PILL_STYLE: React.CSSProperties = {
   fontWeight: 600,
   lineHeight: 1,
   marginLeft: '4px',
-  verticalAlign: 'middle'
+  verticalAlign: 'middle',
 };
 
 export function NotificationBell({
   role,
-  buttonClassName = 'hover:bg-gray-100'
+  buttonClassName = 'hover:bg-gray-100',
 }: {
   role: NotificationRole;
   /**
@@ -67,7 +67,7 @@ export function NotificationBell({
 
   const unread = useClientResource<number>('/api/notifications/unread', {
     intervalMs: 30_000,
-    select: (d) => (d as { count?: number }).count ?? 0
+    select: (d) => (d as { count?: number }).count ?? 0,
   });
   const list = useClientResource<NotificationRow[]>('/api/notifications', { enabled: open });
 
@@ -107,7 +107,7 @@ export function NotificationBell({
       await fetch('/api/notifications', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
     } catch {
       // Best-effort (как unread-badge — молчит): сбой пометки не роняет UI,
@@ -131,13 +131,13 @@ export function NotificationBell({
   const unreadIds = rows.filter((r) => !r.isRead).map((r) => r.id);
 
   return (
-    <div ref={rootRef} className='relative inline-block'>
+    <div ref={rootRef} className="relative inline-block">
       <button
         ref={buttonRef}
-        type='button'
+        type="button"
         aria-label={count > 0 ? `Уведомления, непрочитанных: ${count}` : 'Уведомления'}
         aria-expanded={open}
-        aria-haspopup='dialog'
+        aria-haspopup="dialog"
         aria-controls={panelId}
         onClick={() => setOpen((v) => !v)}
         className={`inline-flex items-center rounded-md px-2 py-1 text-lg ${buttonClassName}`}
@@ -156,45 +156,47 @@ export function NotificationBell({
         // на кнопке анонсирует тип попапа, aria-controls связывает по id.
         <div
           id={panelId}
-          className='absolute right-0 z-50 mt-2 w-[min(360px,calc(100vw-2rem))] max-h-[420px] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg'
+          className="absolute right-0 z-50 mt-2 w-[min(360px,calc(100vw-2rem))] max-h-[420px] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
         >
-          <div className='flex items-center justify-between border-b border-gray-100 px-4 py-2'>
-            <span className='text-sm font-medium text-[#111111]'>Уведомления</span>
+          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2">
+            <span className="text-sm font-medium text-[#111111]">Уведомления</span>
             {/* Помечает только загруженные 50 строк (GET take:50); при большем числе непрочитанных бейдж останется ненулевым — серверный all:true отложен. */}
             <button
-              type='button'
+              type="button"
               disabled={unreadIds.length === 0}
               onClick={() => void markRead({ ids: unreadIds })}
-              className='text-xs text-[#F97316] hover:underline disabled:text-gray-400 disabled:no-underline'
+              className="text-xs text-[#F97316] hover:underline disabled:text-gray-400 disabled:no-underline"
             >
               Прочитать все
             </button>
           </div>
 
           {list.loading ? (
-            <div className='flex justify-center py-6'>
-              <Spinner className='text-gray-400' />
+            <div className="flex justify-center py-6">
+              <Spinner className="text-gray-400" />
             </div>
           ) : list.error ? (
-            <p className='px-4 py-6 text-center text-sm text-gray-500'>Не удалось загрузить</p>
+            <p className="px-4 py-6 text-center text-sm text-gray-500">Не удалось загрузить</p>
           ) : rows.length === 0 ? (
-            <p className='px-4 py-6 text-center text-sm text-gray-500'>Нет уведомлений</p>
+            <p className="px-4 py-6 text-center text-sm text-gray-500">Нет уведомлений</p>
           ) : (
-            <ul className='divide-y divide-gray-100'>
+            <ul className="divide-y divide-gray-100">
               {rows.map((row) => (
                 <li key={row.id}>
                   <button
-                    type='button'
+                    type="button"
                     onClick={() => void handleRowClick(row)}
-                    className='block w-full px-4 py-3 text-left hover:bg-gray-50'
+                    className="block w-full px-4 py-3 text-left hover:bg-gray-50"
                   >
                     <span
                       className={`block text-sm ${row.isRead ? 'text-gray-700' : 'font-semibold text-[#111111]'}`}
                     >
                       {row.title}
                     </span>
-                    <span className='block text-sm text-gray-500 line-clamp-2'>{row.body}</span>
-                    <span className='mt-1 block text-xs text-gray-400'>{fmtDate(row.createdAt)}</span>
+                    <span className="block text-sm text-gray-500 line-clamp-2">{row.body}</span>
+                    <span className="mt-1 block text-xs text-gray-400">
+                      {fmtDate(row.createdAt)}
+                    </span>
                   </button>
                 </li>
               ))}

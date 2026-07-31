@@ -1,9 +1,10 @@
 import type { PrismaClient } from '@prisma/client';
 import type { MangoEvent } from '@/lib/telephony/mango/parse';
-import { resolveCaller } from './resolveCaller';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
+import { resolveCaller } from './resolveCaller';
 
-export type IngestCallResult = { ok: true; id: string; needsRecording?: boolean } | { ok: false; error: 'storage' };
+export type IngestCallResult =
+  { ok: true; id: string; needsRecording?: boolean } | { ok: false; error: 'storage' };
 
 /**
  * Idempotent ingest for Mango webhook events into the Call journal.
@@ -19,8 +20,13 @@ export type IngestCallResult = { ok: true; id: string; needsRecording?: boolean 
  * for `direction`/`durationSec`/`status` and always wins on merge because it
  * is the final, complete record Mango sends once the call has ended.
  */
-export async function ingestCallEvent(prisma: PrismaClient, event: MangoEvent): Promise<IngestCallResult> {
-  const where = { provider_externalId: { provider: 'mango', externalId: event.externalId } } as const;
+export async function ingestCallEvent(
+  prisma: PrismaClient,
+  event: MangoEvent
+): Promise<IngestCallResult> {
+  const where = {
+    provider_externalId: { provider: 'mango', externalId: event.externalId },
+  } as const;
 
   if (event.kind === 'summary') {
     const resolved = await resolveCaller(prisma, event.callerNumber);
@@ -78,7 +84,9 @@ export async function ingestCallEvent(prisma: PrismaClient, event: MangoEvent): 
   }
 
   if (event.kind === 'call') {
-    const resolved = event.callerNumber ? await resolveCaller(prisma, event.callerNumber) : { matchType: 'unresolved' as const };
+    const resolved = event.callerNumber
+      ? await resolveCaller(prisma, event.callerNumber)
+      : { matchType: 'unresolved' as const };
     const resolvedFields =
       resolved.matchType === 'exact'
         ? {

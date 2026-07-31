@@ -50,8 +50,20 @@ const styles = StyleSheet.create({
   bankCellValue: { width: '45%', padding: 4 },
   partyLabel: { fontSize: 8, color: '#888', marginTop: 8 },
   partyText: { fontSize: 9, marginTop: 1 },
-  tableHeader: { flexDirection: 'row', backgroundColor: '#F3F4F6', padding: 5, marginTop: 14, fontWeight: 'bold' },
-  tableRow: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: '#e5e7eb', paddingVertical: 4, paddingHorizontal: 5 },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    padding: 5,
+    marginTop: 14,
+    fontWeight: 'bold',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#e5e7eb',
+    paddingVertical: 4,
+    paddingHorizontal: 5,
+  },
   colN: { width: '6%' },
   colName: { width: '70%' },
   colAmount: { width: '24%', textAlign: 'right' },
@@ -62,7 +74,13 @@ const styles = StyleSheet.create({
   signatures: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 36 },
   signBlock: { width: '45%' },
   signRole: { fontSize: 8, color: '#888', marginBottom: 18 },
-  signLine: { borderTopWidth: 0.5, borderTopColor: '#111', paddingTop: 3, fontSize: 8, color: '#444' }
+  signLine: {
+    borderTopWidth: 0.5,
+    borderTopColor: '#111',
+    paddingTop: 3,
+    fontSize: 8,
+    color: '#444',
+  },
 });
 
 function partyLine(p: PartyBlock): string {
@@ -87,7 +105,10 @@ function OrderDocumentPdf({ data }: { data: OrderDocumentData }) {
 
   const bankRows: Array<[string, string]> = [
     [`${c.bankName ?? ''} БИК ${c.bic ?? ''}`, `К/с ${c.corrAccount ?? ''}`],
-    [`Получатель: ${c.displayName} ИНН ${c.inn ?? ''}${c.kpp ? ` КПП ${c.kpp}` : ''}`, `Р/с ${c.bankAccount ?? ''}`]
+    [
+      `Получатель: ${c.displayName} ИНН ${c.inn ?? ''}${c.kpp ? ` КПП ${c.kpp}` : ''}`,
+      `Р/с ${c.bankAccount ?? ''}`,
+    ],
   ];
 
   return e(
@@ -104,14 +125,24 @@ function OrderDocumentPdf({ data }: { data: OrderDocumentData }) {
             ...bankRows.map(([l, r], i) =>
               e(
                 View,
-                { key: String(i), style: i === bankRows.length - 1 ? [styles.bankRow, { borderBottomWidth: 0 }] : styles.bankRow },
+                {
+                  key: String(i),
+                  style:
+                    i === bankRows.length - 1
+                      ? [styles.bankRow, { borderBottomWidth: 0 }]
+                      : styles.bankRow,
+                },
                 e(Text, { style: styles.bankCellLabel }, l),
                 e(Text, { style: styles.bankCellValue }, r)
               )
             )
           )
         : null,
-      e(Text, { style: styles.title }, `${isInvoice ? 'Счёт' : 'Акт'} № ${data.number} от ${dateStr}`),
+      e(
+        Text,
+        { style: styles.title },
+        `${isInvoice ? 'Счёт' : 'Акт'} № ${data.number} от ${dateStr}`
+      ),
       e(Text, { style: styles.subtitle }, data.orderLabel),
       e(Text, { style: styles.partyLabel }, 'ИСПОЛНИТЕЛЬ'),
       e(Text, { style: styles.partyText }, partyLine(data.company)),
@@ -121,7 +152,11 @@ function OrderDocumentPdf({ data }: { data: OrderDocumentData }) {
         View,
         { style: styles.tableHeader },
         e(Text, { style: styles.colN }, '№'),
-        e(Text, { style: styles.colName }, isInvoice ? 'Наименование услуги' : 'Наименование выполненных услуг'),
+        e(
+          Text,
+          { style: styles.colName },
+          isInvoice ? 'Наименование услуги' : 'Наименование выполненных услуг'
+        ),
         e(Text, { style: styles.colAmount }, 'Сумма, ₽')
       ),
       ...data.items.map((item, i) =>

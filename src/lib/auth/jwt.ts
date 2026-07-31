@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { JWTPayload, SignJWT, jwtVerify } from 'jose';
+import { type JWTPayload, SignJWT, jwtVerify } from 'jose';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
@@ -61,7 +61,10 @@ export type SessionPayload = {
   sessionVersion?: number;
 };
 
-export type StudentBridgePayload = Pick<SessionPayload, 'sub' | 'role' | 'organizationId' | 'email' | 'name' | 'externalStudentId'>;
+export type StudentBridgePayload = Pick<
+  SessionPayload,
+  'sub' | 'role' | 'organizationId' | 'email' | 'name' | 'externalStudentId'
+>;
 
 // Runtime guards for verified JWT payloads. `jwtVerify` returns an untyped
 // `JWTPayload` (string-keyed, values `unknown`); casting it straight to our
@@ -73,7 +76,7 @@ const roleSchema = z.enum(['admin', 'manager', 'partner', 'organization', 'stude
 const organizationMembershipSchema = z.object({
   organizationId: z.string(),
   roleInOrg: z.enum(['admin', 'leader', 'member']),
-  isActive: z.boolean()
+  isActive: z.boolean(),
 });
 
 const sessionPayloadSchema = z.object({
@@ -91,7 +94,7 @@ const sessionPayloadSchema = z.object({
   name: z.string().optional(),
   externalStudentId: z.string().nullish(),
   accessProfile: sessionAccessProfileSchema.nullish(),
-  sessionVersion: z.number().int().optional()
+  sessionVersion: z.number().int().optional(),
 });
 
 const studentBridgePayloadSchema = z.object({
@@ -100,13 +103,12 @@ const studentBridgePayloadSchema = z.object({
   organizationId: z.string().nullish(),
   email: z.string().optional(),
   name: z.string().optional(),
-  externalStudentId: z.string().nullish()
+  externalStudentId: z.string().nullish(),
 });
-
 
 function getStudentBridgeSecret() {
   const fromBridgeVar = process.env.STUDENT_BRIDGE_JWT_SECRET?.trim();
-  const studentBridgeSecret = (fromBridgeVar || process.env.JWT_SECRET?.trim() || '');
+  const studentBridgeSecret = fromBridgeVar || process.env.JWT_SECRET?.trim() || '';
   if (!studentBridgeSecret) {
     throw new Error('Student bridge JWT secret is not configured');
   }
@@ -125,9 +127,11 @@ function getJwtSecret() {
 }
 
 export async function signToken(payload: SessionPayload) {
-  return new SignJWT(payload).setProtectedHeader({ alg: 'HS256' }).setExpirationTime('7d').sign(getJwtSecret());
+  return new SignJWT(payload)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('7d')
+    .sign(getJwtSecret());
 }
-
 
 function getStudentBridgeIssuer() {
   const issuer = process.env.STUDENT_BRIDGE_ISSUER?.trim() || process.env.APP_URL?.trim();
@@ -143,7 +147,7 @@ async function consumeStudentBridgeJti(jti: string, exp: number) {
 
   try {
     await prisma.studentBridgeTokenJti.create({
-      data: { jti, expiresAt, usedAt: new Date() }
+      data: { jti, expiresAt, usedAt: new Date() },
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -183,7 +187,7 @@ const TWO_FACTOR_PENDING_TTL = '10m';
 
 const twoFactorPendingSchema = z.object({
   sub: z.string().min(1),
-  purpose: z.literal('2fa')
+  purpose: z.literal('2fa'),
 });
 
 /**
@@ -205,11 +209,10 @@ export async function verifyTwoFactorPendingToken(token: string): Promise<{ sub:
   return twoFactorPendingSchema.parse(payload);
 }
 
-
 export async function verifyStudentBridgeToken(token: string) {
   const { payload } = await jwtVerify(token, getStudentBridgeSecret(), {
     audience: 'external-student-portal',
-    issuer: getStudentBridgeIssuer()
+    issuer: getStudentBridgeIssuer(),
   });
 
   if (!payload.jti || !payload.exp) {

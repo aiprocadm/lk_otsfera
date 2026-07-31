@@ -30,7 +30,7 @@ function makeDeal(overrides: Partial<DealDetail> = {}): DealDetail {
     documents: [],
     comments: [],
     items: [],
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -43,7 +43,9 @@ describe('DealHeader', () => {
   });
 
   it('omits order number span when orderNumber is null', () => {
-    const html = renderToString(React.createElement(DealHeader, { deal: makeDeal({ orderNumber: null }) }));
+    const html = renderToString(
+      React.createElement(DealHeader, { deal: makeDeal({ orderNumber: null }) })
+    );
     expect(html).not.toContain('№ ');
   });
 
@@ -76,7 +78,9 @@ describe('DealHeader', () => {
   });
 
   it('omits productMix wrapper when empty', () => {
-    const html = renderToString(React.createElement(DealHeader, { deal: makeDeal({ productMix: [] }) }));
+    const html = renderToString(
+      React.createElement(DealHeader, { deal: makeDeal({ productMix: [] }) })
+    );
     expect(html).not.toContain('flex-wrap gap-1.5');
   });
 });

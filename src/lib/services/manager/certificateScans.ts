@@ -35,11 +35,7 @@ export type CertificateScanTarget = {
 };
 
 export type ScanFileError =
-  | 'item_not_found'
-  | 'certificate_missing'
-  | 'too_large'
-  | 'invalid_mime'
-  | 'storage';
+  'item_not_found' | 'certificate_missing' | 'too_large' | 'invalid_mime' | 'storage';
 
 export type ScanFileResult =
   | { fileName: string; ok: true; orderItemId: string; documentId: string }
@@ -64,9 +60,9 @@ const ORDER_SELECT = {
     select: {
       id: true,
       student: { select: { name: true } },
-      certificate: { select: { id: true, number: true, documentId: true } }
-    }
-  }
+      certificate: { select: { id: true, number: true, documentId: true } },
+    },
+  },
 } as const;
 
 /** ФТ-5.3: позиции заказа как цели для сканов (ФИО + номер + уже ли есть скан). */
@@ -75,8 +71,7 @@ export async function listCertificateScanTargets(
   session: SessionPayload,
   orderId: string
 ): Promise<
-  | { ok: true; targets: CertificateScanTarget[] }
-  | { ok: false; error: 'not_found' | 'forbidden' }
+  { ok: true; targets: CertificateScanTarget[] } | { ok: false; error: 'not_found' | 'forbidden' }
 > {
   const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
   const order = await prisma.order.findUnique({ where: { id: orderId }, select: ORDER_SELECT });
@@ -90,8 +85,8 @@ export async function listCertificateScanTargets(
       studentName: item.student.name,
       certificateId: item.certificate?.id ?? null,
       certificateNumber: item.certificate?.number ?? null,
-      hasScan: item.certificate?.documentId != null
-    }))
+      hasScan: item.certificate?.documentId != null,
+    })),
   };
 }
 
@@ -107,7 +102,10 @@ export async function uploadCertificateScans(
   if (args.files.length === 0) return { ok: false, error: 'validation' };
 
   const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
-  const order = await prisma.order.findUnique({ where: { id: args.orderId }, select: ORDER_SELECT });
+  const order = await prisma.order.findUnique({
+    where: { id: args.orderId },
+    select: ORDER_SELECT,
+  });
   if (!order) return { ok: false, error: 'not_found' };
   if (!canSeeOrder(session, order, teamMode)) return { ok: false, error: 'forbidden' };
 
@@ -121,7 +119,12 @@ export async function uploadCertificateScans(
     const item = byItemId.get(entry.orderItemId);
     // Позиция чужого заказа неотличима от несуществующей — оба item_not_found.
     if (!item) {
-      results.push({ fileName, ok: false, orderItemId: entry.orderItemId, error: 'item_not_found' });
+      results.push({
+        fileName,
+        ok: false,
+        orderItemId: entry.orderItemId,
+        error: 'item_not_found',
+      });
       continue;
     }
     if (!item.certificate) {
@@ -129,7 +132,7 @@ export async function uploadCertificateScans(
         fileName,
         ok: false,
         orderItemId: entry.orderItemId,
-        error: 'certificate_missing'
+        error: 'certificate_missing',
       });
       continue;
     }
@@ -141,7 +144,7 @@ export async function uploadCertificateScans(
       docType: 'certificate',
       uploadedById: session.sub,
       source: 'manager',
-      file: entry.file
+      file: entry.file,
     });
     if (!persisted.ok) {
       results.push({ fileName, ok: false, orderItemId: entry.orderItemId, error: persisted.error });
@@ -154,7 +157,7 @@ export async function uploadCertificateScans(
     const previousDocumentId = item.certificate.documentId;
     await prisma.certificate.update({
       where: { id: certificateId },
-      data: { documentId: persisted.documentId }
+      data: { documentId: persisted.documentId },
     });
     await recordAudit(prisma, {
       userId: session.sub,
@@ -165,11 +168,16 @@ export async function uploadCertificateScans(
         orderId: order.id,
         orderItemId: item.id,
         documentId: persisted.documentId,
-        replacedDocumentId: previousDocumentId
-      }
+        replacedDocumentId: previousDocumentId,
+      },
     });
 
-    results.push({ fileName, ok: true, orderItemId: entry.orderItemId, documentId: persisted.documentId });
+    results.push({
+      fileName,
+      ok: true,
+      orderItemId: entry.orderItemId,
+      documentId: persisted.documentId,
+    });
   }
 
   return { ok: true, results };

@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
-import { verifyToken } from './jwt';
 import { prisma } from '@/lib/db/prisma';
+import { verifyToken } from './jwt';
 
 export async function getSession() {
   const token = (await cookies()).get('session')?.value;
@@ -12,7 +12,7 @@ export async function getSession() {
     // is enforced via TTL on the next JWT issue, see admin partners flow.
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { isActive: true, sessionVersion: true }
+      select: { isActive: true, sessionVersion: true },
     });
     if (!user || !user.isActive) return null;
     // Этап 9 (ФТ-11.2): ревокация сессий. Токены, выданные до появления клейма,

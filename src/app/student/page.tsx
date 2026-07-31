@@ -7,14 +7,14 @@ import { getOrgPageContext } from '@/lib/auth/orgPageContext';
 
 const CONTENT = (
   <>
-    <h1 className='text-2xl font-semibold text-[#111111] mb-3'>Кабинет слушателя</h1>
-    <p className='text-sm text-gray-600 mb-4 max-w-prose'>
-      Обучение проходит на отдельной учебной площадке. Нажмите кнопку — вход
-      выполнится автоматически, отдельный пароль не понадобится.
+    <h1 className="text-2xl font-semibold text-[#111111] mb-3">Кабинет слушателя</h1>
+    <p className="text-sm text-gray-600 mb-4 max-w-prose">
+      Обучение проходит на отдельной учебной площадке. Нажмите кнопку — вход выполнится
+      автоматически, отдельный пароль не понадобится.
     </p>
     <Link
-      href='/student/redirect'
-      className='inline-block rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white px-4 py-2 text-sm font-semibold transition-colors'
+      href="/student/redirect"
+      className="inline-block rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white px-4 py-2 text-sm font-semibold transition-colors"
     >
       Перейти к обучению
     </Link>
@@ -22,7 +22,7 @@ const CONTENT = (
 );
 
 export default async function StudentPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<{ org?: string }>;
 }) {

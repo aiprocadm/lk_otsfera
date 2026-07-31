@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { type NextRequest } from 'next/server';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
@@ -46,8 +46,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         name: file.name,
         size: file.size,
         mimeType: file.type,
-        buffer: Buffer.from(await file.arrayBuffer())
-      }
+        buffer: Buffer.from(await file.arrayBuffer()),
+      },
     }))
   );
 

@@ -29,7 +29,11 @@ let leadNewId = '';
 let leadRejectedId = '';
 
 const managerSession = { sub: STAFF_USER, role: 'manager', companyId: null } as SessionPayload;
-const partnerSession = { sub: `${T}-partner-${RUN}`, role: 'partner', partnerId: 'nope' } as SessionPayload;
+const partnerSession = {
+  sub: `${T}-partner-${RUN}`,
+  role: 'partner',
+  partnerId: 'nope',
+} as SessionPayload;
 
 async function cleanup(): Promise<void> {
   await prisma.lead.deleteMany({ where: { clientCompanyName: { startsWith: T } } });
@@ -41,7 +45,7 @@ beforeAll(async () => {
   await cleanup(); // хвосты упавших прогонов
 
   const org = await prisma.organization.create({
-    data: { name: `${T}-Организация-${RUN}`, inn: INN }
+    data: { name: `${T}-Организация-${RUN}`, inn: INN },
   });
   orgId = org.id;
 
@@ -50,8 +54,8 @@ beforeAll(async () => {
       id: STAFF_USER,
       email: `${STAFF_USER}@dup5.test`,
       name: 'DUP5 Менеджер',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
 
   const leadNew = await prisma.lead.create({
@@ -61,8 +65,8 @@ beforeAll(async () => {
       clientContactName: 'Иван',
       subject: `${T} активный лид`,
       status: 'new',
-      createdByUserId: STAFF_USER
-    }
+      createdByUserId: STAFF_USER,
+    },
   });
   leadNewId = leadNew.id;
 
@@ -74,8 +78,8 @@ beforeAll(async () => {
       subject: `${T} отклонённый лид`,
       status: 'rejected',
       rejectedReason: 'дубль',
-      createdByUserId: STAFF_USER
-    }
+      createdByUserId: STAFF_USER,
+    },
   });
   leadRejectedId = leadRejected.id;
 });
@@ -90,9 +94,7 @@ describe('findByInn — живой Postgres (dup5-int)', () => {
     const res = await findByInn(prisma, managerSession, { inn: INN });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
-    expect(res.duplicates.organizations).toEqual([
-      { id: orgId, name: `${T}-Организация-${RUN}` }
-    ]);
+    expect(res.duplicates.organizations).toEqual([{ id: orgId, name: `${T}-Организация-${RUN}` }]);
   });
 
   it('лид new находится, лид rejected — нет', async () => {

@@ -9,7 +9,7 @@ function req(pathname: string, token = 'tkn') {
   return {
     url: `https://app.local${pathname}`,
     nextUrl: { pathname },
-    cookies: { get: vi.fn().mockReturnValue({ value: token }) }
+    cookies: { get: vi.fn().mockReturnValue({ value: token }) },
   } as any;
 }
 
@@ -21,7 +21,7 @@ describe('middleware partner sub-role', () => {
 
   it('redirects partner manager away from /partner/team to /forbidden', async () => {
     vi.mocked(jwtVerify).mockResolvedValue({
-      payload: { role: 'partner', partnerRole: 'manager', assignedOrgIds: [] }
+      payload: { role: 'partner', partnerRole: 'manager', assignedOrgIds: [] },
     } as any);
 
     const res = await middleware(req('/partner/team'));
@@ -32,7 +32,7 @@ describe('middleware partner sub-role', () => {
 
   it('allows partner admin on /partner/team', async () => {
     vi.mocked(jwtVerify).mockResolvedValue({
-      payload: { role: 'partner', partnerRole: 'admin', assignedOrgIds: [] }
+      payload: { role: 'partner', partnerRole: 'admin', assignedOrgIds: [] },
     } as any);
 
     const res = await middleware(req('/partner/team'));
@@ -43,7 +43,7 @@ describe('middleware partner sub-role', () => {
 
   it('redirects manager from /partner/portfolio/abc/settings to /forbidden', async () => {
     vi.mocked(jwtVerify).mockResolvedValue({
-      payload: { role: 'partner', partnerRole: 'manager', assignedOrgIds: ['abc'] }
+      payload: { role: 'partner', partnerRole: 'manager', assignedOrgIds: ['abc'] },
     } as any);
 
     const res = await middleware(req('/partner/portfolio/abc/settings'));
@@ -54,7 +54,7 @@ describe('middleware partner sub-role', () => {
 
   it('allows manager on /partner/portfolio/abc (without /settings suffix)', async () => {
     vi.mocked(jwtVerify).mockResolvedValue({
-      payload: { role: 'partner', partnerRole: 'manager', assignedOrgIds: ['abc'] }
+      payload: { role: 'partner', partnerRole: 'manager', assignedOrgIds: ['abc'] },
     } as any);
 
     const res = await middleware(req('/partner/portfolio/abc'));
@@ -64,7 +64,7 @@ describe('middleware partner sub-role', () => {
 
   it('redirects non-partner roles (e.g. admin) away from /partner before the sub-role check (Model A — no dead door)', async () => {
     vi.mocked(jwtVerify).mockResolvedValue({
-      payload: { role: 'admin' }
+      payload: { role: 'admin' },
     } as any);
 
     const res = await middleware(req('/partner/team'));
@@ -78,7 +78,7 @@ describe('middleware partner sub-role', () => {
 
   it('treats partner without partnerRole (legacy) as non-admin (cannot access /partner/team)', async () => {
     vi.mocked(jwtVerify).mockResolvedValue({
-      payload: { role: 'partner', partnerId: 'p1' }
+      payload: { role: 'partner', partnerId: 'p1' },
     } as any);
 
     const res = await middleware(req('/partner/team'));

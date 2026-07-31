@@ -15,7 +15,7 @@ vi.mock('@/lib/logging', () => ({ log: { error: vi.fn(), warn: vi.fn(), info: vi
 vi.mock('@/lib/services/clientRequests/attachments', () => ({
   listClientRequestAttachments: vi.fn(),
   uploadClientRequestAttachment: vi.fn(),
-  getClientRequestAttachmentDownloadUrl: vi.fn()
+  getClientRequestAttachmentDownloadUrl: vi.fn(),
 }));
 
 import { getSession } from '@/lib/auth/session';
@@ -23,7 +23,7 @@ import { notFoundIfDisabled } from '@/lib/featureFlags';
 import {
   listClientRequestAttachments,
   uploadClientRequestAttachment,
-  getClientRequestAttachmentDownloadUrl
+  getClientRequestAttachmentDownloadUrl,
 } from '@/lib/services/clientRequests/attachments';
 import { GET, POST } from '@/app/api/client-requests/[id]/attachments/route';
 import { POST as DOWNLOAD } from '@/app/api/client-requests/[id]/attachments/[attachmentId]/download/route';
@@ -37,7 +37,11 @@ const failure = (error: string, message = 'msg', meta?: { scanReason?: string | 
 
 function formReq(withFile = true): Request {
   const fd = new FormData();
-  if (withFile) fd.set('file', new File([new Uint8Array([1, 2, 3])], 'скан-договора.pdf', { type: 'application/pdf' }));
+  if (withFile)
+    fd.set(
+      'file',
+      new File([new Uint8Array([1, 2, 3])], 'скан-договора.pdf', { type: 'application/pdf' })
+    );
   return new Request('http://x/', { method: 'POST', body: fd });
 }
 
@@ -60,7 +64,11 @@ describe('POST /api/client-requests/[id]/attachments (multipart upload)', () => 
   });
 
   it('400 когда тело не multipart form-data', async () => {
-    const req = new Request('http://x/', { method: 'POST', body: 'plain', headers: { 'content-type': 'text/plain' } });
+    const req = new Request('http://x/', {
+      method: 'POST',
+      body: 'plain',
+      headers: { 'content-type': 'text/plain' },
+    });
     const res = await POST(req, ctx());
     expect(res.status).toBe(400);
     expect(vi.mocked(uploadClientRequestAttachment)).not.toHaveBeenCalled();
@@ -76,7 +84,14 @@ describe('POST /api/client-requests/[id]/attachments (multipart upload)', () => 
     const createdAt = new Date('2026-07-24T10:00:00Z');
     vi.mocked(uploadClientRequestAttachment).mockResolvedValue({
       ok: true,
-      attachment: { id: 'A1', name: 'скан-договора.pdf', size: 3, mimeType: 'application/pdf', createdAt, path: 'secret/path' }
+      attachment: {
+        id: 'A1',
+        name: 'скан-договора.pdf',
+        size: 3,
+        mimeType: 'application/pdf',
+        createdAt,
+        path: 'secret/path',
+      },
     } as never);
     const res = await POST(formReq(), ctx('R1'));
     expect(res.status).toBe(201);
@@ -86,16 +101,22 @@ describe('POST /api/client-requests/[id]/attachments (multipart upload)', () => 
       name: 'скан-договора.pdf',
       size: 3,
       mimeType: 'application/pdf',
-      createdAt: createdAt.toISOString()
+      createdAt: createdAt.toISOString(),
     });
     expect(vi.mocked(uploadClientRequestAttachment)).toHaveBeenCalledWith({}, partner, {
       requestId: 'R1',
-      file: expect.objectContaining({ name: 'скан-договора.pdf', size: 3, buffer: expect.any(Uint8Array) })
+      file: expect.objectContaining({
+        name: 'скан-договора.pdf',
+        size: 3,
+        buffer: expect.any(Uint8Array),
+      }),
     });
   });
 
   it('NOT_FOUND → 404', async () => {
-    vi.mocked(uploadClientRequestAttachment).mockResolvedValue(failure('NOT_FOUND', 'Обращение не найдено'));
+    vi.mocked(uploadClientRequestAttachment).mockResolvedValue(
+      failure('NOT_FOUND', 'Обращение не найдено')
+    );
     const res = await POST(formReq(), ctx());
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: 'Обращение не найдено' });
@@ -128,14 +149,16 @@ describe('POST /api/client-requests/[id]/attachments (multipart upload)', () => 
 
   it('INFECTED → 410 c code и scanReason', async () => {
     vi.mocked(uploadClientRequestAttachment).mockResolvedValue(
-      failure('INFECTED', 'Файл помещён в карантин антивирусом', { scanReason: 'Eicar-Test-Signature' })
+      failure('INFECTED', 'Файл помещён в карантин антивирусом', {
+        scanReason: 'Eicar-Test-Signature',
+      })
     );
     const res = await POST(formReq(), ctx());
     expect(res.status).toBe(410);
     expect(await res.json()).toEqual({
       code: 'INFECTED',
       error: 'Файл помещён в карантин антивирусом',
-      scanReason: 'Eicar-Test-Signature'
+      scanReason: 'Eicar-Test-Signature',
     });
   });
 
@@ -149,7 +172,7 @@ describe('POST /api/client-requests/[id]/attachments (multipart upload)', () => 
     expect(res.status).toBe(410);
     expect(await res.json()).toEqual({
       code: 'INFECTED',
-      error: 'Файл помещён в карантин антивирусом'
+      error: 'Файл помещён в карантин антивирусом',
     });
   });
 
@@ -180,16 +203,20 @@ describe('GET /api/client-requests/[id]/attachments (list)', () => {
   it('200 → {rows}', async () => {
     vi.mocked(listClientRequestAttachments).mockResolvedValue({
       ok: true,
-      rows: [{ id: 'A1', name: 'скан.pdf' }]
+      rows: [{ id: 'A1', name: 'скан.pdf' }],
     } as never);
     const res = await GET(new Request('http://x/'), ctx('R1'));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ rows: [{ id: 'A1', name: 'скан.pdf' }] });
-    expect(vi.mocked(listClientRequestAttachments)).toHaveBeenCalledWith({}, partner, { requestId: 'R1' });
+    expect(vi.mocked(listClientRequestAttachments)).toHaveBeenCalledWith({}, partner, {
+      requestId: 'R1',
+    });
   });
 
   it('NOT_FOUND (чужая заявка) → 404', async () => {
-    vi.mocked(listClientRequestAttachments).mockResolvedValue(failure('NOT_FOUND', 'Обращение не найдено'));
+    vi.mocked(listClientRequestAttachments).mockResolvedValue(
+      failure('NOT_FOUND', 'Обращение не найдено')
+    );
     expect((await GET(new Request('http://x/'), ctx())).status).toBe(404);
   });
 
@@ -202,12 +229,16 @@ describe('GET /api/client-requests/[id]/attachments (list)', () => {
 describe('POST /api/client-requests/[id]/attachments/[attachmentId]/download', () => {
   it('404 when feature flag disabled', async () => {
     vi.mocked(notFoundIfDisabled).mockReturnValue(new Response('Not Found', { status: 404 }));
-    expect((await DOWNLOAD(new Request('http://x/', { method: 'POST' }), dlCtx())).status).toBe(404);
+    expect((await DOWNLOAD(new Request('http://x/', { method: 'POST' }), dlCtx())).status).toBe(
+      404
+    );
   });
 
   it('401 unauthenticated', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
-    expect((await DOWNLOAD(new Request('http://x/', { method: 'POST' }), dlCtx())).status).toBe(401);
+    expect((await DOWNLOAD(new Request('http://x/', { method: 'POST' }), dlCtx())).status).toBe(
+      401
+    );
   });
 
   it('200 → {downloadUrl, name, mimeType}', async () => {
@@ -215,20 +246,24 @@ describe('POST /api/client-requests/[id]/attachments/[attachmentId]/download', (
       ok: true,
       url: 'https://storage/signed?ttl=300',
       name: 'скан.pdf',
-      mimeType: 'application/pdf'
+      mimeType: 'application/pdf',
     } as never);
     const res = await DOWNLOAD(new Request('http://x/', { method: 'POST' }), dlCtx('A1'));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
       downloadUrl: 'https://storage/signed?ttl=300',
       name: 'скан.pdf',
-      mimeType: 'application/pdf'
+      mimeType: 'application/pdf',
     });
-    expect(vi.mocked(getClientRequestAttachmentDownloadUrl)).toHaveBeenCalledWith({}, partner, { attachmentId: 'A1' });
+    expect(vi.mocked(getClientRequestAttachmentDownloadUrl)).toHaveBeenCalledWith({}, partner, {
+      attachmentId: 'A1',
+    });
   });
 
   it('NOT_FOUND → 404', async () => {
-    vi.mocked(getClientRequestAttachmentDownloadUrl).mockResolvedValue(failure('NOT_FOUND', 'Вложение не найдено'));
+    vi.mocked(getClientRequestAttachmentDownloadUrl).mockResolvedValue(
+      failure('NOT_FOUND', 'Вложение не найдено')
+    );
     const res = await DOWNLOAD(new Request('http://x/', { method: 'POST' }), dlCtx());
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: 'Вложение не найдено' });
@@ -242,7 +277,7 @@ describe('POST /api/client-requests/[id]/attachments/[attachmentId]/download', (
     expect(res.status).toBe(410);
     expect(await res.json()).toEqual({
       code: 'INFECTED',
-      error: 'Файл помещён в карантин антивирусом'
+      error: 'Файл помещён в карантин антивирусом',
     });
   });
 
@@ -255,17 +290,21 @@ describe('POST /api/client-requests/[id]/attachments/[attachmentId]/download', (
     expect(await res.json()).toEqual({
       code: 'INFECTED',
       error: 'Файл помещён в карантин антивирусом',
-      scanReason: 'Trojan.Generic'
+      scanReason: 'Trojan.Generic',
     });
   });
 
   it('STORAGE_FAILURE → 500', async () => {
     vi.mocked(getClientRequestAttachmentDownloadUrl).mockResolvedValue(failure('STORAGE_FAILURE'));
-    expect((await DOWNLOAD(new Request('http://x/', { method: 'POST' }), dlCtx())).status).toBe(500);
+    expect((await DOWNLOAD(new Request('http://x/', { method: 'POST' }), dlCtx())).status).toBe(
+      500
+    );
   });
 
   it('неожиданный throw сервиса → 500 Internal error', async () => {
     vi.mocked(getClientRequestAttachmentDownloadUrl).mockRejectedValue(new Error('boom'));
-    expect((await DOWNLOAD(new Request('http://x/', { method: 'POST' }), dlCtx())).status).toBe(500);
+    expect((await DOWNLOAD(new Request('http://x/', { method: 'POST' }), dlCtx())).status).toBe(
+      500
+    );
   });
 });

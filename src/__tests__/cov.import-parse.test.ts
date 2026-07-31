@@ -2,8 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ExcelJS from 'exceljs';
 import * as XLSX from 'xlsx';
 import {
-  parseRusDate, parseAmount, extractDocNumber, extractAccountCandidates,
-  extractCounterparty, extractInn, extractVat,
+  parseRusDate,
+  parseAmount,
+  extractDocNumber,
+  extractAccountCandidates,
+  extractCounterparty,
+  extractInn,
+  extractVat,
 } from '@/lib/services/import/oneCAccountCard/extractors';
 import { classifyRow } from '@/lib/services/import/oneCAccountCard/classify';
 import { parseAccountCard } from '@/lib/services/import/oneCAccountCard/parser';
@@ -67,11 +72,16 @@ describe('extractors — uncovered branches', () => {
 // ── classify: null-coalescing on inputs ────────────────────────────────────
 describe('classifyRow — nullish inputs (L17,L18)', () => {
   it('null documentLine → coalesces to empty (L17)', () => {
-    expect(classifyRow(null as never, '60')).toEqual({ kind: 'excluded', excludeReason: 'supplier' });
+    expect(classifyRow(null as never, '60')).toEqual({
+      kind: 'excluded',
+      excludeReason: 'supplier',
+    });
   });
   it('null corrAccount → coalesces to empty → corr_other (L18)', () => {
-    expect(classifyRow('Поступление на расчетный счет 0000-1 от ...', null as never))
-      .toEqual({ kind: 'excluded', excludeReason: 'corr_other' });
+    expect(classifyRow('Поступление на расчетный счет 0000-1 от ...', null as never)).toEqual({
+      kind: 'excluded',
+      excludeReason: 'corr_other',
+    });
   });
 });
 
@@ -91,24 +101,26 @@ describe('parseAccountCard — uncovered branches', () => {
   it('tolerates undefined rows and coalesces missing cells (L27,L35,L36,L37,L39,L44,L48,L59,L70)', () => {
     // Holes (undefined rows) in both the marker-scan loop and the operation loop.
     const sheet = [
-      undefined,                                        // 0 hole → marker loop sheet[i] ?? [] (L27)
-      cell({ 0: 'Сальдо на начало' }),                  // 1 start marker
-      undefined,                                        // 2 hole → op loop sheet[i] ?? [] (L35);
-                                                        //   row=[], document='' (L36), corr='' (L37),
-                                                        //   both empty → continue (L39 both-true skip)
+      undefined, // 0 hole → marker loop sheet[i] ?? [] (L27)
+      cell({ 0: 'Сальдо на начало' }), // 1 start marker
+      undefined, // 2 hole → op loop sheet[i] ?? [] (L35);
+      //   row=[], document='' (L36), corr='' (L37),
+      //   both empty → continue (L39 both-true skip)
       // payment row with NO doc number and NO col[3] analytics:
       //   externalId '' (L44 ?? ''), col3 '' (L48 ?? ''),
       //   paymentOrderNumber null (L59 || null), no_doc_number problem (L70)
-      (() => { const r = Array.from({ length: 12 }, () => '') as unknown[];
-               r[0] = '01.06.2026';
-               r[1] = 'Поступление на расчетный счет без номера';
-               r[3] = undefined; // analyticsCr undefined → L48
-               r[5] = '14800';
-               r[7] = '62.01';
-               return r; })(),
+      (() => {
+        const r = Array.from({ length: 12 }, () => '') as unknown[];
+        r[0] = '01.06.2026';
+        r[1] = 'Поступление на расчетный счет без номера';
+        r[3] = undefined; // analyticsCr undefined → L48
+        r[5] = '14800';
+        r[7] = '62.01';
+        return r;
+      })(),
       // empty document but corr present → L39 first-true/second-false (not skipped)
       cell({ 7: '76.05' }),
-      cell({ 0: 'Обороты за период' }),                 // end marker
+      cell({ 0: 'Обороты за период' }), // end marker
     ] as unknown as string[][];
 
     const rows = parseAccountCard(sheet);
@@ -116,9 +128,9 @@ describe('parseAccountCard — uncovered branches', () => {
     expect(rows).toHaveLength(2);
 
     const payment = rows.find((r) => r.kind === 'payment')!;
-    expect(payment.externalId).toBe('');                 // L44
-    expect(payment.paymentOrderNumber).toBeNull();       // L59
-    expect(payment.accountCandidates).toEqual([]);       // col3 '' (L48)
+    expect(payment.externalId).toBe(''); // L44
+    expect(payment.paymentOrderNumber).toBeNull(); // L59
+    expect(payment.accountCandidates).toEqual([]); // col3 '' (L48)
     expect(payment.parseError).toContain('no_doc_number'); // L70
 
     const other = rows.find((r) => r.kind === 'excluded')!;
@@ -136,15 +148,15 @@ describe('readSpreadsheet — cellToString variants (L13,L14,L15-27) + guards (L
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Лист1');
     const row = ws.getRow(1);
-    row.getCell(1).value = null;                                   // null → '' (L12/L13 left-true)
-    row.getCell(2).value = 'строка';                               // string (L13 left-false)
-    row.getCell(3).value = 42;                                     // number (L14 number)
-    row.getCell(4).value = true;                                   // boolean (L14 boolean)
-    row.getCell(5).value = new Date(Date.UTC(2026, 5, 1));         // Date (L15-19)
+    row.getCell(1).value = null; // null → '' (L12/L13 left-true)
+    row.getCell(2).value = 'строка'; // string (L13 left-false)
+    row.getCell(3).value = 42; // number (L14 number)
+    row.getCell(4).value = true; // boolean (L14 boolean)
+    row.getCell(5).value = new Date(Date.UTC(2026, 5, 1)); // Date (L15-19)
     row.getCell(6).value = { richText: [{ text: 'бо' }, { text: 'гат' }] } as never; // richText (L22)
-    row.getCell(7).value = { formula: 'A1', result: 7 } as never;  // result (L23)
+    row.getCell(7).value = { formula: 'A1', result: 7 } as never; // result (L23)
     row.getCell(8).value = { text: 'ссылка', hyperlink: 'https://x' } as never; // text (L24)
-    row.getCell(9).value = { error: '#REF!' } as never;            // object fallback (L26)
+    row.getCell(9).value = { error: '#REF!' } as never; // object fallback (L26)
     row.commit();
 
     const buf = Buffer.from(await wb.xlsx.writeBuffer());
@@ -165,15 +177,18 @@ describe('readSpreadsheet — cellToString variants (L13,L14,L15-27) + guards (L
   });
 
   it('xlsx path returns [] when workbook has no worksheet (L32)', async () => {
-    (loadXlsxWorkbook as unknown as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce({ worksheets: [] } as never);
+    (loadXlsxWorkbook as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      worksheets: [],
+    } as never);
     const grid = await readSpreadsheet(Buffer.from('irrelevant'), 'card.xlsx');
     expect(grid).toEqual([]);
   });
 
   it('xls path returns [] when workbook has no sheet (L47)', async () => {
-    (XLSX.read as unknown as ReturnType<typeof vi.fn>)
-      .mockReturnValueOnce({ SheetNames: [], Sheets: {} } as never);
+    (XLSX.read as unknown as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      SheetNames: [],
+      Sheets: {},
+    } as never);
     const grid = await readSpreadsheet(Buffer.from('irrelevant'), 'card.xls');
     expect(grid).toEqual([]);
   });
@@ -182,14 +197,28 @@ describe('readSpreadsheet — cellToString variants (L13,L14,L15-27) + guards (L
 // ── matcher: baseDto branches on exact route + order-without-inn queue ──────
 function row(over: Partial<ParsedRow>): ParsedRow {
   return {
-    rowIndex: 1, kind: 'payment', externalId: '0000-1', paidAt: '2026-06-01T00:00:00.000Z',
-    amount: 14800, isRefund: false, purpose: 'Оплата', paymentOrderNumber: '0000-1',
-    accountCandidates: [], counterpartyName: null, counterpartyInn: null, vatAmount: null, rawRow: [],
+    rowIndex: 1,
+    kind: 'payment',
+    externalId: '0000-1',
+    paidAt: '2026-06-01T00:00:00.000Z',
+    amount: 14800,
+    isRefund: false,
+    purpose: 'Оплата',
+    paymentOrderNumber: '0000-1',
+    accountCandidates: [],
+    counterpartyName: null,
+    counterpartyInn: null,
+    vatAmount: null,
+    rawRow: [],
     ...over,
   };
 }
 function db(overrides: Record<string, unknown>) {
-  return { order: { findFirst: vi.fn() }, organization: { findFirst: vi.fn() }, ...overrides } as never;
+  return {
+    order: { findFirst: vi.fn() },
+    organization: { findFirst: vi.fn() },
+    ...overrides,
+  } as never;
 }
 
 describe('matchRow — uncovered branches', () => {
@@ -198,12 +227,15 @@ describe('matchRow — uncovered branches', () => {
       order: { findFirst: vi.fn().mockResolvedValue(null) },
       organization: { findFirst: vi.fn().mockResolvedValue({ id: 'org2', inn: '9909676723' }) },
     });
-    const out = await matchRow(prisma, row({
-      isRefund: true,           // method: 'возврат' branch (L22)
-      purpose: null,            // purpose ?? undefined (L23)
-      paymentOrderNumber: null, // paymentOrderNumber ?? undefined (L24)
-      counterpartyInn: '9909676723',
-    }));
+    const out = await matchRow(
+      prisma,
+      row({
+        isRefund: true, // method: 'возврат' branch (L22)
+        purpose: null, // purpose ?? undefined (L23)
+        paymentOrderNumber: null, // paymentOrderNumber ?? undefined (L24)
+        counterpartyInn: '9909676723',
+      })
+    );
     expect(out.route).toBe('exact');
     if (out.route === 'exact') {
       expect(out.dto.organizationInn).toBe('9909676723');
@@ -216,7 +248,14 @@ describe('matchRow — uncovered branches', () => {
 
   it('order matched but no externalId and org has no inn → queue with candidateOrderId (L50 false, L52-53)', async () => {
     const prisma = db({
-      order: { findFirst: vi.fn().mockResolvedValue({ id: 'o1', externalId: null, organizationId: 'org1', organization: null }) },
+      order: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'o1',
+          externalId: null,
+          organizationId: 'org1',
+          organization: null,
+        }),
+      },
     });
     const out = await matchRow(prisma, row({ accountCandidates: ['260509-1905'] }));
     expect(out.route).toBe('queue');

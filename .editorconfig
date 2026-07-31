@@ -1,0 +1,19 @@
+# Единые настройки редакторов (фаза 1 «эталонного репозитория»).
+# Прочее форматирование — зона ответственности Prettier (.prettierrc.json).
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.md]
+# В Markdown хвостовые пробелы значимы (перенос строки).
+trim_trailing_whitespace = false
+
+[*.{ps1,psm1}]
+# PowerShell-скрипты исторически с CRLF не трогаем — пусть решает git.
+end_of_line = unset

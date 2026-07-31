@@ -6,13 +6,15 @@ import { requireRole, requireSession } from '@/lib/auth/guard';
 // и GET /api/notifications/unread. Поведение байт-в-байт прежнее.
 import { buildNotificationScopeWhere } from '@/lib/services/notifications/scope';
 
-const patchSchema = z.object({
-  id: z.string().min(1).max(64).optional(),
-  ids: z.array(z.string().min(1).max(64)).max(100).optional(),
-  isRead: z.boolean().optional()
-}).refine((d) => d.id || (d.ids && d.ids.length > 0), {
-  message: 'id or ids required'
-});
+const patchSchema = z
+  .object({
+    id: z.string().min(1).max(64).optional(),
+    ids: z.array(z.string().min(1).max(64)).max(100).optional(),
+    isRead: z.boolean().optional(),
+  })
+  .refine((d) => d.id || (d.ids && d.ids.length > 0), {
+    message: 'id or ids required',
+  });
 
 export async function GET() {
   const sessionResult = await requireSession();
@@ -27,7 +29,7 @@ export async function GET() {
   const notifications = await prisma.notification.findMany({
     where,
     orderBy: { createdAt: 'desc' },
-    take: 50
+    take: 50,
   });
 
   return NextResponse.json(notifications);
@@ -55,13 +57,13 @@ export async function PATCH(req: Request) {
 
   const { id, ids, isRead = true } = parsed.data;
   const where = await buildNotificationScopeWhere(prisma, session, {
-    candidateIds: id ? [id] : ids!
+    candidateIds: id ? [id] : ids!,
   });
 
   if (id) {
     const notification = await prisma.notification.updateMany({
       where: { AND: [{ id }, where] },
-      data: { isRead }
+      data: { isRead },
     });
     return NextResponse.json(notification);
   }
@@ -69,7 +71,7 @@ export async function PATCH(req: Request) {
   // Schema refine guarantees ids is non-empty when id is absent; ids! safe to assert non-null here
   const notifications = await prisma.notification.updateMany({
     where: { AND: [{ id: { in: ids! } }, where] },
-    data: { isRead }
+    data: { isRead },
   });
   return NextResponse.json(notifications);
 }

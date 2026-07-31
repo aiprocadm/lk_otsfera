@@ -10,7 +10,7 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   certificate: 'сертификат',
   report: 'отчёт',
   commission_statement: 'расчёт комиссии',
-  other: 'документ'
+  other: 'документ',
 };
 
 export type PartnerDocumentPublishedProps = {
@@ -24,15 +24,21 @@ export type PartnerDocumentPublishedProps = {
 
 export function PartnerDocumentPublished(props: PartnerDocumentPublishedProps) {
   const typeLabel = DOC_TYPE_LABELS[props.documentType] ?? 'документ';
-  const orderRef = props.orderNumber ? `№ ${props.orderNumber}` : props.orderTitle ? `«${props.orderTitle}»` : '(без заказа)';
+  const orderRef = props.orderNumber
+    ? `№ ${props.orderNumber}`
+    : props.orderTitle
+      ? `«${props.orderTitle}»`
+      : '(без заказа)';
   return (
-    <EmailLayout title='Новый документ'>
+    <EmailLayout title="Новый документ">
       <p style={emailStyles.paragraph}>
         По заказу <strong>{orderRef}</strong> загружен {typeLabel}{' '}
         <strong>«{props.documentName}»</strong>.
       </p>
       <p style={emailStyles.paragraph}>
-        <a href={props.orderUrl} style={emailStyles.button}>Открыть портфолио</a>
+        <a href={props.orderUrl} style={emailStyles.button}>
+          Открыть портфолио
+        </a>
       </p>
       <p style={emailStyles.muted}>
         <span style={emailStyles.mono}>{props.orderUrl}</span>
@@ -42,16 +48,24 @@ export function PartnerDocumentPublished(props: PartnerDocumentPublishedProps) {
 }
 
 export function partnerDocumentPublishedSubject(props: PartnerDocumentPublishedProps): string {
-  const orderRef = props.orderNumber ? `№ ${props.orderNumber}` : props.orderTitle ? `«${props.orderTitle}»` : '(без заказа)';
+  const orderRef = props.orderNumber
+    ? `№ ${props.orderNumber}`
+    : props.orderTitle
+      ? `«${props.orderTitle}»`
+      : '(без заказа)';
   return `Новый документ ${props.documentName} по заказу ${orderRef}`;
 }
 
 export function partnerDocumentPublishedText(props: PartnerDocumentPublishedProps): string {
   const typeLabel = DOC_TYPE_LABELS[props.documentType] ?? 'документ';
-  const orderRef = props.orderNumber ? `№ ${props.orderNumber}` : props.orderTitle ? `«${props.orderTitle}»` : '(без заказа)';
+  const orderRef = props.orderNumber
+    ? `№ ${props.orderNumber}`
+    : props.orderTitle
+      ? `«${props.orderTitle}»`
+      : '(без заказа)';
   return [
     `По заказу ${orderRef} загружен ${typeLabel} «${props.documentName}».`,
     '',
-    `Открыть портфолио: ${props.orderUrl}`
+    `Открыть портфолио: ${props.orderUrl}`,
   ].join('\n');
 }

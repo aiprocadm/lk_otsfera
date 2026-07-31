@@ -36,7 +36,7 @@ export type IntegrationFormField = {
 const ERROR_MAP: Record<string, string> = {
   secrets_key_missing:
     'На сервере не задан ключ шифрования (APP_ENCRYPTION_KEY) — секреты сохранять нельзя. Обратитесь к администратору сервера.',
-  validation: 'Проверьте заполнение полей.'
+  validation: 'Проверьте заполнение полей.',
 };
 
 const inputClass =
@@ -72,7 +72,7 @@ export type IntegrationTestAction = (
 export function IntegrationCheckPanel({
   testAction,
   check,
-  webhook
+  webhook,
 }: {
   testAction: IntegrationTestAction;
   check: IntegrationCheckInfo | null;
@@ -162,7 +162,7 @@ export function IntegrationSettingsForm({
   fields,
   testAction,
   check,
-  webhook
+  webhook,
 }: {
   title: string;
   description: string;
@@ -178,7 +178,7 @@ export function IntegrationSettingsForm({
   const { formAction, pending, errorText, success } = useFormAction<Record<string, never>>({
     action: action as (fd: FormData) => Promise<ActionResult<Record<string, never>>>,
     errorMap: ERROR_MAP,
-    refresh: true
+    refresh: true,
   });
 
   return (
@@ -228,7 +228,9 @@ export function IntegrationSettingsForm({
                 type="password"
                 name={f.name}
                 autoComplete="off"
-                placeholder={f.secretSet ? '•••••••• (оставьте пустым, чтобы не менять)' : f.placeholder}
+                placeholder={
+                  f.secretSet ? '•••••••• (оставьте пустым, чтобы не менять)' : f.placeholder
+                }
                 className={`${inputClass} font-mono`}
               />
             ) : (
@@ -245,12 +247,18 @@ export function IntegrationSettingsForm({
       )}
 
       {errorText && (
-        <div className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2" role="alert">
+        <div
+          className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2"
+          role="alert"
+        >
           {errorText}
         </div>
       )}
       {success && (
-        <div className="text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2" role="status">
+        <div
+          className="text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2"
+          role="status"
+        >
           Настройки сохранены.
         </div>
       )}
@@ -265,7 +273,9 @@ export function IntegrationSettingsForm({
         </button>
       </div>
 
-      {testAction && <IntegrationCheckPanel testAction={testAction} check={check ?? null} webhook={webhook} />}
+      {testAction && (
+        <IntegrationCheckPanel testAction={testAction} check={check ?? null} webhook={webhook} />
+      )}
     </form>
   );
 }

@@ -39,7 +39,9 @@ function makePrisma(leadOverride: Record<string, unknown> = {}) {
 }
 
 const mockAdapter = {
-  pushLead: vi.fn().mockResolvedValue({ acceptedAt: '2026-05-01T00:00:00Z', oneCRequestId: 'ext-req-123' }),
+  pushLead: vi
+    .fn()
+    .mockResolvedValue({ acceptedAt: '2026-05-01T00:00:00Z', oneCRequestId: 'ext-req-123' }),
 };
 
 beforeEach(() => {
@@ -78,7 +80,10 @@ describe('pushLeadToOneC', () => {
     expect(res.ok && res.result.acceptedAt).toBe(pushedAt.toISOString());
     expect(mockAdapter.pushLead).not.toHaveBeenCalled();
     expect(writeSyncLog).toHaveBeenCalledWith(
-      expect.objectContaining({ operation: 'skip', payload: expect.objectContaining({ reason: 'already_pushed' }) }),
+      expect.objectContaining({
+        operation: 'skip',
+        payload: expect.objectContaining({ reason: 'already_pushed' }),
+      }),
       prisma
     );
   });
@@ -91,7 +96,10 @@ describe('pushLeadToOneC', () => {
     expect(res).toMatchObject({ ok: true });
     expect(mockAdapter.pushLead).not.toHaveBeenCalled();
     expect(writeSyncLog).toHaveBeenCalledWith(
-      expect.objectContaining({ operation: 'skip', payload: expect.objectContaining({ reason: 'claim_lost_or_already_pushed' }) }),
+      expect.objectContaining({
+        operation: 'skip',
+        payload: expect.objectContaining({ reason: 'claim_lost_or_already_pushed' }),
+      }),
       prisma
     );
   });
@@ -168,10 +176,7 @@ describe('pushLeadToOneC', () => {
     consoleSpy.mockRestore();
 
     expect(res).toEqual({ ok: false, error: 'adapter err' });
-    expect(writeSyncLog).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'error' }),
-      prisma
-    );
+    expect(writeSyncLog).toHaveBeenCalledWith(expect.objectContaining({ status: 'error' }), prisma);
   });
 
   it('falls back to getOneCAdapter when no adapter option provided', async () => {

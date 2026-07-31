@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
+import type { LeadStatus } from '@prisma/client';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { listManagerLeads } from '@/lib/services/manager/leads';
-import type { LeadStatus } from '@prisma/client';
 
 const STATUSES = ['new', 'in_review', 'qualified', 'promoted_to_order', 'rejected'];
 
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
     status,
     search: sp.get('q') ?? undefined,
     assignedToUserId: sp.get('assignedToMe') === '1' ? session.sub : undefined,
-    cursor: sp.get('cursor') ?? undefined
+    cursor: sp.get('cursor') ?? undefined,
   });
   return NextResponse.json(result);
 }

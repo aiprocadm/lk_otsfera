@@ -7,7 +7,7 @@ vi.mock('@/lib/auth/policy', async () => {
 });
 vi.mock('@/lib/services/partner/rateOverride', () => ({
   setOrgCommissionRate: vi.fn(),
-  clearOrgCommissionRate: vi.fn()
+  clearOrgCommissionRate: vi.fn(),
 }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
@@ -17,7 +17,12 @@ import { setOrgCommissionRate, clearOrgCommissionRate } from '@/lib/services/par
 import { PUT } from '@/app/api/partner/portfolio/[orgId]/rate/route';
 
 const ctx = (orgId: string) => ({ params: Promise.resolve({ orgId }) });
-const body = (b: unknown) => new Request('http://x/', { method: 'PUT', body: JSON.stringify(b), headers: { 'content-type': 'application/json' } });
+const body = (b: unknown) =>
+  new Request('http://x/', {
+    method: 'PUT',
+    body: JSON.stringify(b),
+    headers: { 'content-type': 'application/json' },
+  });
 
 describe('PUT /api/partner/portfolio/[orgId]/rate', () => {
   beforeEach(() => vi.resetAllMocks());
@@ -29,14 +34,21 @@ describe('PUT /api/partner/portfolio/[orgId]/rate', () => {
 
   it('403 if not partner admin', async () => {
     vi.mocked(getSession).mockResolvedValue({
-      sub: 'u', role: 'partner', partnerId: 'p1', partnerRole: 'manager'
+      sub: 'u',
+      role: 'partner',
+      partnerId: 'p1',
+      partnerRole: 'manager',
     } as any);
     expect((await PUT(body({ rate: 0.1, reason: 'x' }), ctx('o1'))).status).toBe(403);
   });
 
   it('403 if admin but org outside partner scope', async () => {
     vi.mocked(getSession).mockResolvedValue({
-      sub: 'u', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
+      sub: 'u',
+      role: 'partner',
+      partnerId: 'p1',
+      partnerRole: 'admin',
+      assignedOrgIds: [],
     } as any);
     vi.mocked(canPartnerAccessOrg).mockResolvedValue(false);
 
@@ -45,7 +57,11 @@ describe('PUT /api/partner/portfolio/[orgId]/rate', () => {
 
   it('400 on invalid payload (no rate, no reason) — no zod details in body (R2)', async () => {
     vi.mocked(getSession).mockResolvedValue({
-      sub: 'u', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
+      sub: 'u',
+      role: 'partner',
+      partnerId: 'p1',
+      partnerRole: 'admin',
+      assignedOrgIds: [],
     } as any);
     vi.mocked(canPartnerAccessOrg).mockResolvedValue(true);
 
@@ -57,7 +73,11 @@ describe('PUT /api/partner/portfolio/[orgId]/rate', () => {
 
   it('204 on successful set with rate', async () => {
     vi.mocked(getSession).mockResolvedValue({
-      sub: 'admin-user', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
+      sub: 'admin-user',
+      role: 'partner',
+      partnerId: 'p1',
+      partnerRole: 'admin',
+      assignedOrgIds: [],
     } as any);
     vi.mocked(canPartnerAccessOrg).mockResolvedValue(true);
     vi.mocked(setOrgCommissionRate).mockResolvedValue({ ok: true });
@@ -65,13 +85,21 @@ describe('PUT /api/partner/portfolio/[orgId]/rate', () => {
     const res = await PUT(body({ rate: 0.08, reason: 'VIP' }), ctx('o1'));
     expect(res.status).toBe(204);
     expect(setOrgCommissionRate).toHaveBeenCalledWith(expect.anything(), {
-      organizationId: 'o1', partnerId: 'p1', newRate: 0.08, reason: 'VIP', changedByUserId: 'admin-user'
+      organizationId: 'o1',
+      partnerId: 'p1',
+      newRate: 0.08,
+      reason: 'VIP',
+      changedByUserId: 'admin-user',
     });
   });
 
   it('204 on clear (rate=null)', async () => {
     vi.mocked(getSession).mockResolvedValue({
-      sub: 'admin-user', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
+      sub: 'admin-user',
+      role: 'partner',
+      partnerId: 'p1',
+      partnerRole: 'admin',
+      assignedOrgIds: [],
     } as any);
     vi.mocked(canPartnerAccessOrg).mockResolvedValue(true);
     vi.mocked(clearOrgCommissionRate).mockResolvedValue({ ok: true });
@@ -83,7 +111,11 @@ describe('PUT /api/partner/portfolio/[orgId]/rate', () => {
 
   it('404 when service returns not_found', async () => {
     vi.mocked(getSession).mockResolvedValue({
-      sub: 'admin-user', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
+      sub: 'admin-user',
+      role: 'partner',
+      partnerId: 'p1',
+      partnerRole: 'admin',
+      assignedOrgIds: [],
     } as any);
     vi.mocked(canPartnerAccessOrg).mockResolvedValue(true);
     vi.mocked(setOrgCommissionRate).mockResolvedValue({ ok: false, error: 'not_found' });
@@ -95,7 +127,11 @@ describe('PUT /api/partner/portfolio/[orgId]/rate', () => {
 
   it('422 when service returns rate_out_of_range', async () => {
     vi.mocked(getSession).mockResolvedValue({
-      sub: 'admin-user', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
+      sub: 'admin-user',
+      role: 'partner',
+      partnerId: 'p1',
+      partnerRole: 'admin',
+      assignedOrgIds: [],
     } as any);
     vi.mocked(canPartnerAccessOrg).mockResolvedValue(true);
     vi.mocked(setOrgCommissionRate).mockResolvedValue({ ok: false, error: 'rate_out_of_range' });

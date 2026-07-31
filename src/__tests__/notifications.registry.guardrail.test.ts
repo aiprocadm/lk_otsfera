@@ -40,10 +40,7 @@ describe('Реестр типов уведомлений — guardrail', () => {
         if (!known.has(m[1])) rogue.push(`${file}: ${m[1]}`);
       }
     }
-    expect(
-      rogue,
-      `Типы, отправляемые мимо реестра:\n  ${rogue.join('\n  ')}`
-    ).toEqual([]);
+    expect(rogue, `Типы, отправляемые мимо реестра:\n  ${rogue.join('\n  ')}`).toEqual([]);
   });
 
   it('мёртвый enum NotificationType удалён из схемы', () => {

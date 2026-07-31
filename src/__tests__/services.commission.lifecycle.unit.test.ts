@@ -10,10 +10,19 @@ vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 
 import { approveStatement, markStatementPaid } from '@/lib/services/commission/lifecycle';
 
-beforeEach(() => { recordAudit.mockClear(); });
+beforeEach(() => {
+  recordAudit.mockClear();
+});
 
 function makePrismaForApprove({
-  statement = null as { id: string; status: string; supersededBy: string | null; partnerId?: string; periodFrom?: Date; periodTo?: Date } | null,
+  statement = null as {
+    id: string;
+    status: string;
+    supersededBy: string | null;
+    partnerId?: string;
+    periodFrom?: Date;
+    periodTo?: Date;
+  } | null,
 } = {}) {
   const updated = { id: statement?.id ?? 's1', status: 'approved' };
   const tx = {
@@ -25,14 +34,21 @@ function makePrismaForApprove({
     commissionStatement: {
       findFirst: vi.fn().mockResolvedValue(statement),
     },
-    $transaction: vi.fn().mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
+    $transaction: vi
+      .fn()
+      .mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
     _tx: tx,
   };
 }
 
 function makePrismaForPaid({
   payer = null as { role: string } | null,
-  statement = null as { id: string; status: string; supersededBy: string | null; partnerId: string } | null,
+  statement = null as {
+    id: string;
+    status: string;
+    supersededBy: string | null;
+    partnerId: string;
+  } | null,
 } = {}) {
   const updated = { id: statement?.id ?? 's1', status: 'paid', paidAt: new Date() };
   const tx = {
@@ -41,7 +57,9 @@ function makePrismaForPaid({
   return {
     user: { findUnique: vi.fn().mockResolvedValue(payer) },
     commissionStatement: { findUnique: vi.fn().mockResolvedValue(statement) },
-    $transaction: vi.fn().mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
+    $transaction: vi
+      .fn()
+      .mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
     _tx: tx,
   };
 }
@@ -49,37 +67,81 @@ function makePrismaForPaid({
 describe('approveStatement — unit', () => {
   it('returns not_found when statement not found (wrong partnerId)', async () => {
     const db = makePrismaForApprove({ statement: null });
-    const res = await approveStatement(db as never, { statementId: 's-missing', partnerId: 'p1', approvedByUserId: 'u1' });
+    const res = await approveStatement(db as never, {
+      statementId: 's-missing',
+      partnerId: 'p1',
+      approvedByUserId: 'u1',
+    });
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('returns lifecycle_violation when statement is superseded', async () => {
     const db = makePrismaForApprove({
-      statement: { id: 's1', status: 'draft', supersededBy: 's2', partnerId: 'p1', periodFrom: new Date('2026-05-01'), periodTo: new Date('2026-05-31') },
+      statement: {
+        id: 's1',
+        status: 'draft',
+        supersededBy: 's2',
+        partnerId: 'p1',
+        periodFrom: new Date('2026-05-01'),
+        periodTo: new Date('2026-05-31'),
+      },
     });
-    const res = await approveStatement(db as never, { statementId: 's1', partnerId: 'p1', approvedByUserId: 'u1' });
+    const res = await approveStatement(db as never, {
+      statementId: 's1',
+      partnerId: 'p1',
+      approvedByUserId: 'u1',
+    });
     expect(res).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 
   it('returns lifecycle_violation when status is not draft (e.g. approved)', async () => {
     const db = makePrismaForApprove({
-      statement: { id: 's1', status: 'approved', supersededBy: null, partnerId: 'p1', periodFrom: new Date('2026-05-01'), periodTo: new Date('2026-05-31') },
+      statement: {
+        id: 's1',
+        status: 'approved',
+        supersededBy: null,
+        partnerId: 'p1',
+        periodFrom: new Date('2026-05-01'),
+        periodTo: new Date('2026-05-31'),
+      },
     });
-    const res = await approveStatement(db as never, { statementId: 's1', partnerId: 'p1', approvedByUserId: 'u1' });
+    const res = await approveStatement(db as never, {
+      statementId: 's1',
+      partnerId: 'p1',
+      approvedByUserId: 'u1',
+    });
     expect(res).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 
   it('returns lifecycle_violation when status is paid', async () => {
     const db = makePrismaForApprove({
-      statement: { id: 's1', status: 'paid', supersededBy: null, partnerId: 'p1', periodFrom: new Date('2026-05-01'), periodTo: new Date('2026-05-31') },
+      statement: {
+        id: 's1',
+        status: 'paid',
+        supersededBy: null,
+        partnerId: 'p1',
+        periodFrom: new Date('2026-05-01'),
+        periodTo: new Date('2026-05-31'),
+      },
     });
-    const res = await approveStatement(db as never, { statementId: 's1', partnerId: 'p1', approvedByUserId: 'u1' });
+    const res = await approveStatement(db as never, {
+      statementId: 's1',
+      partnerId: 'p1',
+      approvedByUserId: 'u1',
+    });
     expect(res).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 
   it('transitions draft → approved and records audit', async () => {
     const db = makePrismaForApprove({
-      statement: { id: 's1', status: 'draft', supersededBy: null, partnerId: 'p1', periodFrom: new Date('2026-05-01'), periodTo: new Date('2026-05-31') },
+      statement: {
+        id: 's1',
+        status: 'draft',
+        supersededBy: null,
+        partnerId: 'p1',
+        periodFrom: new Date('2026-05-01'),
+        periodTo: new Date('2026-05-31'),
+      },
     });
     const res = await approveStatement(db as never, {
       statementId: 's1',
@@ -105,11 +167,25 @@ describe('approveStatement — unit', () => {
     const tx = {
       commissionStatement: { update: vi.fn().mockResolvedValue({ id: 's1', status: 'approved' }) },
       commissionStatementItem: { findMany: vi.fn().mockResolvedValue(items) },
-      commissionCorrection: { create: vi.fn().mockImplementation(({ data }: any) => { created.push(data); return {}; }) },
+      commissionCorrection: {
+        create: vi.fn().mockImplementation(({ data }: any) => {
+          created.push(data);
+          return {};
+        }),
+      },
       auditLog: { create: vi.fn().mockResolvedValue({}) },
     };
     const db = {
-      commissionStatement: { findFirst: vi.fn().mockResolvedValue({ id: 's1', status: 'draft', supersededBy: null, partnerId: 'p1', periodFrom: new Date('2026-05-01'), periodTo: new Date('2026-05-31') }) },
+      commissionStatement: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 's1',
+          status: 'draft',
+          supersededBy: null,
+          partnerId: 'p1',
+          periodFrom: new Date('2026-05-01'),
+          periodTo: new Date('2026-05-31'),
+        }),
+      },
       $transaction: vi.fn().mockImplementation(async (fn: any) => fn(tx)),
     } as any;
 
@@ -134,7 +210,16 @@ describe('approveStatement — unit', () => {
       auditLog: { create: vi.fn().mockResolvedValue({}) },
     };
     const db = {
-      commissionStatement: { findFirst: vi.fn().mockResolvedValue({ id: 's1', status: 'draft', supersededBy: null, partnerId: 'p1', periodFrom: new Date('2026-05-01'), periodTo: new Date('2026-05-31') }) },
+      commissionStatement: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 's1',
+          status: 'draft',
+          supersededBy: null,
+          partnerId: 'p1',
+          periodFrom: new Date('2026-05-01'),
+          periodTo: new Date('2026-05-31'),
+        }),
+      },
       $transaction: vi.fn().mockImplementation(async (fn: any) => fn(tx)),
     } as any;
     await approveStatement(db, { statementId: 's1', partnerId: 'p1', approvedByUserId: 'u1' });
@@ -150,7 +235,16 @@ describe('approveStatement — unit', () => {
       auditLog: { create: vi.fn().mockResolvedValue({}) },
     };
     const db = {
-      commissionStatement: { findFirst: vi.fn().mockResolvedValue({ id: 's1', status: 'draft', supersededBy: null, partnerId: 'p1', periodFrom: new Date('2026-05-01'), periodTo: new Date('2026-05-31') }) },
+      commissionStatement: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 's1',
+          status: 'draft',
+          supersededBy: null,
+          partnerId: 'p1',
+          periodFrom: new Date('2026-05-01'),
+          periodTo: new Date('2026-05-31'),
+        }),
+      },
       $transaction: vi.fn().mockImplementation(async (fn: any) => fn(tx)),
     } as any;
     await approveStatement(db, { statementId: 's1', partnerId: 'p1', approvedByUserId: 'u1' });
@@ -161,19 +255,28 @@ describe('approveStatement — unit', () => {
 describe('markStatementPaid — unit', () => {
   it('returns forbidden when payer user not found', async () => {
     const db = makePrismaForPaid({ payer: null, statement: null });
-    const res = await markStatementPaid(db as never, { statementId: 's1', paidByUserId: 'u-missing' });
+    const res = await markStatementPaid(db as never, {
+      statementId: 's1',
+      paidByUserId: 'u-missing',
+    });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 
   it('returns forbidden when payer is not an admin (e.g. partner)', async () => {
     const db = makePrismaForPaid({ payer: { role: 'partner' }, statement: null });
-    const res = await markStatementPaid(db as never, { statementId: 's1', paidByUserId: 'u-partner' });
+    const res = await markStatementPaid(db as never, {
+      statementId: 's1',
+      paidByUserId: 'u-partner',
+    });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 
   it('returns not_found when statement not found', async () => {
     const db = makePrismaForPaid({ payer: { role: 'admin' }, statement: null });
-    const res = await markStatementPaid(db as never, { statementId: 's-missing', paidByUserId: 'u-admin' });
+    const res = await markStatementPaid(db as never, {
+      statementId: 's-missing',
+      paidByUserId: 'u-admin',
+    });
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
@@ -182,7 +285,10 @@ describe('markStatementPaid — unit', () => {
       payer: { role: 'admin' },
       statement: { id: 's1', status: 'approved', supersededBy: 's2', partnerId: 'p1' },
     });
-    const res = await markStatementPaid(db as never, { statementId: 's1', paidByUserId: 'u-admin' });
+    const res = await markStatementPaid(db as never, {
+      statementId: 's1',
+      paidByUserId: 'u-admin',
+    });
     expect(res).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 
@@ -191,7 +297,10 @@ describe('markStatementPaid — unit', () => {
       payer: { role: 'admin' },
       statement: { id: 's1', status: 'draft', supersededBy: null, partnerId: 'p1' },
     });
-    const res = await markStatementPaid(db as never, { statementId: 's1', paidByUserId: 'u-admin' });
+    const res = await markStatementPaid(db as never, {
+      statementId: 's1',
+      paidByUserId: 'u-admin',
+    });
     expect(res).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
 

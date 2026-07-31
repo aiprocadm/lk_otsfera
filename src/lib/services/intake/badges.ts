@@ -1,9 +1,9 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { countIntake } from './list';
 import { taskFiltersWhere } from '@/lib/services/tasks/board';
 import { clientRequestScopeWhere } from '@/lib/services/clientRequests/list';
 import { unreadCount } from '@/lib/services/chat/threads';
+import { countIntake } from './list';
 
 /**
  * Счётчики бейджей меню сотрудника — один вызов на поллинг
@@ -32,9 +32,9 @@ export async function getStaffBadges(
     countIntake(prisma, session),
     prisma.task.count({ where: taskFiltersWhere(session, { overdue: true }, new Date()) }),
     prisma.clientRequest.count({
-      where: { AND: [clientRequestScopeWhere(session), { status: 'submitted' }] }
+      where: { AND: [clientRequestScopeWhere(session), { status: 'submitted' }] },
     }),
-    unreadCount(prisma, session)
+    unreadCount(prisma, session),
   ]);
   return {
     intake,
@@ -43,6 +43,6 @@ export async function getStaffBadges(
     // unreadCount не умеет отказывать: его тип — только { ok: true; count },
     // вне скоупа он возвращает count: 0. Прежняя проверка `unread.ok ? … : 0`
     // была недостижимой веткой (Ф2 программы покрытия — такое удаляем).
-    messagesUnread: unread.count
+    messagesUnread: unread.count,
   };
 }

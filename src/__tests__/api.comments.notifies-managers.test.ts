@@ -18,7 +18,7 @@ const {
   notifyMessageCreated,
   notifyOrgUsers,
   deliverNotificationToUser,
-  getPrimaryOrganizationId
+  getPrimaryOrganizationId,
 } = vi.hoisted(() => ({
   getSession: vi.fn(),
   orderFindUnique: vi.fn(),
@@ -28,7 +28,7 @@ const {
   notifyMessageCreated: vi.fn(),
   notifyOrgUsers: vi.fn(),
   deliverNotificationToUser: vi.fn(),
-  getPrimaryOrganizationId: vi.fn()
+  getPrimaryOrganizationId: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/session', () => ({ getSession }));
@@ -36,8 +36,8 @@ vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     order: { findUnique: orderFindUnique },
     comment: { create: commentCreate },
-    auditLog: { create: auditCreate }
-  }
+    auditLog: { create: auditCreate },
+  },
 }));
 vi.mock('@/lib/notifications', () => ({
   notifyManagers,
@@ -46,7 +46,7 @@ vi.mock('@/lib/notifications', () => ({
   deliverNotificationToUser,
 }));
 vi.mock('@/lib/auth/organization', () => ({
-  getPrimaryOrganizationId
+  getPrimaryOrganizationId,
 }));
 
 import { POST as commentsPost } from '@/app/api/comments/route';
@@ -59,8 +59,8 @@ function orgSession(orgIds: string[] = ['org-a']) {
     organizationMemberships: orgIds.map((id) => ({
       organizationId: id,
       roleInOrg: 'member',
-      isActive: true
-    }))
+      isActive: true,
+    })),
   };
 }
 
@@ -68,7 +68,7 @@ function commentReq(orderId: string, body = 'hello from org'): Request {
   return new Request('https://app.local/api/comments', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ orderId, body })
+    body: JSON.stringify({ orderId, body }),
   });
 }
 
@@ -80,12 +80,12 @@ describe('POST /api/comments — org branch fires notifyManagers (comment_from_o
       orderId: 'ord-1',
       body: 'hello from org',
       createdAt: new Date(),
-      authorId: 'u-org-1'
+      authorId: 'u-org-1',
     });
     notifyManagers.mockResolvedValue({
       recipientsNotified: 1,
       emailsSent: 0,
-      emailsSkipped: 1
+      emailsSkipped: 1,
     });
   });
 
@@ -94,24 +94,21 @@ describe('POST /api/comments — org branch fires notifyManagers (comment_from_o
     orderFindUnique.mockResolvedValue({
       id: 'ord-1',
       organizationId: 'org-a',
-      organization: { name: 'Acme Corp' }
+      organization: { name: 'Acme Corp' },
     });
 
     const res = await commentsPost(commentReq('ord-1', 'Please ship faster'));
     expect(res.status).toBe(201);
     expect(commentCreate).toHaveBeenCalledTimes(1);
     expect(notifyManagers).toHaveBeenCalledTimes(1);
-    expect(notifyManagers).toHaveBeenCalledWith(
-      expect.anything(),
-      {
-        orderId: 'ord-1',
-        type: 'comment_from_org',
-        payload: {
-          orgName: 'Acme Corp',
-          commentExcerpt: 'Please ship faster'
-        }
-      }
-    );
+    expect(notifyManagers).toHaveBeenCalledWith(expect.anything(), {
+      orderId: 'ord-1',
+      type: 'comment_from_org',
+      payload: {
+        orgName: 'Acme Corp',
+        commentExcerpt: 'Please ship faster',
+      },
+    });
     // Org branch must NOT touch partner-side helpers.
     expect(notifyMessageCreated).not.toHaveBeenCalled();
     expect(deliverNotificationToUser).not.toHaveBeenCalled();
@@ -125,13 +122,13 @@ describe('POST /api/comments — org branch fires notifyManagers (comment_from_o
     notifyManagers.mockResolvedValueOnce({
       recipientsNotified: 0,
       emailsSent: 0,
-      emailsSkipped: 0
+      emailsSkipped: 0,
     });
     getSession.mockResolvedValue(orgSession(['org-a']));
     orderFindUnique.mockResolvedValue({
       id: 'ord-1',
       organizationId: 'org-a',
-      organization: { name: 'Acme Corp' }
+      organization: { name: 'Acme Corp' },
     });
 
     const res = await commentsPost(commentReq('ord-1'));
@@ -146,7 +143,7 @@ describe('POST /api/comments — org branch fires notifyManagers (comment_from_o
     orderFindUnique.mockResolvedValue({
       id: 'ord-1',
       organizationId: 'org-a',
-      organization: { name: 'Acme Corp' }
+      organization: { name: 'Acme Corp' },
     });
 
     const res = await commentsPost(commentReq('ord-1'));
@@ -160,7 +157,7 @@ describe('POST /api/comments — org branch fires notifyManagers (comment_from_o
     orderFindUnique.mockResolvedValue({
       id: 'ord-1',
       organizationId: 'org-a',
-      organization: { name: 'Acme Corp' }
+      organization: { name: 'Acme Corp' },
     });
 
     const longBody = 'a'.repeat(500);
@@ -168,8 +165,7 @@ describe('POST /api/comments — org branch fires notifyManagers (comment_from_o
     expect(res.status).toBe(201);
 
     const callArg = notifyManagers.mock.calls[0]?.[1] as
-      | { payload: { commentExcerpt: string } }
-      | undefined;
+      { payload: { commentExcerpt: string } } | undefined;
     expect(callArg?.payload.commentExcerpt).toHaveLength(200);
   });
 
@@ -180,7 +176,7 @@ describe('POST /api/comments — org branch fires notifyManagers (comment_from_o
     orderFindUnique.mockResolvedValue({
       id: 'ord-1',
       organizationId: 'org-a',
-      organization: null
+      organization: null,
     });
 
     const res = await commentsPost(commentReq('ord-1'));
@@ -189,7 +185,7 @@ describe('POST /api/comments — org branch fires notifyManagers (comment_from_o
       expect.anything(),
       expect.objectContaining({
         type: 'comment_from_org',
-        payload: expect.objectContaining({ orgName: '' })
+        payload: expect.objectContaining({ orgName: '' }),
       })
     );
   });
@@ -199,7 +195,7 @@ describe('POST /api/comments — org branch fires notifyManagers (comment_from_o
     orderFindUnique.mockResolvedValue({
       id: 'ord-1',
       organizationId: 'org-b',
-      organization: { name: 'Other Co' }
+      organization: { name: 'Other Co' },
     });
 
     const res = await commentsPost(commentReq('ord-1'));

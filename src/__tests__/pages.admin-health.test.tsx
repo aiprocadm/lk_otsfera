@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import AdminHealthPage from '@/app/admin/health/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
@@ -22,30 +23,32 @@ vi.mock('@/lib/services/syncSummary', () => ({ listSyncErrors }));
 
 vi.mock('@/components/admin/queue-stats-grid', () => ({
   QueueStatsGrid: (props: { rows: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'queue-stats-grid' }, JSON.stringify(props.rows))
+    React.createElement('div', { 'data-testid': 'queue-stats-grid' }, JSON.stringify(props.rows)),
 }));
 
 vi.mock('@/components/admin/dlq-table', () => ({
   DlqTable: (props: { rows: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'dlq-table' }, JSON.stringify(props.rows))
+    React.createElement('div', { 'data-testid': 'dlq-table' }, JSON.stringify(props.rows)),
 }));
 
 vi.mock('@/components/admin/retry-all-button', () => ({
   RetryAllButton: (props: { queue: string }) =>
-    React.createElement('div', { 'data-testid': 'retry-all-button' }, props.queue)
+    React.createElement('div', { 'data-testid': 'retry-all-button' }, props.queue),
 }));
 
 vi.mock('@/components/admin/alerts-section', () => ({
   AlertsSection: (props: { alerts: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'alerts-section' }, JSON.stringify(props.alerts))
+    React.createElement('div', { 'data-testid': 'alerts-section' }, JSON.stringify(props.alerts)),
 }));
 
 vi.mock('@/components/admin/sync-errors-section', () => ({
   SyncErrorsSection: (props: { errors: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'sync-errors-section' }, JSON.stringify(props.errors))
+    React.createElement(
+      'div',
+      { 'data-testid': 'sync-errors-section' },
+      JSON.stringify(props.errors)
+    ),
 }));
-
-import AdminHealthPage from '@/app/admin/health/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 
@@ -68,7 +71,7 @@ describe('AdminHealthPage', () => {
       { entity: 'organization', lagMs: 30 * 1000, successCount24h: 5, errorCount24h: 0 },
       { entity: 'order', lagMs: 5 * 60 * 1000, successCount24h: 2, errorCount24h: 1 },
       { entity: 'payment', lagMs: 3 * 60 * 60 * 1000, successCount24h: 0, errorCount24h: 0 },
-      { entity: 'document', lagMs: 2 * 24 * 60 * 60 * 1000, successCount24h: 0, errorCount24h: 0 }
+      { entity: 'document', lagMs: 2 * 24 * 60 * 60 * 1000, successCount24h: 0, errorCount24h: 0 },
     ]);
     getQueueStats.mockResolvedValue([{ queue: 'docs.scanDocument', counts: { active: 1 } }]);
     getDlq.mockResolvedValue([{ id: 'j1', queue: 'docs.scanDocument' }]);
@@ -91,7 +94,10 @@ describe('AdminHealthPage', () => {
     getSyncLag.mockResolvedValue([]);
     getQueueStats.mockResolvedValue([]);
     getDlq.mockResolvedValue([]);
-    listAlertStates.mockResolvedValue({ ok: true, alerts: [{ key: 'dlq_depth', status: 'firing' }] });
+    listAlertStates.mockResolvedValue({
+      ok: true,
+      alerts: [{ key: 'dlq_depth', status: 'firing' }],
+    });
     listSyncErrors.mockResolvedValue([{ id: 'sl1', entity: 'payment' }]);
 
     const { container } = await renderServerComponent(AdminHealthPage());
@@ -147,7 +153,7 @@ describe('AdminHealthPage', () => {
   it('renders lagMs:null badge explicitly when a row has no lag data', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getSyncLag.mockResolvedValue([
-      { entity: 'organization', lagMs: null, successCount24h: 0, errorCount24h: 0 }
+      { entity: 'organization', lagMs: null, successCount24h: 0, errorCount24h: 0 },
     ]);
     getQueueStats.mockResolvedValue([]);
     getDlq.mockResolvedValue([]);

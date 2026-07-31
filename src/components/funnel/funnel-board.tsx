@@ -13,7 +13,7 @@ const MOVE_ERRORS: Record<string, string> = {
   lifecycle_violation: 'Такой переход недопустим.',
   invalid_stage: 'Неизвестная стадия.',
   not_found: 'Лид не найден или недоступен.',
-  forbidden: 'Нет доступа.'
+  forbidden: 'Нет доступа.',
 };
 
 export function FunnelBoard({ board }: { board: FunnelBoardData }) {
@@ -89,12 +89,19 @@ export function FunnelBoard({ board }: { board: FunnelBoardData }) {
                 </div>
               </article>
             ))}
-            {col.cards.length === 0 && <p className="text-xs text-gray-400 text-center py-4">Пусто</p>}
+            {col.cards.length === 0 && (
+              <p className="text-xs text-gray-400 text-center py-4">Пусто</p>
+            )}
           </div>
         </div>
       ))}
 
-      <Dialog open={!!reasonFor} onClose={() => setReasonFor(null)} title="Причина отказа" size="sm">
+      <Dialog
+        open={!!reasonFor}
+        onClose={() => setReasonFor(null)}
+        title="Причина отказа"
+        size="sm"
+      >
         <form
           onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
             e.preventDefault();

@@ -4,7 +4,7 @@ import * as React from 'react';
 import {
   TwoFactorCodeTemplate,
   twoFactorCodeSubject,
-  twoFactorCodeText
+  twoFactorCodeText,
 } from '@/lib/email/templates/two-factor-code';
 
 describe('TwoFactorCodeTemplate', () => {

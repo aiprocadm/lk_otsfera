@@ -43,8 +43,8 @@ async function seedLead(suffix: string): Promise<string> {
       organizationId: orgId,
       clientCompanyName: `assignVal-client-${suffix}-${STAMP}`,
       clientContactName: 'Контакт',
-      subject: `Лид ${suffix}`
-    }
+      subject: `Лид ${suffix}`,
+    },
   });
   return lead.id;
 }
@@ -56,27 +56,50 @@ beforeAll(async () => {
   companyB = (await prisma.company.create({ data: { name: `assignVal-coB-${STAMP}` } })).id;
   partnerId = (await prisma.partner.create({ data: { name: `assignVal-p-${STAMP}` } })).id;
   orgId = (
-    await prisma.organization.create({ data: { name: `assignVal-org-${STAMP}`, companyId: companyA, partnerId } })
+    await prisma.organization.create({
+      data: { name: `assignVal-org-${STAMP}`, companyId: companyA, partnerId },
+    })
   ).id;
 
   actingManagerId = (
     await prisma.user.create({
-      data: { email: `assignVal-actor-${STAMP}@t.local`, name: 'Действующий менеджер', role: 'manager', companyId: companyA }
+      data: {
+        email: `assignVal-actor-${STAMP}@t.local`,
+        name: 'Действующий менеджер',
+        role: 'manager',
+        companyId: companyA,
+      },
     })
   ).id;
   partnerRoleUserId = (
     await prisma.user.create({
-      data: { email: `assignVal-partner-${STAMP}@t.local`, name: 'Партнёрский юзер', role: 'partner', partnerId }
+      data: {
+        email: `assignVal-partner-${STAMP}@t.local`,
+        name: 'Партнёрский юзер',
+        role: 'partner',
+        partnerId,
+      },
     })
   ).id;
   inactiveManagerId = (
     await prisma.user.create({
-      data: { email: `assignVal-inactive-${STAMP}@t.local`, name: 'Уволенный менеджер', role: 'manager', companyId: companyA, isActive: false }
+      data: {
+        email: `assignVal-inactive-${STAMP}@t.local`,
+        name: 'Уволенный менеджер',
+        role: 'manager',
+        companyId: companyA,
+        isActive: false,
+      },
     })
   ).id;
   otherCompanyManagerId = (
     await prisma.user.create({
-      data: { email: `assignVal-otherco-${STAMP}@t.local`, name: 'Менеджер другой компании', role: 'manager', companyId: companyB }
+      data: {
+        email: `assignVal-otherco-${STAMP}@t.local`,
+        name: 'Менеджер другой компании',
+        role: 'manager',
+        companyId: companyB,
+      },
     })
   ).id;
   userIds.push(actingManagerId, partnerRoleUserId, inactiveManagerId, otherCompanyManagerId);
@@ -97,7 +120,7 @@ afterAll(async () => {
 async function expectUntouched(leadId: string) {
   const after = await prisma.lead.findUniqueOrThrow({
     where: { id: leadId },
-    select: { status: true, assignedManagerId: true }
+    select: { status: true, assignedManagerId: true },
   });
   expect(after).toEqual({ status: 'new', assignedManagerId: null });
 }
@@ -108,7 +131,7 @@ describe('B1 — assignLead отклоняет невалидного канди
     const r = await assignLead(prisma, {
       leadId,
       managerId: actingManagerId,
-      assignToUserId: `assignVal-no-such-user-${STAMP}`
+      assignToUserId: `assignVal-no-such-user-${STAMP}`,
     });
     expect(r).toEqual({ ok: false, error: 'invalid_manager' });
     await expectUntouched(leadId);
@@ -119,7 +142,7 @@ describe('B1 — assignLead отклоняет невалидного канди
     const r = await assignLead(prisma, {
       leadId,
       managerId: actingManagerId,
-      assignToUserId: partnerRoleUserId
+      assignToUserId: partnerRoleUserId,
     });
     expect(r).toEqual({ ok: false, error: 'invalid_manager' });
     await expectUntouched(leadId);
@@ -130,7 +153,7 @@ describe('B1 — assignLead отклоняет невалидного канди
     const r = await assignLead(prisma, {
       leadId,
       managerId: actingManagerId,
-      assignToUserId: inactiveManagerId
+      assignToUserId: inactiveManagerId,
     });
     expect(r).toEqual({ ok: false, error: 'invalid_manager' });
     await expectUntouched(leadId);
@@ -143,12 +166,12 @@ describe('B1 — валидные назначения проходят (shared 
     const r = await assignLead(prisma, {
       leadId,
       managerId: actingManagerId,
-      assignToUserId: otherCompanyManagerId
+      assignToUserId: otherCompanyManagerId,
     });
     expect(r.ok).toBe(true);
     const after = await prisma.lead.findUniqueOrThrow({
       where: { id: leadId },
-      select: { status: true, assignedManagerId: true }
+      select: { status: true, assignedManagerId: true },
     });
     expect(after.assignedManagerId).toBe(otherCompanyManagerId);
     expect(after.status).toBe('in_review'); // new → in_review при claim
@@ -160,7 +183,7 @@ describe('B1 — валидные назначения проходят (shared 
     expect(r.ok).toBe(true);
     const after = await prisma.lead.findUniqueOrThrow({
       where: { id: leadId },
-      select: { status: true, assignedManagerId: true }
+      select: { status: true, assignedManagerId: true },
     });
     expect(after.assignedManagerId).toBe(actingManagerId);
     expect(after.status).toBe('in_review');

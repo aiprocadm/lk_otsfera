@@ -1,18 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { createNotification, deliverNotificationToUser, resolveOrgManagerRecipients, warn } = vi.hoisted(() => ({
-  createNotification: vi.fn(),
-  deliverNotificationToUser: vi.fn(),
-  resolveOrgManagerRecipients: vi.fn(),
-  warn: vi.fn()
+const { createNotification, deliverNotificationToUser, resolveOrgManagerRecipients, warn } =
+  vi.hoisted(() => ({
+    createNotification: vi.fn(),
+    deliverNotificationToUser: vi.fn(),
+    resolveOrgManagerRecipients: vi.fn(),
+    warn: vi.fn(),
+  }));
+vi.mock('@/lib/notifications', () => ({
+  createNotification,
+  deliverNotificationToUser,
+  resolveOrgManagerRecipients,
 }));
-vi.mock('@/lib/notifications', () => ({ createNotification, deliverNotificationToUser, resolveOrgManagerRecipients }));
 vi.mock('@/lib/logging', () => ({ log: { warn } }));
 
 import {
   notifySubmitterEnrollmentStatus,
   notifyManagersEnrollmentSubmitted,
-  submitterEnrollmentUrl
+  submitterEnrollmentUrl,
 } from '@/lib/services/enrollments/notify';
 import { enrollmentStatusLabel, ENROLLMENT_STATUS_LABEL } from '@/lib/services/enrollments/labels';
 
@@ -22,7 +27,7 @@ function db(summaryOver: Record<string, unknown> = {}) {
     legacyCourseTitle: null,
     organization: { name: 'Ромашка' },
     _count: { items: 5 },
-    ...summaryOver
+    ...summaryOver,
   });
   return { d: { enrollmentRequest: { findUnique } } as never, findUnique };
 }
@@ -36,7 +41,7 @@ const req = (over: Record<string, unknown> = {}) =>
     organizationId: 'o1',
     partnerId: null,
     rejectedReason: null,
-    ...over
+    ...over,
   }) as never;
 
 beforeEach(() => {
@@ -76,7 +81,7 @@ describe('notifySubmitterEnrollmentStatus (enrollment_status_changed подат�
       organizationId: 'o1',
       partnerId: null,
       type: 'enrollment_status_changed',
-      meta: { requestId: 'E1', status: 'approved', url: '/organization/enrollments/E1' }
+      meta: { requestId: 'E1', status: 'approved', url: '/organization/enrollments/E1' },
     });
     expect(created.title).toBe('Заявка на обучение — статус «Принята»');
     expect(created.body).toContain('5 слушателей');
@@ -88,7 +93,7 @@ describe('notifySubmitterEnrollmentStatus (enrollment_status_changed подат�
       body: created.body,
       type: 'enrollment_status_changed',
       url: '/organization/enrollments/E1',
-      dedupKey: 'n1'
+      dedupKey: 'n1',
     });
   });
 
@@ -101,7 +106,10 @@ describe('notifySubmitterEnrollmentStatus (enrollment_status_changed подат�
 
   it('rejected с rejectedReason: причина дописана в body', async () => {
     const { d } = db();
-    await notifySubmitterEnrollmentStatus(d, req({ status: 'rejected', rejectedReason: 'нет мест' }));
+    await notifySubmitterEnrollmentStatus(
+      d,
+      req({ status: 'rejected', rejectedReason: 'нет мест' })
+    );
     const body = createNotification.mock.calls[0][0].body as string;
     expect(body).toContain('статус «Отклонена»');
     expect(body).toContain('Причина: нет мест');
@@ -124,7 +132,10 @@ describe('notifySubmitterEnrollmentStatus (enrollment_status_changed подат�
   it('неизвестная роль подателя: без url и в meta, и в доставке', async () => {
     const { d } = db();
     await notifySubmitterEnrollmentStatus(d, req({ submitterRole: 'student' }));
-    expect(createNotification.mock.calls[0][0].meta).toEqual({ requestId: 'E1', status: 'approved' });
+    expect(createNotification.mock.calls[0][0].meta).toEqual({
+      requestId: 'E1',
+      status: 'approved',
+    });
     expect(deliverNotificationToUser.mock.calls[0][0]).not.toHaveProperty('url');
   });
 
@@ -135,7 +146,7 @@ describe('notifySubmitterEnrollmentStatus (enrollment_status_changed подат�
     expect(deliverNotificationToUser).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledWith('[enrollments/notify] status notify failed', {
       requestId: 'E1',
-      error: 'db down'
+      error: 'db down',
     });
   });
 
@@ -145,7 +156,7 @@ describe('notifySubmitterEnrollmentStatus (enrollment_status_changed подат�
     await expect(notifySubmitterEnrollmentStatus(d, req())).resolves.toBeUndefined();
     expect(warn).toHaveBeenCalledWith('[enrollments/notify] status notify failed', {
       requestId: 'E1',
-      error: 'соединение закрыто'
+      error: 'соединение закрыто',
     });
   });
 });
@@ -178,7 +189,7 @@ describe('notifyManagersEnrollmentSubmitted (enrollment_submitted менедже
       organizationId: 'o1',
       type: 'enrollment_submitted',
       title: 'Новая заявка на обучение',
-      meta: { requestId: 'E1', url: '/manager/enrollments' }
+      meta: { requestId: 'E1', url: '/manager/enrollments' },
     });
     expect(createNotification.mock.calls[0][0].body).toBe(
       'Организация «Ромашка»: 5 слушателей, направление «Охрана труда».'
@@ -189,16 +200,21 @@ describe('notifyManagersEnrollmentSubmitted (enrollment_submitted менедже
       userId: 'm1',
       type: 'enrollment_submitted',
       url: '/manager/enrollments',
-      dedupKey: 'n1'
+      dedupKey: 'n1',
     });
-    expect(deliverNotificationToUser.mock.calls[1][0]).toMatchObject({ userId: 'm2', dedupKey: 'n2' });
+    expect(deliverNotificationToUser.mock.calls[1][0]).toMatchObject({
+      userId: 'm2',
+      dedupKey: 'n2',
+    });
   });
 
   it('организация без имени: body без префикса «Организация …»', async () => {
     resolveOrgManagerRecipients.mockResolvedValue([{ id: 'm1' }]);
     const { d } = db({ organization: null });
     await notifyManagersEnrollmentSubmitted(d, req());
-    expect(createNotification.mock.calls[0][0].body).toBe('5 слушателей, направление «Охрана труда».');
+    expect(createNotification.mock.calls[0][0].body).toBe(
+      '5 слушателей, направление «Охрана труда».'
+    );
   });
 
   it('best-effort: сбой внутри проглатывается с log.warn', async () => {
@@ -207,7 +223,7 @@ describe('notifyManagersEnrollmentSubmitted (enrollment_submitted менедже
     await expect(notifyManagersEnrollmentSubmitted(d, req())).resolves.toBeUndefined();
     expect(warn).toHaveBeenCalledWith('[enrollments/notify] submit notify failed', {
       requestId: 'E1',
-      error: 'boom'
+      error: 'boom',
     });
   });
 
@@ -217,7 +233,7 @@ describe('notifyManagersEnrollmentSubmitted (enrollment_submitted менедже
     await expect(notifyManagersEnrollmentSubmitted(d, req())).resolves.toBeUndefined();
     expect(warn).toHaveBeenCalledWith('[enrollments/notify] submit notify failed', {
       requestId: 'E1',
-      error: 'соединение закрыто'
+      error: 'соединение закрыто',
     });
   });
 });

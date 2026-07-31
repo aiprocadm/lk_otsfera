@@ -57,40 +57,52 @@ export default async function AdminHealthPage() {
   ]);
 
   return (
-    <div className='space-y-8'>
+    <div className="space-y-8">
       <div>
-        <h1 className='text-2xl font-bold text-[#111111]'>Здоровье системы</h1>
-        <p className='text-sm text-gray-500 mt-0.5'>
-          Свежесть синхронизации с 1С, глубина BullMQ очередей и список упавших задач,
-          алерты и последние ошибки синхронизации.
+        <h1 className="text-2xl font-bold text-[#111111]">Здоровье системы</h1>
+        <p className="text-sm text-gray-500 mt-0.5">
+          Свежесть синхронизации с 1С, глубина BullMQ очередей и список упавших задач, алерты и
+          последние ошибки синхронизации.
         </p>
       </div>
 
       {/* Алерты первыми: firing — самый высокосигнальный блок страницы */}
       <AlertsSection alerts={alertRows} />
 
-      <section className='space-y-3'>
-        <h2 className='text-base font-semibold text-[#111111]'>Лаг синхронизации</h2>
-        <div className='overflow-x-auto bg-white border border-gray-200 rounded-xl'>
-          <table className='w-full text-sm'>
-            <thead className='bg-gray-50 text-gray-600'>
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold text-[#111111]">Лаг синхронизации</h2>
+        <div className="overflow-x-auto bg-white border border-gray-200 rounded-xl">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-gray-600">
               <tr>
-                <th scope='col' className='text-left px-4 py-3 font-medium'>Сущность</th>
-                <th scope='col' className='text-right px-4 py-3 font-medium'>Лаг</th>
-                <th scope='col' className='text-right px-4 py-3 font-medium'>Успехов 24ч</th>
-                <th scope='col' className='text-right px-4 py-3 font-medium'>Ошибок 24ч</th>
+                <th scope="col" className="text-left px-4 py-3 font-medium">
+                  Сущность
+                </th>
+                <th scope="col" className="text-right px-4 py-3 font-medium">
+                  Лаг
+                </th>
+                <th scope="col" className="text-right px-4 py-3 font-medium">
+                  Успехов 24ч
+                </th>
+                <th scope="col" className="text-right px-4 py-3 font-medium">
+                  Ошибок 24ч
+                </th>
               </tr>
             </thead>
             <tbody>
               {syncRows.map((row) => (
-                <tr key={row.entity} className='border-t border-gray-100'>
-                  <td className='px-4 py-3 text-[#111111] font-medium'>{ENTITY_RU[row.entity]}</td>
-                  <td className='px-4 py-3 text-right'>
-                    <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${lagBadgeClass(row.lagMs)}`}>
+                <tr key={row.entity} className="border-t border-gray-100">
+                  <td className="px-4 py-3 text-[#111111] font-medium">{ENTITY_RU[row.entity]}</td>
+                  <td className="px-4 py-3 text-right">
+                    <span
+                      className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${lagBadgeClass(row.lagMs)}`}
+                    >
                       {lagLabel(row.lagMs)}
                     </span>
                   </td>
-                  <td className='px-4 py-3 text-right tabular-nums text-gray-700'>{row.successCount24h}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-gray-700">
+                    {row.successCount24h}
+                  </td>
                   <td
                     className={`px-4 py-3 text-right tabular-nums ${row.errorCount24h > 0 ? 'text-red-700' : 'text-gray-400'}`}
                   >
@@ -100,7 +112,7 @@ export default async function AdminHealthPage() {
               ))}
               {syncRows.length === 0 && (
                 <tr>
-                  <td colSpan={4} className='px-4 py-8 text-center text-sm text-gray-500'>
+                  <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500">
                     Данные о синхронизации сейчас недоступны.
                   </td>
                 </tr>
@@ -110,10 +122,10 @@ export default async function AdminHealthPage() {
         </div>
       </section>
 
-      <section className='space-y-3'>
-        <h2 className='text-base font-semibold text-[#111111]'>Глубина очередей</h2>
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold text-[#111111]">Глубина очередей</h2>
         {queueRows.length === 0 ? (
-          <div className='bg-white border border-gray-200 rounded-xl px-4 py-8 text-center text-sm text-gray-500'>
+          <div className="bg-white border border-gray-200 rounded-xl px-4 py-8 text-center text-sm text-gray-500">
             Очереди недоступны — проверьте Redis.
           </div>
         ) : (
@@ -121,15 +133,18 @@ export default async function AdminHealthPage() {
         )}
       </section>
 
-      <section className='space-y-3'>
-        <div className='flex items-center justify-between'>
-          <h2 className='text-base font-semibold text-[#111111]'>Упавшие задачи (последние 50)</h2>
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-[#111111]">Упавшие задачи (последние 50)</h2>
         </div>
         {[...new Set(dlqRows.map((r) => r.queue))].length > 0 && (
-          <div className='flex flex-wrap gap-2'>
+          <div className="flex flex-wrap gap-2">
             {[...new Set(dlqRows.map((r) => r.queue))].map((q) => (
-              <div key={q} className='flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-1.5'>
-                <span className='font-mono text-xs text-gray-600'>{q}</span>
+              <div
+                key={q}
+                className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-1.5"
+              >
+                <span className="font-mono text-xs text-gray-600">{q}</span>
                 <RetryAllButton queue={q} />
               </div>
             ))}

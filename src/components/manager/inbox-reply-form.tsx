@@ -21,7 +21,7 @@ import { Textarea, Button } from '@/components/ui';
  */
 const ERROR_LABEL: Record<string, string> = {
   forbidden: 'Обращение недоступно вашей компании.',
-  not_found: 'Обращение не найдено.'
+  not_found: 'Обращение не найдено.',
 };
 
 export function InboxReplyForm({ inboundMessageId }: { inboundMessageId: string }) {
@@ -31,13 +31,13 @@ export function InboxReplyForm({ inboundMessageId }: { inboundMessageId: string 
     action: (formData) =>
       replyInboundAction({
         inboundMessageId,
-        text: String(formData.get('text') ?? '')
+        text: String(formData.get('text') ?? ''),
       }),
     errorMap: ERROR_LABEL,
     onSuccess: () => {
       toast.success('Ответ отправлен');
       formRef.current?.reset();
-    }
+    },
   });
 
   return (

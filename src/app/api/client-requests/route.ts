@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
+import type { ClientRequestStatus } from '@prisma/client';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { submitClientRequest } from '@/lib/services/clientRequests/submit';
 import { listClientRequests } from '@/lib/services/clientRequests/list';
-import type { ClientRequestStatus } from '@prisma/client';
 
 const STATUSES = ['submitted', 'in_triage', 'converted', 'rejected'];
 
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     contactEmail: str(body.contactEmail),
     subject: str(body.subject),
     body: str(body.body),
-    organizationId: str(body.organizationId)
+    organizationId: str(body.organizationId),
   });
   if (!res.ok) {
     const status = res.error === 'validation' ? 400 : 403;
@@ -44,10 +44,11 @@ export async function GET(req: Request) {
 
   const sp = new URL(req.url).searchParams;
   const statusRaw = sp.get('status');
-  const status = statusRaw && STATUSES.includes(statusRaw) ? (statusRaw as ClientRequestStatus) : undefined;
+  const status =
+    statusRaw && STATUSES.includes(statusRaw) ? (statusRaw as ClientRequestStatus) : undefined;
   const result = await listClientRequests(prisma, session, {
     status,
-    cursor: sp.get('cursor') ?? undefined
+    cursor: sp.get('cursor') ?? undefined,
   });
   return NextResponse.json(result);
 }

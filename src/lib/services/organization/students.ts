@@ -49,10 +49,10 @@ function orgStudentsWhere(opts: { organizationId: string; search?: string }) {
       ? {
           OR: [
             { name: { contains: opts.search, mode: 'insensitive' as const } },
-            { email: { contains: opts.search, mode: 'insensitive' as const } }
-          ]
+            { email: { contains: opts.search, mode: 'insensitive' as const } },
+          ],
         }
-      : {})
+      : {}),
   };
 }
 
@@ -77,9 +77,9 @@ export async function listOrgStudents(
         name: true,
         email: true,
         externalStudentId: true,
-        createdAt: true
-      }
-    })
+        createdAt: true,
+      },
+    }),
   ]);
 
   return { rows: students, total };
@@ -111,9 +111,9 @@ export async function listOrgStudentsForExport(
         email: true,
         position: true,
         externalStudentId: true,
-        createdAt: true
-      }
-    })
+        createdAt: true,
+      },
+    }),
   ]);
 
   const studentIds = students.map((s) => s.id);
@@ -122,16 +122,16 @@ export async function listOrgStudentsForExport(
         by: ['studentId'],
         where: {
           studentId: { in: studentIds },
-          OR: [{ validUntil: null }, { validUntil: { gte: startOfToday } }]
+          OR: [{ validUntil: null }, { validUntil: { gte: startOfToday } }],
         },
-        _count: { _all: true }
+        _count: { _all: true },
       })
     : [];
   const countByStudent = new Map(counts.map((c) => [c.studentId, c._count._all]));
 
   return {
     rows: students.map((s) => ({ ...s, activeCertificates: countByStudent.get(s.id) ?? 0 })),
-    total
+    total,
   };
 }
 
@@ -161,8 +161,8 @@ export async function getOrgStudent(
       email: true,
       position: true,
       externalStudentId: true,
-      createdAt: true
-    }
+      createdAt: true,
+    },
   });
 }
 
@@ -175,13 +175,15 @@ export async function getOrgStudent(
 export async function updateOrgStudentPosition(
   prisma: PrismaClient,
   args: { organizationId: string; studentId: string; position: string }
-): Promise<{ ok: true; position: string | null } | { ok: false; error: 'forbidden' | 'validation' }> {
+): Promise<
+  { ok: true; position: string | null } | { ok: false; error: 'forbidden' | 'validation' }
+> {
   const position = args.position.trim();
   if (position.length > 200) return { ok: false, error: 'validation' };
 
   const student = await prisma.student.findFirst({
     where: { id: args.studentId, organizationId: args.organizationId },
-    select: { id: true }
+    select: { id: true },
   });
   if (!student) return { ok: false, error: 'forbidden' };
 
@@ -215,7 +217,7 @@ export async function listOrgStudentTraining(
       trainingStatus: true,
       createdAt: true,
       direction: { select: { name: true } },
-      order: { select: { id: true, title: true, orderNumber: true } }
-    }
+      order: { select: { id: true, title: true, orderNumber: true } },
+    },
   });
 }

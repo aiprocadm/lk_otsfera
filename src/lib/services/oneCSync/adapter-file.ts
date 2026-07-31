@@ -1,3 +1,5 @@
+import { parseWorkbook } from '@/lib/services/import/parse-workbook';
+import { translateFinancialStatus } from './translate';
 import type { OneCAdapter } from './adapter';
 import type {
   OneCOrgDto,
@@ -8,8 +10,6 @@ import type {
   OneCLeadPushResult,
   SyncCursor,
 } from './dto';
-import { parseWorkbook } from '@/lib/services/import/parse-workbook';
-import { translateFinancialStatus } from './translate';
 
 const EPOCH = new Date(0).toISOString();
 
@@ -50,7 +50,9 @@ export class FileOneCAdapter implements OneCAdapter {
   constructor(private readonly buffer: Buffer | ArrayBuffer) {}
 
   private parsed?: ReturnType<typeof parseWorkbook>;
-  private sheets() { return (this.parsed ??= parseWorkbook(this.buffer)); }
+  private sheets() {
+    return (this.parsed ??= parseWorkbook(this.buffer));
+  }
 
   // Excel import only ATTACHES to existing orgs (resolved by INN); it never creates orgs or documents.
   async pullOrganizations(cursor: SyncCursor): Promise<OneCOrgDto[]> {

@@ -22,7 +22,7 @@ const EXPECTED_PRESETS: Array<[string, string]> = [
   ['#06B6D4', 'Голубой'],
   ['#3B82F6', 'Синий'],
   ['#8B5CF6', 'Фиолетовый'],
-  ['#EC4899', 'Розовый']
+  ['#EC4899', 'Розовый'],
 ];
 
 describe('ColorSwatchPicker', () => {
@@ -56,7 +56,9 @@ describe('ColorSwatchPicker', () => {
   it('value matching a preset → that preset radio is checked, «Без цвета» is not', () => {
     render(React.createElement(ColorSwatchPicker, { name: 'color', value: '#22C55E' }));
     expect((screen.getByRole('radio', { name: 'Зелёный' }) as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByRole('radio', { name: 'Без цвета' }) as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByRole('radio', { name: 'Без цвета' }) as HTMLInputElement).checked).toBe(
+      false
+    );
   });
 
   it('preset matching is case-insensitive: a lowercase stored value checks the preset without adding an extra swatch', () => {
@@ -81,7 +83,9 @@ describe('ColorSwatchPicker', () => {
       render(React.createElement(ColorSwatchPicker, { name: 'color', value }));
       const radios = screen.getAllByRole('radio') as HTMLInputElement[];
       expect(radios).toHaveLength(COLOR_SWATCH_PRESETS.length + 1); // presets + «Без цвета» only
-      expect((screen.getByRole('radio', { name: 'Без цвета' }) as HTMLInputElement).checked).toBe(true);
+      expect((screen.getByRole('radio', { name: 'Без цвета' }) as HTMLInputElement).checked).toBe(
+        true
+      );
     }
   );
 

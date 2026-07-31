@@ -1,13 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const {
-  requireSession,
-  generateLinkCode,
-  unlinkTelegram
-} = vi.hoisted(() => ({
+const { requireSession, generateLinkCode, unlinkTelegram } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   generateLinkCode: vi.fn(),
-  unlinkTelegram: vi.fn()
+  unlinkTelegram: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));

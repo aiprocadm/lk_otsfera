@@ -78,7 +78,7 @@ describe('isFeatureEnabled', () => {
     (val) => {
       process.env.FEATURE_COMMISSION_PDF = val;
       expect(isFeatureEnabled('commission_pdf')).toBe(false);
-    },
+    }
   );
 
   it.each(['1', 'true', 'on', 'yes', 'enabled', 'anything-else'])(
@@ -86,7 +86,7 @@ describe('isFeatureEnabled', () => {
     (val) => {
       process.env.FEATURE_COMMISSION_PDF = val;
       expect(isFeatureEnabled('commission_pdf')).toBe(true);
-    },
+    }
   );
 
   it('reads each flag from its own dedicated env key', () => {

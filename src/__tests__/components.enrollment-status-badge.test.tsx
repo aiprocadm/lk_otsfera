@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import React from 'react';
-import { EnrollmentStatusBadge, enrollmentStatusLabel } from '@/components/enrollment/enrollment-status-badge';
+import {
+  EnrollmentStatusBadge,
+  enrollmentStatusLabel,
+} from '@/components/enrollment/enrollment-status-badge';
 
 describe('EnrollmentStatusBadge', () => {
   it('renders the "На рассмотрении" label and amber tone for pending', () => {
@@ -23,16 +26,22 @@ describe('EnrollmentStatusBadge', () => {
   });
 
   it('renders the "Зачислены" label and emerald tone for provisioned', () => {
-    const html = renderToString(React.createElement(EnrollmentStatusBadge, { status: 'provisioned' }));
+    const html = renderToString(
+      React.createElement(EnrollmentStatusBadge, { status: 'provisioned' })
+    );
     expect(html).toContain('Зачислены');
     expect(html).toContain('bg-emerald-50');
   });
 
   it('этап 2: новые статусы конвейера — «Идёт обучение» и «Удостоверения готовы»', () => {
-    const training = renderToString(React.createElement(EnrollmentStatusBadge, { status: 'in_training' }));
+    const training = renderToString(
+      React.createElement(EnrollmentStatusBadge, { status: 'in_training' })
+    );
     expect(training).toContain('Идёт обучение');
     expect(training).toContain('bg-indigo-50');
-    const ready = renderToString(React.createElement(EnrollmentStatusBadge, { status: 'certificates_ready' }));
+    const ready = renderToString(
+      React.createElement(EnrollmentStatusBadge, { status: 'certificates_ready' })
+    );
     expect(ready).toContain('Удостоверения готовы');
     expect(ready).toContain('bg-green-50');
   });

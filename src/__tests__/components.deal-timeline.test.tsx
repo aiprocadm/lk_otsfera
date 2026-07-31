@@ -30,7 +30,7 @@ function makeDeal(overrides: Partial<DealDetail> = {}): DealDetail {
     documents: [],
     comments: [],
     items: [],
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -44,7 +44,10 @@ describe('DealTimeline', () => {
   });
 
   it('marks success-toned passed event (Завершён) green and warning-toned (Дедлайн) orange', () => {
-    const deal = makeDeal({ completedAt: new Date('2026-02-01'), deadline: new Date('2026-03-01') });
+    const deal = makeDeal({
+      completedAt: new Date('2026-02-01'),
+      deadline: new Date('2026-03-01'),
+    });
     const html = renderToString(React.createElement(DealTimeline, { deal }));
     expect(html).toContain('bg-green-500');
     expect(html).toContain('bg-orange-400');
@@ -63,7 +66,9 @@ describe('DealTimeline', () => {
   });
 
   it('omits the footer when lastSyncedAt is null', () => {
-    const html = renderToString(React.createElement(DealTimeline, { deal: makeDeal({ lastSyncedAt: null }) }));
+    const html = renderToString(
+      React.createElement(DealTimeline, { deal: makeDeal({ lastSyncedAt: null }) })
+    );
     expect(html).not.toContain('Обновлено из 1С');
   });
 });

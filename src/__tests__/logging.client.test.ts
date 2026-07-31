@@ -11,7 +11,7 @@ it.each([
   ['debug', 'debug'],
   ['info', 'log'],
   ['warn', 'warn'],
-  ['error', 'error']
+  ['error', 'error'],
 ] as const)('%s → console.%s verbatim', (method, sink) => {
   const spy = vi.spyOn(console, sink).mockImplementation(() => {});
   const err = new Error('ui');

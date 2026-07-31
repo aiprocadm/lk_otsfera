@@ -75,15 +75,16 @@ function makeDb(overrides?: {
   const orgManagers = overrides?.orgManagers ?? [];
   const comments = overrides?.comments ?? [];
   // Use sentinel to distinguish explicit null from "no override"
-  const orderValue = overrides?.order === NULL_ORDER
-    ? null
-    : (overrides?.order ?? {
-        id: 'o1',
-        orderNumber: '123',
-        title: 'Test Order',
-        managerId: 'm1',
-        organizationId: 'org1',
-      });
+  const orderValue =
+    overrides?.order === NULL_ORDER
+      ? null
+      : (overrides?.order ?? {
+          id: 'o1',
+          orderNumber: '123',
+          title: 'Test Order',
+          managerId: 'm1',
+          organizationId: 'org1',
+        });
   return {
     db: {
       order: {
@@ -187,7 +188,13 @@ describe('notifyManagers — chat_message', () => {
     sendNotification.mockResolvedValue({ status: 'sent' });
     const { db, createFn } = makeDb({
       managers: ONE_MANAGER,
-      order: { id: 'o1', orderNumber: null, title: 'Без номера', managerId: 'm1', organizationId: 'org1' },
+      order: {
+        id: 'o1',
+        orderNumber: null,
+        title: 'Без номера',
+        managerId: 'm1',
+        organizationId: 'org1',
+      },
     });
 
     await notifyManagers(db, {
@@ -209,14 +216,19 @@ describe('notifyManagers — chat_message', () => {
 
 describe('notifyManagers — null orderNumber falls back to orderTitle', () => {
   const NULL_ORDER_DB = {
-    id: 'o1', orderNumber: null, title: 'Без номера', managerId: 'm1', organizationId: 'org1',
+    id: 'o1',
+    orderNumber: null,
+    title: 'Без номера',
+    managerId: 'm1',
+    organizationId: 'org1',
   };
 
   it('comment_from_org: uses order title when orderNumber is null', async () => {
     sendCommentFromOrg.mockResolvedValue({ status: 'sent' });
     const { db, createFn } = makeDb({ managers: ONE_MANAGER, order: NULL_ORDER_DB });
     await notifyManagers(db, {
-      orderId: 'o1', type: 'comment_from_org',
+      orderId: 'o1',
+      type: 'comment_from_org',
       payload: { orgName: 'ООО', commentExcerpt: 'Привет' },
     });
     const row = createFn.mock.calls[0][0].data;
@@ -227,7 +239,8 @@ describe('notifyManagers — null orderNumber falls back to orderTitle', () => {
     sendOrgUpload.mockResolvedValue({ status: 'sent' });
     const { db, createFn } = makeDb({ managers: ONE_MANAGER, order: NULL_ORDER_DB });
     await notifyManagers(db, {
-      orderId: 'o1', type: 'document_uploaded_by_org',
+      orderId: 'o1',
+      type: 'document_uploaded_by_org',
       payload: { orgName: 'ООО', documentName: 'f.pdf', documentType: 'act' },
     });
     const row = createFn.mock.calls[0][0].data;
@@ -238,7 +251,8 @@ describe('notifyManagers — null orderNumber falls back to orderTitle', () => {
     sendPartnerUpload.mockResolvedValue({ status: 'sent' });
     const { db, createFn } = makeDb({ managers: ONE_MANAGER, order: NULL_ORDER_DB });
     await notifyManagers(db, {
-      orderId: 'o1', type: 'document_uploaded_by_partner',
+      orderId: 'o1',
+      type: 'document_uploaded_by_partner',
       payload: { partnerName: 'ООО Партнёр', documentName: 'g.pdf', documentType: 'other' },
     });
     const row = createFn.mock.calls[0][0].data;
@@ -249,7 +263,8 @@ describe('notifyManagers — null orderNumber falls back to orderTitle', () => {
     sendPaidBy1C.mockResolvedValue({ status: 'sent' });
     const { db, createFn } = makeDb({ managers: ONE_MANAGER, order: NULL_ORDER_DB });
     await notifyManagers(db, {
-      orderId: 'o1', type: 'order_marked_paid_by_1c',
+      orderId: 'o1',
+      type: 'order_marked_paid_by_1c',
       payload: { amount: 1000, paidAt: new Date() },
     });
     const row = createFn.mock.calls[0][0].data;
@@ -260,7 +275,8 @@ describe('notifyManagers — null orderNumber falls back to orderTitle', () => {
     sendStatusChanged.mockResolvedValue({ status: 'sent' });
     const { db, createFn } = makeDb({ managers: ONE_MANAGER, order: NULL_ORDER_DB });
     await notifyManagers(db, {
-      orderId: 'o1', type: 'order_status_changed_by_manager',
+      orderId: 'o1',
+      type: 'order_status_changed_by_manager',
       payload: { actorName: 'Иван', oldStatus: 'pending', newStatus: 'done' },
     });
     const row = createFn.mock.calls[0][0].data;
@@ -386,10 +402,12 @@ describe('notifyManagersOrderLess', () => {
       notification: { create: createFn },
     } as never;
 
-    const r = await notifyManagersOrderLess(
-      db,
-      { organizationId: 'org1', orgName: 'ООО Орг', documentName: 'gen.pdf', documentType: 'other' }
-    );
+    const r = await notifyManagersOrderLess(db, {
+      organizationId: 'org1',
+      orgName: 'ООО Орг',
+      documentName: 'gen.pdf',
+      documentType: 'other',
+    });
 
     expect(r.recipientsNotified).toBe(1);
     expect(r.emailsSent).toBe(1);
@@ -406,10 +424,12 @@ describe('notifyManagersOrderLess', () => {
       notification: { create: vi.fn() },
     } as never;
 
-    const r = await notifyManagersOrderLess(
-      db,
-      { organizationId: 'org-empty', orgName: 'Пусто', documentName: 'f.pdf', documentType: 'other' }
-    );
+    const r = await notifyManagersOrderLess(db, {
+      organizationId: 'org-empty',
+      orgName: 'Пусто',
+      documentName: 'f.pdf',
+      documentType: 'other',
+    });
 
     expect(r).toEqual({ recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 });
   });
@@ -444,10 +464,12 @@ describe('notifyManagersOrderLess', () => {
       notification: { create: createFn },
     } as never;
 
-    const r = await notifyManagersOrderLess(
-      db,
-      { organizationId: 'org1', orgName: 'ООО', documentName: 'f.pdf', documentType: 'act' }
-    );
+    const r = await notifyManagersOrderLess(db, {
+      organizationId: 'org1',
+      orgName: 'ООО',
+      documentName: 'f.pdf',
+      documentType: 'act',
+    });
 
     expect(r.recipientsNotified).toBe(1);
     expect(r.emailsSent).toBe(0);
@@ -466,10 +488,12 @@ describe('notifyManagersOrderLess', () => {
       notification: { create: createFn },
     } as never;
 
-    const r = await notifyManagersOrderLess(
-      db,
-      { organizationId: 'org1', orgName: 'ООО', documentName: 'f.pdf', documentType: 'act' }
-    );
+    const r = await notifyManagersOrderLess(db, {
+      organizationId: 'org1',
+      orgName: 'ООО',
+      documentName: 'f.pdf',
+      documentType: 'act',
+    });
 
     expect(r.recipientsNotified).toBe(1);
     expect(r.emailsSent).toBe(0);
@@ -490,10 +514,12 @@ describe('notifyManagersOrderLess', () => {
       notification: { create: createFn },
     } as never;
 
-    const r = await notifyManagersOrderLess(
-      db,
-      { organizationId: 'org1', orgName: 'ООО', documentName: 'f.pdf', documentType: 'act' }
-    );
+    const r = await notifyManagersOrderLess(db, {
+      organizationId: 'org1',
+      orgName: 'ООО',
+      documentName: 'f.pdf',
+      documentType: 'act',
+    });
 
     expect(r.recipientsNotified).toBe(1);
     expect(r.emailsSent).toBe(0);
@@ -510,7 +536,10 @@ describe('resolveOrgManagerRecipients', () => {
   it('returns [] immediately when no active org-manager assignments exist', async () => {
     const orgMgrFindMany = vi.fn().mockResolvedValue([]);
     const userFindMany = vi.fn();
-    const db = { organizationManager: { findMany: orgMgrFindMany }, user: { findMany: userFindMany } } as never;
+    const db = {
+      organizationManager: { findMany: orgMgrFindMany },
+      user: { findMany: userFindMany },
+    } as never;
 
     const result = await resolveOrgManagerRecipients(db, 'org-empty');
 
@@ -522,7 +551,10 @@ describe('resolveOrgManagerRecipients', () => {
   it('returns [] when excludeUserId eliminates the only candidate', async () => {
     const orgMgrFindMany = vi.fn().mockResolvedValue([{ userId: 'only-one' }]);
     const userFindMany = vi.fn();
-    const db = { organizationManager: { findMany: orgMgrFindMany }, user: { findMany: userFindMany } } as never;
+    const db = {
+      organizationManager: { findMany: orgMgrFindMany },
+      user: { findMany: userFindMany },
+    } as never;
 
     const result = await resolveOrgManagerRecipients(db, 'org-1', { excludeUserId: 'only-one' });
 
@@ -569,7 +601,7 @@ describe('resolveManagerRecipients', () => {
     const userFindMany = vi.fn().mockResolvedValue([
       { id: 'm1', email: 'a@x.ru', name: 'A' },
       { id: 'm2', email: 'b@x.ru', name: 'B' },
-      { id: 'm3', email: 'c@x.ru', name: 'C' }
+      { id: 'm3', email: 'c@x.ru', name: 'C' },
     ]);
     const db = {
       order: { findUnique: vi.fn().mockResolvedValue({ managerId: 'm1', organizationId: 'org1' }) },
@@ -632,7 +664,11 @@ describe('MANAGER_TEMPLATES type-guard defensive arms', () => {
     });
     // Normal path: types match → guard NOT hit.
     await expect(
-      notifyManagers(db, { orderId: 'o1', type: 'comment_from_org', payload: { orgName: 'X', commentExcerpt: 'y' } } as never)
+      notifyManagers(db, {
+        orderId: 'o1',
+        type: 'comment_from_org',
+        payload: { orgName: 'X', commentExcerpt: 'y' },
+      } as never)
     ).resolves.toBeDefined();
     // The defensive guard `if (input.type !== 'comment_from_org') throw` can never be reached
     // because MANAGER_TEMPLATES[input.type] always invokes the template whose key matches

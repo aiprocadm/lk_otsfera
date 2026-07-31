@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import OrganizationTeamPage from '@/app/organization/team/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { getOrgPageContext } = vi.hoisted(() => ({ getOrgPageContext: vi.fn() }));
@@ -15,16 +16,19 @@ const nav = vi.hoisted(() => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: (props: { activeOrgName: string; children: React.ReactNode }) =>
-    React.createElement('div', { 'data-testid': 'org-app-shell' }, props.activeOrgName, props.children)
+    React.createElement(
+      'div',
+      { 'data-testid': 'org-app-shell' },
+      props.activeOrgName,
+      props.children
+    ),
 }));
-
-import OrganizationTeamPage from '@/app/organization/team/page';
 
 function ctx(viewerRole: 'admin' | 'leader' | 'member') {
   return {
@@ -32,7 +36,7 @@ function ctx(viewerRole: 'admin' | 'leader' | 'member') {
     activeOrgId: 'org-1',
     activeOrgName: 'ООО Ромашка',
     memberships: [],
-    viewerRole
+    viewerRole,
   };
 }
 
@@ -47,9 +51,7 @@ describe('OrganizationTeamPage', () => {
     getOrgPageContext.mockResolvedValue(ctx('member'));
 
     await expect(
-      renderServerComponent(
-        OrganizationTeamPage({ searchParams: Promise.resolve({}) })
-      )
+      renderServerComponent(OrganizationTeamPage({ searchParams: Promise.resolve({}) }))
     ).rejects.toThrow('REDIRECT:/forbidden');
 
     expect(listMembers).not.toHaveBeenCalled();
@@ -66,7 +68,7 @@ describe('OrganizationTeamPage', () => {
         roleInOrg: 'admin',
         isActive: true,
         invitedAt: new Date('2024-01-01'),
-        lastLoginAt: null
+        lastLoginAt: null,
       },
       {
         organizationUserId: 'ou2',
@@ -76,8 +78,8 @@ describe('OrganizationTeamPage', () => {
         roleInOrg: 'admin',
         isActive: false,
         invitedAt: new Date('2024-01-01'),
-        lastLoginAt: null
-      }
+        lastLoginAt: null,
+      },
     ]);
 
     const { container } = await renderServerComponent(

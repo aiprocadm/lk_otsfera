@@ -20,13 +20,13 @@ function user(overrides: Partial<UserDetail> = {}): UserDetail {
     role: 'partner',
     partnerId: null,
     isActive: true,
-    ...overrides
+    ...overrides,
   } as UserDetail;
 }
 
 const PARTNERS = [
   { id: 'p1', name: 'Партнёр А' },
-  { id: 'p2', name: 'Партнёр Б' }
+  { id: 'p2', name: 'Партнёр Б' },
 ];
 
 describe('UserEditForm', () => {
@@ -38,21 +38,41 @@ describe('UserEditForm', () => {
   it('renders email as read-only and name as controlled', () => {
     render(React.createElement(UserEditForm, { user: user(), partners: PARTNERS, isSelf: false }));
     expect(screen.getByDisplayValue('user@x.com')).toHaveProperty('readOnly', true);
-    expect((screen.getByDisplayValue('Пользователь') as HTMLInputElement).value).toBe('Пользователь');
+    expect((screen.getByDisplayValue('Пользователь') as HTMLInputElement).value).toBe(
+      'Пользователь'
+    );
   });
 
   it('role=partner shows a 2-option role select (enabled) and the partner select', () => {
-    render(React.createElement(UserEditForm, { user: user({ role: 'partner' }), partners: PARTNERS, isSelf: false }));
+    render(
+      React.createElement(UserEditForm, {
+        user: user({ role: 'partner' }),
+        partners: PARTNERS,
+        isSelf: false,
+      })
+    );
     const roleSelect = screen.getByDisplayValue('Партнёр') as HTMLSelectElement;
     expect(roleSelect.disabled).toBe(false);
-    expect(Array.from(roleSelect.options).map((o) => o.textContent)).toEqual(['Партнёр', 'Студент']);
+    expect(Array.from(roleSelect.options).map((o) => o.textContent)).toEqual([
+      'Партнёр',
+      'Студент',
+    ]);
     expect(screen.getByText('— выберите —')).toBeTruthy();
   });
 
   it('role=student allowedRoles branch: shows Студент/Партнёр options', () => {
-    render(React.createElement(UserEditForm, { user: user({ role: 'student' }), partners: PARTNERS, isSelf: false }));
+    render(
+      React.createElement(UserEditForm, {
+        user: user({ role: 'student' }),
+        partners: PARTNERS,
+        isSelf: false,
+      })
+    );
     const roleSelect = screen.getByDisplayValue('Студент') as HTMLSelectElement;
-    expect(Array.from(roleSelect.options).map((o) => o.textContent)).toEqual(['Студент', 'Партнёр']);
+    expect(Array.from(roleSelect.options).map((o) => o.textContent)).toEqual([
+      'Студент',
+      'Партнёр',
+    ]);
   });
 
   it('role=organization: single fixed option, select disabled, no partner select, shows unsupported-transition note', () => {
@@ -60,30 +80,49 @@ describe('UserEditForm', () => {
       React.createElement(UserEditForm, {
         user: user({ role: 'organization', partnerId: null }),
         partners: PARTNERS,
-        isSelf: false
+        isSelf: false,
       })
     );
     const roleSelect = screen.getByDisplayValue('Организация') as HTMLSelectElement;
     expect(roleSelect.disabled).toBe(true);
-    expect(screen.getByText('Переход роли для этого пользователя не поддерживается через UI.')).toBeTruthy();
+    expect(
+      screen.getByText('Переход роли для этого пользователя не поддерживается через UI.')
+    ).toBeTruthy();
     expect(screen.queryByText('— выберите —')).toBeNull();
   });
 
   it('role=manager: single fixed option (allowedRoles default/manager branch), select disabled', () => {
-    render(React.createElement(UserEditForm, { user: user({ role: 'manager' }), partners: PARTNERS, isSelf: false }));
+    render(
+      React.createElement(UserEditForm, {
+        user: user({ role: 'manager' }),
+        partners: PARTNERS,
+        isSelf: false,
+      })
+    );
     const roleSelect = screen.getByDisplayValue('Менеджер') as HTMLSelectElement;
     expect(roleSelect.disabled).toBe(true);
   });
 
   it('role=admin (fallback branch of allowedRoles): single fixed "Админ" option', () => {
-    render(React.createElement(UserEditForm, { user: user({ role: 'admin' }), partners: PARTNERS, isSelf: false }));
+    render(
+      React.createElement(UserEditForm, {
+        user: user({ role: 'admin' }),
+        partners: PARTNERS,
+        isSelf: false,
+      })
+    );
     const roleSelect = screen.getByDisplayValue('Админ') as HTMLSelectElement;
     expect(roleSelect.disabled).toBe(true);
   });
 
-
   it('changing role away from partner hides the partner select', () => {
-    render(React.createElement(UserEditForm, { user: user({ role: 'partner' }), partners: PARTNERS, isSelf: false }));
+    render(
+      React.createElement(UserEditForm, {
+        user: user({ role: 'partner' }),
+        partners: PARTNERS,
+        isSelf: false,
+      })
+    );
     const roleSelect = screen.getByDisplayValue('Партнёр') as HTMLSelectElement;
     fireEvent.change(roleSelect, { target: { value: 'student' } });
     expect(screen.queryByText('— выберите —')).toBeNull();
@@ -94,7 +133,7 @@ describe('UserEditForm', () => {
       React.createElement(UserEditForm, {
         user: user({ role: 'partner', partnerId: 'p1' }),
         partners: PARTNERS,
-        isSelf: false
+        isSelf: false,
       })
     );
     const partnerSelect = document.querySelector('select[name="partnerId"]') as HTMLSelectElement;
@@ -104,7 +143,13 @@ describe('UserEditForm', () => {
   });
 
   it('isSelf=true: role select and isActive checkbox are disabled, shows the "cannot deactivate self" note', () => {
-    render(React.createElement(UserEditForm, { user: user({ role: 'partner' }), partners: PARTNERS, isSelf: true }));
+    render(
+      React.createElement(UserEditForm, {
+        user: user({ role: 'partner' }),
+        partners: PARTNERS,
+        isSelf: true,
+      })
+    );
     const roleSelect = screen.getByDisplayValue('Партнёр') as HTMLSelectElement;
     expect(roleSelect.disabled).toBe(true);
     expect((screen.getByRole('checkbox') as HTMLInputElement).disabled).toBe(true);
@@ -118,7 +163,13 @@ describe('UserEditForm', () => {
   });
 
   it('toggling the isActive checkbox updates the hidden isActive field', () => {
-    render(React.createElement(UserEditForm, { user: user({ isActive: true }), partners: PARTNERS, isSelf: false }));
+    render(
+      React.createElement(UserEditForm, {
+        user: user({ isActive: true }),
+        partners: PARTNERS,
+        isSelf: false,
+      })
+    );
     const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
     const hidden = document.querySelector('input[name="isActive"]') as HTMLInputElement;
     expect(hidden.value).toBe('true');
@@ -139,12 +190,14 @@ describe('UserEditForm', () => {
       React.createElement(UserEditForm, {
         user: user({ id: 'u9', role: 'partner', partnerId: 'p1' }),
         partners: PARTNERS,
-        isSelf: false
+        isSelf: false,
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
-    await waitFor(() => expect(screen.getByRole('status')).toHaveProperty('textContent', 'Изменения сохранены.'));
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveProperty('textContent', 'Изменения сохранены.')
+    );
     const fd = updateUserAction.mock.calls[0][0] as FormData;
     expect(fd.get('id')).toBe('u9');
   });
@@ -155,30 +208,39 @@ describe('UserEditForm', () => {
       React.createElement(UserEditForm, {
         user: user({ role: 'partner', partnerId: 'p1' }),
         partners: PARTNERS,
-        isSelf: false
+        isSelf: false,
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() =>
-      expect(screen.getByRole('alert')).toHaveProperty('textContent', "Нельзя деактивировать последнего активного admin'а.")
+      expect(screen.getByRole('alert')).toHaveProperty(
+        'textContent',
+        "Нельзя деактивировать последнего активного admin'а."
+      )
     );
   });
 
   it('busy state shows "Сохраняю…" and disables the submit button', async () => {
     let resolvePromise: (v: unknown) => void = () => {};
-    updateUserAction.mockReturnValue(new Promise((resolve) => { resolvePromise = resolve; }));
+    updateUserAction.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      })
+    );
     render(
       React.createElement(UserEditForm, {
         user: user({ role: 'partner', partnerId: 'p1' }),
         partners: PARTNERS,
-        isSelf: false
+        isSelf: false,
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Сохраняю…' })).toBeTruthy());
-    expect((screen.getByRole('button', { name: 'Сохраняю…' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Сохраняю…' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
     resolvePromise({ ok: true });
     await waitFor(() => expect(screen.getByRole('status')).toBeTruthy());
   });

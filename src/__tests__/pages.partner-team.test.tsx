@@ -7,7 +7,7 @@ vi.mock('@/lib/auth/requireRole', () => ({ requirePartnerAdmin }));
 
 const { organizationFindMany } = vi.hoisted(() => ({ organizationFindMany: vi.fn() }));
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: { organization: { findMany: organizationFindMany } }
+  prisma: { organization: { findMany: organizationFindMany } },
 }));
 
 const { listTeam } = vi.hoisted(() => ({ listTeam: vi.fn() }));
@@ -15,7 +15,7 @@ vi.mock('@/lib/services/partner/team', () => ({ listTeam }));
 
 // InviteMemberForm ('use client') -> useFetchSubmit -> useFormAction -> useRouter().
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 
 import PartnerTeamPage from '@/app/partner/team/page';
@@ -30,7 +30,7 @@ const ACTIVE_ROW = {
   roleInPartner: 'admin' as const,
   assignedOrgIds: [],
   isActive: true,
-  createdAt: new Date('2024-01-01')
+  createdAt: new Date('2024-01-01'),
 };
 
 const INACTIVE_ROW = {
@@ -39,7 +39,7 @@ const INACTIVE_ROW = {
   partnerUserId: 'pu2',
   email: 'inactive@example.com',
   name: 'Неактивный',
-  isActive: false
+  isActive: false,
 };
 
 describe('PartnerTeamPage', () => {
@@ -71,7 +71,7 @@ describe('PartnerTeamPage', () => {
     requirePartnerAdmin.mockResolvedValue(SESSION);
     listTeam.mockResolvedValue([
       { ...INACTIVE_ROW, userId: 'u2' },
-      { ...INACTIVE_ROW, userId: 'u3' }
+      { ...INACTIVE_ROW, userId: 'u3' },
     ]);
     organizationFindMany.mockResolvedValue([]);
 

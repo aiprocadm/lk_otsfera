@@ -33,12 +33,18 @@ beforeAll(async () => {
   const c = await prisma.company.create({ data: { name: `idorCmtCo-${STAMP}` } });
   companyC = c.id;
 
-  const oA = await prisma.organization.create({ data: { name: `idorCmtOA-${STAMP}`, companyId: companyC } });
+  const oA = await prisma.organization.create({
+    data: { name: `idorCmtOA-${STAMP}`, companyId: companyC },
+  });
   orgA = oA.id;
-  const oB = await prisma.organization.create({ data: { name: `idorCmtOB-${STAMP}`, companyId: companyC } });
+  const oB = await prisma.organization.create({
+    data: { name: `idorCmtOB-${STAMP}`, companyId: companyC },
+  });
   orgB = oB.id;
 
-  const u = await prisma.user.create({ data: { email: `idorCmt-${STAMP}@x.local`, name: `Author ${STAMP}` } });
+  const u = await prisma.user.create({
+    data: { email: `idorCmt-${STAMP}@x.local`, name: `Author ${STAMP}` },
+  });
   author = u.id;
 
   const ordA = await prisma.order.create({
@@ -50,9 +56,13 @@ beforeAll(async () => {
   });
   orderB = ordB.id;
 
-  const cmA = await prisma.comment.create({ data: { orderId: orderA, authorId: author, body: 'A-comment secret' } });
+  const cmA = await prisma.comment.create({
+    data: { orderId: orderA, authorId: author, body: 'A-comment secret' },
+  });
   commentA = cmA.id;
-  const cmB = await prisma.comment.create({ data: { orderId: orderB, authorId: author, body: 'B-comment secret' } });
+  const cmB = await prisma.comment.create({
+    data: { orderId: orderB, authorId: author, body: 'B-comment secret' },
+  });
   commentB = cmB.id;
 });
 

@@ -17,7 +17,11 @@ import { fmtDate, fmtMoney } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ManagerLeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ManagerLeadDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const session = await requireManager();
   const { id } = await params;
   const lead = await getManagerLead(prisma, session, id);
@@ -25,7 +29,9 @@ export default async function ManagerLeadDetailPage({ params }: { params: Promis
 
   // Этап 7 (ФТ-3.2): блок задач лида — только при включённых внутренних задачах.
   const tasksEnabled = isFeatureEnabled('internal_tasks');
-  const linkedTasks = tasksEnabled ? await listLinkedTasks(prisma, session, { leadId: lead.id }) : [];
+  const linkedTasks = tasksEnabled
+    ? await listLinkedTasks(prisma, session, { leadId: lead.id })
+    : [];
 
   const candidates = session.companyId
     ? (await listCompanyManagers(prisma, session.companyId))
@@ -40,7 +46,7 @@ export default async function ManagerLeadDetailPage({ params }: { params: Promis
     manual: 'создан вручную',
     website: 'сайт',
     call: 'входящий звонок',
-    inbound_message: 'обращение из внешнего канала'
+    inbound_message: 'обращение из внешнего канала',
   };
   const sourceLink = lead.sourceRequestId
     ? { href: '/manager/requests', label: 'открыть заявки' }
@@ -66,32 +72,32 @@ export default async function ManagerLeadDetailPage({ params }: { params: Promis
       '1С',
       lead.pushedToOneCAt
         ? `отправлено ${fmtDate(lead.pushedToOneCAt)}, №${lead.externalIdInOneC ?? '—'}`
-        : 'не отправлялся'
-    ]
+        : 'не отправлялся',
+    ],
   ];
 
   return (
-    <div className='space-y-5'>
+    <div className="space-y-5">
       {/* Этап 11 PR-2 (ФТ-15.6): цепочка обращение → лид. */}
       <Breadcrumbs
         items={buildLeadBreadcrumbs({
           title: lead.clientCompanyName,
-          sourceRequest: lead.sourceRequestId
-            ? { id: lead.sourceRequestId, subject: null }
-            : null
+          sourceRequest: lead.sourceRequestId ? { id: lead.sourceRequestId, subject: null } : null,
         })}
       />
       <div>
-        <Link href='/manager/leads' className='text-sm text-gray-500 hover:text-[#F97316]'>← Все заявки</Link>
-        <div className='mt-1 flex items-center gap-3'>
-          <h1 className='text-2xl font-semibold text-[#111111]'>{lead.clientCompanyName}</h1>
+        <Link href="/manager/leads" className="text-sm text-gray-500 hover:text-[#F97316]">
+          ← Все заявки
+        </Link>
+        <div className="mt-1 flex items-center gap-3">
+          <h1 className="text-2xl font-semibold text-[#111111]">{lead.clientCompanyName}</h1>
           <LeadStatusBadge status={lead.status} />
         </div>
-        <p className='text-sm text-gray-600 mt-0.5'>{lead.subject}</p>
+        <p className="text-sm text-gray-600 mt-0.5">{lead.subject}</p>
       </div>
 
-      <div className='rounded-xl border border-gray-200 p-4'>
-        <h2 className='text-sm font-semibold text-[#111111] mb-2'>Действия</h2>
+      <div className="rounded-xl border border-gray-200 p-4">
+        <h2 className="text-sm font-semibold text-[#111111] mb-2">Действия</h2>
         <ManagerLeadActions
           leadId={lead.id}
           status={lead.status}
@@ -103,7 +109,7 @@ export default async function ManagerLeadDetailPage({ params }: { params: Promis
         {/* B3: отправлять можно лид в любом статусе (ручная кнопка, решение владельца);
             скрываем только уже отправленный. */}
         {lead.pushedToOneCAt === null && (
-          <div className='mt-3'>
+          <div className="mt-3">
             <PushLeadButton leadId={lead.id} />
           </div>
         )}
@@ -111,25 +117,25 @@ export default async function ManagerLeadDetailPage({ params }: { params: Promis
           lead.status !== 'promoted_to_order' &&
           lead.status !== 'promoted_to_deal' &&
           lead.status !== 'rejected' && (
-          <p className='text-xs text-gray-500 mt-2'>
-            Чтобы преобразовать заявку в заказ, к ней должна быть привязана организация.
-          </p>
-        )}
+            <p className="text-xs text-gray-500 mt-2">
+              Чтобы преобразовать заявку в заказ, к ней должна быть привязана организация.
+            </p>
+          )}
         {lead.rejectedReason && (
-          <p className='text-sm text-gray-600 mt-2'>Причина отклонения: {lead.rejectedReason}</p>
+          <p className="text-sm text-gray-600 mt-2">Причина отклонения: {lead.rejectedReason}</p>
         )}
       </div>
 
-      <dl className='rounded-xl border border-gray-200 divide-y divide-gray-100'>
+      <dl className="rounded-xl border border-gray-200 divide-y divide-gray-100">
         {rows.map(([k, v]) => (
-          <div key={k} className='flex px-4 py-2.5 text-sm'>
-            <dt className='w-44 shrink-0 text-gray-500'>{k}</dt>
-            <dd className='text-[#111111]'>
+          <div key={k} className="flex px-4 py-2.5 text-sm">
+            <dt className="w-44 shrink-0 text-gray-500">{k}</dt>
+            <dd className="text-[#111111]">
               {v}
               {k === 'Источник' && sourceLink && (
                 <>
                   {' · '}
-                  <Link href={sourceLink.href} className='text-[#F97316] hover:underline'>
+                  <Link href={sourceLink.href} className="text-[#F97316] hover:underline">
                     {sourceLink.label}
                   </Link>
                 </>
@@ -140,16 +146,20 @@ export default async function ManagerLeadDetailPage({ params }: { params: Promis
       </dl>
 
       {lead.notes && (
-        <div className='rounded-xl border border-gray-200 p-4'>
-          <h2 className='text-sm font-semibold text-[#111111] mb-1'>Примечания</h2>
-          <p className='text-sm text-gray-700 whitespace-pre-wrap'>{lead.notes}</p>
+        <div className="rounded-xl border border-gray-200 p-4">
+          <h2 className="text-sm font-semibold text-[#111111] mb-1">Примечания</h2>
+          <p className="text-sm text-gray-700 whitespace-pre-wrap">{lead.notes}</p>
         </div>
       )}
 
       {tasksEnabled && (
-        <div className='rounded-xl border border-gray-200 p-4'>
-          <h2 className='text-sm font-semibold text-[#111111] mb-2'>Задачи</h2>
-          <LinkedTasksPanel link={{ leadId: lead.id }} tasks={linkedTasks} currentUserId={session.sub} />
+        <div className="rounded-xl border border-gray-200 p-4">
+          <h2 className="text-sm font-semibold text-[#111111] mb-2">Задачи</h2>
+          <LinkedTasksPanel
+            link={{ leadId: lead.id }}
+            tasks={linkedTasks}
+            currentUserId={session.sub}
+          />
         </div>
       )}
     </div>

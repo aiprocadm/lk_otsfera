@@ -36,13 +36,21 @@ const partner = { name: 'ПромТест' };
 
 describe('renderStatementXlsx', () => {
   it('returns a non-empty Buffer', async () => {
-    const buf = await renderStatementXlsx({ statement: baseStatement as any, items: baseItems as any, partner });
+    const buf = await renderStatementXlsx({
+      statement: baseStatement as any,
+      items: baseItems as any,
+      partner,
+    });
     expect(Buffer.isBuffer(buf)).toBe(true);
     expect(buf.length).toBeGreaterThan(1000);
   });
 
   it('Items sheet has N+1 rows (header + items)', async () => {
-    const buf = await renderStatementXlsx({ statement: baseStatement as any, items: baseItems as any, partner });
+    const buf = await renderStatementXlsx({
+      statement: baseStatement as any,
+      items: baseItems as any,
+      partner,
+    });
     const wb = await loadXlsxWorkbook(buf);
     const sheet = wb.getWorksheet('Items');
     expect(sheet).toBeDefined();
@@ -51,7 +59,11 @@ describe('renderStatementXlsx', () => {
   });
 
   it('Summary sheet exists with partner name', async () => {
-    const buf = await renderStatementXlsx({ statement: baseStatement as any, items: baseItems as any, partner });
+    const buf = await renderStatementXlsx({
+      statement: baseStatement as any,
+      items: baseItems as any,
+      partner,
+    });
     const wb = await loadXlsxWorkbook(buf);
     const summary = wb.getWorksheet('Summary');
     expect(summary).toBeDefined();
@@ -63,7 +75,11 @@ describe('renderStatementXlsx', () => {
 
   it('handles empty items list', async () => {
     const buf = await renderStatementXlsx({
-      statement: { ...baseStatement, totalBaseAmount: 0 as any, totalCommissionAmount: 0 as any } as any,
+      statement: {
+        ...baseStatement,
+        totalBaseAmount: 0 as any,
+        totalCommissionAmount: 0 as any,
+      } as any,
       items: [],
       partner,
     });

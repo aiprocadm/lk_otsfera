@@ -18,34 +18,67 @@ let leadOwnM1: string, leadOwnM2: string, leadManagedOrg: string, leadUnassigned
 let leadNoPartner: string;
 
 const profile = (leads: SessionAccessProfile['leads']): SessionAccessProfile => ({
-  id: 'p', name: 'Продажи', orders: 'own', organizations: 'own', threads: 'own',
-  documents: 'own', finance: 'own', leads, tasks: 'all', capabilities: []
+  id: 'p',
+  name: 'Продажи',
+  orders: 'own',
+  organizations: 'own',
+  threads: 'own',
+  documents: 'own',
+  finance: 'own',
+  leads,
+  tasks: 'all',
+  capabilities: [],
 });
 
 const m1Session = (leads?: SessionAccessProfile['leads']): SessionPayload =>
-  ({ sub: m1, role: 'manager', companyId, managedOrgIds: [orgManaged], ...(leads ? { accessProfile: profile(leads) } : {}) } as unknown as SessionPayload);
+  ({
+    sub: m1,
+    role: 'manager',
+    companyId,
+    managedOrgIds: [orgManaged],
+    ...(leads ? { accessProfile: profile(leads) } : {}),
+  }) as unknown as SessionPayload;
 
 beforeAll(async () => {
   prisma = new PrismaClient();
   companyId = (await prisma.company.create({ data: { name: `g2co-${STAMP}` } })).id;
-  partnerId = (await prisma.partner.create({ data: { name: `g2p-${STAMP}`, slug: `g2p-${STAMP}` } })).id;
-  m1 = (await prisma.user.create({ data: { email: `g2m1-${STAMP}@t.local`, name: 'M1', role: 'manager', companyId } })).id;
-  m2 = (await prisma.user.create({ data: { email: `g2m2-${STAMP}@t.local`, name: 'M2', role: 'manager', companyId } })).id;
-  orgManaged = (await prisma.organization.create({ data: { name: `g2org-${STAMP}`, companyId } })).id;
-  await prisma.organizationManager.create({ data: { organizationId: orgManaged, userId: m1, isActive: true } });
+  partnerId = (
+    await prisma.partner.create({ data: { name: `g2p-${STAMP}`, slug: `g2p-${STAMP}` } })
+  ).id;
+  m1 = (
+    await prisma.user.create({
+      data: { email: `g2m1-${STAMP}@t.local`, name: 'M1', role: 'manager', companyId },
+    })
+  ).id;
+  m2 = (
+    await prisma.user.create({
+      data: { email: `g2m2-${STAMP}@t.local`, name: 'M2', role: 'manager', companyId },
+    })
+  ).id;
+  orgManaged = (await prisma.organization.create({ data: { name: `g2org-${STAMP}`, companyId } }))
+    .id;
+  await prisma.organizationManager.create({
+    data: { organizationId: orgManaged, userId: m1, isActive: true },
+  });
 
-  const mkLead = async (over: { assignedManagerId?: string; organizationId?: string; name: string }) =>
-    (await prisma.lead.create({
-      data: {
-        partnerId,
-        createdByUserId: m1,
-        clientCompanyName: over.name,
-        clientContactName: 'Контакт',
-        subject: 'Запрос',
-        ...(over.assignedManagerId ? { assignedManagerId: over.assignedManagerId } : {}),
-        ...(over.organizationId ? { organizationId: over.organizationId } : {})
-      }
-    })).id;
+  const mkLead = async (over: {
+    assignedManagerId?: string;
+    organizationId?: string;
+    name: string;
+  }) =>
+    (
+      await prisma.lead.create({
+        data: {
+          partnerId,
+          createdByUserId: m1,
+          clientCompanyName: over.name,
+          clientContactName: 'Контакт',
+          subject: 'Запрос',
+          ...(over.assignedManagerId ? { assignedManagerId: over.assignedManagerId } : {}),
+          ...(over.organizationId ? { organizationId: over.organizationId } : {}),
+        },
+      })
+    ).id;
 
   leadOwnM1 = await mkLead({ assignedManagerId: m1, name: `own-m1-${STAMP}` });
   leadOwnM2 = await mkLead({ assignedManagerId: m2, name: `own-m2-${STAMP}` });
@@ -53,15 +86,17 @@ beforeAll(async () => {
   leadUnassigned = await mkLead({ name: `unassigned-${STAMP}` });
 
   // Лид, заведённый сотрудником вручную: партнёра у него нет вовсе (ФТ-1.6).
-  leadNoPartner = (await prisma.lead.create({
-    data: {
-      createdByUserId: m1,
-      assignedManagerId: m1,
-      clientCompanyName: `no-partner-${STAMP}`,
-      clientContactName: 'Контакт',
-      subject: 'Запрос без партнёра'
-    }
-  })).id;
+  leadNoPartner = (
+    await prisma.lead.create({
+      data: {
+        createdByUserId: m1,
+        assignedManagerId: m1,
+        clientCompanyName: `no-partner-${STAMP}`,
+        clientContactName: 'Контакт',
+        subject: 'Запрос без партнёра',
+      },
+    })
+  ).id;
 });
 
 afterAll(async () => {
@@ -77,7 +112,9 @@ afterAll(async () => {
 
 async function idsFor(session?: SessionPayload): Promise<string[]> {
   const { rows } = await listManagerLeads(prisma, { session, take: 100 });
-  return rows.map((r) => r.id).filter((id) => [leadOwnM1, leadOwnM2, leadManagedOrg, leadUnassigned].includes(id));
+  return rows
+    .map((r) => r.id)
+    .filter((id) => [leadOwnM1, leadOwnM2, leadManagedOrg, leadUnassigned].includes(id));
 }
 
 describe('listManagerLeads — G2 leads-scope', () => {
@@ -104,7 +141,11 @@ describe('listManagerLeads — G2 leads-scope', () => {
   });
 
   it('own + status-фильтр композятся (AND, не затирают друг друга)', async () => {
-    const { rows } = await listManagerLeads(prisma, { session: m1Session('own'), status: 'new', take: 100 });
+    const { rows } = await listManagerLeads(prisma, {
+      session: m1Session('own'),
+      status: 'new',
+      take: 100,
+    });
     const ids = rows.map((r) => r.id).filter((id) => id === leadOwnM1 || id === leadOwnM2);
     expect(ids).toEqual([leadOwnM1]);
   });

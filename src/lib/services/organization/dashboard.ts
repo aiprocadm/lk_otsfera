@@ -48,25 +48,25 @@ export async function kpis(
     prisma.order.count({
       where: {
         organizationId,
-        executionStatus: { in: ['pending', 'in_progress'] }
-      }
+        executionStatus: { in: ['pending', 'in_progress'] },
+      },
     }),
     // Сумма линейна → SQL SUM вместо выборки всех строк в JS (R2).
     // Decimal-канон сохранён: Prisma возвращает _sum Decimal'ом.
     prisma.order.aggregate({
       where: {
         organizationId,
-        financialStatus: { in: ['billed', 'partially_paid'] }
+        financialStatus: { in: ['billed', 'partially_paid'] },
       },
-      _sum: { totalAmount: true, paidAmount: true }
+      _sum: { totalAmount: true, paidAmount: true },
     }),
     prisma.student.count({ where: { organizationId } }),
     prisma.document.count({
       where: {
         ...organizationChannelWhere(organizationId),
-        createdAt: { gte: since30 }
-      }
-    })
+        createdAt: { gte: since30 },
+      },
+    }),
   ]);
 
   const outstanding = (outstandingAgg._sum.totalAmount ?? new Prisma.Decimal(0)).minus(
@@ -77,7 +77,7 @@ export async function kpis(
     activeOrders,
     outstandingAmount: outstanding.toFixed(2),
     studentsCount,
-    recentDocumentsCount
+    recentDocumentsCount,
   };
 }
 
@@ -96,11 +96,11 @@ export async function attention(
         organizationId,
         executionStatus: { in: ['pending', 'in_progress'] },
         financialStatus: { in: ['billed', 'partially_paid'] },
-        updatedAt: { lt: sevenDaysAgo }
+        updatedAt: { lt: sevenDaysAgo },
       },
       orderBy: { updatedAt: 'asc' },
       take: ATTENTION_CAP,
-      select: { id: true, orderNumber: true, title: true, totalAmount: true, paidAmount: true }
+      select: { id: true, orderNumber: true, title: true, totalAmount: true, paidAmount: true },
     }),
     // Acts pending signature: created more than 3 days ago and not signed
     // orderId: { not: null } — order-less docs must not enter this order-centric feed
@@ -110,23 +110,23 @@ export async function attention(
         type: 'act',
         signedAt: null,
         createdAt: { lt: threeDaysAgo },
-        orderId: { not: null }
+        orderId: { not: null },
       },
       orderBy: { createdAt: 'asc' },
       take: ATTENTION_CAP,
-      select: { id: true, name: true, orderId: true, order: { select: { orderNumber: true } } }
+      select: { id: true, name: true, orderId: true, order: { select: { orderNumber: true } } },
     }),
     // Completed orders but not yet closed
     prisma.order.findMany({
       where: {
         organizationId,
         executionStatus: 'completed',
-        closedAt: null
+        closedAt: null,
       },
       orderBy: { updatedAt: 'asc' },
       take: ATTENTION_CAP,
-      select: { id: true, orderNumber: true, title: true }
-    })
+      select: { id: true, orderNumber: true, title: true },
+    }),
   ]);
 
   const items: OrgAttentionItem[] = [
@@ -136,7 +136,7 @@ export async function attention(
       orderId: o.id,
       title: `Счёт по заказу ${o.orderNumber ?? o.title} ждёт оплаты`,
       meta: fmtMoney(o.totalAmount.minus(o.paidAmount).toNumber()),
-      severity: 'urgent'
+      severity: 'urgent',
     })),
     ...unsignedActs.map((d): OrgAttentionItem => ({
       id: `act-${d.id}`,
@@ -144,15 +144,15 @@ export async function attention(
       orderId: d.orderId,
       title: `Акт «${d.name}» требует подписания`,
       meta: d.order?.orderNumber ?? undefined,
-      severity: 'warn'
+      severity: 'warn',
     })),
     ...completedOpen.map((o): OrgAttentionItem => ({
       id: `closed-${o.id}`,
       kind: 'completed_open',
       orderId: o.id,
       title: `Заказ ${o.orderNumber ?? o.title} выполнен — закрыть`,
-      severity: 'warn'
-    }))
+      severity: 'warn',
+    })),
   ];
 
   return { items };
@@ -170,13 +170,13 @@ export async function recentEvents(
       where: { ...organizationChannelWhere(organizationId), orderId: { not: null } },
       orderBy: { createdAt: 'desc' },
       take: fetchLimit,
-      select: { id: true, name: true, createdAt: true, orderId: true }
+      select: { id: true, name: true, createdAt: true, orderId: true },
     }),
     prisma.payment.findMany({
       where: { organizationId },
       orderBy: { paidAt: 'desc' },
       take: fetchLimit,
-      select: { id: true, amount: true, paidAt: true, orderId: true }
+      select: { id: true, amount: true, paidAt: true, orderId: true },
     }),
     // AuditLog не имеет relation к Order (entityId — строка), поэтому скоуп —
     // raw-join. Раньше бралась ГЛОБАЛЬНАЯ верхушка fetchLimit*2 с пост-фильтром
@@ -196,8 +196,8 @@ export async function recentEvents(
       where: { order: { organizationId } },
       orderBy: { createdAt: 'desc' },
       take: fetchLimit,
-      select: { id: true, createdAt: true, orderId: true, body: true }
-    })
+      select: { id: true, createdAt: true, orderId: true, body: true },
+    }),
   ]);
 
   const events: OrgEvent[] = [
@@ -206,29 +206,29 @@ export async function recentEvents(
       kind: 'document_published',
       orderId: d.orderId,
       title: `Загружен документ «${d.name}»`,
-      at: d.createdAt
+      at: d.createdAt,
     })),
     ...payments.map((p): OrgEvent => ({
       id: `pay-${p.id}`,
       kind: 'payment_received',
       orderId: p.orderId,
       title: `Получена оплата ${fmtMoney(Number(p.amount))}`,
-      at: p.paidAt
+      at: p.paidAt,
     })),
     ...statusAudits.map((a): OrgEvent => ({
       id: `audit-${a.id}`,
       kind: 'order_status_changed',
       orderId: a.entityId,
       title: 'Статус заказа изменён',
-      at: a.createdAt
+      at: a.createdAt,
     })),
     ...comments.map((c): OrgEvent => ({
       id: `comment-${c.id}`,
       kind: 'comment_posted',
       orderId: c.orderId,
       title: `Комментарий: ${c.body.slice(0, 80)}${c.body.length > 80 ? '…' : ''}`,
-      at: c.createdAt
-    }))
+      at: c.createdAt,
+    })),
   ];
 
   events.sort((a, b) => b.at.getTime() - a.at.getTime());
@@ -262,15 +262,15 @@ export async function recentEnrollments(
       createdAt: true,
       legacyCourseTitle: true,
       direction: { select: { name: true } },
-      _count: { select: { items: true } }
-    }
+      _count: { select: { items: true } },
+    },
   });
   return rows.map((r) => ({
     id: r.id,
     directionName: r.direction?.name ?? r.legacyCourseTitle ?? '—',
     studentCount: r._count.items,
     status: r.status,
-    createdAt: r.createdAt
+    createdAt: r.createdAt,
   }));
 }
 
@@ -288,6 +288,6 @@ export async function expiringCertificates(
   startOfToday.setHours(0, 0, 0, 0);
   const horizon = new Date(startOfToday.getTime() + EXPIRING_WITHIN_DAYS * 24 * 3600 * 1000);
   return prisma.certificate.count({
-    where: { organizationId, validUntil: { gte: startOfToday, lte: horizon } }
+    where: { organizationId, validUntil: { gte: startOfToday, lte: horizon } },
   });
 }

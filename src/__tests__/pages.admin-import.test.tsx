@@ -7,7 +7,7 @@ const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 
 vi.mock('@/components/import/import-form', () => ({
-  ImportForm: () => React.createElement('div', { 'data-testid': 'import-form' })
+  ImportForm: () => React.createElement('div', { 'data-testid': 'import-form' }),
 }));
 
 import AdminImportPage from '@/app/admin/import/page';

@@ -30,7 +30,7 @@ const MANAGER_ORDER_TYPES: ReadonlySet<string> = new Set([
   'document_uploaded_by_partner',
   'order_marked_paid_by_1c',
   'order_status_changed_by_manager',
-  'chat_message'
+  'chat_message',
 ]);
 
 /**
@@ -49,7 +49,11 @@ function localPathFromUrl(url: string): string | null {
   return u.pathname + u.search + u.hash;
 }
 
-export function notificationHref(role: NotificationRole, type: string, meta: unknown): string | null {
+export function notificationHref(
+  role: NotificationRole,
+  type: string,
+  meta: unknown
+): string | null {
   const m = meta !== null && typeof meta === 'object' ? (meta as Record<string, unknown>) : null;
 
   const url = m?.url;

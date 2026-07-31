@@ -72,7 +72,7 @@ export function buildFetchAction<T>(
         init = {
           method,
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
         };
       }
     }
@@ -103,10 +103,7 @@ export function buildFetchAction<T>(
 export function useFetchSubmit<T = object>(opts: UseFetchSubmitOptions<T>) {
   const { url, method, body, errorMap, onSuccess, refresh } = opts;
 
-  const action = useMemo(
-    () => buildFetchAction<T>({ url, method, body }),
-    [url, method, body]
-  );
+  const action = useMemo(() => buildFetchAction<T>({ url, method, body }), [url, method, body]);
 
   return useFormAction<T>({ action, errorMap, onSuccess, refresh });
 }

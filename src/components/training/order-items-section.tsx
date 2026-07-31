@@ -2,7 +2,19 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { TableShell, THead, Th, Tr, Td, Badge, Button, Select, Dialog, Field, Input } from '@/components/ui';
+import {
+  TableShell,
+  THead,
+  Th,
+  Tr,
+  Td,
+  Badge,
+  Button,
+  Select,
+  Dialog,
+  Field,
+  Input,
+} from '@/components/ui';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { toast } from '@/lib/ui/toast';
 import type { OrderItemRow } from '@/lib/services/training';
@@ -12,7 +24,7 @@ export const TRAINING_STATUS_RU: Record<string, string> = {
   pending: 'Ожидает',
   in_progress: 'Обучается',
   certificate_issued: 'Удостоверение выдано',
-  cancelled: 'Отменено'
+  cancelled: 'Отменено',
 };
 
 type Direction = { id: string; name: string };
@@ -33,7 +45,7 @@ type IssueCertState = {
 
 function IssueCertDialog({
   state,
-  onClose
+  onClose,
 }: {
   state: IssueCertState | null;
   onClose: () => void;
@@ -75,8 +87,8 @@ function IssueCertDialog({
           orderItemId: state!.itemId,
           number: number.trim(),
           issuedAt,
-          validUntil: validUntil || undefined
-        })
+          validUntil: validUntil || undefined,
+        }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -156,7 +168,7 @@ export function OrderItemsSection({ orderId, canEdit, items, directions, student
       const res = await fetch(`/api/manager/order-items/${itemId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trainingStatus })
+        body: JSON.stringify({ trainingStatus }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -177,9 +189,7 @@ export function OrderItemsSection({ orderId, canEdit, items, directions, student
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-[#111111]">
           Слушатели{' '}
-          {items.length > 0 && (
-            <span className="text-gray-400 font-normal">({items.length})</span>
-          )}
+          {items.length > 0 && <span className="text-gray-400 font-normal">({items.length})</span>}
         </h2>
         {canEdit && (
           <Button size="sm" onClick={() => setAddOpen(true)}>

@@ -21,8 +21,7 @@ export function AdminSidebar({ items }: { items: NavItem[] }) {
           </div>
           <ul className="space-y-0.5">
             {group.items.map((item) => {
-              const isActive =
-                pathname === item.href || pathname.startsWith(item.href + '/');
+              const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
               return (
                 <li key={item.href}>
                   <Link

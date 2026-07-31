@@ -5,11 +5,11 @@ import { render, screen, fireEvent } from '@testing-library/react';
 
 const { replace, get } = vi.hoisted(() => ({
   replace: vi.fn(),
-  get: vi.fn((...args: [string]) => (void args, null) as string | null)
+  get: vi.fn((...args: [string]) => (void args, null) as string | null),
 }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace }),
-  useSearchParams: () => ({ get })
+  useSearchParams: () => ({ get }),
 }));
 
 import { DealsFilter } from '@/components/partner/deals-filter';
@@ -30,9 +30,13 @@ describe('DealsFilter', () => {
   });
 
   it('initializes fields from the current search params', () => {
-    get.mockImplementation((key: string) => (key === 'search' ? 'абв' : key === 'execution' ? 'in_progress' : null));
+    get.mockImplementation((key: string) =>
+      key === 'search' ? 'абв' : key === 'execution' ? 'in_progress' : null
+    );
     render(React.createElement(DealsFilter));
-    expect((screen.getByPlaceholderText('Поиск по названию или номеру…') as HTMLInputElement).value).toBe('абв');
+    expect(
+      (screen.getByPlaceholderText('Поиск по названию или номеру…') as HTMLInputElement).value
+    ).toBe('абв');
     expect(screen.getByText('Сбросить')).toBeTruthy();
   });
 
@@ -78,6 +82,8 @@ describe('DealsFilter', () => {
     render(React.createElement(DealsFilter));
     fireEvent.click(screen.getByText('Сбросить'));
     expect(replace).toHaveBeenCalledWith('/partner/deals');
-    expect((screen.getByPlaceholderText('Поиск по названию или номеру…') as HTMLInputElement).value).toBe('');
+    expect(
+      (screen.getByPlaceholderText('Поиск по названию или номеру…') as HTMLInputElement).value
+    ).toBe('');
   });
 });

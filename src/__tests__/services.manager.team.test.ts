@@ -19,16 +19,16 @@ beforeAll(async () => {
   const company = await prisma.company.create({ data: { name: `MgrTeamC-${stamp}` } });
   companyId = company.id;
   const partner = await prisma.partner.create({
-    data: { name: `MgrTeamP-${stamp}`, commissionRate: 0.1 }
+    data: { name: `MgrTeamP-${stamp}`, commissionRate: 0.1 },
   });
   partnerId = partner.id;
 
   const orgWithMix = await prisma.organization.create({
-    data: { name: `MgrTeam-Mix-${stamp}`, partnerId, companyId }
+    data: { name: `MgrTeam-Mix-${stamp}`, partnerId, companyId },
   });
   orgWithMixId = orgWithMix.id;
   const orgEmpty = await prisma.organization.create({
-    data: { name: `MgrTeam-Empty-${stamp}`, partnerId, companyId }
+    data: { name: `MgrTeam-Empty-${stamp}`, partnerId, companyId },
   });
   orgEmptyId = orgEmpty.id;
 
@@ -37,8 +37,8 @@ beforeAll(async () => {
       email: `mgr-team-active-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Active Mgr',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   activeUserId = activeUser.id;
   const inactiveUser = await prisma.user.create({
@@ -46,8 +46,8 @@ beforeAll(async () => {
       email: `mgr-team-inactive-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Old Mgr',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   inactiveUserId = inactiveUser.id;
   const mostRecentInactiveUser = await prisma.user.create({
@@ -55,8 +55,8 @@ beforeAll(async () => {
       email: `mgr-team-recent-inactive-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Recent Old Mgr',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   mostRecentInactiveUserId = mostRecentInactiveUser.id;
 
@@ -65,8 +65,8 @@ beforeAll(async () => {
     data: {
       organizationId: orgWithMixId,
       userId: activeUserId,
-      isActive: true
-    }
+      isActive: true,
+    },
   });
   // First-deactivated (older deactivatedAt).
   await prisma.organizationManager.create({
@@ -74,8 +74,8 @@ beforeAll(async () => {
       organizationId: orgWithMixId,
       userId: inactiveUserId,
       isActive: false,
-      deactivatedAt: new Date('2026-01-01T10:00:00Z')
-    }
+      deactivatedAt: new Date('2026-01-01T10:00:00Z'),
+    },
   });
   // Most-recently-deactivated.
   await prisma.organizationManager.create({
@@ -83,8 +83,8 @@ beforeAll(async () => {
       organizationId: orgWithMixId,
       userId: mostRecentInactiveUserId,
       isActive: false,
-      deactivatedAt: new Date('2026-04-15T10:00:00Z')
-    }
+      deactivatedAt: new Date('2026-04-15T10:00:00Z'),
+    },
   });
 });
 
@@ -128,9 +128,6 @@ describe('services/manager/team — listManagersForOrg', () => {
 
   it('sorts inactive rows by deactivatedAt desc (most recent first)', async () => {
     const { inactive } = await listManagersForOrg(prisma, orgWithMixId);
-    expect(inactive.map((r) => r.userId)).toEqual([
-      mostRecentInactiveUserId,
-      inactiveUserId
-    ]);
+    expect(inactive.map((r) => r.userId)).toEqual([mostRecentInactiveUserId, inactiveUserId]);
   });
 });

@@ -12,7 +12,7 @@ import { useStaffChatPolling, type StaffPolledRow } from '@/hooks/useStaffChatPo
 function jsonResponse(body: unknown, ok = true): Response {
   return {
     ok,
-    json: () => Promise.resolve(body)
+    json: () => Promise.resolve(body),
   } as unknown as Response;
 }
 
@@ -26,7 +26,7 @@ function makeRow(id: string, createdAt: string): StaffPolledRow {
     attachmentName: null,
     scanStatus: 'none',
     createdAt,
-    reactions: []
+    reactions: [],
   };
 }
 
@@ -34,7 +34,7 @@ function makeRow(id: string, createdAt: string): StaffPolledRow {
 function setVisibility(state: DocumentVisibilityState): void {
   Object.defineProperty(document, 'visibilityState', {
     configurable: true,
-    get: () => state
+    get: () => state,
   });
 }
 
@@ -109,7 +109,8 @@ describe('useStaffChatPolling — real hook lifecycle', () => {
     const onNew = vi.fn();
 
     const { rerender } = renderHook(
-      ({ cursor }: { cursor: string | null }) => useStaffChatPolling('conv-abc', cursor, onNew, 1000),
+      ({ cursor }: { cursor: string | null }) =>
+        useStaffChatPolling('conv-abc', cursor, onNew, 1000),
       { initialProps: { cursor: null as string | null } }
     );
 
@@ -137,7 +138,8 @@ describe('useStaffChatPolling — real hook lifecycle', () => {
     const onNewB = vi.fn();
 
     const { rerender } = renderHook(
-      ({ cb }: { cb: (r: StaffPolledRow[]) => void }) => useStaffChatPolling('conv-abc', null, cb, 1000),
+      ({ cb }: { cb: (r: StaffPolledRow[]) => void }) =>
+        useStaffChatPolling('conv-abc', null, cb, 1000),
       { initialProps: { cb: onNewA as (r: StaffPolledRow[]) => void } }
     );
 

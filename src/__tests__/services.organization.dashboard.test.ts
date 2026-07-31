@@ -12,16 +12,16 @@ let userId: string;
 beforeAll(async () => {
   prisma = new PrismaClient();
   const partner = await prisma.partner.create({
-    data: { name: 'OrgDashP-' + Date.now(), commissionRate: 0.1 }
+    data: { name: 'OrgDashP-' + Date.now(), commissionRate: 0.1 },
   });
   partnerId = partner.id;
   const company = await prisma.company.create({ data: { name: 'OrgDashC-' + Date.now() } });
   companyId = company.id;
   const orgA = await prisma.organization.create({
-    data: { name: 'OrgA-' + Date.now(), partnerId, companyId }
+    data: { name: 'OrgA-' + Date.now(), partnerId, companyId },
   });
   const orgB = await prisma.organization.create({
-    data: { name: 'OrgB-' + Date.now(), partnerId, companyId }
+    data: { name: 'OrgB-' + Date.now(), partnerId, companyId },
   });
   orgAId = orgA.id;
   orgBId = orgB.id;
@@ -30,8 +30,8 @@ beforeAll(async () => {
       email: `org-dash-${Date.now()}@t.local`,
       passwordHash: 'x',
       name: 'AuthorOrg',
-      role: 'admin'
-    }
+      role: 'admin',
+    },
   });
   userId = user.id;
 });
@@ -57,32 +57,47 @@ describe('organization dashboard service — kpis', () => {
       activeOrders: 0,
       outstandingAmount: '0.00',
       studentsCount: 0,
-      recentDocumentsCount: 0
+      recentDocumentsCount: 0,
     });
   });
 
   it('counts active orders and sums outstanding (org-scoped)', async () => {
     await prisma.order.create({
       data: {
-        title: 'A-open-1', companyId, partnerId, organizationId: orgAId,
-        totalAmount: 100000, paidAmount: 0,
-        executionStatus: 'in_progress', financialStatus: 'billed'
-      }
+        title: 'A-open-1',
+        companyId,
+        partnerId,
+        organizationId: orgAId,
+        totalAmount: 100000,
+        paidAmount: 0,
+        executionStatus: 'in_progress',
+        financialStatus: 'billed',
+      },
     });
     await prisma.order.create({
       data: {
-        title: 'A-open-2', companyId, partnerId, organizationId: orgAId,
-        totalAmount: 80000, paidAmount: 30000,
-        executionStatus: 'pending', financialStatus: 'partially_paid'
-      }
+        title: 'A-open-2',
+        companyId,
+        partnerId,
+        organizationId: orgAId,
+        totalAmount: 80000,
+        paidAmount: 30000,
+        executionStatus: 'pending',
+        financialStatus: 'partially_paid',
+      },
     });
     // foreign org order — must not affect orgA kpis
     await prisma.order.create({
       data: {
-        title: 'B-open', companyId, partnerId, organizationId: orgBId,
-        totalAmount: 500000, paidAmount: 0,
-        executionStatus: 'in_progress', financialStatus: 'billed'
-      }
+        title: 'B-open',
+        companyId,
+        partnerId,
+        organizationId: orgBId,
+        totalAmount: 500000,
+        paidAmount: 0,
+        executionStatus: 'in_progress',
+        financialStatus: 'billed',
+      },
     });
 
     const k = await kpis(prisma, orgAId);
@@ -92,10 +107,10 @@ describe('organization dashboard service — kpis', () => {
 
   it('counts students for the org', async () => {
     await prisma.student.create({
-      data: { email: `s1-${Date.now()}@t.local`, name: 'S1', organizationId: orgAId }
+      data: { email: `s1-${Date.now()}@t.local`, name: 'S1', organizationId: orgAId },
     });
     await prisma.student.create({
-      data: { email: `s2-${Date.now()}@t.local`, name: 'S2', organizationId: orgAId }
+      data: { email: `s2-${Date.now()}@t.local`, name: 'S2', organizationId: orgAId },
     });
     const k = await kpis(prisma, orgAId);
     expect(k.studentsCount).toBe(2);
@@ -104,15 +119,33 @@ describe('organization dashboard service — kpis', () => {
   it('counts recent (last 30 days) documents, excluding infected', async () => {
     const order = await prisma.order.create({
       data: {
-        title: 'A-doc-order', companyId, partnerId, organizationId: orgAId,
-        executionStatus: 'in_progress'
-      }
+        title: 'A-doc-order',
+        companyId,
+        partnerId,
+        organizationId: orgAId,
+        executionStatus: 'in_progress',
+      },
     });
     await prisma.document.create({
-      data: { name: 'd1', path: 'fake://1', mimeType: 'application/pdf', orderId: order.id, counterpartyType: 'organization', counterpartyId: orgAId }
+      data: {
+        name: 'd1',
+        path: 'fake://1',
+        mimeType: 'application/pdf',
+        orderId: order.id,
+        counterpartyType: 'organization',
+        counterpartyId: orgAId,
+      },
     });
     await prisma.document.create({
-      data: { name: 'd2', path: 'fake://2', mimeType: 'application/pdf', orderId: order.id, scanStatus: 'infected', counterpartyType: 'organization', counterpartyId: orgAId }
+      data: {
+        name: 'd2',
+        path: 'fake://2',
+        mimeType: 'application/pdf',
+        orderId: order.id,
+        scanStatus: 'infected',
+        counterpartyType: 'organization',
+        counterpartyId: orgAId,
+      },
     });
 
     const k = await kpis(prisma, orgAId);
@@ -130,10 +163,15 @@ describe('organization dashboard service — attention', () => {
     const eightDaysAgo = new Date(Date.now() - 8 * 24 * 3600 * 1000);
     const o = await prisma.order.create({
       data: {
-        title: 'A-billed-old', companyId, partnerId, organizationId: orgAId,
-        totalAmount: 50000, paidAmount: 0,
-        executionStatus: 'in_progress', financialStatus: 'billed'
-      }
+        title: 'A-billed-old',
+        companyId,
+        partnerId,
+        organizationId: orgAId,
+        totalAmount: 50000,
+        paidAmount: 0,
+        executionStatus: 'in_progress',
+        financialStatus: 'billed',
+      },
     });
     await prisma.order.update({ where: { id: o.id }, data: { updatedAt: eightDaysAgo } });
 
@@ -148,25 +186,31 @@ describe('organization dashboard service — recentEvents', () => {
   it('returns events from documents/payments/comments scoped to org', async () => {
     const order = await prisma.order.create({
       data: {
-        title: 'A-events-order', companyId, partnerId, organizationId: orgAId,
-        executionStatus: 'in_progress'
-      }
+        title: 'A-events-order',
+        companyId,
+        partnerId,
+        organizationId: orgAId,
+        executionStatus: 'in_progress',
+      },
     });
     await prisma.payment.create({
-      data: { organizationId: orgAId, orderId: order.id, amount: 1000, paidAt: new Date() }
+      data: { organizationId: orgAId, orderId: order.id, amount: 1000, paidAt: new Date() },
     });
     await prisma.comment.create({
-      data: { orderId: order.id, body: 'hello from org', authorId: userId }
+      data: { orderId: order.id, body: 'hello from org', authorId: userId },
     });
     // foreign org event — must not appear
     const otherOrder = await prisma.order.create({
       data: {
-        title: 'B-events-order', companyId, partnerId, organizationId: orgBId,
-        executionStatus: 'in_progress'
-      }
+        title: 'B-events-order',
+        companyId,
+        partnerId,
+        organizationId: orgBId,
+        executionStatus: 'in_progress',
+      },
     });
     await prisma.payment.create({
-      data: { organizationId: orgBId, orderId: otherOrder.id, amount: 9000, paidAt: new Date() }
+      data: { organizationId: orgBId, orderId: otherOrder.id, amount: 9000, paidAt: new Date() },
     });
 
     const evts = await recentEvents(prisma, orgAId, 50);
@@ -180,15 +224,21 @@ describe('organization dashboard service — recentEvents', () => {
   it('audit status events are scoped to the org at the SQL level (no starvation by a noisy tenant)', async () => {
     const order = await prisma.order.create({
       data: {
-        title: 'A-audit-order', companyId, partnerId, organizationId: orgAId,
-        executionStatus: 'in_progress'
-      }
+        title: 'A-audit-order',
+        companyId,
+        partnerId,
+        organizationId: orgAId,
+        executionStatus: 'in_progress',
+      },
     });
     const otherOrder = await prisma.order.create({
       data: {
-        title: 'B-audit-order', companyId, partnerId, organizationId: orgBId,
-        executionStatus: 'in_progress'
-      }
+        title: 'B-audit-order',
+        companyId,
+        partnerId,
+        organizationId: orgBId,
+        executionStatus: 'in_progress',
+      },
     });
     // Регресс R2 (starvation): старая реализация брала ГЛОБАЛЬНУЮ верхушку
     // fetchLimit*2 (=200 при take=100) с пост-фильтром. Чтобы тест честно
@@ -198,16 +248,22 @@ describe('organization dashboard service — recentEvents', () => {
     const orgAEventAt = new Date(Date.now() - 60 * 60 * 1000);
     await prisma.auditLog.create({
       data: {
-        action: 'order_status_in_progress', entity: 'order', entityId: order.id,
-        userId, createdAt: orgAEventAt
-      }
+        action: 'order_status_in_progress',
+        entity: 'order',
+        entityId: order.id,
+        userId,
+        createdAt: orgAEventAt,
+      },
     });
     const noisyBase = Date.now() - 30 * 60 * 1000;
     await prisma.auditLog.createMany({
       data: Array.from({ length: 201 }, (_, i) => ({
-        action: 'order_status_completed', entity: 'order', entityId: otherOrder.id,
-        userId, createdAt: new Date(noisyBase + i * 1000)
-      }))
+        action: 'order_status_completed',
+        entity: 'order',
+        entityId: otherOrder.id,
+        userId,
+        createdAt: new Date(noisyBase + i * 1000),
+      })),
     });
 
     const evts = await recentEvents(prisma, orgAId, 100);
@@ -224,9 +280,12 @@ describe('organization dashboard service — channel-isolation leak regression',
   it('partner-channel doc on org order is excluded from kpis.recentDocumentsCount', async () => {
     const order = await prisma.order.create({
       data: {
-        title: 'leak-test-order', companyId, partnerId, organizationId: orgAId,
-        executionStatus: 'in_progress'
-      }
+        title: 'leak-test-order',
+        companyId,
+        partnerId,
+        organizationId: orgAId,
+        executionStatus: 'in_progress',
+      },
     });
     // Partner-channel document — on the org's own order, counterparty = partner
     await prisma.document.create({
@@ -236,8 +295,8 @@ describe('organization dashboard service — channel-isolation leak regression',
         mimeType: 'application/pdf',
         orderId: order.id,
         counterpartyType: 'partner',
-        counterpartyId: partnerId
-      }
+        counterpartyId: partnerId,
+      },
     });
     // Org-channel document — should be counted
     await prisma.document.create({
@@ -247,13 +306,18 @@ describe('organization dashboard service — channel-isolation leak regression',
         mimeType: 'application/pdf',
         orderId: order.id,
         counterpartyType: 'organization',
-        counterpartyId: orgAId
-      }
+        counterpartyId: orgAId,
+      },
     });
 
     // Sanity: the partner doc IS on this order — an unscoped query would see it
     const partnerChannelCount = await prisma.document.count({
-      where: { orderId: order.id, counterpartyType: 'partner', counterpartyId: partnerId, scanStatus: { not: 'infected' } }
+      where: {
+        orderId: order.id,
+        counterpartyType: 'partner',
+        counterpartyId: partnerId,
+        scanStatus: { not: 'infected' },
+      },
     });
     expect(partnerChannelCount).toBeGreaterThanOrEqual(1);
 
@@ -264,7 +328,7 @@ describe('organization dashboard service — channel-isolation leak regression',
     // Delete the partner-channel doc and re-count — result must be the same
     // (proves the partner doc was never counted in the org dashboard)
     await prisma.document.deleteMany({
-      where: { orderId: order.id, counterpartyType: 'partner', counterpartyId: partnerId }
+      where: { orderId: order.id, counterpartyType: 'partner', counterpartyId: partnerId },
     });
     const kWithoutPartner = await kpis(prisma, orgAId);
     expect(kWithoutPartner.recentDocumentsCount).toBe(countWithPartner);
@@ -276,9 +340,12 @@ describe('organization dashboard service — channel-isolation leak regression',
   it('partner-channel doc on org order does NOT appear in recentEvents document feed', async () => {
     const order = await prisma.order.create({
       data: {
-        title: 'leak-events-order', companyId, partnerId, organizationId: orgAId,
-        executionStatus: 'in_progress'
-      }
+        title: 'leak-events-order',
+        companyId,
+        partnerId,
+        organizationId: orgAId,
+        executionStatus: 'in_progress',
+      },
     });
     // Partner-channel document — on the org's own order
     const partnerDoc = await prisma.document.create({
@@ -288,8 +355,8 @@ describe('organization dashboard service — channel-isolation leak regression',
         mimeType: 'application/pdf',
         orderId: order.id,
         counterpartyType: 'partner',
-        counterpartyId: partnerId
-      }
+        counterpartyId: partnerId,
+      },
     });
     // Org-channel document — must appear
     const orgDoc = await prisma.document.create({
@@ -299,8 +366,8 @@ describe('organization dashboard service — channel-isolation leak regression',
         mimeType: 'application/pdf',
         orderId: order.id,
         counterpartyType: 'organization',
-        counterpartyId: orgAId
-      }
+        counterpartyId: orgAId,
+      },
     });
 
     const evts = await recentEvents(prisma, orgAId, 100);

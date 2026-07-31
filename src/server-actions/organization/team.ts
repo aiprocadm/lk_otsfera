@@ -11,7 +11,7 @@ import {
   deactivateMember,
   reactivateMember,
   type OrgMemberErrorCode,
-  type InviteMemberResult
+  type InviteMemberResult,
 } from '@/lib/services/organization/team';
 import { sendOrgInviteEmail } from '@/lib/email/send';
 import { log } from '@/lib/logging';
@@ -27,18 +27,18 @@ const inviteSchema = z.object({
   organizationId: z.string().min(1),
   email: z.string().email(),
   name: z.string().min(1).max(200),
-  roleInOrg: z.enum(['admin', 'leader', 'member'])
+  roleInOrg: z.enum(['admin', 'leader', 'member']),
 });
 
 const roleSchema = z.object({
   organizationId: z.string().min(1),
   orgUserId: z.string().min(1),
-  newRole: z.enum(['admin', 'leader', 'member'])
+  newRole: z.enum(['admin', 'leader', 'member']),
 });
 
 const targetSchema = z.object({
   organizationId: z.string().min(1),
-  orgUserId: z.string().min(1)
+  orgUserId: z.string().min(1),
 });
 
 function readFormValue(formData: FormData, key: string): string {
@@ -46,9 +46,7 @@ function readFormValue(formData: FormData, key: string): string {
   return typeof v === 'string' ? v : '';
 }
 
-export async function inviteOrgMemberAction(
-  formData: FormData
-): Promise<
+export async function inviteOrgMemberAction(formData: FormData): Promise<
   ActionResult<{
     user: InviteMemberResult['user'];
     inviteUrl: string | null;
@@ -59,7 +57,7 @@ export async function inviteOrgMemberAction(
     organizationId: readFormValue(formData, 'organizationId'),
     email: readFormValue(formData, 'email'),
     name: readFormValue(formData, 'name'),
-    roleInOrg: readFormValue(formData, 'roleInOrg') || 'member'
+    roleInOrg: readFormValue(formData, 'roleInOrg') || 'member',
   });
   if (!parsed.success) {
     return { ok: false, error: 'validation' };
@@ -85,13 +83,13 @@ export async function inviteOrgMemberAction(
     try {
       const org = await prisma.organization.findUnique({
         where: { id: parsed.data.organizationId },
-        select: { name: true }
+        select: { name: true },
       });
       await sendOrgInviteEmail({
         to: parsed.data.email,
         organizationName: org?.name ?? 'организация',
         inviteUrl: res.inviteUrl,
-        invitedByName: session.name ?? undefined
+        invitedByName: session.name ?? undefined,
       });
     } catch (e) {
       log.warn('[organization/team] send invite email failed', e);
@@ -103,7 +101,7 @@ export async function inviteOrgMemberAction(
     ok: true,
     user: res.user,
     inviteUrl: res.inviteUrl,
-    alreadyHasPassword: res.alreadyHasPassword
+    alreadyHasPassword: res.alreadyHasPassword,
   };
 }
 
@@ -111,7 +109,7 @@ export async function updateOrgMemberRoleAction(formData: FormData): Promise<Act
   const parsed = roleSchema.safeParse({
     organizationId: readFormValue(formData, 'organizationId'),
     orgUserId: readFormValue(formData, 'orgUserId'),
-    newRole: readFormValue(formData, 'newRole')
+    newRole: readFormValue(formData, 'newRole'),
   });
   if (!parsed.success) {
     return { ok: false, error: 'validation' };
@@ -120,7 +118,14 @@ export async function updateOrgMemberRoleAction(formData: FormData): Promise<Act
   const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);
   const actorRole = isOrgAdmin(session, parsed.data.organizationId) ? 'admin' : 'leader';
 
-  const res = await updateMemberRole(prisma, parsed.data.organizationId, parsed.data.orgUserId, parsed.data.newRole, session.sub, actorRole);
+  const res = await updateMemberRole(
+    prisma,
+    parsed.data.organizationId,
+    parsed.data.orgUserId,
+    parsed.data.newRole,
+    session.sub,
+    actorRole
+  );
   if (!res.ok) return { ok: false, error: res.error };
   revalidatePath('/organization/team');
   return { ok: true };
@@ -129,7 +134,7 @@ export async function updateOrgMemberRoleAction(formData: FormData): Promise<Act
 export async function deactivateOrgMemberAction(formData: FormData): Promise<ActionResult> {
   const parsed = targetSchema.safeParse({
     organizationId: readFormValue(formData, 'organizationId'),
-    orgUserId: readFormValue(formData, 'orgUserId')
+    orgUserId: readFormValue(formData, 'orgUserId'),
   });
   if (!parsed.success) {
     return { ok: false, error: 'validation' };
@@ -138,7 +143,13 @@ export async function deactivateOrgMemberAction(formData: FormData): Promise<Act
   const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);
   const actorRole = isOrgAdmin(session, parsed.data.organizationId) ? 'admin' : 'leader';
 
-  const res = await deactivateMember(prisma, parsed.data.organizationId, parsed.data.orgUserId, session.sub, actorRole);
+  const res = await deactivateMember(
+    prisma,
+    parsed.data.organizationId,
+    parsed.data.orgUserId,
+    session.sub,
+    actorRole
+  );
   if (!res.ok) return { ok: false, error: res.error };
   revalidatePath('/organization/team');
   return { ok: true };
@@ -147,7 +158,7 @@ export async function deactivateOrgMemberAction(formData: FormData): Promise<Act
 export async function reactivateOrgMemberAction(formData: FormData): Promise<ActionResult> {
   const parsed = targetSchema.safeParse({
     organizationId: readFormValue(formData, 'organizationId'),
-    orgUserId: readFormValue(formData, 'orgUserId')
+    orgUserId: readFormValue(formData, 'orgUserId'),
   });
   if (!parsed.success) {
     return { ok: false, error: 'validation' };
@@ -156,7 +167,13 @@ export async function reactivateOrgMemberAction(formData: FormData): Promise<Act
   const session = await requireOrganizationAdminOrLeader(parsed.data.organizationId);
   const actorRole = isOrgAdmin(session, parsed.data.organizationId) ? 'admin' : 'leader';
 
-  const res = await reactivateMember(prisma, parsed.data.organizationId, parsed.data.orgUserId, session.sub, actorRole);
+  const res = await reactivateMember(
+    prisma,
+    parsed.data.organizationId,
+    parsed.data.orgUserId,
+    session.sub,
+    actorRole
+  );
   if (!res.ok) return { ok: false, error: res.error };
   revalidatePath('/organization/team');
   return { ok: true };

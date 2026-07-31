@@ -8,7 +8,7 @@ const EXECUTION_OPTIONS: { value: string; label: string }[] = [
   { value: 'in_progress', label: 'В работе' },
   { value: 'on_hold', label: 'На паузе' },
   { value: 'completed', label: 'Завершённые' },
-  { value: 'cancelled', label: 'Отменённые' }
+  { value: 'cancelled', label: 'Отменённые' },
 ];
 
 const FINANCIAL_OPTIONS: { value: string; label: string }[] = [
@@ -17,7 +17,7 @@ const FINANCIAL_OPTIONS: { value: string; label: string }[] = [
   { value: 'billed', label: 'Счёт выставлен' },
   { value: 'partially_paid', label: 'Частично оплачены' },
   { value: 'paid', label: 'Оплачены' },
-  { value: 'refunded', label: 'Возврат' }
+  { value: 'refunded', label: 'Возврат' },
 ];
 
 export function OrgOrdersFilter() {
@@ -55,16 +55,16 @@ export function OrgOrdersFilter() {
   const hasFilter = search || execution || financial;
 
   return (
-    <div className='bg-white border border-gray-200 rounded-xl p-3 flex flex-col md:flex-row md:items-center gap-2'>
+    <div className="bg-white border border-gray-200 rounded-xl p-3 flex flex-col md:flex-row md:items-center gap-2">
       <input
-        type='search'
+        type="search"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') apply();
         }}
-        placeholder='Поиск по названию или номеру заказа…'
-        className='border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:border-[#F97316]'
+        placeholder="Поиск по названию или номеру заказа…"
+        className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:border-[#F97316]"
       />
 
       <select
@@ -73,10 +73,12 @@ export function OrgOrdersFilter() {
           setExecution(e.target.value);
           apply({ execution: e.target.value });
         }}
-        className='border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'
+        className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]"
       >
         {EXECUTION_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
         ))}
       </select>
 
@@ -86,28 +88,30 @@ export function OrgOrdersFilter() {
           setFinancial(e.target.value);
           apply({ financial: e.target.value });
         }}
-        className='border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'
+        className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]"
       >
         {FINANCIAL_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
         ))}
       </select>
 
       <button
-        type='button'
+        type="button"
         onClick={() => apply()}
         disabled={isPending}
-        className='px-4 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C] disabled:opacity-50'
+        className="px-4 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C] disabled:opacity-50"
       >
         Найти
       </button>
 
       {hasFilter && (
         <button
-          type='button'
+          type="button"
           onClick={reset}
           disabled={isPending}
-          className='px-3 py-2 text-sm text-gray-600 hover:text-[#F97316]'
+          className="px-3 py-2 text-sm text-gray-600 hover:text-[#F97316]"
         >
           Сбросить
         </button>

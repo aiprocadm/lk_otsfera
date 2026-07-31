@@ -1,10 +1,5 @@
-import type {
-  OneCOrgDto,
-  OneCOrderDto,
-  OneCPaymentDto,
-  OneCDocumentDto
-} from './dto';
 import type { ExecutionStatus, FinancialStatus, DocumentType } from '@prisma/client';
+import type { OneCOrgDto, OneCOrderDto, OneCPaymentDto, OneCDocumentDto } from './dto';
 
 export type OrgUpsertInput = {
   externalId: string;
@@ -22,7 +17,7 @@ export function mapOrgDto(dto: OneCOrgDto): OrgUpsertInput {
     inn: dto.inn ?? null,
     kpp: dto.kpp ?? null,
     partnerExternalId: dto.partnerExternalId ?? null,
-    updatedAt: new Date(dto.updatedAt)
+    updatedAt: new Date(dto.updatedAt),
   };
 }
 
@@ -64,7 +59,7 @@ export function mapOrderDto(dto: OneCOrderDto): OrderUpsertInput {
     executionStatus: dto.executionStatus as ExecutionStatus,
     financialStatus: dto.financialStatus as FinancialStatus,
     productMix: dto.productMix,
-    updatedAt: new Date(dto.updatedAt)
+    updatedAt: new Date(dto.updatedAt),
   };
 }
 
@@ -96,7 +91,7 @@ export function mapPaymentDto(dto: OneCPaymentDto): PaymentUpsertInput {
     purpose: dto.purpose ?? null,
     paymentOrderNumber: dto.paymentOrderNumber ?? null,
     vatAmount: dto.vatAmount ?? null,
-    updatedAt: new Date(dto.updatedAt)
+    updatedAt: new Date(dto.updatedAt),
   };
 }
 
@@ -122,6 +117,6 @@ export function mapDocumentDto(dto: OneCDocumentDto): DocumentUpsertInput {
     size: dto.size,
     signedAt: dto.signedAt ? new Date(dto.signedAt) : null,
     downloadUrl: dto.downloadUrl,
-    updatedAt: new Date(dto.updatedAt)
+    updatedAt: new Date(dto.updatedAt),
   };
 }

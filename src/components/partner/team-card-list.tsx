@@ -1,13 +1,13 @@
 import React from 'react';
 import type { TeamRow } from '@/lib/services/partner/team';
-import { MemberRowActions } from './member-row-actions';
 import { InviteResendButtons } from '@/components/team/invite-resend-buttons';
 import { fmtLastLogin } from '@/lib/format';
+import { MemberRowActions } from './member-row-actions';
 
 export function TeamCardList({
   rows,
   orgs,
-  currentUserId
+  currentUserId,
 }: {
   rows: TeamRow[];
   orgs: { id: string; name: string }[];
@@ -16,7 +16,7 @@ export function TeamCardList({
   if (rows.length === 0) return null;
 
   return (
-    <ul className='md:hidden space-y-2'>
+    <ul className="md:hidden space-y-2">
       {rows.map((row) => (
         <li
           key={row.userId}
@@ -24,35 +24,37 @@ export function TeamCardList({
             !row.isActive ? 'opacity-60' : ''
           }`}
         >
-          <div className='flex items-start justify-between gap-2'>
-            <div className='flex-1 min-w-0'>
-              <div className='font-medium text-[#111111] truncate'>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-[#111111] truncate">
                 {row.name}
                 {row.userId === currentUserId && (
-                  <span className='ml-2 text-xs text-gray-400 font-normal'>(вы)</span>
+                  <span className="ml-2 text-xs text-gray-400 font-normal">(вы)</span>
                 )}
               </div>
-              <div className='text-xs text-gray-500 truncate'>{row.email}</div>
+              <div className="text-xs text-gray-500 truncate">{row.email}</div>
             </div>
             {row.isActive ? (
               <RoleBadge role={row.roleInPartner} />
             ) : (
-              <span className='text-xs text-gray-400 flex-shrink-0'>деактивирован</span>
+              <span className="text-xs text-gray-400 flex-shrink-0">деактивирован</span>
             )}
           </div>
 
-          <div className='mt-2 text-xs text-gray-500'>
+          <div className="mt-2 text-xs text-gray-500">
             <ScopeSummary assignedOrgIds={row.assignedOrgIds} orgs={orgs} />
           </div>
 
           {/* ФТ-11.3: мобильное зеркало колонки «Последний вход» из таблицы. */}
-          <div className='mt-1 text-xs text-gray-500'>Последний вход: {fmtLastLogin(row.lastLoginAt)}</div>
+          <div className="mt-1 text-xs text-gray-500">
+            Последний вход: {fmtLastLogin(row.lastLoginAt)}
+          </div>
 
           {row.isActive && row.invitePending && (
-            <div className='mt-2'>
-              <span className='text-xs text-amber-700'>Ожидает установки пароля</span>
+            <div className="mt-2">
+              <span className="text-xs text-amber-700">Ожидает установки пароля</span>
               {row.userId !== currentUserId && (
-                <div className='mt-0.5'>
+                <div className="mt-0.5">
                   <InviteResendButtons userId={row.userId} />
                 </div>
               )}
@@ -60,7 +62,7 @@ export function TeamCardList({
           )}
 
           {row.isActive && row.userId !== currentUserId && (
-            <div className='mt-3 flex justify-end'>
+            <div className="mt-3 flex justify-end">
               <MemberRowActions
                 userId={row.userId}
                 name={row.name}
@@ -77,11 +79,11 @@ export function TeamCardList({
 
 function RoleBadge({ role }: { role: 'admin' | 'manager' }) {
   return role === 'admin' ? (
-    <span className='inline-flex items-center px-2 py-0.5 bg-[#FFF7ED] text-[#9A3412] text-xs font-medium rounded flex-shrink-0'>
+    <span className="inline-flex items-center px-2 py-0.5 bg-[#FFF7ED] text-[#9A3412] text-xs font-medium rounded flex-shrink-0">
       Админ
     </span>
   ) : (
-    <span className='inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 text-xs font-medium rounded flex-shrink-0'>
+    <span className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 text-xs font-medium rounded flex-shrink-0">
       Менеджер
     </span>
   );
@@ -89,7 +91,7 @@ function RoleBadge({ role }: { role: 'admin' | 'manager' }) {
 
 function ScopeSummary({
   assignedOrgIds,
-  orgs
+  orgs,
 }: {
   assignedOrgIds: string[];
   orgs: { id: string; name: string }[];
@@ -106,8 +108,7 @@ function ScopeSummary({
   }
   return (
     <>
-      Доступ: {assignedOrgIds.length}{' '}
-      {assignedOrgIds.length < 5 ? 'организации' : 'организаций'}
+      Доступ: {assignedOrgIds.length} {assignedOrgIds.length < 5 ? 'организации' : 'организаций'}
     </>
   );
 }

@@ -9,7 +9,7 @@ export function MemberRowActions({
   userId,
   name,
   initialAssignedOrgIds,
-  orgs
+  orgs,
 }: {
   userId: string;
   name: string;
@@ -54,7 +54,7 @@ export function MemberRowActions({
       const res = await fetch(`/api/partner/team/${userId}`, {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ assignedOrgIds })
+        body: JSON.stringify({ assignedOrgIds }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -97,18 +97,18 @@ export function MemberRowActions({
 
   return (
     <>
-      <div className='inline-flex gap-1'>
+      <div className="inline-flex gap-1">
         <button
-          type='button'
+          type="button"
           onClick={openEdit}
-          className='px-2.5 py-1 text-xs border border-gray-200 rounded hover:bg-gray-50'
+          className="px-2.5 py-1 text-xs border border-gray-200 rounded hover:bg-gray-50"
         >
           Доступ
         </button>
         <button
-          type='button'
+          type="button"
           onClick={openDeactivate}
-          className='px-2.5 py-1 text-xs border border-red-100 text-red-700 rounded hover:bg-red-50'
+          className="px-2.5 py-1 text-xs border border-red-100 text-red-700 rounded hover:bg-red-50"
         >
           Удалить
         </button>
@@ -117,68 +117,66 @@ export function MemberRowActions({
       <Dialog
         open={editOpen}
         onClose={() => setEditOpen(false)}
-        title='Доступ к организациям'
-        size='lg'
+        title="Доступ к организациям"
+        size="lg"
         busy={submitting}
         error={error}
       >
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            saveOrgs();
+            void saveOrgs();
           }}
-          className='space-y-4'
+          className="space-y-4"
         >
-          <p className='text-xs text-gray-500'>{name}</p>
+          <p className="text-xs text-gray-500">{name}</p>
 
-          <label className='flex items-center gap-2 cursor-pointer'>
+          <label className="flex items-center gap-2 cursor-pointer">
             <input
-              type='checkbox'
+              type="checkbox"
               checked={allOrgs}
               onChange={(e) => setAllOrgs(e.target.checked)}
-              className='accent-[#F97316]'
+              className="accent-[#F97316]"
             />
-            <span className='text-sm text-[#111111]'>Доступ ко всем организациям партнёра</span>
+            <span className="text-sm text-[#111111]">Доступ ко всем организациям партнёра</span>
           </label>
 
           {!allOrgs && (
-            <div className='max-h-72 overflow-y-auto border border-gray-100 rounded-lg divide-y divide-gray-50'>
+            <div className="max-h-72 overflow-y-auto border border-gray-100 rounded-lg divide-y divide-gray-50">
               {orgs.length === 0 ? (
-                <div className='p-3 text-xs text-gray-500'>
-                  В портфеле нет организаций.
-                </div>
+                <div className="p-3 text-xs text-gray-500">В портфеле нет организаций.</div>
               ) : (
                 orgs.map((org) => (
                   <label
                     key={org.id}
-                    className='flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50'
+                    className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
                   >
                     <input
-                      type='checkbox'
+                      type="checkbox"
                       checked={selected.has(org.id)}
                       onChange={() => toggleOrg(org.id)}
-                      className='accent-[#F97316]'
+                      className="accent-[#F97316]"
                     />
-                    <span className='text-sm text-[#111111]'>{org.name}</span>
+                    <span className="text-sm text-[#111111]">{org.name}</span>
                   </label>
                 ))
               )}
             </div>
           )}
 
-          <div className='flex justify-end gap-2 pt-2 border-t border-gray-100'>
+          <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
             <button
-              type='button'
+              type="button"
               onClick={() => setEditOpen(false)}
-              className='px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50'
+              className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50"
               disabled={submitting}
             >
               Отмена
             </button>
             <button
-              type='submit'
+              type="submit"
               disabled={submitting || (!allOrgs && selected.size === 0)}
-              className='px-4 py-2 text-sm bg-[#F97316] text-white rounded-lg hover:bg-[#EA580C] disabled:opacity-50'
+              className="px-4 py-2 text-sm bg-[#F97316] text-white rounded-lg hover:bg-[#EA580C] disabled:opacity-50"
             >
               {submitting ? 'Сохранение…' : 'Сохранить'}
             </button>
@@ -189,31 +187,31 @@ export function MemberRowActions({
       <Dialog
         open={deactivateOpen}
         onClose={() => setDeactivateOpen(false)}
-        title='Деактивировать сотрудника?'
-        size='md'
+        title="Деактивировать сотрудника?"
+        size="md"
         busy={submitting}
         error={error}
       >
-        <div className='space-y-4'>
-          <p className='text-sm text-gray-500'>
-            <strong className='text-[#111111]'>{name}</strong> потеряет доступ к кабинету.
-            Историю и аудит это не затронет.
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">
+            <strong className="text-[#111111]">{name}</strong> потеряет доступ к кабинету. Историю и
+            аудит это не затронет.
           </p>
 
-          <div className='flex justify-end gap-2'>
+          <div className="flex justify-end gap-2">
             <button
-              type='button'
+              type="button"
               onClick={() => setDeactivateOpen(false)}
-              className='px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50'
+              className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50"
               disabled={submitting}
             >
               Отмена
             </button>
             <button
-              type='button'
+              type="button"
               onClick={deactivate}
               disabled={submitting}
-              className='px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50'
+              className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
             >
               {submitting ? 'Удаление…' : 'Деактивировать'}
             </button>

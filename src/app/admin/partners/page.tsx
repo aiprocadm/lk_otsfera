@@ -22,7 +22,7 @@ export default async function AdminPartnersPage({ searchParams }: { searchParams
     filter: sp.filter === 'norate' ? ('norate' as const) : undefined,
     q: sp.q?.trim() || undefined,
     take: PAGE_SIZE,
-    skip
+    skip,
   };
 
   const { rows, total } = await listPartners(prisma, filters);
@@ -34,7 +34,10 @@ export default async function AdminPartnersPage({ searchParams }: { searchParams
           <h1 className="text-2xl font-bold text-[#111111]">Партнёры</h1>
           <p className="text-sm text-gray-500 mt-0.5">{total} всего</p>
         </div>
-        <Link href="/admin/partners/new" className="px-3 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C]">
+        <Link
+          href="/admin/partners/new"
+          className="px-3 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C]"
+        >
           + Создать партнёра
         </Link>
       </div>
@@ -43,14 +46,22 @@ export default async function AdminPartnersPage({ searchParams }: { searchParams
 
       <PartnersTable rows={rows} />
 
-      {total > PAGE_SIZE && (
-        <Paginator skip={skip} take={PAGE_SIZE} total={total} sp={sp} />
-      )}
+      {total > PAGE_SIZE && <Paginator skip={skip} take={PAGE_SIZE} total={total} sp={sp} />}
     </div>
   );
 }
 
-function Paginator({ skip, take, total, sp }: { skip: number; take: number; total: number; sp: SP }) {
+function Paginator({
+  skip,
+  take,
+  total,
+  sp,
+}: {
+  skip: number;
+  take: number;
+  total: number;
+  sp: SP;
+}) {
   function url(s: number): string {
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries(sp)) if (v && k !== 'skip') p.set(k, v);
@@ -61,13 +72,25 @@ function Paginator({ skip, take, total, sp }: { skip: number; take: number; tota
   const pages = Math.max(1, Math.ceil(total / take));
   return (
     <div className="flex items-center justify-between text-sm text-gray-500">
-      <span>Страница {page} из {pages} · {total} всего</span>
+      <span>
+        Страница {page} из {pages} · {total} всего
+      </span>
       <div className="flex gap-2">
         {skip > 0 && (
-          <a href={url(Math.max(0, skip - take))} className="px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50">Назад</a>
+          <a
+            href={url(Math.max(0, skip - take))}
+            className="px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50"
+          >
+            Назад
+          </a>
         )}
         {skip + take < total && (
-          <a href={url(skip + take)} className="px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50">Вперёд</a>
+          <a
+            href={url(skip + take)}
+            className="px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50"
+          >
+            Вперёд
+          </a>
         )}
       </div>
     </div>

@@ -24,8 +24,7 @@ export type PendingRecordRow = {
 };
 
 export type ListPendingRecordsResult =
-  | { ok: true; records: PendingRecordRow[] }
-  | { ok: false; error: 'forbidden' };
+  { ok: true; records: PendingRecordRow[] } | { ok: false; error: 'forbidden' };
 
 /**
  * Последние отложенные записи 1С для /admin/sync. Dead-записи первыми
@@ -57,8 +56,7 @@ export async function listPendingRecords(
 }
 
 export type RequeueDeadRecordResult =
-  | { ok: true }
-  | { ok: false; error: 'forbidden' | 'not_found' | 'not_dead' };
+  { ok: true } | { ok: false; error: 'forbidden' | 'not_found' | 'not_dead' };
 
 /**
  * Возвращает dead-запись в очередь replay: status → 'pending', attempts → 0

@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { requireSession, requireRole, getStaffBadges } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   requireRole: vi.fn(),
-  getStaffBadges: vi.fn()
+  getStaffBadges: vi.fn(),
 }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));

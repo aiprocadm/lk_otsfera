@@ -15,17 +15,21 @@ import {
   updateEvent,
   deleteEvent,
   REMIND_MINUTES,
-  type CalendarEventInput
+  type CalendarEventInput,
 } from '@/lib/services/calendar/events';
 
 const manager = { sub: 'm1', role: 'manager', companyId: 'c1' } as unknown as SessionPayload;
-const managerNoCompany = { sub: 'm9', role: 'manager', companyId: null } as unknown as SessionPayload;
+const managerNoCompany = {
+  sub: 'm9',
+  role: 'manager',
+  companyId: null,
+} as unknown as SessionPayload;
 const partner = { sub: 'p1', role: 'partner', companyId: 'c1' } as unknown as SessionPayload;
 const ownLevelManager = {
   sub: 'm1',
   role: 'manager',
   companyId: 'c1',
-  accessProfile: { tasks: 'own' }
+  accessProfile: { tasks: 'own' },
 } as unknown as SessionPayload;
 
 const FUTURE = new Date('2099-07-20T10:00:00.000Z');
@@ -59,22 +63,22 @@ function makeTx(): Tx {
       create: vi.fn().mockResolvedValue({ id: 'e1', title: 'Встреча', startsAt: FUTURE }),
       findUnique: vi.fn(),
       update: vi.fn().mockResolvedValue({}),
-      delete: vi.fn().mockResolvedValue({})
+      delete: vi.fn().mockResolvedValue({}),
     },
     calendarEventAttendee: {
       findMany: vi.fn().mockResolvedValue([]),
       createMany: vi.fn().mockResolvedValue({ count: 0 }),
-      deleteMany: vi.fn().mockResolvedValue({ count: 0 })
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
     order: { findUnique: vi.fn() },
     organization: { findUnique: vi.fn() },
-    user: { count: vi.fn() }
+    user: { count: vi.fn() },
   };
 }
 
 function prismaFor(tx: Tx): PrismaClient {
   return {
-    $transaction: vi.fn().mockImplementation((fn: (t: Tx) => unknown) => fn(tx))
+    $transaction: vi.fn().mockImplementation((fn: (t: Tx) => unknown) => fn(tx)),
   } as unknown as PrismaClient;
 }
 
@@ -87,7 +91,7 @@ function existingRow(over: Record<string, unknown> = {}) {
     title: 'Старое',
     remindAt: null,
     reminderSentAt: null,
-    ...over
+    ...over,
   };
 }
 
@@ -95,28 +99,31 @@ beforeEach(() => vi.clearAllMocks());
 
 describe('createEvent', () => {
   it('staffGate: partner → forbidden; менеджер без companyId → forbidden', async () => {
-    expect(await createEvent({} as never, partner, baseInput())).toEqual({ ok: false, error: 'forbidden' });
+    expect(await createEvent({} as never, partner, baseInput())).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect(await createEvent({} as never, managerNoCompany, baseInput())).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 
   it('validation: пустой title', async () => {
     expect(await createEvent({} as never, manager, baseInput({ title: '   ' }))).toEqual({
       ok: false,
-      error: 'validation'
+      error: 'validation',
     });
   });
 
   it('validation: endsAt ≤ startsAt', async () => {
     expect(await createEvent({} as never, manager, baseInput({ endsAt: PAST }))).toEqual({
       ok: false,
-      error: 'validation'
+      error: 'validation',
     });
     expect(await createEvent({} as never, manager, baseInput({ endsAt: FUTURE }))).toEqual({
       ok: false,
-      error: 'validation'
+      error: 'validation',
     });
   });
 
@@ -141,12 +148,12 @@ describe('createEvent', () => {
         endsAt: FUTURE_END,
         allDay: false,
         remindMinutes: 15,
-        attendeeIds: ['u2', 'u2']
+        attendeeIds: ['u2', 'u2'],
       })
     );
     expect(res).toEqual({ ok: true, id: 'e1' });
     expect(tx.user.count).toHaveBeenCalledWith({
-      where: { id: { in: ['u2'] }, companyId: 'c1', role: { in: ['admin', 'manager'] } }
+      where: { id: { in: ['u2'] }, companyId: 'c1', role: { in: ['admin', 'manager'] } },
     });
     expect(tx.calendarEvent.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -160,11 +167,11 @@ describe('createEvent', () => {
         allDay: false,
         remindAt: new Date(FUTURE.getTime() - 15 * 60_000),
         linkedOrderId: null,
-        linkedOrganizationId: null
-      })
+        linkedOrganizationId: null,
+      }),
     });
     expect(tx.calendarEventAttendee.createMany).toHaveBeenCalledWith({
-      data: [{ eventId: 'e1', userId: 'u2' }]
+      data: [{ eventId: 'e1', userId: 'u2' }],
     });
     expect(recordAuditMock).toHaveBeenCalledWith(
       tx,
@@ -172,7 +179,7 @@ describe('createEvent', () => {
         userId: 'm1',
         action: 'calendar_event_created',
         entity: 'calendar_event',
-        entityId: 'e1'
+        entityId: 'e1',
       })
     );
   });
@@ -189,21 +196,23 @@ describe('createEvent', () => {
         location: null,
         endsAt: null,
         allDay: false,
-        remindAt: null
-      })
+        remindAt: null,
+      }),
     });
   });
 
   it('чужой linkedOrder → validation (нет заказа / чужая компания)', async () => {
     const tx = makeTx();
     tx.order.findUnique.mockResolvedValue(null);
-    expect(
-      await createEvent(prismaFor(tx), manager, baseInput({ linkedOrderId: 'o1' }))
-    ).toEqual({ ok: false, error: 'validation' });
+    expect(await createEvent(prismaFor(tx), manager, baseInput({ linkedOrderId: 'o1' }))).toEqual({
+      ok: false,
+      error: 'validation',
+    });
     tx.order.findUnique.mockResolvedValue({ companyId: 'c2' });
-    expect(
-      await createEvent(prismaFor(tx), manager, baseInput({ linkedOrderId: 'o1' }))
-    ).toEqual({ ok: false, error: 'validation' });
+    expect(await createEvent(prismaFor(tx), manager, baseInput({ linkedOrderId: 'o1' }))).toEqual({
+      ok: false,
+      error: 'validation',
+    });
   });
 
   it('чужая linkedOrganization → validation', async () => {
@@ -237,13 +246,13 @@ describe('createEvent', () => {
     );
     expect(res).toEqual({ ok: true, id: 'e1' });
     expect(tx.calendarEvent.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ linkedOrderId: 'o1', linkedOrganizationId: 'org1' })
+      data: expect.objectContaining({ linkedOrderId: 'o1', linkedOrganizationId: 'org1' }),
     });
   });
 
   it('не-доменная ошибка транзакции re-throw-ится', async () => {
     const prisma = {
-      $transaction: vi.fn().mockRejectedValue(new Error('boom'))
+      $transaction: vi.fn().mockRejectedValue(new Error('boom')),
     } as unknown as PrismaClient;
     await expect(createEvent(prisma, manager, baseInput())).rejects.toThrow('boom');
   });
@@ -253,11 +262,11 @@ describe('updateEvent', () => {
   it('staffGate: partner → forbidden; невалидный input → validation', async () => {
     expect(await updateEvent({} as never, partner, 'e1', baseInput())).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect(await updateEvent({} as never, manager, 'e1', baseInput({ title: '' }))).toEqual({
       ok: false,
-      error: 'validation'
+      error: 'validation',
     });
   });
 
@@ -266,7 +275,7 @@ describe('updateEvent', () => {
     tx.calendarEvent.findUnique.mockResolvedValue(null);
     expect(await updateEvent(prismaFor(tx), manager, 'ghost', baseInput())).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
   });
 
@@ -275,7 +284,7 @@ describe('updateEvent', () => {
     tx.calendarEvent.findUnique.mockResolvedValue(existingRow({ createdById: 'other' }));
     expect(await updateEvent(prismaFor(tx), ownLevelManager, 'e1', baseInput())).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
     expect(tx.calendarEvent.update).not.toHaveBeenCalled();
   });
@@ -287,7 +296,7 @@ describe('updateEvent', () => {
     expect(res).toEqual({ ok: true });
     expect(tx.calendarEvent.update).toHaveBeenCalledWith({
       where: { id: 'e1' },
-      data: expect.objectContaining({ remindAt: new Date(FUTURE.getTime() - 60 * 60_000) })
+      data: expect.objectContaining({ remindAt: new Date(FUTURE.getTime() - 60 * 60_000) }),
     });
     // reminderSentAt был null → rearm не нужен, ключа нет в data.
     expect(tx.calendarEvent.update.mock.calls[0][0].data).not.toHaveProperty('reminderSentAt');
@@ -297,7 +306,7 @@ describe('updateEvent', () => {
       expect.objectContaining({
         action: 'calendar_event_updated',
         entityId: 'e1',
-        before: { title: 'Старое' }
+        before: { title: 'Старое' },
       })
     );
   });
@@ -310,7 +319,7 @@ describe('updateEvent', () => {
     await updateEvent(prismaFor(tx), manager, 'e1', baseInput({ remindMinutes: 15 }));
     expect(tx.calendarEvent.update).toHaveBeenCalledWith({
       where: { id: 'e1' },
-      data: expect.objectContaining({ reminderSentAt: null })
+      data: expect.objectContaining({ reminderSentAt: null }),
     });
   });
 
@@ -320,7 +329,12 @@ describe('updateEvent', () => {
     tx1.calendarEvent.findUnique.mockResolvedValue(
       existingRow({ reminderSentAt: new Date('2026-01-01T00:00:00Z') })
     );
-    await updateEvent(prismaFor(tx1), manager, 'e1', baseInput({ startsAt: PAST, remindMinutes: 15 }));
+    await updateEvent(
+      prismaFor(tx1),
+      manager,
+      'e1',
+      baseInput({ startsAt: PAST, remindMinutes: 15 })
+    );
     expect(tx1.calendarEvent.update.mock.calls[0][0].data).not.toHaveProperty('reminderSentAt');
     // (б) remindMinutes null → nextRemindAt null
     const tx2 = makeTx();
@@ -345,10 +359,10 @@ describe('updateEvent', () => {
     );
     expect(res).toEqual({ ok: true });
     expect(tx.calendarEventAttendee.deleteMany).toHaveBeenCalledWith({
-      where: { eventId: 'e1', userId: { in: ['u1'] } }
+      where: { eventId: 'e1', userId: { in: ['u1'] } },
     });
     expect(tx.calendarEventAttendee.createMany).toHaveBeenCalledWith({
-      data: [{ eventId: 'e1', userId: 'u3' }]
+      data: [{ eventId: 'e1', userId: 'u3' }],
     });
   });
 
@@ -373,7 +387,7 @@ describe('updateEvent', () => {
 
   it('не-доменная ошибка re-throw-ится', async () => {
     const prisma = {
-      $transaction: vi.fn().mockRejectedValue(new Error('db down'))
+      $transaction: vi.fn().mockRejectedValue(new Error('db down')),
     } as unknown as PrismaClient;
     await expect(updateEvent(prisma, manager, 'e1', baseInput())).rejects.toThrow('db down');
   });
@@ -381,17 +395,26 @@ describe('updateEvent', () => {
 
 describe('deleteEvent', () => {
   it('staffGate: partner → forbidden', async () => {
-    expect(await deleteEvent({} as never, partner, 'e1')).toEqual({ ok: false, error: 'forbidden' });
+    expect(await deleteEvent({} as never, partner, 'e1')).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
   });
 
   it('не найдено → not_found; deny → not_found', async () => {
     const tx = makeTx();
     tx.calendarEvent.findUnique.mockResolvedValue(null);
-    expect(await deleteEvent(prismaFor(tx), manager, 'ghost')).toEqual({ ok: false, error: 'not_found' });
+    expect(await deleteEvent(prismaFor(tx), manager, 'ghost')).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
 
     const tx2 = makeTx();
     tx2.calendarEvent.findUnique.mockResolvedValue(existingRow({ companyId: 'c2' }));
-    expect(await deleteEvent(prismaFor(tx2), manager, 'e1')).toEqual({ ok: false, error: 'not_found' });
+    expect(await deleteEvent(prismaFor(tx2), manager, 'e1')).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
     expect(tx2.calendarEvent.delete).not.toHaveBeenCalled();
   });
 
@@ -407,14 +430,14 @@ describe('deleteEvent', () => {
         action: 'calendar_event_deleted',
         entity: 'calendar_event',
         entityId: 'e1',
-        before: { title: 'Старое' }
+        before: { title: 'Старое' },
       })
     );
   });
 
   it('не-доменная ошибка re-throw-ится', async () => {
     const prisma = {
-      $transaction: vi.fn().mockRejectedValue(new Error('crash'))
+      $transaction: vi.fn().mockRejectedValue(new Error('crash')),
     } as unknown as PrismaClient;
     await expect(deleteEvent(prisma, manager, 'e1')).rejects.toThrow('crash');
   });

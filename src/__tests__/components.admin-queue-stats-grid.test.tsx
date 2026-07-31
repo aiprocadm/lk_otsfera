@@ -5,7 +5,10 @@ import React from 'react';
 import { QueueStatsGrid } from '@/components/admin/queue-stats-grid';
 import type { QueueStatsRow } from '@/lib/services/admin/queueStats';
 
-function makeRow(overrides: Partial<QueueStatsRow['counts']> = {}, queue = 'oneCSync.pullOrders'): QueueStatsRow {
+function makeRow(
+  overrides: Partial<QueueStatsRow['counts']> = {},
+  queue = 'oneCSync.pullOrders'
+): QueueStatsRow {
   return {
     queue: queue as QueueStatsRow['queue'],
     counts: {
@@ -14,8 +17,8 @@ function makeRow(overrides: Partial<QueueStatsRow['counts']> = {}, queue = 'oneC
       completed: 0,
       failed: 0,
       delayed: 0,
-      ...overrides
-    }
+      ...overrides,
+    },
   };
 }
 

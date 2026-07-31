@@ -19,12 +19,12 @@ let managerId: string;
 
 async function seedData() {
   const partner = await prisma.partner.create({
-    data: { name: `${PREFIX}-Partner`, slug: PARTNER_SLUG, commissionRate: 0.1 }
+    data: { name: `${PREFIX}-Partner`, slug: PARTNER_SLUG, commissionRate: 0.1 },
   });
   partnerId = partner.id;
 
   const company = await prisma.company.create({
-    data: { name: `${PREFIX}-Company` }
+    data: { name: `${PREFIX}-Company` },
   });
   companyId = company.id;
 
@@ -33,8 +33,8 @@ async function seedData() {
       name: `${PREFIX}-Org`,
       externalId: ORG_EXT_ID,
       partnerId,
-      companyId
-    }
+      companyId,
+    },
   });
   organizationId = org.id;
 
@@ -43,8 +43,8 @@ async function seedData() {
       email: `${PREFIX}-manager@test.local`,
       name: `${PREFIX}-Manager`,
       role: 'manager',
-      isActive: true
-    }
+      isActive: true,
+    },
   });
   managerId = manager.id;
 
@@ -53,8 +53,8 @@ async function seedData() {
       title: ORDER_TITLE,
       partnerId,
       organizationId,
-      companyId
-    }
+      companyId,
+    },
   });
   orderId = order.id;
   // Manager chat visibility is company-scoped (C8) — session carries companyId.
@@ -64,13 +64,13 @@ async function seedData() {
 async function cleanupData() {
   // FK-safe order: message → threadReadState → orderThread → order → org → company → partner → user
   await prisma.message.deleteMany({
-    where: { thread: { order: { title: ORDER_TITLE } } }
+    where: { thread: { order: { title: ORDER_TITLE } } },
   });
   await prisma.threadReadState.deleteMany({
-    where: { thread: { order: { title: ORDER_TITLE } } }
+    where: { thread: { order: { title: ORDER_TITLE } } },
   });
   await prisma.orderThread.deleteMany({
-    where: { order: { title: ORDER_TITLE } }
+    where: { order: { title: ORDER_TITLE } },
   });
   await prisma.order.deleteMany({ where: { title: ORDER_TITLE } });
   await prisma.organization.deleteMany({ where: { externalId: ORG_EXT_ID } });
@@ -81,7 +81,7 @@ async function cleanupData() {
   const managerEmail = `${PREFIX}-manager@test.local`;
   const staleManagers = await prisma.user.findMany({
     where: { email: managerEmail },
-    select: { id: true }
+    select: { id: true },
   });
   const staleIds = staleManagers.map((u) => u.id);
   if (managerId && !staleIds.includes(managerId)) staleIds.push(managerId);
@@ -112,7 +112,7 @@ describe('sendMessage integration', () => {
     const result = await sendMessage(prisma, teamSession, {
       orderId,
       side: 'org',
-      body: 'Hello from manager'
+      body: 'Hello from manager',
     });
 
     expect(result).toEqual({ ok: true, messageId: expect.any(String) });
@@ -120,7 +120,7 @@ describe('sendMessage integration', () => {
 
     // Message body is persisted
     const msg = await prisma.message.findFirst({
-      where: { id: result.messageId }
+      where: { id: result.messageId },
     });
     expect(msg).not.toBeNull();
     expect(msg!.body).toBe('Hello from manager');
@@ -128,7 +128,7 @@ describe('sendMessage integration', () => {
 
     // Thread lastMessageAt is advanced past beforeSend
     const thread = await prisma.orderThread.findUnique({
-      where: { orderId_side: { orderId, side: 'org' } }
+      where: { orderId_side: { orderId, side: 'org' } },
     });
     expect(thread).not.toBeNull();
     expect(thread!.lastMessageAt!.getTime()).toBeGreaterThanOrEqual(beforeSend.getTime());
@@ -136,26 +136,26 @@ describe('sendMessage integration', () => {
 
   it('partner with wrong partnerId on org side → forbidden, no message row', async () => {
     const otherPartner = await prisma.partner.create({
-      data: { name: `${PREFIX}-OtherPartner`, commissionRate: 0 }
+      data: { name: `${PREFIX}-OtherPartner`, commissionRate: 0 },
     });
 
     const wrongPartnerSession: SessionPayload = {
       sub: 'wrong-partner-user',
       role: 'partner',
-      partnerId: otherPartner.id
+      partnerId: otherPartner.id,
     };
 
     const result = await sendMessage(prisma, wrongPartnerSession, {
       orderId,
       side: 'org',
-      body: 'Should be blocked'
+      body: 'Should be blocked',
     });
 
     expect(result).toEqual({ ok: false, error: 'forbidden' });
 
     // No message row was created
     const count = await prisma.message.count({
-      where: { thread: { orderId, side: 'org' } }
+      where: { thread: { orderId, side: 'org' } },
     });
     expect(count).toBe(0);
 

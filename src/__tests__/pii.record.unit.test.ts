@@ -8,7 +8,12 @@ import { recordPiiAccess, recordPiiAccessMany } from '@/lib/pii/record';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const MANAGER: SessionPayload = { sub: 'u-mgr', role: 'manager', companyId: 'co-1' };
-const LEADER: SessionPayload = { sub: 'u-led', role: 'manager', managerRole: 'leader', companyId: 'co-1' };
+const LEADER: SessionPayload = {
+  sub: 'u-led',
+  role: 'manager',
+  managerRole: 'leader',
+  companyId: 'co-1',
+};
 const ADMIN: SessionPayload = { sub: 'u-adm', role: 'admin' };
 const PARTNER: SessionPayload = { sub: 'u-par', role: 'partner' };
 
@@ -16,8 +21,8 @@ function makePrisma() {
   return {
     piiAccessEvent: {
       create: vi.fn().mockResolvedValue({}),
-      createMany: vi.fn().mockResolvedValue({ count: 2 })
-    }
+      createMany: vi.fn().mockResolvedValue({ count: 2 }),
+    },
   } as never;
 }
 
@@ -37,7 +42,7 @@ describe('recordPiiAccess', () => {
       session: MANAGER,
       context: 'manager_students_list',
       subjectIds: ['s1', 's2'],
-      meta: { take: 50, hasQuery: true }
+      meta: { take: 50, hasQuery: true },
     });
     expect((p as any).piiAccessEvent.create).toHaveBeenCalledWith({
       data: {
@@ -49,8 +54,8 @@ describe('recordPiiAccess', () => {
         subjectType: 'student',
         subjectIds: ['s1', 's2'],
         subjectCount: 2,
-        meta: { take: 50, hasQuery: true }
-      }
+        meta: { take: 50, hasQuery: true },
+      },
     });
   });
 
@@ -74,7 +79,7 @@ describe('recordPiiAccess', () => {
       session: MANAGER,
       context: 'manager_students_list',
       subjectIds: ['s1'],
-      meta: { cursor: true }
+      meta: { cursor: true },
     });
     expect((p as any).piiAccessEvent.create.mock.calls[0][0].data.meta).toEqual({ cursor: true });
   });
@@ -128,7 +133,7 @@ describe('recordPiiAccessMany', () => {
     const p = makePrisma();
     await recordPiiAccessMany(p, [
       { session: MANAGER, context: 'org_card_inbound', subjectIds: ['m1', 'm2'] },
-      { session: MANAGER, context: 'org_card_calls', subjectIds: ['c1'] }
+      { session: MANAGER, context: 'org_card_calls', subjectIds: ['c1'] },
     ]);
     expect((p as any).piiAccessEvent.createMany).toHaveBeenCalledTimes(1);
     const { data } = (p as any).piiAccessEvent.createMany.mock.calls[0][0];
@@ -141,7 +146,7 @@ describe('recordPiiAccessMany', () => {
     const p = makePrisma();
     await recordPiiAccessMany(p, [
       { session: MANAGER, context: 'org_card_inbound', subjectIds: [] },
-      { session: PARTNER, context: 'org_card_calls', subjectIds: ['c1'] }
+      { session: PARTNER, context: 'org_card_calls', subjectIds: ['c1'] },
     ]);
     expect((p as any).piiAccessEvent.create).not.toHaveBeenCalled();
     expect((p as any).piiAccessEvent.createMany).not.toHaveBeenCalled();
@@ -151,7 +156,7 @@ describe('recordPiiAccessMany', () => {
     const p = makePrisma();
     await recordPiiAccessMany(p, [
       { session: MANAGER, context: 'org_card_inbound', subjectIds: [] },
-      { session: MANAGER, context: 'org_card_calls', subjectIds: ['c1'] }
+      { session: MANAGER, context: 'org_card_calls', subjectIds: ['c1'] },
     ]);
     expect((p as any).piiAccessEvent.create).toHaveBeenCalledTimes(1);
     expect((p as any).piiAccessEvent.createMany).not.toHaveBeenCalled();

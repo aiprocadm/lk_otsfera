@@ -16,20 +16,26 @@ afterEach(() => {
 
 describe('fetchResource', () => {
   it('returns ok:true with parsed json on success', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ count: 5 })
-    } as unknown as Response));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ count: 5 }),
+      } as unknown as Response)
+    );
 
     const result = await fetchResource('/api/messages/unread');
     expect(result).toEqual({ ok: true, data: { count: 5 } });
   });
 
   it('applies select to map the raw response', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ count: 7 })
-    } as unknown as Response));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ count: 7 }),
+      } as unknown as Response)
+    );
 
     const result = await fetchResource<number>(
       '/api/messages/unread',
@@ -52,7 +58,7 @@ describe('fetchResource', () => {
   it('calls fetch with the given url', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve([])
+      json: () => Promise.resolve([]),
     } as unknown as Response);
     vi.stubGlobal('fetch', mockFetch);
 

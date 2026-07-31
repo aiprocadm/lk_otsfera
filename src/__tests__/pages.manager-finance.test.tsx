@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import ManagerFinancePage from '@/app/manager/finance/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
@@ -21,12 +22,15 @@ vi.mock('@/components/manager/manager-finance-view', () => ({
       { 'data-testid': 'finance-view' },
       props.ordersBasePath,
       JSON.stringify(props.data)
-    )
+    ),
 }));
 
-import ManagerFinancePage from '@/app/manager/finance/page';
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 
 describe('ManagerFinancePage', () => {
   beforeEach(() => {
@@ -41,7 +45,7 @@ describe('ManagerFinancePage', () => {
     getManagerFinanceOverview.mockResolvedValue({
       summary: { totalDebt: '0.00' },
       sections: [],
-      canSeeCommission: false
+      canSeeCommission: false,
     });
 
     const { container } = await renderServerComponent(ManagerFinancePage());
@@ -59,7 +63,7 @@ describe('ManagerFinancePage', () => {
     getManagerFinanceOverview.mockResolvedValue({
       summary: { totalDebt: '500.00' },
       sections: [],
-      canSeeCommission: true
+      canSeeCommission: true,
     });
 
     await renderServerComponent(ManagerFinancePage());

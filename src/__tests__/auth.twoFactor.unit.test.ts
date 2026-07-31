@@ -3,47 +3,85 @@ import { createHash } from 'crypto';
 
 const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 
-const { chUpsert, chFindUnique, chUpdate, chDelete, bcFindFirst, bcUpdate, bcDeleteMany, bcCreateMany, txFn } =
-  vi.hoisted(() => {
-    const m = {
-      chUpsert: vi.fn(),
-      chFindUnique: vi.fn(),
-      chUpdate: vi.fn(),
-      chDelete: vi.fn(),
-      bcFindFirst: vi.fn(),
-      bcUpdate: vi.fn(),
-      bcDeleteMany: vi.fn(),
-      bcCreateMany: vi.fn(),
-      txFn: vi.fn()
-    };
-    m.txFn.mockImplementation((cb: (tx: unknown) => unknown) =>
-      cb({
-        twoFactorChallenge: { upsert: m.chUpsert, findUnique: m.chFindUnique, update: m.chUpdate, delete: m.chDelete },
-        twoFactorBackupCode: {
-          findFirst: m.bcFindFirst,
-          update: m.bcUpdate,
-          deleteMany: m.bcDeleteMany,
-          createMany: m.bcCreateMany
-        }
-      })
-    );
-    return m;
-  });
+const {
+  chUpsert,
+  chFindUnique,
+  chUpdate,
+  chDelete,
+  bcFindFirst,
+  bcUpdate,
+  bcDeleteMany,
+  bcCreateMany,
+  txFn,
+} = vi.hoisted(() => {
+  const m = {
+    chUpsert: vi.fn(),
+    chFindUnique: vi.fn(),
+    chUpdate: vi.fn(),
+    chDelete: vi.fn(),
+    bcFindFirst: vi.fn(),
+    bcUpdate: vi.fn(),
+    bcDeleteMany: vi.fn(),
+    bcCreateMany: vi.fn(),
+    txFn: vi.fn(),
+  };
+  m.txFn.mockImplementation((cb: (tx: unknown) => unknown) =>
+    cb({
+      twoFactorChallenge: {
+        upsert: m.chUpsert,
+        findUnique: m.chFindUnique,
+        update: m.chUpdate,
+        delete: m.chDelete,
+      },
+      twoFactorBackupCode: {
+        findFirst: m.bcFindFirst,
+        update: m.bcUpdate,
+        deleteMany: m.bcDeleteMany,
+        createMany: m.bcCreateMany,
+      },
+    })
+  );
+  return m;
+});
 
 const mockPrisma = {
-  twoFactorChallenge: { upsert: chUpsert, findUnique: chFindUnique, update: chUpdate, delete: chDelete },
-  twoFactorBackupCode: { findFirst: bcFindFirst, update: bcUpdate, deleteMany: bcDeleteMany, createMany: bcCreateMany },
-  $transaction: txFn
+  twoFactorChallenge: {
+    upsert: chUpsert,
+    findUnique: chFindUnique,
+    update: chUpdate,
+    delete: chDelete,
+  },
+  twoFactorBackupCode: {
+    findFirst: bcFindFirst,
+    update: bcUpdate,
+    deleteMany: bcDeleteMany,
+    createMany: bcCreateMany,
+  },
+  $transaction: txFn,
 } as unknown as import('@prisma/client').PrismaClient;
 
-import { createTwoFactorChallenge, verifyTwoFactorCode, generateBackupCodes } from '@/lib/services/auth/twoFactor';
+import {
+  createTwoFactorChallenge,
+  verifyTwoFactorCode,
+  generateBackupCodes,
+} from '@/lib/services/auth/twoFactor';
 
 beforeEach(() => {
   vi.clearAllMocks();
   txFn.mockImplementation((cb: (tx: unknown) => unknown) =>
     cb({
-      twoFactorChallenge: { upsert: chUpsert, findUnique: chFindUnique, update: chUpdate, delete: chDelete },
-      twoFactorBackupCode: { findFirst: bcFindFirst, update: bcUpdate, deleteMany: bcDeleteMany, createMany: bcCreateMany }
+      twoFactorChallenge: {
+        upsert: chUpsert,
+        findUnique: chFindUnique,
+        update: chUpdate,
+        delete: chDelete,
+      },
+      twoFactorBackupCode: {
+        findFirst: bcFindFirst,
+        update: bcUpdate,
+        deleteMany: bcDeleteMany,
+        createMany: bcCreateMany,
+      },
     })
   );
 });
@@ -69,7 +107,12 @@ describe('verifyTwoFactorCode', () => {
   const FUTURE = new Date(Date.now() + 60_000);
 
   it('ok via challenge code; challenge deleted', async () => {
-    chFindUnique.mockResolvedValue({ userId: 'u1', codeHash: sha256('123456'), expiresAt: FUTURE, attempts: 0 });
+    chFindUnique.mockResolvedValue({
+      userId: 'u1',
+      codeHash: sha256('123456'),
+      expiresAt: FUTURE,
+      attempts: 0,
+    });
     const r = await verifyTwoFactorCode(mockPrisma, 'u1', '123456');
     expect(r).toEqual({ ok: true, method: 'challenge' });
     expect(chDelete).toHaveBeenCalledWith({ where: { userId: 'u1' } });
@@ -77,7 +120,10 @@ describe('verifyTwoFactorCode', () => {
 
   it('code_expired when no challenge', async () => {
     chFindUnique.mockResolvedValue(null);
-    expect(await verifyTwoFactorCode(mockPrisma, 'u1', '123456')).toEqual({ ok: false, error: 'code_expired' });
+    expect(await verifyTwoFactorCode(mockPrisma, 'u1', '123456')).toEqual({
+      ok: false,
+      error: 'code_expired',
+    });
   });
 
   it('code_expired when expiresAt in the past (challenge deleted)', async () => {
@@ -85,36 +131,66 @@ describe('verifyTwoFactorCode', () => {
       userId: 'u1',
       codeHash: sha256('123456'),
       expiresAt: new Date(Date.now() - 1000),
-      attempts: 0
+      attempts: 0,
     });
-    expect(await verifyTwoFactorCode(mockPrisma, 'u1', '123456')).toEqual({ ok: false, error: 'code_expired' });
+    expect(await verifyTwoFactorCode(mockPrisma, 'u1', '123456')).toEqual({
+      ok: false,
+      error: 'code_expired',
+    });
     expect(chDelete).toHaveBeenCalled();
   });
 
   it('too_many_attempts at 5 (challenge deleted)', async () => {
-    chFindUnique.mockResolvedValue({ userId: 'u1', codeHash: sha256('123456'), expiresAt: FUTURE, attempts: 5 });
-    expect(await verifyTwoFactorCode(mockPrisma, 'u1', '999999')).toEqual({ ok: false, error: 'too_many_attempts' });
+    chFindUnique.mockResolvedValue({
+      userId: 'u1',
+      codeHash: sha256('123456'),
+      expiresAt: FUTURE,
+      attempts: 5,
+    });
+    expect(await verifyTwoFactorCode(mockPrisma, 'u1', '999999')).toEqual({
+      ok: false,
+      error: 'too_many_attempts',
+    });
     expect(chDelete).toHaveBeenCalled();
   });
 
   it('wrong code falls back to backup codes; hit consumes it', async () => {
-    chFindUnique.mockResolvedValue({ userId: 'u1', codeHash: sha256('123456'), expiresAt: FUTURE, attempts: 0 });
+    chFindUnique.mockResolvedValue({
+      userId: 'u1',
+      codeHash: sha256('123456'),
+      expiresAt: FUTURE,
+      attempts: 0,
+    });
     bcFindFirst.mockResolvedValue({ id: 'bc1' });
     const r = await verifyTwoFactorCode(mockPrisma, 'u1', 'BACKUPCODE');
     expect(r).toEqual({ ok: true, method: 'backup' });
     expect(bcFindFirst).toHaveBeenCalledWith({
       where: { userId: 'u1', codeHash: sha256('BACKUPCODE'), usedAt: null },
-      select: { id: true }
+      select: { id: true },
     });
-    expect(bcUpdate).toHaveBeenCalledWith({ where: { id: 'bc1' }, data: { usedAt: expect.any(Date) } });
+    expect(bcUpdate).toHaveBeenCalledWith({
+      where: { id: 'bc1' },
+      data: { usedAt: expect.any(Date) },
+    });
     expect(chDelete).toHaveBeenCalledWith({ where: { userId: 'u1' } });
   });
 
   it('both miss → invalid_code, attempts incremented', async () => {
-    chFindUnique.mockResolvedValue({ userId: 'u1', codeHash: sha256('123456'), expiresAt: FUTURE, attempts: 1 });
+    chFindUnique.mockResolvedValue({
+      userId: 'u1',
+      codeHash: sha256('123456'),
+      expiresAt: FUTURE,
+      attempts: 1,
+    });
     bcFindFirst.mockResolvedValue(null);
-    expect(await verifyTwoFactorCode(mockPrisma, 'u1', '000000')).toEqual({ ok: false, error: 'invalid_code' });
-    expect(chUpdate).toHaveBeenCalledWith({ where: { userId: 'u1' }, data: { attempts: { increment: 1 } } });
+    expect(await verifyTwoFactorCode(mockPrisma, 'u1', '000000')).toEqual({
+      ok: false,
+      error: 'invalid_code',
+    });
+    expect(chUpdate).toHaveBeenCalledWith({
+      where: { userId: 'u1' },
+      data: { attempts: { increment: 1 } },
+    });
   });
 });
 

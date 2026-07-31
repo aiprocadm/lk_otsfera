@@ -8,9 +8,7 @@ import { OrgCardHeader } from '@/components/partner/org-card-header';
 import { OrgTabs } from '@/components/partner/org-tabs';
 import { RateOverrideForm } from '@/components/partner/rate-override-form';
 
-export default async function OrgSettingsPage({
-  params
-}: { params: Promise<{ orgId: string }> }) {
+export default async function OrgSettingsPage({ params }: { params: Promise<{ orgId: string }> }) {
   const session = await requirePartnerAdmin();
 
   const { orgId } = await params;
@@ -21,9 +19,9 @@ export default async function OrgSettingsPage({
   if (!card) notFound();
 
   return (
-    <div className='space-y-4'>
+    <div className="space-y-4">
       <OrgCardHeader card={card} />
-      <OrgTabs orgId={orgId} active='settings' isAdmin={true} />
+      <OrgTabs orgId={orgId} active="settings" isAdmin={true} />
       <RateOverrideForm
         orgId={orgId}
         initialRate={card.partnerCommissionRate}

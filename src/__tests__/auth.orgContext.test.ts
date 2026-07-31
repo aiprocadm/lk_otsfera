@@ -7,14 +7,14 @@ const SESSION_AB: SessionPayload = {
   role: 'organization',
   organizationMemberships: [
     { organizationId: 'A', roleInOrg: 'admin', isActive: true },
-    { organizationId: 'B', roleInOrg: 'member', isActive: true }
-  ]
+    { organizationId: 'B', roleInOrg: 'member', isActive: true },
+  ],
 };
 
 const SESSION_A_ONLY: SessionPayload = {
   sub: 'u-2',
   role: 'organization',
-  organizationMemberships: [{ organizationId: 'A', roleInOrg: 'admin', isActive: true }]
+  organizationMemberships: [{ organizationId: 'A', roleInOrg: 'admin', isActive: true }],
 };
 
 describe('resolveActiveOrgId', () => {
@@ -45,11 +45,7 @@ describe('resolveActiveOrgId', () => {
 
   it('throws when session has no active memberships (invariant violated)', () => {
     expect(() =>
-      resolveActiveOrgId(
-        { sub: 'u-3', role: 'organization' },
-        undefined,
-        undefined
-      )
+      resolveActiveOrgId({ sub: 'u-3', role: 'organization' }, undefined, undefined)
     ).toThrow(/no active organization memberships/);
 
     expect(() =>
@@ -57,9 +53,7 @@ describe('resolveActiveOrgId', () => {
         {
           sub: 'u-4',
           role: 'organization',
-          organizationMemberships: [
-            { organizationId: 'X', roleInOrg: 'admin', isActive: false }
-          ]
+          organizationMemberships: [{ organizationId: 'X', roleInOrg: 'admin', isActive: false }],
         },
         undefined,
         undefined

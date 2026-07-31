@@ -6,13 +6,21 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/services/enrollments/submit', () => ({ submitEnrollmentRequest: vi.fn() }));
 vi.mock('@/lib/services/enrollments/list', () => ({ listEnrollmentRequests: vi.fn() }));
 vi.mock('@/lib/services/enrollments/list', () => ({ listEnrollmentRequests: vi.fn() }));
-vi.mock('@/lib/services/enrollments/lifecycle', () => ({ approveEnrollment: vi.fn(), rejectEnrollment: vi.fn(), markProvisioned: vi.fn() }));
+vi.mock('@/lib/services/enrollments/lifecycle', () => ({
+  approveEnrollment: vi.fn(),
+  rejectEnrollment: vi.fn(),
+  markProvisioned: vi.fn(),
+}));
 
 import { getSession } from '@/lib/auth/session';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { submitEnrollmentRequest } from '@/lib/services/enrollments/submit';
 import { listEnrollmentRequests } from '@/lib/services/enrollments/list';
-import { approveEnrollment, rejectEnrollment, markProvisioned } from '@/lib/services/enrollments/lifecycle';
+import {
+  approveEnrollment,
+  rejectEnrollment,
+  markProvisioned,
+} from '@/lib/services/enrollments/lifecycle';
 import { POST, GET } from '@/app/api/enrollments/route';
 import { PATCH } from '@/app/api/enrollments/[id]/route';
 
@@ -20,7 +28,11 @@ const partner = { sub: 'p', role: 'partner', partnerId: 'p1' } as never;
 const manager = { sub: 'm', role: 'manager' } as never;
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const jsonReq = (b: unknown, method = 'POST') =>
-  new Request('http://x/', { method, body: JSON.stringify(b), headers: { 'content-type': 'application/json' } });
+  new Request('http://x/', {
+    method,
+    body: JSON.stringify(b),
+    headers: { 'content-type': 'application/json' },
+  });
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -38,7 +50,11 @@ describe('POST /api/enrollments', () => {
   });
   it('400 when body is null (non-JSON request)', async () => {
     vi.mocked(getSession).mockResolvedValue(partner);
-    const req = new Request('http://x/', { method: 'POST', body: 'not-json', headers: { 'content-type': 'text/plain' } });
+    const req = new Request('http://x/', {
+      method: 'POST',
+      body: 'not-json',
+      headers: { 'content-type': 'text/plain' },
+    });
     expect((await POST(req)).status).toBe(400);
   });
   it('201 when a partner submits (новый контракт: directionId + items)', async () => {
@@ -47,15 +63,21 @@ describe('POST /api/enrollments', () => {
       ok: true,
       request: { id: 'E1' },
       itemCount: 2,
-      warnings: ['дубль склеен']
+      warnings: ['дубль склеен'],
     } as never);
     const res = await POST(
       jsonReq({
         directionId: 'd1',
         items: [
-          { fullName: 'И', email: 'i@x.ru', snils: '112-233-445 95', birthDate: '1990-01-02', notAString: 5 },
-          { studentId: 'st1' }
-        ]
+          {
+            fullName: 'И',
+            email: 'i@x.ru',
+            snils: '112-233-445 95',
+            birthDate: '1990-01-02',
+            notAString: 5,
+          },
+          { studentId: 'st1' },
+        ],
       })
     );
     expect(res.status).toBe(201);
@@ -67,24 +89,41 @@ describe('POST /api/enrollments', () => {
       expect.objectContaining({
         directionId: 'd1',
         items: [
-          expect.objectContaining({ fullName: 'И', email: 'i@x.ru', snils: '112-233-445 95', birthDate: '1990-01-02' }),
-          expect.objectContaining({ studentId: 'st1', fullName: null, email: null })
-        ]
+          expect.objectContaining({
+            fullName: 'И',
+            email: 'i@x.ru',
+            snils: '112-233-445 95',
+            birthDate: '1990-01-02',
+          }),
+          expect.objectContaining({ studentId: 'st1', fullName: null, email: null }),
+        ],
       })
     );
   });
   it('items не-массив → сервису уходит пустой список', async () => {
     vi.mocked(getSession).mockResolvedValue(partner);
-    vi.mocked(submitEnrollmentRequest).mockResolvedValue({ ok: false, error: 'validation', messages: ['Добавьте хотя бы одного слушателя'] } as never);
+    vi.mocked(submitEnrollmentRequest).mockResolvedValue({
+      ok: false,
+      error: 'validation',
+      messages: ['Добавьте хотя бы одного слушателя'],
+    } as never);
     await POST(jsonReq({ directionId: 'd1', items: 'oops' }));
-    expect(vi.mocked(submitEnrollmentRequest)).toHaveBeenCalledWith({}, partner, expect.objectContaining({ items: [] }));
+    expect(vi.mocked(submitEnrollmentRequest)).toHaveBeenCalledWith(
+      {},
+      partner,
+      expect.objectContaining({ items: [] })
+    );
   });
   it('позиция null внутри массива → сервису уходит позиция с пустыми полями, а не падение', async () => {
     // Клиент может прислать «дырявый» массив (позицию удалили на фронте, оставив
     // null). Роут ничего не интерпретирует — он обязан отдать это сервису в
     // нормализованном виде, а решение принимает валидатор.
     vi.mocked(getSession).mockResolvedValue(partner);
-    vi.mocked(submitEnrollmentRequest).mockResolvedValue({ ok: false, error: 'validation', messages: ['x'] } as never);
+    vi.mocked(submitEnrollmentRequest).mockResolvedValue({
+      ok: false,
+      error: 'validation',
+      messages: ['x'],
+    } as never);
     await POST(jsonReq({ directionId: 'd1', items: [null] }));
     const passed = vi.mocked(submitEnrollmentRequest).mock.calls[0]![2];
     expect(passed.items).toEqual([expect.objectContaining({ fullName: null, email: null })]);
@@ -92,14 +131,24 @@ describe('POST /api/enrollments', () => {
 
   it('maps validation Result → 400 (messages пробрасываются)', async () => {
     vi.mocked(getSession).mockResolvedValue(partner);
-    vi.mocked(submitEnrollmentRequest).mockResolvedValue({ ok: false, error: 'validation', messages: ['Выберите направление обучения'] } as never);
+    vi.mocked(submitEnrollmentRequest).mockResolvedValue({
+      ok: false,
+      error: 'validation',
+      messages: ['Выберите направление обучения'],
+    } as never);
     const res = await POST(jsonReq({}));
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: 'validation', messages: ['Выберите направление обучения'] });
+    expect(await res.json()).toEqual({
+      error: 'validation',
+      messages: ['Выберите направление обучения'],
+    });
   });
   it('maps forbidden Result → 403 from service (messages по умолчанию [])', async () => {
     vi.mocked(getSession).mockResolvedValue(partner);
-    vi.mocked(submitEnrollmentRequest).mockResolvedValue({ ok: false, error: 'forbidden' } as never);
+    vi.mocked(submitEnrollmentRequest).mockResolvedValue({
+      ok: false,
+      error: 'forbidden',
+    } as never);
     const res = await POST(jsonReq({}));
     expect(res.status).toBe(403);
     expect(await res.json()).toEqual({ error: 'forbidden', messages: [] });
@@ -164,30 +213,45 @@ describe('PATCH /api/enrollments/[id]', () => {
 
   it('200 when a manager approves', async () => {
     vi.mocked(getSession).mockResolvedValue(manager);
-    vi.mocked(approveEnrollment).mockResolvedValue({ ok: true, request: { id: 'E1', status: 'approved' } } as never);
+    vi.mocked(approveEnrollment).mockResolvedValue({
+      ok: true,
+      request: { id: 'E1', status: 'approved' },
+    } as never);
     const res = await PATCH(jsonReq({ action: 'approve' }, 'PATCH'), ctx('E1'));
     expect(res.status).toBe(200);
   });
 
   it('200 when a manager rejects with reason', async () => {
     vi.mocked(getSession).mockResolvedValue(manager);
-    vi.mocked(rejectEnrollment).mockResolvedValue({ ok: true, request: { id: 'E1', status: 'rejected' } } as never);
+    vi.mocked(rejectEnrollment).mockResolvedValue({
+      ok: true,
+      request: { id: 'E1', status: 'rejected' },
+    } as never);
     const res = await PATCH(jsonReq({ action: 'reject', reason: 'no' }, 'PATCH'), ctx('E1'));
     expect(res.status).toBe(200);
   });
 
   it('200 when a manager rejects without reason (body?.reason ?? empty-string branch)', async () => {
     vi.mocked(getSession).mockResolvedValue(manager);
-    vi.mocked(rejectEnrollment).mockResolvedValue({ ok: true, request: { id: 'E1', status: 'rejected' } } as never);
+    vi.mocked(rejectEnrollment).mockResolvedValue({
+      ok: true,
+      request: { id: 'E1', status: 'rejected' },
+    } as never);
     const res = await PATCH(jsonReq({ action: 'reject' }, 'PATCH'), ctx('E1'));
     expect(res.status).toBe(200);
-    expect(vi.mocked(rejectEnrollment)).toHaveBeenCalledWith({}, expect.objectContaining({ reason: '' }));
+    expect(vi.mocked(rejectEnrollment)).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ reason: '' })
+    );
   });
 
   it('maps validation → 400 from lifecycle', async () => {
     vi.mocked(getSession).mockResolvedValue(manager);
     vi.mocked(markProvisioned).mockResolvedValue({ ok: false, error: 'validation' } as never);
-    const res = await PATCH(jsonReq({ action: 'markProvisioned', externalStudentId: '' }, 'PATCH'), ctx('E1'));
+    const res = await PATCH(
+      jsonReq({ action: 'markProvisioned', externalStudentId: '' }, 'PATCH'),
+      ctx('E1')
+    );
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: 'validation' });
   });
@@ -202,8 +266,14 @@ describe('PATCH /api/enrollments/[id]', () => {
 
   it('maps lifecycle_violation → 409', async () => {
     vi.mocked(getSession).mockResolvedValue(manager);
-    vi.mocked(markProvisioned).mockResolvedValue({ ok: false, error: 'lifecycle_violation' } as never);
-    const res = await PATCH(jsonReq({ action: 'markProvisioned', externalStudentId: 'X' }, 'PATCH'), ctx('E1'));
+    vi.mocked(markProvisioned).mockResolvedValue({
+      ok: false,
+      error: 'lifecycle_violation',
+    } as never);
+    const res = await PATCH(
+      jsonReq({ action: 'markProvisioned', externalStudentId: 'X' }, 'PATCH'),
+      ctx('E1')
+    );
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: 'lifecycle_violation' });
   });
@@ -216,16 +286,24 @@ describe('PATCH /api/enrollments/[id]', () => {
 
   it('markProvisioned uses empty string when externalStudentId is missing from body', async () => {
     vi.mocked(getSession).mockResolvedValue(manager);
-    vi.mocked(markProvisioned).mockResolvedValue({ ok: true, request: { id: 'E1', status: 'provisioned' } } as never);
+    vi.mocked(markProvisioned).mockResolvedValue({
+      ok: true,
+      request: { id: 'E1', status: 'provisioned' },
+    } as never);
     // body has no externalStudentId — should default to ''
     const res = await PATCH(jsonReq({ action: 'markProvisioned' }, 'PATCH'), ctx('E1'));
     expect(res.status).toBe(200);
-    expect(vi.mocked(markProvisioned)).toHaveBeenCalledWith({}, expect.objectContaining({ externalStudentId: '' }));
+    expect(vi.mocked(markProvisioned)).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ externalStudentId: '' })
+    );
   });
 
   it('propagates unexpected errors from the service', async () => {
     vi.mocked(getSession).mockResolvedValue(manager);
     vi.mocked(approveEnrollment).mockRejectedValue(new Error('UNEXPECTED_DB_ERROR'));
-    await expect(PATCH(jsonReq({ action: 'approve' }, 'PATCH'), ctx('E1'))).rejects.toThrow('UNEXPECTED_DB_ERROR');
+    await expect(PATCH(jsonReq({ action: 'approve' }, 'PATCH'), ctx('E1'))).rejects.toThrow(
+      'UNEXPECTED_DB_ERROR'
+    );
   });
 });

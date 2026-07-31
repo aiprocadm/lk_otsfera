@@ -49,7 +49,9 @@ describe('TeamVisibilityToggle', () => {
   });
 
   it('a second toggle attempt clears a previous error', async () => {
-    setTeamVisibilityAction.mockResolvedValueOnce({ ok: false }).mockResolvedValueOnce({ ok: true });
+    setTeamVisibilityAction
+      .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({ ok: true });
     render(React.createElement(TeamVisibilityToggle, { initial: false }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Выключено' }));

@@ -31,7 +31,7 @@ describe('ExportLink', () => {
     render(
       React.createElement(ExportLink, {
         base: '/api/manager/orders/export',
-        params: { search: 'abc', empty: undefined }
+        params: { search: 'abc', empty: undefined },
       })
     );
     const link = screen.getByText('Выгрузить в Excel') as HTMLAnchorElement;
@@ -43,7 +43,7 @@ describe('ExportLink', () => {
       React.createElement(ExportLink, {
         base: '/api/x/export',
         label: 'Скачать',
-        className: 'mt-2'
+        className: 'mt-2',
       })
     );
     const link = screen.getByText('Скачать') as HTMLAnchorElement;

@@ -41,7 +41,7 @@ export async function createInviteToken(
         : ttlDaysFromEnv() * 24 * 60 * 60 * 1000;
   const expiresAt = new Date(Date.now() + ttlMs);
   await prisma.passwordResetToken.create({
-    data: { token: hashToken(token), userId, purpose, expiresAt }
+    data: { token: hashToken(token), userId, purpose, expiresAt },
   });
   return { token, expiresAt };
 }
@@ -58,7 +58,7 @@ export async function peekTokenPurpose(
 ): Promise<{ valid: boolean; purpose: 'invite' | 'reset' | null }> {
   const record = await prisma.passwordResetToken.findUnique({
     where: { token: hashToken(token) },
-    select: { purpose: true, usedAt: true, expiresAt: true }
+    select: { purpose: true, usedAt: true, expiresAt: true },
   });
   if (!record || record.usedAt || record.expiresAt <= new Date()) {
     return { valid: false, purpose: null };
@@ -81,9 +81,12 @@ export async function verifyAndConsumeToken(
     // ранее выданные токены — иначе перехваченная сессия переживает сброс.
     await tx.user.update({
       where: { id: record.userId },
-      data: { passwordHash: newPasswordHash, sessionVersion: { increment: 1 } }
+      data: { passwordHash: newPasswordHash, sessionVersion: { increment: 1 } },
     });
-    await tx.passwordResetToken.update({ where: { token: tokenHash }, data: { usedAt: new Date() } });
+    await tx.passwordResetToken.update({
+      where: { token: tokenHash },
+      data: { usedAt: new Date() },
+    });
     return { ok: true, userId: record.userId } as const;
   });
 }

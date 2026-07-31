@@ -10,11 +10,38 @@ beforeAll(async () => {
   const company = await prisma.company.create({ data: { name: 'iso-co' } });
   const orgA = await prisma.organization.create({ data: { name: 'orgA', companyId: company.id } });
   const orgB = await prisma.organization.create({ data: { name: 'orgB', companyId: company.id } });
-  const stA = await prisma.student.create({ data: { name: 'A', email: 'a@iso.ru', organizationId: orgA.id } });
-  const stB = await prisma.student.create({ data: { name: 'B', email: 'b@iso.ru', organizationId: orgB.id } });
-  await prisma.certificate.create({ data: { studentId: stA.id, organizationId: orgA.id, directionId: dir.id, number: 'A1', issuedAt: new Date() } });
-  await prisma.certificate.create({ data: { studentId: stB.id, organizationId: orgB.id, directionId: dir.id, number: 'B1', issuedAt: new Date() } });
-  Object.assign(ids, { dir: dir.id, company: company.id, orgA: orgA.id, orgB: orgB.id, stA: stA.id, stB: stB.id });
+  const stA = await prisma.student.create({
+    data: { name: 'A', email: 'a@iso.ru', organizationId: orgA.id },
+  });
+  const stB = await prisma.student.create({
+    data: { name: 'B', email: 'b@iso.ru', organizationId: orgB.id },
+  });
+  await prisma.certificate.create({
+    data: {
+      studentId: stA.id,
+      organizationId: orgA.id,
+      directionId: dir.id,
+      number: 'A1',
+      issuedAt: new Date(),
+    },
+  });
+  await prisma.certificate.create({
+    data: {
+      studentId: stB.id,
+      organizationId: orgB.id,
+      directionId: dir.id,
+      number: 'B1',
+      issuedAt: new Date(),
+    },
+  });
+  Object.assign(ids, {
+    dir: dir.id,
+    company: company.id,
+    orgA: orgA.id,
+    orgB: orgB.id,
+    stA: stA.id,
+    stB: stB.id,
+  });
 });
 
 afterAll(async () => {

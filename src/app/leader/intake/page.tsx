@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 const TAKE = 50;
 
 export default async function LeaderIntakePage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
@@ -30,9 +30,9 @@ export default async function LeaderIntakePage({
       page: Math.floor(skip / TAKE) + 1,
       pageSize: TAKE,
       assigneeId,
-      onlyUnassigned
+      onlyUnassigned,
     }),
-    session.companyId ? listCompanyManagers(prisma, session.companyId) : Promise.resolve([])
+    session.companyId ? listCompanyManagers(prisma, session.companyId) : Promise.resolve([]),
   ]);
   if (!res.ok) notFound();
 
@@ -41,7 +41,8 @@ export default async function LeaderIntakePage({
       <div>
         <h1 className="text-2xl font-bold text-[#111111]">Входящие в работу</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Неразобранные единицы всей команды. Фильтруйте по ответственному; «залежавшееся» подсвечивается.
+          Неразобранные единицы всей команды. Фильтруйте по ответственному; «залежавшееся»
+          подсвечивается.
         </p>
       </div>
       <IntakeFilters
@@ -50,7 +51,13 @@ export default async function LeaderIntakePage({
         onlyUnassigned={onlyUnassigned}
       />
       <IntakeTable items={res.result.items} viewerPrefix="/leader" currentUserId={session.sub} />
-      <Paginator basePath="/leader/intake" searchParams={sp} take={TAKE} skip={skip} total={res.result.total} />
+      <Paginator
+        basePath="/leader/intake"
+        searchParams={sp}
+        take={TAKE}
+        skip={skip}
+        total={res.result.total}
+      />
     </div>
   );
 }

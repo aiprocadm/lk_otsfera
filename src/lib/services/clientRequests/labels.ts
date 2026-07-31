@@ -9,7 +9,7 @@ export const CLIENT_REQUEST_STATUS_LABEL: Record<ClientRequestStatus, string> = 
   submitted: 'Подана',
   in_triage: 'В работе',
   converted: 'Принята',
-  rejected: 'Отклонена'
+  rejected: 'Отклонена',
 };
 
 export function clientRequestStatusLabel(status: ClientRequestStatus): string {

@@ -4,7 +4,8 @@ import type { AdminUserErrorCode } from '@/lib/services/admin/users';
 import { recordAudit } from '@/lib/auth/audit';
 import { createInviteToken } from '@/lib/auth/passwordReset';
 
-export type AdminPartnerErrorCode = 'forbidden' | 'not_found' | 'duplicate_slug' | AdminUserErrorCode;
+export type AdminPartnerErrorCode =
+  'forbidden' | 'not_found' | 'duplicate_slug' | AdminUserErrorCode;
 
 export class AdminPartnerError extends Error {
   readonly code: AdminPartnerErrorCode;
@@ -48,7 +49,7 @@ export async function listPartners(
   if (filters.q) {
     where.OR = [
       { name: { contains: filters.q, mode: 'insensitive' } },
-      { slug: { contains: filters.q, mode: 'insensitive' } }
+      { slug: { contains: filters.q, mode: 'insensitive' } },
     ];
   }
 
@@ -57,9 +58,9 @@ export async function listPartners(
       where,
       orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
       take,
-      skip
+      skip,
     }),
-    prisma.partner.count({ where })
+    prisma.partner.count({ where }),
   ]);
 
   // Batched aggregates: 2 groupBy queries for the whole page instead of 2×N.
@@ -69,13 +70,13 @@ export async function listPartners(
         prisma.organization.groupBy({
           by: ['partnerId'],
           where: { partnerId: { in: ids } },
-          _count: true
+          _count: true,
         }),
         prisma.commissionStatement.groupBy({
           by: ['partnerId'],
           where: { partnerId: { in: ids }, status: 'paid', paidAt: { gte: yearStart } },
-          _sum: { totalCommissionAmount: true }
-        })
+          _sum: { totalCommissionAmount: true },
+        }),
       ])
     : [[], []];
   const orgCountByPartner = new Map(orgCounts.map((r) => [r.partnerId, r._count]));
@@ -90,7 +91,7 @@ export async function listPartners(
       commissionRate: rate === 0 ? null : rate,
       isActive: p.isActive,
       activeOrgCount: orgCountByPartner.get(p.id) ?? 0,
-      paidYTD: (paidByPartner.get(p.id) ?? new Prisma.Decimal(0)).toString()
+      paidYTD: (paidByPartner.get(p.id) ?? new Prisma.Decimal(0)).toString(),
     };
   });
 
@@ -115,10 +116,10 @@ export async function getPartner(prisma: PrismaClient, id: string): Promise<Part
       partnerUsers: {
         where: { roleInPartner: 'admin' },
         include: {
-          user: { select: { id: true, email: true, name: true, isActive: true, createdAt: true } }
-        }
-      }
-    }
+          user: { select: { id: true, email: true, name: true, isActive: true, createdAt: true } },
+        },
+      },
+    },
   });
   if (!p) return null;
 
@@ -127,8 +128,8 @@ export async function getPartner(prisma: PrismaClient, id: string): Promise<Part
     prisma.organization.count({ where: { partnerId: p.id } }),
     prisma.commissionStatement.aggregate({
       where: { partnerId: p.id, status: 'paid', paidAt: { gte: yearStart } },
-      _sum: { totalCommissionAmount: true }
-    })
+      _sum: { totalCommissionAmount: true },
+    }),
   ]);
 
   const rate = Number(p.commissionRate);
@@ -146,8 +147,8 @@ export async function getPartner(prisma: PrismaClient, id: string): Promise<Part
       email: pu.user.email,
       name: pu.user.name,
       isActive: pu.user.isActive,
-      createdAt: pu.user.createdAt
-    }))
+      createdAt: pu.user.createdAt,
+    })),
   };
 }
 
@@ -166,57 +167,65 @@ export async function updatePartner(
 ): Promise<{ ok: true } | { ok: false; error: AdminPartnerErrorCode }> {
   try {
     await prisma.$transaction(async (tx) => {
-    const before = await tx.partner.findUnique({
-      where: { id },
-      select: { name: true, commissionRate: true, isActive: true }
-    });
-    if (!before) throw new AdminPartnerError('not_found');
+      const before = await tx.partner.findUnique({
+        where: { id },
+        select: { name: true, commissionRate: true, isActive: true },
+      });
+      if (!before) throw new AdminPartnerError('not_found');
 
-    const rateUpdate =
-      args.commissionRate !== undefined
-        ? { commissionRate: args.commissionRate === null ? new Prisma.Decimal(0) : new Prisma.Decimal(args.commissionRate) }
-        : {};
+      const rateUpdate =
+        args.commissionRate !== undefined
+          ? {
+              commissionRate:
+                args.commissionRate === null
+                  ? new Prisma.Decimal(0)
+                  : new Prisma.Decimal(args.commissionRate),
+            }
+          : {};
 
-    const updated = await tx.partner.update({
-      where: { id },
-      data: {
-        ...(args.name !== undefined ? { name: args.name } : {}),
-        ...rateUpdate,
-        ...(args.isActive !== undefined ? { isActive: args.isActive } : {})
+      const updated = await tx.partner.update({
+        where: { id },
+        data: {
+          ...(args.name !== undefined ? { name: args.name } : {}),
+          ...rateUpdate,
+          ...(args.isActive !== undefined ? { isActive: args.isActive } : {}),
+        },
+      });
+
+      if (args.commissionRate !== undefined) {
+        const newDec =
+          args.commissionRate === null
+            ? new Prisma.Decimal(0)
+            : new Prisma.Decimal(args.commissionRate);
+        if (!newDec.equals(before.commissionRate ?? new Prisma.Decimal(0))) {
+          await tx.commissionRateChange.create({
+            data: {
+              partnerId: id,
+              oldRate: before.commissionRate ?? null,
+              newRate: newDec,
+              effectiveFrom: args.effectiveFrom ?? new Date(),
+              changedById: actorUserId,
+            },
+          });
+        }
       }
-    });
 
-    if (args.commissionRate !== undefined) {
-      const newDec = args.commissionRate === null ? new Prisma.Decimal(0) : new Prisma.Decimal(args.commissionRate);
-      if (!newDec.equals(before.commissionRate ?? new Prisma.Decimal(0))) {
-        await tx.commissionRateChange.create({
-          data: {
-            partnerId: id,
-            oldRate: before.commissionRate ?? null,
-            newRate: newDec,
-            effectiveFrom: args.effectiveFrom ?? new Date(),
-            changedById: actorUserId
-          }
-        });
-      }
-    }
-
-    await recordAudit(tx, {
-      userId: actorUserId,
-      action: 'partner_updated',
-      entity: 'partner',
-      entityId: id,
-      before: {
-        name: before.name,
-        commissionRate: before.commissionRate?.toString() ?? null,
-        isActive: before.isActive
-      },
-      after: {
-        name: updated.name,
-        commissionRate: updated.commissionRate?.toString() ?? null,
-        isActive: updated.isActive
-      }
-    });
+      await recordAudit(tx, {
+        userId: actorUserId,
+        action: 'partner_updated',
+        entity: 'partner',
+        entityId: id,
+        before: {
+          name: before.name,
+          commissionRate: before.commissionRate?.toString() ?? null,
+          isActive: before.isActive,
+        },
+        after: {
+          name: updated.name,
+          commissionRate: updated.commissionRate?.toString() ?? null,
+          isActive: updated.isActive,
+        },
+      });
     });
     return { ok: true };
   } catch (e) {
@@ -232,19 +241,19 @@ export async function deactivatePartner(
 ): Promise<{ ok: true } | { ok: false; error: AdminPartnerErrorCode }> {
   try {
     await prisma.$transaction(async (tx) => {
-    const before = await tx.partner.findUnique({ where: { id }, select: { isActive: true } });
-    if (!before) throw new AdminPartnerError('not_found');
-    if (!before.isActive) return;
+      const before = await tx.partner.findUnique({ where: { id }, select: { isActive: true } });
+      if (!before) throw new AdminPartnerError('not_found');
+      if (!before.isActive) return;
 
-    await tx.partner.update({ where: { id }, data: { isActive: false } });
-    await recordAudit(tx, {
-      userId: actorUserId,
-      action: 'partner_deactivated',
-      entity: 'partner',
-      entityId: id,
-      before: { isActive: true },
-      after: { isActive: false }
-    });
+      await tx.partner.update({ where: { id }, data: { isActive: false } });
+      await recordAudit(tx, {
+        userId: actorUserId,
+        action: 'partner_deactivated',
+        entity: 'partner',
+        entityId: id,
+        before: { isActive: true },
+        after: { isActive: false },
+      });
     });
     return { ok: true };
   } catch (e) {
@@ -260,19 +269,19 @@ export async function reactivatePartner(
 ): Promise<{ ok: true } | { ok: false; error: AdminPartnerErrorCode }> {
   try {
     await prisma.$transaction(async (tx) => {
-    const before = await tx.partner.findUnique({ where: { id }, select: { isActive: true } });
-    if (!before) throw new AdminPartnerError('not_found');
-    if (before.isActive) return;
+      const before = await tx.partner.findUnique({ where: { id }, select: { isActive: true } });
+      if (!before) throw new AdminPartnerError('not_found');
+      if (before.isActive) return;
 
-    await tx.partner.update({ where: { id }, data: { isActive: true } });
-    await recordAudit(tx, {
-      userId: actorUserId,
-      action: 'partner_reactivated',
-      entity: 'partner',
-      entityId: id,
-      before: { isActive: false },
-      after: { isActive: true }
-    });
+      await tx.partner.update({ where: { id }, data: { isActive: true } });
+      await recordAudit(tx, {
+        userId: actorUserId,
+        action: 'partner_reactivated',
+        entity: 'partner',
+        entityId: id,
+        before: { isActive: false },
+        after: { isActive: true },
+      });
     });
     return { ok: true };
   } catch (e) {
@@ -300,79 +309,81 @@ export async function createPartnerWithAdmin(
   actorUserId: string,
   args: CreatePartnerWithAdminArgs
 ): Promise<
-  | ({ ok: true } & CreatePartnerWithAdminResult)
-  | { ok: false; error: AdminPartnerErrorCode }
+  ({ ok: true } & CreatePartnerWithAdminResult) | { ok: false; error: AdminPartnerErrorCode }
 > {
   try {
     const result = await prisma.$transaction(async (tx) => {
-    const slugExists = await tx.partner.findUnique({ where: { slug: args.slug } });
-    if (slugExists) throw new AdminPartnerError('duplicate_slug');
+      const slugExists = await tx.partner.findUnique({ where: { slug: args.slug } });
+      if (slugExists) throw new AdminPartnerError('duplicate_slug');
 
-    const emailExists = await tx.user.findUnique({ where: { email: args.adminEmail } });
-    if (emailExists) throw new AdminPartnerError('duplicate_email');
+      const emailExists = await tx.user.findUnique({ where: { email: args.adminEmail } });
+      if (emailExists) throw new AdminPartnerError('duplicate_email');
 
-    // commissionRate is Decimal NOT NULL with default 0; null/undefined means "no rate" → Decimal(0)
-    const partner = await tx.partner.create({
-      data: {
-        name: args.name,
-        slug: args.slug,
-        commissionRate: args.commissionRate != null ? new Prisma.Decimal(args.commissionRate) : new Prisma.Decimal(0),
-        isActive: true
-      }
-    });
-
-    const user = await tx.user.create({
-      data: {
-        email: args.adminEmail,
-        name: args.adminName,
-        role: 'partner',
-        partnerId: partner.id,
-        passwordHash: null,
-        isActive: true
-      }
-    });
-
-    await tx.partnerUser.create({
-      data: {
-        userId: user.id,
-        partnerId: partner.id,
-        roleInPartner: 'admin',
-        assignedOrgIds: []
-      }
-    });
-
-    const { token } = await createInviteToken(tx, user.id);
-
-    if (args.commissionRate != null && args.commissionRate !== 0) {
-      await tx.commissionRateChange.create({
+      // commissionRate is Decimal NOT NULL with default 0; null/undefined means "no rate" → Decimal(0)
+      const partner = await tx.partner.create({
         data: {
-          partnerId: partner.id,
-          oldRate: null,
-          newRate: new Prisma.Decimal(args.commissionRate),
-          changedById: actorUserId
-        }
+          name: args.name,
+          slug: args.slug,
+          commissionRate:
+            args.commissionRate != null
+              ? new Prisma.Decimal(args.commissionRate)
+              : new Prisma.Decimal(0),
+          isActive: true,
+        },
       });
-    }
 
-    await recordAudit(tx, {
-      userId: actorUserId,
-      action: 'partner_created',
-      entity: 'partner',
-      entityId: partner.id,
-      after: {
-        name: args.name,
-        slug: args.slug,
-        commissionRate: args.commissionRate != null ? String(args.commissionRate) : null,
-        adminUserId: user.id,
-        adminEmail: args.adminEmail
+      const user = await tx.user.create({
+        data: {
+          email: args.adminEmail,
+          name: args.adminName,
+          role: 'partner',
+          partnerId: partner.id,
+          passwordHash: null,
+          isActive: true,
+        },
+      });
+
+      await tx.partnerUser.create({
+        data: {
+          userId: user.id,
+          partnerId: partner.id,
+          roleInPartner: 'admin',
+          assignedOrgIds: [],
+        },
+      });
+
+      const { token } = await createInviteToken(tx, user.id);
+
+      if (args.commissionRate != null && args.commissionRate !== 0) {
+        await tx.commissionRateChange.create({
+          data: {
+            partnerId: partner.id,
+            oldRate: null,
+            newRate: new Prisma.Decimal(args.commissionRate),
+            changedById: actorUserId,
+          },
+        });
       }
-    });
 
-    return {
-      partner: { id: partner.id, name: partner.name, slug: partner.slug ?? '' },
-      user: { id: user.id, email: user.email },
-      inviteToken: token
-    };
+      await recordAudit(tx, {
+        userId: actorUserId,
+        action: 'partner_created',
+        entity: 'partner',
+        entityId: partner.id,
+        after: {
+          name: args.name,
+          slug: args.slug,
+          commissionRate: args.commissionRate != null ? String(args.commissionRate) : null,
+          adminUserId: user.id,
+          adminEmail: args.adminEmail,
+        },
+      });
+
+      return {
+        partner: { id: partner.id, name: partner.name, slug: partner.slug ?? '' },
+        user: { id: user.id, email: user.email },
+        inviteToken: token,
+      };
     });
     return { ok: true, ...result };
   } catch (e) {

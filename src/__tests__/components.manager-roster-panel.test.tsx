@@ -4,7 +4,9 @@ import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
-const { leaderDeactivateAssignmentAction } = vi.hoisted(() => ({ leaderDeactivateAssignmentAction: vi.fn() }));
+const { leaderDeactivateAssignmentAction } = vi.hoisted(() => ({
+  leaderDeactivateAssignmentAction: vi.fn(),
+}));
 vi.mock('@/server-actions/manager/team', () => ({ leaderDeactivateAssignmentAction }));
 
 import { ManagerRosterPanel } from '@/components/manager/manager-roster-panel';
@@ -17,8 +19,10 @@ function makeManager(overrides: Partial<CompanyManagerRow>): CompanyManagerRow {
     email: 'ivan@example.com',
     managerRole: null,
     lastLoginAt: null,
-    assignments: [{ id: 'as1', organizationId: 'o1', organizationName: 'ООО Ромашка', isActive: true }],
-    ...overrides
+    assignments: [
+      { id: 'as1', organizationId: 'o1', organizationName: 'ООО Ромашка', isActive: true },
+    ],
+    ...overrides,
   } as CompanyManagerRow;
 }
 
@@ -50,7 +54,11 @@ describe('ManagerRosterPanel (SSR structure)', () => {
 
   it('no active assignments: renders — placeholder for org list', () => {
     const roster = [
-      makeManager({ assignments: [{ id: 'as1', organizationId: 'o1', organizationName: 'ООО Ромашка', isActive: false }] })
+      makeManager({
+        assignments: [
+          { id: 'as1', organizationId: 'o1', organizationName: 'ООО Ромашка', isActive: false },
+        ],
+      }),
     ];
     const html = renderToString(React.createElement(ManagerRosterPanel, { roster }));
     expect(html).toContain('—');
@@ -77,9 +85,9 @@ describe('ManagerRosterPanel (SSR structure)', () => {
       makeManager({
         assignments: [
           { id: 'as1', organizationId: 'o1', organizationName: 'Орг А', isActive: true },
-          { id: 'as2', organizationId: 'o2', organizationName: 'Орг Б', isActive: true }
-        ]
-      })
+          { id: 'as2', organizationId: 'o2', organizationName: 'Орг Б', isActive: true },
+        ],
+      }),
     ];
     const html = renderToString(React.createElement(ManagerRosterPanel, { roster }));
     expect(html).toContain('Орг А, Орг Б');

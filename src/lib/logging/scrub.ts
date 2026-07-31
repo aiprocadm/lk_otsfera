@@ -65,7 +65,7 @@ const SENSITIVE_KEYS = new Set([
   'telegramchatid',
   'telegramlinkcode',
   'maxchatid',
-  'maxlinkcode'
+  'maxlinkcode',
 ]);
 
 const SENSITIVE_SUFFIXES = ['email', 'phone', 'password', 'secret', 'apikey'];
@@ -83,7 +83,7 @@ const STRING_PATTERNS: Array<[RegExp, string]> = [
   // одноразовые артефакты в query-параметрах URL (bridge code, reset token)
   [/([?&](?:token|code|secret|key|apikey|api_key)=)[^&\s'"]+/gi, `$1${REDACTED}`],
   // email-адреса в свободном тексте (сообщения Resend/SMTP содержат адресата)
-  [/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, REDACTED]
+  [/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, REDACTED],
 ];
 
 export function scrubString(value: string): string {
@@ -105,7 +105,7 @@ function scrubValue(value: unknown, depth: number, seen: WeakSet<object>): unkno
     return {
       name: value.name,
       message: scrubString(value.message),
-      stack: value.stack ? scrubString(value.stack) : undefined
+      stack: value.stack ? scrubString(value.stack) : undefined,
     };
   }
   if (Array.isArray(value)) {

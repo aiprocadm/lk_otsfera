@@ -25,7 +25,7 @@ vi.mock('next/link', () => ({
     React.createElement(
       'a',
       { href, className, 'data-testid': testId, 'data-active': dataActive },
-      children,
+      children
     ),
 }));
 
@@ -140,7 +140,7 @@ describe('AdminSidebar', () => {
     const html = renderToString(
       React.createElement(AdminSidebar, {
         items: [{ href: '/admin/ungrouped', label: 'Без группы', icon: '?' }],
-      }),
+      })
     );
 
     expect(html).toContain('Без группы');

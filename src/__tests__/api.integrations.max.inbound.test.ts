@@ -1,7 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ---- hoisted mocks (mirrors api.integrations.max.webhook.test.ts) ----
-const { linkMaxByCode, sendMaxMessage, notFoundIfDisabled, isFeatureEnabled, ingestMock, recordWebhookEvent } = vi.hoisted(() => ({
+const {
+  linkMaxByCode,
+  sendMaxMessage,
+  notFoundIfDisabled,
+  isFeatureEnabled,
+  ingestMock,
+  recordWebhookEvent,
+} = vi.hoisted(() => ({
   linkMaxByCode: vi.fn(),
   sendMaxMessage: vi.fn(),
   notFoundIfDisabled: vi.fn(),
@@ -44,13 +51,17 @@ afterEach(() => {
 describe('POST /api/integrations/max/webhook — inbound ingest', () => {
   it('404 когда флаг max_channel выключен, ingest не вызывается', async () => {
     notFoundIfDisabled.mockReturnValue(new Response('Not Found', { status: 404 }));
-    const res = await POST(req({ message: { text: 'привет', chat: { id: 1 } } }, { 'x-max-webhook-secret': SECRET }));
+    const res = await POST(
+      req({ message: { text: 'привет', chat: { id: 1 } } }, { 'x-max-webhook-secret': SECRET })
+    );
     expect(res.status).toBe(404);
     expect(ingestMock).not.toHaveBeenCalled();
   });
 
   it('401 при неверном секрете, ingest не вызывается', async () => {
-    const res = await POST(req({ message: { text: 'привет', chat: { id: 1 } } }, { 'x-max-webhook-secret': 'wrong' }));
+    const res = await POST(
+      req({ message: { text: 'привет', chat: { id: 1 } } }, { 'x-max-webhook-secret': 'wrong' })
+    );
     expect(res.status).toBe(401);
     expect(ingestMock).not.toHaveBeenCalled();
   });
@@ -78,7 +89,10 @@ describe('POST /api/integrations/max/webhook — inbound ingest', () => {
   it('/start по-прежнему линкует и НЕ вызывает ingest', async () => {
     linkMaxByCode.mockResolvedValue({ ok: true });
     const res = await POST(
-      req({ message: { message_id: 1, text: '/start CODE123', chat: { id: 42 } } }, { 'x-max-webhook-secret': SECRET })
+      req(
+        { message: { message_id: 1, text: '/start CODE123', chat: { id: 42 } } },
+        { 'x-max-webhook-secret': SECRET }
+      )
     );
     expect(res.status).toBe(200);
     expect(linkMaxByCode).toHaveBeenCalledWith({}, { code: 'CODE123', chatId: '42' });
@@ -96,7 +110,10 @@ describe('POST /api/integrations/max/webhook — inbound ingest', () => {
 
   it('голый /start (реальное сообщение, без кода) → 200, ingest НЕ вызывается', async () => {
     const res = await POST(
-      req({ message: { message_id: 4, text: '/start', chat: { id: 1 } } }, { 'x-max-webhook-secret': SECRET })
+      req(
+        { message: { message_id: 4, text: '/start', chat: { id: 1 } } },
+        { 'x-max-webhook-secret': SECRET }
+      )
     );
     expect(res.status).toBe(200);
     expect(ingestMock).not.toHaveBeenCalled();
@@ -125,7 +142,10 @@ describe('POST /api/integrations/max/webhook — inbound ingest', () => {
   it('не вызывает ingest, когда inbound_messaging выключен', async () => {
     isFeatureEnabled.mockReturnValue(false);
     const res = await POST(
-      req({ message: { message_id: 2, text: 'привет', chat: { id: 1 } } }, { 'x-max-webhook-secret': SECRET })
+      req(
+        { message: { message_id: 2, text: 'привет', chat: { id: 1 } } },
+        { 'x-max-webhook-secret': SECRET }
+      )
     );
     expect(res.status).toBe(200);
     expect(ingestMock).not.toHaveBeenCalled();
@@ -134,7 +154,10 @@ describe('POST /api/integrations/max/webhook — inbound ingest', () => {
   it('ошибка ingestInboundMessage не превращается в 500 (best-effort)', async () => {
     ingestMock.mockRejectedValue(new Error('db down'));
     const res = await POST(
-      req({ message: { message_id: 3, text: 'привет', chat: { id: 1 } } }, { 'x-max-webhook-secret': SECRET })
+      req(
+        { message: { message_id: 3, text: 'привет', chat: { id: 1 } } },
+        { 'x-max-webhook-secret': SECRET }
+      )
     );
     expect(res.status).toBe(200);
   });
@@ -142,7 +165,10 @@ describe('POST /api/integrations/max/webhook — inbound ingest', () => {
   it('не-Error rejection ingest (строка) → 200 (String(e)-плечо error-лога)', async () => {
     ingestMock.mockRejectedValue('db string down');
     const res = await POST(
-      req({ message: { message_id: 4, text: 'привет опять', chat: { id: 1 } } }, { 'x-max-webhook-secret': SECRET })
+      req(
+        { message: { message_id: 4, text: 'привет опять', chat: { id: 1 } } },
+        { 'x-max-webhook-secret': SECRET }
+      )
     );
     expect(res.status).toBe(200);
   });

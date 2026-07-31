@@ -13,7 +13,7 @@ import { StaffUnreadBadge } from '@/components/staff-chat/staff-unread-badge';
 type SearchParams = { cursor?: string };
 
 export default async function ManagerMessagesPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
@@ -22,7 +22,7 @@ export default async function ManagerMessagesPage({
   const { rows, nextCursor } = await listIncomingComments(prisma, {
     session,
     withOutgoing: true,
-    ...(sp.cursor ? { cursor: sp.cursor } : {})
+    ...(sp.cursor ? { cursor: sp.cursor } : {}),
   });
 
   const chatEnabled = isFeatureEnabled('chat');
@@ -31,22 +31,26 @@ export default async function ManagerMessagesPage({
 
   return (
     <>
-      <h1 className='mb-4 text-2xl font-semibold text-[#111111]'>Сообщения{chatEnabled && <UnreadBadge />}</h1>
-      <h2 className='mb-3 text-lg font-medium text-gray-700'>Комментарии к заказам</h2>
+      <h1 className="mb-4 text-2xl font-semibold text-[#111111]">
+        Сообщения{chatEnabled && <UnreadBadge />}
+      </h1>
+      <h2 className="mb-3 text-lg font-medium text-gray-700">Комментарии к заказам</h2>
       <ManagerMessagesInbox rows={rows} nextCursor={nextCursor} />
       {chatEnabled && chat && (
-        <section className='mt-8'>
-          <h2 className='mb-3 text-lg font-medium text-gray-700'>Чат</h2>
+        <section className="mt-8">
+          <h2 className="mb-3 text-lg font-medium text-gray-700">Чат</h2>
           <OrderThreadInbox
             threads={chat.ok ? chat.rows : []}
             currentUserId={session.sub}
-            variant='team'
+            variant="team"
           />
         </section>
       )}
       {staffChatEnabled && (
-        <section className='mt-8'>
-          <h2 className='mb-3 text-lg font-medium text-gray-700'>Чат команды <StaffUnreadBadge /></h2>
+        <section className="mt-8">
+          <h2 className="mb-3 text-lg font-medium text-gray-700">
+            Чат команды <StaffUnreadBadge />
+          </h2>
           <StaffChatSection currentUserId={session.sub} />
         </section>
       )}

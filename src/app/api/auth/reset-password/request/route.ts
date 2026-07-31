@@ -1,12 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import * as React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { createInviteToken } from '@/lib/auth/passwordReset';
 import { send } from '@/lib/email/send';
-import { PasswordResetTemplate, passwordResetSubject, passwordResetText } from '@/lib/email/templates/password-reset';
+import {
+  PasswordResetTemplate,
+  passwordResetSubject,
+  passwordResetText,
+} from '@/lib/email/templates/password-reset';
 import { log } from '@/lib/logging';
 import { isRateLimited } from '@/lib/rateLimit';
-import * as React from 'react';
 
 // R0.6: до лимитера маршрут был вектором email-бомбинга жертвы (каждый запрос
 // на существующий email пишет токен в БД и шлёт письмо). Двухключевой лимит:

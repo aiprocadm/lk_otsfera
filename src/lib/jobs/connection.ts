@@ -10,7 +10,7 @@ export function getRedisConnection(): Redis {
   }
   connection = new IORedis(url, {
     maxRetriesPerRequest: null,
-    enableReadyCheck: false
+    enableReadyCheck: false,
   });
   return connection;
 }

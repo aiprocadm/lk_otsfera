@@ -37,20 +37,20 @@ beforeAll(async () => {
   const company = await prisma.company.create({ data: { name: `MgrMsgC-${stamp}` } });
   companyId = company.id;
   const partner = await prisma.partner.create({
-    data: { name: `MgrMsgP-${stamp}`, commissionRate: 0.1 }
+    data: { name: `MgrMsgP-${stamp}`, commissionRate: 0.1 },
   });
   partnerId = partner.id;
   const foreignPartner = await prisma.partner.create({
-    data: { name: `MgrMsgFP-${stamp}`, commissionRate: 0.1 }
+    data: { name: `MgrMsgFP-${stamp}`, commissionRate: 0.1 },
   });
   foreignPartnerId = foreignPartner.id;
 
   const orgA = await prisma.organization.create({
-    data: { name: `MgrMsgOrgA-${stamp}`, partnerId, companyId }
+    data: { name: `MgrMsgOrgA-${stamp}`, partnerId, companyId },
   });
   orgAId = orgA.id;
   const orgB = await prisma.organization.create({
-    data: { name: `MgrMsgOrgB-${stamp}`, partnerId, companyId }
+    data: { name: `MgrMsgOrgB-${stamp}`, partnerId, companyId },
   });
   orgBId = orgB.id;
 
@@ -59,8 +59,8 @@ beforeAll(async () => {
       email: `mgr-msg-a-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Manager A',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   mgrAId = mgrA.id;
   const mgrB = await prisma.user.create({
@@ -68,8 +68,8 @@ beforeAll(async () => {
       email: `mgr-msg-b-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Manager B',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   mgrBId = mgrB.id;
 
@@ -79,8 +79,8 @@ beforeAll(async () => {
       passwordHash: 'x',
       name: 'OrgUser A',
       role: 'organization',
-      organizationId: orgAId
-    }
+      organizationId: orgAId,
+    },
   });
   orgUserAId = orgUserA.id;
   const orgUserB = await prisma.user.create({
@@ -89,16 +89,16 @@ beforeAll(async () => {
       passwordHash: 'x',
       name: 'OrgUser B',
       role: 'organization',
-      organizationId: orgBId
-    }
+      organizationId: orgBId,
+    },
   });
   orgUserBId = orgUserB.id;
 
   await prisma.organizationManager.create({
-    data: { organizationId: orgAId, userId: mgrAId, isActive: true }
+    data: { organizationId: orgAId, userId: mgrAId, isActive: true },
   });
   await prisma.organizationManager.create({
-    data: { organizationId: orgBId, userId: mgrBId, isActive: true }
+    data: { organizationId: orgBId, userId: mgrBId, isActive: true },
   });
 
   const oA = await prisma.order.create({
@@ -107,8 +107,8 @@ beforeAll(async () => {
       orderNumber: `MM-A-${stamp}`,
       companyId,
       partnerId,
-      organizationId: orgAId
-    }
+      organizationId: orgAId,
+    },
   });
   orderOrgAId = oA.id;
   const oB = await prisma.order.create({
@@ -117,8 +117,8 @@ beforeAll(async () => {
       orderNumber: `MM-B-${stamp}`,
       companyId,
       partnerId,
-      organizationId: orgBId
-    }
+      organizationId: orgBId,
+    },
   });
   orderOrgBId = oB.id;
   const oF = await prisma.order.create({
@@ -127,8 +127,8 @@ beforeAll(async () => {
       orderNumber: `MM-F-${stamp}`,
       companyId,
       partnerId: foreignPartnerId,
-      organizationId: orgBId
-    }
+      organizationId: orgBId,
+    },
   });
   orderForeignId = oF.id;
 
@@ -141,8 +141,8 @@ beforeAll(async () => {
       orderId: orderOrgAId,
       body: 'old org question',
       authorId: orgUserAId,
-      createdAt: sixtyDaysAgo
-    }
+      createdAt: sixtyDaysAgo,
+    },
   });
   commentOrgAOldId = cOld.id;
   // Recent org comment on orderA.
@@ -150,8 +150,8 @@ beforeAll(async () => {
     data: {
       orderId: orderOrgAId,
       body: 'recent org question',
-      authorId: orgUserAId
-    }
+      authorId: orgUserAId,
+    },
   });
   commentOrgARecentId = cRecent.id;
   // Recent manager reply by mgrA on orderA.
@@ -159,8 +159,8 @@ beforeAll(async () => {
     data: {
       orderId: orderOrgAId,
       body: 'recent manager reply',
-      authorId: mgrAId
-    }
+      authorId: mgrAId,
+    },
   });
   commentMgrAReplyId = cMgr.id;
   // Recent org comment on orderB (out of mgrA's scope, in mgrB's scope).
@@ -168,8 +168,8 @@ beforeAll(async () => {
     data: {
       orderId: orderOrgBId,
       body: 'org b question',
-      authorId: orgUserBId
-    }
+      authorId: orgUserBId,
+    },
   });
   commentOrgBRecentId = cB.id;
   // Foreign-order org comment (in orgB but we'll filter via mgrA — out of scope).
@@ -177,16 +177,16 @@ beforeAll(async () => {
     data: {
       orderId: orderForeignId,
       body: 'foreign question',
-      authorId: orgUserBId
-    }
+      authorId: orgUserBId,
+    },
   });
   // Extra recent org comment on orderA for pagination cursor test.
   const cExtra = await prisma.comment.create({
     data: {
       orderId: orderOrgAId,
       body: 'another org question',
-      authorId: orgUserAId
-    }
+      authorId: orgUserAId,
+    },
   });
   commentExtraOrgAId = cExtra.id;
 });
@@ -199,8 +199,8 @@ afterAll(async () => {
   await prisma.auditLog.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.comment.deleteMany({
     where: {
-      OR: [{ authorId: { in: userIds } }, { order: { organizationId: { in: orgIds } } }]
-    }
+      OR: [{ authorId: { in: userIds } }, { order: { organizationId: { in: orgIds } } }],
+    },
   });
   await prisma.payment.deleteMany({ where: { order: { organizationId: { in: orgIds } } } });
   await prisma.document.deleteMany({ where: { order: { organizationId: { in: orgIds } } } });
@@ -231,7 +231,7 @@ describe('services/manager/messages — listIncomingComments author filter', () 
     const { rows } = await listIncomingComments(prisma, {
       session,
       withOutgoing: true,
-      take: 100
+      take: 100,
     });
     const ids = rows.map((r) => r.id);
     expect(ids).toContain(commentOrgARecentId);
@@ -255,7 +255,7 @@ describe('services/manager/messages — listIncomingComments since filter', () =
     const { rows } = await listIncomingComments(prisma, {
       session,
       since: new Date(0),
-      take: 100
+      take: 100,
     });
     const ids = rows.map((r) => r.id);
     expect(ids).toContain(commentOrgAOldId);
@@ -287,8 +287,8 @@ describe('services/manager/messages — listIncomingComments RBAC scope', () => 
         email: `ghost-msg-${Date.now()}@t.local`,
         passwordHash: 'x',
         role: 'manager',
-        name: 'Ghost'
-      }
+        name: 'Ghost',
+      },
     });
     try {
       const session = managerSession(ghost.id, []);
@@ -309,7 +309,7 @@ describe('services/manager/messages — listIncomingComments pagination', () => 
     const second = await listIncomingComments(prisma, {
       session,
       take: 1,
-      cursor: first.nextCursor!
+      cursor: first.nextCursor!,
     });
     expect(second.rows.length).toBe(1);
     expect(second.rows[0]!.id).not.toBe(first.rows[0]!.id);
@@ -329,8 +329,6 @@ describe('services/manager/messages — listIncomingComments pagination', () => 
 
   it('rejects take > 100 via zod validation', async () => {
     const session = managerSession(mgrAId, [orgAId]);
-    await expect(
-      listIncomingComments(prisma, { session, take: 9999 })
-    ).rejects.toThrow();
+    await expect(listIncomingComments(prisma, { session, take: 9999 })).rejects.toThrow();
   });
 });

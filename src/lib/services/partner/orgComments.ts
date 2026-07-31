@@ -31,10 +31,10 @@ export async function listOrgOrderComments(
       body: true,
       createdAt: true,
       author: { select: { name: true } },
-      order: { select: { id: true, title: true } }
+      order: { select: { id: true, title: true } },
     },
     orderBy: { createdAt: 'desc' },
-    take: 50
+    take: 50,
   });
 
   return rows.map((c) => ({
@@ -43,6 +43,6 @@ export async function listOrgOrderComments(
     createdAt: c.createdAt,
     authorName: c.author.name,
     orderId: c.order.id,
-    orderTitle: c.order.title
+    orderTitle: c.order.title,
   }));
 }

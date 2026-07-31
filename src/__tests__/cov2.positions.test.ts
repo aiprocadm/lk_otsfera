@@ -31,7 +31,7 @@ const {
   assignTask,
   createTaskColumn,
   updateTaskColumn,
-  deleteTaskColumn
+  deleteTaskColumn,
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   revalidatePath: vi.fn(),
@@ -46,7 +46,7 @@ const {
   assignTask: vi.fn(),
   createTaskColumn: vi.fn(),
   updateTaskColumn: vi.fn(),
-  deleteTaskColumn: vi.fn()
+  deleteTaskColumn: vi.fn(),
 }));
 
 vi.mock('next/cache', () => ({ revalidatePath }));
@@ -56,11 +56,15 @@ vi.mock('@/lib/services/funnel/board', () => ({ moveFunnelLead }));
 vi.mock('@/lib/services/access/funnelStages', () => ({
   createFunnelStage,
   updateFunnelStage,
-  deleteFunnelStage
+  deleteFunnelStage,
 }));
 vi.mock('@/lib/services/tasks/board', () => ({ moveTask }));
 vi.mock('@/lib/services/tasks/tasks', () => ({ createTask, updateTask, deleteTask, assignTask }));
-vi.mock('@/lib/services/tasks/columns', () => ({ createTaskColumn, updateTaskColumn, deleteTaskColumn }));
+vi.mock('@/lib/services/tasks/columns', () => ({
+  createTaskColumn,
+  updateTaskColumn,
+  deleteTaskColumn,
+}));
 
 // Imported AFTER the mocks so the action modules pick up the mocked deps.
 import { createFunnelStageAction } from '@/server-actions/funnel';
@@ -99,7 +103,9 @@ describe('position `|| 0` fallback — funnel stageInput @48', () => {
 
   it('empty-string `position` also hits `|| 0` → 0', async () => {
     createFunnelStage.mockResolvedValue({ ok: false, error: 'forbidden' });
-    const res = await createFunnelStageAction(form({ name: 'Стадия', position: '', statusAnchor: 'new' }));
+    const res = await createFunnelStageAction(
+      form({ name: 'Стадия', position: '', statusAnchor: 'new' })
+    );
     expect(res).toEqual({ ok: false, error: 'forbidden' });
     expect(createFunnelStage).toHaveBeenCalledWith(
       {},
@@ -125,7 +131,9 @@ describe('position `|| 0` fallback — tasks columnInput @110', () => {
 
   it('empty-string `position` also hits `|| 0` → 0', async () => {
     createTaskColumn.mockResolvedValue({ ok: false, error: 'forbidden' });
-    const res = await createTaskColumnAction(form({ name: 'Колонка', position: '', statusAnchor: 'todo' }));
+    const res = await createTaskColumnAction(
+      form({ name: 'Колонка', position: '', statusAnchor: 'todo' })
+    );
     expect(res).toEqual({ ok: false, error: 'forbidden' });
     expect(createTaskColumn).toHaveBeenCalledWith(
       {},

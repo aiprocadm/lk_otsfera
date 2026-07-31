@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import AdminOrderDetailPage from '@/app/admin/orders/[id]/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
@@ -8,10 +9,10 @@ vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 
 const { orderFindUnique, userFindMany } = vi.hoisted(() => ({
   orderFindUnique: vi.fn(),
-  userFindMany: vi.fn()
+  userFindMany: vi.fn(),
 }));
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: { order: { findUnique: orderFindUnique }, user: { findMany: userFindMany } }
+  prisma: { order: { findUnique: orderFindUnique }, user: { findMany: userFindMany } },
 }));
 
 const { getValuesForEntity } = vi.hoisted(() => ({ getValuesForEntity: vi.fn() }));
@@ -21,24 +22,33 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
 vi.mock('@/components/admin/assign-order-manager-form', () => ({
-  AssignOrderManagerForm: (props: { orderId: string; currentManagerId: unknown; candidates: unknown[] }) =>
+  AssignOrderManagerForm: (props: {
+    orderId: string;
+    currentManagerId: unknown;
+    candidates: unknown[];
+  }) =>
     React.createElement(
       'div',
       { 'data-testid': 'assign-manager-form' },
       props.orderId,
       String(props.currentManagerId),
       JSON.stringify(props.candidates)
-    )
+    ),
 }));
 
 vi.mock('@/components/orders/order-stage-stepper', () => ({
   OrderStageStepper: (props: { stage: unknown; labels: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'stage-stepper' }, String(props.stage), JSON.stringify(props.labels))
+    React.createElement(
+      'div',
+      { 'data-testid': 'stage-stepper' },
+      String(props.stage),
+      JSON.stringify(props.labels)
+    ),
 }));
 
 vi.mock('@/components/orders/order-custom-fields', () => ({
@@ -49,10 +59,8 @@ vi.mock('@/components/orders/order-custom-fields', () => ({
       JSON.stringify(props.fields),
       props.orderId,
       String(props.editable)
-    )
+    ),
 }));
-
-import AdminOrderDetailPage from '@/app/admin/orders/[id]/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 
@@ -70,7 +78,7 @@ const BASE_ORDER = {
   financialStatus: 'unpaid',
   contractSignedAt: null,
   completedAt: null,
-  closedAt: null
+  closedAt: null,
 };
 
 describe('AdminOrderDetailPage', () => {
@@ -99,7 +107,20 @@ describe('AdminOrderDetailPage', () => {
     userFindMany.mockResolvedValue([{ id: 'm1', name: 'Менеджер', email: 'm@x.com' }]);
     getValuesForEntity.mockResolvedValue({
       ok: true,
-      fields: [{ definition: { id: 'f1', key: 'k1', label: 'Поле', fieldType: 'text', options: null, required: false, sortOrder: 0 }, value: 'v' }]
+      fields: [
+        {
+          definition: {
+            id: 'f1',
+            key: 'k1',
+            label: 'Поле',
+            fieldType: 'text',
+            options: null,
+            required: false,
+            sortOrder: 0,
+          },
+          value: 'v',
+        },
+      ],
     });
 
     const { container } = await renderServerComponent(
@@ -129,7 +150,7 @@ describe('AdminOrderDetailPage', () => {
       ...BASE_ORDER,
       organization: null,
       partner: null,
-      totalAmount: null
+      totalAmount: null,
     });
     userFindMany.mockResolvedValue([]);
     getValuesForEntity.mockResolvedValue({ ok: false, error: 'not_found' });

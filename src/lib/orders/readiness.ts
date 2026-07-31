@@ -32,10 +32,7 @@ export type ItemReadiness = {
 
 /** Чего не хватает по заказу в целом. */
 export type OrderGap =
-  | 'items_missing'
-  | 'items_not_ready'
-  | 'deliverables_missing'
-  | 'deliverables_not_approved';
+  'items_missing' | 'items_not_ready' | 'deliverables_missing' | 'deliverables_not_approved';
 
 export type ReadinessInput = {
   serviceType: ServiceType;
@@ -104,12 +101,12 @@ export const ORDER_GAP_RU: Record<OrderGap, string> = {
   items_missing: 'В заказе нет ни одного слушателя',
   items_not_ready: 'Не по всем слушателям готовы удостоверения',
   deliverables_missing: 'Не загружены итоговые документы',
-  deliverables_not_approved: 'Менеджер не отметил работу согласованной'
+  deliverables_not_approved: 'Менеджер не отметил работу согласованной',
 };
 
 export const ITEM_GAP_RU: Record<ItemGap, string> = {
   training_incomplete: 'обучение не завершено',
   certificate_missing: 'удостоверение не создано',
   certificate_scan_missing: 'не загружен скан удостоверения',
-  certificate_scan_infected: 'скан удостоверения заражён — загрузите другой файл'
+  certificate_scan_infected: 'скан удостоверения заражён — загрузите другой файл',
 };

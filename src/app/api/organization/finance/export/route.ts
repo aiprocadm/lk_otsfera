@@ -33,19 +33,19 @@ export async function GET(req: Request) {
   const [{ rows, total }, kpis, org] = await Promise.all([
     listOrgPaymentsForExport(prisma, { organizationId, limit: EXPORT_ROW_LIMIT }),
     getOrgFinanceKpis(prisma, organizationId),
-    prisma.organization.findUnique({ where: { id: organizationId }, select: { name: true } })
+    prisma.organization.findUnique({ where: { id: organizationId }, select: { name: true } }),
   ]);
 
   const buf = await renderPaymentsXlsx({
     rows,
     total,
     kpis,
-    organizationName: org?.name ?? '—'
+    organizationName: org?.name ?? '—',
   });
   return new NextResponse(Buffer.from(buf), {
     headers: {
       'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'content-disposition': 'attachment; filename="payments.xlsx"'
-    }
+      'content-disposition': 'attachment; filename="payments.xlsx"',
+    },
   });
 }

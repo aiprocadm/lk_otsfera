@@ -16,7 +16,7 @@ it.each([
   ['debug', 'debug'],
   ['info', 'log'],
   ['warn', 'warn'],
-  ['error', 'error']
+  ['error', 'error'],
 ] as const)('dev/test: %s → console.%s verbatim', (method, sink) => {
   const spy = vi.spyOn(console, sink).mockImplementation(() => {});
   edgeLog[method]('[auth] msg', 32, 'chars');

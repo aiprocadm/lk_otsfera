@@ -30,7 +30,7 @@ const manager = (): SessionPayload =>
     sub: managerId,
     role: 'manager',
     companyId,
-    managedOrgIds: [orgId]
+    managedOrgIds: [orgId],
   }) as unknown as SessionPayload;
 
 async function makeTrainingOrder(title: string, withScan: boolean, cancelled = false) {
@@ -44,16 +44,16 @@ async function makeTrainingOrder(title: string, withScan: boolean, cancelled = f
       totalAmount: new Prisma.Decimal('1000.00'),
       paidAmount: new Prisma.Decimal('1000.00'),
       financialStatus: 'paid',
-      executionStatus: cancelled ? 'cancelled' : 'completed'
-    }
+      executionStatus: cancelled ? 'cancelled' : 'completed',
+    },
   });
   const item = await prisma.orderItem.create({
     data: {
       orderId: order.id,
       studentId,
       directionId,
-      trainingStatus: 'certificate_issued'
-    }
+      trainingStatus: 'certificate_issued',
+    },
   });
   await prisma.certificate.create({
     data: {
@@ -63,8 +63,8 @@ async function makeTrainingOrder(title: string, withScan: boolean, cancelled = f
       directionId,
       orderItemId: item.id,
       issuedAt: new Date('2026-06-01'),
-      documentId: withScan ? documentId : null
-    }
+      documentId: withScan ? documentId : null,
+    },
   });
   return order.id;
 }
@@ -75,20 +75,22 @@ beforeAll(async () => {
   const org = await prisma.organization.create({ data: { name: `${RUN}-org`, companyId } });
   orgId = org.id;
   const mgr = await prisma.user.create({
-    data: { email: `${RUN}-m@t.local`, name: 'M', role: 'manager', passwordHash: 'x', companyId }
+    data: { email: `${RUN}-m@t.local`, name: 'M', role: 'manager', passwordHash: 'x', companyId },
   });
   managerId = mgr.id;
   const ou = await prisma.user.create({
-    data: { email: `${RUN}-o@t.local`, name: 'O', role: 'organization', passwordHash: 'x' }
+    data: { email: `${RUN}-o@t.local`, name: 'O', role: 'organization', passwordHash: 'x' },
   });
   orgUserId = ou.id;
   await prisma.organizationUser.create({
-    data: { organizationId: orgId, userId: orgUserId, roleInOrg: 'admin', isActive: true }
+    data: { organizationId: orgId, userId: orgUserId, roleInOrg: 'admin', isActive: true },
   });
-  const dir = await prisma.trainingDirection.create({ data: { name: `${RUN}-dir`, isActive: true } });
+  const dir = await prisma.trainingDirection.create({
+    data: { name: `${RUN}-dir`, isActive: true },
+  });
   directionId = dir.id;
   const student = await prisma.student.create({
-    data: { name: `${RUN} Слушатель`, email: `${RUN}-s@t.local`, organizationId: orgId }
+    data: { name: `${RUN} Слушатель`, email: `${RUN}-s@t.local`, organizationId: orgId },
   });
   studentId = student.id;
 
@@ -105,8 +107,8 @@ beforeAll(async () => {
       counterpartyId: orgId,
       size: 1024,
       company: { connect: { id: companyId } },
-      uploadedBy: { connect: { id: managerId } }
-    }
+      uploadedBy: { connect: { id: managerId } },
+    },
   });
   documentId = doc.id;
 
@@ -153,14 +155,14 @@ describe('«Мой день» — Готово к передаче (ФТ-15.3)',
   it('заражённый скан не делает заказ готовым', async () => {
     await prisma.document.update({
       where: { id: documentId },
-      data: { scanStatus: 'infected', scanReason: 'Eicar-Test-Signature' }
+      data: { scanStatus: 'infected', scanReason: 'Eicar-Test-Signature' },
     });
     const data = await getMyDay(prisma, manager());
     expect(data.readyToDeliver).toBe(0);
 
     await prisma.document.update({
       where: { id: documentId },
-      data: { scanStatus: 'clean', scanReason: null }
+      data: { scanStatus: 'clean', scanReason: null },
     });
   });
 
@@ -169,7 +171,7 @@ describe('«Мой день» — Готово к передаче (ФТ-15.3)',
       sub: 'ghost',
       role: 'manager',
       companyId: 'other-co',
-      managedOrgIds: []
+      managedOrgIds: [],
     } as unknown as SessionPayload;
     const data = await getMyDay(prisma, alien);
     expect(data.readyOrders).toEqual([]);

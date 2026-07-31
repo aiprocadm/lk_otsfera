@@ -4,7 +4,7 @@ import {
   getFunnelAnalytics,
   getPlanFact,
   upsertSalesTarget,
-  monthRange
+  monthRange,
 } from '@/lib/services/leader/analytics';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -59,39 +59,73 @@ beforeAll(async () => {
       role: 'manager',
       managerRole: 'leader',
       companyId: companyA,
-      passwordHash: 'x'
-    }
+      passwordHash: 'x',
+    },
   });
   leaderA = uLeaderA.id;
 
   const uMgrA = await prisma.user.create({
-    data: { email: `${STAMP}-mgrA@x.local`, name: `Manager A ${STAMP}`, role: 'manager', companyId: companyA, passwordHash: 'x' }
+    data: {
+      email: `${STAMP}-mgrA@x.local`,
+      name: `Manager A ${STAMP}`,
+      role: 'manager',
+      companyId: companyA,
+      passwordHash: 'x',
+    },
   });
   mgrA = uMgrA.id;
 
   const uMgrB = await prisma.user.create({
-    data: { email: `${STAMP}-mgrB@x.local`, name: `Manager B ${STAMP}`, role: 'manager', companyId: companyB, passwordHash: 'x' }
+    data: {
+      email: `${STAMP}-mgrB@x.local`,
+      name: `Manager B ${STAMP}`,
+      role: 'manager',
+      companyId: companyB,
+      passwordHash: 'x',
+    },
   });
   mgrB = uMgrB.id;
 
   const partner = await prisma.partner.create({ data: { name: `${STAMP}-partner` } });
   partnerId = partner.id;
   const uPartner = await prisma.user.create({
-    data: { email: `${STAMP}-partner@x.local`, name: `Partner ${STAMP}`, role: 'partner', partnerId, passwordHash: 'x' }
+    data: {
+      email: `${STAMP}-partner@x.local`,
+      name: `Partner ${STAMP}`,
+      role: 'partner',
+      partnerId,
+      passwordHash: 'x',
+    },
   });
   partnerUser = uPartner.id;
 
-  const oA = await prisma.organization.create({ data: { name: `${STAMP}-orgA`, companyId: companyA } });
+  const oA = await prisma.organization.create({
+    data: { name: `${STAMP}-orgA`, companyId: companyA },
+  });
   orgA = oA.id;
-  const oB = await prisma.organization.create({ data: { name: `${STAMP}-orgB`, companyId: companyB } });
+  const oB = await prisma.organization.create({
+    data: { name: `${STAMP}-orgB`, companyId: companyB },
+  });
   orgB = oB.id;
 
   const ordA = await prisma.order.create({
-    data: { title: `${STAMP}-order-A`, companyId: companyA, organizationId: orgA, managerId: mgrA, totalAmount: 0 }
+    data: {
+      title: `${STAMP}-order-A`,
+      companyId: companyA,
+      organizationId: orgA,
+      managerId: mgrA,
+      totalAmount: 0,
+    },
   });
   orderA = ordA.id;
   const ordB = await prisma.order.create({
-    data: { title: `${STAMP}-order-B`, companyId: companyB, organizationId: orgB, managerId: mgrB, totalAmount: 0 }
+    data: {
+      title: `${STAMP}-order-B`,
+      companyId: companyB,
+      organizationId: orgB,
+      managerId: mgrB,
+      totalAmount: 0,
+    },
   });
   orderB = ordB.id;
 
@@ -101,16 +135,40 @@ beforeAll(async () => {
   const outOfMonth = new Date(TEST_YEAR, TEST_MONTH, 5); // next month — must be excluded
 
   const pA1 = await prisma.payment.create({
-    data: { organizationId: orgA, orderId: orderA, amount: '1000.00', paidAt: inMonth, isRefund: false }
+    data: {
+      organizationId: orgA,
+      orderId: orderA,
+      amount: '1000.00',
+      paidAt: inMonth,
+      isRefund: false,
+    },
   });
   const pA2 = await prisma.payment.create({
-    data: { organizationId: orgA, orderId: orderA, amount: '200.00', paidAt: inMonthRefund, isRefund: true }
+    data: {
+      organizationId: orgA,
+      orderId: orderA,
+      amount: '200.00',
+      paidAt: inMonthRefund,
+      isRefund: true,
+    },
   });
   const pA3 = await prisma.payment.create({
-    data: { organizationId: orgA, orderId: orderA, amount: '500.00', paidAt: outOfMonth, isRefund: false }
+    data: {
+      organizationId: orgA,
+      orderId: orderA,
+      amount: '500.00',
+      paidAt: outOfMonth,
+      isRefund: false,
+    },
   });
   const pB1 = await prisma.payment.create({
-    data: { organizationId: orgB, orderId: orderB, amount: '9999.00', paidAt: inMonth, isRefund: false }
+    data: {
+      organizationId: orgB,
+      orderId: orderB,
+      amount: '9999.00',
+      paidAt: inMonth,
+      isRefund: false,
+    },
   });
   paymentIds = [pA1.id, pA2.id, pA3.id, pB1.id];
 
@@ -123,9 +181,11 @@ beforeAll(async () => {
     clientContactName: `${STAMP}-contact`,
     subject: `${STAMP}-subject`,
     status: 'new' as const,
-    createdAt: leadCreatedAt
+    createdAt: leadCreatedAt,
   };
-  const leadUnassigned = await prisma.lead.create({ data: { ...baseLead, assignedManagerId: null } });
+  const leadUnassigned = await prisma.lead.create({
+    data: { ...baseLead, assignedManagerId: null },
+  });
   const leadA = await prisma.lead.create({ data: { ...baseLead, assignedManagerId: mgrA } });
   const leadB = await prisma.lead.create({ data: { ...baseLead, assignedManagerId: mgrB } });
   leadIds = [leadUnassigned.id, leadA.id, leadB.id];
@@ -151,13 +211,17 @@ describe('M3 leader analytics — upsertSalesTarget cross-company (C8)', () => {
       managerId: mgrB,
       year: TEST_YEAR,
       month: TEST_MONTH,
-      targetAmount: '100000.00'
+      targetAmount: '100000.00',
     });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
 
-    const count = await prisma.salesTarget.count({ where: { companyId: companyA, managerId: mgrB, year: TEST_YEAR, month: TEST_MONTH } });
+    const count = await prisma.salesTarget.count({
+      where: { companyId: companyA, managerId: mgrB, year: TEST_YEAR, month: TEST_MONTH },
+    });
     expect(count).toBe(0);
-    const countB = await prisma.salesTarget.count({ where: { companyId: companyB, managerId: mgrB, year: TEST_YEAR, month: TEST_MONTH } });
+    const countB = await prisma.salesTarget.count({
+      where: { companyId: companyB, managerId: mgrB, year: TEST_YEAR, month: TEST_MONTH },
+    });
     expect(countB).toBe(0);
   });
 
@@ -166,7 +230,7 @@ describe('M3 leader analytics — upsertSalesTarget cross-company (C8)', () => {
       managerId: mgrA,
       year: TEST_YEAR,
       month: TEST_MONTH,
-      targetAmount: '100000.00'
+      targetAmount: '100000.00',
     });
     expect(first).toEqual({ ok: true });
 
@@ -174,11 +238,13 @@ describe('M3 leader analytics — upsertSalesTarget cross-company (C8)', () => {
       managerId: mgrA,
       year: TEST_YEAR,
       month: TEST_MONTH,
-      targetAmount: '150000.00'
+      targetAmount: '150000.00',
     });
     expect(second).toEqual({ ok: true });
 
-    const rows = await prisma.salesTarget.findMany({ where: { companyId: companyA, managerId: mgrA, year: TEST_YEAR, month: TEST_MONTH } });
+    const rows = await prisma.salesTarget.findMany({
+      where: { companyId: companyA, managerId: mgrA, year: TEST_YEAR, month: TEST_MONTH },
+    });
     expect(rows).toHaveLength(1);
     expect(rows[0].targetAmount.toFixed(2)).toBe('150000.00');
 
@@ -186,18 +252,23 @@ describe('M3 leader analytics — upsertSalesTarget cross-company (C8)', () => {
       managerId: mgrA,
       year: TEST_YEAR,
       month: TEST_MONTH,
-      targetAmount: null
+      targetAmount: null,
     });
     expect(cleared).toEqual({ ok: true });
 
-    const rowsAfterClear = await prisma.salesTarget.findMany({ where: { companyId: companyA, managerId: mgrA, year: TEST_YEAR, month: TEST_MONTH } });
+    const rowsAfterClear = await prisma.salesTarget.findMany({
+      where: { companyId: companyA, managerId: mgrA, year: TEST_YEAR, month: TEST_MONTH },
+    });
     expect(rowsAfterClear).toHaveLength(0);
   });
 });
 
 describe('M3 leader analytics — getPlanFact isolation + netting', () => {
   it("leader A's plan/fact nets refunds, excludes out-of-period payments, and never surfaces company B", async () => {
-    const res = await getPlanFact(prisma, leaderSession(leaderA, companyA), { year: TEST_YEAR, month: TEST_MONTH });
+    const res = await getPlanFact(prisma, leaderSession(leaderA, companyA), {
+      year: TEST_YEAR,
+      month: TEST_MONTH,
+    });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
 
@@ -216,7 +287,11 @@ describe('M3 leader analytics — getPlanFact isolation + netting', () => {
 
 describe('M3 leader analytics — getFunnelAnalytics cohort scope (§0.8)', () => {
   it("leader A's cohort excludes company B's assigned lead; unassigned (shared queue) + mgrA's lead count", async () => {
-    const res = await getFunnelAnalytics(prisma, leaderSession(leaderA, companyA), monthRange(TEST_YEAR, TEST_MONTH));
+    const res = await getFunnelAnalytics(
+      prisma,
+      leaderSession(leaderA, companyA),
+      monthRange(TEST_YEAR, TEST_MONTH)
+    );
     expect(res.ok).toBe(true);
     if (!res.ok) return;
 
@@ -236,7 +311,11 @@ describe('M3 leader analytics — getFunnelAnalytics cohort scope (§0.8)', () =
 
 describe('M3 leader analytics — getFunnelAnalytics snapshot scope', () => {
   it("leader A's open-stage snapshot excludes company B's lead", async () => {
-    const res = await getFunnelAnalytics(prisma, leaderSession(leaderA, companyA), monthRange(TEST_YEAR, TEST_MONTH));
+    const res = await getFunnelAnalytics(
+      prisma,
+      leaderSession(leaderA, companyA),
+      monthRange(TEST_YEAR, TEST_MONTH)
+    );
     expect(res.ok).toBe(true);
     if (!res.ok) return;
 
@@ -251,23 +330,60 @@ describe('этап 6 ФТ-4.5 — выигранные сделки в план/
     const outMonth = new Date(Date.UTC(TEST_YEAR, TEST_MONTH, 5)); // следующий месяц
     const created = await Promise.all([
       prisma.deal.create({
-        data: { companyId: companyA, title: `${STAMP}-dealA1`, managerId: mgrA, status: 'won', wonAt: inMonth, amount: '30000.00' }
+        data: {
+          companyId: companyA,
+          title: `${STAMP}-dealA1`,
+          managerId: mgrA,
+          status: 'won',
+          wonAt: inMonth,
+          amount: '30000.00',
+        },
       }),
       prisma.deal.create({
-        data: { companyId: companyA, title: `${STAMP}-dealA2`, managerId: mgrA, status: 'won', wonAt: inMonth, amount: null } // won без суммы
+        data: {
+          companyId: companyA,
+          title: `${STAMP}-dealA2`,
+          managerId: mgrA,
+          status: 'won',
+          wonAt: inMonth,
+          amount: null,
+        }, // won без суммы
       }),
       prisma.deal.create({
-        data: { companyId: companyA, title: `${STAMP}-dealA3`, managerId: mgrA, status: 'won', wonAt: outMonth, amount: '999.00' } // вне периода
+        data: {
+          companyId: companyA,
+          title: `${STAMP}-dealA3`,
+          managerId: mgrA,
+          status: 'won',
+          wonAt: outMonth,
+          amount: '999.00',
+        }, // вне периода
       }),
       prisma.deal.create({
-        data: { companyId: companyA, title: `${STAMP}-dealA4`, managerId: mgrA, status: 'open', amount: '111.00' } // не won
+        data: {
+          companyId: companyA,
+          title: `${STAMP}-dealA4`,
+          managerId: mgrA,
+          status: 'open',
+          amount: '111.00',
+        }, // не won
       }),
       prisma.deal.create({
-        data: { companyId: companyB, title: `${STAMP}-dealB1`, managerId: mgrB, status: 'won', wonAt: inMonth, amount: '50000.00' } // чужая компания
-      })
+        data: {
+          companyId: companyB,
+          title: `${STAMP}-dealB1`,
+          managerId: mgrB,
+          status: 'won',
+          wonAt: inMonth,
+          amount: '50000.00',
+        }, // чужая компания
+      }),
     ]);
     try {
-      const res = await getPlanFact(prisma, leaderSession(leaderA, companyA), { year: TEST_YEAR, month: TEST_MONTH });
+      const res = await getPlanFact(prisma, leaderSession(leaderA, companyA), {
+        year: TEST_YEAR,
+        month: TEST_MONTH,
+      });
       expect(res.ok).toBe(true);
       if (!res.ok) return;
 

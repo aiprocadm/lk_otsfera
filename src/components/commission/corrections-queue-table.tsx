@@ -2,7 +2,18 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Dialog, EmptyState, Field, Textarea, TableShell, THead, Th, Tr, Td } from '@/components/ui';
+import {
+  Button,
+  Dialog,
+  EmptyState,
+  Field,
+  Textarea,
+  TableShell,
+  THead,
+  Th,
+  Tr,
+  Td,
+} from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { fmtMoney, fmtDate } from '@/lib/format';
@@ -26,33 +37,37 @@ export function CorrectionsQueueTable({ rows }: { rows: CorrectionRow[] }) {
   const visible = rows.filter((r) => !resolved.has(r.id));
 
   if (visible.length === 0) {
-    return <EmptyState message='Очередь пуста — нет корректировок, требующих решения.' />;
+    return <EmptyState message="Очередь пуста — нет корректировок, требующих решения." />;
   }
 
   return (
-    <TableShell overflow='x-auto'>
+    <TableShell overflow="x-auto">
       <THead>
         <Th>Партнёр</Th>
         <Th>Период возврата</Th>
-        <Th className='text-right'>Сумма возврата</Th>
-        <Th className='text-right'>Удержание</Th>
-        <Th className='text-right'>Действия</Th>
+        <Th className="text-right">Сумма возврата</Th>
+        <Th className="text-right">Удержание</Th>
+        <Th className="text-right">Действия</Th>
       </THead>
       <tbody>
         {visible.map((r) => (
           <Tr key={r.id}>
-            <Td className='text-gray-700'>{r.partnerName}</Td>
-            <Td className='text-gray-700'>
+            <Td className="text-gray-700">{r.partnerName}</Td>
+            <Td className="text-gray-700">
               {fmtDate(r.originalPeriodFrom)} — {fmtDate(r.originalPeriodTo)}
             </Td>
-            <Td className='text-right text-gray-700'>{fmtMoney(r.amount)}</Td>
-            <Td className='text-right text-gray-700'>{fmtMoney(r.commissionAmount)}</Td>
-            <Td className='text-right'>
-              <div className='flex justify-end gap-2'>
-                <Button size='sm' onClick={() => setActive({ row: r, action: 'apply' })}>
+            <Td className="text-right text-gray-700">{fmtMoney(r.amount)}</Td>
+            <Td className="text-right text-gray-700">{fmtMoney(r.commissionAmount)}</Td>
+            <Td className="text-right">
+              <div className="flex justify-end gap-2">
+                <Button size="sm" onClick={() => setActive({ row: r, action: 'apply' })}>
                   Применить
                 </Button>
-                <Button size='sm' variant='secondary' onClick={() => setActive({ row: r, action: 'waive' })}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setActive({ row: r, action: 'waive' })}
+                >
                   Списать
                 </Button>
               </div>
@@ -80,7 +95,7 @@ function ResolveDialog({
   row,
   action,
   onClose,
-  onResolved
+  onResolved,
 }: {
   row: CorrectionRow;
   action: Action;
@@ -128,31 +143,32 @@ function ResolveDialog({
       busy={submitting}
       error={error}
     >
-      <div className='space-y-4'>
-        <p className='text-sm text-gray-600'>
-          {row.partnerName} · возврат {fmtMoney(row.amount)} · удержание {fmtMoney(row.commissionAmount)}
+      <div className="space-y-4">
+        <p className="text-sm text-gray-600">
+          {row.partnerName} · возврат {fmtMoney(row.amount)} · удержание{' '}
+          {fmtMoney(row.commissionAmount)}
         </p>
-        <p className='text-xs text-gray-500'>
+        <p className="text-xs text-gray-500">
           {isWaive
             ? 'Корректировка будет списана без удержания. Укажите причину.'
             : 'Удержание будет добавлено в следующую ведомость партнёра.'}
         </p>
 
         {isWaive && (
-          <Field htmlFor='waive-reason' label='Причина списания'>
+          <Field htmlFor="waive-reason" label="Причина списания">
             <Textarea
-              id='waive-reason'
+              id="waive-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder='Почему корректировка списывается…'
+              placeholder="Почему корректировка списывается…"
               invalid={reasonMissing}
               rows={3}
             />
           </Field>
         )}
 
-        <div className='flex justify-end gap-2 pt-2'>
-          <Button variant='secondary' onClick={onClose} disabled={submitting}>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="secondary" onClick={onClose} disabled={submitting}>
             Отмена
           </Button>
           <Button onClick={submit} loading={submitting} disabled={reasonMissing}>

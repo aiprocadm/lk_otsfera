@@ -49,6 +49,8 @@ describe('PwaInstaller', () => {
 
     render(React.createElement(PwaInstaller));
 
-    await vi.waitFor(() => expect(warnSpy).toHaveBeenCalledWith('[pwa] service worker registration failed', err));
+    await vi.waitFor(() =>
+      expect(warnSpy).toHaveBeenCalledWith('[pwa] service worker registration failed', err)
+    );
   });
 });

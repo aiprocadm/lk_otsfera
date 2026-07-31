@@ -23,13 +23,16 @@ export async function getOrgCard(
   const org = await prisma.organization.findFirst({
     where: { id: args.orgId, partnerId: args.partnerId },
     select: {
-      id: true, name: true, inn: true, kpp: true,
+      id: true,
+      name: true,
+      inn: true,
+      kpp: true,
       assignedManagerUserId: true,
       partnerCommissionRate: true,
       partnerCommissionRateNote: true,
       companyId: true,
-      company: { select: { name: true } }
-    }
+      company: { select: { name: true } },
+    },
   });
   if (!org) return null;
 
@@ -38,7 +41,7 @@ export async function getOrgCard(
   if (org.companyId) {
     const orders = await prisma.order.findMany({
       where: { companyId: org.companyId, partnerId: args.partnerId },
-      select: { totalAmount: true, paidAmount: true, executionStatus: true }
+      select: { totalAmount: true, paidAmount: true, executionStatus: true },
     });
     ordersCount = orders.length;
     debt = orders
@@ -55,6 +58,6 @@ export async function getOrgCard(
     assignedManagerUserId: org.assignedManagerUserId,
     partnerCommissionRate: org.partnerCommissionRate?.toString() ?? null,
     partnerCommissionRateNote: org.partnerCommissionRateNote,
-    kpi: { ordersCount, debt: debt.toFixed(2) }
+    kpi: { ordersCount, debt: debt.toFixed(2) },
   };
 }

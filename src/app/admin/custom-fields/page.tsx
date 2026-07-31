@@ -7,7 +7,7 @@ import { CustomFieldsAdmin } from '@/components/admin/custom-fields-admin';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminCustomFieldsPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<{ entity?: string }>;
 }) {

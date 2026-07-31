@@ -3,11 +3,19 @@ import { requirePartner, requirePartnerAdmin } from '@/lib/auth/guard';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const adminPartner: SessionPayload = {
-  sub: 'u1', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
+  sub: 'u1',
+  role: 'partner',
+  partnerId: 'p1',
+  partnerRole: 'admin',
+  assignedOrgIds: [],
 };
 
 const managerPartner: SessionPayload = {
-  sub: 'u2', role: 'partner', partnerId: 'p1', partnerRole: 'manager', assignedOrgIds: []
+  sub: 'u2',
+  role: 'partner',
+  partnerId: 'p1',
+  partnerRole: 'manager',
+  assignedOrgIds: [],
 };
 
 const platformAdmin: SessionPayload = { sub: 'u3', role: 'admin' };

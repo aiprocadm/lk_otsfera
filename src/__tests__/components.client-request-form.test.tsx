@@ -6,7 +6,10 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { ClientRequestForm } from '@/components/client-requests/client-request-form';
@@ -29,9 +32,10 @@ function submit() {
 // debounce) дёрнуть /api/suggest/party. Ассерты по отправке формы смотрят
 // только на вызовы /api/client-requests, чтобы не флакать на таймингах.
 function requestCalls(fetchMock: ReturnType<typeof vi.fn>): [string, RequestInit][] {
-  return fetchMock.mock.calls.filter(
-    ([url]) => url === '/api/client-requests'
-  ) as [string, RequestInit][];
+  return fetchMock.mock.calls.filter(([url]) => url === '/api/client-requests') as [
+    string,
+    RequestInit,
+  ][];
 }
 
 describe('ClientRequestForm', () => {
@@ -66,9 +70,15 @@ describe('ClientRequestForm', () => {
       ok: true,
       json: async () => ({
         suggestions: [
-          { name: 'ООО Ромашка', inn: '7707083893', kpp: '770701001', ogrn: null, address: 'г. Москва' }
-        ]
-      })
+          {
+            name: 'ООО Ромашка',
+            inn: '7707083893',
+            kpp: '770701001',
+            ogrn: null,
+            address: 'г. Москва',
+          },
+        ],
+      }),
     });
     vi.stubGlobal('fetch', fetchMock);
     try {
@@ -97,7 +107,9 @@ describe('ClientRequestForm', () => {
     fireEvent.change(input('ИНН'), { target: { value: '7701234567' } });
     fireEvent.change(input('Телефон'), { target: { value: '+79990001122' } });
     fireEvent.change(input('Email'), { target: { value: 'ivan@example.com' } });
-    fireEvent.change(screen.getByLabelText('Описание'), { target: { value: 'Обучить 10 человек' } });
+    fireEvent.change(screen.getByLabelText('Описание'), {
+      target: { value: 'Обучить 10 человек' },
+    });
     submit();
 
     await waitFor(() =>
@@ -116,7 +128,7 @@ describe('ClientRequestForm', () => {
       contactPhone: '+79990001122',
       contactEmail: 'ivan@example.com',
       subject: 'Обучение ОТ',
-      body: 'Обучить 10 человек'
+      body: 'Обучить 10 человек',
     });
     expect(refresh).toHaveBeenCalled();
     // Форма сброшена
@@ -142,7 +154,7 @@ describe('ClientRequestForm', () => {
       contactPhone: null,
       contactEmail: null,
       subject: 'Обучение ОТ',
-      body: null
+      body: null,
     });
   });
 
@@ -150,7 +162,10 @@ describe('ClientRequestForm', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 400,
-      json: async () => ({ error: 'validation', messages: ['Укажите телефон или email', 'ИНН — 10 или 12 цифр'] })
+      json: async () => ({
+        error: 'validation',
+        messages: ['Укажите телефон или email', 'ИНН — 10 или 12 цифр'],
+      }),
     });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(ClientRequestForm));
@@ -174,9 +189,9 @@ describe('ClientRequestForm', () => {
       {
         ok: false,
         status: 400,
-        json: async () => ({ messages: ['Укажите телефон или email'] })
+        json: async () => ({ messages: ['Укажите телефон или email'] }),
       },
-      { ok: true, json: async () => ({}) }
+      { ok: true, json: async () => ({}) },
     ];
     const fetchMock = vi.fn((url: string) =>
       Promise.resolve(
@@ -202,7 +217,7 @@ describe('ClientRequestForm', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 403,
-      json: async () => ({ error: 'forbidden' })
+      json: async () => ({ error: 'forbidden' }),
     });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(ClientRequestForm));
@@ -222,7 +237,7 @@ describe('ClientRequestForm', () => {
       status: 500,
       json: async () => {
         throw new Error('bad json');
-      }
+      },
     });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(ClientRequestForm));
@@ -251,7 +266,12 @@ describe('ClientRequestForm', () => {
     let resolveFetch: (v: unknown) => void = () => {};
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation(() => new Promise((resolve) => { resolveFetch = resolve; }))
+      vi.fn().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveFetch = resolve;
+          })
+      )
     );
     render(React.createElement(ClientRequestForm));
 

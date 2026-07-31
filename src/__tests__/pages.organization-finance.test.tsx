@@ -10,13 +10,18 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { getOrgFinanceKpis, listOrgPayments } = vi.hoisted(() => ({
   getOrgFinanceKpis: vi.fn(),
-  listOrgPayments: vi.fn()
+  listOrgPayments: vi.fn(),
 }));
 vi.mock('@/lib/services/organization/finance', () => ({ getOrgFinanceKpis, listOrgPayments }));
 
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: (props: { activeOrgName: string; children: React.ReactNode }) =>
-    React.createElement('div', { 'data-testid': 'org-app-shell' }, props.activeOrgName, props.children)
+    React.createElement(
+      'div',
+      { 'data-testid': 'org-app-shell' },
+      props.activeOrgName,
+      props.children
+    ),
 }));
 
 import OrganizationFinancePage from '@/app/organization/finance/page';
@@ -26,7 +31,7 @@ const CTX = {
   activeOrgId: 'org-1',
   activeOrgName: 'ООО Ромашка',
   memberships: [],
-  viewerRole: 'admin' as const
+  viewerRole: 'admin' as const,
 };
 
 describe('OrganizationFinancePage', () => {
@@ -57,9 +62,7 @@ describe('OrganizationFinancePage', () => {
     getOrgFinanceKpis.mockResolvedValue({ billed: '0', paid: '0', outstanding: '0' });
     listOrgPayments.mockResolvedValue([]);
 
-    await renderServerComponent(
-      OrganizationFinancePage({ searchParams: Promise.resolve({}) })
-    );
+    await renderServerComponent(OrganizationFinancePage({ searchParams: Promise.resolve({}) }));
 
     expect(getOrgPageContext).toHaveBeenCalledWith({});
   });

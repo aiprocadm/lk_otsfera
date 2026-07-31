@@ -22,11 +22,19 @@ const rows = Object.entries(agg)
   .map(([l, a]) => ({ l, ...a }))
   .sort((x, y) => y.tot - x.tot);
 console.log(
-  'layer'.padEnd(28) + 'lines%'.padStart(8) + 'cov/total'.padStart(14) + 'files'.padStart(7) + '0%f'.padStart(6)
+  'layer'.padEnd(28) +
+    'lines%'.padStart(8) +
+    'cov/total'.padStart(14) +
+    'files'.padStart(7) +
+    '0%f'.padStart(6)
 );
 for (const r of rows) {
   const pct = r.tot ? (100 * r.cov) / r.tot : 100;
   console.log(
-    r.l.padEnd(28) + pct.toFixed(1).padStart(8) + `${r.cov}/${r.tot}`.padStart(14) + String(r.files).padStart(7) + String(r.zero).padStart(6)
+    r.l.padEnd(28) +
+      pct.toFixed(1).padStart(8) +
+      `${r.cov}/${r.tot}`.padStart(14) +
+      String(r.files).padStart(7) +
+      String(r.zero).padStart(6)
   );
 }

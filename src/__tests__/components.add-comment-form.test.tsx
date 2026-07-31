@@ -53,16 +53,22 @@ describe('AddCommentForm (interactive, jsdom)', () => {
       '/api/comments',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ orderId: 'o1', body: 'Привет мир' })
+        body: JSON.stringify({ orderId: 'o1', body: 'Привет мир' }),
       })
     );
-    await waitFor(() => expect((screen.getByPlaceholderText('Написать комментарий…') as HTMLTextAreaElement).value).toBe(''));
+    await waitFor(() =>
+      expect(
+        (screen.getByPlaceholderText('Написать комментарий…') as HTMLTextAreaElement).value
+      ).toBe('')
+    );
     expect(refresh).toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
 
   it('error path: renders the mapped error alert and does not clear the field', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({ error: 'validation' }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 400, json: async () => ({ error: 'validation' }) });
     vi.stubGlobal('fetch', fetchMock);
 
     render(React.createElement(AddCommentForm, { orderId: 'o1' }));
@@ -71,7 +77,9 @@ describe('AddCommentForm (interactive, jsdom)', () => {
     fireEvent.click(screen.getByText('Отправить'));
 
     await waitFor(() => expect(screen.getByText('Проверьте поля формы.')).toBeTruthy());
-    expect((screen.getByPlaceholderText('Написать комментарий…') as HTMLTextAreaElement).value).toBe('Текст');
+    expect(
+      (screen.getByPlaceholderText('Написать комментарий…') as HTMLTextAreaElement).value
+    ).toBe('Текст');
     vi.unstubAllGlobals();
   });
 });

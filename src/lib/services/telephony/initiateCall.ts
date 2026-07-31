@@ -27,15 +27,21 @@ export async function initiateOutboundCall(
 
   let commandId: string;
   try {
-    ({ commandId } = await getMangoAdapter().initiateCallback({ fromInternal: args.fromInternal, toNumber: args.toNumber }));
+    ({ commandId } = await getMangoAdapter().initiateCallback({
+      fromInternal: args.fromInternal,
+      toNumber: args.toNumber,
+    }));
   } catch (err) {
-    log.warn('[telephony/initiateOutboundCall] callback failed', { orderId: args.orderId, error: err instanceof Error ? err.message : String(err) });
+    log.warn('[telephony/initiateOutboundCall] callback failed', {
+      orderId: args.orderId,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return { ok: false, error: 'call_failed' };
   }
 
   const thread = await prisma.orderThread.findUnique({
     where: { orderId_side: { orderId: args.orderId, side: 'org' } },
-    select: { id: true }
+    select: { id: true },
   });
 
   let call;
@@ -50,17 +56,31 @@ export async function initiateOutboundCall(
         initiatedByUserId: session.sub,
         resolvedOrgId: order.organizationId,
         companyId: order.companyId,
-        threadId: thread?.id ?? null
+        threadId: thread?.id ?? null,
       },
-      select: { id: true }
+      select: { id: true },
     });
   } catch (err) {
-    log.warn('[telephony/initiateOutboundCall] call persist failed', { orderId: args.orderId, error: err instanceof Error ? err.message : String(err) });
+    log.warn('[telephony/initiateOutboundCall] call persist failed', {
+      orderId: args.orderId,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return { ok: false, error: 'call_failed' };
   }
 
-  await recordAudit(prisma, { action: 'call_initiated', entity: 'order', entityId: args.orderId, userId: session.sub });
-  await writeSyncLog({ entity: 'call', direction: 'outbound', operation: 'create', status: 'success', externalId: `mango:cmd:${commandId}` });
+  await recordAudit(prisma, {
+    action: 'call_initiated',
+    entity: 'order',
+    entityId: args.orderId,
+    userId: session.sub,
+  });
+  await writeSyncLog({
+    entity: 'call',
+    direction: 'outbound',
+    operation: 'create',
+    status: 'success',
+    externalId: `mango:cmd:${commandId}`,
+  });
 
   return { ok: true, callId: call.id };
 }

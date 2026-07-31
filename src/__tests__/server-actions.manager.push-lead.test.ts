@@ -7,7 +7,7 @@ const {
   recordAudit,
   queueAdd,
   getQueue,
-  logError
+  logError,
 } = vi.hoisted(() => {
   const queueAdd = vi.fn();
   return {
@@ -17,7 +17,7 @@ const {
     recordAudit: vi.fn(),
     queueAdd,
     getQueue: vi.fn(() => ({ add: queueAdd })),
-    logError: vi.fn()
+    logError: vi.fn(),
   };
 });
 
@@ -57,7 +57,7 @@ describe('pushLeadToOneCAction', () => {
     expect(res).toEqual({ ok: false, error: 'not_found' });
     expect(leadFindUnique).toHaveBeenCalledWith({
       where: { id: 'missing' },
-      select: { id: true, pushedToOneCAt: true }
+      select: { id: true, pushedToOneCAt: true },
     });
     expect(queueAdd).not.toHaveBeenCalled();
   });
@@ -89,7 +89,7 @@ describe('pushLeadToOneCAction', () => {
       action: 'lead_push_enqueued',
       entity: 'lead',
       entityId: 'l1',
-      userId: 'mgr-1'
+      userId: 'mgr-1',
     });
     expect(revalidatePath).toHaveBeenCalledWith('/manager/leads/l1');
     expect(logError).not.toHaveBeenCalled();
@@ -104,7 +104,7 @@ describe('pushLeadToOneCAction', () => {
     expect(res).toEqual({ ok: false, error: 'queue_unavailable' });
     expect(logError).toHaveBeenCalledWith('[manager/leads] push lead enqueue failed', {
       leadId: 'l1',
-      error: 'redis down'
+      error: 'redis down',
     });
     expect(recordAudit).not.toHaveBeenCalled();
     expect(revalidatePath).not.toHaveBeenCalled();
@@ -122,7 +122,7 @@ describe('pushLeadToOneCAction', () => {
     expect(res).toEqual({ ok: false, error: 'queue_unavailable' });
     expect(logError).toHaveBeenCalledWith('[manager/leads] push lead enqueue failed', {
       leadId: 'l2',
-      error: 'REDIS_URL is not set'
+      error: 'REDIS_URL is not set',
     });
   });
 });

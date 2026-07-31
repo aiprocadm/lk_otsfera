@@ -18,18 +18,20 @@ export function PortfolioSearch() {
   }
 
   return (
-    <div className='flex gap-2 items-center'>
+    <div className="flex gap-2 items-center">
       <input
-        type='search'
+        type="search"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') apply(value); }}
-        placeholder='Поиск по названию…'
-        className='border border-gray-200 rounded-lg px-3 py-2 text-sm w-full md:w-72 focus:outline-none focus:border-[#F97316]'
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') apply(value);
+        }}
+        placeholder="Поиск по названию…"
+        className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-full md:w-72 focus:outline-none focus:border-[#F97316]"
       />
       <button
         onClick={() => apply(value)}
-        className='px-3 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C] disabled:opacity-50'
+        className="px-3 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C] disabled:opacity-50"
         disabled={isPending}
       >
         Найти

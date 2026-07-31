@@ -26,8 +26,8 @@ const { cookieState } = vi.hoisted(() => ({ cookieState: { token: null as string
 vi.mock('next/headers', () => ({
   cookies: vi.fn(async () => ({
     get: (name: string) =>
-      name === 'session' && cookieState.token !== null ? { value: cookieState.token } : undefined
-  }))
+      name === 'session' && cookieState.token !== null ? { value: cookieState.token } : undefined,
+  })),
 }));
 
 import { signToken, type SessionPayload } from '@/lib/auth/jwt';
@@ -49,15 +49,20 @@ let soloUserId: string;
 async function issueToken(userId: string, extra: Partial<SessionPayload> = {}): Promise<string> {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
-    select: { sessionVersion: true }
+    select: { sessionVersion: true },
   });
-  return signToken({ sub: userId, role: 'organization', sessionVersion: user.sessionVersion, ...extra });
+  return signToken({
+    sub: userId,
+    role: 'organization',
+    sessionVersion: user.sessionVersion,
+    ...extra,
+  });
 }
 
 async function readSessionVersion(userId: string): Promise<number> {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
-    select: { sessionVersion: true }
+    select: { sessionVersion: true },
   });
   return user.sessionVersion;
 }
@@ -72,7 +77,7 @@ beforeAll(async () => {
   prisma = new PrismaClient();
 
   const org = await prisma.organization.create({
-    data: { name: `Ревокация ORG ${STAMP}` }
+    data: { name: `Ревокация ORG ${STAMP}` },
   });
   organizationId = org.id;
 
@@ -82,8 +87,8 @@ beforeAll(async () => {
       name: 'Админ организации',
       role: 'organization',
       passwordHash: 'x',
-      organizationId
-    }
+      organizationId,
+    },
   });
   adminUserId = admin.id;
 
@@ -93,8 +98,8 @@ beforeAll(async () => {
       name: 'Участник организации',
       role: 'organization',
       passwordHash: 'x',
-      organizationId
-    }
+      organizationId,
+    },
   });
   memberUserId = member.id;
 
@@ -103,26 +108,30 @@ beforeAll(async () => {
       email: `revoke-solo-${STAMP}@t.local`,
       name: 'Одиночка',
       role: 'organization',
-      passwordHash: 'x'
-    }
+      passwordHash: 'x',
+    },
   });
   soloUserId = solo.id;
 
   const adminOrgUser = await prisma.organizationUser.create({
-    data: { organizationId, userId: adminUserId, roleInOrg: 'admin', isActive: true }
+    data: { organizationId, userId: adminUserId, roleInOrg: 'admin', isActive: true },
   });
   adminOrgUserId = adminOrgUser.id;
 
   const memberOrgUser = await prisma.organizationUser.create({
-    data: { organizationId, userId: memberUserId, roleInOrg: 'member', isActive: true }
+    data: { organizationId, userId: memberUserId, roleInOrg: 'member', isActive: true },
   });
   memberOrgUserId = memberOrgUser.id;
 });
 
 afterAll(async () => {
   // Порядок важен: сначала зависимые строки, потом User и Organization.
-  await prisma.auditLog.deleteMany({ where: { userId: { in: [adminUserId, memberUserId, soloUserId] } } });
-  await prisma.organizationUser.deleteMany({ where: { id: { in: [adminOrgUserId, memberOrgUserId] } } });
+  await prisma.auditLog.deleteMany({
+    where: { userId: { in: [adminUserId, memberUserId, soloUserId] } },
+  });
+  await prisma.organizationUser.deleteMany({
+    where: { id: { in: [adminOrgUserId, memberOrgUserId] } },
+  });
   await prisma.user.deleteMany({ where: { id: { in: [adminUserId, memberUserId, soloUserId] } } });
   await prisma.organization.delete({ where: { id: organizationId } });
   await prisma.$disconnect();
@@ -137,7 +146,10 @@ describe('ревокация сессий по User.sessionVersion (integration)
     expect(before).toMatchObject({ sub: soloUserId, role: 'organization', sessionVersion: 0 });
 
     // Отзываем сессии — ровно так, как это делают точки ревокации в сервисах
-    await prisma.user.update({ where: { id: soloUserId }, data: { sessionVersion: { increment: 1 } } });
+    await prisma.user.update({
+      where: { id: soloUserId },
+      data: { sessionVersion: { increment: 1 } },
+    });
 
     // Старый токен подписан валидно, но клейм версии отстал → доступа нет
     expect(await sessionFor(oldToken)).toBeNull();
@@ -152,13 +164,18 @@ describe('ревокация сессий по User.sessionVersion (integration)
     // Токен «до релиза ФТ-11.2»: клейма нет вовсе → трактуется как версия 0.
     const legacyToken = await signToken({ sub: adminUserId, role: 'organization' });
 
-    expect(await prisma.user.findUniqueOrThrow({
-      where: { id: adminUserId },
-      select: { sessionVersion: true }
-    })).toEqual({ sessionVersion: 0 });
+    expect(
+      await prisma.user.findUniqueOrThrow({
+        where: { id: adminUserId },
+        select: { sessionVersion: true },
+      })
+    ).toEqual({ sessionVersion: 0 });
     expect(await sessionFor(legacyToken)).toMatchObject({ sub: adminUserId });
 
-    await prisma.user.update({ where: { id: adminUserId }, data: { sessionVersion: { increment: 1 } } });
+    await prisma.user.update({
+      where: { id: adminUserId },
+      data: { sessionVersion: { increment: 1 } },
+    });
     expect(await sessionFor(legacyToken)).toBeNull();
 
     // Возвращаем версию обратно, чтобы не влиять на соседние кейсы
@@ -172,7 +189,13 @@ describe('ревокация сессий по User.sessionVersion (integration)
 
     const versionBefore = await readSessionVersion(memberUserId);
 
-    const res = await deactivateMember(prisma, organizationId, memberOrgUserId, adminUserId, 'admin');
+    const res = await deactivateMember(
+      prisma,
+      organizationId,
+      memberOrgUserId,
+      adminUserId,
+      'admin'
+    );
     expect(res).toEqual({ ok: true });
 
     // Версия в БД выросла — значит все ранее выданные токены протухли
@@ -184,7 +207,10 @@ describe('ревокация сессий по User.sessionVersion (integration)
     expect(row.isActive).toBe(false);
 
     // Возвращаем участника в строй для чистоты состояния между кейсами
-    await prisma.organizationUser.update({ where: { id: memberOrgUserId }, data: { isActive: true } });
+    await prisma.organizationUser.update({
+      where: { id: memberOrgUserId },
+      data: { isActive: true },
+    });
   });
 
   it('нет cookie → getSession возвращает null (без похода в БД)', async () => {

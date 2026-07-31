@@ -1,9 +1,9 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
-import { resolveInboundSender } from './resolve';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { log } from '@/lib/logging';
+import { resolveInboundSender } from './resolve';
 
 export type InboundDto = {
   // Этап 9 (ФТ-11.1): `cabinet` — вопрос из личного кабинета клиента.
@@ -33,10 +33,25 @@ export type IngestResult =
   // 'storage' reserved for the upcoming attachment-upload step (S3) — do not prune as dead.
   | { ok: false; error: 'storage' };
 
-export async function ingestInboundMessage(prisma: PrismaClient, dto: InboundDto): Promise<IngestResult> {
-  const existing = await prisma.inboundMessage.findUnique({ where: { externalId: dto.externalId }, select: { id: true } });
+export async function ingestInboundMessage(
+  prisma: PrismaClient,
+  dto: InboundDto
+): Promise<IngestResult> {
+  const existing = await prisma.inboundMessage.findUnique({
+    where: { externalId: dto.externalId },
+    select: { id: true },
+  });
   if (existing) {
-    await writeSyncLog({ entity: 'inbound', externalId: dto.externalId, direction: 'inbound', operation: 'skip', status: 'success' }, prisma);
+    await writeSyncLog(
+      {
+        entity: 'inbound',
+        externalId: dto.externalId,
+        direction: 'inbound',
+        operation: 'skip',
+        status: 'success',
+      },
+      prisma
+    );
     return { ok: true, id: existing.id, deduped: true };
   }
 
@@ -87,18 +102,42 @@ export async function ingestInboundMessage(prisma: PrismaClient, dto: InboundDto
     });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      const raced = await prisma.inboundMessage.findUnique({ where: { externalId: dto.externalId }, select: { id: true } });
-      await writeSyncLog({ entity: 'inbound', externalId: dto.externalId, direction: 'inbound', operation: 'skip', status: 'success' }, prisma);
+      const raced = await prisma.inboundMessage.findUnique({
+        where: { externalId: dto.externalId },
+        select: { id: true },
+      });
+      await writeSyncLog(
+        {
+          entity: 'inbound',
+          externalId: dto.externalId,
+          direction: 'inbound',
+          operation: 'skip',
+          status: 'success',
+        },
+        prisma
+      );
       return { ok: true, id: raced?.id ?? '', deduped: true };
     }
     throw err;
   }
 
-  await writeSyncLog({
-    entity: 'inbound', externalId: dto.externalId, direction: 'inbound', operation: 'create',
-    status: resolved.matchType === 'exact' || resolved.matchType === 'known-sender' ? 'success' : 'warn',
-    errorMessage: resolved.matchType === 'exact' || resolved.matchType === 'known-sender' ? undefined : 'unresolved',
-  }, prisma);
+  await writeSyncLog(
+    {
+      entity: 'inbound',
+      externalId: dto.externalId,
+      direction: 'inbound',
+      operation: 'create',
+      status:
+        resolved.matchType === 'exact' || resolved.matchType === 'known-sender'
+          ? 'success'
+          : 'warn',
+      errorMessage:
+        resolved.matchType === 'exact' || resolved.matchType === 'known-sender'
+          ? undefined
+          : 'unresolved',
+    },
+    prisma
+  );
 
   // Best-effort: enqueue ClamAV scan for the attachment. Failure leaves
   // scanStatus='pending', where the backfill sweep will pick it up later

@@ -28,7 +28,7 @@ export async function GET(_req: Request, { params }: Params) {
   const { id } = await params;
   const statement = await prisma.commissionStatement.findFirst({
     where: { id, ...partnerScope },
-    select: { pdfPath: true }
+    select: { pdfPath: true },
   });
 
   if (!statement) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -39,12 +39,12 @@ export async function GET(_req: Request, { params }: Params) {
   let signedUrl: string;
   try {
     signedUrl = await getObjectStorage().createSignedUrl(statement.pdfPath, SIGNED_URL_TTL, {
-      download: true
+      download: true,
     });
   } catch (error) {
     log.error('[partner/finance/statements] failed to create PDF signed URL', {
       statementId: id,
-      providerError: error instanceof Error ? error.message : String(error)
+      providerError: error instanceof Error ? error.message : String(error),
     });
     return NextResponse.json({ error: 'Storage failure' }, { status: 502 });
   }

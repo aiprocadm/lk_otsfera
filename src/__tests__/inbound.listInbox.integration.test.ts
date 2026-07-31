@@ -67,7 +67,11 @@ beforeAll(async () => {
   });
   msgUnresolved = mU.id;
 
-  managerA = { sub: `mgr-${STAMP}`, role: 'manager', companyId: companyA } as unknown as SessionPayload;
+  managerA = {
+    sub: `mgr-${STAMP}`,
+    role: 'manager',
+    companyId: companyA,
+  } as unknown as SessionPayload;
 });
 
 afterAll(async () => {
@@ -142,7 +146,11 @@ describe('listInbox — company-scoped staff inbox (C8)', () => {
     expect(result.total).toBeGreaterThanOrEqual(2); // at least A-bound + unresolved
 
     // Symmetry check: company B's manager sees only B's bound row, not A's.
-    const managerB = { sub: `mgr-b-${STAMP}`, role: 'manager', companyId: companyB } as unknown as SessionPayload;
+    const managerB = {
+      sub: `mgr-b-${STAMP}`,
+      role: 'manager',
+      companyId: companyB,
+    } as unknown as SessionPayload;
     const bResult = await listInbox(prisma, managerB, { status: 'bound' });
     const bIds = bResult.items.map((i) => i.id);
     expect(bIds).toContain(msgBoundB);

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
@@ -24,7 +24,10 @@ export async function POST(req: NextRequest) {
   if (disabled) return disabled;
 
   if (await isRateLimited(`2fa-verify:${clientIp(req)}`, { windowMs: 60_000, max: 10 })) {
-    return NextResponse.json({ code: 'TOO_MANY_REQUESTS', message: 'Too many attempts' }, { status: 429 });
+    return NextResponse.json(
+      { code: 'TOO_MANY_REQUESTS', message: 'Too many attempts' },
+      { status: 429 }
+    );
   }
 
   const pending = req.cookies.get('2fa_pending')?.value;
@@ -41,7 +44,10 @@ export async function POST(req: NextRequest) {
 
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ code: 'INVALID_REQUEST', message: 'Invalid request' }, { status: 400 });
+    return NextResponse.json(
+      { code: 'INVALID_REQUEST', message: 'Invalid request' },
+      { status: 400 }
+    );
   }
 
   const result = await verifyTwoFactorCode(prisma, sub, parsed.data.code.trim());
@@ -52,9 +58,12 @@ export async function POST(req: NextRequest) {
       entityId: sub,
       userId: sub,
       status: 'denied',
-      reason: result.error
+      reason: result.error,
     }).catch(() => {});
-    return NextResponse.json({ code: result.error.toUpperCase(), message: 'Verification failed' }, { status: 401 });
+    return NextResponse.json(
+      { code: result.error.toUpperCase(), message: 'Verification failed' },
+      { status: 401 }
+    );
   }
 
   const user = await prisma.user.findUnique({ where: { id: sub } });
@@ -63,18 +72,23 @@ export async function POST(req: NextRequest) {
   }
   const built = await buildSessionClaims(prisma, user);
   if (!built.ok) {
-    return NextResponse.json({ code: 'ACCOUNT_DEACTIVATED', message: 'Account deactivated' }, { status: 403 });
+    return NextResponse.json(
+      { code: 'ACCOUNT_DEACTIVATED', message: 'Account deactivated' },
+      { status: 403 }
+    );
   }
 
   await recordAudit(prisma, {
     action: result.method === 'backup' ? '2fa_backup_used' : '2fa_verified',
     entity: 'auth_2fa',
     entityId: sub,
-    userId: sub
+    userId: sub,
   }).catch(() => {});
 
   // Этап 9 (ФТ-11.3): второй путь входа — отметка та же, тоже best-effort (§3).
-  await prisma.user.update({ where: { id: sub }, data: { lastLoginAt: new Date() } }).catch(() => {});
+  await prisma.user
+    .update({ where: { id: sub }, data: { lastLoginAt: new Date() } })
+    .catch(() => {});
 
   const token = await signToken(built.claims);
   const res = NextResponse.json({ ok: true });
@@ -84,7 +98,7 @@ export async function POST(req: NextRequest) {
     secure: process.env.NODE_ENV === 'production',
     path: '/',
     // Синхронно с login-роутом: срок cookie = сроку 7d-JWT
-    maxAge: 60 * 60 * 24 * 7
+    maxAge: 60 * 60 * 24 * 7,
   });
   res.cookies.set('2fa_pending', '', { httpOnly: true, path: '/', maxAge: 0 });
   return res;

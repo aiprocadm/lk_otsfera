@@ -1,16 +1,13 @@
-import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
+import type { Job } from 'bullmq';
 import { prisma } from '@/lib/db/prisma';
 import type { SyncJobPayload } from '@/lib/jobs/types';
 import { writeSyncLog, type SyncLogEntity } from '@/lib/services/oneCSync/log';
 import { log } from '@/lib/logging';
 
-const TRACKED_ENTITIES: ReadonlyArray<Extract<SyncLogEntity, 'order' | 'payment' | 'document' | 'organization'>> = [
-  'organization',
-  'order',
-  'payment',
-  'document'
-];
+const TRACKED_ENTITIES: ReadonlyArray<
+  Extract<SyncLogEntity, 'order' | 'payment' | 'document' | 'organization'>
+> = ['organization', 'order', 'payment', 'document'];
 
 const RECONCILE_WINDOW_MS = 25 * 60 * 60 * 1000;
 
@@ -38,9 +35,9 @@ export async function syncReconcileProcessor(
         entity,
         direction: 'inbound',
         status: 'success',
-        createdAt: { gte: since }
+        createdAt: { gte: since },
       },
-      select: { id: true }
+      select: { id: true },
     });
     if (hit) fresh.push(entity);
     else stale.push(entity);
@@ -48,10 +45,7 @@ export async function syncReconcileProcessor(
 
   const status: 'success' | 'warn' = stale.length === 0 ? 'success' : 'warn';
   const checkedAt = new Date().toISOString();
-  const payload =
-    status === 'success'
-      ? { checkedAt }
-      : { checkedAt, missing: stale };
+  const payload = status === 'success' ? { checkedAt } : { checkedAt, missing: stale };
 
   await writeSyncLog(
     {
@@ -60,7 +54,7 @@ export async function syncReconcileProcessor(
       operation: 'check',
       status,
       payload,
-      durationMs: Date.now() - startedAt
+      durationMs: Date.now() - startedAt,
     },
     db
   );
@@ -69,6 +63,6 @@ export async function syncReconcileProcessor(
     checkedAt,
     freshEntities: fresh,
     staleEntities: stale,
-    status
+    status,
   };
 }

@@ -15,7 +15,7 @@ const FINANCIAL_OPTIONS: { value: string; label: string }[] = [
   { value: 'billed', label: 'Счёт выставлен' },
   { value: 'partially_paid', label: 'Частично оплачены' },
   { value: 'paid', label: 'Оплачены' },
-  { value: 'refunded', label: 'Возврат' }
+  { value: 'refunded', label: 'Возврат' },
 ];
 
 type Props = {
@@ -32,7 +32,12 @@ type Props = {
   statuses?: { id: string; label: string }[];
 };
 
-export function ManagerOrdersFilter({ orgs, initial, statuses = [], basePath = '/manager' }: Props) {
+export function ManagerOrdersFilter({
+  orgs,
+  initial,
+  statuses = [],
+  basePath = '/manager',
+}: Props) {
   const unassigned = initial.unassigned === '1';
   const hasFilter =
     !!initial.search ||
@@ -43,25 +48,25 @@ export function ManagerOrdersFilter({ orgs, initial, statuses = [], basePath = '
 
   return (
     <form
-      method='get'
+      method="get"
       action={`${basePath}/orders`}
-      className='bg-white border border-gray-200 rounded-xl p-3 flex flex-col md:flex-row md:items-center gap-2'
+      className="bg-white border border-gray-200 rounded-xl p-3 flex flex-col md:flex-row md:items-center gap-2"
     >
       <input
-        type='search'
-        name='search'
+        type="search"
+        name="search"
         defaultValue={initial.search ?? ''}
-        placeholder='Поиск по названию или номеру заказа…'
-        className='border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:border-[#F97316]'
+        placeholder="Поиск по названию или номеру заказа…"
+        className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:border-[#F97316]"
       />
 
       <select
-        name='statusId'
+        name="statusId"
         defaultValue={initial.statusId ?? ''}
-        aria-label='Статус заявки'
-        className='border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'
+        aria-label="Статус заявки"
+        className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]"
       >
-        <option value=''>Любой статус</option>
+        <option value="">Любой статус</option>
         {statuses.map((s) => (
           <option key={s.id} value={s.id}>
             {s.label}
@@ -70,9 +75,9 @@ export function ManagerOrdersFilter({ orgs, initial, statuses = [], basePath = '
       </select>
 
       <select
-        name='financialStatus'
+        name="financialStatus"
         defaultValue={initial.financialStatus ?? ''}
-        className='border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'
+        className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]"
       >
         {FINANCIAL_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>
@@ -82,11 +87,11 @@ export function ManagerOrdersFilter({ orgs, initial, statuses = [], basePath = '
       </select>
 
       <select
-        name='organizationId'
+        name="organizationId"
         defaultValue={initial.organizationId ?? ''}
-        className='border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]'
+        className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]"
       >
-        <option value=''>Все организации</option>
+        <option value="">Все организации</option>
         {orgs.map((o) => (
           <option key={o.id} value={o.id}>
             {o.name}
@@ -94,20 +99,20 @@ export function ManagerOrdersFilter({ orgs, initial, statuses = [], basePath = '
         ))}
       </select>
 
-      <label className='flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 cursor-pointer whitespace-nowrap'>
+      <label className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 cursor-pointer whitespace-nowrap">
         <input
-          type='checkbox'
-          name='unassigned'
-          value='1'
+          type="checkbox"
+          name="unassigned"
+          value="1"
           defaultChecked={unassigned}
-          className='accent-[#F97316]'
+          className="accent-[#F97316]"
         />
         Без менеджера
       </label>
 
       <button
-        type='submit'
-        className='px-4 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C]'
+        type="submit"
+        className="px-4 py-2 bg-[#F97316] text-white text-sm rounded-lg hover:bg-[#EA580C]"
       >
         Найти
       </button>
@@ -115,7 +120,7 @@ export function ManagerOrdersFilter({ orgs, initial, statuses = [], basePath = '
       {hasFilter && (
         <Link
           href={`${basePath}/orders`}
-          className='px-3 py-2 text-sm text-gray-600 hover:text-[#F97316]'
+          className="px-3 py-2 text-sm text-gray-600 hover:text-[#F97316]"
         >
           Сбросить
         </Link>

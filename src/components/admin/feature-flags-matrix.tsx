@@ -4,7 +4,7 @@ import {
   isFeatureEnabled,
   isOptInFlag,
   featureFlagEnvVar,
-  type FeatureFlag
+  type FeatureFlag,
 } from '@/lib/featureFlags';
 
 /**
@@ -46,7 +46,7 @@ const FLAG_LABELS: Record<FeatureFlag, string> = {
   deals_pipeline: 'Сделки / канбан менеджера и руководителя',
   intake_inbox: 'Входящие в работу (этап 7): единый триаж-экран',
   document_generation: 'Генерация счёта/акта по заказу (этап 8)',
-  cabinet_questions: '«Задать вопрос» из кабинета клиента (этап 9)'
+  cabinet_questions: '«Задать вопрос» из кабинета клиента (этап 9)',
 };
 
 /** Инфраструктурные переменные — управляются только в env сервера; значения не показываем. */
@@ -54,7 +54,7 @@ const INFRA_ENV_VARS: { name: string; label: string }[] = [
   { name: 'DATABASE_URL', label: 'подключение к базе данных' },
   { name: 'JWT_SECRET', label: 'подпись сессий (вход в кабинет)' },
   { name: 'S3_*', label: 'объектное хранилище документов' },
-  { name: 'REDIS_URL', label: 'очереди фоновых задач' }
+  { name: 'REDIS_URL', label: 'очереди фоновых задач' },
 ];
 
 export function FeatureFlagsMatrix() {
@@ -63,8 +63,8 @@ export function FeatureFlagsMatrix() {
       <div>
         <h2 className="font-semibold text-[#111111]">Функции платформы (feature-флаги)</h2>
         <p className="text-xs text-gray-500 mt-0.5">
-          Только просмотр: флаги переключаются в конфиге сервера (env) и применяются
-          при перезапуске. Интеграции настраиваются на странице «Интеграции».
+          Только просмотр: флаги переключаются в конфиге сервера (env) и применяются при
+          перезапуске. Интеграции настраиваются на странице «Интеграции».
         </p>
       </div>
 
@@ -98,7 +98,9 @@ export function FeatureFlagsMatrix() {
                   <td className="py-2 pr-3 text-xs text-gray-500">
                     {isOptInFlag(flag) ? 'включается явно' : 'включён по умолчанию'}
                   </td>
-                  <td className="py-2 text-xs text-gray-400 font-mono">{featureFlagEnvVar(flag)}</td>
+                  <td className="py-2 text-xs text-gray-400 font-mono">
+                    {featureFlagEnvVar(flag)}
+                  </td>
                 </tr>
               );
             })}

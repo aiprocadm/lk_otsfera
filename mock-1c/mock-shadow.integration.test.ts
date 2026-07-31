@@ -14,7 +14,12 @@ let server: Server;
 const scenarioRef: ScenarioRef = { current: { ...DEFAULT_SCENARIO } };
 
 beforeAll(async () => {
-  server = createMock1cServer({ scenarioRef, token: 'tok', dataset: createDataset(), leadStore: createLeadStore() });
+  server = createMock1cServer({
+    scenarioRef,
+    token: 'tok',
+    dataset: createDataset(),
+    leadStore: createLeadStore(),
+  });
   await new Promise<void>((r) => server.listen(0, r));
   const { port } = server.address() as AddressInfo;
   process.env.ONE_C_ADAPTER = 'rest';
@@ -27,8 +32,10 @@ beforeAll(async () => {
 afterAll(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await prisma.$disconnect();
-  delete process.env.ONE_C_ADAPTER; delete process.env.ONE_C_API_URL;
-  delete process.env.ONE_C_API_TOKEN; delete process.env.ONE_C_MODE;
+  delete process.env.ONE_C_ADAPTER;
+  delete process.env.ONE_C_API_URL;
+  delete process.env.ONE_C_API_TOKEN;
+  delete process.env.ONE_C_MODE;
   resetOneCAdapter();
 });
 
@@ -43,7 +50,9 @@ describe('shadow sync against the mock writes nothing but logs a check', () => {
     await syncOrdersProcessor(fakeJob, prisma);
     expect(await prisma.order.count()).toBe(before); // shadow = no writes
 
-    const checks = await prisma.syncLog.findMany({ where: { entity: 'order', operation: 'check' } });
+    const checks = await prisma.syncLog.findMany({
+      where: { entity: 'order', operation: 'check' },
+    });
     expect(checks.length).toBeGreaterThan(0);
   });
 });

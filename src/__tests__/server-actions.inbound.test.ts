@@ -15,7 +15,7 @@ const {
   orderThreadFindUnique,
   orderThreadUpdate,
   messageCreate,
-  contactFindUnique
+  contactFindUnique,
 } = vi.hoisted(() => ({
   requireManager: vi.fn(),
   getCompanyTeamVisibility: vi.fn(),
@@ -31,15 +31,17 @@ const {
   orderThreadFindUnique: vi.fn(),
   orderThreadUpdate: vi.fn(),
   messageCreate: vi.fn(),
-  contactFindUnique: vi.fn()
+  contactFindUnique: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 vi.mock('@/lib/auth/managerPolicy', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/auth/managerPolicy')>('@/lib/auth/managerPolicy');
+  const actual = await vi.importActual<typeof import('@/lib/auth/managerPolicy')>(
+    '@/lib/auth/managerPolicy'
+  );
   return {
     ...actual,
-    getCompanyTeamVisibility
+    getCompanyTeamVisibility,
   };
 });
 vi.mock('@/lib/services/inbound/reply', () => ({ replyToInbound }));
@@ -54,18 +56,20 @@ vi.mock('@/lib/db/prisma', () => ({
     order: { findUnique: orderFindUnique },
     orderThread: { findUnique: orderThreadFindUnique, update: orderThreadUpdate },
     message: { create: messageCreate },
-    contact: { findUnique: contactFindUnique }
-  }
+    contact: { findUnique: contactFindUnique },
+  },
 }));
 
 import { bindInboundMessageAction, replyInboundAction } from '@/server-actions/inbound';
 
-function managerSession(opts: { sub?: string; companyId?: string | null; managedOrgIds?: string[] } = {}) {
+function managerSession(
+  opts: { sub?: string; companyId?: string | null; managedOrgIds?: string[] } = {}
+) {
   return {
     sub: opts.sub ?? 'u-mgr-1',
     role: 'manager',
     companyId: opts.companyId ?? 'company-a',
-    managedOrgIds: opts.managedOrgIds ?? ['org-a']
+    managedOrgIds: opts.managedOrgIds ?? ['org-a'],
   };
 }
 
@@ -79,7 +83,10 @@ describe('bindInboundMessageAction', () => {
   it('returns not_found when the inbound message does not exist', async () => {
     inboundMessageFindUnique.mockResolvedValue(null);
 
-    const result = await bindInboundMessageAction({ inboundMessageId: 'im-1', organizationId: 'org-a' });
+    const result = await bindInboundMessageAction({
+      inboundMessageId: 'im-1',
+      organizationId: 'org-a',
+    });
 
     expect(result).toEqual({ ok: false, error: 'not_found' });
     expect(organizationFindUnique).not.toHaveBeenCalled();
@@ -89,7 +96,10 @@ describe('bindInboundMessageAction', () => {
     inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
     organizationFindUnique.mockResolvedValue(null);
 
-    const result = await bindInboundMessageAction({ inboundMessageId: 'im-1', organizationId: 'org-x' });
+    const result = await bindInboundMessageAction({
+      inboundMessageId: 'im-1',
+      organizationId: 'org-x',
+    });
 
     expect(result).toEqual({ ok: false, error: 'not_found' });
   });
@@ -97,7 +107,10 @@ describe('bindInboundMessageAction', () => {
   it("returns forbidden (C8/IDOR) for another company's bound message — cross-company rebind by cuid is blocked", async () => {
     inboundMessageFindUnique.mockResolvedValue({ companyId: 'company-b', status: 'bound' });
 
-    const result = await bindInboundMessageAction({ inboundMessageId: 'im-1', organizationId: 'org-a' });
+    const result = await bindInboundMessageAction({
+      inboundMessageId: 'im-1',
+      organizationId: 'org-a',
+    });
 
     expect(result).toEqual({ ok: false, error: 'forbidden' });
     // Scope-гейт стоит ДО org-lookup: чужая строка не тратит запросов и не
@@ -112,11 +125,16 @@ describe('bindInboundMessageAction', () => {
     getCompanyTeamVisibility.mockResolvedValue(false);
     inboundMessageUpdate.mockResolvedValue({});
 
-    const result = await bindInboundMessageAction({ inboundMessageId: 'im-1', organizationId: 'org-a' });
+    const result = await bindInboundMessageAction({
+      inboundMessageId: 'im-1',
+      organizationId: 'org-a',
+    });
 
     expect(result).toEqual({ ok: true });
     expect(inboundMessageUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ status: 'bound', companyId: 'company-a' }) })
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'bound', companyId: 'company-a' }),
+      })
     );
   });
 
@@ -126,7 +144,10 @@ describe('bindInboundMessageAction', () => {
     requireManager.mockResolvedValue(managerSession({ managedOrgIds: ['org-a'] }));
     getCompanyTeamVisibility.mockResolvedValue(false);
 
-    const result = await bindInboundMessageAction({ inboundMessageId: 'im-1', organizationId: 'org-b' });
+    const result = await bindInboundMessageAction({
+      inboundMessageId: 'im-1',
+      organizationId: 'org-b',
+    });
 
     expect(result).toEqual({ ok: false, error: 'forbidden' });
     expect(inboundMessageUpdate).not.toHaveBeenCalled();
@@ -137,7 +158,10 @@ describe('bindInboundMessageAction', () => {
     organizationFindUnique.mockResolvedValue({ id: 'org-other', companyId: 'company-other' });
     getCompanyTeamVisibility.mockResolvedValue(true);
 
-    const result = await bindInboundMessageAction({ inboundMessageId: 'im-1', organizationId: 'org-other' });
+    const result = await bindInboundMessageAction({
+      inboundMessageId: 'im-1',
+      organizationId: 'org-other',
+    });
 
     expect(result).toEqual({ ok: false, error: 'forbidden' });
   });
@@ -148,10 +172,15 @@ describe('bindInboundMessageAction', () => {
     // bind an inbound to a foreign company's org. Company is the hard floor.
     inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
     organizationFindUnique.mockResolvedValue({ id: 'org-x', companyId: 'company-b' });
-    requireManager.mockResolvedValue(managerSession({ companyId: 'company-a', managedOrgIds: ['org-x'] }));
+    requireManager.mockResolvedValue(
+      managerSession({ companyId: 'company-a', managedOrgIds: ['org-x'] })
+    );
     getCompanyTeamVisibility.mockResolvedValue(false);
 
-    const result = await bindInboundMessageAction({ inboundMessageId: 'im-1', organizationId: 'org-x' });
+    const result = await bindInboundMessageAction({
+      inboundMessageId: 'im-1',
+      organizationId: 'org-x',
+    });
 
     expect(result).toEqual({ ok: false, error: 'forbidden' });
     expect(inboundMessageUpdate).not.toHaveBeenCalled();
@@ -163,13 +192,16 @@ describe('bindInboundMessageAction', () => {
     getCompanyTeamVisibility.mockResolvedValue(false);
     inboundMessageUpdate.mockResolvedValue({});
 
-    const result = await bindInboundMessageAction({ inboundMessageId: 'im-1', organizationId: 'org-a' });
+    const result = await bindInboundMessageAction({
+      inboundMessageId: 'im-1',
+      organizationId: 'org-a',
+    });
 
     expect(result).toEqual({ ok: true });
     // Scope-гейт (E2) читает companyId+status; learn-on-link (Task 11) — channel+senderRef.
     expect(inboundMessageFindUnique).toHaveBeenCalledWith({
       where: { id: 'im-1' },
-      select: { id: true, channel: true, senderRef: true, companyId: true, status: true }
+      select: { id: true, channel: true, senderRef: true, companyId: true, status: true },
     });
     expect(inboundMessageUpdate).toHaveBeenCalledWith({
       where: { id: 'im-1' },
@@ -178,12 +210,17 @@ describe('bindInboundMessageAction', () => {
         companyId: 'company-a',
         threadId: null,
         status: 'bound',
-        boundById: 'u-mgr-1'
-      })
+        boundById: 'u-mgr-1',
+      }),
     });
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ action: 'inbound_message_bound', entity: 'order_thread', entityId: 'im-1', userId: 'u-mgr-1' })
+      expect.objectContaining({
+        action: 'inbound_message_bound',
+        entity: 'order_thread',
+        entityId: 'im-1',
+        userId: 'u-mgr-1',
+      })
     );
   });
 
@@ -194,7 +231,10 @@ describe('bindInboundMessageAction', () => {
     requireManager.mockResolvedValue(managerSession({ managedOrgIds: [] }));
     inboundMessageUpdate.mockResolvedValue({});
 
-    const result = await bindInboundMessageAction({ inboundMessageId: 'im-1', organizationId: 'org-c' });
+    const result = await bindInboundMessageAction({
+      inboundMessageId: 'im-1',
+      organizationId: 'org-c',
+    });
 
     expect(result).toEqual({ ok: true });
   });
@@ -203,20 +243,24 @@ describe('bindInboundMessageAction', () => {
     inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
     organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
     getCompanyTeamVisibility.mockResolvedValue(false);
-    orderFindUnique.mockResolvedValue({ id: 'ord-1', organizationId: 'org-a', companyId: 'company-a' });
+    orderFindUnique.mockResolvedValue({
+      id: 'ord-1',
+      organizationId: 'org-a',
+      companyId: 'company-a',
+    });
     orderThreadFindUnique.mockResolvedValue({ id: 'thread-1' });
     inboundMessageUpdate.mockResolvedValue({});
 
     const result = await bindInboundMessageAction({
       inboundMessageId: 'im-1',
       organizationId: 'org-a',
-      orderId: 'ord-1'
+      orderId: 'ord-1',
     });
 
     expect(result).toEqual({ ok: true });
     expect(orderThreadFindUnique).toHaveBeenCalledWith({
       where: { orderId_side: { orderId: 'ord-1', side: 'org' } },
-      select: { id: true }
+      select: { id: true },
     });
     expect(inboundMessageUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ threadId: 'thread-1' }) })
@@ -230,16 +274,32 @@ describe('bindInboundMessageAction', () => {
     inboundMessageUpdate.mockResolvedValue({});
 
     // Same company → in scope, thread looked up.
-    orderFindUnique.mockResolvedValue({ id: 'ord-1', organizationId: 'org-a', companyId: 'company-a' });
+    orderFindUnique.mockResolvedValue({
+      id: 'ord-1',
+      organizationId: 'org-a',
+      companyId: 'company-a',
+    });
     orderThreadFindUnique.mockResolvedValue({ id: 'thread-1' });
-    let result = await bindInboundMessageAction({ inboundMessageId: 'im-1', organizationId: 'org-a', orderId: 'ord-1' });
+    let result = await bindInboundMessageAction({
+      inboundMessageId: 'im-1',
+      organizationId: 'org-a',
+      orderId: 'ord-1',
+    });
     expect(result).toEqual({ ok: true });
     expect(orderThreadFindUnique).toHaveBeenCalledTimes(1);
 
     // Foreign company order (несмотря на совпавшую org) → thread не резолвится.
     orderThreadFindUnique.mockClear();
-    orderFindUnique.mockResolvedValue({ id: 'ord-2', organizationId: 'org-a', companyId: 'company-b' });
-    result = await bindInboundMessageAction({ inboundMessageId: 'im-1', organizationId: 'org-a', orderId: 'ord-2' });
+    orderFindUnique.mockResolvedValue({
+      id: 'ord-2',
+      organizationId: 'org-a',
+      companyId: 'company-b',
+    });
+    result = await bindInboundMessageAction({
+      inboundMessageId: 'im-1',
+      organizationId: 'org-a',
+      orderId: 'ord-2',
+    });
     expect(result).toEqual({ ok: true });
     expect(orderThreadFindUnique).not.toHaveBeenCalled();
     expect(inboundMessageUpdate).toHaveBeenLastCalledWith(
@@ -251,14 +311,18 @@ describe('bindInboundMessageAction', () => {
     inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
     organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
     getCompanyTeamVisibility.mockResolvedValue(false);
-    orderFindUnique.mockResolvedValue({ id: 'ord-1', organizationId: 'org-a', companyId: 'company-a' });
+    orderFindUnique.mockResolvedValue({
+      id: 'ord-1',
+      organizationId: 'org-a',
+      companyId: 'company-a',
+    });
     orderThreadFindUnique.mockResolvedValue(null);
     inboundMessageUpdate.mockResolvedValue({});
 
     const result = await bindInboundMessageAction({
       inboundMessageId: 'im-1',
       organizationId: 'org-a',
-      orderId: 'ord-1'
+      orderId: 'ord-1',
     });
 
     expect(result).toEqual({ ok: true });
@@ -271,13 +335,17 @@ describe('bindInboundMessageAction', () => {
     inboundMessageFindUnique.mockResolvedValue({ companyId: null, status: 'unresolved' });
     organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
     getCompanyTeamVisibility.mockResolvedValue(false);
-    orderFindUnique.mockResolvedValue({ id: 'ord-1', organizationId: 'org-other', companyId: 'company-a' });
+    orderFindUnique.mockResolvedValue({
+      id: 'ord-1',
+      organizationId: 'org-other',
+      companyId: 'company-a',
+    });
     inboundMessageUpdate.mockResolvedValue({});
 
     const result = await bindInboundMessageAction({
       inboundMessageId: 'im-1',
       organizationId: 'org-a',
-      orderId: 'ord-1'
+      orderId: 'ord-1',
     });
 
     expect(result).toEqual({ ok: true });
@@ -289,22 +357,32 @@ describe('bindInboundMessageAction', () => {
 
   describe('contactId (Task 11 — attach + learn-on-link)', () => {
     it('binds the contact, sets contactId, and captures the sender identity as a channel', async () => {
-      inboundMessageFindUnique.mockResolvedValue({ id: 'im-1', channel: 'telegram', senderRef: 'chat-9', companyId: null, status: 'unresolved' });
+      inboundMessageFindUnique.mockResolvedValue({
+        id: 'im-1',
+        channel: 'telegram',
+        senderRef: 'chat-9',
+        companyId: null,
+        status: 'unresolved',
+      });
       organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
       getCompanyTeamVisibility.mockResolvedValue(false);
-      contactFindUnique.mockResolvedValue({ id: 'k1', companyId: 'company-a', organizationId: null });
+      contactFindUnique.mockResolvedValue({
+        id: 'k1',
+        companyId: 'company-a',
+        organizationId: null,
+      });
       inboundMessageUpdate.mockResolvedValue({});
 
       const result = await bindInboundMessageAction({
         inboundMessageId: 'im-1',
         organizationId: 'org-a',
-        contactId: 'k1'
+        contactId: 'k1',
       });
 
       expect(result).toEqual({ ok: true });
       expect(contactFindUnique).toHaveBeenCalledWith({
         where: { id: 'k1' },
-        select: { id: true, companyId: true, organizationId: true }
+        select: { id: true, companyId: true, organizationId: true },
       });
       expect(inboundMessageUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ contactId: 'k1' }) })
@@ -313,7 +391,7 @@ describe('bindInboundMessageAction', () => {
         contactId: 'k1',
         companyId: 'company-a',
         type: 'telegram',
-        value: 'chat-9'
+        value: 'chat-9',
       });
       expect(recordAudit).toHaveBeenCalledWith(
         expect.anything(),
@@ -322,16 +400,26 @@ describe('bindInboundMessageAction', () => {
     });
 
     it('accepts a contact already attached to the SAME target org', async () => {
-      inboundMessageFindUnique.mockResolvedValue({ id: 'im-1', channel: 'whatsapp', senderRef: '+79990001122', companyId: null, status: 'unresolved' });
+      inboundMessageFindUnique.mockResolvedValue({
+        id: 'im-1',
+        channel: 'whatsapp',
+        senderRef: '+79990001122',
+        companyId: null,
+        status: 'unresolved',
+      });
       organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
       getCompanyTeamVisibility.mockResolvedValue(false);
-      contactFindUnique.mockResolvedValue({ id: 'k1', companyId: 'company-a', organizationId: 'org-a' });
+      contactFindUnique.mockResolvedValue({
+        id: 'k1',
+        companyId: 'company-a',
+        organizationId: 'org-a',
+      });
       inboundMessageUpdate.mockResolvedValue({});
 
       const result = await bindInboundMessageAction({
         inboundMessageId: 'im-1',
         organizationId: 'org-a',
-        contactId: 'k1'
+        contactId: 'k1',
       });
 
       expect(result).toEqual({ ok: true });
@@ -342,7 +430,13 @@ describe('bindInboundMessageAction', () => {
     });
 
     it('returns forbidden when the contact does not exist', async () => {
-      inboundMessageFindUnique.mockResolvedValue({ id: 'im-1', channel: 'telegram', senderRef: 'chat-9', companyId: null, status: 'unresolved' });
+      inboundMessageFindUnique.mockResolvedValue({
+        id: 'im-1',
+        channel: 'telegram',
+        senderRef: 'chat-9',
+        companyId: null,
+        status: 'unresolved',
+      });
       organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
       getCompanyTeamVisibility.mockResolvedValue(false);
       contactFindUnique.mockResolvedValue(null);
@@ -350,7 +444,7 @@ describe('bindInboundMessageAction', () => {
       const result = await bindInboundMessageAction({
         inboundMessageId: 'im-1',
         organizationId: 'org-a',
-        contactId: 'gone'
+        contactId: 'gone',
       });
 
       expect(result).toEqual({ ok: false, error: 'forbidden' });
@@ -359,15 +453,25 @@ describe('bindInboundMessageAction', () => {
     });
 
     it('returns forbidden (cross-company) when the contact belongs to another company', async () => {
-      inboundMessageFindUnique.mockResolvedValue({ id: 'im-1', channel: 'telegram', senderRef: 'chat-9', companyId: null, status: 'unresolved' });
+      inboundMessageFindUnique.mockResolvedValue({
+        id: 'im-1',
+        channel: 'telegram',
+        senderRef: 'chat-9',
+        companyId: null,
+        status: 'unresolved',
+      });
       organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
       getCompanyTeamVisibility.mockResolvedValue(false);
-      contactFindUnique.mockResolvedValue({ id: 'k1', companyId: 'company-other', organizationId: null });
+      contactFindUnique.mockResolvedValue({
+        id: 'k1',
+        companyId: 'company-other',
+        organizationId: null,
+      });
 
       const result = await bindInboundMessageAction({
         inboundMessageId: 'im-1',
         organizationId: 'org-a',
-        contactId: 'k1'
+        contactId: 'k1',
       });
 
       expect(result).toEqual({ ok: false, error: 'forbidden' });
@@ -376,15 +480,25 @@ describe('bindInboundMessageAction', () => {
     });
 
     it('returns forbidden when the contact is already attached to a DIFFERENT org', async () => {
-      inboundMessageFindUnique.mockResolvedValue({ id: 'im-1', channel: 'telegram', senderRef: 'chat-9', companyId: null, status: 'unresolved' });
+      inboundMessageFindUnique.mockResolvedValue({
+        id: 'im-1',
+        channel: 'telegram',
+        senderRef: 'chat-9',
+        companyId: null,
+        status: 'unresolved',
+      });
       organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
       getCompanyTeamVisibility.mockResolvedValue(false);
-      contactFindUnique.mockResolvedValue({ id: 'k1', companyId: 'company-a', organizationId: 'org-other' });
+      contactFindUnique.mockResolvedValue({
+        id: 'k1',
+        companyId: 'company-a',
+        organizationId: 'org-other',
+      });
 
       const result = await bindInboundMessageAction({
         inboundMessageId: 'im-1',
         organizationId: 'org-a',
-        contactId: 'k1'
+        contactId: 'k1',
       });
 
       expect(result).toEqual({ ok: false, error: 'forbidden' });
@@ -393,12 +507,21 @@ describe('bindInboundMessageAction', () => {
     });
 
     it('без contactId: contactId=null в update, captureChannel не вызывается', async () => {
-      inboundMessageFindUnique.mockResolvedValue({ id: 'im-1', channel: 'telegram', senderRef: 'chat-9', companyId: null, status: 'unresolved' });
+      inboundMessageFindUnique.mockResolvedValue({
+        id: 'im-1',
+        channel: 'telegram',
+        senderRef: 'chat-9',
+        companyId: null,
+        status: 'unresolved',
+      });
       organizationFindUnique.mockResolvedValue({ id: 'org-a', companyId: 'company-a' });
       getCompanyTeamVisibility.mockResolvedValue(false);
       inboundMessageUpdate.mockResolvedValue({});
 
-      const result = await bindInboundMessageAction({ inboundMessageId: 'im-1', organizationId: 'org-a' });
+      const result = await bindInboundMessageAction({
+        inboundMessageId: 'im-1',
+        organizationId: 'org-a',
+      });
 
       expect(result).toEqual({ ok: true });
       expect(contactFindUnique).not.toHaveBeenCalled();
@@ -427,7 +550,12 @@ describe('replyInboundAction', () => {
 
   it('returns forbidden when the message is unresolved (companyId null)', async () => {
     inboundMessageFindUnique.mockResolvedValue({
-      id: 'im-1', channel: 'telegram', senderRef: 'chat-1', subject: null, companyId: null, threadId: null
+      id: 'im-1',
+      channel: 'telegram',
+      senderRef: 'chat-1',
+      subject: null,
+      companyId: null,
+      threadId: null,
     });
 
     const result = await replyInboundAction({ inboundMessageId: 'im-1', text: 'hello' });
@@ -438,7 +566,12 @@ describe('replyInboundAction', () => {
 
   it('returns forbidden when the message belongs to another company', async () => {
     inboundMessageFindUnique.mockResolvedValue({
-      id: 'im-1', channel: 'telegram', senderRef: 'chat-1', subject: null, companyId: 'company-other', threadId: null
+      id: 'im-1',
+      channel: 'telegram',
+      senderRef: 'chat-1',
+      subject: null,
+      companyId: 'company-other',
+      threadId: null,
     });
 
     const result = await replyInboundAction({ inboundMessageId: 'im-1', text: 'hello' });
@@ -448,7 +581,12 @@ describe('replyInboundAction', () => {
 
   it('returns invalid for empty/whitespace-only text', async () => {
     inboundMessageFindUnique.mockResolvedValue({
-      id: 'im-1', channel: 'telegram', senderRef: 'chat-1', subject: null, companyId: 'company-a', threadId: null
+      id: 'im-1',
+      channel: 'telegram',
+      senderRef: 'chat-1',
+      subject: null,
+      companyId: 'company-a',
+      threadId: null,
     });
 
     const result = await replyInboundAction({ inboundMessageId: 'im-1', text: '   ' });
@@ -459,7 +597,12 @@ describe('replyInboundAction', () => {
 
   it('returns email_unsupported when the channel is email and replyToInbound fails', async () => {
     inboundMessageFindUnique.mockResolvedValue({
-      id: 'im-1', channel: 'email', senderRef: 'a@b.com', subject: 'Hi', companyId: 'company-a', threadId: null
+      id: 'im-1',
+      channel: 'email',
+      senderRef: 'a@b.com',
+      subject: 'Hi',
+      companyId: 'company-a',
+      threadId: null,
     });
     replyToInbound.mockResolvedValue({ ok: false });
 
@@ -470,7 +613,12 @@ describe('replyInboundAction', () => {
 
   it('returns reply_failed when a non-email channel send fails', async () => {
     inboundMessageFindUnique.mockResolvedValue({
-      id: 'im-1', channel: 'whatsapp', senderRef: '+7999', subject: null, companyId: 'company-a', threadId: null
+      id: 'im-1',
+      channel: 'whatsapp',
+      senderRef: '+7999',
+      subject: null,
+      companyId: 'company-a',
+      threadId: null,
     });
     replyToInbound.mockResolvedValue({ ok: false });
 
@@ -481,7 +629,12 @@ describe('replyInboundAction', () => {
 
   it('succeeds for a non-email channel without a bound thread (no mirror attempted)', async () => {
     inboundMessageFindUnique.mockResolvedValue({
-      id: 'im-1', channel: 'telegram', senderRef: 'chat-1', subject: null, companyId: 'company-a', threadId: null
+      id: 'im-1',
+      channel: 'telegram',
+      senderRef: 'chat-1',
+      subject: null,
+      companyId: 'company-a',
+      threadId: null,
     });
     replyToInbound.mockResolvedValue({ ok: true });
 
@@ -492,45 +645,77 @@ describe('replyInboundAction', () => {
     expect(notifyOrgUsers).not.toHaveBeenCalled();
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ action: 'inbound_message_replied', entityId: 'im-1', userId: 'u-mgr-1' })
+      expect.objectContaining({
+        action: 'inbound_message_replied',
+        entityId: 'im-1',
+        userId: 'u-mgr-1',
+      })
     );
     expect(writeSyncLog).toHaveBeenCalledWith(
-      expect.objectContaining({ entity: 'inbound', direction: 'outbound', operation: 'create', status: 'success' })
+      expect.objectContaining({
+        entity: 'inbound',
+        direction: 'outbound',
+        operation: 'create',
+        status: 'success',
+      })
     );
   });
 
   it('mirrors into the thread and notifies org users when threadId is bound', async () => {
     inboundMessageFindUnique.mockResolvedValue({
-      id: 'im-1', channel: 'telegram', senderRef: 'chat-1', subject: null, companyId: 'company-a', threadId: 'thread-1'
+      id: 'im-1',
+      channel: 'telegram',
+      senderRef: 'chat-1',
+      subject: null,
+      companyId: 'company-a',
+      threadId: 'thread-1',
     });
     replyToInbound.mockResolvedValue({ ok: true });
     messageCreate.mockResolvedValue({ id: 'msg-1' });
     orderThreadUpdate.mockResolvedValue({ orderId: 'ord-1' });
-    orderFindUnique.mockResolvedValue({ id: 'ord-1', organizationId: 'org-a', orderNumber: '123', title: 'Course' });
+    orderFindUnique.mockResolvedValue({
+      id: 'ord-1',
+      organizationId: 'org-a',
+      orderNumber: '123',
+      title: 'Course',
+    });
     notifyOrgUsers.mockResolvedValue({ recipientsNotified: 1, emailsSent: 0, emailsSkipped: 1 });
 
     const result = await replyInboundAction({ inboundMessageId: 'im-1', text: 'Reply text' });
 
     expect(result).toEqual({ ok: true });
     expect(messageCreate).toHaveBeenCalledWith({
-      data: { threadId: 'thread-1', authorId: 'u-mgr-1', body: 'Reply text' }
+      data: { threadId: 'thread-1', authorId: 'u-mgr-1', body: 'Reply text' },
     });
     expect(orderThreadUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'thread-1' }, data: expect.objectContaining({ lastMessageAt: expect.any(Date) }) })
+      expect.objectContaining({
+        where: { id: 'thread-1' },
+        data: expect.objectContaining({ lastMessageAt: expect.any(Date) }),
+      })
     );
     expect(notifyOrgUsers).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         organizationId: 'org-a',
         type: 'manager_replied',
-        payload: expect.objectContaining({ orderId: 'ord-1', orderNumber: '123', orderTitle: 'Course', commentExcerpt: 'Reply text' })
+        payload: expect.objectContaining({
+          orderId: 'ord-1',
+          orderNumber: '123',
+          orderTitle: 'Course',
+          commentExcerpt: 'Reply text',
+        }),
       })
     );
   });
 
   it('still returns ok:true when the thread mirror throws (best-effort)', async () => {
     inboundMessageFindUnique.mockResolvedValue({
-      id: 'im-1', channel: 'telegram', senderRef: 'chat-1', subject: null, companyId: 'company-a', threadId: 'thread-1'
+      id: 'im-1',
+      channel: 'telegram',
+      senderRef: 'chat-1',
+      subject: null,
+      companyId: 'company-a',
+      threadId: 'thread-1',
     });
     replyToInbound.mockResolvedValue({ ok: true });
     messageCreate.mockRejectedValue(new Error('db down'));
@@ -545,7 +730,12 @@ describe('replyInboundAction', () => {
   it('mirror failure with a non-Error value is stringified in the warn log (still ok:true)', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     inboundMessageFindUnique.mockResolvedValue({
-      id: 'im-1', channel: 'telegram', senderRef: 'chat-1', subject: null, companyId: 'company-a', threadId: 'thread-1'
+      id: 'im-1',
+      channel: 'telegram',
+      senderRef: 'chat-1',
+      subject: null,
+      companyId: 'company-a',
+      threadId: 'thread-1',
     });
     replyToInbound.mockResolvedValue({ ok: true });
     messageCreate.mockRejectedValue('string-boom');

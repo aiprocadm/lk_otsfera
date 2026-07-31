@@ -20,7 +20,7 @@ export type SyncLagRow = {
  */
 export async function getSyncLag(
   prisma: PrismaClient,
-  now: Date = new Date(),
+  now: Date = new Date()
 ): Promise<SyncLagRow[]> {
   const summary = await getSyncSummary(prisma);
   return summary.map((row) => ({

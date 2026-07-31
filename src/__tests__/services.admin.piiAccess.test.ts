@@ -23,21 +23,21 @@ function eventRow(id: string, over: Record<string, unknown> = {}) {
     subjectIds: ['s1'],
     subjectCount: 1,
     meta: null,
-    ...over
+    ...over,
   };
 }
 
 function makePrisma(rows: ReturnType<typeof eventRow>[] = []) {
   return {
     piiAccessEvent: {
-      findMany: vi.fn().mockResolvedValue(rows)
+      findMany: vi.fn().mockResolvedValue(rows),
     },
     student: { findMany: vi.fn().mockResolvedValue([{ id: 's1', name: 'Иван И.' }]) },
     user: { findMany: vi.fn().mockResolvedValue([]) },
     lead: { findMany: vi.fn().mockResolvedValue([]) },
     enrollmentRequest: { findMany: vi.fn().mockResolvedValue([]) },
     call: { findMany: vi.fn().mockResolvedValue([]) },
-    inboundMessage: { findMany: vi.fn().mockResolvedValue([]) }
+    inboundMessage: { findMany: vi.fn().mockResolvedValue([]) },
   } as never;
 }
 
@@ -56,7 +56,7 @@ describe('listPiiAccess', () => {
       id: 'ev1',
       context: 'manager_students_list',
       labelRu: 'Список слушателей',
-      subjects: [{ id: 's1', label: 'Иван И.' }]
+      subjects: [{ id: 's1', label: 'Иван И.' }],
     });
     expect(res.nextCursor).toBeNull();
     // батч-резолв: один findMany по студентам, без per-row запросов
@@ -81,7 +81,7 @@ describe('listPiiAccess', () => {
       subjectType: 'caller',
       subjectId: 'c42',
       from: new Date('2026-07-01'),
-      to: new Date('2026-07-11')
+      to: new Date('2026-07-11'),
     });
     const arg = (p as any).piiAccessEvent.findMany.mock.calls[0][0];
     expect(arg.where).toEqual({
@@ -90,27 +90,39 @@ describe('listPiiAccess', () => {
       context: 'calls_list',
       subjectType: 'caller',
       subjectIds: { has: 'c42' },
-      createdAt: { gte: new Date('2026-07-01'), lte: new Date('2026-07-11') }
+      createdAt: { gte: new Date('2026-07-01'), lte: new Date('2026-07-11') },
     });
   });
 
   it('резолвит субъектов всех типов батчами; falsy-лейбл → «(удалён)»', async () => {
     const rows = [
       eventRow('e1', { subjectType: 'user', subjectIds: ['u9'], context: 'admin_users_list' }),
-      eventRow('e2', { subjectType: 'lead', subjectIds: ['L1', 'L2'], context: 'manager_lead_view' }),
-      eventRow('e3', { subjectType: 'enrollment_request', subjectIds: ['R1'], context: 'enrollments_list' }),
+      eventRow('e2', {
+        subjectType: 'lead',
+        subjectIds: ['L1', 'L2'],
+        context: 'manager_lead_view',
+      }),
+      eventRow('e3', {
+        subjectType: 'enrollment_request',
+        subjectIds: ['R1'],
+        context: 'enrollments_list',
+      }),
       eventRow('e4', { subjectType: 'inbound_sender', subjectIds: ['m1'], context: 'inbox_list' }),
-      eventRow('e5', { subjectType: 'caller', subjectIds: ['c1'], context: 'calls_list' })
+      eventRow('e5', { subjectType: 'caller', subjectIds: ['c1'], context: 'calls_list' }),
     ];
     const p = makePrisma(rows);
     (p as any).user.findMany.mockResolvedValue([{ id: 'u9', name: 'Юзер' }]);
     (p as any).lead.findMany.mockResolvedValue([
       { id: 'L1', clientContactName: 'Контакт' },
-      { id: 'L2', clientContactName: null }
+      { id: 'L2', clientContactName: null },
     ]);
     // Этап 2: заявка подписывается первым слушателем из позиций
-    (p as any).enrollmentRequest.findMany.mockResolvedValue([{ id: 'R1', items: [{ fullName: 'Слушатель' }] }]);
-    (p as any).inboundMessage.findMany.mockResolvedValue([{ id: 'm1', senderDisplay: 'Отправитель' }]);
+    (p as any).enrollmentRequest.findMany.mockResolvedValue([
+      { id: 'R1', items: [{ fullName: 'Слушатель' }] },
+    ]);
+    (p as any).inboundMessage.findMany.mockResolvedValue([
+      { id: 'm1', senderDisplay: 'Отправитель' },
+    ]);
     (p as any).call.findMany.mockResolvedValue([{ id: 'c1', callerNumber: '+79001234567' }]);
     const res = await listPiiAccess(p, ADMIN, {});
     if (!res.ok) throw new Error('expected ok');
@@ -120,7 +132,7 @@ describe('listPiiAccess', () => {
       e2: ['Контакт', 'L2 (удалён)'],
       e3: ['Слушатель'],
       e4: ['Отправитель'],
-      e5: ['+79001234567']
+      e5: ['+79001234567'],
     });
   });
 
@@ -129,7 +141,11 @@ describe('listPiiAccess', () => {
     // формата или все позиции удалены) — журнал доступа к ПДн обязан всё равно
     // показать строку, иначе расследование инцидента упрётся в пустоту.
     const p = makePrisma([
-      eventRow('e1', { subjectType: 'enrollment_request', subjectIds: ['R9'], context: 'enrollments_list' })
+      eventRow('e1', {
+        subjectType: 'enrollment_request',
+        subjectIds: ['R9'],
+        context: 'enrollments_list',
+      }),
     ]);
     (p as any).enrollmentRequest.findMany.mockResolvedValue([{ id: 'R9', items: [] }]);
     const res = await listPiiAccess(p, ADMIN, {});
@@ -171,7 +187,10 @@ describe('listPiiAccess', () => {
 
 describe('listPiiAccessFilters', () => {
   it('не-admin → forbidden; admin получает контексты из реестра и акторов', async () => {
-    expect(await listPiiAccessFilters(makePrisma(), MANAGER)).toEqual({ ok: false, error: 'forbidden' });
+    expect(await listPiiAccessFilters(makePrisma(), MANAGER)).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     const p = makePrisma();
     (p as any).piiAccessEvent.findMany.mockResolvedValue([{ userId: 'u1' }]);
     (p as any).user.findMany.mockResolvedValue([{ id: 'u1', name: 'Емп', email: 'e@x.ru' }]);

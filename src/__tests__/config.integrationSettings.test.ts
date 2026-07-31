@@ -3,7 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 
 const { recordAuditMock, keyState } = vi.hoisted(() => ({
   recordAuditMock: vi.fn(),
-  keyState: { configured: true }
+  keyState: { configured: true },
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
 vi.mock('@/lib/crypto/secrets', () => ({
@@ -12,14 +12,14 @@ vi.mock('@/lib/crypto/secrets', () => ({
     if (s === 'CORRUPTED') throw new Error('bad key');
     return s.replace(/^ENC\(|\)$/g, '');
   },
-  isSecretsKeyConfigured: () => keyState.configured
+  isSecretsKeyConfigured: () => keyState.configured,
 }));
 
 import {
   getSettingValue,
   getSettingValues,
   getSettingsView,
-  saveSettings
+  saveSettings,
 } from '@/lib/config/integrationSettings';
 
 const ORIGINAL_ENV = { ...process.env };
@@ -31,8 +31,8 @@ function makePrisma(overrides: Record<string, unknown> = {}) {
       findMany: vi.fn().mockResolvedValue([]),
       upsert: vi.fn().mockResolvedValue({}),
       deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
-      ...overrides
-    }
+      ...overrides,
+    },
   } as unknown as PrismaClient;
 }
 
@@ -41,19 +41,21 @@ beforeEach(() => {
   keyState.configured = true;
   process.env = { ...ORIGINAL_ENV };
 });
-afterEach(() => { process.env = { ...ORIGINAL_ENV }; });
+afterEach(() => {
+  process.env = { ...ORIGINAL_ENV };
+});
 
 describe('getSettingValue', () => {
   it('returns a non-secret value straight from DB', async () => {
     const prisma = makePrisma({
-      findUnique: vi.fn().mockResolvedValue({ value: 'noreply@x.ru', isSecret: false })
+      findUnique: vi.fn().mockResolvedValue({ value: 'noreply@x.ru', isSecret: false }),
     });
     expect(await getSettingValue(prisma, 'email.from')).toBe('noreply@x.ru');
   });
 
   it('decrypts a secret value from DB', async () => {
     const prisma = makePrisma({
-      findUnique: vi.fn().mockResolvedValue({ value: 'ENC(re_live_123)', isSecret: true })
+      findUnique: vi.fn().mockResolvedValue({ value: 'ENC(re_live_123)', isSecret: true }),
     });
     expect(await getSettingValue(prisma, 'email.resendApiKey')).toBe('re_live_123');
   });
@@ -66,7 +68,9 @@ describe('getSettingValue', () => {
 
   it('falls back to env when DB value is empty string', async () => {
     process.env.RESEND_API_KEY = 'env-key';
-    const prisma = makePrisma({ findUnique: vi.fn().mockResolvedValue({ value: '', isSecret: true }) });
+    const prisma = makePrisma({
+      findUnique: vi.fn().mockResolvedValue({ value: '', isSecret: true }),
+    });
     expect(await getSettingValue(prisma, 'email.resendApiKey')).toBe('env-key');
   });
 
@@ -75,14 +79,14 @@ describe('getSettingValue', () => {
     // Интеграции при этом должны продолжить работать от env-переменных.
     process.env.RESEND_API_KEY = 'env-backup-key';
     const prisma = makePrisma({
-      findUnique: vi.fn().mockResolvedValue({ value: 'CORRUPTED', isSecret: true })
+      findUnique: vi.fn().mockResolvedValue({ value: 'CORRUPTED', isSecret: true }),
     });
     expect(await getSettingValue(prisma, 'email.resendApiKey')).toBe('env-backup-key');
     delete process.env.RESEND_API_KEY;
 
     // А без env-запаски — честный null.
     const prisma2 = makePrisma({
-      findUnique: vi.fn().mockResolvedValue({ value: 'CORRUPTED', isSecret: true })
+      findUnique: vi.fn().mockResolvedValue({ value: 'CORRUPTED', isSecret: true }),
     });
     expect(await getSettingValue(prisma2, 'email.resendApiKey')).toBeNull();
   });
@@ -90,9 +94,11 @@ describe('getSettingValue', () => {
   it('getSettingValues: пачка ключей одним вызовом, каждый по своим правилам', async () => {
     process.env.EMAIL_FROM = 'env@x.ru';
     const prisma = makePrisma({
-      findUnique: vi.fn().mockImplementation(async ({ where }: { where: { key: string } }) =>
-        where.key === 'email.enabled' ? { value: 'true', isSecret: false } : null
-      )
+      findUnique: vi
+        .fn()
+        .mockImplementation(async ({ where }: { where: { key: string } }) =>
+          where.key === 'email.enabled' ? { value: 'true', isSecret: false } : null
+        ),
     });
     const out = await getSettingValues(prisma, ['email.enabled', 'email.from']);
     expect(out).toEqual({ 'email.enabled': 'true', 'email.from': 'env@x.ru' });
@@ -111,8 +117,8 @@ describe('getSettingsView', () => {
     const prisma = makePrisma({
       findMany: vi.fn().mockResolvedValue([
         { key: 'email.resendApiKey', value: 'ENC(secret)', isSecret: true },
-        { key: 'email.from', value: 'db@x.ru', isSecret: false }
-      ])
+        { key: 'email.from', value: 'db@x.ru', isSecret: false },
+      ]),
     });
     const view = await getSettingsView(prisma, ['email.resendApiKey', 'email.from']);
     const secret = view.find((r) => r.key === 'email.resendApiKey')!;
@@ -143,7 +149,9 @@ describe('getSettingsView', () => {
   it('несекретная настройка из БД: value виден и source=db', async () => {
     delete process.env.EMAIL_FROM;
     const prisma = makePrisma({
-      findMany: vi.fn().mockResolvedValue([{ key: 'email.from', value: 'noreply@x.ru', isSecret: false }])
+      findMany: vi
+        .fn()
+        .mockResolvedValue([{ key: 'email.from', value: 'noreply@x.ru', isSecret: false }]),
     });
     const view = await getSettingsView(prisma, ['email.from']);
     expect(view[0]).toMatchObject({ value: 'noreply@x.ru', source: 'db', isSet: true });
@@ -155,7 +163,7 @@ describe('saveSettings', () => {
     const prisma = makePrisma();
     const res = await saveSettings(prisma, 'admin-1', [
       { key: 'email.enabled', value: 'true' },
-      { key: 'email.resendApiKey', value: 're_new' }
+      { key: 'email.resendApiKey', value: 're_new' },
     ]);
     expect(res).toEqual({ ok: true });
 
@@ -167,7 +175,10 @@ describe('saveSettings', () => {
     expect(secretCall.create.value).toBe('ENC(re_new)'); // зашифровано
     expect(recordAuditMock).toHaveBeenCalledWith(
       prisma,
-      expect.objectContaining({ action: 'integration_settings_updated', entity: 'integration_setting' })
+      expect.objectContaining({
+        action: 'integration_settings_updated',
+        entity: 'integration_setting',
+      })
     );
     // Значение секрета не попадает в аудит
     const auditArg = recordAuditMock.mock.calls[0][1];
@@ -194,13 +205,17 @@ describe('saveSettings', () => {
   it('clear removes the row (falls back to env afterwards)', async () => {
     const prisma = makePrisma();
     await saveSettings(prisma, 'admin-1', [{ key: 'email.from', clear: true }]);
-    expect(prisma.integrationSetting.deleteMany).toHaveBeenCalledWith({ where: { key: 'email.from' } });
+    expect(prisma.integrationSetting.deleteMany).toHaveBeenCalledWith({
+      where: { key: 'email.from' },
+    });
   });
 
   it('refuses to write a secret when the encryption key is missing', async () => {
     keyState.configured = false;
     const prisma = makePrisma();
-    const res = await saveSettings(prisma, 'admin-1', [{ key: 'email.resendApiKey', value: 're_x' }]);
+    const res = await saveSettings(prisma, 'admin-1', [
+      { key: 'email.resendApiKey', value: 're_x' },
+    ]);
     expect(res).toEqual({ ok: false, error: 'secrets_key_missing' });
     expect(prisma.integrationSetting.upsert).not.toHaveBeenCalled();
   });

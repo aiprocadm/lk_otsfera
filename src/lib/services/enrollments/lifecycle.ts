@@ -22,14 +22,16 @@ export const ENROLLMENT_PIPELINE: EnrollmentStatus[] = [
   'approved',
   'provisioned',
   'in_training',
-  'certificates_ready'
+  'certificates_ready',
 ];
 
 /**
  * Статус шапки из статусов позиций (§2 спеки): минимальный по конвейеру среди
  * не-отклонённых; все позиции отклонены (или их нет) → rejected.
  */
-export function aggregateEnrollmentHeaderStatus(items: { status: EnrollmentStatus }[]): EnrollmentStatus {
+export function aggregateEnrollmentHeaderStatus(
+  items: { status: EnrollmentStatus }[]
+): EnrollmentStatus {
   let min = ENROLLMENT_PIPELINE.length;
   for (const item of items) {
     if (item.status === 'rejected') continue;
@@ -45,23 +47,30 @@ async function loadRequest(prisma: PrismaClient, id: string) {
 export async function approveEnrollment(
   prisma: PrismaClient,
   args: { id: string; reviewerId: string }
-): Promise<{ ok: true; request: EnrollmentRequest } | { ok: false; error: 'not_found' | 'lifecycle_violation' }> {
+): Promise<
+  | { ok: true; request: EnrollmentRequest }
+  | { ok: false; error: 'not_found' | 'lifecycle_violation' }
+> {
   const r = await loadRequest(prisma, args.id);
   if (!r) return { ok: false, error: 'not_found' };
   if (r.status !== 'pending') return { ok: false, error: 'lifecycle_violation' };
   const updated = await prisma.$transaction(async (tx) => {
     const request = await tx.enrollmentRequest.update({
       where: { id: r.id },
-      data: { status: 'approved', reviewedByUserId: args.reviewerId, reviewedAt: new Date() }
+      data: { status: 'approved', reviewedByUserId: args.reviewerId, reviewedAt: new Date() },
     });
     await tx.enrollmentRequestItem.updateMany({
       where: { requestId: r.id, status: 'pending' },
-      data: { status: 'approved' }
+      data: { status: 'approved' },
     });
     return request;
   });
   await recordAudit(prisma, {
-    userId: args.reviewerId, action: 'enrollment_approved', entity: 'enrollment_request', entityId: r.id, after: { status: 'approved' }
+    userId: args.reviewerId,
+    action: 'enrollment_approved',
+    entity: 'enrollment_request',
+    entityId: r.id,
+    after: { status: 'approved' },
   });
   await notifySubmitterEnrollmentStatus(prisma, updated);
   return { ok: true, request: updated };
@@ -70,7 +79,10 @@ export async function approveEnrollment(
 export async function rejectEnrollment(
   prisma: PrismaClient,
   args: { id: string; reviewerId: string; reason: string }
-): Promise<{ ok: true; request: EnrollmentRequest } | { ok: false; error: 'not_found' | 'lifecycle_violation' }> {
+): Promise<
+  | { ok: true; request: EnrollmentRequest }
+  | { ok: false; error: 'not_found' | 'lifecycle_violation' }
+> {
   const r = await loadRequest(prisma, args.id);
   if (!r) return { ok: false, error: 'not_found' };
   if (r.status === 'provisioned' || r.status === 'rejected') {
@@ -79,16 +91,25 @@ export async function rejectEnrollment(
   const updated = await prisma.$transaction(async (tx) => {
     const request = await tx.enrollmentRequest.update({
       where: { id: r.id },
-      data: { status: 'rejected', rejectedReason: args.reason.trim() || 'Отклонено', reviewedByUserId: args.reviewerId, reviewedAt: new Date() }
+      data: {
+        status: 'rejected',
+        rejectedReason: args.reason.trim() || 'Отклонено',
+        reviewedByUserId: args.reviewerId,
+        reviewedAt: new Date(),
+      },
     });
     await tx.enrollmentRequestItem.updateMany({
       where: { requestId: r.id },
-      data: { status: 'rejected' }
+      data: { status: 'rejected' },
     });
     return request;
   });
   await recordAudit(prisma, {
-    userId: args.reviewerId, action: 'enrollment_rejected', entity: 'enrollment_request', entityId: r.id, after: { reason: updated.rejectedReason }
+    userId: args.reviewerId,
+    action: 'enrollment_rejected',
+    entity: 'enrollment_request',
+    entityId: r.id,
+    after: { reason: updated.rejectedReason },
   });
   await notifySubmitterEnrollmentStatus(prisma, updated);
   return { ok: true, request: updated };
@@ -115,16 +136,23 @@ export async function markProvisioned(
   const updated = await prisma.$transaction(async (tx) => {
     const request = await tx.enrollmentRequest.update({
       where: { id: r.id },
-      data: { status: 'provisioned', provisionedAt: new Date() }
+      data: { status: 'provisioned', provisionedAt: new Date() },
     });
     await tx.enrollmentRequestItem.updateMany({
       where: { requestId: r.id, status: { not: 'rejected' } },
-      data: { status: 'provisioned', ...(itemCount === 1 && sid ? { externalStudentId: sid } : {}) }
+      data: {
+        status: 'provisioned',
+        ...(itemCount === 1 && sid ? { externalStudentId: sid } : {}),
+      },
     });
     return request;
   });
   await recordAudit(prisma, {
-    userId: args.reviewerId, action: 'enrollment_provisioned', entity: 'enrollment_request', entityId: r.id, after: { externalStudentId: sid }
+    userId: args.reviewerId,
+    action: 'enrollment_provisioned',
+    entity: 'enrollment_request',
+    entityId: r.id,
+    after: { externalStudentId: sid },
   });
   await notifySubmitterEnrollmentStatus(prisma, updated);
   return { ok: true, request: updated };
@@ -152,19 +180,22 @@ export async function advanceEnrollmentItems(
 > {
   const r = await prisma.enrollmentRequest.findUnique({
     where: { id: args.id },
-    select: { id: true, status: true, items: { select: { id: true, status: true } } }
+    select: { id: true, status: true, items: { select: { id: true, status: true } } },
   });
   if (!r) return { ok: false, error: 'not_found' };
 
   const prev: EnrollmentStatus = args.target === 'in_training' ? 'provisioned' : 'in_training';
-  const requested = args.itemIds ? Array.from(new Set(args.itemIds.map((s) => s.trim()).filter(Boolean))) : null;
+  const requested = args.itemIds
+    ? Array.from(new Set(args.itemIds.map((s) => s.trim()).filter(Boolean)))
+    : null;
 
   let targetIds: string[];
   if (requested) {
     if (!requested.length) return { ok: false, error: 'validation' };
     const byId = new Map(r.items.map((i) => [i.id, i]));
     if (requested.some((id) => !byId.has(id))) return { ok: false, error: 'validation' };
-    if (requested.some((id) => byId.get(id)!.status !== prev)) return { ok: false, error: 'lifecycle_violation' };
+    if (requested.some((id) => byId.get(id)!.status !== prev))
+      return { ok: false, error: 'lifecycle_violation' };
     targetIds = requested;
   } else {
     targetIds = r.items.filter((i) => i.status === prev).map((i) => i.id);
@@ -178,12 +209,12 @@ export async function advanceEnrollmentItems(
   const updated = await prisma.$transaction(async (tx) => {
     await tx.enrollmentRequestItem.updateMany({
       where: { requestId: r.id, id: { in: targetIds } },
-      data: { status: args.target }
+      data: { status: args.target },
     });
     return tx.enrollmentRequest.update({
       where: { id: r.id },
       // update и при неизменном статусе — вернуть свежую шапку одним запросом.
-      data: { status: headerStatus }
+      data: { status: headerStatus },
     });
   });
 
@@ -193,7 +224,7 @@ export async function advanceEnrollmentItems(
     action: 'enrollment_items_advanced',
     entity: 'enrollment_request',
     entityId: r.id,
-    after: { target: args.target, movedCount: targetIds.length, headerStatus }
+    after: { target: args.target, movedCount: targetIds.length, headerStatus },
   });
   if (headerChanged) await notifySubmitterEnrollmentStatus(prisma, updated);
   return { ok: true, request: updated, movedCount: targetIds.length, headerChanged };

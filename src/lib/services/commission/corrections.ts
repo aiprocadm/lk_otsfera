@@ -16,7 +16,11 @@ export async function detectLateRefundCorrections(prisma: PrismaClient): Promise
   const refunds = await prisma.payment.findMany({
     where: { isRefund: true, commissionCorrection: { is: null } },
     select: {
-      id: true, amount: true, paidAt: true, orderId: true, organizationId: true,
+      id: true,
+      amount: true,
+      paidAt: true,
+      orderId: true,
+      organizationId: true,
       order: { select: { partnerId: true } },
       // A2 (§6.2): сторно возврата считаем по эффективной ставке. Override
       // организации резолвится по истории на paidAt (F4) → совпадает с исходным
@@ -46,9 +50,14 @@ export async function detectLateRefundCorrections(prisma: PrismaClient): Promise
     });
     if (!stmt) continue;
 
-    const partner = await prisma.partner.findUnique({ where: { id: partnerId }, select: { commissionRate: true } });
+    const partner = await prisma.partner.findUnique({
+      where: { id: partnerId },
+      select: { commissionRate: true },
+    });
     const changes: RateChange[] = await prisma.commissionRateChange.findMany({
-      where: { partnerId }, select: { effectiveFrom: true, oldRate: true, newRate: true }, orderBy: { effectiveFrom: 'asc' },
+      where: { partnerId },
+      select: { effectiveFrom: true, oldRate: true, newRate: true },
+      orderBy: { effectiveFrom: 'asc' },
     });
     // F4 (A5): org-override на дату возврата — из истории (зеркало statement.ts).
     const orgChanges: OrgRateChange[] = await prisma.organizationCommissionRateChange.findMany({
@@ -61,7 +70,10 @@ export async function detectLateRefundCorrections(prisma: PrismaClient): Promise
       // (mirror statement.ts: a payment can be attributed via order.partnerId to a
       // different partner than the org's own). F4: the same gate zeroes the history
       // (empty list, not undefined) so a foreign org's timeline never applies.
-      orgOverride: r.organization?.partnerId === partnerId ? (r.organization?.partnerCommissionRate ?? null) : null,
+      orgOverride:
+        r.organization?.partnerId === partnerId
+          ? (r.organization?.partnerCommissionRate ?? null)
+          : null,
       orgChanges: r.organization?.partnerId === partnerId ? orgChanges : [],
       changes,
       paidAt: r.paidAt,
@@ -72,14 +84,26 @@ export async function detectLateRefundCorrections(prisma: PrismaClient): Promise
     try {
       await prisma.commissionCorrection.create({
         data: {
-          partnerId, paymentId: r.id, originalStatementId: stmt.id,
-          originalPeriodFrom: stmt.periodFrom, originalPeriodTo: stmt.periodTo,
-          amount: r.amount, rate, commissionAmount, status: 'needs_review',
+          partnerId,
+          paymentId: r.id,
+          originalStatementId: stmt.id,
+          originalPeriodFrom: stmt.periodFrom,
+          originalPeriodTo: stmt.periodTo,
+          amount: r.amount,
+          rate,
+          commissionAmount,
+          status: 'needs_review',
         },
       });
       created++;
     } catch (err) {
-      if (!(typeof err === 'object' && err && 'code' in err && (err as { code?: unknown }).code === 'P2002')) throw err;
+      if (!(
+        typeof err === 'object' &&
+        err &&
+        'code' in err &&
+        (err as { code?: unknown }).code === 'P2002'
+      ))
+        throw err;
     }
   }
   return created;
@@ -104,14 +128,24 @@ export async function listCorrectionQueue(prisma: PrismaClient, session: Session
   const where: Prisma.CommissionCorrectionWhereInput =
     session.role === 'admin'
       ? { status: 'needs_review' }
-      : { status: 'needs_review', partner: { organizations: { some: { companyId: session.companyId ?? '__none__' } } } };
+      : {
+          status: 'needs_review',
+          partner: { organizations: { some: { companyId: session.companyId ?? '__none__' } } },
+        };
   return prisma.commissionCorrection.findMany({
     where,
     orderBy: { createdAt: 'desc' },
     take: 200,
     select: {
-      id: true, partnerId: true, amount: true, commissionAmount: true, rate: true,
-      originalPeriodFrom: true, originalPeriodTo: true, paymentId: true, createdAt: true,
+      id: true,
+      partnerId: true,
+      amount: true,
+      commissionAmount: true,
+      rate: true,
+      originalPeriodFrom: true,
+      originalPeriodTo: true,
+      paymentId: true,
+      createdAt: true,
       partner: { select: { name: true } },
     },
   });
@@ -128,7 +162,8 @@ export async function resolveCorrection(
   args: { correctionId: string; action: 'apply' | 'waive'; reason?: string }
 ): Promise<{ ok: true } | { ok: false; error: CorrectionError }> {
   if (!canResolve(session)) return { ok: false, error: 'forbidden' };
-  if (args.action === 'waive' && !args.reason?.trim()) return { ok: false, error: 'reason_required' };
+  if (args.action === 'waive' && !args.reason?.trim())
+    return { ok: false, error: 'reason_required' };
 
   const corr = await prisma.commissionCorrection.findUnique({
     where: { id: args.correctionId },
@@ -139,7 +174,10 @@ export async function resolveCorrection(
 
   if (session.role === 'manager' && session.managerRole === 'leader') {
     const inScope = await prisma.commissionCorrection.findFirst({
-      where: { id: corr.id, partner: { organizations: { some: { companyId: session.companyId ?? '__none__' } } } },
+      where: {
+        id: corr.id,
+        partner: { organizations: { some: { companyId: session.companyId ?? '__none__' } } },
+      },
       select: { id: true },
     });
     if (!inScope) return { ok: false, error: 'forbidden' };
@@ -149,7 +187,12 @@ export async function resolveCorrection(
   await prisma.$transaction(async (tx) => {
     await tx.commissionCorrection.update({
       where: { id: corr.id },
-      data: { status: next, reason: args.reason ?? null, resolvedByUserId: session.sub, resolvedAt: new Date() },
+      data: {
+        status: next,
+        reason: args.reason ?? null,
+        resolvedByUserId: session.sub,
+        resolvedAt: new Date(),
+      },
     });
     await recordAudit(tx, {
       userId: session.sub,

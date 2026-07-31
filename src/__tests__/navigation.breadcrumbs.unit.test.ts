@@ -14,12 +14,12 @@ describe('buildLeadBreadcrumbs', () => {
   it('лид из обращения: обращения → обращение → лид', () => {
     const crumbs = buildLeadBreadcrumbs({
       title: 'ООО «Ромашка»',
-      sourceRequest: { id: 'r1', subject: 'Нужно обучение' }
+      sourceRequest: { id: 'r1', subject: 'Нужно обучение' },
     });
     expect(crumbs.map((c) => c.label)).toEqual([
       'Обращения клиентов',
       'Нужно обучение',
-      'ООО «Ромашка»'
+      'ООО «Ромашка»',
     ]);
     expect(last(crumbs).href).toBeNull();
   });
@@ -33,7 +33,7 @@ describe('buildLeadBreadcrumbs', () => {
   it('пустые названия заменяются понятными словами', () => {
     const crumbs = buildLeadBreadcrumbs({
       title: '   ',
-      sourceRequest: { id: 'r1', subject: null }
+      sourceRequest: { id: 'r1', subject: null },
     });
     expect(crumbs.map((c) => c.label)).toEqual(['Обращения клиентов', 'Обращение', 'Лид']);
   });
@@ -55,9 +55,9 @@ describe('buildOrderBreadcrumbs', () => {
         lead: {
           id: 'l1',
           title: 'ООО «Ромашка»',
-          sourceRequest: { id: 'r1', subject: 'Нужно обучение' }
-        }
-      }
+          sourceRequest: { id: 'r1', subject: 'Нужно обучение' },
+        },
+      },
     });
     expect(crumbs.map((c) => c.label)).toEqual([
       'Обращения клиентов',
@@ -65,7 +65,7 @@ describe('buildOrderBreadcrumbs', () => {
       'ООО «Ромашка»',
       'Сделки',
       'Сделка с Ромашкой',
-      'Заказ №2026-17'
+      'Заказ №2026-17',
     ]);
     expect(crumbs.find((c) => c.label === 'ООО «Ромашка»')?.href).toBe('/manager/leads/l1');
     expect(last(crumbs).href).toBeNull();
@@ -75,7 +75,7 @@ describe('buildOrderBreadcrumbs', () => {
     const crumbs = buildOrderBreadcrumbs({
       orderNumber: '5',
       title: 'Заказ',
-      deal: { title: 'Прямая сделка', lead: null }
+      deal: { title: 'Прямая сделка', lead: null },
     });
     expect(crumbs.map((c) => c.label)).toEqual(['Сделки', 'Прямая сделка', 'Заказ №5']);
   });
@@ -84,13 +84,13 @@ describe('buildOrderBreadcrumbs', () => {
     const crumbs = buildOrderBreadcrumbs({
       orderNumber: null,
       title: 'Разработка документов',
-      deal: { title: 'Сделка', lead: { id: 'l2', title: 'Лид-2', sourceRequest: null } }
+      deal: { title: 'Сделка', lead: { id: 'l2', title: 'Лид-2', sourceRequest: null } },
     });
     expect(crumbs.map((c) => c.label)).toEqual([
       'Лид-2',
       'Сделки',
       'Сделка',
-      'Разработка документов'
+      'Разработка документов',
     ]);
   });
 
@@ -98,7 +98,7 @@ describe('buildOrderBreadcrumbs', () => {
     const crumbs = buildOrderBreadcrumbs({ orderNumber: '9', title: 'Заказ', deal: null });
     expect(crumbs).toEqual([
       { label: 'Заказы', href: '/manager/orders' },
-      { label: 'Заказ №9', href: null }
+      { label: 'Заказ №9', href: null },
     ]);
   });
 

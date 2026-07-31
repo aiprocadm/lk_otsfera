@@ -7,16 +7,13 @@ import { requirePartnerAdmin } from '@/lib/auth/requireRole';
 import {
   createOrgAdminInvite,
   OrgInviteError,
-  type OrgInviteErrorCode
+  type OrgInviteErrorCode,
 } from '@/lib/services/organization/invite';
 import { OrgMemberError, type OrgMemberErrorCode } from '@/lib/services/organization/team';
 import { sendOrgInviteEmail } from '@/lib/email/send';
 import { log } from '@/lib/logging';
 
-export type InvitePartnerActionError =
-  | 'validation'
-  | OrgInviteErrorCode
-  | OrgMemberErrorCode;
+export type InvitePartnerActionError = 'validation' | OrgInviteErrorCode | OrgMemberErrorCode;
 
 export type InvitePartnerActionResult =
   | {
@@ -30,7 +27,7 @@ export type InvitePartnerActionResult =
 const schema = z.object({
   organizationId: z.string().min(1),
   email: z.string().email(),
-  name: z.string().min(1).max(200)
+  name: z.string().min(1).max(200),
 });
 
 function readFormValue(formData: FormData, key: string): string {
@@ -44,7 +41,7 @@ export async function invitePartnerOrgAdminAction(
   const parsed = schema.safeParse({
     organizationId: readFormValue(formData, 'organizationId'),
     email: readFormValue(formData, 'email'),
-    name: readFormValue(formData, 'name')
+    name: readFormValue(formData, 'name'),
   });
   if (!parsed.success) {
     return { ok: false, error: 'validation' };
@@ -56,15 +53,11 @@ export async function invitePartnerOrgAdminAction(
   }
 
   try {
-    const result = await createOrgAdminInvite(
-      prisma,
-      parsed.data,
-      {
-        actorUserId: session.sub,
-        source: 'partner',
-        actorPartnerId: session.partnerId
-      }
-    );
+    const result = await createOrgAdminInvite(prisma, parsed.data, {
+      actorUserId: session.sub,
+      source: 'partner',
+      actorPartnerId: session.partnerId,
+    });
 
     // Email is best-effort: the invite is already created and inviteUrl is
     // returned to the UI as a "Copy link" fallback; a transport failure must
@@ -73,13 +66,13 @@ export async function invitePartnerOrgAdminAction(
       try {
         const org = await prisma.organization.findUnique({
           where: { id: parsed.data.organizationId },
-          select: { name: true }
+          select: { name: true },
         });
         await sendOrgInviteEmail({
           to: parsed.data.email,
           organizationName: org?.name ?? 'организация',
           inviteUrl: result.inviteUrl,
-          invitedByName: session.name ?? undefined
+          invitedByName: session.name ?? undefined,
         });
       } catch (e) {
         log.warn('[partner/inviteOrgAdmin] send invite email failed', e);
@@ -91,7 +84,7 @@ export async function invitePartnerOrgAdminAction(
       ok: true,
       user: result.user,
       inviteUrl: result.inviteUrl,
-      alreadyHasPassword: result.alreadyHasPassword
+      alreadyHasPassword: result.alreadyHasPassword,
     };
   } catch (e) {
     if (e instanceof OrgInviteError) return { ok: false, error: e.code };

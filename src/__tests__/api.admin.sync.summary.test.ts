@@ -18,13 +18,21 @@ describe('GET /api/admin/sync/summary', () => {
   });
 
   it('403 for non-admin (partner)', async () => {
-    vi.mocked(getSession).mockResolvedValue({ sub: 'u', role: 'partner', partnerId: 'p1' } as never);
+    vi.mocked(getSession).mockResolvedValue({
+      sub: 'u',
+      role: 'partner',
+      partnerId: 'p1',
+    } as never);
     const res = await GET();
     expect(res.status).toBe(403);
   });
 
   it('403 for non-admin (organization)', async () => {
-    vi.mocked(getSession).mockResolvedValue({ sub: 'u', role: 'organization', organizationId: 'o1' } as never);
+    vi.mocked(getSession).mockResolvedValue({
+      sub: 'u',
+      role: 'organization',
+      organizationId: 'o1',
+    } as never);
     const res = await GET();
     expect(res.status).toBe(403);
   });
@@ -41,8 +49,8 @@ describe('GET /api/admin/sync/summary', () => {
         lastErrorAt: null,
         lastErrorMessage: null,
         cursor: null,
-        lagMs: null
-      }
+        lagMs: null,
+      },
     ]);
 
     const res = await GET();

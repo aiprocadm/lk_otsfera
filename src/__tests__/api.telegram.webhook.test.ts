@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ---- hoisted mocks ----
-const { linkByCodeMock, sendTelegramMessageMock, prismaMock, recordWebhookEvent } = vi.hoisted(() => ({
-  linkByCodeMock: vi.fn(),
-  sendTelegramMessageMock: vi.fn(),
-  prismaMock: {},
-  recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
-}));
+const { linkByCodeMock, sendTelegramMessageMock, prismaMock, recordWebhookEvent } = vi.hoisted(
+  () => ({
+    linkByCodeMock: vi.fn(),
+    sendTelegramMessageMock: vi.fn(),
+    prismaMock: {},
+    recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
+  })
+);
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }));
 vi.mock('@/lib/services/telegram/link', () => ({ linkByCode: linkByCodeMock }));
@@ -126,10 +128,9 @@ describe('POST /api/integrations/telegram/webhook — /start handling', () => {
       message: { text: `/start ${sensitiveCode}`, chat: { id: 333 } },
     };
     await POST(makeRequest(update, WEBHOOK_SECRET));
-    const allLogCalls = [
-      ...consoleLogSpy.mock.calls,
-      ...consoleInfoSpy.mock.calls,
-    ].map((args) => JSON.stringify(args));
+    const allLogCalls = [...consoleLogSpy.mock.calls, ...consoleInfoSpy.mock.calls].map((args) =>
+      JSON.stringify(args)
+    );
     for (const call of allLogCalls) {
       expect(call).not.toContain(sensitiveCode);
     }
@@ -178,10 +179,9 @@ describe('POST /api/integrations/telegram/webhook — /start handling', () => {
       message: { text: '/start somecode', chat: { id: 444 } },
     };
     await POST(makeRequest(update, WEBHOOK_SECRET));
-    const allLogCalls = [
-      ...consoleLogSpy.mock.calls,
-      ...consoleErrorSpy.mock.calls,
-    ].map((args) => JSON.stringify(args));
+    const allLogCalls = [...consoleLogSpy.mock.calls, ...consoleErrorSpy.mock.calls].map((args) =>
+      JSON.stringify(args)
+    );
     for (const call of allLogCalls) {
       expect(call).not.toContain(WEBHOOK_SECRET);
     }

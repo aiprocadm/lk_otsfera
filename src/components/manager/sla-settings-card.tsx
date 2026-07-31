@@ -9,7 +9,11 @@ import { setSlaSettingsAction } from '@/server-actions/manager/slaSettings';
  * Этап 7 (§4.4, PR-3) — карточка «SLA входящих» на /leader/team (решение
  * §10-3 спеки): часы подсветки и часы эскалации руководителю.
  */
-export function SlaSettingsCard({ initial }: { initial: { slaResponseHours: number; slaWarningHours: number } }) {
+export function SlaSettingsCard({
+  initial,
+}: {
+  initial: { slaResponseHours: number; slaWarningHours: number };
+}) {
   const [pending, startTransition] = useTransition();
   const [messages, setMessages] = useState<string[]>([]);
 
@@ -31,43 +35,43 @@ export function SlaSettingsCard({ initial }: { initial: { slaResponseHours: numb
   }
 
   return (
-    <div className='rounded-lg bg-[#F3F4F6] p-4'>
-      <p className='font-medium text-[#111111]'>SLA входящих</p>
-      <p className='text-sm text-gray-600 mt-0.5'>
-        Заявка или обращение без реакции дольше порога эскалации — руководителю придёт уведомление; порог подсветки
-        подкрашивает ожидание на «Входящих в работу».
+    <div className="rounded-lg bg-[#F3F4F6] p-4">
+      <p className="font-medium text-[#111111]">SLA входящих</p>
+      <p className="text-sm text-gray-600 mt-0.5">
+        Заявка или обращение без реакции дольше порога эскалации — руководителю придёт уведомление;
+        порог подсветки подкрашивает ожидание на «Входящих в работу».
       </p>
-      <form onSubmit={onSubmit} className='mt-3 flex flex-wrap items-end gap-3'>
-        <label className='text-sm text-gray-700'>
+      <form onSubmit={onSubmit} className="mt-3 flex flex-wrap items-end gap-3">
+        <label className="text-sm text-gray-700">
           Подсветка, ч
           <Input
-            name='slaWarningHours'
-            type='number'
+            name="slaWarningHours"
+            type="number"
             min={1}
             max={168}
             defaultValue={initial.slaWarningHours}
-            className='mt-1 w-24'
+            className="mt-1 w-24"
             required
           />
         </label>
-        <label className='text-sm text-gray-700'>
+        <label className="text-sm text-gray-700">
           Эскалация, ч
           <Input
-            name='slaResponseHours'
-            type='number'
+            name="slaResponseHours"
+            type="number"
             min={1}
             max={168}
             defaultValue={initial.slaResponseHours}
-            className='mt-1 w-24'
+            className="mt-1 w-24"
             required
           />
         </label>
-        <Button type='submit' disabled={pending}>
+        <Button type="submit" disabled={pending}>
           {pending ? 'Сохраняю…' : 'Сохранить'}
         </Button>
       </form>
       {messages.length > 0 && (
-        <ul role='alert' className='mt-2 text-sm text-red-600 list-disc pl-5 space-y-0.5'>
+        <ul role="alert" className="mt-2 text-sm text-red-600 list-disc pl-5 space-y-0.5">
           {messages.map((m) => (
             <li key={m}>{m}</li>
           ))}

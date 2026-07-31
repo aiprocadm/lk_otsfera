@@ -26,8 +26,24 @@ const MGR: SessionPayload = { sub: 'm-1', role: 'manager', companyId: 'c1' };
 
 /** Кастомный словарь воронки c1: рабочая стадия + «в сделку» (реальные cuid-подобные id). */
 const CUSTOM_STAGES = [
-  { id: 'fs-work', companyId: 'c1', name: 'В работе', position: 0, statusAnchor: 'qualified', isTerminal: false, color: null },
-  { id: 'fs-deal', companyId: 'c1', name: 'В сделку', position: 1, statusAnchor: 'promoted_to_deal', isTerminal: true, color: null }
+  {
+    id: 'fs-work',
+    companyId: 'c1',
+    name: 'В работе',
+    position: 0,
+    statusAnchor: 'qualified',
+    isTerminal: false,
+    color: null,
+  },
+  {
+    id: 'fs-deal',
+    companyId: 'c1',
+    name: 'В сделку',
+    position: 1,
+    statusAnchor: 'promoted_to_deal',
+    isTerminal: true,
+    color: null,
+  },
 ];
 
 function makeLead(over: Record<string, unknown> = {}) {
@@ -37,7 +53,7 @@ function makeLead(over: Record<string, unknown> = {}) {
     funnelStageId: null,
     organizationId: 'org-1',
     assignedManagerId: 'm-1',
-    ...over
+    ...over,
   };
 }
 
@@ -47,7 +63,7 @@ function makePrisma(opts: { stages?: unknown[]; lead?: unknown } = {}) {
   const leadUpdate = vi.fn().mockResolvedValue({});
   const prisma = {
     funnelStage: { findMany: stageFindMany },
-    lead: { findUnique: leadFindUnique, update: leadUpdate }
+    lead: { findUnique: leadFindUnique, update: leadUpdate },
   } as unknown as PrismaClient;
   return { prisma, stageFindMany, leadFindUnique, leadUpdate };
 }
@@ -64,12 +80,15 @@ describe('moveFunnelLead — якорь promoted_to_deal', () => {
     const { prisma, leadUpdate } = makePrisma({ lead: makeLead() }); // без кастомных → дефолты
     const res = await moveFunnelLead(prisma, MGR, {
       leadId: 'l-1',
-      toStageId: 'default:promoted_to_deal'
+      toStageId: 'default:promoted_to_deal',
     });
     expect(res).toEqual({ ok: true });
     expect(convertLeadToDeal).toHaveBeenCalledTimes(1);
     expect(convertLeadToDeal).toHaveBeenCalledWith(prisma, MGR, { leadId: 'l-1' });
-    expect(leadUpdate).toHaveBeenCalledWith({ where: { id: 'l-1' }, data: { funnelStageId: null } });
+    expect(leadUpdate).toHaveBeenCalledWith({
+      where: { id: 'l-1' },
+      data: { funnelStageId: null },
+    });
   });
 
   it('кастомная стадия с якорем promoted_to_deal: funnelStageId персистится (cuid)', async () => {
@@ -78,7 +97,10 @@ describe('moveFunnelLead — якорь promoted_to_deal', () => {
     expect(res).toEqual({ ok: true });
     expect(convertLeadToDeal).toHaveBeenCalledTimes(1);
     expect(convertLeadToDeal).toHaveBeenCalledWith(prisma, MGR, { leadId: 'l-1' });
-    expect(leadUpdate).toHaveBeenCalledWith({ where: { id: 'l-1' }, data: { funnelStageId: 'fs-deal' } });
+    expect(leadUpdate).toHaveBeenCalledWith({
+      where: { id: 'l-1' },
+      data: { funnelStageId: 'fs-deal' },
+    });
   });
 
   it('forbidden из convertLeadToDeal пробрасывается как forbidden, стадия не персистится', async () => {
@@ -86,7 +108,7 @@ describe('moveFunnelLead — якорь promoted_to_deal', () => {
     const { prisma, leadUpdate } = makePrisma({ stages: CUSTOM_STAGES, lead: makeLead() });
     expect(await moveFunnelLead(prisma, MGR, { leadId: 'l-1', toStageId: 'fs-deal' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect(leadUpdate).not.toHaveBeenCalled();
   });
@@ -103,11 +125,16 @@ describe('moveFunnelLead — якорь promoted_to_deal', () => {
   it('лид уже в якоре promoted_to_deal → перестановка без повторной конверсии', async () => {
     const { prisma, leadUpdate } = makePrisma({
       stages: CUSTOM_STAGES,
-      lead: makeLead({ status: 'promoted_to_deal' })
+      lead: makeLead({ status: 'promoted_to_deal' }),
     });
-    expect(await moveFunnelLead(prisma, MGR, { leadId: 'l-1', toStageId: 'fs-deal' })).toEqual({ ok: true });
+    expect(await moveFunnelLead(prisma, MGR, { leadId: 'l-1', toStageId: 'fs-deal' })).toEqual({
+      ok: true,
+    });
     expect(convertLeadToDeal).not.toHaveBeenCalled();
-    expect(leadUpdate).toHaveBeenCalledWith({ where: { id: 'l-1' }, data: { funnelStageId: 'fs-deal' } });
+    expect(leadUpdate).toHaveBeenCalledWith({
+      where: { id: 'l-1' },
+      data: { funnelStageId: 'fs-deal' },
+    });
   });
 });
 
@@ -122,7 +149,7 @@ describe('DEFAULT_FUNNEL_STAGES — канон 6 стадий этапа 6', () 
       'default:qualified',
       'default:promoted_to_order',
       'default:promoted_to_deal',
-      'default:rejected'
+      'default:rejected',
     ]);
     expect(DEFAULT_FUNNEL_STAGES.map((s) => s.position)).toEqual([0, 1, 2, 3, 4, 5]);
   });
@@ -134,11 +161,18 @@ describe('DEFAULT_FUNNEL_STAGES — канон 6 стадий этапа 6', () 
       position: 4,
       statusAnchor: 'promoted_to_deal',
       isTerminal: true,
-      color: null
+      color: null,
     });
   });
 
   it('терминальность: 3 рабочих + 3 терминальных стадии', () => {
-    expect(DEFAULT_FUNNEL_STAGES.map((s) => s.isTerminal)).toEqual([false, false, false, true, true, true]);
+    expect(DEFAULT_FUNNEL_STAGES.map((s) => s.isTerminal)).toEqual([
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+    ]);
   });
 });

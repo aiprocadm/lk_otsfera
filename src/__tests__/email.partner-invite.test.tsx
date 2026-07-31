@@ -14,7 +14,7 @@ import { resetEmailTransportCache } from '@/lib/email/transport';
 import {
   PartnerInviteTemplate,
   partnerInviteSubject,
-  partnerInviteText
+  partnerInviteText,
 } from '@/lib/email/templates/partner/partner-invite';
 import { sendPartnerInviteEmail } from '@/lib/email/send';
 
@@ -26,7 +26,7 @@ vi.mock('@/lib/config/integrationSettings', async (importOriginal) => {
   return {
     ...mod,
     getSettingValue: async (_prisma: unknown, key: keyof typeof mod.SETTING_SPECS) =>
-      process.env[mod.SETTING_SPECS[key].envVar]?.trim() || null
+      process.env[mod.SETTING_SPECS[key].envVar]?.trim() || null,
   };
 });
 
@@ -39,7 +39,7 @@ function makeTransport(): EmailTransport & {
     async send(input) {
       calls.push(input);
       return { id: 'msg_test' };
-    }
+    },
   };
 }
 
@@ -62,7 +62,7 @@ afterEach(() => {
 const BASE_PROPS = {
   partnerName: 'ООО Партнёр',
   roleLabel: 'менеджер',
-  inviteUrl: 'https://lk.otsfera.ru/reset-password?token=abc123'
+  inviteUrl: 'https://lk.otsfera.ru/reset-password?token=abc123',
 };
 
 describe('PartnerInviteTemplate', () => {
@@ -81,7 +81,7 @@ describe('PartnerInviteTemplate', () => {
 
   it('с invitedByName — персональное приглашение', () => {
     const html = renderToStaticMarkup(
-      <PartnerInviteTemplate {...BASE_PROPS} invitedByName='Иван Петров' />
+      <PartnerInviteTemplate {...BASE_PROPS} invitedByName="Иван Петров" />
     );
     expect(html).toContain('Иван Петров приглашает вас');
     expect(html).not.toContain('Вас приглашают');
@@ -94,7 +94,7 @@ describe('PartnerInviteTemplate', () => {
 
   it('роль «администратор» попадает в текст письма', () => {
     const html = renderToStaticMarkup(
-      <PartnerInviteTemplate {...BASE_PROPS} roleLabel='администратор' />
+      <PartnerInviteTemplate {...BASE_PROPS} roleLabel="администратор" />
     );
     expect(html).toContain('роль: администратор');
   });
@@ -122,7 +122,7 @@ describe('partnerInviteText', () => {
       ...BASE_PROPS,
       roleLabel: 'администратор',
       invitedByName: 'Мария',
-      expiresInDays: 3
+      expiresInDays: 3,
     });
     expect(text).toContain('Мария приглашает вас в команду партнёра «ООО Партнёр»');
     expect(text).toContain('(роль: администратор)');
@@ -140,7 +140,7 @@ describe('sendPartnerInviteEmail()', () => {
         partnerName: 'ООО Партнёр',
         roleLabel: 'администратор',
         inviteUrl: 'https://lk.otsfera.ru/reset-password?token=zzz',
-        invitedByName: 'Иван'
+        invitedByName: 'Иван',
       },
       { transport }
     );
@@ -153,7 +153,9 @@ describe('sendPartnerInviteEmail()', () => {
     expect(call.html).toContain('роль: администратор');
     expect(call.html).toContain('Иван приглашает вас');
     expect(call.html).toContain('https://lk.otsfera.ru/reset-password?token=zzz');
-    expect(call.text).toContain('Установить пароль: https://lk.otsfera.ru/reset-password?token=zzz');
+    expect(call.text).toContain(
+      'Установить пароль: https://lk.otsfera.ru/reset-password?token=zzz'
+    );
     expect(call.text).toContain('Ссылка действует 7 дн.');
   });
 

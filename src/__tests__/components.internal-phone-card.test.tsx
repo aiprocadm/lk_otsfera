@@ -3,7 +3,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 const { updateInternalPhoneAction } = vi.hoisted(() => ({ updateInternalPhoneAction: vi.fn() }));
@@ -19,7 +22,7 @@ describe('InternalPhoneCard', () => {
   });
 
   it('prefills the input with the initial value', () => {
-    render(<InternalPhoneCard initialInternalPhone='201' />);
+    render(<InternalPhoneCard initialInternalPhone="201" />);
     expect((screen.getByLabelText('Внутренний номер') as HTMLInputElement).value).toBe('201');
   });
 
@@ -35,19 +38,23 @@ describe('InternalPhoneCard', () => {
     fireEvent.change(screen.getByLabelText('Внутренний номер'), { target: { value: '303' } });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
-    await waitFor(() => expect(updateInternalPhoneAction).toHaveBeenCalledWith({ internalPhone: '303' }));
+    await waitFor(() =>
+      expect(updateInternalPhoneAction).toHaveBeenCalledWith({ internalPhone: '303' })
+    );
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Внутренний номер сохранён'));
     expect(toastError).not.toHaveBeenCalled();
   });
 
   it('save error (invalid): toasts an error and does not toast success', async () => {
     updateInternalPhoneAction.mockResolvedValue({ ok: false, error: 'invalid' });
-    render(<InternalPhoneCard initialInternalPhone='101' />);
+    render(<InternalPhoneCard initialInternalPhone="101" />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() =>
-      expect(toastError).toHaveBeenCalledWith('Внутренний номер слишком длинный (не больше 32 символов).')
+      expect(toastError).toHaveBeenCalledWith(
+        'Внутренний номер слишком длинный (не больше 32 символов).'
+      )
     );
     expect(toastSuccess).not.toHaveBeenCalled();
   });

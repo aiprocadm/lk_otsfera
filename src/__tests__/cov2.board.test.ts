@@ -35,14 +35,21 @@ beforeAll(async () => {
   coId = (await prisma.company.create({ data: { name: `cov2Board-${STAMP}` } })).id;
   mgrId = (
     await prisma.user.create({
-      data: { email: `cov2BoardM-${STAMP}@t.local`, name: 'Board Mgr', role: 'manager', companyId: coId }
+      data: {
+        email: `cov2BoardM-${STAMP}@t.local`,
+        name: 'Board Mgr',
+        role: 'manager',
+        companyId: coId,
+      },
     })
   ).id;
   partnerId = (
     await prisma.partner.create({ data: { name: `cov2Bp-${STAMP}`, slug: `cov2Bp-${STAMP}` } })
   ).id;
   orgId = (
-    await prisma.organization.create({ data: { name: `cov2BoardOrg-${STAMP}`, companyId: coId, partnerId } })
+    await prisma.organization.create({
+      data: { name: `cov2BoardOrg-${STAMP}`, companyId: coId, partnerId },
+    })
   ).id;
   leadId = (
     await prisma.lead.create({
@@ -55,8 +62,8 @@ beforeAll(async () => {
         clientContactName: 'K',
         subject: 'S',
         status: 'new',
-        estimatedAmount: AMOUNT
-      }
+        estimatedAmount: AMOUNT,
+      },
     })
   ).id;
 });
@@ -77,7 +84,7 @@ describe('funnel/board — getFunnelBoard estimatedAmount truthy side (@56)', ()
       sub: mgrId,
       role: 'manager',
       companyId: coId,
-      managedOrgIds: []
+      managedOrgIds: [],
     } as unknown as SessionPayload;
 
     const board = await getFunnelBoard(prisma, session);

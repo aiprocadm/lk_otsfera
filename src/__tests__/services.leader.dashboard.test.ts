@@ -3,7 +3,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 
 const { financeMock, rosterMock } = vi.hoisted(() => ({
   financeMock: vi.fn(),
-  rosterMock: vi.fn()
+  rosterMock: vi.fn(),
 }));
 vi.mock('@/lib/services/manager/finance', () => ({ getManagerFinanceOverview: financeMock }));
 vi.mock('@/lib/services/manager/team', () => ({ listCompanyManagers: rosterMock }));
@@ -11,7 +11,13 @@ vi.mock('@/lib/services/manager/team', () => ({ listCompanyManagers: rosterMock 
 import { leaderDashboard } from '@/lib/services/leader/dashboard';
 
 const session = (over: Partial<SessionPayload> = {}): SessionPayload =>
-  ({ sub: 'leader1', role: 'manager', managerRole: 'leader', companyId: 'c1', ...over } as unknown as SessionPayload);
+  ({
+    sub: 'leader1',
+    role: 'manager',
+    managerRole: 'leader',
+    companyId: 'c1',
+    ...over,
+  }) as unknown as SessionPayload;
 
 type GroupRow = {
   managerId: string | null;
@@ -32,26 +38,54 @@ function fakePrisma(opts: {
   return {
     order: {
       count: vi.fn().mockResolvedValue(opts.activeOrders ?? 0),
-      groupBy
-    }
+      groupBy,
+    },
   } as any;
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   rosterMock.mockResolvedValue([
-    { id: 'm1', name: 'Manager One', email: 'm1@x', isActive: true, managerRole: null, assignments: [] },
-    { id: 'm2', name: 'Manager Two', email: 'm2@x', isActive: true, managerRole: null, assignments: [] },
-    { id: 'm3', name: 'Manager Three', email: 'm3@x', isActive: true, managerRole: null, assignments: [] },
-    { id: 'm4', name: 'Manager Four', email: 'm4@x', isActive: true, managerRole: null, assignments: [] }
+    {
+      id: 'm1',
+      name: 'Manager One',
+      email: 'm1@x',
+      isActive: true,
+      managerRole: null,
+      assignments: [],
+    },
+    {
+      id: 'm2',
+      name: 'Manager Two',
+      email: 'm2@x',
+      isActive: true,
+      managerRole: null,
+      assignments: [],
+    },
+    {
+      id: 'm3',
+      name: 'Manager Three',
+      email: 'm3@x',
+      isActive: true,
+      managerRole: null,
+      assignments: [],
+    },
+    {
+      id: 'm4',
+      name: 'Manager Four',
+      email: 'm4@x',
+      isActive: true,
+      managerRole: null,
+      assignments: [],
+    },
   ]);
   financeMock.mockResolvedValue({
     summary: { billed: '1000.00', paid: '400.00', outstanding: '600.00' },
     sections: [
       { commission: { totalCommission: '90.00' } },
-      { commission: { totalCommission: '45.50' } }
+      { commission: { totalCommission: '45.50' } },
     ],
-    canSeeCommission: true
+    canSeeCommission: true,
   });
 });
 
@@ -69,7 +103,7 @@ describe('leaderDashboard', () => {
     // R1.2: дашборду не нужен ledger платежей — includePayments:false.
     expect(financeMock).toHaveBeenCalledWith(prisma, expect.anything(), {
       teamMode: true,
-      includePayments: false
+      includePayments: false,
     });
   });
 
@@ -78,9 +112,9 @@ describe('leaderDashboard', () => {
       activeOrders: 5,
       activeGroup: [
         { managerId: 'm1', _count: { _all: 3 }, _sum: { totalAmount: '300', paidAmount: '120' } },
-        { managerId: 'm2', _count: { _all: 2 }, _sum: { totalAmount: '200', paidAmount: '50' } }
+        { managerId: 'm2', _count: { _all: 2 }, _sum: { totalAmount: '200', paidAmount: '50' } },
       ],
-      overdueGroup: [{ managerId: 'm1', _count: { _all: 1 } }]
+      overdueGroup: [{ managerId: 'm1', _count: { _all: 1 } }],
     });
     const res = await leaderDashboard(prisma, session());
 
@@ -110,7 +144,7 @@ describe('leaderDashboard', () => {
     financeMock.mockResolvedValue({
       summary: { billed: '0.00', paid: '0.00', outstanding: '0.00' },
       sections: [{ commission: null }, { commission: null }],
-      canSeeCommission: false
+      canSeeCommission: false,
     });
     const res = await leaderDashboard(prisma, session());
     expect(res.kpis.commission).toBeNull();

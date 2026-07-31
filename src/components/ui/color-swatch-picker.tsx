@@ -15,7 +15,7 @@ export const COLOR_SWATCH_PRESETS = [
   '#06B6D4',
   '#3B82F6',
   '#8B5CF6',
-  '#EC4899'
+  '#EC4899',
 ] as const;
 
 /** Человекочитаемые имена пресетов для aria-label (рескью-свотч остаётся с hex). */
@@ -27,7 +27,7 @@ const PRESET_LABEL: Record<string, string> = {
   '#06B6D4': 'Голубой',
   '#3B82F6': 'Синий',
   '#8B5CF6': 'Фиолетовый',
-  '#EC4899': 'Розовый'
+  '#EC4899': 'Розовый',
 };
 
 /** Тот же строгий формат, что и в zod-схемах сервисов (funnelStages / tasks/columns). */
@@ -57,7 +57,10 @@ const SWATCH =
 export function ColorSwatchPicker({ name, value }: ColorSwatchPickerProps) {
   const current = value && HEX_RE.test(value) ? value : '';
   const isPreset = COLOR_SWATCH_PRESETS.some((p) => p.toLowerCase() === current.toLowerCase());
-  const swatches: string[] = [...COLOR_SWATCH_PRESETS, ...(current !== '' && !isPreset ? [current] : [])];
+  const swatches: string[] = [
+    ...COLOR_SWATCH_PRESETS,
+    ...(current !== '' && !isPreset ? [current] : []),
+  ];
 
   return (
     <fieldset role="radiogroup" aria-label="Цвет" className="m-0 border-0 p-0">

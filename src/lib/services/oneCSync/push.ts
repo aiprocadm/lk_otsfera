@@ -29,7 +29,8 @@ function mapLeadToPayload(lead: {
   const amount = lead.estimatedAmount;
   let amountNumber: number | undefined;
   if (typeof amount === 'number') amountNumber = amount;
-  else if (amount && typeof amount === 'object' && 'toNumber' in amount) amountNumber = amount.toNumber();
+  else if (amount && typeof amount === 'object' && 'toNumber' in amount)
+    amountNumber = amount.toNumber();
 
   return {
     partnerSlug: lead.partner?.slug ?? undefined,
@@ -42,7 +43,7 @@ function mapLeadToPayload(lead: {
     subject: lead.subject,
     estimatedAmount: amountNumber,
     productType: lead.productType,
-    notes: lead.notes ?? undefined
+    notes: lead.notes ?? undefined,
   };
 }
 
@@ -55,7 +56,7 @@ export async function pushLeadToOneC(
 
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
-    include: { partner: { select: { slug: true } } }
+    include: { partner: { select: { slug: true } } },
   });
   if (!lead) {
     await writeSyncLog(
@@ -65,7 +66,7 @@ export async function pushLeadToOneC(
         operation: 'create',
         status: 'error',
         externalId: leadId,
-        errorMessage: 'Lead not found'
+        errorMessage: 'Lead not found',
       },
       prisma
     );
@@ -80,14 +81,17 @@ export async function pushLeadToOneC(
         operation: 'skip',
         status: 'success',
         externalId: lead.externalIdInOneC ?? undefined,
-        payload: { cabinetLeadId: lead.id, reason: 'already_pushed' }
+        payload: { cabinetLeadId: lead.id, reason: 'already_pushed' },
       },
       prisma
     );
     return {
       ok: true,
-      result: { acceptedAt: lead.pushedToOneCAt.toISOString(), oneCRequestId: lead.externalIdInOneC ?? undefined },
-      externalIdInOneC: lead.externalIdInOneC
+      result: {
+        acceptedAt: lead.pushedToOneCAt.toISOString(),
+        oneCRequestId: lead.externalIdInOneC ?? undefined,
+      },
+      externalIdInOneC: lead.externalIdInOneC,
     };
   }
 
@@ -98,7 +102,7 @@ export async function pushLeadToOneC(
   // queue has attempts:5, so two jobs can both read NULL before either writes.
   const claim = await prisma.lead.updateMany({
     where: { id: lead.id, pushedToOneCAt: null },
-    data: { pushedToOneCAt: new Date() }
+    data: { pushedToOneCAt: new Date() },
   });
   if (claim.count === 0) {
     await writeSyncLog(
@@ -108,14 +112,17 @@ export async function pushLeadToOneC(
         operation: 'skip',
         status: 'success',
         externalId: lead.externalIdInOneC ?? undefined,
-        payload: { cabinetLeadId: lead.id, reason: 'claim_lost_or_already_pushed' }
+        payload: { cabinetLeadId: lead.id, reason: 'claim_lost_or_already_pushed' },
       },
       prisma
     );
     return {
       ok: true,
-      result: { acceptedAt: new Date().toISOString(), oneCRequestId: lead.externalIdInOneC ?? undefined },
-      externalIdInOneC: lead.externalIdInOneC
+      result: {
+        acceptedAt: new Date().toISOString(),
+        oneCRequestId: lead.externalIdInOneC ?? undefined,
+      },
+      externalIdInOneC: lead.externalIdInOneC,
     };
   }
 
@@ -131,7 +138,7 @@ export async function pushLeadToOneC(
     if (externalIdInOneC) {
       await prisma.lead.update({
         where: { id: lead.id },
-        data: { externalIdInOneC }
+        data: { externalIdInOneC },
       });
     }
 
@@ -143,7 +150,7 @@ export async function pushLeadToOneC(
         status: 'success',
         externalId: externalIdInOneC ?? undefined,
         payload: { cabinetLeadId: lead.id, acceptedAt: result.acceptedAt },
-        durationMs: Date.now() - startedAt
+        durationMs: Date.now() - startedAt,
       },
       prisma
     );
@@ -159,12 +166,12 @@ export async function pushLeadToOneC(
     try {
       await prisma.lead.updateMany({
         where: { id: lead.id },
-        data: { pushedToOneCAt: null }
+        data: { pushedToOneCAt: null },
       });
     } catch (rollbackErr) {
       log.error('[pushLeadToOneC] claim rollback failed — lead may be stuck claimed', {
         leadId: lead.id,
-        rollbackError: rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr)
+        rollbackError: rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr),
       });
     }
     const message = err instanceof Error ? err.message : String(err);
@@ -176,7 +183,7 @@ export async function pushLeadToOneC(
         status: 'error',
         externalId: lead.id,
         errorMessage: message,
-        durationMs: Date.now() - startedAt
+        durationMs: Date.now() - startedAt,
       },
       prisma
     );

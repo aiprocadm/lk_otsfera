@@ -11,7 +11,7 @@ const {
   upload,
   createSignedUrl,
   enqueueAdd,
-  docFindMany
+  docFindMany,
 } = vi.hoisted(() => ({
   getSession: vi.fn(),
   findUnique: vi.fn(),
@@ -23,7 +23,7 @@ const {
   upload: vi.fn(),
   createSignedUrl: vi.fn(),
   enqueueAdd: vi.fn(),
-  docFindMany: vi.fn()
+  docFindMany: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/session', () => ({ getSession }));
@@ -32,24 +32,31 @@ vi.mock('@/lib/db/prisma', () => ({
     order: { findUnique },
     organization: { findFirst: orgFindFirst },
     document: { create, findUnique: vi.fn(), findMany: docFindMany },
-    auditLog: { create: auditCreate }
-  }
+    auditLog: { create: auditCreate },
+  },
 }));
 vi.mock('@/lib/auth/policy', () => ({
   canReadOrder,
   canReadDocument,
-  forbiddenResponse: (m: string) => Response.json({ message: m }, { status: 403 })
+  forbiddenResponse: (m: string) => Response.json({ message: m }, { status: 403 }),
 }));
 vi.mock('@/lib/storage', () => ({
-  getObjectStorage: () => ({ upload, createSignedUrl, remove: vi.fn(), download: vi.fn() })
+  getObjectStorage: () => ({ upload, createSignedUrl, remove: vi.fn(), download: vi.fn() }),
 }));
-vi.mock('@/lib/notifications', () => ({ notifyDocumentCreated: vi.fn().mockResolvedValue({ id: 'doc-notif' }), deliverNotificationToUser: vi.fn().mockResolvedValue({}) }));
-const { markDocumentViewed } = vi.hoisted(() => ({ markDocumentViewed: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@/lib/notifications', () => ({
+  notifyDocumentCreated: vi.fn().mockResolvedValue({ id: 'doc-notif' }),
+  deliverNotificationToUser: vi.fn().mockResolvedValue({}),
+}));
+const { markDocumentViewed } = vi.hoisted(() => ({
+  markDocumentViewed: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('@/lib/services/documents/viewMarks', () => ({ markDocumentViewed }));
-vi.mock('@/lib/auth/organization', () => ({ getPrimaryOrganizationId: vi.fn().mockResolvedValue('o1') }));
+vi.mock('@/lib/auth/organization', () => ({
+  getPrimaryOrganizationId: vi.fn().mockResolvedValue('o1'),
+}));
 vi.mock('@/lib/jobs/queues', () => ({
   getQueue: () => ({ add: enqueueAdd }),
-  QUEUE_NAMES: ['docs.scanDocument']
+  QUEUE_NAMES: ['docs.scanDocument'],
 }));
 
 import { GET as listGet } from '@/app/api/documents/route';
@@ -64,14 +71,21 @@ describe('documents guards', () => {
     orgFindFirst.mockResolvedValue({ id: 'o1', partnerId: 'p1' });
     canReadOrder.mockResolvedValue(true);
     upload.mockResolvedValue(undefined);
-    create.mockResolvedValue({ id: 'd1', name: 'x.pdf', mimeType: 'application/pdf', createdAt: new Date() });
+    create.mockResolvedValue({
+      id: 'd1',
+      name: 'x.pdf',
+      mimeType: 'application/pdf',
+      createdAt: new Date(),
+    });
   });
 
   it('validates MIME and size', async () => {
     const fd = new FormData();
     fd.set('orderId', 'ord1');
     fd.set('file', new File(['abc'], 'virus.exe', { type: 'application/octet-stream' }));
-    const res = await uploadPost(new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd }));
+    const res = await uploadPost(
+      new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd })
+    );
     expect(res.status).toBe(400);
   });
 
@@ -80,7 +94,9 @@ describe('documents guards', () => {
     const fd = new FormData();
     fd.set('orderId', 'ord1');
     fd.set('file', new File(['ok'], 'doc.pdf', { type: 'application/pdf' }));
-    const res = await uploadPost(new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd }));
+    const res = await uploadPost(
+      new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd })
+    );
     expect(res.status).toBe(403);
   });
 
@@ -90,7 +106,7 @@ describe('documents guards', () => {
       id: 'd1',
       path: 'x',
       name: 'x.pdf',
-      order: { companyId: 'c1' }
+      order: { companyId: 'c1' },
     });
     canReadDocument.mockResolvedValue(false);
     const res = await downloadPost(
@@ -119,14 +135,18 @@ describe('documents guards', () => {
     const fd = new FormData();
     fd.set('orderId', 'ord1');
     fd.set('file', new File(['%PDF-1.4 minimal'], 'good.pdf', { type: 'application/pdf' }));
-    const res = await uploadPost(new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd }));
+    const res = await uploadPost(
+      new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd })
+    );
     expect(res.status).toBe(403);
     expect(create).not.toHaveBeenCalled();
   });
 
   it('still returns success when notification fan-out fails (best-effort)', async () => {
     const { notifyDocumentCreated } = await import('@/lib/notifications');
-    (notifyDocumentCreated as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('notify down'));
+    (notifyDocumentCreated as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('notify down')
+    );
     const fd = new FormData();
     fd.set('orderId', 'ord1');
     fd.set('file', new File(['%PDF-1.4 minimal'], 'good.pdf', { type: 'application/pdf' }));
@@ -138,7 +158,9 @@ describe('documents guards', () => {
 
   it('still returns success when notification fan-out throws non-Error (String(err) branch)', async () => {
     const { notifyDocumentCreated } = await import('@/lib/notifications');
-    (notifyDocumentCreated as ReturnType<typeof vi.fn>).mockRejectedValueOnce('plain string rejection');
+    (notifyDocumentCreated as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      'plain string rejection'
+    );
     const fd = new FormData();
     fd.set('orderId', 'ord1');
     fd.set('file', new File(['%PDF-1.4 minimal'], 'good.pdf', { type: 'application/pdf' }));
@@ -179,7 +201,7 @@ describe('documents guards', () => {
       name: 'x.pdf',
       scanStatus: 'infected',
       scanReason: 'Win.Test.EICAR_HDB-1',
-      order: { companyId: 'c1' }
+      order: { companyId: 'c1' },
     });
     canReadDocument.mockResolvedValue(true);
     const res = await downloadPost(
@@ -202,7 +224,7 @@ describe('documents guards', () => {
       name: 'x.pdf',
       scanStatus: 'infected',
       scanReason: 'Win.Test.EICAR_HDB-1',
-      order: { companyId: 'c1' }
+      order: { companyId: 'c1' },
     });
     canReadDocument.mockResolvedValue(true);
     createSignedUrl.mockResolvedValue('https://signed');
@@ -215,7 +237,7 @@ describe('documents guards', () => {
     // Этап 3 PR-2 (ФТ-6.6): успешное скачивание ставит отметку просмотра.
     expect(markDocumentViewed).toHaveBeenCalledWith(expect.anything(), {
       documentId: 'd1',
-      userId: 'admin1'
+      userId: 'admin1',
     });
   });
 
@@ -241,9 +263,16 @@ describe('documents guards', () => {
   it('502 when storage createSignedUrl returns error', async () => {
     const { prisma } = await import('@/lib/db/prisma');
     (prisma.document.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 'd1', path: 'x', name: 'x.pdf', scanStatus: 'clean', scanReason: null,
-      orderId: 'ord1', companyId: 'c1', counterpartyType: 'organization', counterpartyId: 'o1',
-      order: { companyId: 'c1' }
+      id: 'd1',
+      path: 'x',
+      name: 'x.pdf',
+      scanStatus: 'clean',
+      scanReason: null,
+      orderId: 'ord1',
+      companyId: 'c1',
+      counterpartyType: 'organization',
+      counterpartyId: 'o1',
+      order: { companyId: 'c1' },
     });
     canReadDocument.mockResolvedValue(true);
     createSignedUrl.mockRejectedValue(new Error('bucket error'));
@@ -257,9 +286,16 @@ describe('documents guards', () => {
   it('502 when createSignedUrl throws a non-Error (String(error) branch)', async () => {
     const { prisma } = await import('@/lib/db/prisma');
     (prisma.document.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 'd1', path: 'x', name: 'x.pdf', scanStatus: 'clean', scanReason: null,
-      orderId: 'ord1', companyId: 'c1', counterpartyType: 'organization', counterpartyId: 'o1',
-      order: { companyId: 'c1' }
+      id: 'd1',
+      path: 'x',
+      name: 'x.pdf',
+      scanStatus: 'clean',
+      scanReason: null,
+      orderId: 'ord1',
+      companyId: 'c1',
+      counterpartyType: 'organization',
+      counterpartyId: 'o1',
+      order: { companyId: 'c1' },
     });
     canReadDocument.mockResolvedValue(true);
     createSignedUrl.mockRejectedValue('provider exploded');
@@ -273,9 +309,16 @@ describe('documents guards', () => {
   it('200 with signed URL and TTL when document is clean', async () => {
     const { prisma } = await import('@/lib/db/prisma');
     (prisma.document.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 'd1', path: 'p/d1.pdf', name: 'd1.pdf', scanStatus: 'clean', scanReason: null,
-      orderId: 'ord1', companyId: 'c1', counterpartyType: 'organization', counterpartyId: 'o1',
-      order: { companyId: 'c1' }
+      id: 'd1',
+      path: 'p/d1.pdf',
+      name: 'd1.pdf',
+      scanStatus: 'clean',
+      scanReason: null,
+      orderId: 'ord1',
+      companyId: 'c1',
+      counterpartyType: 'organization',
+      counterpartyId: 'o1',
+      order: { companyId: 'c1' },
     });
     canReadDocument.mockResolvedValue(true);
     createSignedUrl.mockResolvedValue('https://cdn.example/signed');
@@ -292,9 +335,16 @@ describe('documents guards', () => {
   it('resolveTtl falls back to DEFAULT_TTL when ttl param is non-numeric (NaN branch)', async () => {
     const { prisma } = await import('@/lib/db/prisma');
     (prisma.document.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 'd1', path: 'p/d1.pdf', name: 'd1.pdf', scanStatus: 'clean', scanReason: null,
-      orderId: 'ord1', companyId: 'c1', counterpartyType: 'organization', counterpartyId: 'o1',
-      order: { companyId: 'c1' }
+      id: 'd1',
+      path: 'p/d1.pdf',
+      name: 'd1.pdf',
+      scanStatus: 'clean',
+      scanReason: null,
+      orderId: 'ord1',
+      companyId: 'c1',
+      counterpartyType: 'organization',
+      counterpartyId: 'o1',
+      order: { companyId: 'c1' },
     });
     canReadDocument.mockResolvedValue(true);
     createSignedUrl.mockResolvedValue('https://cdn.example/signed');
@@ -312,10 +362,12 @@ describe('documents guards', () => {
     getSession.mockResolvedValue({ role: 'partner', sub: 'u1', partnerId: 'p1' });
     const { prisma } = await import('@/lib/db/prisma');
     (prisma.document.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 'd1', path: 'x', name: 'x.pdf',
+      id: 'd1',
+      path: 'x',
+      name: 'x.pdf',
       scanStatus: 'infected',
       scanReason: null, // null → ?? undefined gives undefined
-      order: { companyId: 'c1' }
+      order: { companyId: 'c1' },
     });
     canReadDocument.mockResolvedValue(true);
     const res = await downloadPost(
@@ -336,7 +388,12 @@ describe('documents/upload missing branches', () => {
     orgFindFirst.mockResolvedValue({ id: 'o1', partnerId: 'p1' });
     canReadOrder.mockResolvedValue(true);
     upload.mockResolvedValue(undefined);
-    create.mockResolvedValue({ id: 'd1', name: 'x.pdf', mimeType: 'application/pdf', createdAt: new Date() });
+    create.mockResolvedValue({
+      id: 'd1',
+      name: 'x.pdf',
+      mimeType: 'application/pdf',
+      createdAt: new Date(),
+    });
   });
 
   it('401 when no session for upload', async () => {
@@ -344,19 +401,29 @@ describe('documents/upload missing branches', () => {
     const fd = new FormData();
     fd.set('orderId', 'ord1');
     fd.set('file', new File(['%PDF-1.4'], 'good.pdf', { type: 'application/pdf' }));
-    const res = await uploadPost(new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd }));
+    const res = await uploadPost(
+      new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd })
+    );
     expect(res.status).toBe(401);
   });
 
   it('400 when form-data parse fails', async () => {
-    const res = await uploadPost(new Request('https://app.local/api/documents/upload', { method: 'POST', body: 'not-form', headers: { 'content-type': 'text/plain' } }));
+    const res = await uploadPost(
+      new Request('https://app.local/api/documents/upload', {
+        method: 'POST',
+        body: 'not-form',
+        headers: { 'content-type': 'text/plain' },
+      })
+    );
     expect(res.status).toBe(400);
   });
 
   it('400 when orderId missing', async () => {
     const fd = new FormData();
     fd.set('file', new File(['%PDF-1.4 blah'], 'good.pdf', { type: 'application/pdf' }));
-    const res = await uploadPost(new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd }));
+    const res = await uploadPost(
+      new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd })
+    );
     expect(res.status).toBe(400);
   });
 
@@ -364,8 +431,17 @@ describe('documents/upload missing branches', () => {
     const fd = new FormData();
     fd.set('orderId', 'ord1');
     // Declare PDF but send PNG magic bytes
-    fd.set('file', new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00])], 'trap.pdf', { type: 'application/pdf' }));
-    const res = await uploadPost(new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd }));
+    fd.set(
+      'file',
+      new File(
+        [new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00])],
+        'trap.pdf',
+        { type: 'application/pdf' }
+      )
+    );
+    const res = await uploadPost(
+      new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd })
+    );
     expect(res.status).toBe(400);
   });
 
@@ -374,7 +450,9 @@ describe('documents/upload missing branches', () => {
     const fd = new FormData();
     fd.set('orderId', 'missing');
     fd.set('file', new File(['%PDF-1.4 minimal'], 'good.pdf', { type: 'application/pdf' }));
-    const res = await uploadPost(new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd }));
+    const res = await uploadPost(
+      new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd })
+    );
     expect(res.status).toBe(404);
   });
 
@@ -383,7 +461,9 @@ describe('documents/upload missing branches', () => {
     const fd = new FormData();
     fd.set('orderId', 'ord1');
     fd.set('file', new File(['%PDF-1.4 minimal'], 'good.pdf', { type: 'application/pdf' }));
-    const res = await uploadPost(new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd }));
+    const res = await uploadPost(
+      new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd })
+    );
     expect(res.status).toBe(400);
   });
 
@@ -392,7 +472,9 @@ describe('documents/upload missing branches', () => {
     const fd = new FormData();
     fd.set('orderId', 'ord1');
     fd.set('file', new File(['%PDF-1.4 minimal'], 'good.pdf', { type: 'application/pdf' }));
-    const res = await uploadPost(new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd }));
+    const res = await uploadPost(
+      new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd })
+    );
     expect(res.status).toBe(502);
   });
 
@@ -401,7 +483,9 @@ describe('documents/upload missing branches', () => {
     const fd = new FormData();
     fd.set('orderId', 'ord1');
     fd.set('file', new File(['%PDF-1.4 minimal'], 'good.pdf', { type: 'application/pdf' }));
-    const res = await uploadPost(new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd }));
+    const res = await uploadPost(
+      new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd })
+    );
     expect(res.status).toBe(502);
   });
 
@@ -411,7 +495,10 @@ describe('documents/upload missing branches', () => {
     const tinyBuf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0, 0, 0, 0]); // PDF magic bytes
     const hugeFile = new File([tinyBuf], 'huge.pdf', { type: 'application/pdf' });
     Object.defineProperty(hugeFile, 'size', { value: 201 * 1024 * 1024, configurable: true });
-    const req = new Request('https://app.local/api/documents/upload', { method: 'POST', body: new FormData() });
+    const req = new Request('https://app.local/api/documents/upload', {
+      method: 'POST',
+      body: new FormData(),
+    });
     const stubbedFd = new FormData();
     stubbedFd.set('orderId', 'ord1');
     stubbedFd.set('file', hugeFile);
@@ -445,7 +532,15 @@ describe('GET /api/documents list — channel-isolation role restriction', () =>
 
   it('returns 200 for admin role and calls findMany', async () => {
     getSession.mockResolvedValue({ role: 'admin', sub: 'admin1' });
-    docFindMany.mockResolvedValue([{ id: 'd1', name: 'f.pdf', mimeType: 'application/pdf', createdAt: new Date(), orderId: 'ord1' }]);
+    docFindMany.mockResolvedValue([
+      {
+        id: 'd1',
+        name: 'f.pdf',
+        mimeType: 'application/pdf',
+        createdAt: new Date(),
+        orderId: 'ord1',
+      },
+    ]);
     const res = await listGet();
     expect(res.status).toBe(200);
     expect(docFindMany).toHaveBeenCalled();

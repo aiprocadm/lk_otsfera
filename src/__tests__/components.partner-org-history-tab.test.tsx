@@ -20,7 +20,13 @@ describe('HistoryTab (async server component)', () => {
 
   it('renders a known action with its Russian label and "Система" when user is null', async () => {
     findMany.mockResolvedValue([
-      { id: 'a1', action: 'partner_commission_rate_changed', createdAt: new Date('2026-01-01'), user: null, meta: null }
+      {
+        id: 'a1',
+        action: 'partner_commission_rate_changed',
+        createdAt: new Date('2026-01-01'),
+        user: null,
+        meta: null,
+      },
     ]);
     const element = await HistoryTab({ orgId: 'org1' });
     const html = renderToString(element);
@@ -30,7 +36,13 @@ describe('HistoryTab (async server component)', () => {
 
   it('renders the actor name when user is present', async () => {
     findMany.mockResolvedValue([
-      { id: 'a1', action: 'partner_commission_rate_changed', createdAt: new Date('2026-01-01'), user: { name: 'Админ Иванов' }, meta: null }
+      {
+        id: 'a1',
+        action: 'partner_commission_rate_changed',
+        createdAt: new Date('2026-01-01'),
+        user: { name: 'Админ Иванов' },
+        meta: null,
+      },
     ]);
     const element = await HistoryTab({ orgId: 'org1' });
     const html = renderToString(element);
@@ -39,7 +51,13 @@ describe('HistoryTab (async server component)', () => {
 
   it('falls back to the raw action string for an unknown action', async () => {
     findMany.mockResolvedValue([
-      { id: 'a1', action: 'some_other_action', createdAt: new Date('2026-01-01'), user: null, meta: null }
+      {
+        id: 'a1',
+        action: 'some_other_action',
+        createdAt: new Date('2026-01-01'),
+        user: null,
+        meta: null,
+      },
     ]);
     const element = await HistoryTab({ orgId: 'org1' });
     const html = renderToString(element);
@@ -53,8 +71,8 @@ describe('HistoryTab (async server component)', () => {
         action: 'partner_commission_rate_changed',
         createdAt: new Date('2026-01-01'),
         user: null,
-        meta: { oldRate: null, newRate: '0.08' }
-      }
+        meta: { oldRate: null, newRate: '0.08' },
+      },
     ]);
     const element = await HistoryTab({ orgId: 'org1' });
     const html = renderToString(element);
@@ -69,8 +87,8 @@ describe('HistoryTab (async server component)', () => {
         action: 'partner_commission_rate_changed',
         createdAt: new Date('2026-01-01'),
         user: null,
-        meta: { oldRate: '0.05', newRate: null }
-      }
+        meta: { oldRate: '0.05', newRate: null },
+      },
     ]);
     const element = await HistoryTab({ orgId: 'org1' });
     const html = renderToString(element);
@@ -85,8 +103,8 @@ describe('HistoryTab (async server component)', () => {
         action: 'partner_commission_rate_changed',
         createdAt: new Date('2026-01-01'),
         user: null,
-        meta: { oldRate: '0.1', newRate: '0.08', reason: 'VIP-клиент' }
-      }
+        meta: { oldRate: '0.1', newRate: '0.08', reason: 'VIP-клиент' },
+      },
     ]);
     const element = await HistoryTab({ orgId: 'org1' });
     const html = renderToString(element);
@@ -95,7 +113,13 @@ describe('HistoryTab (async server component)', () => {
 
   it('does not render the meta detail span when meta is falsy, even for the rate-changed action', async () => {
     findMany.mockResolvedValue([
-      { id: 'a1', action: 'partner_commission_rate_changed', createdAt: new Date('2026-01-01'), user: null, meta: null }
+      {
+        id: 'a1',
+        action: 'partner_commission_rate_changed',
+        createdAt: new Date('2026-01-01'),
+        user: null,
+        meta: null,
+      },
     ]);
     const element = await HistoryTab({ orgId: 'org1' });
     const html = renderToString(element);
@@ -109,7 +133,7 @@ describe('HistoryTab (async server component)', () => {
       where: { entity: 'Organization', entityId: 'org42' },
       include: { user: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
-      take: 50
+      take: 50,
     });
   });
 });

@@ -17,13 +17,7 @@ export function CertificateList({ certificates }: { certificates: CertificateLis
   const today = new Date();
 
   if (certificates.length === 0) {
-    return (
-      <EmptyState
-        icon='📄'
-        message='Нет удостоверений.'
-        className='p-8'
-      />
-    );
+    return <EmptyState icon="📄" message="Нет удостоверений." className="p-8" />;
   }
 
   return (
@@ -44,9 +38,9 @@ export function CertificateList({ certificates }: { certificates: CertificateLis
                 : new Date(cert.validUntil);
           return (
             <Tr key={cert.id}>
-              <Td className='font-mono text-xs text-gray-700'>{cert.number}</Td>
+              <Td className="font-mono text-xs text-gray-700">{cert.number}</Td>
               <Td>{cert.direction.name}</Td>
-              <Td className='text-gray-500'>{fmtDate(cert.issuedAt)}</Td>
+              <Td className="text-gray-500">{fmtDate(cert.issuedAt)}</Td>
               <Td>
                 <CertificateBadge validUntil={validUntil} today={today} />
               </Td>

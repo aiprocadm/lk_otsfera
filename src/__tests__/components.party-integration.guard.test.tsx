@@ -21,7 +21,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }) }));
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
-  toastError: vi.fn()
+  toastError: vi.fn(),
 }));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
@@ -36,8 +36,8 @@ const VALID_INN = '7707083893';
 const DUPLICATES_RESPONSE = {
   ok: true,
   json: async () => ({
-    duplicates: { organizations: [{ id: 'o1', name: 'ООО Ромашка' }], leads: [] }
-  })
+    duplicates: { organizations: [{ id: 'o1', name: 'ООО Ромашка' }], leads: [] },
+  }),
 };
 
 let fetchMock: ReturnType<typeof vi.fn>;
@@ -83,7 +83,7 @@ describe('ФТ-13.4 guard: клиентская форма обращения Б
   it('и ИНН с пробелами/дефисами тоже не порождает запросов', async () => {
     const { container } = render(<ClientRequestForm />);
     fireEvent.change(container.querySelector('#cr-inn') as HTMLInputElement, {
-      target: { value: '7707 083-893' }
+      target: { value: '7707 083-893' },
     });
     await settle(1000);
     expect(duplicatesCalls()).toEqual([]);

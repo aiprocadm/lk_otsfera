@@ -19,12 +19,19 @@ vi.mock('@/lib/services/partner/finance', () => ({
   getStatementWithItems: vi.fn(),
 }));
 vi.mock('@/lib/services/commission/statement', () => ({ calculateStatementForPartner: vi.fn() }));
-vi.mock('@/lib/services/commission/lifecycle', () => ({ approveStatement: vi.fn(), markStatementPaid: vi.fn() }));
+vi.mock('@/lib/services/commission/lifecycle', () => ({
+  approveStatement: vi.fn(),
+  markStatementPaid: vi.fn(),
+}));
 vi.mock('@/lib/db/prisma', () => ({ prisma: { commissionStatement: { findFirst: vi.fn() } } }));
 
 import { getSession } from '@/lib/auth/session';
 import { requirePartner, requirePartnerAdmin } from '@/lib/auth/guard';
-import { getFinanceKpis, listStatements, getStatementWithItems } from '@/lib/services/partner/finance';
+import {
+  getFinanceKpis,
+  listStatements,
+  getStatementWithItems,
+} from '@/lib/services/partner/finance';
 import { GET as financeGET } from '@/app/api/partner/finance/route';
 import { GET as statementGET } from '@/app/api/partner/finance/statements/[id]/route';
 import type { SessionPayload } from '@/lib/auth/jwt';
@@ -36,12 +43,16 @@ const multiroleOrgContext = {
   role: 'organization',
   organizationId: 'org-1',
   organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'admin', isActive: true }],
-  partnerId: 'p-1',          // <- has a partner identity…
-  partnerRole: 'admin',      // …even partner-admin…
+  partnerId: 'p-1', // <- has a partner identity…
+  partnerRole: 'admin', // …even partner-admin…
 } as unknown as SessionPayload;
 
-function getReq(url = 'http://x/') { return new Request(url); }
-function ctx(id: string) { return { params: Promise.resolve({ id }) }; }
+function getReq(url = 'http://x/') {
+  return new Request(url);
+}
+function ctx(id: string) {
+  return { params: Promise.resolve({ id }) };
+}
 
 describe('C2 — guards reject the partner identity while in organization context', () => {
   it('requirePartner is NOT ok for an org-context session (even with partnerId set)', () => {

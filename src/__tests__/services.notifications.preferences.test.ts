@@ -1,20 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { userFindUnique, userUpdate, recordAudit, isTelegramEnabled, isMaxEnabled, isWhatsAppEnabled } =
-  vi.hoisted(() => ({
-    userFindUnique: vi.fn(),
-    userUpdate: vi.fn(),
-    recordAudit: vi.fn(),
-    isTelegramEnabled: vi.fn(),
-    isMaxEnabled: vi.fn(),
-    isWhatsAppEnabled: vi.fn(),
-  }));
+const {
+  userFindUnique,
+  userUpdate,
+  recordAudit,
+  isTelegramEnabled,
+  isMaxEnabled,
+  isWhatsAppEnabled,
+} = vi.hoisted(() => ({
+  userFindUnique: vi.fn(),
+  userUpdate: vi.fn(),
+  recordAudit: vi.fn(),
+  isTelegramEnabled: vi.fn(),
+  isMaxEnabled: vi.fn(),
+  isWhatsAppEnabled: vi.fn(),
+}));
 
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 vi.mock('@/lib/telegram/client', () => ({ isTelegramEnabled }));
 vi.mock('@/lib/max/client', () => ({ isMaxEnabled }));
 vi.mock('@/lib/whatsapp/aggregator', () => ({ isWhatsAppEnabled }));
 
+import type { PrismaClient } from '@prisma/client';
 import {
   getNotificationSettings,
   normalizePhone,
@@ -26,7 +33,6 @@ import {
   isOptionalChannelKey,
   parseChannelPrefs,
 } from '@/lib/notifications/channels/preferences';
-import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const prisma = {
@@ -206,8 +212,8 @@ describe('saveWhatsappPhone', () => {
 
   it('прочие ошибки БД пробрасываются', async () => {
     userUpdate.mockRejectedValue(new Error('db down'));
-    await expect(
-      saveWhatsappPhone(prisma, session, { phone: '+79123456789' })
-    ).rejects.toThrow('db down');
+    await expect(saveWhatsappPhone(prisma, session, { phone: '+79123456789' })).rejects.toThrow(
+      'db down'
+    );
   });
 });

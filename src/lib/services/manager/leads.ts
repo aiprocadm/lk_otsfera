@@ -61,8 +61,8 @@ export async function listManagerLeads(
       OR: [
         { clientCompanyName: { contains: opts.search, mode: 'insensitive' } },
         { subject: { contains: opts.search, mode: 'insensitive' } },
-        { clientInn: { contains: opts.search } }
-      ]
+        { clientInn: { contains: opts.search } },
+      ],
     });
   }
   const where: Prisma.LeadWhereInput = filters.length ? { AND: filters } : {};
@@ -75,8 +75,8 @@ export async function listManagerLeads(
     include: {
       organization: { select: { id: true, name: true } },
       partner: { select: { name: true } },
-      assignedManager: { select: { name: true } }
-    }
+      assignedManager: { select: { name: true } },
+    },
   });
 
   const hasMore = rows.length > take;
@@ -96,9 +96,9 @@ export async function listManagerLeads(
       assignedManagerId: l.assignedManagerId,
       assignedManagerName: l.assignedManager?.name ?? null,
       promotedOrderId: l.promotedOrderId,
-      createdAt: l.createdAt
+      createdAt: l.createdAt,
     })),
-    nextCursor: hasMore ? page[page.length - 1]!.id : null
+    nextCursor: hasMore ? page[page.length - 1]!.id : null,
   };
 }
 
@@ -132,14 +132,14 @@ export async function getManagerLead(
       organization: { select: { id: true, name: true } },
       partner: { select: { name: true } },
       assignedManager: { select: { name: true } },
-      createdByUser: { select: { name: true } }
-    }
+      createdByUser: { select: { name: true } },
+    },
   });
   if (!l) return null;
   await recordPiiAccess(prisma, {
     session,
     context: 'manager_lead_view',
-    subjectIds: [l.id]
+    subjectIds: [l.id],
   });
   return {
     id: l.id,
@@ -168,6 +168,6 @@ export async function getManagerLead(
     source: l.source,
     sourceRequestId: l.sourceRequestId,
     sourceCallId: l.sourceCallId,
-    sourceInboundId: l.sourceInboundId
+    sourceInboundId: l.sourceInboundId,
   };
 }

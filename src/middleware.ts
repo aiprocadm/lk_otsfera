@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
+import type { NextRequest } from 'next/server';
 import { protectedPrefixes, roleHome } from '@/lib/auth/access';
 import type { Role } from '@/lib/auth/jwt';
 import { isFeatureEnabled, type FeatureFlag } from '@/lib/featureFlags';
@@ -60,7 +60,11 @@ function getJwtSecret() {
   const jwtSecret = process.env.JWT_SECRET?.trim();
   if (!jwtSecret) return null;
   if (jwtSecret.length < MIN_JWT_SECRET_LENGTH) {
-    edgeLog.error('[auth] JWT_SECRET is too short; require at least', MIN_JWT_SECRET_LENGTH, 'chars');
+    edgeLog.error(
+      '[auth] JWT_SECRET is too short; require at least',
+      MIN_JWT_SECRET_LENGTH,
+      'chars'
+    );
     return null;
   }
   return new TextEncoder().encode(jwtSecret);
@@ -89,8 +93,10 @@ export async function middleware(req: NextRequest) {
     // Руководитель менеджеров при включённом кабинете попадает в /leader.
     // managerRole — контрактный claim JWT (C8); флаг проверяем здесь же,
     // чтобы при выключенном leader_cabinet редирект вёл в обычный кабинет.
-    const isLeader = role === 'manager' && (payload as { managerRole?: string }).managerRole === 'leader';
-    const home = isLeader && isFeatureEnabled('leader_cabinet') ? '/leader/dashboard' : roleHome[role];
+    const isLeader =
+      role === 'manager' && (payload as { managerRole?: string }).managerRole === 'leader';
+    const home =
+      isLeader && isFeatureEnabled('leader_cabinet') ? '/leader/dashboard' : roleHome[role];
 
     if (isAuthPage) {
       return NextResponse.redirect(new URL(home, req.url));

@@ -9,9 +9,7 @@ function maskValue(key: string, value: unknown): unknown {
   if (SENSITIVE_KEY_REGEX.test(key)) return '*****';
   if (value !== null && typeof value === 'object') {
     if (Array.isArray(value)) return value.map((v, i) => maskValue(`${i}`, v));
-    return Object.fromEntries(
-      Object.entries(value).map(([k, v]) => [k, maskValue(k, v)])
-    );
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, maskValue(k, v)]));
   }
   return value;
 }
@@ -19,9 +17,7 @@ function maskValue(key: string, value: unknown): unknown {
 function maskedJsonString(meta: unknown, keys: string[]): string {
   if (!meta || typeof meta !== 'object') return '';
   const record = meta as Record<string, unknown>;
-  const parts = keys
-    .filter((k) => k in record)
-    .map((k) => [k, maskValue(k, record[k])] as const);
+  const parts = keys.filter((k) => k in record).map((k) => [k, maskValue(k, record[k])] as const);
   if (parts.length === 0) return '';
   // Single key (before/after): unwrap — the panel header already names it. Both call sites
   // below pass a single-element keys array, so `parts.length` is always exactly 1 here.
@@ -46,38 +42,38 @@ export function AuditDiffDialog({ row, onClose }: { row: AuditRow; onClose: () =
   const extras = maskedExtraJsonString(row.meta, ['before', 'after']);
 
   return (
-    <Dialog open onClose={onClose} title={`${row.action} · ${row.entity}`} size='xl'>
-      <div className='text-xs text-gray-500 mb-4 -mt-2'>{row.id}</div>
+    <Dialog open onClose={onClose} title={`${row.action} · ${row.entity}`} size="xl">
+      <div className="text-xs text-gray-500 mb-4 -mt-2">{row.id}</div>
 
-      <div className='grid grid-cols-2 gap-3 text-xs'>
+      <div className="grid grid-cols-2 gap-3 text-xs">
         <div>
-          <div className='font-medium text-gray-700 mb-1'>До</div>
-          <pre className='bg-gray-50 border border-gray-200 rounded p-3 font-mono whitespace-pre-wrap overflow-auto max-h-[40vh]'>
+          <div className="font-medium text-gray-700 mb-1">До</div>
+          <pre className="bg-gray-50 border border-gray-200 rounded p-3 font-mono whitespace-pre-wrap overflow-auto max-h-[40vh]">
             {before || '—'}
           </pre>
         </div>
         <div>
-          <div className='font-medium text-gray-700 mb-1'>После</div>
-          <pre className='bg-gray-50 border border-gray-200 rounded p-3 font-mono whitespace-pre-wrap overflow-auto max-h-[40vh]'>
+          <div className="font-medium text-gray-700 mb-1">После</div>
+          <pre className="bg-gray-50 border border-gray-200 rounded p-3 font-mono whitespace-pre-wrap overflow-auto max-h-[40vh]">
             {after || '—'}
           </pre>
         </div>
       </div>
 
       {extras && (
-        <div className='mt-4'>
-          <div className='text-xs font-medium text-gray-700 mb-1'>Прочие meta-поля</div>
-          <pre className='bg-gray-50 border border-gray-200 rounded p-3 font-mono text-xs whitespace-pre-wrap overflow-auto max-h-[20vh]'>
+        <div className="mt-4">
+          <div className="text-xs font-medium text-gray-700 mb-1">Прочие meta-поля</div>
+          <pre className="bg-gray-50 border border-gray-200 rounded p-3 font-mono text-xs whitespace-pre-wrap overflow-auto max-h-[20vh]">
             {extras}
           </pre>
         </div>
       )}
 
-      <div className='flex justify-end pt-4'>
+      <div className="flex justify-end pt-4">
         <button
-          type='button'
+          type="button"
           onClick={onClose}
-          className='px-3 py-1.5 border border-gray-200 rounded text-sm text-gray-700 hover:bg-gray-50'
+          className="px-3 py-1.5 border border-gray-200 rounded text-sm text-gray-700 hover:bg-gray-50"
         >
           Закрыть
         </button>

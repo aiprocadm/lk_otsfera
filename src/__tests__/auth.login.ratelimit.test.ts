@@ -14,15 +14,15 @@ const { findUnique, updateUser, compare, signToken } = vi.hoisted(() => ({
   findUnique: vi.fn(),
   updateUser: vi.fn(),
   compare: vi.fn(),
-  signToken: vi.fn()
+  signToken: vi.fn(),
 }));
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     // updateUser — отметка lastLoginAt (этап 9, ФТ-11.3)
     user: { findUnique, update: updateUser },
-    partnerUser: { findUnique: vi.fn().mockResolvedValue(null) }
-  }
+    partnerUser: { findUnique: vi.fn().mockResolvedValue(null) },
+  },
 }));
 vi.mock('bcryptjs', () => ({ default: { compare } }));
 vi.mock('@/lib/auth/jwt', () => ({ signToken }));
@@ -35,15 +35,22 @@ function makeReq(body: object, ip = '1.2.3.4') {
     body: JSON.stringify(body),
     headers: {
       'content-type': 'application/json',
-      'x-forwarded-for': ip
-    }
+      'x-forwarded-for': ip,
+    },
   });
 }
 
 const adminUser = {
-  id: 'u1', role: 'admin', companyId: null, partnerId: null,
-  organizationId: null, email: 'admin@example.com', name: 'Admin',
-  externalStudentId: null, passwordHash: 'hash', managerRole: null
+  id: 'u1',
+  role: 'admin',
+  companyId: null,
+  partnerId: null,
+  organizationId: null,
+  email: 'admin@example.com',
+  name: 'Admin',
+  externalStudentId: null,
+  passwordHash: 'hash',
+  managerRole: null,
 };
 
 beforeEach(() => {

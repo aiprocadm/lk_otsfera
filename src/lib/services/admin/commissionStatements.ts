@@ -21,7 +21,7 @@ export type ListAdminStatementsOptions = {
  */
 export async function listAdminStatements(
   prisma: PrismaClient,
-  opts: ListAdminStatementsOptions = {},
+  opts: ListAdminStatementsOptions = {}
 ): Promise<AdminStatementRow[]> {
   const { status, partnerId, from, to, skip = 0, take = 50 } = opts;
 
@@ -79,7 +79,7 @@ export type StatementAuditEntry = {
  */
 export async function getStatementAuditLog(
   prisma: PrismaClient,
-  statementId: string,
+  statementId: string
 ): Promise<StatementAuditEntry[]> {
   const entries = await prisma.auditLog.findMany({
     where: {
@@ -105,7 +105,9 @@ export async function getStatementAuditLog(
 
 export type ListPartnersForFilterRow = { id: string; name: string };
 
-export async function listPartnersForFilter(prisma: PrismaClient): Promise<ListPartnersForFilterRow[]> {
+export async function listPartnersForFilter(
+  prisma: PrismaClient
+): Promise<ListPartnersForFilterRow[]> {
   return prisma.partner.findMany({
     select: { id: true, name: true },
     orderBy: { name: 'asc' },

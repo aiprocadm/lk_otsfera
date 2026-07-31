@@ -15,16 +15,16 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { deliverOrderResult, approveDeliverables } = vi.hoisted(() => ({
   deliverOrderResult: vi.fn(),
-  approveDeliverables: vi.fn()
+  approveDeliverables: vi.fn(),
 }));
 vi.mock('@/lib/services/manager/orderDelivery', () => ({
   deliverOrderResult,
-  approveDeliverables
+  approveDeliverables,
 }));
 
 import {
   deliverOrderResultAction,
-  approveDeliverablesAction
+  approveDeliverablesAction,
 } from '@/server-actions/manager/orderDelivery';
 
 const session = { sub: 'm1', role: 'manager' };
@@ -38,7 +38,7 @@ describe('deliverOrderResultAction', () => {
   it('пустой orderId → validation, сервис не зовётся', async () => {
     expect(await deliverOrderResultAction({ orderId: '' })).toEqual({
       ok: false,
-      error: 'validation'
+      error: 'validation',
     });
     expect(deliverOrderResult).not.toHaveBeenCalled();
   });
@@ -69,7 +69,7 @@ describe('deliverOrderResultAction', () => {
     deliverOrderResult.mockResolvedValue({ ok: false, error: 'forbidden' });
     expect(await deliverOrderResultAction({ orderId: 'o1' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
@@ -79,7 +79,7 @@ describe('approveDeliverablesAction', () => {
   it('валидация входа', async () => {
     expect(await approveDeliverablesAction({ orderId: '' })).toEqual({
       ok: false,
-      error: 'validation'
+      error: 'validation',
     });
     expect(approveDeliverables).not.toHaveBeenCalled();
   });
@@ -89,7 +89,7 @@ describe('approveDeliverablesAction', () => {
     approveDeliverables.mockResolvedValue({ ok: true, approvedAt: at });
     expect(await approveDeliverablesAction({ orderId: 'o1' })).toEqual({
       ok: true,
-      approvedAt: at.toISOString()
+      approvedAt: at.toISOString(),
     });
     expect(revalidatePath).toHaveBeenCalled();
   });
@@ -98,7 +98,7 @@ describe('approveDeliverablesAction', () => {
     approveDeliverables.mockResolvedValue({ ok: false, error: 'not_found' });
     expect(await approveDeliverablesAction({ orderId: 'o1' })).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
     expect(revalidatePath).not.toHaveBeenCalled();
   });

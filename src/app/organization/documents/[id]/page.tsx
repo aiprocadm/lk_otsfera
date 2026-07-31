@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function OrganizationDocumentDetailPage({
   params,
-  searchParams
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ org?: string }>;
@@ -36,10 +36,10 @@ export default async function OrganizationDocumentDetailPage({
     >
       <DocumentDetailView
         document={res.document}
-        backHref='/organization/documents'
-        orderHrefBase='/organization/orders'
+        backHref="/organization/documents"
+        orderHrefBase="/organization/orders"
       >
-        <EntityCustomFields fields={customFields} entityType='document' entityId={id} />
+        <EntityCustomFields fields={customFields} entityType="document" entityId={id} />
       </DocumentDetailView>
     </OrgAppShell>
   );

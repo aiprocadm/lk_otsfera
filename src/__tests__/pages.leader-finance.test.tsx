@@ -18,12 +18,17 @@ vi.mock('@/components/manager/manager-finance-view', () => ({
       { 'data-testid': 'finance-view' },
       props.ordersBasePath,
       JSON.stringify(props.data)
-    )
+    ),
 }));
 
 import LeaderFinancePage from '@/app/leader/finance/page';
 
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'leader' as const,
+  companyId: 'c1',
+};
 
 describe('LeaderFinancePage', () => {
   beforeEach(() => {
@@ -36,7 +41,7 @@ describe('LeaderFinancePage', () => {
     getManagerFinanceOverview.mockResolvedValue({
       summary: { totalDebt: '0.00' },
       sections: [],
-      canSeeCommission: true
+      canSeeCommission: true,
     });
 
     const { container } = await renderServerComponent(LeaderFinancePage());

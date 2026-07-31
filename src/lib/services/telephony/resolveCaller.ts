@@ -9,9 +9,18 @@ export function canonicalizeRuPhone(raw: string): string {
 
 export type CallerResolution =
   | { matchType: 'exact'; userId?: string; orgId: string; companyId: string; contactId?: string }
-  | { matchType: 'unresolved'; userId?: undefined; orgId?: undefined; companyId?: undefined; contactId?: undefined };
+  | {
+      matchType: 'unresolved';
+      userId?: undefined;
+      orgId?: undefined;
+      companyId?: undefined;
+      contactId?: undefined;
+    };
 
-export async function resolveCaller(prisma: PrismaClient, phoneRaw: string): Promise<CallerResolution> {
+export async function resolveCaller(
+  prisma: PrismaClient,
+  phoneRaw: string
+): Promise<CallerResolution> {
   const phone = canonicalizeRuPhone(phoneRaw);
   if (!phone || phone === '+') return { matchType: 'unresolved' };
 
@@ -19,7 +28,11 @@ export async function resolveCaller(prisma: PrismaClient, phoneRaw: string): Pro
   // over the legacy User exact-match. An org-less contact hit does NOT
   // short-circuit — call attribution needs an org to bind, so it falls
   // through to the User/Lead paths below.
-  const hit = await resolveContactByChannel(prisma, { type: 'phone', value: phone, phoneLike: true });
+  const hit = await resolveContactByChannel(prisma, {
+    type: 'phone',
+    value: phone,
+    phoneLike: true,
+  });
   if (hit && hit.organizationId) {
     return {
       matchType: 'exact',
@@ -37,7 +50,12 @@ export async function resolveCaller(prisma: PrismaClient, phoneRaw: string): Pro
     take: 2,
   });
   if (users.length === 1 && users[0].organization?.id && users[0].organization.companyId) {
-    return { matchType: 'exact', userId: users[0].id, orgId: users[0].organization.id, companyId: users[0].organization.companyId };
+    return {
+      matchType: 'exact',
+      userId: users[0].id,
+      orgId: users[0].organization.id,
+      companyId: users[0].organization.companyId,
+    };
   }
   if (users.length > 1) return { matchType: 'unresolved' }; // ambiguous → never guess
 
@@ -48,7 +66,11 @@ export async function resolveCaller(prisma: PrismaClient, phoneRaw: string): Pro
     take: 2,
   });
   if (leads.length === 1 && leads[0].organizationId && leads[0].organization?.companyId) {
-    return { matchType: 'exact', orgId: leads[0].organizationId, companyId: leads[0].organization.companyId };
+    return {
+      matchType: 'exact',
+      orgId: leads[0].organizationId,
+      companyId: leads[0].organization.companyId,
+    };
   }
 
   return { matchType: 'unresolved' };

@@ -23,7 +23,7 @@ import {
   orgInviteText,
   OrgPaymentReceivedTemplate,
   orgPaymentReceivedSubject,
-  orgPaymentReceivedText
+  orgPaymentReceivedText,
 } from '@/lib/email/templates';
 
 // ---------------------------------------------------------------------------
@@ -37,7 +37,7 @@ describe('ManagerDocumentUploadedByOrg — unknown documentType fallback', () =>
         orderNumber: 'O-9',
         documentName: 'mystery.bin',
         documentType: 'totally_unknown',
-        orderUrl: 'https://app.test/manager/orders/9'
+        orderUrl: 'https://app.test/manager/orders/9',
       })
     );
     // No known label matched → generic 'документ' between "загрузила" and doc name.
@@ -52,7 +52,7 @@ describe('ManagerDocumentUploadedByOrg — unknown documentType fallback', () =>
       orderNumber: 'O-9',
       documentName: 'mystery.bin',
       documentType: 'totally_unknown',
-      orderUrl: 'https://u'
+      orderUrl: 'https://u',
     });
     expect(text).toContain('загрузила документ «mystery.bin»');
     expect(text).toContain('https://u');
@@ -70,7 +70,7 @@ describe('ManagerDocumentUploadedByPartner', () => {
         orderNumber: 'O-321',
         documentName: 'act.pdf',
         documentType: 'act',
-        orderUrl: 'https://app.test/manager/orders/321'
+        orderUrl: 'https://app.test/manager/orders/321',
       })
     );
     expect(html).toContain('ИП Партнёров');
@@ -88,7 +88,7 @@ describe('ManagerDocumentUploadedByPartner', () => {
         orderNumber: 'O-321',
         documentName: 'x.bin',
         documentType: 'nope',
-        orderUrl: 'https://u'
+        orderUrl: 'https://u',
       })
     );
     expect(html).toContain('загрузил документ');
@@ -102,7 +102,7 @@ describe('ManagerDocumentUploadedByPartner', () => {
         orderNumber: 'O-321',
         documentName: 'act.pdf',
         documentType: 'act',
-        orderUrl: 'u'
+        orderUrl: 'u',
       })
     ).toBe('ИП Партнёров загрузил документ act.pdf к заказу № O-321');
   });
@@ -113,7 +113,7 @@ describe('ManagerDocumentUploadedByPartner', () => {
       orderNumber: 'O-321',
       documentName: 'act.pdf',
       documentType: 'act',
-      orderUrl: 'https://u'
+      orderUrl: 'https://u',
     });
     expect(text).toContain('Партнёр ИП Партнёров загрузил акт «act.pdf» к заказу № O-321.');
     expect(text).toContain('https://u');
@@ -125,7 +125,7 @@ describe('ManagerDocumentUploadedByPartner', () => {
       orderNumber: 'O-321',
       documentName: 'x.bin',
       documentType: 'nope',
-      orderUrl: 'https://u'
+      orderUrl: 'https://u',
     });
     expect(text).toContain('загрузил документ «x.bin»');
   });
@@ -140,7 +140,7 @@ describe('ManagerInviteTemplate', () => {
       React.createElement(ManagerInviteTemplate, {
         organizationName: 'ООО Тест',
         inviteUrl: 'https://app.test/reset?token=mgr',
-        invitedByName: 'Пётр'
+        invitedByName: 'Пётр',
       })
     );
     expect(html).toContain('Пётр приглашает вас');
@@ -154,7 +154,7 @@ describe('ManagerInviteTemplate', () => {
     const html = renderToStaticMarkup(
       React.createElement(ManagerInviteTemplate, {
         organizationName: 'ООО Тест',
-        inviteUrl: 'https://app.test/reset?token=mgr'
+        inviteUrl: 'https://app.test/reset?token=mgr',
       })
     );
     expect(html).toContain('Вас приглашают');
@@ -162,16 +162,14 @@ describe('ManagerInviteTemplate', () => {
   });
 
   it('subject includes organization name', () => {
-    expect(managerInviteSubject('ООО Тест')).toBe(
-      'Приглашение в кабинет менеджера «ООО Тест»'
-    );
+    expect(managerInviteSubject('ООО Тест')).toBe('Приглашение в кабинет менеджера «ООО Тест»');
   });
 
   it('text uses named-inviter intro when invitedByName present', () => {
     const text = managerInviteText({
       organizationName: 'ООО Тест',
       inviteUrl: 'https://u',
-      invitedByName: 'Пётр'
+      invitedByName: 'Пётр',
     });
     expect(text).toContain('Пётр приглашает вас');
     expect(text).toContain('организация «ООО Тест»');
@@ -181,7 +179,7 @@ describe('ManagerInviteTemplate', () => {
   it('text uses impersonal intro when invitedByName absent', () => {
     const text = managerInviteText({
       organizationName: 'ООО Тест',
-      inviteUrl: 'https://u'
+      inviteUrl: 'https://u',
     });
     expect(text).toContain('Вас приглашают');
     expect(text).not.toContain('приглашает вас');
@@ -200,7 +198,7 @@ describe('OrgDocumentPublishedTemplate — orderLabel & typeLabel branches', () 
         orderTitle: null,
         documentName: 'weird.dat',
         documentType: 'unknown_kind',
-        orderUrl: 'https://u'
+        orderUrl: 'https://u',
       })
     );
     expect(html).toContain('(без заказа)');
@@ -217,7 +215,7 @@ describe('OrgDocumentPublishedTemplate — orderLabel & typeLabel branches', () 
         orderTitle: null,
         documentName: 'd',
         documentType: 'other',
-        orderUrl: 'u'
+        orderUrl: 'u',
       })
     ).toBe('Новый документ по заказу (без заказа)');
   });
@@ -229,7 +227,7 @@ describe('OrgDocumentPublishedTemplate — orderLabel & typeLabel branches', () 
       orderTitle: 'T',
       documentName: 'contract.pdf',
       documentType: 'contract',
-      orderUrl: 'https://u'
+      orderUrl: 'https://u',
     });
     expect(text).toContain('По заказу № 555 (ООО Тест) загружен договор: «contract.pdf».');
     expect(text).toContain('https://u');
@@ -242,7 +240,7 @@ describe('OrgDocumentPublishedTemplate — orderLabel & typeLabel branches', () 
       orderTitle: 'Курс',
       documentName: 'x.dat',
       documentType: 'mystery',
-      orderUrl: 'https://u'
+      orderUrl: 'https://u',
     });
     expect(text).toContain('По заказу «Курс» (ООО Тест) загружен документ: «x.dat».');
   });
@@ -254,7 +252,7 @@ describe('OrgDocumentPublishedTemplate — orderLabel & typeLabel branches', () 
       orderTitle: null,
       documentName: 'x.dat',
       documentType: 'other',
-      orderUrl: 'https://u'
+      orderUrl: 'https://u',
     });
     expect(text).toContain('По заказу (без заказа) (ООО Тест) загружен документ: «x.dat».');
   });
@@ -271,7 +269,7 @@ describe('OrgManagerRepliedTemplate', () => {
         orderNumber: '77',
         orderTitle: 'Курс',
         commentExcerpt: 'Договор готов, проверьте.',
-        orderUrl: 'https://app.test/organization/orders/77'
+        orderUrl: 'https://app.test/organization/orders/77',
       })
     );
     expect(html).toContain('№ 77');
@@ -288,7 +286,7 @@ describe('OrgManagerRepliedTemplate', () => {
         orderNumber: null,
         orderTitle: 'Курс по ОТ',
         commentExcerpt: 'Уточните дату.',
-        orderUrl: 'https://u'
+        orderUrl: 'https://u',
       })
     );
     expect(html).toContain('«Курс по ОТ»');
@@ -302,7 +300,7 @@ describe('OrgManagerRepliedTemplate', () => {
         orderNumber: '77',
         orderTitle: 'Курс',
         commentExcerpt: '...',
-        orderUrl: 'u'
+        orderUrl: 'u',
       })
     ).toBe('Менеджер ответил по заказу № 77');
   });
@@ -314,7 +312,7 @@ describe('OrgManagerRepliedTemplate', () => {
         orderNumber: null,
         orderTitle: 'Курс',
         commentExcerpt: '...',
-        orderUrl: 'u'
+        orderUrl: 'u',
       })
     ).toBe('Менеджер ответил по заказу «Курс»');
   });
@@ -325,7 +323,7 @@ describe('OrgManagerRepliedTemplate', () => {
       orderNumber: '77',
       orderTitle: 'Курс',
       commentExcerpt: 'Договор готов.',
-      orderUrl: 'https://u'
+      orderUrl: 'https://u',
     });
     expect(text).toContain('по заказу № 77 (ООО Тест)');
     expect(text).toContain('«Договор готов.»');
@@ -338,7 +336,7 @@ describe('OrgManagerRepliedTemplate', () => {
       orderNumber: null,
       orderTitle: 'Курс',
       commentExcerpt: 'Уточните.',
-      orderUrl: 'https://u'
+      orderUrl: 'https://u',
     });
     expect(text).toContain('по заказу «Курс» (ООО Тест)');
   });
@@ -357,7 +355,7 @@ describe('OrgOrderStatusChangedTemplate — fallback & null-order branches', () 
         dimension: 'execution',
         oldStatus: 'weird_old',
         newStatus: 'weird_new',
-        orderUrl: 'https://u'
+        orderUrl: 'https://u',
       })
     );
     expect(html).toContain('«Курс»'); // orderNumber null → title label
@@ -375,7 +373,7 @@ describe('OrgOrderStatusChangedTemplate — fallback & null-order branches', () 
         dimension: 'financial',
         oldStatus: 'fin_old',
         newStatus: 'fin_new',
-        orderUrl: 'https://u'
+        orderUrl: 'https://u',
       })
     );
     expect(html).toContain('№ 42');
@@ -393,7 +391,7 @@ describe('OrgOrderStatusChangedTemplate — fallback & null-order branches', () 
         dimension: 'financial',
         oldStatus: 'billed',
         newStatus: 'fin_new_raw',
-        orderUrl: 'u'
+        orderUrl: 'u',
       })
     ).toBe('Финансы заказа «Курс»: fin_new_raw');
   });
@@ -406,7 +404,7 @@ describe('OrgOrderStatusChangedTemplate — fallback & null-order branches', () 
       dimension: 'financial',
       oldStatus: 'billed',
       newStatus: 'paid',
-      orderUrl: 'https://u'
+      orderUrl: 'https://u',
     });
     expect(text).toContain('По заказу «Курс» (ООО Тест) финансовый статус изменён:');
     expect(text).toContain('Счёт выставлен → Оплачен.');
@@ -421,7 +419,7 @@ describe('org-invite text/component missing branches', () => {
   it('orgInviteText uses impersonal intro when invitedByName absent', () => {
     const text = orgInviteText({
       organizationName: 'ООО Тест',
-      inviteUrl: 'https://u'
+      inviteUrl: 'https://u',
     });
     expect(text).toContain('Вас приглашают');
     expect(text).not.toContain('приглашает вас');
@@ -434,7 +432,7 @@ describe('org-invite text/component missing branches', () => {
       React.createElement(OrgInviteTemplate, {
         organizationName: 'ООО Тест',
         inviteUrl: 'https://u',
-        invitedByName: 'Мария'
+        invitedByName: 'Мария',
       })
     );
     expect(html).toContain('Мария приглашает вас');
@@ -453,7 +451,7 @@ describe('OrgPaymentReceivedTemplate — null orderNumber branch', () => {
         orderTitle: 'Курс по ОТ',
         amount: '3000',
         paidAt: new Date('2026-05-26T12:00:00Z'),
-        orderUrl: 'https://u'
+        orderUrl: 'https://u',
       })
     );
     expect(html).toContain('«Курс по ОТ»');
@@ -468,7 +466,7 @@ describe('OrgPaymentReceivedTemplate — null orderNumber branch', () => {
       orderTitle: 'Курс',
       amount: '3000',
       paidAt: new Date(),
-      orderUrl: 'u'
+      orderUrl: 'u',
     });
     expect(subject).toMatch(/^Оплата .+ по заказу «Курс»$/);
   });
@@ -480,7 +478,7 @@ describe('OrgPaymentReceivedTemplate — null orderNumber branch', () => {
       orderTitle: 'Курс',
       amount: '100',
       paidAt: new Date('2026-05-26T00:00:00Z'),
-      orderUrl: 'https://u'
+      orderUrl: 'https://u',
     });
     expect(text).toContain('по заказу «Курс» (ООО Тест)');
     expect(text).toContain('100 ₽');

@@ -10,19 +10,9 @@ export function expiryLabel(validUntil: Date | null, today: Date): string {
   return `Истекает через ${days} дн.`;
 }
 
-export function CertificateBadge({
-  validUntil,
-  today,
-}: {
-  validUntil: Date | null;
-  today: Date;
-}) {
+export function CertificateBadge({ validUntil, today }: { validUntil: Date | null; today: Date }) {
   const label = expiryLabel(validUntil, today);
   const tone =
-    label === 'Просрочено'
-      ? 'danger'
-      : label.startsWith('Истекает')
-        ? 'warning'
-        : 'neutral';
+    label === 'Просрочено' ? 'danger' : label.startsWith('Истекает') ? 'warning' : 'neutral';
   return <Badge tone={tone}>{label}</Badge>;
 }

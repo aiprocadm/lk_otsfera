@@ -11,8 +11,7 @@ import { resetOneCAdapter } from '@/lib/services/oneCSync';
 import { testIntegration } from '@/lib/services/admin/testIntegration';
 
 export type IntegrationSaveResult =
-  | { ok: true }
-  | { ok: false; error: 'secrets_key_missing' | 'validation' };
+  { ok: true } | { ok: false; error: 'secrets_key_missing' | 'validation' };
 
 function readField(fd: FormData, key: string): string {
   const v = fd.get(key);
@@ -35,7 +34,7 @@ export async function saveEmailSettingsAction(fd: FormData): Promise<Integration
     { key: 'email.enabled', value: enabled ? 'true' : 'false' },
     { key: 'email.from', value: from },
     // Пустой ключ → saveSettings оставит существующий как есть.
-    { key: 'email.resendApiKey', value: apiKey }
+    { key: 'email.resendApiKey', value: apiKey },
   ];
 
   const res = await saveSettings(prisma, session.sub, entries);
@@ -52,7 +51,10 @@ export async function saveEmailSettingsAction(fd: FormData): Promise<Integration
  * кэша настроек (синхронные читатели — мессенджеры, Mango, IMAP — перечитают
  * БД при следующем prime) → revalidate. Auth — в каждом action до валидации.
  */
-async function saveGroup(actorUserId: string, entries: SaveEntry[]): Promise<IntegrationSaveResult> {
+async function saveGroup(
+  actorUserId: string,
+  entries: SaveEntry[]
+): Promise<IntegrationSaveResult> {
   const res = await saveSettings(prisma, actorUserId, entries);
   if (!res.ok) return res;
   resetIntegrationSettingsCache();
@@ -61,24 +63,32 @@ async function saveGroup(actorUserId: string, entries: SaveEntry[]): Promise<Int
 }
 
 /** Пара «несекретное поле + секрет»: у ботов Telegram/Max одинаковая форма. */
-function botEntries(fd: FormData, tokenKey: SettingKey, usernameKey: SettingKey, prefix: string): SaveEntry[] {
+function botEntries(
+  fd: FormData,
+  tokenKey: SettingKey,
+  usernameKey: SettingKey,
+  prefix: string
+): SaveEntry[] {
   return [
     { key: usernameKey, value: readField(fd, `${prefix}_botUsername`).trim() },
     // Пустой токен → saveSettings оставит существующий как есть.
-    { key: tokenKey, value: readField(fd, `${prefix}_botToken`) }
+    { key: tokenKey, value: readField(fd, `${prefix}_botToken`) },
   ];
 }
 
 export async function saveTelegramSettingsAction(fd: FormData): Promise<IntegrationSaveResult> {
   const session = await requireAdmin();
-  return saveGroup(session.sub, botEntries(fd, 'telegram.botToken', 'telegram.botUsername', 'telegram'));
+  return saveGroup(
+    session.sub,
+    botEntries(fd, 'telegram.botToken', 'telegram.botUsername', 'telegram')
+  );
 }
 
 export async function saveMaxSettingsAction(fd: FormData): Promise<IntegrationSaveResult> {
   const session = await requireAdmin();
   return saveGroup(session.sub, [
     ...botEntries(fd, 'max.botToken', 'max.botUsername', 'max'),
-    { key: 'max.baseUrl', value: readField(fd, 'max_baseUrl').trim() }
+    { key: 'max.baseUrl', value: readField(fd, 'max_baseUrl').trim() },
   ]);
 }
 
@@ -87,7 +97,7 @@ export async function saveWhatsappSettingsAction(fd: FormData): Promise<Integrat
   return saveGroup(session.sub, [
     { key: 'whatsapp.baseUrl', value: readField(fd, 'whatsapp_baseUrl').trim() },
     { key: 'whatsapp.apiKey', value: readField(fd, 'whatsapp_apiKey') },
-    { key: 'whatsapp.channelId', value: readField(fd, 'whatsapp_channelId') }
+    { key: 'whatsapp.channelId', value: readField(fd, 'whatsapp_channelId') },
   ]);
 }
 
@@ -96,7 +106,7 @@ export async function saveMangoSettingsAction(fd: FormData): Promise<Integration
   return saveGroup(session.sub, [
     { key: 'mango.vpbxBaseUrl', value: readField(fd, 'mango_vpbxBaseUrl').trim() },
     { key: 'mango.apiKey', value: readField(fd, 'mango_apiKey') },
-    { key: 'mango.apiSalt', value: readField(fd, 'mango_apiSalt') }
+    { key: 'mango.apiSalt', value: readField(fd, 'mango_apiSalt') },
   ]);
 }
 
@@ -116,8 +126,11 @@ export async function saveImapSettingsAction(fd: FormData): Promise<IntegrationS
     { key: 'imap.host', value: readField(fd, 'imap_host').trim() },
     { key: 'imap.port', value: port },
     { key: 'imap.user', value: readField(fd, 'imap_user').trim() },
-    { key: 'imap.tls', value: fd.get('imap_tls') === 'on' || fd.get('imap_tls') === 'true' ? '1' : '0' },
-    { key: 'imap.password', value: readField(fd, 'imap_password') }
+    {
+      key: 'imap.tls',
+      value: fd.get('imap_tls') === 'on' || fd.get('imap_tls') === 'true' ? '1' : '0',
+    },
+    { key: 'imap.password', value: readField(fd, 'imap_password') },
   ]);
   if (!res.ok) return res;
 
@@ -143,7 +156,7 @@ export async function saveOnecSettingsAction(fd: FormData): Promise<IntegrationS
     { key: 'onec.adapter', value: adapter },
     { key: 'onec.apiUrl', value: readField(fd, 'onec_apiUrl').trim() },
     { key: 'onec.healthPath', value: readField(fd, 'onec_healthPath').trim() },
-    { key: 'onec.apiToken', value: readField(fd, 'onec_apiToken') }
+    { key: 'onec.apiToken', value: readField(fd, 'onec_apiToken') },
   ]);
   if (!res.ok) return res;
 
@@ -152,8 +165,7 @@ export async function saveOnecSettingsAction(fd: FormData): Promise<IntegrationS
 }
 
 export type IntegrationTestActionResult =
-  | { ok: true; success: boolean; message: string }
-  | { ok: false; error: string };
+  { ok: true; success: boolean; message: string } | { ok: false; error: string };
 
 /**
  * «Проверить подключение» (ФТ-14.3): универсальная проба по данным, которые
@@ -180,6 +192,6 @@ export async function saveDadataSettingsAction(fd: FormData): Promise<Integratio
   return saveGroup(session.sub, [
     { key: 'dadata.enabled', value: enabled ? 'true' : 'false' },
     // Пустой ключ → saveSettings оставит существующий как есть.
-    { key: 'dadata.apiKey', value: readField(fd, 'dadata_apiKey') }
+    { key: 'dadata.apiKey', value: readField(fd, 'dadata_apiKey') },
   ]);
 }

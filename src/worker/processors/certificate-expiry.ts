@@ -13,8 +13,8 @@ async function recipientsForOrg(prisma: PrismaClient, organizationId: string): P
       partnerId: true,
       companyId: true,
       users: { where: { isActive: true }, select: { id: true } },
-      partner: { select: { users: { where: { isActive: true }, select: { id: true } } } }
-    }
+      partner: { select: { users: { where: { isActive: true }, select: { id: true } } } },
+    },
   });
   if (!org) return [];
 
@@ -24,14 +24,14 @@ async function recipientsForOrg(prisma: PrismaClient, organizationId: string): P
 
   const orders = await prisma.order.findMany({
     where: { organizationId, managerId: { not: null } },
-    select: { managerId: true }
+    select: { managerId: true },
   });
   orders.forEach((o) => o.managerId && ids.add(o.managerId));
 
   if (org.companyId) {
     const leaders = await prisma.user.findMany({
       where: { companyId: org.companyId, role: 'manager', managerRole: 'leader', isActive: true },
-      select: { id: true }
+      select: { id: true },
     });
     leaders.forEach((l) => ids.add(l.id));
   }
@@ -54,15 +54,15 @@ export async function runCertificateExpiry(
       validUntil: true,
       number: true,
       student: { select: { name: true } },
-      reminders: { select: { thresholdDays: true } }
-    }
+      reminders: { select: { thresholdDays: true } },
+    },
   });
 
   const due = selectDueReminders(
     certs.map((c) => ({
       id: c.id,
       validUntil: c.validUntil,
-      sentThresholds: c.reminders.map((r) => r.thresholdDays)
+      sentThresholds: c.reminders.map((r) => r.thresholdDays),
     })),
     today
   );
@@ -75,7 +75,7 @@ export async function runCertificateExpiry(
 
     try {
       await prisma.certificateReminder.create({
-        data: { certificateId: cert.id, thresholdDays: d.thresholdDays }
+        data: { certificateId: cert.id, thresholdDays: d.thresholdDays },
       });
     } catch (e) {
       if ((e as { code?: string }).code === 'P2002') continue;
@@ -92,14 +92,14 @@ export async function runCertificateExpiry(
         type: 'certificate_expiring',
         title,
         body,
-        meta: { certificateId: cert.id, thresholdDays: d.thresholdDays }
+        meta: { certificateId: cert.id, thresholdDays: d.thresholdDays },
       });
       await deliverNotificationToUser({
         userId,
         title,
         body,
         type: 'certificate_expiring',
-        dedupKey: row.id
+        dedupKey: row.id,
       });
     }
 

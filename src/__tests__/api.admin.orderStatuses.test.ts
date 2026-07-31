@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { requireSession, requireFieldsAdmin } = vi.hoisted(() => ({
   requireSession: vi.fn(),
-  requireFieldsAdmin: vi.fn()
+  requireFieldsAdmin: vi.fn(),
 }));
 vi.mock('@/lib/auth/guard', () => ({ requireSession, requireFieldsAdmin }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
@@ -17,13 +17,13 @@ const { createStatusDefinition, updateStatusDefinition, deleteStatusDefinition }
   () => ({
     createStatusDefinition: vi.fn(),
     updateStatusDefinition: vi.fn(),
-    deleteStatusDefinition: vi.fn()
+    deleteStatusDefinition: vi.fn(),
   })
 );
 vi.mock('@/lib/services/orderStatuses', () => ({
   createStatusDefinition,
   updateStatusDefinition,
-  deleteStatusDefinition
+  deleteStatusDefinition,
 }));
 
 import { POST } from '@/app/api/admin/order-statuses/route';
@@ -70,7 +70,10 @@ describe('POST /api/admin/order-statuses', () => {
   });
 
   it('менеджеру — ответ гейта настройки', async () => {
-    requireFieldsAdmin.mockReturnValue({ ok: false, response: new Response(null, { status: 403 }) });
+    requireFieldsAdmin.mockReturnValue({
+      ok: false,
+      response: new Response(null, { status: 403 }),
+    });
     const res = await POST(jsonReq({}));
     expect(res.status).toBe(403);
   });
@@ -79,7 +82,7 @@ describe('POST /api/admin/order-statuses', () => {
     for (const [error, status] of [
       ['forbidden', 403],
       ['not_found', 404],
-      ['duplicate_key', 400]
+      ['duplicate_key', 400],
     ] as const) {
       createStatusDefinition.mockResolvedValue({ ok: false, error });
       const res = await POST(jsonReq({ key: 'k', label: 'L' }));
@@ -97,7 +100,7 @@ describe('PATCH /api/admin/order-statuses/[id]', () => {
     expect(updateStatusDefinition).toHaveBeenCalledWith({}, SESSION, 'st1', {
       label: 'Новое',
       sortOrder: 3,
-      isActive: false
+      isActive: false,
     });
   });
 
@@ -118,7 +121,10 @@ describe('PATCH /api/admin/order-statuses/[id]', () => {
     expect((await PATCH(jsonReq({}), ctx)).status).toBe(401);
 
     requireSession.mockResolvedValue({ ok: true, value: SESSION });
-    requireFieldsAdmin.mockReturnValue({ ok: false, response: new Response(null, { status: 403 }) });
+    requireFieldsAdmin.mockReturnValue({
+      ok: false,
+      response: new Response(null, { status: 403 }),
+    });
     expect((await PATCH(jsonReq({}), ctx)).status).toBe(403);
   });
 });
@@ -148,7 +154,10 @@ describe('DELETE /api/admin/order-statuses/[id]', () => {
     expect((await DELETE(new Request('http://x'), ctx)).status).toBe(401);
 
     requireSession.mockResolvedValue({ ok: true, value: SESSION });
-    requireFieldsAdmin.mockReturnValue({ ok: false, response: new Response(null, { status: 403 }) });
+    requireFieldsAdmin.mockReturnValue({
+      ok: false,
+      response: new Response(null, { status: 403 }),
+    });
     expect((await DELETE(new Request('http://x'), ctx)).status).toBe(403);
   });
 });

@@ -22,7 +22,9 @@ import type { SyncJobPayload } from '@/lib/jobs/types';
 // best-effort try/catch tail (the residual uncovered branch in every sync-*).
 const { capturePendingSkips, replayPendingRecords } = vi.hoisted(() => ({
   capturePendingSkips: vi.fn().mockResolvedValue(undefined),
-  replayPendingRecords: vi.fn().mockResolvedValue({ resolved: 0, deadLettered: 0, stillPending: 0 }),
+  replayPendingRecords: vi
+    .fn()
+    .mockResolvedValue({ resolved: 0, deadLettered: 0, stillPending: 0 }),
 }));
 vi.mock('@/lib/services/oneCSync/pending', () => ({
   capturePendingSkips,
@@ -35,17 +37,25 @@ vi.mock('@/lib/services/oneCSync/pending', () => ({
 // (order/payment CREATE + status-change UPDATE) call them via the barrel, and running
 // live mode here would otherwise hit the real fan-out. Best-effort try/catch in the
 // writers means even a stub is safe, but neutralising them keeps the tests hermetic.
-const { createNotification, deliverNotificationToUser, notifyOrgUsers, notifyManagers } = vi.hoisted(() => ({
-  createNotification: vi.fn().mockResolvedValue({ id: 'notif-1' }),
-  deliverNotificationToUser: vi.fn().mockResolvedValue({}),
-  notifyOrgUsers: vi.fn().mockResolvedValue(undefined),
-  notifyManagers: vi.fn().mockResolvedValue(undefined),
+const { createNotification, deliverNotificationToUser, notifyOrgUsers, notifyManagers } =
+  vi.hoisted(() => ({
+    createNotification: vi.fn().mockResolvedValue({ id: 'notif-1' }),
+    deliverNotificationToUser: vi.fn().mockResolvedValue({}),
+    notifyOrgUsers: vi.fn().mockResolvedValue(undefined),
+    notifyManagers: vi.fn().mockResolvedValue(undefined),
+  }));
+vi.mock('@/lib/notifications', () => ({
+  createNotification,
+  deliverNotificationToUser,
+  notifyOrgUsers,
+  notifyManagers,
 }));
-vi.mock('@/lib/notifications', () => ({ createNotification, deliverNotificationToUser, notifyOrgUsers, notifyManagers }));
 
 // resolveAutoManager runs in the order CREATE path (best-effort). Stub it so no
 // real manager-distribution query executes against the mock db.
-const { resolveAutoManager } = vi.hoisted(() => ({ resolveAutoManager: vi.fn().mockResolvedValue(null) }));
+const { resolveAutoManager } = vi.hoisted(() => ({
+  resolveAutoManager: vi.fn().mockResolvedValue(null),
+}));
 vi.mock('@/lib/services/manager/distribution', () => ({ resolveAutoManager }));
 
 // db barrel used by the BullMQ wrapper certificateExpiryProcessor(); a mock prisma
@@ -60,9 +70,15 @@ import { syncOrdersProcessor } from '@/worker/processors/sync-orders';
 import { syncOrganizationsProcessor } from '@/worker/processors/sync-organizations';
 import { syncPaymentsProcessor } from '@/worker/processors/sync-payments';
 import { resetOneCAdapter } from '@/lib/services/oneCSync';
-import { runCertificateExpiry, certificateExpiryProcessor } from '@/worker/processors/certificate-expiry';
+import {
+  runCertificateExpiry,
+  certificateExpiryProcessor,
+} from '@/worker/processors/certificate-expiry';
 
-const job = { id: 'cov-1', data: { triggeredAt: '2026-05-01T00:00:00Z', reason: 'manual' as const } } as Job<SyncJobPayload>;
+const job = {
+  id: 'cov-1',
+  data: { triggeredAt: '2026-05-01T00:00:00Z', reason: 'manual' as const },
+} as Job<SyncJobPayload>;
 
 // Mock fetchAndStore1CDocument + scan queue so the sync-documents live CREATE path
 // (writers.ts) never touches S3 or Redis. Mirrors worker.sync-documents.shadow.test.ts.
@@ -103,9 +119,20 @@ withLiveMode('syncDocumentsProcessor pending capture failure (live mode)', async
   const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   const syncLogCreate = vi.fn().mockResolvedValue({});
   const db = {
-    syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert: vi.fn().mockResolvedValue({}) },
-    order: { findUnique: vi.fn().mockResolvedValue({ id: 'o1', organizationId: null, orderNumber: 'N', title: 'T' }) },
-    document: { findUnique: vi.fn().mockResolvedValue({ id: 'doc-existing' }), create: vi.fn(), update: vi.fn().mockResolvedValue({}) },
+    syncState: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({}),
+    },
+    order: {
+      findUnique: vi
+        .fn()
+        .mockResolvedValue({ id: 'o1', organizationId: null, orderNumber: 'N', title: 'T' }),
+    },
+    document: {
+      findUnique: vi.fn().mockResolvedValue({ id: 'doc-existing' }),
+      create: vi.fn(),
+      update: vi.fn().mockResolvedValue({}),
+    },
     syncLog: { create: syncLogCreate },
   } as unknown as PrismaClient;
 
@@ -113,7 +140,10 @@ withLiveMode('syncDocumentsProcessor pending capture failure (live mode)', async
 
   // capture threw → catch ran → warn fired with the module-specific prefix.
   expect(capturePendingSkips).toHaveBeenCalled();
-  expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('[sync-document]'), expect.anything());
+  expect(warnSpy).toHaveBeenCalledWith(
+    expect.stringContaining('[sync-document]'),
+    expect.anything()
+  );
   // best-effort: pull did NOT fail — summary returned + success log written.
   expect(result.updated).toBeGreaterThan(0);
   expect(syncLogCreate).toHaveBeenCalled();
@@ -126,9 +156,23 @@ withLiveMode('syncOrdersProcessor pending capture failure (live mode)', async ()
   const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   const syncLogCreate = vi.fn().mockResolvedValue({});
   const db = {
-    syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert: vi.fn().mockResolvedValue({}) },
-    organization: { findFirst: vi.fn().mockResolvedValue({ id: 'org1', partnerId: 'p1', companyId: 'c1', externalId: '1c-org-001' }) },
-    order: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({}), update: vi.fn() },
+    syncState: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({}),
+    },
+    organization: {
+      findFirst: vi.fn().mockResolvedValue({
+        id: 'org1',
+        partnerId: 'p1',
+        companyId: 'c1',
+        externalId: '1c-org-001',
+      }),
+    },
+    order: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({}),
+      update: vi.fn(),
+    },
     syncLog: { create: syncLogCreate },
   } as unknown as PrismaClient;
 
@@ -147,7 +191,10 @@ withLiveMode('syncOrganizationsProcessor pending capture failure (live mode)', a
   const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   const syncLogCreate = vi.fn().mockResolvedValue({});
   const db = {
-    syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert: vi.fn().mockResolvedValue({}) },
+    syncState: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({}),
+    },
     partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p1' }) },
     organization: {
       findUnique: vi.fn().mockResolvedValue({ id: 'org-existing', companyId: 'co1' }),
@@ -159,7 +206,10 @@ withLiveMode('syncOrganizationsProcessor pending capture failure (live mode)', a
   const result = await syncOrganizationsProcessor(job, db);
 
   expect(capturePendingSkips).toHaveBeenCalled();
-  expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('[sync-organization]'), expect.anything());
+  expect(warnSpy).toHaveBeenCalledWith(
+    expect.stringContaining('[sync-organization]'),
+    expect.anything()
+  );
   expect(result.updated).toBeGreaterThan(0);
   expect(syncLogCreate).toHaveBeenCalled();
   warnSpy.mockRestore();
@@ -171,16 +221,30 @@ withLiveMode('syncPaymentsProcessor pending capture failure (live mode)', async 
   const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   const syncLogCreate = vi.fn().mockResolvedValue({});
   const db = {
-    syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert: vi.fn().mockResolvedValue({}) },
-    order: { findUnique: vi.fn().mockResolvedValue({ id: 'o1', organizationId: 'org1', orderNumber: 'N', title: 'T' }) },
-    payment: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({}), update: vi.fn().mockResolvedValue({}) },
+    syncState: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({}),
+    },
+    order: {
+      findUnique: vi
+        .fn()
+        .mockResolvedValue({ id: 'o1', organizationId: 'org1', orderNumber: 'N', title: 'T' }),
+    },
+    payment: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({}),
+      update: vi.fn().mockResolvedValue({}),
+    },
     syncLog: { create: syncLogCreate },
   } as unknown as PrismaClient;
 
   const result = await syncPaymentsProcessor(job, db);
 
   expect(capturePendingSkips).toHaveBeenCalled();
-  expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('[sync-payment]'), expect.anything());
+  expect(warnSpy).toHaveBeenCalledWith(
+    expect.stringContaining('[sync-payment]'),
+    expect.anything()
+  );
   expect(result.created).toBeGreaterThan(0);
   expect(syncLogCreate).toHaveBeenCalled();
   warnSpy.mockRestore();
@@ -221,7 +285,9 @@ describe('runCertificateExpiry — recipient fan-out with partner + managers + l
           partner: { users: [{ id: 'u-partner-1' }] },
         }),
       },
-      order: { findMany: vi.fn().mockResolvedValue([{ managerId: 'u-mgr-1' }, { managerId: null }]) },
+      order: {
+        findMany: vi.fn().mockResolvedValue([{ managerId: 'u-mgr-1' }, { managerId: null }]),
+      },
       user: { findMany: vi.fn().mockResolvedValue([{ id: 'u-leader-1' }]) },
     } as unknown as PrismaClient;
 
@@ -236,7 +302,10 @@ describe('runCertificateExpiry — recipient fan-out with partner + managers + l
     expect(createNotification).toHaveBeenCalledTimes(5);
     expect(deliverNotificationToUser).toHaveBeenCalledTimes(5);
     expect(createNotification).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'certificate_expiring', meta: { certificateId: 'cert-A', thresholdDays: 7 } })
+      expect.objectContaining({
+        type: 'certificate_expiring',
+        meta: { certificateId: 'cert-A', thresholdDays: 7 },
+      })
     );
   });
 });
@@ -261,7 +330,7 @@ describe('runCertificateExpiry — organization not found (branch @ 19)', () => 
     expect(createNotification).not.toHaveBeenCalled();
     expect(deliverNotificationToUser).not.toHaveBeenCalled();
     // order/user lookups short-circuited by the early `return []`.
-    expect((db.order.findMany as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(db.order.findMany as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 });
 
@@ -272,7 +341,9 @@ describe('runCertificateExpiry — reminder create race (branch @ 79, lines 80-8
     const db = {
       certificate: { findMany: vi.fn().mockResolvedValue(due7Certs()) },
       // A concurrent run already inserted the row → unique violation P2002 → `continue`.
-      certificateReminder: { create: vi.fn().mockRejectedValue(Object.assign(new Error('dup'), { code: 'P2002' })) },
+      certificateReminder: {
+        create: vi.fn().mockRejectedValue(Object.assign(new Error('dup'), { code: 'P2002' })),
+      },
       organization: { findUnique: vi.fn() },
       order: { findMany: vi.fn() },
       user: { findMany: vi.fn() },
@@ -283,13 +354,15 @@ describe('runCertificateExpiry — reminder create race (branch @ 79, lines 80-8
     // P2002 → continue → not counted, recipientsForOrg never reached.
     expect(result.remindersSent).toBe(0);
     expect(createNotification).not.toHaveBeenCalled();
-    expect((db.organization.findUnique as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(db.organization.findUnique as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 
   it('re-throws non-P2002 create failures (throw arm)', async () => {
     const db = {
       certificate: { findMany: vi.fn().mockResolvedValue(due7Certs()) },
-      certificateReminder: { create: vi.fn().mockRejectedValue(Object.assign(new Error('boom'), { code: 'P2003' })) },
+      certificateReminder: {
+        create: vi.fn().mockRejectedValue(Object.assign(new Error('boom'), { code: 'P2003' })),
+      },
       organization: { findUnique: vi.fn() },
       order: { findMany: vi.fn() },
       user: { findMany: vi.fn() },

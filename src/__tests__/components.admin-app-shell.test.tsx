@@ -7,17 +7,28 @@ vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/admin/dashboard' }));
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
-    React.createElement('a', { href, className }, children)
+  default: ({
+    href,
+    children,
+    className,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => React.createElement('a', { href, className }, children),
 }));
 
 vi.mock('@/components/ui', () => ({
-  LogoutButton: () => React.createElement('button', null, 'Выйти')
+  LogoutButton: () => React.createElement('button', null, 'Выйти'),
 }));
 
 vi.mock('@/components/notifications/notification-bell', () => ({
   NotificationBell: (props: { role: string }) =>
-    React.createElement('span', { 'data-testid': 'notification-bell', 'data-role': props.role }, '🔔')
+    React.createElement(
+      'span',
+      { 'data-testid': 'notification-bell', 'data-role': props.role },
+      '🔔'
+    ),
 }));
 
 import { AdminAppShell } from '@/components/admin/admin-app-shell';
@@ -30,7 +41,9 @@ describe('AdminAppShell', () => {
   it('renders the admin email, sidebar, and children after requireAdmin resolves', async () => {
     requireAdmin.mockResolvedValue({ userId: 'u1', role: 'admin', email: 'admin@example.com' });
 
-    const el = await AdminAppShell({ children: React.createElement('p', null, 'дочерний контент') });
+    const el = await AdminAppShell({
+      children: React.createElement('p', null, 'дочерний контент'),
+    });
     const html = renderToString(el);
 
     expect(html).toContain('admin@example.com');

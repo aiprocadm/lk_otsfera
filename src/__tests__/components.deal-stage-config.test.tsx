@@ -9,20 +9,48 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 const { createDealStageAction, updateDealStageAction, deleteDealStageAction } = vi.hoisted(() => ({
   createDealStageAction: vi.fn(),
   updateDealStageAction: vi.fn(),
-  deleteDealStageAction: vi.fn()
+  deleteDealStageAction: vi.fn(),
 }));
-vi.mock('@/server-actions/deals', () => ({ createDealStageAction, updateDealStageAction, deleteDealStageAction }));
+vi.mock('@/server-actions/deals', () => ({
+  createDealStageAction,
+  updateDealStageAction,
+  deleteDealStageAction,
+}));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { DealStageConfig } from '@/components/deals/deal-stage-config';
 import type { DealStageView } from '@/lib/services/deals/stages';
 
 const stages: DealStageView[] = [
-  { id: 's-1', name: 'Первый контакт', position: 0, statusAnchor: 'open', isTerminal: false, color: null },
-  { id: 's-2', name: 'Победа', position: 1, statusAnchor: 'won', isTerminal: true, color: '#22C55E' },
-  { id: 's-3', name: 'Поражение', position: 2, statusAnchor: 'lost', isTerminal: true, color: null }
+  {
+    id: 's-1',
+    name: 'Первый контакт',
+    position: 0,
+    statusAnchor: 'open',
+    isTerminal: false,
+    color: null,
+  },
+  {
+    id: 's-2',
+    name: 'Победа',
+    position: 1,
+    statusAnchor: 'won',
+    isTerminal: true,
+    color: '#22C55E',
+  },
+  {
+    id: 's-3',
+    name: 'Поражение',
+    position: 2,
+    statusAnchor: 'lost',
+    isTerminal: true,
+    color: null,
+  },
 ];
 
 function rowOf(name: string): HTMLElement {
@@ -62,7 +90,14 @@ describe('DealStageConfig', () => {
       // Якоря когда-нибудь расширят. Таблица обязана показать сырое значение,
       // а не пустоту — иначе настройщик не поймёт, что за стадия перед ним.
       const withUnknown: DealStageView[] = [
-        { id: 's-x', name: 'Заморожена', position: 3, statusAnchor: 'on_hold' as never, isTerminal: false, color: null }
+        {
+          id: 's-x',
+          name: 'Заморожена',
+          position: 3,
+          statusAnchor: 'on_hold' as never,
+          isTerminal: false,
+          color: null,
+        },
       ];
       render(React.createElement(DealStageConfig, { stages: withUnknown, isDefault: false }));
       expect(within(rowOf('Заморожена')).getByText('on_hold')).toBeTruthy();
@@ -92,13 +127,17 @@ describe('DealStageConfig', () => {
       expect(await screen.findByText('Новая стадия')).toBeTruthy();
 
       // Якоря-подписи в селекте
-      const anchor = screen.getByLabelText('Якорь статуса (переход lifecycle)') as HTMLSelectElement;
+      const anchor = screen.getByLabelText(
+        'Якорь статуса (переход lifecycle)'
+      ) as HTMLSelectElement;
       const labels = Array.from(anchor.options).map((o) => o.textContent);
       expect(labels).toEqual(['В работе', 'Выиграна', 'Проиграна']);
       expect(anchor.value).toBe('open');
 
       fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'Переговоры' } });
-      fireEvent.change(screen.getByLabelText('Позиция (порядок колонки)'), { target: { value: '5' } });
+      fireEvent.change(screen.getByLabelText('Позиция (порядок колонки)'), {
+        target: { value: '5' },
+      });
       fireEvent.change(anchor, { target: { value: 'won' } });
       fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
 
@@ -121,7 +160,9 @@ describe('DealStageConfig', () => {
       fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'Дубль' } });
       fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
 
-      await waitFor(() => expect(toastError).toHaveBeenCalledWith('Позиция уже занята другим этапом.'));
+      await waitFor(() =>
+        expect(toastError).toHaveBeenCalledWith('Позиция уже занята другим этапом.')
+      );
       expect(refresh).not.toHaveBeenCalled();
     });
   });
@@ -134,8 +175,12 @@ describe('DealStageConfig', () => {
       expect(await screen.findByText('Изменить стадию')).toBeTruthy();
 
       expect((screen.getByLabelText('Название') as HTMLInputElement).value).toBe('Победа');
-      expect((screen.getByLabelText('Позиция (порядок колонки)') as HTMLInputElement).value).toBe('1');
-      expect((screen.getByLabelText('Якорь статуса (переход lifecycle)') as HTMLSelectElement).value).toBe('won');
+      expect((screen.getByLabelText('Позиция (порядок колонки)') as HTMLInputElement).value).toBe(
+        '1'
+      );
+      expect(
+        (screen.getByLabelText('Якорь статуса (переход lifecycle)') as HTMLSelectElement).value
+      ).toBe('won');
       const terminal = document.querySelector('input[name="isTerminal"]') as HTMLInputElement;
       expect(terminal.checked).toBe(true);
 
@@ -170,7 +215,9 @@ describe('DealStageConfig', () => {
       await screen.findByText('Изменить стадию');
 
       fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
-      await waitFor(() => expect(toastError).toHaveBeenCalledWith('Позиция уже занята другим этапом.'));
+      await waitFor(() =>
+        expect(toastError).toHaveBeenCalledWith('Позиция уже занята другим этапом.')
+      );
       expect(refresh).not.toHaveBeenCalled();
     });
   });

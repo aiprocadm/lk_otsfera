@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import * as React from 'react';
-import { prisma } from '@/lib/db/prisma';
 import bcrypt from 'bcryptjs';
+import { prisma } from '@/lib/db/prisma';
 import { signToken, signTwoFactorPendingToken } from '@/lib/auth/jwt';
 import { buildSessionClaims } from '@/lib/auth/buildSessionClaims';
 import { isRateLimited } from '@/lib/rateLimit';
@@ -12,7 +12,7 @@ import { send } from '@/lib/email/send';
 import {
   TwoFactorCodeTemplate,
   twoFactorCodeSubject,
-  twoFactorCodeText
+  twoFactorCodeText,
 } from '@/lib/email/templates/two-factor-code';
 import { recordAudit } from '@/lib/auth/audit';
 import { log } from '@/lib/logging';
@@ -28,7 +28,7 @@ const DUMMY_BCRYPT_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZd
 
 const loginSchema = z.object({
   email: z.string().email().max(254),
-  password: z.string().min(1).max(256)
+  password: z.string().min(1).max(256),
 });
 
 const WINDOW_MS = Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS ?? 60_000);
@@ -60,12 +60,18 @@ export async function POST(req: Request) {
   try {
     payload = await req.json();
   } catch {
-    return NextResponse.json({ code: 'INVALID_REQUEST', message: 'Invalid request' }, { status: 400 });
+    return NextResponse.json(
+      { code: 'INVALID_REQUEST', message: 'Invalid request' },
+      { status: 400 }
+    );
   }
 
   const parsed = loginSchema.safeParse(payload);
   if (!parsed.success) {
-    return NextResponse.json({ code: 'INVALID_REQUEST', message: 'Invalid request' }, { status: 400 });
+    return NextResponse.json(
+      { code: 'INVALID_REQUEST', message: 'Invalid request' },
+      { status: 400 }
+    );
   }
 
   const { email, password } = parsed.data;
@@ -83,12 +89,18 @@ export async function POST(req: Request) {
   const ok = await bcrypt.compare(password, hashToCompare);
 
   if (!user || !ok) {
-    return NextResponse.json({ code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' }, { status: 401 });
+    return NextResponse.json(
+      { code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' },
+      { status: 401 }
+    );
   }
 
   const built = await buildSessionClaims(prisma, user);
   if (!built.ok) {
-    return NextResponse.json({ code: 'ACCOUNT_DEACTIVATED', message: 'Account deactivated' }, { status: 403 });
+    return NextResponse.json(
+      { code: 'ACCOUNT_DEACTIVATED', message: 'Account deactivated' },
+      { status: 403 }
+    );
   }
 
   // Staff 2FA (спека 2026-07-11): для сотрудников при включённом флаге сессия
@@ -102,8 +114,10 @@ export async function POST(req: Request) {
       await send({
         to: user.email,
         subject: twoFactorCodeSubject(),
-        html: await renderHtml(React.createElement(TwoFactorCodeTemplate, { name: user.name, code })),
-        text: twoFactorCodeText({ name: user.name, code })
+        html: await renderHtml(
+          React.createElement(TwoFactorCodeTemplate, { name: user.name, code })
+        ),
+        text: twoFactorCodeText({ name: user.name, code }),
       });
     } catch (err) {
       // Без письма войти нельзя — честная ошибка вместо тихого проглота
@@ -111,15 +125,18 @@ export async function POST(req: Request) {
       await prisma.twoFactorChallenge.delete({ where: { userId: user.id } }).catch(() => {});
       log.error('[auth/login] 2fa email send failed', {
         userId: user.id,
-        error: err instanceof Error ? err.message : String(err)
+        error: err instanceof Error ? err.message : String(err),
       });
-      return NextResponse.json({ code: 'EMAIL_SEND_FAILED', message: 'Failed to send the code' }, { status: 502 });
+      return NextResponse.json(
+        { code: 'EMAIL_SEND_FAILED', message: 'Failed to send the code' },
+        { status: 502 }
+      );
     }
     await recordAudit(prisma, {
       action: '2fa_code_sent',
       entity: 'auth_2fa',
       entityId: user.id,
-      userId: user.id
+      userId: user.id,
     }).catch(() => {});
     const pending = await signTwoFactorPendingToken(user.id);
     const res = NextResponse.json({ ok: true, twoFactorRequired: true });
@@ -128,14 +145,16 @@ export async function POST(req: Request) {
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
       path: '/',
-      maxAge: 600
+      maxAge: 600,
     });
     return res;
   }
 
   // Этап 9 (ФТ-11.3): отметка входа. Best-effort (§3) — сбой апдейта не должен
   // лишать пользователя сессии, которую он уже заслужил верным паролем.
-  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch(() => {});
+  await prisma.user
+    .update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
+    .catch(() => {});
 
   const token = await signToken(built.claims);
 
@@ -148,7 +167,7 @@ export async function POST(req: Request) {
     // Align the cookie lifetime with the 7d JWT expiry. Without maxAge this is a
     // session cookie (cleared on browser close), so the effective session
     // lifetime diverged from the token it carries.
-    maxAge: 60 * 60 * 24 * 7
+    maxAge: 60 * 60 * 24 * 7,
   });
   return res;
 }

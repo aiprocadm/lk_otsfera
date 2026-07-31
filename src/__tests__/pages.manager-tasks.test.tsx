@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import ManagerTasksPage from '@/app/manager/tasks/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
@@ -13,7 +14,7 @@ vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
 const { listTaskBoard, getTaskFormOptions } = vi.hoisted(() => ({
   listTaskBoard: vi.fn(),
-  getTaskFormOptions: vi.fn()
+  getTaskFormOptions: vi.fn(),
 }));
 vi.mock('@/lib/services/tasks/board', () => ({ listTaskBoard, getTaskFormOptions }));
 
@@ -21,7 +22,7 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -32,21 +33,28 @@ vi.mock('@/components/tasks/task-board', () => ({
       { 'data-testid': 'task-board' },
       JSON.stringify(props.board),
       JSON.stringify(props.options)
-    )
+    ),
 }));
 
 vi.mock('@/components/tasks/task-list', () => ({
-  TaskList: () => React.createElement('div', { 'data-testid': 'task-list' })
+  TaskList: () => React.createElement('div', { 'data-testid': 'task-list' }),
 }));
 
 vi.mock('@/components/tasks/tasks-toolbar', () => ({
   TasksToolbar: (props: { state: unknown; assigneeOptions: unknown }) =>
-    React.createElement('div', { 'data-testid': 'tasks-toolbar' }, JSON.stringify(props.assigneeOptions))
+    React.createElement(
+      'div',
+      { 'data-testid': 'tasks-toolbar' },
+      JSON.stringify(props.assigneeOptions)
+    ),
 }));
 
-import ManagerTasksPage from '@/app/manager/tasks/page';
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 
 function sp(params: Record<string, string> = {}) {
   return { searchParams: Promise.resolve(params) };

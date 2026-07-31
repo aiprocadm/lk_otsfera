@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   normalizeName,
   suggestScanMatch,
-  suggestScanMatches
+  suggestScanMatches,
 } from '@/lib/orders/certificateScanMatch';
 
 /**
@@ -13,7 +13,7 @@ import {
 
 const TARGETS = [
   { itemId: 'i1', studentName: 'Иванов Иван Иванович' },
-  { itemId: 'i2', studentName: 'Петрова Анна Сергеевна' }
+  { itemId: 'i2', studentName: 'Петрова Анна Сергеевна' },
 ];
 
 describe('normalizeName', () => {
@@ -45,7 +45,7 @@ describe('suggestScanMatch', () => {
   it('две однофамилицы → ambiguous, ничего не подставляем', () => {
     const m = suggestScanMatch('Иванов.pdf', [
       { itemId: 'a', studentName: 'Иванов Иван' },
-      { itemId: 'b', studentName: 'Иванов Пётр' }
+      { itemId: 'b', studentName: 'Иванов Пётр' },
     ]);
     expect(m).toEqual({ fileName: 'Иванов.pdf', suggestedItemId: null, ambiguous: true });
   });

@@ -16,14 +16,14 @@ export default async function AdminCommissionCorrectionsPage() {
     commissionAmount: r.commissionAmount.toString(),
     rate: r.rate.toString(),
     originalPeriodFrom: r.originalPeriodFrom.toISOString(),
-    originalPeriodTo: r.originalPeriodTo.toISOString()
+    originalPeriodTo: r.originalPeriodTo.toISOString(),
   }));
 
   return (
-    <div className='space-y-6'>
+    <div className="space-y-6">
       <div>
-        <h1 className='text-2xl font-bold text-[#111111]'>Корректировки комиссии</h1>
-        <p className='text-sm text-gray-500 mt-0.5'>
+        <h1 className="text-2xl font-bold text-[#111111]">Корректировки комиссии</h1>
+        <p className="text-sm text-gray-500 mt-0.5">
           Поздние возвраты в закрытые периоды — требуют решения (§9.5).
         </p>
       </div>

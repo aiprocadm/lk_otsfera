@@ -25,7 +25,7 @@ function formatTime(createdAt: string | Date): string {
 
 export function ChatThreadView({
   messages,
-  currentUserId
+  currentUserId,
 }: {
   messages: ChatMessageVM[];
   currentUserId: string;
@@ -44,7 +44,7 @@ export function ChatThreadView({
         display: 'flex',
         flexDirection: 'column',
         gap: '12px',
-        padding: '16px'
+        padding: '16px',
       }}
     >
       {messages.map((msg) => {
@@ -56,7 +56,7 @@ export function ChatThreadView({
             style={{
               display: 'flex',
               flexDirection: 'column',
-              alignItems: isMine ? 'flex-end' : 'flex-start'
+              alignItems: isMine ? 'flex-end' : 'flex-start',
             }}
           >
             {!isMine && (
@@ -65,7 +65,7 @@ export function ChatThreadView({
                   fontSize: '12px',
                   color: '#6B7280',
                   marginBottom: '4px',
-                  fontWeight: 500
+                  fontWeight: 500,
                 }}
               >
                 {msg.authorName}
@@ -80,7 +80,7 @@ export function ChatThreadView({
                 color: isMine ? '#ffffff' : '#111111',
                 fontSize: '14px',
                 lineHeight: '1.5',
-                wordBreak: 'break-word'
+                wordBreak: 'break-word',
               }}
             >
               <p style={{ margin: 0 }}>{msg.body}</p>
@@ -92,7 +92,7 @@ export function ChatThreadView({
                     marginTop: '6px',
                     fontSize: '12px',
                     color: isMine ? 'rgba(255,255,255,0.85)' : '#F97316',
-                    textDecoration: 'underline'
+                    textDecoration: 'underline',
                   }}
                 >
                   📎 вложение
@@ -103,7 +103,7 @@ export function ChatThreadView({
               style={{
                 fontSize: '11px',
                 color: '#9CA3AF',
-                marginTop: '4px'
+                marginTop: '4px',
               }}
             >
               {formatTime(msg.createdAt)}

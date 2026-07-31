@@ -26,8 +26,8 @@ export async function GET(request: Request) {
       from: fromStr ? new Date(fromStr) : undefined,
       to: toStr ? new Date(toStr) : undefined,
       skip,
-      take
-    })
+      take,
+    }),
   ]);
 
   return NextResponse.json({ kpis, statements });

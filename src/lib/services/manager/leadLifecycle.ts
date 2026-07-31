@@ -17,21 +17,29 @@ import { getInitialStatusId } from '@/lib/services/orderStatuses';
 const ALLOWED_STATUS: Record<string, LeadStatus[]> = {
   new: ['in_review'],
   in_review: ['new', 'qualified'],
-  qualified: ['in_review']
+  qualified: ['in_review'],
 };
 
 async function loadLead(prisma: PrismaClient, leadId: string) {
   return prisma.lead.findUnique({
     where: { id: leadId },
-    select: { id: true, status: true, partnerId: true, organizationId: true, clientCompanyName: true, subject: true, estimatedAmount: true, promotedOrderId: true }
+    select: {
+      id: true,
+      status: true,
+      partnerId: true,
+      organizationId: true,
+      clientCompanyName: true,
+      subject: true,
+      estimatedAmount: true,
+      promotedOrderId: true,
+    },
   });
 }
 
 // Generic по union кодов ошибок: `invalid_manager` возможен только в assignLead
 // (проверка кандидата при передаче лида) и не «протекает» в setLeadStatus/rejectLead.
 type LeadResult<E extends string = 'not_found' | 'lifecycle_violation'> =
-  | { ok: true; lead: Lead }
-  | { ok: false; error: E };
+  { ok: true; lead: Lead } | { ok: false; error: E };
 
 /**
  * Claim/assign a lead to a manager. From `new`, also advances to `in_review`.
@@ -52,7 +60,7 @@ export async function assignLead(
   if (assignee !== args.managerId) {
     const candidate = await prisma.user.findUnique({
       where: { id: assignee },
-      select: { role: true, isActive: true }
+      select: { role: true, isActive: true },
     });
     if (!candidate || candidate.role !== 'manager' || !candidate.isActive) {
       return { ok: false, error: 'invalid_manager' };
@@ -60,11 +68,17 @@ export async function assignLead(
   }
   const updated = await prisma.lead.update({
     where: { id: lead.id },
-    data: { assignedManagerId: assignee, ...(lead.status === 'new' ? { status: 'in_review' as LeadStatus } : {}) }
+    data: {
+      assignedManagerId: assignee,
+      ...(lead.status === 'new' ? { status: 'in_review' as LeadStatus } : {}),
+    },
   });
   await recordAudit(prisma, {
-    userId: args.managerId, action: 'lead_assigned', entity: 'lead', entityId: lead.id,
-    after: { assignedManagerId: assignee, status: updated.status }
+    userId: args.managerId,
+    action: 'lead_assigned',
+    entity: 'lead',
+    entityId: lead.id,
+    after: { assignedManagerId: assignee, status: updated.status },
   });
   return { ok: true, lead: updated };
 }
@@ -80,10 +94,16 @@ export async function setLeadStatus(
   if (!allowed.includes(args.status)) {
     return { ok: false, error: 'lifecycle_violation' };
   }
-  const updated = await prisma.lead.update({ where: { id: lead.id }, data: { status: args.status } });
+  const updated = await prisma.lead.update({
+    where: { id: lead.id },
+    data: { status: args.status },
+  });
   await recordAudit(prisma, {
-    userId: args.managerId, action: 'lead_status_changed', entity: 'lead', entityId: lead.id,
-    after: { from: lead.status, to: args.status }
+    userId: args.managerId,
+    action: 'lead_status_changed',
+    entity: 'lead',
+    entityId: lead.id,
+    after: { from: lead.status, to: args.status },
   });
   return { ok: true, lead: updated };
 }
@@ -99,8 +119,7 @@ export async function promoteLead(
   prisma: PrismaClient,
   args: { leadId: string; managerId: string }
 ): Promise<
-  | { ok: true; order: Order; lead: Lead }
-  | { ok: false; error: 'not_found' | 'lifecycle_violation' }
+  { ok: true; order: Order; lead: Lead } | { ok: false; error: 'not_found' | 'lifecycle_violation' }
 > {
   const lead = await loadLead(prisma, args.leadId);
   if (!lead) return { ok: false, error: 'not_found' };
@@ -113,7 +132,10 @@ export async function promoteLead(
   if (!lead.organizationId) {
     return { ok: false, error: 'lifecycle_violation' };
   }
-  const org = await prisma.organization.findUnique({ where: { id: lead.organizationId }, select: { companyId: true } });
+  const org = await prisma.organization.findUnique({
+    where: { id: lead.organizationId },
+    select: { companyId: true },
+  });
   const companyId = org?.companyId;
   if (!companyId) {
     return { ok: false, error: 'lifecycle_violation' };
@@ -133,19 +155,22 @@ export async function promoteLead(
         managerId: args.managerId,
         totalAmount: lead.estimatedAmount ?? 0,
         executionStatus: 'pending',
-        financialStatus: 'not_billed'
-      }
+        financialStatus: 'not_billed',
+      },
     });
     const updatedLead = await tx.lead.update({
       where: { id: lead.id },
-      data: { status: 'promoted_to_order', promotedOrderId: order.id }
+      data: { status: 'promoted_to_order', promotedOrderId: order.id },
     });
     return { order, updatedLead };
   });
 
   await recordAudit(prisma, {
-    userId: args.managerId, action: 'lead_promoted_to_order', entity: 'lead', entityId: lead.id,
-    after: { orderId: order.id, organizationId: lead.organizationId }
+    userId: args.managerId,
+    action: 'lead_promoted_to_order',
+    entity: 'lead',
+    entityId: lead.id,
+    after: { orderId: order.id, organizationId: lead.organizationId },
   });
   return { ok: true, order, lead: updatedLead };
 }
@@ -160,11 +185,14 @@ export async function rejectLead(
   if (lead.status === 'promoted_to_order') return { ok: false, error: 'lifecycle_violation' };
   const updated = await prisma.lead.update({
     where: { id: lead.id },
-    data: { status: 'rejected', rejectedReason: args.reason.trim() || 'Отклонён менеджером' }
+    data: { status: 'rejected', rejectedReason: args.reason.trim() || 'Отклонён менеджером' },
   });
   await recordAudit(prisma, {
-    userId: args.managerId, action: 'lead_rejected', entity: 'lead', entityId: lead.id,
-    after: { reason: updated.rejectedReason }
+    userId: args.managerId,
+    action: 'lead_rejected',
+    entity: 'lead',
+    entityId: lead.id,
+    after: { reason: updated.rejectedReason },
   });
   return { ok: true, lead: updated };
 }

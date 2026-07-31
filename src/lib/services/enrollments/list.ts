@@ -54,7 +54,9 @@ export function scopeWhere(session: SessionPayload): Prisma.EnrollmentRequestWhe
   if (canReviewEnrollments(session)) return {};
   if (session.role === 'partner') return { partnerId: session.partnerId ?? '__none__' };
   if (session.role === 'organization') {
-    const ids = (session.organizationMemberships ?? []).filter((m) => m.isActive).map((m) => m.organizationId);
+    const ids = (session.organizationMemberships ?? [])
+      .filter((m) => m.isActive)
+      .map((m) => m.organizationId);
     return { OR: [{ organizationId: { in: ids } }, { submittedByUserId: session.sub }] };
   }
   return { submittedByUserId: session.sub };
@@ -74,8 +76,8 @@ export async function listEnrollmentRequests(
         { direction: { name: { contains: opts.search, mode: 'insensitive' } } },
         { legacyCourseTitle: { contains: opts.search, mode: 'insensitive' } },
         { items: { some: { fullName: { contains: opts.search, mode: 'insensitive' } } } },
-        { items: { some: { email: { contains: opts.search, mode: 'insensitive' } } } }
-      ]
+        { items: { some: { email: { contains: opts.search, mode: 'insensitive' } } } },
+      ],
     });
   }
 
@@ -101,10 +103,10 @@ export async function listEnrollmentRequests(
           birthDate: true,
           extra: true,
           status: true,
-          externalStudentId: true
-        }
-      }
-    }
+          externalStudentId: true,
+        },
+      },
+    },
   });
 
   const hasMore = rows.length > take;
@@ -114,7 +116,7 @@ export async function listEnrollmentRequests(
     session,
     context: 'enrollments_list',
     subjectIds: page.map((r) => r.id),
-    meta: { take, cursor: opts.cursor !== undefined }
+    meta: { take, cursor: opts.cursor !== undefined },
   });
 
   return {
@@ -133,8 +135,8 @@ export async function listEnrollmentRequests(
       rejectedReason: r.rejectedReason,
       note: r.note,
       createdAt: r.createdAt,
-      reviewedAt: r.reviewedAt
+      reviewedAt: r.reviewedAt,
     })),
-    nextCursor: hasMore ? page[page.length - 1]!.id : null
+    nextCursor: hasMore ? page[page.length - 1]!.id : null,
   };
 }

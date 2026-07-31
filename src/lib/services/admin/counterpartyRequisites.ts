@@ -1,5 +1,5 @@
-import type { PrismaClient } from '@prisma/client';
 import { Prisma } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { validateRequisites, type RequisitesInput } from '@/lib/requisites/validate';
@@ -10,7 +10,9 @@ import { validateRequisites, type RequisitesInput } from '@/lib/requisites/valid
  * что у самообслуживания; ИНН-дубль → понятная валидация (@unique).
  */
 
-type SetResult = { ok: true } | { ok: false; error: 'forbidden' | 'not_found' | 'validation'; messages?: string[] };
+type SetResult =
+  | { ok: true }
+  | { ok: false; error: 'forbidden' | 'not_found' | 'validation'; messages?: string[] };
 
 const REQ_SELECT = {
   legalName: true,
@@ -24,7 +26,7 @@ const REQ_SELECT = {
   bic: true,
   signerName: true,
   signerPosition: true,
-  signerBasis: true
+  signerBasis: true,
 } as const;
 
 export type CounterpartyRequisites = { [K in keyof typeof REQ_SELECT]: string | null };
@@ -58,13 +60,20 @@ export async function setOrgRequisitesByAdmin(
   if (!validated.ok) return { ok: false, error: 'validation', messages: validated.errors };
   const v = validated.values;
 
-  const before = await prisma.organization.findUnique({ where: { id: orgId }, select: { id: true } });
+  const before = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { id: true },
+  });
   if (!before) return { ok: false, error: 'not_found' };
   try {
     await prisma.organization.update({ where: { id: orgId }, data: v });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-      return { ok: false, error: 'validation', messages: ['Организация с таким ИНН уже существует'] };
+      return {
+        ok: false,
+        error: 'validation',
+        messages: ['Организация с таким ИНН уже существует'],
+      };
     }
     throw e;
   }
@@ -73,7 +82,13 @@ export async function setOrgRequisitesByAdmin(
     action: 'requisites_changed',
     entity: 'organization',
     entityId: orgId,
-    after: { inn: v.inn, kpp: v.kpp, ogrn: v.ogrn, bic: v.bic, bankAccountTail: v.bankAccount?.slice(-4) ?? null }
+    after: {
+      inn: v.inn,
+      kpp: v.kpp,
+      ogrn: v.ogrn,
+      bic: v.bic,
+      bankAccountTail: v.bankAccount?.slice(-4) ?? null,
+    },
   });
   return { ok: true };
 }
@@ -89,7 +104,10 @@ export async function setPartnerRequisitesByAdmin(
   if (!validated.ok) return { ok: false, error: 'validation', messages: validated.errors };
   const v = validated.values;
 
-  const before = await prisma.partner.findUnique({ where: { id: partnerId }, select: { id: true } });
+  const before = await prisma.partner.findUnique({
+    where: { id: partnerId },
+    select: { id: true },
+  });
   if (!before) return { ok: false, error: 'not_found' };
   try {
     await prisma.partner.update({ where: { id: partnerId }, data: v });
@@ -104,7 +122,13 @@ export async function setPartnerRequisitesByAdmin(
     action: 'requisites_changed',
     entity: 'partner',
     entityId: partnerId,
-    after: { inn: v.inn, kpp: v.kpp, ogrn: v.ogrn, bic: v.bic, bankAccountTail: v.bankAccount?.slice(-4) ?? null }
+    after: {
+      inn: v.inn,
+      kpp: v.kpp,
+      ogrn: v.ogrn,
+      bic: v.bic,
+      bankAccountTail: v.bankAccount?.slice(-4) ?? null,
+    },
   });
   return { ok: true };
 }

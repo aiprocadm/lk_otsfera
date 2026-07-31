@@ -6,9 +6,13 @@ import { useRouter } from 'next/navigation';
 import { Badge, Button } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { claimIntakeAction, closeCallIntakeAction } from '@/server-actions/intake';
-import { CreateLeadFromSourceDialog, type LeadPrefill, type LeadSourceKind } from './create-lead-from-source-dialog';
-import { QuickTaskDialog } from './quick-task-dialog';
 import type { IntakeItem, IntakeSlaLevel, IntakeType } from '@/lib/services/intake/list';
+import {
+  CreateLeadFromSourceDialog,
+  type LeadPrefill,
+  type LeadSourceKind,
+} from './create-lead-from-source-dialog';
+import { QuickTaskDialog } from './quick-task-dialog';
 
 /**
  * Этап 7 (ФТ-8.1/8.2) — таблица «Входящие в работу»: тип, от кого, суть,
@@ -20,7 +24,7 @@ const TYPE_LABEL: Record<IntakeType, string> = {
   client_request: 'Заявка клиента',
   enrollment: 'Заявка на обучение',
   inbound: 'Обращение',
-  call: 'Звонок'
+  call: 'Звонок',
 };
 
 const CLAIM_ERRORS: Record<string, string> = {
@@ -28,7 +32,7 @@ const CLAIM_ERRORS: Record<string, string> = {
   lifecycle_violation: 'Единица уже разобрана.',
   not_found: 'Не найдено или недоступно.',
   forbidden: 'Нет доступа.',
-  validation: 'Некорректный запрос.'
+  validation: 'Некорректный запрос.',
 };
 
 /** Человеческое «сколько ждёт»: минуты → часы → дни. */
@@ -51,7 +55,7 @@ export function sourceHref(type: IntakeType, viewerPrefix: string): string {
 const SLA_CLASS: Record<IntakeSlaLevel, string> = {
   ok: 'text-gray-600',
   warning: 'text-amber-600 font-medium',
-  breach: 'text-red-600 font-semibold'
+  breach: 'text-red-600 font-semibold',
 };
 
 type LeadDialogState = { kind: LeadSourceKind; sourceId: string; prefill: LeadPrefill };
@@ -60,7 +64,7 @@ type TaskDialogState = { title: string; organizationId: string | null };
 export function IntakeTable({
   items,
   viewerPrefix,
-  currentUserId
+  currentUserId,
 }: {
   items: IntakeItem[];
   /** '/manager' | '/leader' | '/admin' — для ссылок «Открыть». */
@@ -73,7 +77,12 @@ export function IntakeTable({
   const [leadDialog, setLeadDialog] = useState<LeadDialogState | null>(null);
   const [taskDialog, setTaskDialog] = useState<TaskDialogState | null>(null);
 
-  async function run(action: (fd: FormData) => Promise<{ ok: boolean; error?: string }>, fd: FormData, okMsg: string, id: string) {
+  async function run(
+    action: (fd: FormData) => Promise<{ ok: boolean; error?: string }>,
+    fd: FormData,
+    okMsg: string,
+    id: string
+  ) {
     setBusyId(id);
     const res = await action(fd);
     setBusyId(null);
@@ -104,7 +113,7 @@ export function IntakeTable({
     const res = await fetch(`/api/client-requests/${item.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'convertToLead' })
+      body: JSON.stringify({ action: 'convertToLead' }),
     });
     setBusyId(null);
     if (!res.ok) {
@@ -121,7 +130,9 @@ export function IntakeTable({
     return (
       <div className="rounded-xl border border-gray-200 p-8 text-center">
         <p className="text-sm font-medium text-[#111111]">Всё разобрано</p>
-        <p className="text-sm text-gray-500 mt-1">Новые заявки, обращения и звонки появятся здесь автоматически.</p>
+        <p className="text-sm text-gray-500 mt-1">
+          Новые заявки, обращения и звонки появятся здесь автоматически.
+        </p>
       </div>
     );
   }
@@ -154,18 +165,29 @@ export function IntakeTable({
                   {waitingLabel(item.waitingMs)}
                 </td>
                 <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">
-                  {item.responsibleName ?? (item.responsibleUserId ? '…' : <span className="text-gray-400">нет</span>)}
+                  {item.responsibleName ??
+                    (item.responsibleUserId ? '…' : <span className="text-gray-400">нет</span>)}
                   {mine && <span className="text-xs text-gray-400"> (вы)</span>}
                 </td>
                 <td className="px-4 py-2.5">
                   <div className="flex flex-wrap gap-1.5">
                     {!item.responsibleUserId && (
-                      <Button size="sm" variant="secondary" disabled={busy} onClick={() => claim(item)}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => claim(item)}
+                      >
                         Взять в работу
                       </Button>
                     )}
                     {item.type === 'client_request' && (
-                      <Button size="sm" variant="secondary" disabled={busy} onClick={() => void convertRequest(item)}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => void convertRequest(item)}
+                      >
                         Создать лид
                       </Button>
                     )}
@@ -178,7 +200,7 @@ export function IntakeTable({
                           setLeadDialog({
                             kind: item.type === 'call' ? 'call' : 'inbound',
                             sourceId: item.id,
-                            prefill: item.leadPrefill!
+                            prefill: item.leadPrefill!,
                           })
                         }
                       >
@@ -189,12 +211,22 @@ export function IntakeTable({
                       size="sm"
                       variant="secondary"
                       disabled={busy}
-                      onClick={() => setTaskDialog({ title: item.taskTitle, organizationId: item.organizationId })}
+                      onClick={() =>
+                        setTaskDialog({
+                          title: item.taskTitle,
+                          organizationId: item.organizationId,
+                        })
+                      }
                     >
                       Задача
                     </Button>
                     {item.type === 'call' && (
-                      <Button size="sm" variant="secondary" disabled={busy} onClick={() => closeCall(item)}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => closeCall(item)}
+                      >
                         Закрыть
                       </Button>
                     )}

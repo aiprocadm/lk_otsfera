@@ -12,13 +12,13 @@ const CHANNELS: { value: string; label: string }[] = [
   { value: 'whatsapp', label: 'WhatsApp' },
   { value: 'email', label: 'Email' },
   // Этап 9 (ФТ-11.1): вопросы из кабинета клиента.
-  { value: 'cabinet', label: 'Из кабинета' }
+  { value: 'cabinet', label: 'Из кабинета' },
 ];
 
 const STATUSES: { value: string; label: string }[] = [
   { value: 'unresolved', label: 'Не распознано' },
   { value: 'bound', label: 'Привязано' },
-  { value: 'archived', label: 'В архиве' }
+  { value: 'archived', label: 'В архиве' },
 ];
 
 function buildHref(channel: string | undefined, status: string | undefined): string {
@@ -33,7 +33,7 @@ function FilterGroup({
   label,
   options,
   active,
-  buildFor
+  buildFor,
 }: {
   label: string;
   options: { value: string; label: string }[];
@@ -47,7 +47,9 @@ function FilterGroup({
         <Link
           href={buildFor(undefined)}
           className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-            !active ? 'bg-[#F97316] text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+            !active
+              ? 'bg-[#F97316] text-white'
+              : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
           }`}
         >
           Все

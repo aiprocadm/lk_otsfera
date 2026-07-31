@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function ManagerOrgDetailPage({
   params,
-  searchParams
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -34,7 +34,9 @@ export default async function ManagerOrgDetailPage({
   );
 
   const rawTab = typeof sp.tab === 'string' ? sp.tab : undefined;
-  const activeTab: OrgCardTab = visibleTabs.some((t) => t.key === rawTab) ? (rawTab as OrgCardTab) : 'history';
+  const activeTab: OrgCardTab = visibleTabs.some((t) => t.key === rawTab)
+    ? (rawTab as OrgCardTab)
+    : 'history';
 
   const session = await requireManagerForOrg(id);
   const card = await getOrganizationCard(prisma, session, id);
@@ -46,9 +48,9 @@ export default async function ManagerOrgDetailPage({
   const customFields = await getFieldsForEntity(prisma, session, 'organization', id);
 
   return (
-    <div className='space-y-5'>
+    <div className="space-y-5">
       <OrgCardTabs card={card} activeTab={activeTab} tabs={visibleTabs} />
-      <EntityCustomFields fields={customFields} entityType='organization' entityId={id} />
+      <EntityCustomFields fields={customFields} entityType="organization" entityId={id} />
     </div>
   );
 }

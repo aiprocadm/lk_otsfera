@@ -9,7 +9,7 @@ import { claimOrderAction } from '@/server-actions/manager/orderAssignment';
 // здесь контекст — самозабор заказа.
 const ERROR_LABELS: Record<string, string> = {
   already_assigned: 'Заказ уже взят другим менеджером',
-  forbidden: 'Нет доступа к этому заказу.'
+  forbidden: 'Нет доступа к этому заказу.',
 };
 
 /**
@@ -19,7 +19,7 @@ const ERROR_LABELS: Record<string, string> = {
  */
 export function ClaimOrderButton({
   orderId,
-  managerId
+  managerId,
 }: {
   orderId: string;
   managerId: string | null;
@@ -28,9 +28,9 @@ export function ClaimOrderButton({
 
   return (
     <ActionToastButton
-      variant='secondary'
-      label='Взять в работу'
-      successText='Заказ закреплён за вами'
+      variant="secondary"
+      label="Взять в работу"
+      successText="Заказ закреплён за вами"
       errorLabels={ERROR_LABELS}
       action={() => claimOrderAction({ orderId })}
     />

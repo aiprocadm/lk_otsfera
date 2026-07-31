@@ -2,7 +2,20 @@
 
 import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Input, Select, Field, Dialog, TableShell, THead, Th, Tr, Td, Badge, EmptyState } from '@/components/ui';
+import {
+  Button,
+  Input,
+  Select,
+  Field,
+  Dialog,
+  TableShell,
+  THead,
+  Th,
+  Tr,
+  Td,
+  Badge,
+  EmptyState,
+} from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
 import type { ScopeLevel, Capability, AccessObjectType } from '@/lib/auth/accessProfile';
@@ -11,13 +24,13 @@ import {
   createAccessProfileAction,
   updateAccessProfileAction,
   deleteAccessProfileAction,
-  assignUserProfileAction
+  assignUserProfileAction,
 } from '@/server-actions/access/profiles';
 
 const SCOPE_OPTIONS: { value: ScopeLevel; label: string }[] = [
   { value: 'own', label: 'Свои' },
   { value: 'assigned', label: 'Закреплённые' },
-  { value: 'all', label: 'Все' }
+  { value: 'all', label: 'Все' },
 ];
 
 const OBJECT_TYPES: { key: AccessObjectType; label: string }[] = [
@@ -27,7 +40,7 @@ const OBJECT_TYPES: { key: AccessObjectType; label: string }[] = [
   { key: 'documents', label: 'Документы' },
   { key: 'finance', label: 'Финансы' },
   { key: 'leads', label: 'Воронка' },
-  { key: 'tasks', label: 'Задачи' }
+  { key: 'tasks', label: 'Задачи' },
 ];
 
 const CAPABILITY_OPTIONS: { value: Capability; label: string }[] = [
@@ -36,7 +49,7 @@ const CAPABILITY_OPTIONS: { value: Capability; label: string }[] = [
   { value: 'export', label: 'Экспорт' },
   { value: 'manage_catalog', label: 'Управление каталогом' },
   { value: 'manage_users', label: 'Управление пользователями' },
-  { value: 'assign_orders', label: 'Распределение заявок' }
+  { value: 'assign_orders', label: 'Распределение заявок' },
 ];
 
 const scopeLabel = (v: ScopeLevel) => SCOPE_OPTIONS.find((o) => o.value === v)?.label ?? v;
@@ -82,7 +95,8 @@ export function RoleEditor({ profiles, users }: Props) {
         <div>
           <h1 className="text-2xl font-bold text-[#111111]">Роли доступа</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Настраиваемые профили прав: охват по типам объектов + возможности. Системные роли не меняются.
+            Настраиваемые профили прав: охват по типам объектов + возможности. Системные роли не
+            меняются.
           </p>
         </div>
         <Button onClick={() => setForm({ mode: 'create' })}>+ Новая роль</Button>
@@ -128,10 +142,19 @@ export function RoleEditor({ profiles, users }: Props) {
                 <Td>{p.usersCount}</Td>
                 <Td>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => setForm({ mode: 'edit', target: p })}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setForm({ mode: 'edit', target: p })}
+                    >
                       Изменить
                     </Button>
-                    <Button size="sm" variant="danger" disabled={isPending} onClick={() => handleDelete(p)}>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      disabled={isPending}
+                      onClick={() => handleDelete(p)}
+                    >
                       Удалить
                     </Button>
                   </div>
@@ -198,7 +221,7 @@ export function RoleEditor({ profiles, users }: Props) {
 function RoleFormDialog({
   target,
   onClose,
-  onSaved
+  onSaved,
 }: {
   target: AccessProfileListRow | null;
   onClose: () => void;
@@ -222,10 +245,23 @@ function RoleFormDialog({
   }
 
   return (
-    <Dialog open onClose={onClose} title={target ? 'Изменить роль' : 'Новая роль'} size="lg" busy={submitting}>
+    <Dialog
+      open
+      onClose={onClose}
+      title={target ? 'Изменить роль' : 'Новая роль'}
+      size="lg"
+      busy={submitting}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field htmlFor="role-name" label="Название роли">
-          <Input id="role-name" name="name" required maxLength={100} defaultValue={target?.name ?? ''} autoFocus />
+          <Input
+            id="role-name"
+            name="name"
+            required
+            maxLength={100}
+            defaultValue={target?.name ?? ''}
+            autoFocus
+          />
         </Field>
 
         <div>

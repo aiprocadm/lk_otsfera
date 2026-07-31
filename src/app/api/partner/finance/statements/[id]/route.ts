@@ -35,7 +35,7 @@ export async function PATCH(request: Request, { params }: Params) {
     const res = await approveStatement(prisma, {
       statementId: id,
       partnerId: guard.value.partnerId,
-      approvedByUserId: guard.value.sub
+      approvedByUserId: guard.value.sub,
     });
     if (!res.ok) {
       const status = res.error === 'not_found' ? 404 : 409;
@@ -50,7 +50,7 @@ export async function PATCH(request: Request, { params }: Params) {
     }
     const res = await markStatementPaid(prisma, {
       statementId: id,
-      paidByUserId: session.sub
+      paidByUserId: session.sub,
     });
     if (!res.ok) {
       const status = res.error === 'not_found' ? 404 : res.error === 'forbidden' ? 403 : 409;

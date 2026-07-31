@@ -3,8 +3,15 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
-    React.createElement('a', { href, className }, children)
+  default: ({
+    href,
+    children,
+    className,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => React.createElement('a', { href, className }, children),
 }));
 
 import { OrgOrdersTable, OrgOrdersCardList } from '@/components/organization/org-orders-table';
@@ -24,7 +31,7 @@ function baseRow(overrides: Partial<OrgOrderRow> = {}): OrgOrderRow {
     createdAt: new Date('2026-01-01'),
     deadline: new Date('2026-02-01'),
     managerName: 'Иванов',
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -47,7 +54,7 @@ describe('OrgOrdersTable', () => {
     const html = renderToString(
       React.createElement(OrgOrdersTable, {
         rows: [baseRow({ debt: '0.00', managerName: null, orderNumber: null, deadline: null })],
-        orgParam: null
+        orgParam: null,
       })
     );
     expect(html).toContain('href="/organization/orders/o1"');
@@ -58,7 +65,9 @@ describe('OrgOrdersTable', () => {
 
 describe('OrgOrdersCardList', () => {
   it('renders null (nothing) when rows is empty', () => {
-    const html = renderToString(React.createElement(OrgOrdersCardList, { rows: [], orgParam: null }));
+    const html = renderToString(
+      React.createElement(OrgOrdersCardList, { rows: [], orgParam: null })
+    );
     expect(html).toBe('');
   });
 
@@ -75,7 +84,7 @@ describe('OrgOrdersCardList', () => {
     const html = renderToString(
       React.createElement(OrgOrdersCardList, {
         rows: [baseRow({ managerName: null })],
-        orgParam: null
+        orgParam: null,
       })
     );
     expect(html).toContain('без менеджера');
@@ -86,7 +95,7 @@ describe('OrgOrdersCardList', () => {
     const html = renderToString(
       React.createElement(OrgOrdersCardList, {
         rows: [baseRow({ orderNumber: null })],
-        orgParam: null
+        orgParam: null,
       })
     );
     expect(html).toContain('Иванов');

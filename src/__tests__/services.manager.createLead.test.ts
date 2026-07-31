@@ -22,18 +22,21 @@ const VALID = {
   companyName: 'ООО Ромашка',
   contactName: 'Иван Иванов',
   contactPhone: '+7 900 000-00-00',
-  subject: 'Обучение'
+  subject: 'Обучение',
 };
 
 function db(over: Record<string, unknown> = {}) {
   const leadCreate = vi
     .fn()
-    .mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'L1', ...data }));
+    .mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
+      id: 'L1',
+      ...data,
+    }));
   const orgFindUnique = vi.fn().mockResolvedValue({ companyId: 'c1' });
   const prisma = {
     lead: { create: leadCreate },
     organization: { findUnique: orgFindUnique },
-    ...over
+    ...over,
   };
   return { prisma: prisma as never, leadCreate, orgFindUnique };
 }
@@ -50,7 +53,7 @@ describe('createLeadByStaff — RBAC', () => {
     for (const role of ['partner', 'organization', 'student'] as const) {
       expect(await createLeadByStaff(prisma, { sub: 'x', role } as SessionPayload, VALID)).toEqual({
         ok: false,
-        error: 'forbidden'
+        error: 'forbidden',
       });
     }
     expect(leadCreate).not.toHaveBeenCalled();
@@ -69,7 +72,7 @@ describe('createLeadByStaff — validation', () => {
       'Укажите название компании',
       'Укажите контактное лицо',
       'Укажите тему обращения',
-      'Укажите телефон или email для связи'
+      'Укажите телефон или email для связи',
     ]);
   });
 
@@ -88,17 +91,17 @@ describe('createLeadByStaff — организация', () => {
     expect(await createLeadByStaff(prisma, MANAGER, { ...VALID, organizationId: 'oX' })).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['Организация не найдена']
+      messages: ['Организация не найдена'],
     });
   });
 
   it('чужая компания для manager → forbidden', async () => {
     const { prisma, leadCreate } = db({
-      organization: { findUnique: vi.fn().mockResolvedValue({ companyId: 'c2' }) }
+      organization: { findUnique: vi.fn().mockResolvedValue({ companyId: 'c2' }) },
     });
     expect(await createLeadByStaff(prisma, MANAGER, { ...VALID, organizationId: 'o1' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect(leadCreate).not.toHaveBeenCalled();
   });
@@ -108,13 +111,13 @@ describe('createLeadByStaff — организация', () => {
     const session = { sub: 'm1', role: 'manager', companyId: null } as SessionPayload;
     expect(await createLeadByStaff(prisma, session, { ...VALID, organizationId: 'o1' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 
   it('admin — любая организация, включая чужую компанию', async () => {
     const { prisma, leadCreate } = db({
-      organization: { findUnique: vi.fn().mockResolvedValue({ companyId: 'c-other' }) }
+      organization: { findUnique: vi.fn().mockResolvedValue({ companyId: 'c-other' }) },
     });
     const r = await createLeadByStaff(prisma, ADMIN, { ...VALID, organizationId: 'o9' });
     if (!r.ok) throw new Error('expected ok');
@@ -140,7 +143,7 @@ describe('createLeadByStaff — happy', () => {
       inn: ' 77-12 345 678 ',
       contactEmail: ' Ivan@X.RU ',
       organizationId: 'o1',
-      notes: '  Позвонить после обеда  '
+      notes: '  Позвонить после обеда  ',
     });
     if (!r.ok) throw new Error('expected ok');
     expect(leadCreate).toHaveBeenCalledWith({
@@ -156,8 +159,8 @@ describe('createLeadByStaff — happy', () => {
         clientContactEmail: 'ivan@x.ru',
         subject: 'Обучение',
         notes: 'Позвонить после обеда',
-        status: 'new'
-      }
+        status: 'new',
+      },
     });
   });
 
@@ -168,7 +171,7 @@ describe('createLeadByStaff — happy', () => {
     const r = await createLeadByStaff(prisma, ADMIN, {
       ...VALID,
       notes: 'из notes',
-      body: 'из body'
+      body: 'из body',
     } as never);
     if (!r.ok) throw new Error('expected ok');
     expect(leadCreate.mock.calls[0][0].data.notes).toBe('из notes');
@@ -190,7 +193,7 @@ describe('createLeadByStaff — happy', () => {
       action: 'lead_created_manual',
       entity: 'lead',
       entityId: 'L1',
-      after: { organizationId: 'o1', source: 'manual' }
+      after: { organizationId: 'o1', source: 'manual' },
     });
     expect(JSON.stringify(recordAudit.mock.calls[0][1].after)).not.toContain('Иван');
   });

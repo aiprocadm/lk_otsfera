@@ -53,7 +53,9 @@ describe('GET /api/manager/inbox/[id]/attachment', () => {
   });
 
   it('returns 404 when the inbound_messaging flag is disabled', async () => {
-    vi.mocked(notFoundIfDisabled).mockReturnValue(new Response('Not Found', { status: 404 }) as never);
+    vi.mocked(notFoundIfDisabled).mockReturnValue(
+      new Response('Not Found', { status: 404 }) as never
+    );
     const res = await attachmentGet(buildReq() as never, paramsP);
     expect(res.status).toBe(404);
     expect(vi.mocked(notFoundIfDisabled)).toHaveBeenCalledWith('inbound_messaging');
@@ -136,9 +138,7 @@ describe('GET /api/manager/inbox/[id]/attachment', () => {
 
   it('returns 302 for an unresolved message (companyId null — shared triage queue)', async () => {
     requireManager.mockResolvedValue(managerSession('co-a'));
-    findUniqueMock.mockResolvedValue(
-      boundMessage({ companyId: null, status: 'unresolved' })
-    );
+    findUniqueMock.mockResolvedValue(boundMessage({ companyId: null, status: 'unresolved' }));
     createSignedUrlMock.mockResolvedValue('https://s3.example.com/signed?y=2');
 
     const res = await attachmentGet(buildReq() as never, paramsP);

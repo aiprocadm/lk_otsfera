@@ -4,7 +4,7 @@ const { getSession, forbiddenResponse } = vi.hoisted(() => ({
   getSession: vi.fn(),
   forbiddenResponse: vi.fn((msg: string) =>
     Response.json({ code: 'FORBIDDEN', message: msg }, { status: 403 })
-  )
+  ),
 }));
 
 vi.mock('@/lib/auth/session', () => ({ getSession }));

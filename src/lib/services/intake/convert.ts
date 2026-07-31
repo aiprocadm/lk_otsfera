@@ -25,7 +25,11 @@ export type ConvertSourceInput = {
 
 export type ConvertSourceResult =
   | { ok: true; lead: Lead }
-  | { ok: false; error: 'forbidden' | 'not_found' | 'already_converted' | 'validation'; messages?: string[] };
+  | {
+      ok: false;
+      error: 'forbidden' | 'not_found' | 'already_converted' | 'validation';
+      messages?: string[];
+    };
 
 function staffGate(session: SessionPayload): boolean {
   return session.role === 'manager' || session.role === 'admin';
@@ -40,7 +44,13 @@ export async function createLeadFromInbound(
 
   const msg = await prisma.inboundMessage.findUnique({
     where: { id: args.inboundId },
-    select: { id: true, status: true, companyId: true, resolvedOrgId: true, lead: { select: { id: true } } }
+    select: {
+      id: true,
+      status: true,
+      companyId: true,
+      resolvedOrgId: true,
+      lead: { select: { id: true } },
+    },
   });
   if (!msg || !isInboundMessageInScope(session, msg)) return { ok: false, error: 'not_found' };
   if (msg.lead) return { ok: false, error: 'already_converted' };
@@ -63,8 +73,8 @@ export async function createLeadFromInbound(
         clientContactEmail: v.contactEmail,
         subject: v.subject,
         notes: args.input.notes?.trim() || null,
-        status: 'new'
-      }
+        status: 'new',
+      },
     });
     // Обращение разобрано: целевая сущность есть → покидает Intake (ФТ-8.2).
     await tx.inboundMessage.update({
@@ -73,8 +83,8 @@ export async function createLeadFromInbound(
         status: 'bound',
         boundAt: new Date(),
         boundById: session.sub,
-        companyId: msg.companyId ?? session.companyId ?? null
-      }
+        companyId: msg.companyId ?? session.companyId ?? null,
+      },
     });
     return lead;
   });
@@ -84,13 +94,15 @@ export async function createLeadFromInbound(
     action: 'lead_created_from_inbound',
     entity: 'lead',
     entityId: lead.id,
-    after: { sourceInboundId: msg.id }
+    after: { sourceInboundId: msg.id },
   });
   return { ok: true, lead };
 }
 
 function isCallInScope(session: SessionPayload, call: { companyId: string | null }): boolean {
-  return call.companyId === null || (call.companyId != null && call.companyId === session.companyId);
+  return (
+    call.companyId === null || (call.companyId != null && call.companyId === session.companyId)
+  );
 }
 
 export async function createLeadFromCall(
@@ -102,7 +114,7 @@ export async function createLeadFromCall(
 
   const call = await prisma.call.findUnique({
     where: { id: args.callId },
-    select: { id: true, companyId: true, resolvedOrgId: true, lead: { select: { id: true } } }
+    select: { id: true, companyId: true, resolvedOrgId: true, lead: { select: { id: true } } },
   });
   if (!call || !isCallInScope(session, call)) return { ok: false, error: 'not_found' };
   if (call.lead) return { ok: false, error: 'already_converted' };
@@ -125,14 +137,14 @@ export async function createLeadFromCall(
         clientContactEmail: v.contactEmail,
         subject: v.subject,
         notes: args.input.notes?.trim() || null,
-        status: 'new'
-      }
+        status: 'new',
+      },
     });
     // Ответственный за разбор звонка — создатель лида (звонок покидает Intake
     // по связке lead, claim фиксирует «кто разобрал»).
     await tx.call.update({
       where: { id: call.id },
-      data: { claimedByUserId: session.sub, claimedAt: new Date() }
+      data: { claimedByUserId: session.sub, claimedAt: new Date() },
     });
     return lead;
   });
@@ -142,7 +154,7 @@ export async function createLeadFromCall(
     action: 'lead_created_from_call',
     entity: 'lead',
     entityId: lead.id,
-    after: { sourceCallId: call.id }
+    after: { sourceCallId: call.id },
   });
   return { ok: true, lead };
 }

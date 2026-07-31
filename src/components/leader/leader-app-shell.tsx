@@ -1,37 +1,32 @@
 import React, { type ReactNode } from 'react';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { LeaderSidebar } from './leader-sidebar';
 import { LogoutButton } from '@/components/ui';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { navItemsFor } from '@/lib/navigation/cabinet';
+import { LeaderSidebar } from './leader-sidebar';
 
-export function LeaderAppShell(props: {
-  session: SessionPayload;
-  children: ReactNode;
-}) {
+export function LeaderAppShell(props: { session: SessionPayload; children: ReactNode }) {
   const userEmail = props.session.email ?? null;
   return (
-    <div className='flex min-h-screen bg-gray-50'>
+    <div className="flex min-h-screen bg-gray-50">
       {/* Без opts: leader-меню не фильтруется по суб-роли (внутрь пускает layout-гард). */}
       <LeaderSidebar items={navItemsFor('leader')} />
-      <div className='flex-1 flex flex-col'>
-        <header className='bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between'>
-          <div className='text-sm text-gray-700 truncate'>
-            <span className='font-medium text-[#111111]'>Кабинет руководителя</span>
-            {userEmail ? (
-              <span className='ml-3 text-gray-500'>· {userEmail}</span>
-            ) : null}
+      <div className="flex-1 flex flex-col">
+        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+          <div className="text-sm text-gray-700 truncate">
+            <span className="font-medium text-[#111111]">Кабинет руководителя</span>
+            {userEmail ? <span className="ml-3 text-gray-500">· {userEmail}</span> : null}
           </div>
-          <div className='flex items-center gap-2'>
+          <div className="flex items-center gap-2">
             {/* role='manager': leader — это manager с managerRole=leader,
                 notifications-scope у него менеджерский
                 (см. src/lib/services/notifications/scope.ts). */}
-            <NotificationBell role='manager' />
+            <NotificationBell role="manager" />
             <LogoutButton />
           </div>
         </header>
-        <main className='flex-1 px-6 py-6'>
-          <div className='max-w-[1280px] mx-auto'>{props.children}</div>
+        <main className="flex-1 px-6 py-6">
+          <div className="max-w-[1280px] mx-auto">{props.children}</div>
         </main>
       </div>
     </div>

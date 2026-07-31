@@ -10,15 +10,24 @@ vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
 // prisma-моки без _count не сыпали warn-шум (вызовы проверяет lifecycle2/notify).
 vi.mock('@/lib/services/enrollments/notify', () => ({
   notifySubmitterEnrollmentStatus: vi.fn(),
-  notifyManagersEnrollmentSubmitted: vi.fn()
+  notifyManagersEnrollmentSubmitted: vi.fn(),
 }));
 
-import { canReviewEnrollments, canSubmitEnrollments, submitterRoleLabel } from '@/lib/services/enrollments/policy';
+import {
+  canReviewEnrollments,
+  canSubmitEnrollments,
+  submitterRoleLabel,
+} from '@/lib/services/enrollments/policy';
 import { submitEnrollmentRequest } from '@/lib/services/enrollments/submit';
 import { listEnrollmentRequests } from '@/lib/services/enrollments/list';
-import { approveEnrollment, rejectEnrollment, markProvisioned } from '@/lib/services/enrollments/lifecycle';
+import {
+  approveEnrollment,
+  rejectEnrollment,
+  markProvisioned,
+} from '@/lib/services/enrollments/lifecycle';
 
-const s = (over: Record<string, unknown> = {}) => ({ sub: 'u1', role: 'manager', ...over }) as never;
+const s = (over: Record<string, unknown> = {}) =>
+  ({ sub: 'u1', role: 'manager', ...over }) as never;
 
 const ITEM = { fullName: 'Иван Иванов', email: 'i@x.ru' };
 
@@ -35,7 +44,8 @@ describe('enrollment policy', () => {
     expect(canReviewEnrollments(s({ role: 'organization' }))).toBe(false);
   });
   it('submitters = all 5 roles (leader=manager), not student', () => {
-    for (const r of ['partner', 'organization', 'manager', 'admin']) expect(canSubmitEnrollments(s({ role: r }))).toBe(true);
+    for (const r of ['partner', 'organization', 'manager', 'admin'])
+      expect(canSubmitEnrollments(s({ role: r }))).toBe(true);
     expect(canSubmitEnrollments(s({ role: 'student' }))).toBe(false);
   });
   it('labels leader distinctly', () => {
@@ -49,36 +59,54 @@ describe('submitEnrollmentRequest (этап 2: шапка + позиции)', ()
   function db(over: Record<string, unknown> = {}) {
     const requestCreate = vi
       .fn()
-      .mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'E1', ...data }));
+      .mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
+        id: 'E1',
+        ...data,
+      }));
     const itemCreateMany = vi.fn().mockResolvedValue({ count: 1 });
     const base = {
       trainingDirection: { findFirst: vi.fn().mockResolvedValue({ id: 'd1' }) },
       organization: { findFirst: vi.fn().mockResolvedValue({ id: 'o1' }) },
       student: { findMany: vi.fn().mockResolvedValue([]) },
       $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
-        fn({ enrollmentRequest: { create: requestCreate }, enrollmentRequestItem: { createMany: itemCreateMany } })
+        fn({
+          enrollmentRequest: { create: requestCreate },
+          enrollmentRequestItem: { createMany: itemCreateMany },
+        })
       ),
-      ...over
+      ...over,
     };
     return { d: base as never, requestCreate, itemCreateMany, base };
   }
 
   it('validation: нет направления / нет позиций — русские сообщения', async () => {
     const { d } = db();
-    expect(await submitEnrollmentRequest(d, s({ role: 'admin' }), { directionId: '', items: [ITEM] })).toEqual({
+    expect(
+      await submitEnrollmentRequest(d, s({ role: 'admin' }), { directionId: '', items: [ITEM] })
+    ).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['Выберите направление обучения']
+      messages: ['Выберите направление обучения'],
     });
-    const r = await submitEnrollmentRequest(d, s({ role: 'admin' }), { directionId: 'd1', items: [] });
+    const r = await submitEnrollmentRequest(d, s({ role: 'admin' }), {
+      directionId: 'd1',
+      items: [],
+    });
     expect(r).toMatchObject({ ok: false, error: 'validation' });
     expect((r as { messages: string[] }).messages).toEqual(['Добавьте хотя бы одного слушателя']);
   });
 
   it('validation: направление неактивно/не найдено', async () => {
     const { d } = db({ trainingDirection: { findFirst: vi.fn().mockResolvedValue(null) } });
-    const r = await submitEnrollmentRequest(d, s({ role: 'admin' }), { directionId: 'dX', items: [ITEM] });
-    expect(r).toMatchObject({ ok: false, error: 'validation', messages: ['Направление не найдено или неактивно'] });
+    const r = await submitEnrollmentRequest(d, s({ role: 'admin' }), {
+      directionId: 'dX',
+      items: [ITEM],
+    });
+    expect(r).toMatchObject({
+      ok: false,
+      error: 'validation',
+      messages: ['Направление не найдено или неактивно'],
+    });
   });
 
   it('шапка+позиции создаются в транзакции; snapshot submitterRole/partnerId партнёра', async () => {
@@ -86,7 +114,15 @@ describe('submitEnrollmentRequest (этап 2: шапка + позиции)', ()
     const r = await submitEnrollmentRequest(d, s({ role: 'partner', partnerId: 'p1' }), {
       directionId: 'd1',
       organizationId: 'o1',
-      items: [{ ...ITEM, position: ' инженер ', snils: '112-233-445 95', birthDate: '1990-01-02', extra: ' прим ' }]
+      items: [
+        {
+          ...ITEM,
+          position: ' инженер ',
+          snils: '112-233-445 95',
+          birthDate: '1990-01-02',
+          extra: ' прим ',
+        },
+      ],
     });
     if (!r.ok) throw new Error('expected ok');
     expect(r.request.submitterRole).toBe('partner');
@@ -100,7 +136,7 @@ describe('submitEnrollmentRequest (этап 2: шапка + позиции)', ()
       email: 'i@x.ru',
       position: 'инженер',
       snils: '11223344595',
-      extra: 'прим'
+      extra: 'прим',
     });
     expect(item.birthDate).toEqual(new Date('1990-01-02T00:00:00.000Z'));
   });
@@ -110,23 +146,34 @@ describe('submitEnrollmentRequest (этап 2: шапка + позиции)', ()
     const r = await submitEnrollmentRequest(d, s({ role: 'partner', partnerId: 'p1' }), {
       directionId: 'd1',
       organizationId: 'oX',
-      items: [ITEM]
+      items: [ITEM],
     });
     expect(r).toEqual({ ok: false, error: 'forbidden' });
   });
 
   it('forbids a role that cannot submit (student)', async () => {
     const { d } = db();
-    const r = await submitEnrollmentRequest(d, s({ role: 'student' }), { directionId: 'd1', items: [ITEM] });
+    const r = await submitEnrollmentRequest(d, s({ role: 'student' }), {
+      directionId: 'd1',
+      items: [ITEM],
+    });
     expect(r).toEqual({ ok: false, error: 'forbidden' });
   });
 
   it('studentId: чужой/несуществующий сотрудник → forbidden (IDOR)', async () => {
     const { d } = db(); // student.findMany → []
-    const r = await submitEnrollmentRequest(d, s({ role: 'organization', organizationId: 'o1', organizationMemberships: [{ organizationId: 'o1', isActive: true }] }), {
-      directionId: 'd1',
-      items: [{ studentId: 'stX' }]
-    });
+    const r = await submitEnrollmentRequest(
+      d,
+      s({
+        role: 'organization',
+        organizationId: 'o1',
+        organizationMemberships: [{ organizationId: 'o1', isActive: true }],
+      }),
+      {
+        directionId: 'd1',
+        items: [{ studentId: 'stX' }],
+      }
+    );
     expect(r).toEqual({ ok: false, error: 'forbidden' });
   });
 
@@ -134,26 +181,33 @@ describe('submitEnrollmentRequest (этап 2: шапка + позиции)', ()
     const { d } = db();
     const r = await submitEnrollmentRequest(d, s({ role: 'admin' }), {
       directionId: 'd1',
-      items: [{ studentId: 'st1' }]
+      items: [{ studentId: 'st1' }],
     });
     expect(r).toEqual({ ok: false, error: 'forbidden' });
   });
 
   it('studentId своей организации: ФИО/email снимаются со Student', async () => {
     const { d, itemCreateMany } = db({
-      student: { findMany: vi.fn().mockResolvedValue([{ id: 'st1', name: 'Пётр Петров', email: 'p@org.ru' }]) }
+      student: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: 'st1', name: 'Пётр Петров', email: 'p@org.ru' }]),
+      },
     });
     const session = s({
       role: 'organization',
       organizationId: 'o1',
-      organizationMemberships: [{ organizationId: 'o1', isActive: true }]
+      organizationMemberships: [{ organizationId: 'o1', isActive: true }],
     });
-    const r = await submitEnrollmentRequest(d, session, { directionId: 'd1', items: [{ studentId: 'st1' }] });
+    const r = await submitEnrollmentRequest(d, session, {
+      directionId: 'd1',
+      items: [{ studentId: 'st1' }],
+    });
     if (!r.ok) throw new Error('expected ok');
     expect(itemCreateMany.mock.calls[0][0].data[0]).toMatchObject({
       studentId: 'st1',
       fullName: 'Пётр Петров',
-      email: 'p@org.ru'
+      email: 'p@org.ru',
     });
   });
 
@@ -161,14 +215,19 @@ describe('submitEnrollmentRequest (этап 2: шапка + позиции)', ()
     const { d, itemCreateMany } = db();
     const r = await submitEnrollmentRequest(d, s({ role: 'admin' }), {
       directionId: 'd1',
-      items: [ITEM, { fullName: 'Дубль', email: 'I@X.RU' }]
+      items: [ITEM, { fullName: 'Дубль', email: 'I@X.RU' }],
     });
     if (!r.ok) throw new Error('expected ok');
     expect(r.itemCount).toBe(1);
     expect(r.warnings).toHaveLength(1);
     expect(itemCreateMany.mock.calls[0][0].data).toHaveLength(1);
     const audit = recordAudit.mock.calls[0][1];
-    expect(audit.after).toEqual({ organizationId: null, directionId: 'd1', itemCount: 1, submitterRole: 'admin' });
+    expect(audit.after).toEqual({
+      organizationId: null,
+      directionId: 'd1',
+      itemCount: 1,
+      submitterRole: 'admin',
+    });
     expect(JSON.stringify(audit.after)).not.toContain('i@x.ru');
   });
 });
@@ -184,7 +243,7 @@ describe('listEnrollmentRequests scope', () => {
     direction: { name: 'Охрана труда' },
     legacyCourseTitle: null,
     items: [],
-    ...over
+    ...over,
   });
 
   it('reviewer sees the whole queue (empty scope)', async () => {
@@ -199,15 +258,28 @@ describe('listEnrollmentRequests scope', () => {
   });
   it('направление: имя из справочника, для legacy — сохранённый текст, иначе «—»', async () => {
     const rows = [
-      row('R1', { items: [{ id: 'i1', fullName: 'Иван' }, { id: 'i2', fullName: 'Пётр' }] }),
+      row('R1', {
+        items: [
+          { id: 'i1', fullName: 'Иван' },
+          { id: 'i2', fullName: 'Пётр' },
+        ],
+      }),
       row('R2', { direction: null, legacyCourseTitle: 'Старый курс' }),
-      row('R3', { direction: null })
+      row('R3', { direction: null }),
     ];
     const { db: d } = db(rows);
     const res = await listEnrollmentRequests(d, s({ role: 'manager' }), {});
-    expect(res.rows[0]).toMatchObject({ directionName: 'Охрана труда', studentCount: 2, firstStudentName: 'Иван' });
+    expect(res.rows[0]).toMatchObject({
+      directionName: 'Охрана труда',
+      studentCount: 2,
+      firstStudentName: 'Иван',
+    });
     expect(res.rows[1]!.directionName).toBe('Старый курс');
-    expect(res.rows[2]).toMatchObject({ directionName: '—', studentCount: 0, firstStudentName: null });
+    expect(res.rows[2]).toMatchObject({
+      directionName: '—',
+      studentCount: 0,
+      firstStudentName: null,
+    });
   });
   it('поиск — по позициям и направлению', async () => {
     const { db: d, findMany } = db();
@@ -217,17 +289,20 @@ describe('listEnrollmentRequests scope', () => {
       { direction: { name: { contains: 'иван', mode: 'insensitive' } } },
       { legacyCourseTitle: { contains: 'иван', mode: 'insensitive' } },
       { items: { some: { fullName: { contains: 'иван', mode: 'insensitive' } } } },
-      { items: { some: { email: { contains: 'иван', mode: 'insensitive' } } } }
+      { items: { some: { email: { contains: 'иван', mode: 'insensitive' } } } },
     ]);
   });
   it('PII: журналирует состав выдачи для staff-вызова', async () => {
     const rows = [row('R1'), row('R2')];
     const { db: d } = db(rows);
     await listEnrollmentRequests(d, s({ role: 'manager' }), {});
-    expect(recordPiiAccess).toHaveBeenCalledWith(d, expect.objectContaining({
-      context: 'enrollments_list',
-      subjectIds: ['R1', 'R2']
-    }));
+    expect(recordPiiAccess).toHaveBeenCalledWith(
+      d,
+      expect.objectContaining({
+        context: 'enrollments_list',
+        subjectIds: ['R1', 'R2'],
+      })
+    );
   });
 });
 
@@ -235,14 +310,20 @@ describe('enrollment lifecycle (шапка + зеркалирование поз
   function db(status: string, itemCount = 1) {
     const requestUpdate = vi
       .fn()
-      .mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'E1', ...data }));
+      .mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
+        id: 'E1',
+        ...data,
+      }));
     const itemUpdateMany = vi.fn().mockResolvedValue({ count: itemCount });
     const base = {
       enrollmentRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'E1', status }) },
       enrollmentRequestItem: { count: vi.fn().mockResolvedValue(itemCount) },
       $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
-        fn({ enrollmentRequest: { update: requestUpdate }, enrollmentRequestItem: { updateMany: itemUpdateMany } })
-      )
+        fn({
+          enrollmentRequest: { update: requestUpdate },
+          enrollmentRequestItem: { updateMany: itemUpdateMany },
+        })
+      ),
     };
     return { d: base as never, requestUpdate, itemUpdateMany };
   }
@@ -254,23 +335,34 @@ describe('enrollment lifecycle (шапка + зеркалирование поз
     expect(r.request.status).toBe('approved');
     expect(itemUpdateMany).toHaveBeenCalledWith({
       where: { requestId: 'E1', status: 'pending' },
-      data: { status: 'approved' }
+      data: { status: 'approved' },
     });
   });
   it('approve forbidden from non-pending', async () => {
     const { d } = db('approved');
-    expect(await approveEnrollment(d, { id: 'E1', reviewerId: 'm1' })).toEqual({ ok: false, error: 'lifecycle_violation' });
+    expect(await approveEnrollment(d, { id: 'E1', reviewerId: 'm1' })).toEqual({
+      ok: false,
+      error: 'lifecycle_violation',
+    });
   });
   it('markProvisioned: для одиночной заявки id из LMS обязателен и пишется в позицию', async () => {
-    expect(await markProvisioned(db('approved').d, { id: 'E1', reviewerId: 'm1', externalStudentId: '' })).toEqual({ ok: false, error: 'validation' });
-    expect(await markProvisioned(db('pending').d, { id: 'E1', reviewerId: 'm1', externalStudentId: 'LMS-9' })).toEqual({ ok: false, error: 'lifecycle_violation' });
+    expect(
+      await markProvisioned(db('approved').d, { id: 'E1', reviewerId: 'm1', externalStudentId: '' })
+    ).toEqual({ ok: false, error: 'validation' });
+    expect(
+      await markProvisioned(db('pending').d, {
+        id: 'E1',
+        reviewerId: 'm1',
+        externalStudentId: 'LMS-9',
+      })
+    ).toEqual({ ok: false, error: 'lifecycle_violation' });
     const { d, itemUpdateMany } = db('approved');
     const r = await markProvisioned(d, { id: 'E1', reviewerId: 'm1', externalStudentId: 'LMS-9' });
     if (!r.ok) throw new Error('expected ok');
     expect(r.request.status).toBe('provisioned');
     expect(itemUpdateMany).toHaveBeenCalledWith({
       where: { requestId: 'E1', status: { not: 'rejected' } },
-      data: { status: 'provisioned', externalStudentId: 'LMS-9' }
+      data: { status: 'provisioned', externalStudentId: 'LMS-9' },
     });
   });
   it('markProvisioned: многопозиционная — без общего id, позиции provisioned', async () => {
@@ -279,7 +371,7 @@ describe('enrollment lifecycle (шапка + зеркалирование поз
     if (!r.ok) throw new Error('expected ok');
     expect(itemUpdateMany).toHaveBeenCalledWith({
       where: { requestId: 'E1', status: { not: 'rejected' } },
-      data: { status: 'provisioned' }
+      data: { status: 'provisioned' },
     });
   });
   it('reject sets reason и зеркалирует все позиции; cannot reject a provisioned request', async () => {
@@ -287,14 +379,30 @@ describe('enrollment lifecycle (шапка + зеркалирование поз
     const r = await rejectEnrollment(d, { id: 'E1', reviewerId: 'm1', reason: 'нет мест' });
     if (!r.ok) throw new Error('expected ok');
     expect(r.request.status).toBe('rejected');
-    expect(itemUpdateMany).toHaveBeenCalledWith({ where: { requestId: 'E1' }, data: { status: 'rejected' } });
-    expect(await rejectEnrollment(db('provisioned').d, { id: 'E1', reviewerId: 'm1', reason: 'x' })).toEqual({ ok: false, error: 'lifecycle_violation' });
+    expect(itemUpdateMany).toHaveBeenCalledWith({
+      where: { requestId: 'E1' },
+      data: { status: 'rejected' },
+    });
+    expect(
+      await rejectEnrollment(db('provisioned').d, { id: 'E1', reviewerId: 'm1', reason: 'x' })
+    ).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
   it('not_found на отсутствующей заявке', async () => {
     const base = db('pending');
-    (base.d as { enrollmentRequest: { findUnique: ReturnType<typeof vi.fn> } }).enrollmentRequest.findUnique = vi.fn().mockResolvedValue(null);
-    expect(await approveEnrollment(base.d, { id: 'EX', reviewerId: 'm1' })).toEqual({ ok: false, error: 'not_found' });
-    expect(await rejectEnrollment(base.d, { id: 'EX', reviewerId: 'm1', reason: 'x' })).toEqual({ ok: false, error: 'not_found' });
-    expect(await markProvisioned(base.d, { id: 'EX', reviewerId: 'm1' })).toEqual({ ok: false, error: 'not_found' });
+    (
+      base.d as { enrollmentRequest: { findUnique: ReturnType<typeof vi.fn> } }
+    ).enrollmentRequest.findUnique = vi.fn().mockResolvedValue(null);
+    expect(await approveEnrollment(base.d, { id: 'EX', reviewerId: 'm1' })).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+    expect(await rejectEnrollment(base.d, { id: 'EX', reviewerId: 'm1', reason: 'x' })).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+    expect(await markProvisioned(base.d, { id: 'EX', reviewerId: 'm1' })).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
   });
 });

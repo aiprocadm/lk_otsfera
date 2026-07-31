@@ -5,7 +5,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 import { ForgotPasswordForm } from '@/components/auth/forgot-password-form';
 
-const SUCCESS_TEXT = 'Если такой email зарегистрирован, мы отправили письмо со ссылкой для сброса пароля.';
+const SUCCESS_TEXT =
+  'Если такой email зарегистрирован, мы отправили письмо со ссылкой для сброса пароля.';
 const GENERIC_ERROR = 'Не удалось отправить запрос, попробуйте позже';
 const RATE_LIMIT_ERROR = 'Слишком много запросов, попробуйте позже';
 
@@ -45,7 +46,7 @@ describe('ForgotPasswordForm', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/reset-password/request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'user@x.ru' })
+      body: JSON.stringify({ email: 'user@x.ru' }),
     });
     // Анти-enumeration: форма исчезает целиком, ответ одинаков для любого email
     expect(document.querySelector('form')).toBeNull();

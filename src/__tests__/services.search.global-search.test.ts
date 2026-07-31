@@ -14,7 +14,12 @@ import { globalSearch, SEARCH_TAKE } from '@/lib/services/search/globalSearch';
 
 const ORIGINAL_ENV = { ...process.env };
 
-const manager = { sub: 'm1', role: 'manager', companyId: 'c1', managedOrgIds: ['org1'] } as unknown as SessionPayload;
+const manager = {
+  sub: 'm1',
+  role: 'manager',
+  companyId: 'c1',
+  managedOrgIds: ['org1'],
+} as unknown as SessionPayload;
 const admin = { sub: 'a1', role: 'admin', companyId: 'c1' } as unknown as SessionPayload;
 const partner = { sub: 'p1', role: 'partner', companyId: 'c1' } as unknown as SessionPayload;
 
@@ -50,9 +55,20 @@ function makePrisma(): Mocks {
     document: { findMany: document },
     student: { findMany: student },
     staffMessage: { findMany: message },
-    company: { findUnique: companyFindUnique }
+    company: { findUnique: companyFindUnique },
   } as unknown as PrismaClient;
-  return { prisma, order, organization, lead, task, event, document, student, message, companyFindUnique };
+  return {
+    prisma,
+    order,
+    organization,
+    lead,
+    task,
+    event,
+    document,
+    student,
+    message,
+    companyFindUnique,
+  };
 }
 
 beforeEach(() => {
@@ -71,27 +87,42 @@ describe('globalSearch — гейты', () => {
   it('флаг global_search выключен → forbidden без запросов', async () => {
     delete process.env.FEATURE_GLOBAL_SEARCH;
     const { prisma, order } = makePrisma();
-    expect(await globalSearch(prisma, manager, { q: 'тест' })).toEqual({ ok: false, error: 'forbidden' });
+    expect(await globalSearch(prisma, manager, { q: 'тест' })).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect(order).not.toHaveBeenCalled();
   });
 
   it('клиентская роль → forbidden', async () => {
     const { prisma } = makePrisma();
-    expect(await globalSearch(prisma, partner, { q: 'тест' })).toEqual({ ok: false, error: 'forbidden' });
+    expect(await globalSearch(prisma, partner, { q: 'тест' })).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
   });
 
   it('staff без companyId → forbidden', async () => {
     const { prisma } = makePrisma();
     const noCompany = { sub: 'm9', role: 'manager', companyId: null } as unknown as SessionPayload;
-    expect(await globalSearch(prisma, noCompany, { q: 'тест' })).toEqual({ ok: false, error: 'forbidden' });
+    expect(await globalSearch(prisma, noCompany, { q: 'тест' })).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
   });
 });
 
 describe('globalSearch — валидация q', () => {
   it('короткий/пустой запрос (после trim) → too_short без запросов', async () => {
     const { prisma, order } = makePrisma();
-    expect(await globalSearch(prisma, manager, { q: '  я  ' })).toEqual({ ok: false, error: 'too_short' });
-    expect(await globalSearch(prisma, manager, { q: '   ' })).toEqual({ ok: false, error: 'too_short' });
+    expect(await globalSearch(prisma, manager, { q: '  я  ' })).toEqual({
+      ok: false,
+      error: 'too_short',
+    });
+    expect(await globalSearch(prisma, manager, { q: '   ' })).toEqual({
+      ok: false,
+      error: 'too_short',
+    });
     expect(order).not.toHaveBeenCalled();
   });
 
@@ -114,7 +145,7 @@ describe('globalSearch — teamMode', () => {
     expect(companyFindUnique).toHaveBeenCalledTimes(1);
     expect(companyFindUnique).toHaveBeenCalledWith({
       where: { id: 'c1' },
-      select: { managerTeamVisibility: true }
+      select: { managerTeamVisibility: true },
     });
   });
 
@@ -163,26 +194,26 @@ describe('globalSearch — маппинг выдачи', () => {
         title: 'Обучение ОТ',
         orderNumber: 'З-42',
         createdAt: new Date('2026-07-01'),
-        organization: { name: 'ООО Ромашка' }
+        organization: { name: 'ООО Ромашка' },
       },
       {
         id: 'o2',
         title: 'Без номера',
         orderNumber: null,
         createdAt: new Date('2026-07-02'),
-        organization: { name: 'ООО Астра' }
-      }
+        organization: { name: 'ООО Астра' },
+      },
     ]);
     organization.mockResolvedValue([
       { id: 'org1', name: 'ООО Ромашка', inn: '7701234567', createdAt: new Date('2026-06-01') },
-      { id: 'org2', name: 'ООО Астра', inn: null, createdAt: new Date('2026-06-02') }
+      { id: 'org2', name: 'ООО Астра', inn: null, createdAt: new Date('2026-06-02') },
     ]);
     lead.mockResolvedValue(
       Array.from({ length: SEARCH_TAKE }, (_, i) => ({
         id: `l${i}`,
         clientCompanyName: `Клиент ${i}`,
         subject: 'Обучение по охране труда',
-        createdAt: new Date('2026-07-03')
+        createdAt: new Date('2026-07-03'),
       }))
     );
     student.mockResolvedValue([
@@ -191,7 +222,7 @@ describe('globalSearch — маппинг выдачи', () => {
         name: 'Иванов Иван',
         email: 'ivanov@example.com',
         createdAt: new Date('2026-07-04'),
-        organization: { name: 'ООО Ромашка' }
+        organization: { name: 'ООО Ромашка' },
       },
       // Слушатель без почты и без названия организации: подписи нет вовсе —
       // на экране не должно появиться висящего разделителя « · ».
@@ -200,8 +231,8 @@ describe('globalSearch — маппинг выдачи', () => {
         name: 'Петров Пётр',
         email: null,
         createdAt: new Date('2026-07-04'),
-        organization: { name: '' }
-      }
+        organization: { name: '' },
+      },
     ]);
     message.mockResolvedValue([
       {
@@ -209,18 +240,36 @@ describe('globalSearch — маппинг выдачи', () => {
         body: 'Ответ  по    охране труда ' + 'x'.repeat(200),
         attachmentName: null,
         createdAt: new Date('2026-07-05'),
-        author: { name: 'Мария' }
+        author: { name: 'Мария' },
       },
-      { id: 'msg2', body: '', attachmentName: 'план.pdf', createdAt: new Date('2026-07-06'), author: { name: 'Пётр' } },
+      {
+        id: 'msg2',
+        body: '',
+        attachmentName: 'план.pdf',
+        createdAt: new Date('2026-07-06'),
+        author: { name: 'Пётр' },
+      },
       // Сообщение без текста и без вложения: в выдаче должна остаться пустая
       // строка, а не «undefined» на экране.
-      { id: 'msg3', body: '', attachmentName: null, createdAt: new Date('2026-07-07'), author: { name: 'Ольга' } }
+      {
+        id: 'msg3',
+        body: '',
+        attachmentName: null,
+        createdAt: new Date('2026-07-07'),
+        author: { name: 'Ольга' },
+      },
     ]);
 
     const res = await globalSearch(prisma, manager, { q: 'охрана' });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
-    expect(res.groups.map((g) => g.key)).toEqual(['orders', 'organizations', 'leads', 'students', 'messages']);
+    expect(res.groups.map((g) => g.key)).toEqual([
+      'orders',
+      'organizations',
+      'leads',
+      'students',
+      'messages',
+    ]);
 
     const orders = res.groups.find((g) => g.key === 'orders')!;
     expect(orders.labelRu).toBe('Заказы');
@@ -230,7 +279,7 @@ describe('globalSearch — маппинг выдачи', () => {
       title: 'Обучение ОТ',
       subtitle: 'З-42 · ООО Ромашка',
       href: '/manager/orders/o1',
-      date: new Date('2026-07-01')
+      date: new Date('2026-07-01'),
     });
     expect(orders.hits[1]!.subtitle).toBe('ООО Астра');
 
@@ -261,23 +310,48 @@ describe('globalSearch — маппинг выдачи', () => {
   it('задачи/события/документы: сниппеты и ссылки на разделы', async () => {
     const { prisma, task, event, document } = makePrisma();
     task.mockResolvedValue([
-      { id: 't1', title: 'Позвонить', description: null, dueDate: new Date('2026-07-20'), createdAt: new Date('2026-07-01') },
-      { id: 't2', title: 'Написать', description: 'Длинное описание задачи', dueDate: null, createdAt: new Date('2026-07-02') }
+      {
+        id: 't1',
+        title: 'Позвонить',
+        description: null,
+        dueDate: new Date('2026-07-20'),
+        createdAt: new Date('2026-07-01'),
+      },
+      {
+        id: 't2',
+        title: 'Написать',
+        description: 'Длинное описание задачи',
+        dueDate: null,
+        createdAt: new Date('2026-07-02'),
+      },
     ]);
-    event.mockResolvedValue([{ id: 'e1', title: 'Созвон', location: 'Zoom', startsAt: new Date('2026-07-21') }]);
+    event.mockResolvedValue([
+      { id: 'e1', title: 'Созвон', location: 'Zoom', startsAt: new Date('2026-07-21') },
+    ]);
     document.mockResolvedValue([
       { id: 'd1', name: 'Акт.pdf', createdAt: new Date('2026-07-05'), order: { title: 'Заказ 1' } },
-      { id: 'd2', name: 'Прайс.xlsx', createdAt: new Date('2026-07-06'), order: null }
+      { id: 'd2', name: 'Прайс.xlsx', createdAt: new Date('2026-07-06'), order: null },
     ]);
 
     const res = await globalSearch(prisma, manager, { q: 'тест' });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     const tasks = res.groups.find((g) => g.key === 'tasks')!;
-    expect(tasks.hits[0]).toMatchObject({ subtitle: null, href: '/manager/tasks', date: new Date('2026-07-20') });
-    expect(tasks.hits[1]).toMatchObject({ subtitle: 'Длинное описание задачи', date: new Date('2026-07-02') });
+    expect(tasks.hits[0]).toMatchObject({
+      subtitle: null,
+      href: '/manager/tasks',
+      date: new Date('2026-07-20'),
+    });
+    expect(tasks.hits[1]).toMatchObject({
+      subtitle: 'Длинное описание задачи',
+      date: new Date('2026-07-02'),
+    });
     const events = res.groups.find((g) => g.key === 'events')!;
-    expect(events.hits[0]).toMatchObject({ subtitle: 'Zoom', href: '/manager/calendar', date: new Date('2026-07-21') });
+    expect(events.hits[0]).toMatchObject({
+      subtitle: 'Zoom',
+      href: '/manager/calendar',
+      date: new Date('2026-07-21'),
+    });
     const docs = res.groups.find((g) => g.key === 'documents')!;
     expect(docs.hits[0]!.subtitle).toBe('Заказ 1');
     expect(docs.hits[1]!.subtitle).toBeNull();
@@ -295,7 +369,13 @@ describe('globalSearch — ПДн (§25.7)', () => {
   it('слушатели журналируются: id строк, meta без сырой строки запроса', async () => {
     const { prisma, student } = makePrisma();
     student.mockResolvedValue([
-      { id: 's1', name: 'Иванов', email: 'i@example.com', createdAt: new Date(), organization: { name: 'О' } }
+      {
+        id: 's1',
+        name: 'Иванов',
+        email: 'i@example.com',
+        createdAt: new Date(),
+        organization: { name: 'О' },
+      },
     ]);
     await globalSearch(prisma, manager, { q: 'иванов' });
     expect(recordPiiAccess).toHaveBeenCalledTimes(1);
@@ -304,7 +384,7 @@ describe('globalSearch — ПДн (§25.7)', () => {
       session: manager,
       context: 'global_search_students',
       subjectIds: ['s1'],
-      meta: { take: SEARCH_TAKE, hasQuery: true }
+      meta: { take: SEARCH_TAKE, hasQuery: true },
     });
     expect(JSON.stringify(args.meta)).not.toContain('иванов');
   });
@@ -312,6 +392,9 @@ describe('globalSearch — ПДн (§25.7)', () => {
   it('пустая выдача слушателей → вызов с пустым subjectIds (no-op внутри record)', async () => {
     const { prisma } = makePrisma();
     await globalSearch(prisma, manager, { q: 'тест' });
-    expect(recordPiiAccess).toHaveBeenCalledWith(prisma, expect.objectContaining({ subjectIds: [] }));
+    expect(recordPiiAccess).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ subjectIds: [] })
+    );
   });
 });

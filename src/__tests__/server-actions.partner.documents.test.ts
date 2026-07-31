@@ -1,24 +1,32 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 
 const { core, notify, getSession } = vi.hoisted(() => ({
-  core: vi.fn(), notify: vi.fn(),
-  getSession: vi.fn()
+  core: vi.fn(),
+  notify: vi.fn(),
+  getSession: vi.fn(),
 }));
 vi.mock('@/lib/services/documents/upload-core', () => ({ persistUploadedDocument: core }));
 vi.mock('@/lib/notifications', () => ({ notifyManagers: notify }));
 vi.mock('@/lib/auth/session', () => ({ getSession }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
-const { db } = vi.hoisted(() => ({ db: {
-  order: { findUnique: vi.fn() },
-  partner: { findUnique: vi.fn() }
-} }));
+const { db } = vi.hoisted(() => ({
+  db: {
+    order: { findUnique: vi.fn() },
+    partner: { findUnique: vi.fn() },
+  },
+}));
 vi.mock('@/lib/db/prisma', () => ({ prisma: db }));
 
 import { uploadPartnerDocument } from '@/server-actions/partner/documents';
 
 const partnerSession = { sub: 'pu1', role: 'partner', partnerId: 'p1', email: 'p@x.ru', name: 'P' };
-const fd = (e: Record<string, string | File>) => { const f = new FormData(); for (const [k, v] of Object.entries(e)) f.set(k, v); return f; };
-const file = () => new File([new Uint8Array([0x25, 0x50, 0x44, 0x46])], 'a.pdf', { type: 'application/pdf' });
+const fd = (e: Record<string, string | File>) => {
+  const f = new FormData();
+  for (const [k, v] of Object.entries(e)) f.set(k, v);
+  return f;
+};
+const file = () =>
+  new File([new Uint8Array([0x25, 0x50, 0x44, 0x46])], 'a.pdf', { type: 'application/pdf' });
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -81,8 +89,13 @@ describe('uploadPartnerDocument — order scope', () => {
     expect(core).not.toHaveBeenCalled();
   });
 
-  it('rejects an order that is not the partner\'s', async () => {
-    db.order.findUnique.mockResolvedValue({ id: 'o1', partnerId: 'OTHER', orderNumber: '1', title: 'T' });
+  it("rejects an order that is not the partner's", async () => {
+    db.order.findUnique.mockResolvedValue({
+      id: 'o1',
+      partnerId: 'OTHER',
+      orderNumber: '1',
+      title: 'T',
+    });
     const r = await uploadPartnerDocument(fd({ orderId: 'o1', docType: 'act', file: file() }));
     expect(r).toEqual({ ok: false, error: 'not_found' });
     expect(core).not.toHaveBeenCalled();
@@ -91,7 +104,12 @@ describe('uploadPartnerDocument — order scope', () => {
 
 describe('uploadPartnerDocument — upload failures', () => {
   it('returns upload error from persistUploadedDocument', async () => {
-    db.order.findUnique.mockResolvedValue({ id: 'o1', partnerId: 'p1', orderNumber: '1', title: 'T' });
+    db.order.findUnique.mockResolvedValue({
+      id: 'o1',
+      partnerId: 'p1',
+      orderNumber: '1',
+      title: 'T',
+    });
     core.mockResolvedValue({ ok: false, error: 'too_large' });
     const r = await uploadPartnerDocument(fd({ orderId: 'o1', docType: 'act', file: file() }));
     expect(r).toEqual({ ok: false, error: 'too_large' });
@@ -101,7 +119,12 @@ describe('uploadPartnerDocument — upload failures', () => {
 
 describe('uploadPartnerDocument — happy path + graceful degradation', () => {
   it('persists incoming partner-channel doc + notifies managers', async () => {
-    db.order.findUnique.mockResolvedValue({ id: 'o1', partnerId: 'p1', orderNumber: '1', title: 'T' });
+    db.order.findUnique.mockResolvedValue({
+      id: 'o1',
+      partnerId: 'p1',
+      orderNumber: '1',
+      title: 'T',
+    });
     db.partner.findUnique.mockResolvedValue({ name: 'ООО Партнёр' });
     core.mockResolvedValue({ ok: true, documentId: 'doc1' });
     notify.mockResolvedValue({ recipientsNotified: 1 });
@@ -113,7 +136,12 @@ describe('uploadPartnerDocument — happy path + graceful degradation', () => {
   });
 
   it('uses "партнёр" fallback when partner.findUnique returns null', async () => {
-    db.order.findUnique.mockResolvedValue({ id: 'o1', partnerId: 'p1', orderNumber: '1', title: 'T' });
+    db.order.findUnique.mockResolvedValue({
+      id: 'o1',
+      partnerId: 'p1',
+      orderNumber: '1',
+      title: 'T',
+    });
     db.partner.findUnique.mockResolvedValue(null);
     core.mockResolvedValue({ ok: true, documentId: 'doc-np' });
     notify.mockResolvedValue({ recipientsNotified: 1 });
@@ -124,7 +152,12 @@ describe('uploadPartnerDocument — happy path + graceful degradation', () => {
   });
 
   it('still returns ok:true when notifyManagers throws (graceful degradation)', async () => {
-    db.order.findUnique.mockResolvedValue({ id: 'o1', partnerId: 'p1', orderNumber: '1', title: 'T' });
+    db.order.findUnique.mockResolvedValue({
+      id: 'o1',
+      partnerId: 'p1',
+      orderNumber: '1',
+      title: 'T',
+    });
     db.partner.findUnique.mockResolvedValue({ name: 'ООО Партнёр' });
     core.mockResolvedValue({ ok: true, documentId: 'doc2' });
     notify.mockRejectedValue(new Error('notify pipeline down'));
@@ -136,7 +169,12 @@ describe('uploadPartnerDocument — happy path + graceful degradation', () => {
   });
 
   it('still returns ok:true when notifyManagers throws a non-Error (String(err) branch)', async () => {
-    db.order.findUnique.mockResolvedValue({ id: 'o1', partnerId: 'p1', orderNumber: '1', title: 'T' });
+    db.order.findUnique.mockResolvedValue({
+      id: 'o1',
+      partnerId: 'p1',
+      orderNumber: '1',
+      title: 'T',
+    });
     db.partner.findUnique.mockResolvedValue({ name: 'P' });
     core.mockResolvedValue({ ok: true, documentId: 'doc3' });
     // Throw a plain string — covers `err instanceof Error ? err.message : String(err)` false branch
@@ -151,7 +189,12 @@ describe('uploadPartnerDocument — happy path + graceful degradation', () => {
   it('covers ?? "other" docType fallback when docType key is absent', async () => {
     // When docType key is absent from FormData: formData.get('docType') returns null
     // → String(null ?? 'other') = 'other'
-    db.order.findUnique.mockResolvedValue({ id: 'o1', partnerId: 'p1', orderNumber: '1', title: 'T' });
+    db.order.findUnique.mockResolvedValue({
+      id: 'o1',
+      partnerId: 'p1',
+      orderNumber: '1',
+      title: 'T',
+    });
     db.partner.findUnique.mockResolvedValue({ name: 'P' });
     core.mockResolvedValue({ ok: true, documentId: 'doc4' });
     notify.mockResolvedValue({ recipientsNotified: 1 });

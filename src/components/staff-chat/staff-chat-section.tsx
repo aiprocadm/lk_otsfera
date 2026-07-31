@@ -5,7 +5,11 @@ import { useStaffChatPolling, type StaffPolledRow } from '@/hooks/useStaffChatPo
 import { errorMessageRu } from '@/lib/errors/messages';
 import { toast } from '@/lib/ui/toast';
 import { clientLog } from '@/lib/logging/client';
-import { StaffConversationList, type StaffConversationRowVM, type StaffColleagueVM } from './staff-conversation-list';
+import {
+  StaffConversationList,
+  type StaffConversationRowVM,
+  type StaffColleagueVM,
+} from './staff-conversation-list';
 import { StaffThreadView, type StaffThreadMessageVM } from './staff-thread-view';
 import { StaffComposer, type StaffComposerAttachment } from './staff-composer';
 
@@ -24,14 +28,16 @@ function selectColleagueRows(raw: unknown): StaffColleagueVM[] {
  * and order-comment chat are separate domains, CLAUDE.md §5).
  */
 export function StaffChatSection({ currentUserId }: { currentUserId: string }) {
-  const { data: conversations, refetch: refetchConversations } = useClientResource<StaffConversationRowVM[]>(
-    '/api/staff-chat/conversations',
-    { intervalMs: 15_000, select: selectConversationRows }
-  );
+  const { data: conversations, refetch: refetchConversations } = useClientResource<
+    StaffConversationRowVM[]
+  >('/api/staff-chat/conversations', { intervalMs: 15_000, select: selectConversationRows });
   // One-shot load (no intervalMs) — the colleague roster changes rarely.
-  const { data: colleaguesRaw } = useClientResource<StaffColleagueVM[]>('/api/staff-chat/colleagues', {
-    select: selectColleagueRows
-  });
+  const { data: colleaguesRaw } = useClientResource<StaffColleagueVM[]>(
+    '/api/staff-chat/colleagues',
+    {
+      select: selectColleagueRows,
+    }
+  );
 
   const [activeId, setActiveId] = useState<string | null>(null);
   // Ref-twin of activeId for async guards (same ref-technique as the polling
@@ -68,7 +74,9 @@ export function StaffChatSection({ currentUserId }: { currentUserId: string }) {
     setLoadingMessages(true);
     let next: StaffThreadMessageVM[] = [];
     try {
-      const res = await fetch(`/api/staff-chat/messages?conversationId=${encodeURIComponent(conversationId)}`);
+      const res = await fetch(
+        `/api/staff-chat/messages?conversationId=${encodeURIComponent(conversationId)}`
+      );
       if (res.ok) {
         const data = (await res.json()) as { rows: StaffThreadMessageVM[] };
         next = data.rows;
@@ -92,7 +100,7 @@ export function StaffChatSection({ currentUserId }: { currentUserId: string }) {
       const res = await fetch('/api/staff-chat/read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId })
+        body: JSON.stringify({ conversationId }),
       });
       if (res.ok) void refetchConversations();
     } catch (err) {
@@ -121,9 +129,13 @@ export function StaffChatSection({ currentUserId }: { currentUserId: string }) {
           conversationId: activeId,
           body,
           ...(attachment
-            ? { attachmentPath: attachment.path, attachmentName: attachment.name, attachmentMime: attachment.mime }
-            : {})
-        })
+            ? {
+                attachmentPath: attachment.path,
+                attachmentName: attachment.name,
+                attachmentMime: attachment.mime,
+              }
+            : {}),
+        }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
@@ -143,7 +155,7 @@ export function StaffChatSection({ currentUserId }: { currentUserId: string }) {
       const res = await fetch('/api/staff-chat/reactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messageId, emoji })
+        body: JSON.stringify({ messageId, emoji }),
       });
       if (res.ok && activeId) {
         await loadMessages(activeId);
@@ -160,14 +172,14 @@ export function StaffChatSection({ currentUserId }: { currentUserId: string }) {
       const res = await fetch('/api/staff-chat/dm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetUserId })
+        body: JSON.stringify({ targetUserId }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
         toast.error(errorMessageRu(data?.error ?? '', 'Не удалось открыть диалог.'));
         return;
       }
-      await refetchConversations();
+      refetchConversations();
       await handleSelect(data.conversationId as string);
     } catch (err) {
       clientLog.warn('[staff-chat-section] new dm error', err);
@@ -183,10 +195,17 @@ export function StaffChatSection({ currentUserId }: { currentUserId: string }) {
         borderRadius: '12px',
         overflow: 'hidden',
         backgroundColor: '#ffffff',
-        minHeight: '480px'
+        minHeight: '480px',
       }}
     >
-      <div style={{ width: '280px', flexShrink: 0, borderRight: '1px solid #E5E7EB', overflowY: 'auto' }}>
+      <div
+        style={{
+          width: '280px',
+          flexShrink: 0,
+          borderRight: '1px solid #E5E7EB',
+          overflowY: 'auto',
+        }}
+      >
         <StaffConversationList
           rows={rows}
           activeId={activeId}
@@ -204,7 +223,7 @@ export function StaffChatSection({ currentUserId }: { currentUserId: string }) {
               alignItems: 'center',
               justifyContent: 'center',
               color: '#9CA3AF',
-              fontSize: '14px'
+              fontSize: '14px',
             }}
           >
             Выберите беседу
@@ -213,7 +232,14 @@ export function StaffChatSection({ currentUserId }: { currentUserId: string }) {
           <>
             <div style={{ flex: 1, overflowY: 'auto' }}>
               {loadingMessages ? (
-                <div style={{ padding: '24px', textAlign: 'center', color: '#9CA3AF', fontSize: '14px' }}>
+                <div
+                  style={{
+                    padding: '24px',
+                    textAlign: 'center',
+                    color: '#9CA3AF',
+                    fontSize: '14px',
+                  }}
+                >
                   Загрузка…
                 </div>
               ) : (

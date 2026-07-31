@@ -18,9 +18,7 @@ export type DefinitionsError =
   | 'invalid_entity_type'
   | 'reserved_key';
 
-type Result<T> =
-  | ({ ok: true } & T)
-  | { ok: false; error: DefinitionsError };
+type Result<T> = ({ ok: true } & T) | { ok: false; error: DefinitionsError };
 
 // ─── Key validation ──────────────────────────────────────────────────────────
 
@@ -144,7 +142,11 @@ export async function createDefinition(
       action: 'custom_field_definition_create',
       entity: 'custom_field_definition',
       entityId: definition.id,
-      after: { entityType: definition.entityType, key: definition.key, fieldType: definition.fieldType },
+      after: {
+        entityType: definition.entityType,
+        key: definition.key,
+        fieldType: definition.fieldType,
+      },
     });
 
     return { ok: true, definition };
@@ -186,7 +188,8 @@ export async function updateDefinition(
   if (patch.isActive !== undefined) data.isActive = patch.isActive;
   if (patch.helpText !== undefined) data.helpText = patch.helpText;
   if (patch.visibleToRoles !== undefined) data.visibleToRoles = sanitizeRoles(patch.visibleToRoles);
-  if (patch.editableByRoles !== undefined) data.editableByRoles = sanitizeRoles(patch.editableByRoles);
+  if (patch.editableByRoles !== undefined)
+    data.editableByRoles = sanitizeRoles(patch.editableByRoles);
 
   try {
     const definition = await prisma.customFieldDefinition.update({

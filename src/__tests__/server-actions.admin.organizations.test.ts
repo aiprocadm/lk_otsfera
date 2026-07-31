@@ -7,7 +7,7 @@ const {
   setOrgCommissionRate,
   clearOrgCommissionRate,
   revalidatePath,
-  organizationFindUnique
+  organizationFindUnique,
 } = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
   updateOrganization: vi.fn(),
@@ -15,26 +15,25 @@ const {
   setOrgCommissionRate: vi.fn(),
   clearOrgCommissionRate: vi.fn(),
   revalidatePath: vi.fn(),
-  organizationFindUnique: vi.fn()
+  organizationFindUnique: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: { organization: { findUnique: organizationFindUnique } }
+  prisma: { organization: { findUnique: organizationFindUnique } },
 }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 
 vi.mock('@/lib/services/admin/organizations', async () => {
-  const actual =
-    await vi.importActual<typeof import('@/lib/services/admin/organizations')>(
-      '@/lib/services/admin/organizations'
-    );
+  const actual = await vi.importActual<typeof import('@/lib/services/admin/organizations')>(
+    '@/lib/services/admin/organizations'
+  );
   return { ...actual, updateOrganization, createOrganization };
 });
 
 vi.mock('@/lib/services/partner/rateOverride', () => ({
   setOrgCommissionRate,
-  clearOrgCommissionRate
+  clearOrgCommissionRate,
 }));
 
 import {
@@ -42,7 +41,7 @@ import {
   updateOrganizationAction,
   setOrgRateOverrideAction,
   updateOrgFormAction,
-  setOrgRateOverrideFormAction
+  setOrgRateOverrideFormAction,
 } from '@/server-actions/admin/organizations';
 
 function fd(data: Record<string, string>): FormData {
@@ -66,14 +65,16 @@ describe('createOrganizationAction', () => {
   it('happy path returns the new id and revalidates the list', async () => {
     createOrganization.mockResolvedValue({ ok: true, id: 'org-new' });
 
-    const res = await createOrganizationAction(fd({ name: 'ООО Ромашка', inn: '7712345678', kpp: '771201001' }));
+    const res = await createOrganizationAction(
+      fd({ name: 'ООО Ромашка', inn: '7712345678', kpp: '771201001' })
+    );
 
     expect(res).toEqual({ ok: true, id: 'org-new' });
-    expect(createOrganization).toHaveBeenCalledWith(
-      expect.anything(),
-      'admin-1',
-      { name: 'ООО Ромашка', inn: '7712345678', kpp: '771201001' }
-    );
+    expect(createOrganization).toHaveBeenCalledWith(expect.anything(), 'admin-1', {
+      name: 'ООО Ромашка',
+      inn: '7712345678',
+      kpp: '771201001',
+    });
     expect(revalidatePath).toHaveBeenCalledWith('/admin/organizations');
   });
 
@@ -87,11 +88,9 @@ describe('createOrganizationAction', () => {
   it('omits blank inn/kpp (passed as undefined to zod)', async () => {
     createOrganization.mockResolvedValue({ ok: true, id: 'o1' });
     await createOrganizationAction(fd({ name: 'Без реквизитов' }));
-    expect(createOrganization).toHaveBeenCalledWith(
-      expect.anything(),
-      'admin-1',
-      { name: 'Без реквизитов' }
-    );
+    expect(createOrganization).toHaveBeenCalledWith(expect.anything(), 'admin-1', {
+      name: 'Без реквизитов',
+    });
   });
 });
 
@@ -110,12 +109,11 @@ describe('updateOrganizationAction', () => {
     );
 
     expect(res).toEqual({ ok: true });
-    expect(updateOrganization).toHaveBeenCalledWith(
-      expect.anything(),
-      'admin-1',
-      'org-1',
-      { name: 'Updated Name', inn: '1234567890', kpp: '123456789' }
-    );
+    expect(updateOrganization).toHaveBeenCalledWith(expect.anything(), 'admin-1', 'org-1', {
+      name: 'Updated Name',
+      inn: '1234567890',
+      kpp: '123456789',
+    });
     expect(revalidatePath).toHaveBeenCalledWith('/admin/organizations');
     expect(revalidatePath).toHaveBeenCalledWith('/admin/organizations/org-1');
   });
@@ -139,16 +137,14 @@ describe('updateOrganizationAction', () => {
       expect.anything(),
       'admin-1',
       'org-1',
-      {}  // no name/inn/kpp
+      {} // no name/inn/kpp
     );
   });
 });
 
 describe('setOrgRateOverrideAction', () => {
   it('returns validation error when reason is missing — bare stable code, no zod details (R2)', async () => {
-    const res = await setOrgRateOverrideAction(
-      fd({ organizationId: 'org-1', ratePercent: '8' })
-    );
+    const res = await setOrgRateOverrideAction(fd({ organizationId: 'org-1', ratePercent: '8' }));
     expect(res).toEqual({ ok: false, error: 'validation' });
     expect(organizationFindUnique).not.toHaveBeenCalled();
     expect(setOrgCommissionRate).not.toHaveBeenCalled();
@@ -174,16 +170,13 @@ describe('setOrgRateOverrideAction', () => {
     );
 
     expect(res).toEqual({ ok: true });
-    expect(setOrgCommissionRate).toHaveBeenCalledWith(
-      expect.anything(),
-      {
-        organizationId: 'org-1',
-        partnerId: 'partner-42',
-        newRate: 0.08,
-        reason: 'vip client',
-        changedByUserId: 'admin-1'
-      }
-    );
+    expect(setOrgCommissionRate).toHaveBeenCalledWith(expect.anything(), {
+      organizationId: 'org-1',
+      partnerId: 'partner-42',
+      newRate: 0.08,
+      reason: 'vip client',
+      changedByUserId: 'admin-1',
+    });
     expect(revalidatePath).toHaveBeenCalledWith('/admin/organizations/org-1');
   });
 
@@ -196,15 +189,12 @@ describe('setOrgRateOverrideAction', () => {
     );
 
     expect(res).toEqual({ ok: true });
-    expect(clearOrgCommissionRate).toHaveBeenCalledWith(
-      expect.anything(),
-      {
-        organizationId: 'org-1',
-        partnerId: 'partner-42',
-        reason: 'reverting override',
-        changedByUserId: 'admin-1'
-      }
-    );
+    expect(clearOrgCommissionRate).toHaveBeenCalledWith(expect.anything(), {
+      organizationId: 'org-1',
+      partnerId: 'partner-42',
+      reason: 'reverting override',
+      changedByUserId: 'admin-1',
+    });
     expect(setOrgCommissionRate).not.toHaveBeenCalled();
     expect(revalidatePath).toHaveBeenCalledWith('/admin/organizations/org-1');
   });
@@ -223,9 +213,7 @@ describe('setOrgRateOverrideAction', () => {
   it('returns validation error when both clear and ratePercent are absent', async () => {
     organizationFindUnique.mockResolvedValue({ partnerId: 'partner-42' });
 
-    const res = await setOrgRateOverrideAction(
-      fd({ organizationId: 'org-1', reason: 'test' })
-    );
+    const res = await setOrgRateOverrideAction(fd({ organizationId: 'org-1', reason: 'test' }));
 
     expect(res).toMatchObject({ ok: false, error: 'validation' });
     expect(setOrgCommissionRate).not.toHaveBeenCalled();

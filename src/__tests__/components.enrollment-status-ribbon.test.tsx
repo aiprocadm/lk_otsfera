@@ -47,7 +47,9 @@ describe('EnrollmentStatusRibbon — конвейер из 5 точек', () => 
   });
 
   it('линии до текущей точки оранжевые, после — серые', () => {
-    const html = renderToString(React.createElement(EnrollmentStatusRibbon, { status: 'provisioned' }));
+    const html = renderToString(
+      React.createElement(EnrollmentStatusRibbon, { status: 'provisioned' })
+    );
     const items = liItems(html);
     // provisioned = индекс 2 → линии перед li[1] и li[2] достигнуты, перед li[3] и li[4] — нет
     expect(items[1]).toContain('bg-[#F97316]');
@@ -60,7 +62,10 @@ describe('EnrollmentStatusRibbon — конвейер из 5 точек', () => 
 describe('EnrollmentStatusRibbon — rejected', () => {
   it('с причиной: плашка «Заявка отклонена: причина», ленты нет', () => {
     const html = renderToString(
-      React.createElement(EnrollmentStatusRibbon, { status: 'rejected', rejectedReason: 'Неполные данные' })
+      React.createElement(EnrollmentStatusRibbon, {
+        status: 'rejected',
+        rejectedReason: 'Неполные данные',
+      })
     ).replace(/<!-- -->/g, '');
     expect(html).toContain('Заявка отклонена: Неполные данные');
     expect(html).not.toContain('aria-label="Статус заявки"');

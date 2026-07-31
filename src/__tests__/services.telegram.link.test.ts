@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import { getTelegramStatus, generateLinkCode, unlinkTelegram, linkByCode } from '@/lib/services/telegram/link';
+import {
+  getTelegramStatus,
+  generateLinkCode,
+  unlinkTelegram,
+  linkByCode,
+} from '@/lib/services/telegram/link';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 // Mock telegram/client so tests don't need real env or fetch
@@ -140,9 +145,7 @@ describe('generateLinkCode', () => {
 describe('linkByCode', () => {
   async function seedCode(userId: string, expired = false) {
     const code = `test-code-${userId.slice(-4)}-${STAMP}`;
-    const expiresAt = expired
-      ? new Date(Date.now() - 1000)
-      : new Date(Date.now() + 15 * 60 * 1000);
+    const expiresAt = expired ? new Date(Date.now() - 1000) : new Date(Date.now() + 15 * 60 * 1000);
     await prisma.user.update({
       where: { id: userId },
       data: { telegramLinkCode: code, telegramLinkCodeExpiresAt: expiresAt },

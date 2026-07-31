@@ -9,11 +9,7 @@ import { listManagersForOrg, listCompanyManagers } from '@/lib/services/manager/
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
-function makeRow(
-  id: string,
-  isActive: boolean,
-  deactivatedAt: Date | null = null
-) {
+function makeRow(id: string, isActive: boolean, deactivatedAt: Date | null = null) {
   return {
     id,
     organizationId: 'org-1',
@@ -26,16 +22,16 @@ function makeRow(
       id: `user-${id}`,
       name: `User ${id}`,
       email: `${id}@t.local`,
-      isActive: true
-    }
+      isActive: true,
+    },
   };
 }
 
 function prismaWith(rows: ReturnType<typeof makeRow>[]) {
   return {
     organizationManager: {
-      findMany: vi.fn().mockResolvedValue(rows)
-    }
+      findMany: vi.fn().mockResolvedValue(rows),
+    },
   } as never;
 }
 
@@ -52,7 +48,7 @@ describe('listManagersForOrg', () => {
     const p = prismaWith([
       makeRow('a', true),
       makeRow('b', false, new Date('2026-04-01')),
-      makeRow('c', false, new Date('2026-01-01'))
+      makeRow('c', false, new Date('2026-01-01')),
     ]);
     const { active, inactive } = await listManagersForOrg(p, 'org-1');
     expect(active).toHaveLength(1);
@@ -111,14 +107,14 @@ function companyUser(id: string, overrides: Record<string, unknown> = {}) {
     isActive: true,
     managerRole: null,
     managedOrganizations: [],
-    ...overrides
+    ...overrides,
   };
 }
 
 describe('listCompanyManagers', () => {
   it('returns empty array when there are no managers in the company', async () => {
     const p = {
-      user: { findMany: vi.fn().mockResolvedValue([]) }
+      user: { findMany: vi.fn().mockResolvedValue([]) },
     } as never;
     const result = await listCompanyManagers(p, 'co-1');
     expect(result).toEqual([]);
@@ -134,12 +130,12 @@ describe('listCompanyManagers', () => {
               {
                 id: 'assign-1',
                 isActive: true,
-                organization: { id: 'org-1', name: 'Org One' }
-              }
-            ]
-          })
-        ])
-      }
+                organization: { id: 'org-1', name: 'Org One' },
+              },
+            ],
+          }),
+        ]),
+      },
     } as never;
     const [row] = await listCompanyManagers(p, 'co-1');
     expect(row).toMatchObject({
@@ -153,9 +149,9 @@ describe('listCompanyManagers', () => {
           id: 'assign-1',
           organizationId: 'org-1',
           organizationName: 'Org One',
-          isActive: true
-        }
-      ]
+          isActive: true,
+        },
+      ],
     });
   });
 
@@ -165,7 +161,7 @@ describe('listCompanyManagers', () => {
     await listCompanyManagers(p, 'co-xyz');
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { role: 'manager', companyId: 'co-xyz' }
+        where: { role: 'manager', companyId: 'co-xyz' },
       })
     );
   });
@@ -173,8 +169,8 @@ describe('listCompanyManagers', () => {
   it('manager with no org assignments maps to empty assignments array', async () => {
     const p = {
       user: {
-        findMany: vi.fn().mockResolvedValue([companyUser('m2')])
-      }
+        findMany: vi.fn().mockResolvedValue([companyUser('m2')]),
+      },
     } as never;
     const [row] = await listCompanyManagers(p, 'co-1');
     expect(row.assignments).toEqual([]);
@@ -209,7 +205,7 @@ describe('listManagersForOrg — sort callback second branch (prev >= newer)', (
     // With 3 rows, sort makes multiple comparator calls; at least one will put
     // the null-date row in the `a` position, exercising a.deactivatedAt?.getTime() ?? 0
     const r1 = makeRow('s1', false, new Date('2026-04-01'));
-    const r2 = makeRow('s2', false, null);               // null → aT=0 when in `a` slot
+    const r2 = makeRow('s2', false, null); // null → aT=0 when in `a` slot
     const r3 = makeRow('s3', false, new Date('2026-06-01'));
     const p = prismaWith([r2, r1, r3]);
     const { inactive } = await listManagersForOrg(p, 'org-1');

@@ -16,7 +16,7 @@ function makeRow(overrides: Partial<AuditRow> = {}): AuditRow {
     entity: 'user',
     entityId: 'u1',
     meta: null,
-    ...overrides
+    ...overrides,
   };
 }
 

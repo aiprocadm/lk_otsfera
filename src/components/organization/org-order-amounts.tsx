@@ -11,14 +11,14 @@ export function OrgOrderAmounts({ order }: { order: OrgOrderDetail }) {
   const paidPct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
 
   return (
-    <div className='bg-white border border-gray-200 rounded-xl p-5 space-y-4'>
-      <h2 className='text-sm font-semibold text-[#111111]'>Финансы</h2>
+    <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+      <h2 className="text-sm font-semibold text-[#111111]">Финансы</h2>
 
-      <div className='grid grid-cols-3 gap-3'>
-        <Tile label='Сумма' value={fmtMoney(order.totalAmount)} />
-        <Tile label='Оплачено' value={fmtMoney(order.paidAmount)} tone='success' />
+      <div className="grid grid-cols-3 gap-3">
+        <Tile label="Сумма" value={fmtMoney(order.totalAmount)} />
+        <Tile label="Оплачено" value={fmtMoney(order.paidAmount)} tone="success" />
         <Tile
-          label='Долг'
+          label="Долг"
           value={fmtMoney(order.debt)}
           tone={Number(order.debt) > 0 ? 'danger' : 'neutral'}
         />
@@ -26,15 +26,15 @@ export function OrgOrderAmounts({ order }: { order: OrgOrderDetail }) {
 
       {total > 0 && (
         <div>
-          <div className='flex justify-between text-xs text-gray-500 mb-1'>
+          <div className="flex justify-between text-xs text-gray-500 mb-1">
             <span>Оплачено</span>
             <span>{paidPct}%</span>
           </div>
-          <div className='h-2 bg-gray-100 rounded-full overflow-hidden'>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
             <div
-              className='h-full bg-green-500 rounded-full transition-all'
+              className="h-full bg-green-500 rounded-full transition-all"
               style={{ width: `${paidPct}%` }}
-              role='progressbar'
+              role="progressbar"
               aria-valuenow={paidPct}
               aria-valuemin={0}
               aria-valuemax={100}
@@ -43,7 +43,7 @@ export function OrgOrderAmounts({ order }: { order: OrgOrderDetail }) {
         </div>
       )}
 
-      <div className='text-xs text-gray-500'>
+      <div className="text-xs text-gray-500">
         {order.vatIncluded ? 'НДС включён' : 'Без НДС'}
         {order.vatRate && <span> · ставка {(Number(order.vatRate) * 100).toFixed(0)}%</span>}
       </div>
@@ -54,7 +54,7 @@ export function OrgOrderAmounts({ order }: { order: OrgOrderDetail }) {
 function Tile({
   label,
   value,
-  tone
+  tone,
 }: {
   label: string;
   value: string;
@@ -68,8 +68,8 @@ function Tile({
         : 'bg-gray-50 border-gray-100 text-[#111111]';
   return (
     <div className={`rounded-lg border p-3 ${colors}`}>
-      <div className='text-[10px] uppercase tracking-wider text-gray-500'>{label}</div>
-      <div className='text-base font-bold mt-0.5'>{value}</div>
+      <div className="text-[10px] uppercase tracking-wider text-gray-500">{label}</div>
+      <div className="text-base font-bold mt-0.5">{value}</div>
     </div>
   );
 }

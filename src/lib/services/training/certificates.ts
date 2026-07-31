@@ -26,7 +26,7 @@ function canEditCertificates(session: SessionPayload): boolean {
  */
 async function scopeOrgIds(
   prisma: PrismaClient,
-  session: SessionPayload,
+  session: SessionPayload
 ): Promise<string[] | null> {
   if (session.role === 'admin') return null;
 
@@ -121,7 +121,7 @@ export type ListCertificatesArgs = {
 export async function listCertificates(
   prisma: PrismaClient,
   session: SessionPayload,
-  args: ListCertificatesArgs,
+  args: ListCertificatesArgs
 ): Promise<Result<{ certificates: CertificateRow[]; total: number }>> {
   const orgIds = await scopeOrgIds(prisma, session);
   const where: Prisma.CertificateWhereInput = {};
@@ -163,7 +163,7 @@ export async function listCertificates(
   await recordPiiAccess(prisma, {
     session,
     context: 'certificates_list',
-    subjectIds: certificates.map((c) => c.studentId)
+    subjectIds: certificates.map((c) => c.studentId),
   });
   return { ok: true, certificates, total };
 }
@@ -171,7 +171,7 @@ export async function listCertificates(
 async function assertStudentInScope(
   prisma: PrismaClient,
   session: SessionPayload,
-  studentId: string,
+  studentId: string
 ): Promise<{ organizationId: string } | null> {
   const student = await prisma.student.findUnique({
     where: { id: studentId },
@@ -195,7 +195,7 @@ export async function createCertificate(
     orderItemId?: string | null;
     documentId?: string | null;
     comment?: string | null;
-  },
+  }
 ): Promise<Result<{ certificate: Certificate }>> {
   if (!canEditCertificates(session)) return { ok: false, error: 'forbidden' };
   if (!args.number?.trim()) return { ok: false, error: 'validation' };
@@ -244,7 +244,7 @@ export async function issueFromOrderItem(
     issuedAt: Date;
     validUntil?: Date | null;
     documentId?: string | null;
-  },
+  }
 ): Promise<Result<{ certificate: Certificate }>> {
   if (!canEditCertificates(session)) return { ok: false, error: 'forbidden' };
   if (!args.number?.trim()) return { ok: false, error: 'validation' };

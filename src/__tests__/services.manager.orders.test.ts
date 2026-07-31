@@ -15,10 +15,10 @@ let userBId: string;
 let userCId: string;
 let orgUserAId: string;
 
-let orderOrgAId: string;          // belongs to orgA
-let orderOrgBId: string;          // belongs to orgB
-let orderManagerCId: string;      // belongs to orgB, manager=userC
-let orderForeignId: string;       // no link to any test user
+let orderOrgAId: string; // belongs to orgA
+let orderOrgBId: string; // belongs to orgB
+let orderManagerCId: string; // belongs to orgB, manager=userC
+let orderForeignId: string; // no link to any test user
 
 function managerSession(userId: string, managedOrgIds: string[]): SessionPayload {
   return { sub: userId, role: 'manager', managedOrgIds };
@@ -31,20 +31,20 @@ beforeAll(async () => {
   const company = await prisma.company.create({ data: { name: `MgrOrdC-${stamp}` } });
   companyId = company.id;
   const partner = await prisma.partner.create({
-    data: { name: `MgrOrdP-${stamp}`, commissionRate: 0.1 }
+    data: { name: `MgrOrdP-${stamp}`, commissionRate: 0.1 },
   });
   partnerId = partner.id;
   const foreignPartner = await prisma.partner.create({
-    data: { name: `MgrOrdFP-${stamp}`, commissionRate: 0.1 }
+    data: { name: `MgrOrdFP-${stamp}`, commissionRate: 0.1 },
   });
   foreignPartnerId = foreignPartner.id;
 
   const orgA = await prisma.organization.create({
-    data: { name: `MgrOrdOrgA-${stamp}`, partnerId, companyId }
+    data: { name: `MgrOrdOrgA-${stamp}`, partnerId, companyId },
   });
   orgAId = orgA.id;
   const orgB = await prisma.organization.create({
-    data: { name: `MgrOrdOrgB-${stamp}`, partnerId, companyId }
+    data: { name: `MgrOrdOrgB-${stamp}`, partnerId, companyId },
   });
   orgBId = orgB.id;
 
@@ -53,8 +53,8 @@ beforeAll(async () => {
       email: `mgr-ord-a-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Manager A',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   userAId = userA.id;
   const userB = await prisma.user.create({
@@ -62,8 +62,8 @@ beforeAll(async () => {
       email: `mgr-ord-b-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Manager B',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   userBId = userB.id;
   const userC = await prisma.user.create({
@@ -71,8 +71,8 @@ beforeAll(async () => {
       email: `mgr-ord-c-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Manager C',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   userCId = userC.id;
 
@@ -82,17 +82,17 @@ beforeAll(async () => {
       passwordHash: 'x',
       name: 'OrgUser A',
       role: 'organization',
-      organizationId: orgAId
-    }
+      organizationId: orgAId,
+    },
   });
   orgUserAId = orgUserA.id;
 
   // userA assigned to orgA; userB assigned to orgB; userC has no assignment.
   await prisma.organizationManager.create({
-    data: { organizationId: orgAId, userId: userAId, isActive: true }
+    data: { organizationId: orgAId, userId: userAId, isActive: true },
   });
   await prisma.organizationManager.create({
-    data: { organizationId: orgBId, userId: userBId, isActive: true }
+    data: { organizationId: orgBId, userId: userBId, isActive: true },
   });
 
   // Order in orgA, no specific manager.
@@ -106,8 +106,8 @@ beforeAll(async () => {
       executionStatus: 'in_progress',
       financialStatus: 'partially_paid',
       totalAmount: 100000,
-      paidAmount: 25000
-    }
+      paidAmount: 25000,
+    },
   });
   orderOrgAId = oA.id;
 
@@ -121,8 +121,8 @@ beforeAll(async () => {
       organizationId: orgBId,
       executionStatus: 'pending',
       financialStatus: 'billed',
-      totalAmount: 50000
-    }
+      totalAmount: 50000,
+    },
   });
   orderOrgBId = oB.id;
 
@@ -135,8 +135,8 @@ beforeAll(async () => {
       partnerId,
       organizationId: orgBId,
       managerId: userCId,
-      executionStatus: 'in_progress'
-    }
+      executionStatus: 'in_progress',
+    },
   });
   orderManagerCId = oMC.id;
 
@@ -148,8 +148,8 @@ beforeAll(async () => {
       companyId,
       partnerId: foreignPartnerId,
       organizationId: orgBId,
-      executionStatus: 'completed'
-    }
+      executionStatus: 'completed',
+    },
   });
   orderForeignId = oF.id;
 
@@ -163,8 +163,8 @@ beforeAll(async () => {
       type: 'contract',
       orderId: orderOrgAId,
       counterpartyType: 'organization',
-      counterpartyId: orgAId
-    }
+      counterpartyId: orgAId,
+    },
   });
   await prisma.document.create({
     data: {
@@ -175,11 +175,17 @@ beforeAll(async () => {
       orderId: orderOrgAId,
       scanStatus: 'infected',
       counterpartyType: 'organization',
-      counterpartyId: orgAId
-    }
+      counterpartyId: orgAId,
+    },
   });
   await prisma.payment.create({
-    data: { organizationId: orgAId, orderId: orderOrgAId, amount: 25000, paidAt: new Date(), method: 'bank' }
+    data: {
+      organizationId: orgAId,
+      orderId: orderOrgAId,
+      amount: 25000,
+      paidAt: new Date(),
+      method: 'bank',
+    },
   });
 });
 
@@ -191,7 +197,7 @@ afterAll(async () => {
   await prisma.notification.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.auditLog.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.comment.deleteMany({
-    where: { OR: [{ authorId: { in: userIds } }, { order: { organizationId: { in: orgIds } } }] }
+    where: { OR: [{ authorId: { in: userIds } }, { order: { organizationId: { in: orgIds } } }] },
   });
   await prisma.payment.deleteMany({ where: { order: { organizationId: { in: orgIds } } } });
   await prisma.document.deleteMany({ where: { order: { organizationId: { in: orgIds } } } });
@@ -238,8 +244,8 @@ describe('services/manager/orders — listOrders RBAC scope', () => {
         email: `ghost-${Date.now()}@t.local`,
         passwordHash: 'x',
         role: 'manager',
-        name: 'Ghost'
-      }
+        name: 'Ghost',
+      },
     });
     try {
       const session = managerSession(ghost.id, []);
@@ -257,7 +263,7 @@ describe('services/manager/orders — listOrders filters', () => {
     const { rows } = await listOrders(prisma, {
       session,
       executionStatus: 'in_progress',
-      take: 100
+      take: 100,
     });
     const ids = rows.map((r) => r.id);
     expect(ids).toContain(orderManagerCId);
@@ -271,7 +277,7 @@ describe('services/manager/orders — listOrders filters', () => {
     // операционному полю. Заводим статус, вешаем на одну заявку и убеждаемся,
     // что выборка сузилась именно по нему, не потеряв скоуп.
     const statusDef = await prisma.orderStatusDefinition.create({
-      data: { key: `flt-${Date.now()}`, label: 'Фильтр-статус', sortOrder: 900 }
+      data: { key: `flt-${Date.now()}`, label: 'Фильтр-статус', sortOrder: 900 },
     });
     await prisma.order.update({ where: { id: orderOrgBId }, data: { statusId: statusDef.id } });
 
@@ -291,7 +297,7 @@ describe('services/manager/orders — listOrders filters', () => {
     const { rows } = await listOrders(prisma, {
       session,
       financialStatus: 'partially_paid',
-      take: 100
+      take: 100,
     });
     const ids = rows.map((r) => r.id);
     expect(ids).toContain(orderOrgAId);
@@ -302,7 +308,7 @@ describe('services/manager/orders — listOrders filters', () => {
     const { rows } = await listOrders(prisma, {
       session,
       organizationId: orgBId,
-      take: 100
+      take: 100,
     });
     for (const r of rows) {
       expect(r.organizationId).toBe(orgBId);
@@ -343,7 +349,7 @@ describe('services/manager/orders — listOrders filters', () => {
     const second = await listOrders(prisma, {
       session,
       take: 1,
-      cursor: first.nextCursor!
+      cursor: first.nextCursor!,
     });
     expect(second.rows.length).toBe(1);
     expect(second.rows[0]!.id).not.toBe(first.rows[0]!.id);
@@ -362,9 +368,7 @@ describe('services/manager/orders — listOrders filters', () => {
 
   it('rejects take > 100 via zod validation', async () => {
     const session = managerSession(userAId, [orgAId]);
-    await expect(
-      listOrders(prisma, { session, take: 9999 })
-    ).rejects.toThrow();
+    await expect(listOrders(prisma, { session, take: 9999 })).rejects.toThrow();
   });
 });
 
@@ -406,7 +410,7 @@ describe('services/manager/orders — getOrder', () => {
     // order, then admin removes userA's orgA assignment, then we call
     // getOrder with a session that has *no* managedOrgIds.
     await prisma.comment.create({
-      data: { orderId: orderOrgBId, body: 'historical reply', authorId: userAId }
+      data: { orderId: orderOrgBId, body: 'historical reply', authorId: userAId },
     });
     // Admin removes userA-assignment from orgA (we're modelling complete
     // removal of any active assignment).
@@ -423,7 +427,7 @@ describe('services/manager/orders — getOrder', () => {
       // ordering aren't disturbed (afterAll wipes everything anyway, but this
       // keeps this test self-contained against shared state).
       await prisma.organizationManager.create({
-        data: { organizationId: orgAId, userId: userAId, isActive: true }
+        data: { organizationId: orgAId, userId: userAId, isActive: true },
       });
     }
   });

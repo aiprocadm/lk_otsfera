@@ -9,13 +9,23 @@ let orgId: string;
 
 beforeAll(async () => {
   prisma = new PrismaClient();
-  const p = await prisma.partner.create({ data: { name: 'RP-' + Date.now(), commissionRate: 0.05 } });
+  const p = await prisma.partner.create({
+    data: { name: 'RP-' + Date.now(), commissionRate: 0.05 },
+  });
   partnerId = p.id;
   const c = await prisma.company.create({ data: { name: 'RC-' + Date.now() } });
-  const org = await prisma.organization.create({ data: { name: 'OR', partnerId, companyId: c.id } });
+  const org = await prisma.organization.create({
+    data: { name: 'OR', partnerId, companyId: c.id },
+  });
   orgId = org.id;
   const u = await prisma.user.create({
-    data: { email: `ro-${Date.now()}@x.local`, passwordHash: 'h', name: 'A', role: 'partner', partnerId }
+    data: {
+      email: `ro-${Date.now()}@x.local`,
+      passwordHash: 'h',
+      name: 'A',
+      role: 'partner',
+      partnerId,
+    },
   });
   userId = u.id;
 });
@@ -37,16 +47,19 @@ beforeEach(async () => {
       partnerCommissionRate: null,
       partnerCommissionRateNote: null,
       partnerCommissionRateChangedAt: null,
-      partnerCommissionRateChangedBy: null
-    }
+      partnerCommissionRateChangedBy: null,
+    },
   });
 });
 
 describe('setOrgCommissionRate', () => {
   it('updates partnerCommissionRate and metadata fields', async () => {
     await setOrgCommissionRate(prisma, {
-      organizationId: orgId, partnerId,
-      newRate: 0.08, reason: 'VIP клиент', changedByUserId: userId
+      organizationId: orgId,
+      partnerId,
+      newRate: 0.08,
+      reason: 'VIP клиент',
+      changedByUserId: userId,
     });
 
     const org = await prisma.organization.findUniqueOrThrow({ where: { id: orgId } });
@@ -58,13 +71,16 @@ describe('setOrgCommissionRate', () => {
 
   it('writes AuditLog with before/after rate', async () => {
     await setOrgCommissionRate(prisma, {
-      organizationId: orgId, partnerId,
-      newRate: 0.08, reason: 'VIP', changedByUserId: userId
+      organizationId: orgId,
+      partnerId,
+      newRate: 0.08,
+      reason: 'VIP',
+      changedByUserId: userId,
     });
 
     const audit = await prisma.auditLog.findFirst({
       where: { userId, entity: 'organization', entityId: orgId },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     expect(audit).not.toBeNull();
     expect(audit!.action).toBe('partner_commission_rate_changed');
@@ -81,15 +97,21 @@ describe('setOrgCommissionRate', () => {
   it('rejects rates out of (0, 1) range', async () => {
     expect(
       await setOrgCommissionRate(prisma, {
-        organizationId: orgId, partnerId,
-        newRate: -0.1, reason: 'X', changedByUserId: userId
+        organizationId: orgId,
+        partnerId,
+        newRate: -0.1,
+        reason: 'X',
+        changedByUserId: userId,
       })
     ).toEqual({ ok: false, error: 'rate_out_of_range' });
 
     expect(
       await setOrgCommissionRate(prisma, {
-        organizationId: orgId, partnerId,
-        newRate: 1.5, reason: 'X', changedByUserId: userId
+        organizationId: orgId,
+        partnerId,
+        newRate: 1.5,
+        reason: 'X',
+        changedByUserId: userId,
       })
     ).toEqual({ ok: false, error: 'rate_out_of_range' });
   });
@@ -97,8 +119,11 @@ describe('setOrgCommissionRate', () => {
   it('refuses to change org outside partner', async () => {
     expect(
       await setOrgCommissionRate(prisma, {
-        organizationId: orgId, partnerId: 'no-such',
-        newRate: 0.08, reason: 'X', changedByUserId: userId
+        organizationId: orgId,
+        partnerId: 'no-such',
+        newRate: 0.08,
+        reason: 'X',
+        changedByUserId: userId,
       })
     ).toEqual({ ok: false, error: 'not_found' });
   });
@@ -112,12 +137,15 @@ describe('clearOrgCommissionRate', () => {
         partnerCommissionRate: 0.08,
         partnerCommissionRateNote: 'old',
         partnerCommissionRateChangedAt: new Date(),
-        partnerCommissionRateChangedBy: userId
-      }
+        partnerCommissionRateChangedBy: userId,
+      },
     });
 
     await clearOrgCommissionRate(prisma, {
-      organizationId: orgId, partnerId, reason: 'вернуть базу', changedByUserId: userId
+      organizationId: orgId,
+      partnerId,
+      reason: 'вернуть базу',
+      changedByUserId: userId,
     });
 
     const org = await prisma.organization.findUniqueOrThrow({ where: { id: orgId } });
@@ -126,7 +154,7 @@ describe('clearOrgCommissionRate', () => {
 
     const audit = await prisma.auditLog.findFirst({
       where: { userId, action: 'partner_commission_rate_changed' },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     expect(audit).not.toBeNull();
     const meta = audit!.meta as {

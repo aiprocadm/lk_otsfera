@@ -3,8 +3,15 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
-    React.createElement('a', { href, className }, children)
+  default: ({
+    href,
+    children,
+    className,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => React.createElement('a', { href, className }, children),
 }));
 
 import { DealsTable } from '@/components/partner/deals-table';
@@ -26,7 +33,7 @@ function makeRow(overrides: Partial<DealRow> = {}): DealRow {
     createdAt: new Date('2026-01-01'),
     deadline: new Date('2026-02-01'),
     closedAt: null,
-    ...overrides
+    ...overrides,
   };
 }
 

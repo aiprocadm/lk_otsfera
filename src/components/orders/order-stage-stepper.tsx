@@ -19,25 +19,19 @@ function toneToBadge(tone: StageTone): 'neutral' | 'success' | 'warning' | 'dang
   return 'danger';
 }
 
-export function OrderStageStepper({
-  stage,
-  labels
-}: {
-  stage: WorkingStage;
-  labels: string[];
-}) {
+export function OrderStageStepper({ stage, labels }: { stage: WorkingStage; labels: string[] }) {
   // Терминальный: одиночный бейдж вместо дорожки
   if (stage.terminal) {
     return (
-      <Badge tone={toneToBadge(stage.tone)} className='text-xs font-medium'>
+      <Badge tone={toneToBadge(stage.tone)} className="text-xs font-medium">
         {stage.label}
       </Badge>
     );
   }
 
   return (
-    <div className='w-full overflow-x-auto'>
-      <ol className='flex items-start gap-0 min-w-0'>
+    <div className="w-full overflow-x-auto">
+      <ol className="flex items-start gap-0 min-w-0">
         {labels.map((label, i) => {
           const stepIndex = i + 1; // 1..6
           const isDone = stepIndex < stage.index;
@@ -45,9 +39,9 @@ export function OrderStageStepper({
           // upcoming: stepIndex > stage.index
 
           return (
-            <li key={label} className='flex flex-1 flex-col items-center gap-1 min-w-0'>
+            <li key={label} className="flex flex-1 flex-col items-center gap-1 min-w-0">
               {/* Connector line + dot row */}
-              <div className='flex items-center w-full'>
+              <div className="flex items-center w-full">
                 {/* Left connector */}
                 <div
                   className={[
@@ -56,7 +50,7 @@ export function OrderStageStepper({
                       ? 'invisible'
                       : isDone || isCurrent
                         ? 'bg-orange-400'
-                        : 'bg-gray-200'
+                        : 'bg-gray-200',
                   ].join(' ')}
                 />
 
@@ -68,23 +62,23 @@ export function OrderStageStepper({
                       ? 'bg-orange-500 text-white'
                       : isDone
                         ? 'bg-orange-400 text-white'
-                        : 'bg-gray-200 text-gray-400'
+                        : 'bg-gray-200 text-gray-400',
                   ].join(' ')}
                   aria-current={isCurrent ? 'step' : undefined}
                 >
                   {isDone ? (
                     // Checkmark for done steps
                     <svg
-                      xmlns='http://www.w3.org/2000/svg'
-                      viewBox='0 0 16 16'
-                      fill='currentColor'
-                      className='w-3.5 h-3.5'
-                      aria-hidden='true'
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                      className="w-3.5 h-3.5"
+                      aria-hidden="true"
                     >
                       <path
-                        fillRule='evenodd'
-                        d='M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z'
-                        clipRule='evenodd'
+                        fillRule="evenodd"
+                        d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z"
+                        clipRule="evenodd"
                       />
                     </svg>
                   ) : (
@@ -100,7 +94,7 @@ export function OrderStageStepper({
                       ? 'invisible'
                       : isDone
                         ? 'bg-orange-400'
-                        : 'bg-gray-200'
+                        : 'bg-gray-200',
                   ].join(' ')}
                 />
               </div>
@@ -113,7 +107,7 @@ export function OrderStageStepper({
                     ? 'text-orange-600 font-semibold'
                     : isDone
                       ? 'text-gray-600 font-medium'
-                      : 'text-gray-400'
+                      : 'text-gray-400',
                 ].join(' ')}
               >
                 {label}

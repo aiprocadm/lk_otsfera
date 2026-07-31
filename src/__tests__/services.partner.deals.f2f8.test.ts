@@ -19,21 +19,62 @@ beforeAll(async () => {
   partnerId = p.id;
   const c = await prisma.company.create({ data: { name: 'F2C-' + Date.now() } });
   // F8: two orgs sharing ONE company.
-  const orgA = await prisma.organization.create({ data: { name: 'OrgA', partnerId, companyId: c.id } });
-  const orgB = await prisma.organization.create({ data: { name: 'OrgB', partnerId, companyId: c.id } });
-  orgAId = orgA.id; orgBId = orgB.id;
-  const u = await prisma.user.create({ data: { email: `f2-${Date.now()}@t.local`, passwordHash: 'x', name: 'L', role: 'partner', partnerId } });
+  const orgA = await prisma.organization.create({
+    data: { name: 'OrgA', partnerId, companyId: c.id },
+  });
+  const orgB = await prisma.organization.create({
+    data: { name: 'OrgB', partnerId, companyId: c.id },
+  });
+  orgAId = orgA.id;
+  orgBId = orgB.id;
+  const u = await prisma.user.create({
+    data: {
+      email: `f2-${Date.now()}@t.local`,
+      passwordHash: 'x',
+      name: 'L',
+      role: 'partner',
+      partnerId,
+    },
+  });
 
   async function order(title: string, organizationId: string) {
-    return prisma.order.create({ data: { title, companyId: c.id, partnerId, organizationId, totalAmount: 1000, paidAmount: 0, executionStatus: 'in_progress', financialStatus: 'billed' } });
+    return prisma.order.create({
+      data: {
+        title,
+        companyId: c.id,
+        partnerId,
+        organizationId,
+        totalAmount: 1000,
+        paidAmount: 0,
+        executionStatus: 'in_progress',
+        financialStatus: 'billed',
+      },
+    });
   }
   async function promote(orderId: string, organizationId: string) {
-    await prisma.lead.create({ data: { partnerId, createdByUserId: u.id, organizationId, clientCompanyName: 'c', clientContactName: 'n', subject: 's', status: 'promoted_to_order', productType: [], promotedOrderId: orderId } });
+    await prisma.lead.create({
+      data: {
+        partnerId,
+        createdByUserId: u.id,
+        organizationId,
+        clientCompanyName: 'c',
+        clientContactName: 'n',
+        subject: 's',
+        status: 'promoted_to_order',
+        productType: [],
+        promotedOrderId: orderId,
+      },
+    });
   }
 
-  const visibleA = await order('Видимый A', orgAId); visibleAId = visibleA.id; await promote(visibleAId, orgAId);
-  const imported = await order('Импортированный (без лида)', orgAId); importedId = imported.id; // NO lead → invisible under F2
-  const visibleB = await order('Видимый B', orgBId); visibleBId = visibleB.id; await promote(visibleBId, orgBId);
+  const visibleA = await order('Видимый A', orgAId);
+  visibleAId = visibleA.id;
+  await promote(visibleAId, orgAId);
+  const imported = await order('Импортированный (без лида)', orgAId);
+  importedId = imported.id; // NO lead → invisible under F2
+  const visibleB = await order('Видимый B', orgBId);
+  visibleBId = visibleB.id;
+  await promote(visibleBId, orgBId);
 });
 
 afterAll(async () => {

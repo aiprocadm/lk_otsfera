@@ -1,17 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { Queue } from 'bullmq';
 import {
   registerSyncSchedules,
   SYNC_SCHEDULES,
   loadPausedSchedulerIds,
   registerCommissionSchedules,
   COMMISSION_SCHEDULES,
-  DEFAULT_SYNC_TZ
+  DEFAULT_SYNC_TZ,
 } from '@/lib/jobs/scheduling';
-import type { Queue } from 'bullmq';
 
 function makeFakeQueue() {
   return {
-    upsertJobScheduler: vi.fn().mockResolvedValue({ id: 'scheduled-job-id' })
+    upsertJobScheduler: vi.fn().mockResolvedValue({ id: 'scheduled-job-id' }),
   } as unknown as Queue;
 }
 
@@ -38,7 +38,7 @@ describe('registerSyncSchedules', () => {
         'oneCSync.pullOrganizations',
         'oneCSync.pullPayments',
         'oneCSync.reconcile',
-        'telephony.mango.backfill'
+        'telephony.mango.backfill',
       ].sort()
     );
   });
@@ -50,8 +50,8 @@ describe('registerSyncSchedules', () => {
         upsertJobScheduler: vi.fn(async (id: string, opts) => {
           calls.push({ schedulerId: id, opts: opts as { pattern?: string; tz?: string } });
           return { id };
-        })
-      } as unknown as Queue);
+        }),
+      }) as unknown as Queue;
     await registerSyncSchedules(getQueue as never);
     expect(calls.length).toBe(7);
     for (const c of calls) {
@@ -67,8 +67,8 @@ describe('registerSyncSchedules', () => {
         upsertJobScheduler: vi.fn(async (id: string) => {
           observedSchedulerIds.push(id);
           return { id };
-        })
-      } as unknown as Queue);
+        }),
+      }) as unknown as Queue;
 
     await registerSyncSchedules(getQueue as never);
     await registerSyncSchedules(getQueue as never);
@@ -85,8 +85,8 @@ describe('registerSyncSchedules', () => {
         upsertJobScheduler: vi.fn(async (id: string, _opts, template) => {
           dataSpy.push((template as { data?: unknown })?.data);
           return { id };
-        })
-      } as unknown as Queue);
+        }),
+      }) as unknown as Queue;
     await registerSyncSchedules(getQueue as never);
     for (const d of dataSpy) {
       expect((d as { reason?: string }).reason).toBe('cron');
@@ -97,8 +97,12 @@ describe('registerSyncSchedules', () => {
 
 describe('registerSyncSchedules — paused skipping', () => {
   it('skips schedules whose schedulerId is paused', async () => {
-    const getQueue = () => ({ upsertJobScheduler: vi.fn(async (id: string) => ({ id })) } as unknown as Queue);
-    const result = await registerSyncSchedules(getQueue as never, new Set(['oneCSync.pullOrders.cron']));
+    const getQueue = () =>
+      ({ upsertJobScheduler: vi.fn(async (id: string) => ({ id })) }) as unknown as Queue;
+    const result = await registerSyncSchedules(
+      getQueue as never,
+      new Set(['oneCSync.pullOrders.cron'])
+    );
     expect(result).toHaveLength(6);
     expect(result.map((r) => r.schedulerId)).not.toContain('oneCSync.pullOrders.cron');
   });
@@ -107,7 +111,9 @@ describe('registerSyncSchedules — paused skipping', () => {
 describe('loadPausedSchedulerIds', () => {
   it('returns a Set of paused schedulerIds from the DB', async () => {
     const prisma = {
-      syncSchedulePause: { findMany: vi.fn().mockResolvedValue([{ schedulerId: 'a' }, { schedulerId: 'b' }]) },
+      syncSchedulePause: {
+        findMany: vi.fn().mockResolvedValue([{ schedulerId: 'a' }, { schedulerId: 'b' }]),
+      },
     } as never;
     const set = await loadPausedSchedulerIds(prisma);
     expect(set).toEqual(new Set(['a', 'b']));
@@ -123,10 +129,14 @@ describe('registerCommissionSchedules', () => {
     const getQueue = () =>
       ({
         upsertJobScheduler: vi.fn(async (id: string, opts, template) => {
-          calls.push({ id, opts: opts as { pattern?: string; tz?: string }, data: (template as { data?: unknown })?.data });
+          calls.push({
+            id,
+            opts: opts as { pattern?: string; tz?: string },
+            data: (template as { data?: unknown })?.data,
+          });
           return { id };
-        })
-      } as unknown as Queue);
+        }),
+      }) as unknown as Queue;
 
     const result = await registerCommissionSchedules(getQueue as never);
 
@@ -143,7 +153,7 @@ describe('registerCommissionSchedules', () => {
 
   it('uses the injected getQueue function (DI)', async () => {
     const getQueueSpy = vi.fn().mockReturnValue({
-      upsertJobScheduler: vi.fn().mockResolvedValue({ id: 'x' })
+      upsertJobScheduler: vi.fn().mockResolvedValue({ id: 'x' }),
     });
     await registerCommissionSchedules(getQueueSpy as never);
     expect(getQueueSpy).toHaveBeenCalledWith('docs.calculateMonthlyCommissions');

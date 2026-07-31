@@ -69,7 +69,7 @@ beforeAll(async () => {
   prisma = new PrismaClient();
 
   const partner = await prisma.partner.create({
-    data: { name: `e2eComm-P-${STAMP}`, commissionRate: PARTNER_DEFAULT_RATE }
+    data: { name: `e2eComm-P-${STAMP}`, commissionRate: PARTNER_DEFAULT_RATE },
   });
   partnerId = partner.id;
 
@@ -82,8 +82,8 @@ beforeAll(async () => {
       passwordHash: 'h',
       name: 'Partner Admin',
       role: 'partner',
-      partnerId
-    }
+      partnerId,
+    },
   });
   partnerUserId = partnerUser.id;
 
@@ -92,8 +92,8 @@ beforeAll(async () => {
       email: `e2eComm-admin-${STAMP}@x.local`,
       passwordHash: 'h',
       name: 'Platform Admin',
-      role: 'admin'
-    }
+      role: 'admin',
+    },
   });
   adminUserId = admin.id;
 
@@ -103,8 +103,8 @@ beforeAll(async () => {
       partnerId,
       oldRate: PARTNER_DEFAULT_RATE,
       newRate: PARTNER_HIST_RATE,
-      effectiveFrom: RATE_CHANGE_FROM
-    }
+      effectiveFrom: RATE_CHANGE_FROM,
+    },
   });
 
   // ORG-OVR: individual org override 0.07 (priority 1).
@@ -113,21 +113,21 @@ beforeAll(async () => {
       name: `e2eComm-OrgOVR-${STAMP}`,
       partnerId,
       companyId,
-      partnerCommissionRate: ORG_OVERRIDE_RATE
-    }
+      partnerCommissionRate: ORG_OVERRIDE_RATE,
+    },
   });
   orgOvrId = orgOvr.id;
 
   // ORG-HIST: no override → historical partner rate 0.20 at paidAt (priority 2).
   const orgHist = await prisma.organization.create({
-    data: { name: `e2eComm-OrgHIST-${STAMP}`, partnerId, companyId }
+    data: { name: `e2eComm-OrgHIST-${STAMP}`, partnerId, companyId },
   });
   orgHistId = orgHist.id;
 
   // ORG-DEF: no override; its payments land BEFORE the 04-15 change, so the
   // historical rate at their paidAt is the original 0.10.
   const orgDef = await prisma.organization.create({
-    data: { name: `e2eComm-OrgDEF-${STAMP}`, partnerId, companyId }
+    data: { name: `e2eComm-OrgDEF-${STAMP}`, partnerId, companyId },
   });
   orgDefId = orgDef.id;
 
@@ -145,11 +145,11 @@ beforeAll(async () => {
         organizationId,
         partnerId,
         totalAmount: amount,
-        financialStatus: 'paid'
-      }
+        financialStatus: 'paid',
+      },
     });
     const payment = await prisma.payment.create({
-      data: { organizationId, orderId: order.id, amount, paidAt, isRefund }
+      data: { organizationId, orderId: order.id, amount, paidAt, isRefund },
     });
     return payment.id;
   };
@@ -168,7 +168,9 @@ afterAll(async () => {
   await prisma.commissionStatement.deleteMany({ where: { partnerId } });
   await prisma.commissionCorrection.deleteMany({ where: { partnerId } });
   await prisma.commissionRateChange.deleteMany({ where: { partnerId } });
-  await prisma.organizationCommissionRateChange.deleteMany({ where: { organizationId: { in: orgIds } } });
+  await prisma.organizationCommissionRateChange.deleteMany({
+    where: { organizationId: { in: orgIds } },
+  });
   await prisma.payment.deleteMany({ where: { organizationId: { in: orgIds } } });
   await prisma.order.deleteMany({ where: { partnerId } });
   await prisma.organization.deleteMany({ where: { id: { in: orgIds } } });
@@ -187,7 +189,7 @@ describe('E2E commission lifecycle: calc → rate priority → approve → XLSX 
       partnerId,
       periodFrom: PERIOD_FROM,
       periodTo: PERIOD_TO,
-      calculatedByUserId: partnerUserId
+      calculatedByUserId: partnerUserId,
     });
     expect(res.ok).toBe(true);
     if (!res.ok) throw new Error(`unexpected calc failure: ${res.error}`);
@@ -199,7 +201,7 @@ describe('E2E commission lifecycle: calc → rate priority → approve → XLSX 
 
     const items = await prisma.commissionStatementItem.findMany({
       where: { statementId },
-      orderBy: { paymentId: 'asc' }
+      orderBy: { paymentId: 'asc' },
     });
     const byPayment = new Map(items.map((i) => [i.paymentId, i]));
 
@@ -243,7 +245,7 @@ describe('E2E commission lifecycle: calc → rate priority → approve → XLSX 
     const res = await approveStatement(prisma, {
       statementId,
       partnerId,
-      approvedByUserId: partnerUserId
+      approvedByUserId: partnerUserId,
     });
     expect(res.ok).toBe(true);
     if (!res.ok) throw new Error('expected approve ok');
@@ -256,13 +258,13 @@ describe('E2E commission lifecycle: calc → rate priority → approve → XLSX 
     // Mirror the real XLSX worker: load the persisted statement + items + partner.
     const statement = await prisma.commissionStatement.findUniqueOrThrow({
       where: { id: statementId },
-      include: { items: true, partner: true }
+      include: { items: true, partner: true },
     });
 
     const buf = await renderStatementXlsx({
       statement,
       items: statement.items,
-      partner: { name: statement.partner.name }
+      partner: { name: statement.partner.name },
     });
     expect(buf.length).toBeGreaterThan(1000);
 
@@ -284,10 +286,7 @@ describe('E2E commission lifecycle: calc → rate priority → approve → XLSX 
     // Summary sheet carries partner name + the total commission (16000-style label).
     const summary = wb.getWorksheet('Summary');
     expect(summary).toBeDefined();
-    const flat = (summary!.getSheetValues() as unknown[][])
-      .flat()
-      .filter(Boolean)
-      .map(String);
+    const flat = (summary!.getSheetValues() as unknown[][]).flat().filter(Boolean).map(String);
     expect(flat).toContain(statement.partner.name);
     // "Итого комиссия, ₽" value cell holds the numeric total. On a LOADED workbook
     // exceljs drops column keys, so address the value column by index (2), not key.
@@ -299,7 +298,7 @@ describe('E2E commission lifecycle: calc → rate priority → approve → XLSX 
     // Move the statement to PAID (platform admin) so the period is "closed".
     const paid = await markStatementPaid(prisma, {
       statementId,
-      paidByUserId: adminUserId
+      paidByUserId: adminUserId,
     });
     expect(paid.ok).toBe(true);
     if (!paid.ok) throw new Error('expected markPaid ok');
@@ -318,8 +317,8 @@ describe('E2E commission lifecycle: calc → rate priority → approve → XLSX 
         organizationId: orgDefId,
         partnerId,
         totalAmount: new Prisma.Decimal('15000'),
-        financialStatus: 'paid'
-      }
+        financialStatus: 'paid',
+      },
     });
     const lateRefund = await prisma.payment.create({
       data: {
@@ -327,15 +326,15 @@ describe('E2E commission lifecycle: calc → rate priority → approve → XLSX 
         orderId: lateRefundOrder.id,
         amount: new Prisma.Decimal('15000'),
         paidAt: PAID_AT_PRE, // inside the paid April period, before 04-15 change → 0.10
-        isRefund: true
-      }
+        isRefund: true,
+      },
     });
 
     const createdCount = await detectLateRefundCorrections(prisma);
     expect(createdCount).toBeGreaterThanOrEqual(1);
 
     const correction = await prisma.commissionCorrection.findUnique({
-      where: { paymentId: lateRefund.id }
+      where: { paymentId: lateRefund.id },
     });
     expect(correction).not.toBeNull();
     expect(correction!.partnerId).toBe(partnerId);
@@ -354,7 +353,7 @@ describe('E2E commission lifecycle: calc → rate priority → approve → XLSX 
     // future draft period pulls it in as a NEGATIVE line (statement.ts pendingCorrections).
     await prisma.commissionCorrection.update({
       where: { id: correction!.id },
-      data: { status: 'applied', resolvedByUserId: adminUserId, resolvedAt: new Date() }
+      data: { status: 'applied', resolvedByUserId: adminUserId, resolvedAt: new Date() },
     });
 
     const NEXT_FROM = new Date('2026-05-01T00:00:00.000Z');
@@ -363,13 +362,13 @@ describe('E2E commission lifecycle: calc → rate priority → approve → XLSX 
       partnerId,
       periodFrom: NEXT_FROM,
       periodTo: NEXT_TO,
-      calculatedByUserId: partnerUserId
+      calculatedByUserId: partnerUserId,
     });
     expect(next.ok).toBe(true);
     if (!next.ok) throw new Error(`unexpected next-period calc failure: ${next.error}`);
 
     const nextItems = await prisma.commissionStatementItem.findMany({
-      where: { statementId: next.statement.id }
+      where: { statementId: next.statement.id },
     });
     // No May payments exist → the only line is the carried correction (negative).
     const corrLine = nextItems.find((i) => i.correctionId === correction!.id);

@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
-import { RequisitesFields, type RequisitesDefaults } from './requisites-fields';
 import type { RequisitesActionResult } from '@/server-actions/requisites';
+import { RequisitesFields, type RequisitesDefaults } from './requisites-fields';
 
 /**
  * Этап 8 (ФТ-9.2, PR-1) — карточка «Реквизиты» с формой. Общая оболочка для
@@ -20,7 +20,7 @@ export function RequisitesCard({
   action,
   hidden = {},
   canEdit = true,
-  children
+  children,
 }: {
   title: string;
   description: string;
@@ -53,28 +53,28 @@ export function RequisitesCard({
   }
 
   return (
-    <div className='rounded-xl border border-gray-200 p-4'>
-      <h2 className='font-semibold text-[#111111]'>{title}</h2>
-      <p className='text-sm text-gray-600 mt-0.5 mb-3'>{description}</p>
+    <div className="rounded-xl border border-gray-200 p-4">
+      <h2 className="font-semibold text-[#111111]">{title}</h2>
+      <p className="text-sm text-gray-600 mt-0.5 mb-3">{description}</p>
       {canEdit ? (
-        <form onSubmit={onSubmit} className='space-y-3'>
+        <form onSubmit={onSubmit} className="space-y-3">
           <RequisitesFields defaults={defaults} idPrefix={idPrefix} />
           {children}
           {messages.length > 0 && (
-            <ul role='alert' className='text-sm text-red-600 list-disc pl-5 space-y-0.5'>
+            <ul role="alert" className="text-sm text-red-600 list-disc pl-5 space-y-0.5">
               {messages.map((m) => (
                 <li key={m}>{m}</li>
               ))}
             </ul>
           )}
-          <div className='flex justify-end'>
-            <Button type='submit' disabled={busy}>
+          <div className="flex justify-end">
+            <Button type="submit" disabled={busy}>
               {busy ? 'Сохраняю…' : 'Сохранить'}
             </Button>
           </div>
         </form>
       ) : (
-        <p className='text-sm text-gray-500'>
+        <p className="text-sm text-gray-500">
           Реквизиты может изменять администратор или руководитель организации.
         </p>
       )}

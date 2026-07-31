@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 /** Деталка заявки на обучение подателя-партнёра (этап 2 PR-2, ФТ-2.3). */
 export default async function PartnerEnrollmentDetailPage({
-  params
+  params,
 }: {
   params: Promise<{ id: string }>;
 }) {
@@ -20,5 +20,5 @@ export default async function PartnerEnrollmentDetailPage({
   // canSee-чек (§4): getEnrollmentRequest скоупит по сессии — чужая заявка = not_found.
   const r = await getEnrollmentRequest(prisma, session, id);
   if (!r.ok) notFound();
-  return <EnrollmentDetailView detail={r.request} backHref='/partner/enrollments' />;
+  return <EnrollmentDetailView detail={r.request} backHref="/partner/enrollments" />;
 }

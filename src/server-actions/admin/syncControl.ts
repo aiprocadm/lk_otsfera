@@ -34,16 +34,27 @@ export async function triggerSyncAction(fd: FormData): Promise<TriggerResult | V
 }
 
 export async function setSchedulePausedAction(fd: FormData): Promise<PauseResult | Validation> {
-  const parsed = pauseSchema.safeParse({ schedulerId: readField(fd, 'schedulerId'), paused: readField(fd, 'paused') });
+  const parsed = pauseSchema.safeParse({
+    schedulerId: readField(fd, 'schedulerId'),
+    paused: readField(fd, 'paused'),
+  });
   if (!parsed.success) return { ok: false, error: 'validation' };
   const session = await requireAdmin();
-  const result = await setSchedulePaused(prisma, session.sub, parsed.data.schedulerId, parsed.data.paused);
+  const result = await setSchedulePaused(
+    prisma,
+    session.sub,
+    parsed.data.schedulerId,
+    parsed.data.paused
+  );
   revalidatePath('/admin/sync');
   return result;
 }
 
 export async function rewindCursorAction(fd: FormData): Promise<RewindResult | Validation> {
-  const parsed = cursorSchema.safeParse({ entity: readField(fd, 'entity'), cursor: readField(fd, 'cursor') });
+  const parsed = cursorSchema.safeParse({
+    entity: readField(fd, 'entity'),
+    cursor: readField(fd, 'cursor'),
+  });
   if (!parsed.success) return { ok: false, error: 'validation' };
   const session = await requireAdmin();
   const cursor = parsed.data.cursor.trim() === '' ? null : parsed.data.cursor;

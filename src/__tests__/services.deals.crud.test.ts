@@ -37,11 +37,13 @@ function makePrisma(
   const userFindUnique = vi.fn().mockResolvedValue(opts.candidate ?? null);
   const dealCreate = vi.fn().mockImplementation(async ({ data }) => ({ id: 'd-new', ...data }));
   const dealFindFirst = vi.fn().mockResolvedValue(opts.existing ?? null);
-  const dealUpdate = vi.fn().mockImplementation(async ({ where, data }) => ({ id: where.id, ...data }));
+  const dealUpdate = vi
+    .fn()
+    .mockImplementation(async ({ where, data }) => ({ id: where.id, ...data }));
   const prisma = {
     organization: { findUnique: orgFindUnique },
     user: { findUnique: userFindUnique },
-    deal: { create: dealCreate, findFirst: dealFindFirst, update: dealUpdate }
+    deal: { create: dealCreate, findFirst: dealFindFirst, update: dealUpdate },
   } as unknown as PrismaClient;
   return { prisma, orgFindUnique, userFindUnique, dealCreate, dealFindFirst, dealUpdate };
 }
@@ -67,7 +69,7 @@ describe('createDeal — гейты', () => {
     expect(await createDeal(prisma, MGR, {} as never)).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['Укажите название сделки']
+      messages: ['Укажите название сделки'],
     });
     expect(dealCreate).not.toHaveBeenCalled();
   });
@@ -76,7 +78,7 @@ describe('createDeal — гейты', () => {
     const { prisma } = makePrisma();
     expect(await createDeal(prisma, { sub: 'adm-0', role: 'admin' }, VALID)).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 });
@@ -89,7 +91,7 @@ describe('createDeal — валидация входа', () => {
     expect(await createDeal(prisma, MGR, { title: '   ' })).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['Укажите название сделки']
+      messages: ['Укажите название сделки'],
     });
   });
 
@@ -98,7 +100,7 @@ describe('createDeal — валидация входа', () => {
     expect(await createDeal(prisma, MGR, { title: 'X', amount: '12.345' })).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['Сумма — число, до двух знаков после запятой']
+      messages: ['Сумма — число, до двух знаков после запятой'],
     });
   });
 
@@ -107,7 +109,7 @@ describe('createDeal — валидация входа', () => {
     expect(await createDeal(prisma, MGR, { title: 'X', expectedCloseAt: '01.09.2026' })).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['Некорректная дата закрытия']
+      messages: ['Некорректная дата закрытия'],
     });
   });
 
@@ -121,8 +123,8 @@ describe('createDeal — валидация входа', () => {
       messages: [
         'Укажите название сделки',
         'Сумма — число, до двух знаков после запятой',
-        'Некорректная дата закрытия'
-      ]
+        'Некорректная дата закрытия',
+      ],
     });
   });
 
@@ -131,7 +133,7 @@ describe('createDeal — валидация входа', () => {
     const res = await createDeal(prisma, MGR, {
       title: '  Сделка  ',
       amount: '1500,50',
-      expectedCloseAt: '2026-09-01'
+      expectedCloseAt: '2026-09-01',
     });
     expect(res.ok).toBe(true);
     expect(dealCreate).toHaveBeenCalledWith({
@@ -141,8 +143,8 @@ describe('createDeal — валидация входа', () => {
         amount: '1500.50',
         expectedCloseAt: new Date('2026-09-01T00:00:00.000Z'),
         organizationId: null,
-        managerId: 'm-1'
-      }
+        managerId: 'm-1',
+      },
     });
   });
 });
@@ -154,7 +156,7 @@ describe('createDeal — организация', () => {
     const { prisma } = makePrisma({ org: { companyId: 'c2' } });
     expect(await createDeal(prisma, MGR, { ...VALID, organizationId: 'org-alien' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 
@@ -162,7 +164,7 @@ describe('createDeal — организация', () => {
     const { prisma } = makePrisma({ org: null });
     expect(await createDeal(prisma, MGR, { ...VALID, organizationId: 'org-ghost' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 
@@ -171,7 +173,9 @@ describe('createDeal — организация', () => {
     const res = await createDeal(prisma, ADMIN, { ...VALID, organizationId: 'org-2' });
     expect(res.ok).toBe(true);
     expect(dealCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ organizationId: 'org-2', companyId: 'c1' }) })
+      expect.objectContaining({
+        data: expect.objectContaining({ organizationId: 'org-2', companyId: 'c1' }),
+      })
     );
   });
 });
@@ -190,47 +194,55 @@ describe('createDeal — ответственный менеджер', () => {
   });
 
   it('менеджер чужой компании → validation «не найден»', async () => {
-    const { prisma } = makePrisma({ candidate: { role: 'manager', isActive: true, companyId: 'c2' } });
+    const { prisma } = makePrisma({
+      candidate: { role: 'manager', isActive: true, companyId: 'c2' },
+    });
     expect(await createDeal(prisma, MGR, { ...VALID, managerId: 'm-alien' })).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['Ответственный менеджер не найден']
+      messages: ['Ответственный менеджер не найден'],
     });
   });
 
   it('неактивный менеджер → validation (даже для admin)', async () => {
-    const { prisma } = makePrisma({ candidate: { role: 'manager', isActive: false, companyId: 'c1' } });
+    const { prisma } = makePrisma({
+      candidate: { role: 'manager', isActive: false, companyId: 'c1' },
+    });
     expect(await createDeal(prisma, ADMIN, { ...VALID, managerId: 'm-off' })).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['Ответственный менеджер не найден']
+      messages: ['Ответственный менеджер не найден'],
     });
   });
 
   it('кандидат не manager-роли → validation', async () => {
-    const { prisma } = makePrisma({ candidate: { role: 'partner', isActive: true, companyId: 'c1' } });
+    const { prisma } = makePrisma({
+      candidate: { role: 'partner', isActive: true, companyId: 'c1' },
+    });
     expect(await createDeal(prisma, MGR, { ...VALID, managerId: 'u-partner' })).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['Ответственный менеджер не найден']
+      messages: ['Ответственный менеджер не найден'],
     });
   });
 
   it('happy: активный менеджер своей компании + аудит deal_created', async () => {
     const { prisma, dealCreate } = makePrisma({
-      candidate: { role: 'manager', isActive: true, companyId: 'c1' }
+      candidate: { role: 'manager', isActive: true, companyId: 'c1' },
     });
     const res = await createDeal(prisma, MGR, { ...VALID, organizationId: '', managerId: 'm-2' });
     expect(res.ok).toBe(true);
     expect(dealCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ managerId: 'm-2', organizationId: null }) })
+      expect.objectContaining({
+        data: expect.objectContaining({ managerId: 'm-2', organizationId: null }),
+      })
     );
     expect(recordAudit).toHaveBeenCalledWith(prisma, {
       userId: 'm-1',
       action: 'deal_created',
       entity: 'deal',
       entityId: 'd-new',
-      after: { organizationId: null, managerId: 'm-2' }
+      after: { organizationId: null, managerId: 'm-2' },
     });
   });
 });
@@ -242,7 +254,7 @@ describe('updateDeal', () => {
     const { prisma } = makePrisma();
     expect(await updateDeal(prisma, PARTNER, { dealId: 'd-1', ...VALID })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 
@@ -250,11 +262,11 @@ describe('updateDeal', () => {
     const { prisma, dealFindFirst } = makePrisma({ existing: null });
     expect(await updateDeal(prisma, MGR, { dealId: 'd-alien', ...VALID })).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
     expect(dealFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { AND: [{ id: 'd-alien' }, { companyId: 'c1', managerId: 'm-1' }] }
+        where: { AND: [{ id: 'd-alien' }, { companyId: 'c1', managerId: 'm-1' }] },
       })
     );
   });
@@ -264,7 +276,7 @@ describe('updateDeal', () => {
     expect(await updateDeal(prisma, MGR, { dealId: 'd-1', ...VALID })).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['Завершённую сделку нельзя редактировать']
+      messages: ['Завершённую сделку нельзя редактировать'],
     });
     expect(dealUpdate).not.toHaveBeenCalled();
   });
@@ -274,7 +286,7 @@ describe('updateDeal', () => {
     expect(await updateDeal(prisma, MGR, { dealId: 'd-1', title: ' ' })).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['Укажите название сделки']
+      messages: ['Укажите название сделки'],
     });
   });
 
@@ -291,14 +303,12 @@ describe('updateDeal', () => {
   it('ответственный не найден при правке → validation, сделка не трогается', async () => {
     const { prisma, dealUpdate } = makePrisma({
       existing: { id: 'd-1', status: 'open' },
-      candidate: { role: 'manager', isActive: false, companyId: 'c1' }
+      candidate: { role: 'manager', isActive: false, companyId: 'c1' },
     });
-    expect(
-      await updateDeal(prisma, MGR, { dealId: 'd-1', ...VALID, managerId: 'm-off' })
-    ).toEqual({
+    expect(await updateDeal(prisma, MGR, { dealId: 'd-1', ...VALID, managerId: 'm-off' })).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['Ответственный менеджер не найден']
+      messages: ['Ответственный менеджер не найден'],
     });
     expect(dealUpdate).not.toHaveBeenCalled();
   });
@@ -309,7 +319,7 @@ describe('updateDeal', () => {
       dealId: 'd-1',
       title: 'Новое имя',
       amount: '99',
-      expectedCloseAt: '2026-10-15'
+      expectedCloseAt: '2026-10-15',
     });
     expect(res.ok).toBe(true);
     expect(dealUpdate).toHaveBeenCalledWith({
@@ -319,15 +329,15 @@ describe('updateDeal', () => {
         amount: '99',
         expectedCloseAt: new Date('2026-10-15T00:00:00.000Z'),
         organizationId: null,
-        managerId: 'm-1'
-      }
+        managerId: 'm-1',
+      },
     });
     expect(recordAudit).toHaveBeenCalledWith(prisma, {
       userId: 'm-1',
       action: 'deal_updated',
       entity: 'deal',
       entityId: 'd-1',
-      after: { organizationId: null, managerId: 'm-1' }
+      after: { organizationId: null, managerId: 'm-1' },
     });
   });
 });

@@ -14,24 +14,28 @@ export function welcomeActionsFor(role: 'organization' | 'partner'): WelcomeActi
     actions.push({
       href: `${base}/enrollments`,
       title: 'Подать заявку на обучение',
-      hint: 'Слушатели списком или из Excel, направление из справочника'
+      hint: 'Слушатели списком или из Excel, направление из справочника',
     });
   }
   if (isFeatureEnabled('certificates_registry')) {
     actions.push({
       href: `${base}/certificates`,
       title: 'Удостоверения',
-      hint: 'Реестр с сроками действия и файлами'
+      hint: 'Реестр с сроками действия и файлами',
     });
   }
   actions.push({
     href: `${base}/documents`,
     title: 'Документы',
-    hint: 'Договоры, счета и акты — в одном месте'
+    hint: 'Договоры, счета и акты — в одном месте',
   });
   const fallbacks: WelcomeAction[] = [
-    { href: role === 'partner' ? `${base}/portfolio` : `${base}/orders`, title: role === 'partner' ? 'Портфель' : 'Заказы', hint: 'Текущие заказы и их статусы' },
-    { href: `${base}/finance`, title: 'Финансы', hint: 'Платежи и задолженность' }
+    {
+      href: role === 'partner' ? `${base}/portfolio` : `${base}/orders`,
+      title: role === 'partner' ? 'Портфель' : 'Заказы',
+      hint: 'Текущие заказы и их статусы',
+    },
+    { href: `${base}/finance`, title: 'Финансы', hint: 'Платежи и задолженность' },
   ];
   for (const fb of fallbacks) {
     if (actions.length >= 3) break;

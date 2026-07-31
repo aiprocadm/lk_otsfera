@@ -17,7 +17,7 @@ vi.mock('@/lib/jobs/queues', () => ({ getQueue: () => ({ add: vi.fn().mockResolv
 
 import {
   listCertificateScanTargets,
-  uploadCertificateScans
+  uploadCertificateScans,
 } from '@/lib/services/manager/certificateScans';
 import { getOrderReadiness } from '@/lib/services/manager/orderDelivery';
 import type { SessionPayload } from '@/lib/auth/jwt';
@@ -35,7 +35,12 @@ let itemPetrovaId: string;
 let itemNoCertId: string;
 
 const manager = (): SessionPayload =>
-  ({ sub: managerId, role: 'manager', companyId, managedOrgIds: [orgId] }) as unknown as SessionPayload;
+  ({
+    sub: managerId,
+    role: 'manager',
+    companyId,
+    managedOrgIds: [orgId],
+  }) as unknown as SessionPayload;
 
 function pdf(name: string) {
   // %PDF — валидные magic bytes, иначе upload-core отклонит по MIME.
@@ -47,11 +52,11 @@ async function makeItemWithCertificate(studentName: string, withCert: boolean): 
     data: {
       name: studentName,
       email: `${RUN}-${Math.random().toString(36).slice(2, 8)}@t.local`,
-      organizationId: orgId
-    }
+      organizationId: orgId,
+    },
   });
   const item = await prisma.orderItem.create({
-    data: { orderId, studentId: student.id, directionId, trainingStatus: 'certificate_issued' }
+    data: { orderId, studentId: student.id, directionId, trainingStatus: 'certificate_issued' },
   });
   if (withCert) {
     await prisma.certificate.create({
@@ -61,8 +66,8 @@ async function makeItemWithCertificate(studentName: string, withCert: boolean): 
         organizationId: orgId,
         directionId,
         orderItemId: item.id,
-        issuedAt: new Date('2026-06-01')
-      }
+        issuedAt: new Date('2026-06-01'),
+      },
     });
   }
   return item.id;
@@ -74,10 +79,12 @@ beforeAll(async () => {
   const org = await prisma.organization.create({ data: { name: `${RUN}-org`, companyId } });
   orgId = org.id;
   const mgr = await prisma.user.create({
-    data: { email: `${RUN}-m@t.local`, name: 'M', role: 'manager', passwordHash: 'x', companyId }
+    data: { email: `${RUN}-m@t.local`, name: 'M', role: 'manager', passwordHash: 'x', companyId },
   });
   managerId = mgr.id;
-  const dir = await prisma.trainingDirection.create({ data: { name: `${RUN}-dir`, isActive: true } });
+  const dir = await prisma.trainingDirection.create({
+    data: { name: `${RUN}-dir`, isActive: true },
+  });
   directionId = dir.id;
 
   const order = await prisma.order.create({
@@ -90,8 +97,8 @@ beforeAll(async () => {
       totalAmount: new Prisma.Decimal('1000.00'),
       paidAmount: new Prisma.Decimal('1000.00'),
       financialStatus: 'paid',
-      executionStatus: 'completed'
-    }
+      executionStatus: 'completed',
+    },
   });
   orderId = order.id;
 
@@ -140,8 +147,8 @@ describe('массовая загрузка сканов удостоверен�
       files: [
         { orderItemId: itemIvanovId, file: pdf('Иванов.pdf') },
         { orderItemId: itemPetrovaId, file: pdf('Петрова.pdf') },
-        { orderItemId: itemNoCertId, file: pdf('Сидоров.pdf') }
-      ]
+        { orderItemId: itemNoCertId, file: pdf('Сидоров.pdf') },
+      ],
     });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
@@ -155,7 +162,7 @@ describe('массовая загрузка сканов удостоверен�
 
     // Связь проставлена именно тем документам, что вернул сервис.
     const certs = await prisma.certificate.findMany({
-      where: { orderItemId: { in: [itemIvanovId, itemPetrovaId] } }
+      where: { orderItemId: { in: [itemIvanovId, itemPetrovaId] } },
     });
     expect(certs.every((c) => c.documentId !== null)).toBe(true);
     expect(new Set(certs.map((c) => c.documentId))).toEqual(
@@ -164,7 +171,7 @@ describe('массовая загрузка сканов удостоверен�
 
     // Аудит связи — по одному на каждое удостоверение.
     const audit = await prisma.auditLog.findMany({
-      where: { userId: managerId, action: 'certificate_scan_attached' }
+      where: { userId: managerId, action: 'certificate_scan_attached' },
     });
     expect(audit).toHaveLength(2);
   });
@@ -183,7 +190,7 @@ describe('массовая загрузка сканов удостоверен�
     const cert = await prisma.certificate.findFirst({ where: { orderItemId: itemIvanovId } });
     await prisma.document.update({
       where: { id: cert!.documentId! },
-      data: { scanStatus: 'infected', scanReason: 'Eicar-Test-Signature' }
+      data: { scanStatus: 'infected', scanReason: 'Eicar-Test-Signature' },
     });
 
     const res = await getOrderReadiness(prisma, manager(), orderId);
@@ -195,19 +202,24 @@ describe('массовая загрузка сканов удостоверен�
     // Возвращаем чистый статус, чтобы порядок тестов не влиял на соседей.
     await prisma.document.update({
       where: { id: cert!.documentId! },
-      data: { scanStatus: 'clean', scanReason: null }
+      data: { scanStatus: 'clean', scanReason: null },
     });
   });
 
   it('заказ вне скоупа менеджера не отдаёт цели и не принимает файлы', async () => {
-    const alien = { sub: 'ghost', role: 'manager', companyId: 'other-co', managedOrgIds: [] } as unknown as SessionPayload;
+    const alien = {
+      sub: 'ghost',
+      role: 'manager',
+      companyId: 'other-co',
+      managedOrgIds: [],
+    } as unknown as SessionPayload;
     expect(await listCertificateScanTargets(prisma, alien, orderId)).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     const res = await uploadCertificateScans(prisma, alien, {
       orderId,
-      files: [{ orderItemId: itemIvanovId, file: pdf('Иванов.pdf') }]
+      files: [{ orderItemId: itemIvanovId, file: pdf('Иванов.pdf') }],
     });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });

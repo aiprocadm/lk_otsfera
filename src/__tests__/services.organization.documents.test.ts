@@ -1,9 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import {
-  listOrgDocuments,
-  getOrgDocumentForDownload
-} from '@/lib/services/organization/documents';
+import { listOrgDocuments, getOrgDocumentForDownload } from '@/lib/services/organization/documents';
 
 let prisma: PrismaClient;
 let partnerId: string;
@@ -25,38 +22,47 @@ beforeAll(async () => {
   prisma = new PrismaClient();
   const stamp = Date.now();
   const partner = await prisma.partner.create({
-    data: { name: `OrgDocsP-${stamp}`, commissionRate: 0.1 }
+    data: { name: `OrgDocsP-${stamp}`, commissionRate: 0.1 },
   });
   partnerId = partner.id;
   const company = await prisma.company.create({ data: { name: `OrgDocsC-${stamp}` } });
   companyId = company.id;
 
   const orgA = await prisma.organization.create({
-    data: { name: `OrgDocsA-${stamp}`, partnerId, companyId }
+    data: { name: `OrgDocsA-${stamp}`, partnerId, companyId },
   });
   const orgB = await prisma.organization.create({
-    data: { name: `OrgDocsB-${stamp}`, partnerId, companyId }
+    data: { name: `OrgDocsB-${stamp}`, partnerId, companyId },
   });
   orgAId = orgA.id;
   orgBId = orgB.id;
 
   const a1 = await prisma.order.create({
     data: {
-      title: 'A1 order', companyId, partnerId, organizationId: orgAId,
-      executionStatus: 'in_progress'
-    }
+      title: 'A1 order',
+      companyId,
+      partnerId,
+      organizationId: orgAId,
+      executionStatus: 'in_progress',
+    },
   });
   const a2 = await prisma.order.create({
     data: {
-      title: 'A2 order', companyId, partnerId, organizationId: orgAId,
-      executionStatus: 'completed'
-    }
+      title: 'A2 order',
+      companyId,
+      partnerId,
+      organizationId: orgAId,
+      executionStatus: 'completed',
+    },
   });
   const b1 = await prisma.order.create({
     data: {
-      title: 'B1 order', companyId, partnerId, organizationId: orgBId,
-      executionStatus: 'pending'
-    }
+      title: 'B1 order',
+      companyId,
+      partnerId,
+      organizationId: orgBId,
+      executionStatus: 'pending',
+    },
   });
   // Note: with Order.organizationId NOT NULL since migration
   // 20260526132950_order_organization_id_required, the legacy "orphan" scenario
@@ -68,82 +74,107 @@ beforeAll(async () => {
   const tenDaysAgo = new Date(Date.now() - 10 * 24 * 3600 * 1000);
   const dContract = await prisma.document.create({
     data: {
-      name: 'contract-A1.pdf', path: 'fake://contract-a1',
-      mimeType: 'application/pdf', type: 'contract',
-      orderId: orderA1Id, createdAt: tenDaysAgo,
-      counterpartyType: 'organization', counterpartyId: orgAId
-    }
+      name: 'contract-A1.pdf',
+      path: 'fake://contract-a1',
+      mimeType: 'application/pdf',
+      type: 'contract',
+      orderId: orderA1Id,
+      createdAt: tenDaysAgo,
+      counterpartyType: 'organization',
+      counterpartyId: orgAId,
+    },
   });
   docA1ContractId = dContract.id;
 
   const dAct = await prisma.document.create({
     data: {
-      name: 'act-A1.pdf', path: 'fake://act-a1',
-      mimeType: 'application/pdf', type: 'act',
+      name: 'act-A1.pdf',
+      path: 'fake://act-a1',
+      mimeType: 'application/pdf',
+      type: 'act',
       orderId: orderA1Id,
-      counterpartyType: 'organization', counterpartyId: orgAId
-    }
+      counterpartyType: 'organization',
+      counterpartyId: orgAId,
+    },
   });
   docA1ActId = dAct.id;
 
   const dInfected = await prisma.document.create({
     data: {
-      name: 'malware-A1.pdf', path: 'fake://infected-a1',
-      mimeType: 'application/pdf', type: 'other',
-      orderId: orderA1Id, scanStatus: 'infected', scanReason: 'EICAR test',
-      counterpartyType: 'organization', counterpartyId: orgAId
-    }
+      name: 'malware-A1.pdf',
+      path: 'fake://infected-a1',
+      mimeType: 'application/pdf',
+      type: 'other',
+      orderId: orderA1Id,
+      scanStatus: 'infected',
+      scanReason: 'EICAR test',
+      counterpartyType: 'organization',
+      counterpartyId: orgAId,
+    },
   });
   docA1InfectedId = dInfected.id;
 
   const dInvoice = await prisma.document.create({
     data: {
-      name: 'invoice-A2.pdf', path: 'fake://invoice-a2',
-      mimeType: 'application/pdf', type: 'invoice',
+      name: 'invoice-A2.pdf',
+      path: 'fake://invoice-a2',
+      mimeType: 'application/pdf',
+      type: 'invoice',
       orderId: orderA2Id,
-      counterpartyType: 'organization', counterpartyId: orgAId
-    }
+      counterpartyType: 'organization',
+      counterpartyId: orgAId,
+    },
   });
   docA2InvoiceId = dInvoice.id;
 
   const dB = await prisma.document.create({
     data: {
-      name: 'contract-B1.pdf', path: 'fake://contract-b1',
-      mimeType: 'application/pdf', type: 'contract',
+      name: 'contract-B1.pdf',
+      path: 'fake://contract-b1',
+      mimeType: 'application/pdf',
+      type: 'contract',
       orderId: orderB1Id,
-      counterpartyType: 'organization', counterpartyId: orgBId
-    }
+      counterpartyType: 'organization',
+      counterpartyId: orgBId,
+    },
   });
   docB1ContractId = dB.id;
 
   // Partner-channel doc on orderA1 — must NOT be visible to the org
   const dCommission = await prisma.document.create({
     data: {
-      name: 'commission-A1.pdf', path: 'fake://commission-a1',
-      mimeType: 'application/pdf', type: 'commission_statement',
+      name: 'commission-A1.pdf',
+      path: 'fake://commission-a1',
+      mimeType: 'application/pdf',
+      type: 'commission_statement',
       orderId: orderA1Id,
-      counterpartyType: 'partner', counterpartyId: partnerId
-    }
+      counterpartyType: 'partner',
+      counterpartyId: partnerId,
+    },
   });
   docA1CommissionId = dCommission.id;
 
   // Order-less org doc (no orderId) — should appear only when orderLess=true
   const dOrderLess = await prisma.document.create({
     data: {
-      name: 'gen.pdf', path: 'fake://gen',
-      mimeType: 'application/pdf', type: 'other',
-      counterpartyType: 'organization', counterpartyId: orgAId,
-      companyId
-    }
+      name: 'gen.pdf',
+      path: 'fake://gen',
+      mimeType: 'application/pdf',
+      type: 'other',
+      counterpartyType: 'organization',
+      counterpartyId: orgAId,
+      companyId,
+    },
   });
   docOrderLessId = dOrderLess.id;
-
 });
 
 afterAll(async () => {
   await prisma.document.deleteMany({ where: { order: { partnerId } } });
   // Delete order-less org doc (no orderId — not caught by the order-scoped filter above)
-  await prisma.document.deleteMany({ where: { orderId: null, counterpartyId: orgAId, counterpartyType: 'organization' } });
+  await prisma.document.deleteMany({
+    where: { orderId: null, counterpartyId: orgAId, counterpartyType: 'organization' },
+  });
   await prisma.order.deleteMany({ where: { partnerId } });
   await prisma.organization.deleteMany({ where: { id: { in: [orgAId, orgBId] } } });
   await prisma.partner.delete({ where: { id: partnerId } });
@@ -178,7 +209,7 @@ describe('services/organization/documents — listOrgDocuments', () => {
   it('filters by type', async () => {
     const { rows, total } = await listOrgDocuments(prisma, {
       organizationId: orgAId,
-      type: 'contract'
+      type: 'contract',
     });
     expect(total).toBe(1);
     expect(rows[0]!.id).toBe(docA1ContractId);
@@ -187,7 +218,7 @@ describe('services/organization/documents — listOrgDocuments', () => {
   it('filters by orderId', async () => {
     const { rows, total } = await listOrgDocuments(prisma, {
       organizationId: orgAId,
-      orderId: orderA2Id
+      orderId: orderA2Id,
     });
     expect(total).toBe(1);
     expect(rows[0]!.id).toBe(docA2InvoiceId);
@@ -196,7 +227,7 @@ describe('services/organization/documents — listOrgDocuments', () => {
   it('returns 0 when filtering by orderId from another org (silent)', async () => {
     const { rows, total } = await listOrgDocuments(prisma, {
       organizationId: orgAId,
-      orderId: orderB1Id
+      orderId: orderB1Id,
     });
     expect(total).toBe(0);
     expect(rows).toEqual([]);
@@ -206,7 +237,7 @@ describe('services/organization/documents — listOrgDocuments', () => {
     const yesterday = new Date(Date.now() - 24 * 3600 * 1000);
     const { rows } = await listOrgDocuments(prisma, {
       organizationId: orgAId,
-      from: yesterday
+      from: yesterday,
     });
     // act + invoice (created now), but not contract (10 days old)
     const ids = rows.map((r) => r.id);
@@ -218,7 +249,7 @@ describe('services/organization/documents — listOrgDocuments', () => {
   it('searches by document name (case-insensitive)', async () => {
     const { rows } = await listOrgDocuments(prisma, {
       organizationId: orgAId,
-      search: 'INVOICE'
+      search: 'INVOICE',
     });
     expect(rows.length).toBe(1);
     expect(rows[0]!.id).toBe(docA2InvoiceId);
@@ -235,7 +266,7 @@ describe('services/organization/documents — listOrgDocuments', () => {
   it('countsByType is not affected by type filter (shows full picture)', async () => {
     const { countsByType, rows } = await listOrgDocuments(prisma, {
       organizationId: orgAId,
-      type: 'contract'
+      type: 'contract',
     });
     expect(rows.length).toBe(1);
     expect(countsByType.contract).toBe(1);

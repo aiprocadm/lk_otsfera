@@ -58,11 +58,15 @@ describe('ManualCalcForm', () => {
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
     expect(body.periodFrom).toBe(new Date(2026, 2, 1).toISOString());
     expect(body.periodTo).toBe(new Date(2026, 3, 0, 23, 59, 59, 999).toISOString());
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Расчёт комиссии' })).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Расчёт комиссии' })).toBeNull()
+    );
   });
 
   it('error path: shows the error message and keeps the dialog open', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: () => Promise.resolve({ error: 'boom' }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, json: () => Promise.resolve({ error: 'boom' }) });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(ManualCalcForm));
 
@@ -83,7 +87,9 @@ describe('ManualCalcForm', () => {
     const monthInput = document.getElementById('manual-calc-month') as HTMLInputElement;
     fireEvent.change(monthInput, { target: { value: '2026-03' } });
     fireEvent.click(within(dialog).getByText('Отмена'));
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Расчёт комиссии' })).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Расчёт комиссии' })).toBeNull()
+    );
 
     fireEvent.click(screen.getByText('Сформировать за период'));
     const reopened = await screen.findByRole('dialog', { name: 'Расчёт комиссии' });

@@ -8,7 +8,7 @@ const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({
   useRouter: vi.fn(() => ({ refresh })),
   usePathname: vi.fn(() => '/organization/documents'),
-  useSearchParams: vi.fn(() => new URLSearchParams())
+  useSearchParams: vi.fn(() => new URLSearchParams()),
 }));
 
 const { uploadOrganizationDocument } = vi.hoisted(() => ({ uploadOrganizationDocument: vi.fn() }));
@@ -38,7 +38,9 @@ function pickFile(input: HTMLInputElement, file: File): void {
 
 describe('OrganizationOrderLessUploadForm (SSR structure)', () => {
   it('renders the order-less upload form', () => {
-    const html = renderToString(React.createElement(OrganizationOrderLessUploadForm, { organizationId: 'o1' }));
+    const html = renderToString(
+      React.createElement(OrganizationOrderLessUploadForm, { organizationId: 'o1' })
+    );
     expect(html).toContain('Загрузить общий документ');
     expect(html).toContain('name="file"');
   });
@@ -67,7 +69,9 @@ describe('OrganizationOrderLessUploadForm (interactive, jsdom)', () => {
     pickFile(fileInput, makeFile('report.pdf'));
     fireEvent.click(screen.getByText('Загрузить'));
 
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Документ «report.pdf» загружен.'));
+    await waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith('Документ «report.pdf» загружен.')
+    );
     expect(uploadOrganizationDocument).toHaveBeenCalled();
     const sentFormData = uploadOrganizationDocument.mock.calls[0][0] as FormData;
     expect(sentFormData.get('organizationId')).toBe('org1');

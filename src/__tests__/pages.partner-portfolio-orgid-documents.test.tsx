@@ -9,7 +9,7 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { canPartnerAccessOrg, isPartnerAdmin } = vi.hoisted(() => ({
   canPartnerAccessOrg: vi.fn(),
-  isPartnerAdmin: vi.fn()
+  isPartnerAdmin: vi.fn(),
 }));
 vi.mock('@/lib/auth/policy', () => ({ canPartnerAccessOrg, isPartnerAdmin }));
 
@@ -25,7 +25,7 @@ const nav = vi.hoisted(() => ({
   }),
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
-  })
+  }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -42,7 +42,7 @@ const BASE_CARD = {
   assignedManagerUserId: null,
   partnerCommissionRate: null,
   partnerCommissionRateNote: null,
-  kpi: { ordersCount: 3, debt: '1000.00' }
+  kpi: { ordersCount: 3, debt: '1000.00' },
 };
 
 describe('OrgDocumentsPage', () => {
@@ -64,7 +64,7 @@ describe('OrgDocumentsPage', () => {
       renderServerComponent(
         OrgDocumentsPage({
           params: Promise.resolve({ orgId: 'org-1' }),
-          searchParams: Promise.resolve({})
+          searchParams: Promise.resolve({}),
         })
       )
     ).rejects.toThrow('REDIRECT:/forbidden');
@@ -81,7 +81,7 @@ describe('OrgDocumentsPage', () => {
       renderServerComponent(
         OrgDocumentsPage({
           params: Promise.resolve({ orgId: 'org-1' }),
-          searchParams: Promise.resolve({})
+          searchParams: Promise.resolve({}),
         })
       )
     ).rejects.toThrow('NOT_FOUND');
@@ -99,7 +99,7 @@ describe('OrgDocumentsPage', () => {
     const { container } = await renderServerComponent(
       OrgDocumentsPage({
         params: Promise.resolve({ orgId: 'org-1' }),
-        searchParams: Promise.resolve({ type: 'bogus' })
+        searchParams: Promise.resolve({ type: 'bogus' }),
       })
     );
 
@@ -119,14 +119,14 @@ describe('OrgDocumentsPage', () => {
       // 'invoice: undefined' exercises the `?? 0` fallback in the `present` filter
       // without being chip-rendered (present filters it out).
       countsByType: { contract: 2, invoice: undefined },
-      total: 2
+      total: 2,
     });
     isPartnerAdmin.mockReturnValue(true);
 
     const { container } = await renderServerComponent(
       OrgDocumentsPage({
         params: Promise.resolve({ orgId: 'org-1' }),
-        searchParams: Promise.resolve({ type: 'contract' })
+        searchParams: Promise.resolve({ type: 'contract' }),
       })
     );
 

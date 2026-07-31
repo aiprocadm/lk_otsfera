@@ -13,7 +13,7 @@ const PASSWORD = 'BootstrapPw123';
 async function cleanup() {
   const users = await prisma.user.findMany({
     where: { email: { in: [EMAIL, EMAIL_TAKEN] } },
-    select: { id: true }
+    select: { id: true },
   });
   const ids = users.map((u) => u.id);
   if (ids.length) {
@@ -35,7 +35,7 @@ describe('bootstrapAdmin', () => {
       email: EMAIL,
       password: PASSWORD,
       name: 'Администратор',
-      company: COMPANY
+      company: COMPANY,
     });
     expect(res).toEqual({ ok: true, created: true, userId: expect.any(String) });
 
@@ -54,10 +54,20 @@ describe('bootstrapAdmin', () => {
   });
 
   it('идемпотентен: повтор не создаёт второго и не пишет второй audit', async () => {
-    const first = await bootstrapAdmin(prisma, { email: EMAIL, password: PASSWORD, name: 'A', company: COMPANY });
+    const first = await bootstrapAdmin(prisma, {
+      email: EMAIL,
+      password: PASSWORD,
+      name: 'A',
+      company: COMPANY,
+    });
     expect(first.ok && first.created).toBe(true);
 
-    const second = await bootstrapAdmin(prisma, { email: EMAIL, password: PASSWORD, name: 'A', company: COMPANY });
+    const second = await bootstrapAdmin(prisma, {
+      email: EMAIL,
+      password: PASSWORD,
+      name: 'A',
+      company: COMPANY,
+    });
     expect(second).toEqual({ ok: true, created: false, userId: expect.any(String) });
 
     const users = await prisma.user.findMany({ where: { email: EMAIL } });
@@ -75,9 +85,14 @@ describe('bootstrapAdmin', () => {
 
   it('отказывает, если email занят НЕ-admin учёткой', async () => {
     await prisma.user.create({
-      data: { email: EMAIL_TAKEN, name: 'Менеджер', role: 'manager', isActive: true }
+      data: { email: EMAIL_TAKEN, name: 'Менеджер', role: 'manager', isActive: true },
     });
-    const res = await bootstrapAdmin(prisma, { email: EMAIL_TAKEN, password: PASSWORD, name: 'A', company: COMPANY });
+    const res = await bootstrapAdmin(prisma, {
+      email: EMAIL_TAKEN,
+      password: PASSWORD,
+      name: 'A',
+      company: COMPANY,
+    });
     expect(res).toEqual({ ok: false, error: 'email_taken_non_admin' });
 
     const user = await prisma.user.findUnique({ where: { email: EMAIL_TAKEN } });
@@ -85,13 +100,23 @@ describe('bootstrapAdmin', () => {
   });
 
   it('отклоняет слабый пароль и ничего не создаёт', async () => {
-    const res = await bootstrapAdmin(prisma, { email: EMAIL, password: 'short', name: 'A', company: COMPANY });
+    const res = await bootstrapAdmin(prisma, {
+      email: EMAIL,
+      password: 'short',
+      name: 'A',
+      company: COMPANY,
+    });
     expect(res).toEqual({ ok: false, error: 'weak_password' });
     expect(await prisma.user.findUnique({ where: { email: EMAIL } })).toBeNull();
   });
 
   it('отклоняет некорректный email и ничего не создаёт', async () => {
-    const res = await bootstrapAdmin(prisma, { email: 'not-an-email', password: PASSWORD, name: 'A', company: COMPANY });
+    const res = await bootstrapAdmin(prisma, {
+      email: 'not-an-email',
+      password: PASSWORD,
+      name: 'A',
+      company: COMPANY,
+    });
     expect(res).toEqual({ ok: false, error: 'invalid_email' });
   });
 });

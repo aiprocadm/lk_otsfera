@@ -9,7 +9,13 @@ import type { SessionPayload } from '@/lib/auth/jwt';
  */
 
 const session = (over: Partial<SessionPayload> = {}): SessionPayload =>
-  ({ sub: 'm1', role: 'manager', companyId: 'co-1', managedOrgIds: ['org-1'], ...over }) as SessionPayload;
+  ({
+    sub: 'm1',
+    role: 'manager',
+    companyId: 'co-1',
+    managedOrgIds: ['org-1'],
+    ...over,
+  }) as SessionPayload;
 
 function fakePrisma(args: { teamMode: boolean; orgCompanyId?: string | null }) {
   return {
@@ -19,8 +25,8 @@ function fakePrisma(args: { teamMode: boolean; orgCompanyId?: string | null }) {
         .fn()
         .mockResolvedValue(
           args.orgCompanyId === undefined ? null : { companyId: args.orgCompanyId }
-        )
-    }
+        ),
+    },
   } as never;
 }
 
@@ -51,7 +57,7 @@ describe('canManagerAccessOrg', () => {
     // поэтому режим форсируем через организацию своей компании и пустой скоуп.
     const p = {
       company: { findUnique: vi.fn().mockResolvedValue({ managerTeamVisibility: true }) },
-      organization: { findUnique: vi.fn() }
+      organization: { findUnique: vi.fn() },
     } as never;
     const s = session({ companyId: 'co-1', managedOrgIds: [] });
     // подменяем companyId уже после расчёта teamMode невозможно — проверяем

@@ -16,7 +16,10 @@ describe('NavBadge', () => {
     useClientResource.mockReturnValue({ data: 5 });
     render(<NavBadge badgeKey="intake" />);
     expect(screen.getByText('5')).toBeTruthy();
-    expect(useClientResource).toHaveBeenCalledWith('/api/staff/badges', expect.objectContaining({ intervalMs: 30_000 }));
+    expect(useClientResource).toHaveBeenCalledWith(
+      '/api/staff/badges',
+      expect.objectContaining({ intervalMs: 30_000 })
+    );
     const select = useClientResource.mock.calls[0]![1].select as (raw: unknown) => number;
     expect(select({ intake: 7, tasksOverdue: 2 })).toBe(7);
     expect(select({})).toBe(0);

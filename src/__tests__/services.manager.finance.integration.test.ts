@@ -18,7 +18,7 @@ beforeAll(async () => {
   companyA = cA.id;
   companyB = cB.id;
   const oA = await prisma.organization.create({
-    data: { name: `${TAG}-orgA`, companyId: companyA }
+    data: { name: `${TAG}-orgA`, companyId: companyA },
   });
   orgA = oA.id;
 
@@ -29,8 +29,8 @@ beforeAll(async () => {
       orderId: null,
       amount: '500.00',
       paidAt: new Date('2026-04-15'),
-      isRefund: false
-    }
+      isRefund: false,
+    },
   });
 
   mgrA = {
@@ -38,21 +38,21 @@ beforeAll(async () => {
     role: 'manager',
     email: 'a@x',
     companyId: companyA,
-    managedOrgIds: [orgA]
+    managedOrgIds: [orgA],
   } as unknown as SessionPayload;
   mgrB = {
     sub: `${TAG}-mB`,
     role: 'manager',
     email: 'b@x',
     companyId: companyB,
-    managedOrgIds: []
+    managedOrgIds: [],
   } as unknown as SessionPayload;
 });
 
 afterAll(async () => {
   // FK-safe order: payments → organizations → companies.
   await prisma.payment.deleteMany({
-    where: { organization: { name: { startsWith: TAG } } }
+    where: { organization: { name: { startsWith: TAG } } },
   });
   await prisma.organization.deleteMany({ where: { name: { startsWith: TAG } } });
   await prisma.company.deleteMany({ where: { name: { startsWith: TAG } } });
@@ -64,9 +64,7 @@ describe('getManagerFinanceOverview (integration)', () => {
     const res = await getManagerFinanceOverview(prisma, mgrA, { teamMode: false });
     const section = res.sections.find((s) => s.orgId === orgA);
     expect(section).toBeDefined();
-    expect(
-      section!.payments.some((p) => p.orderId === null && p.amount === '500.00')
-    ).toBe(true);
+    expect(section!.payments.some((p) => p.orderId === null && p.amount === '500.00')).toBe(true);
   });
 
   it('cross-company invariant: manager B sees nothing of company A even with teamMode=ON', async () => {

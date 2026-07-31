@@ -3,20 +3,20 @@
 // every knob here flips a behavior the real adapter must cope with.
 
 export type EnvelopeShape = 'array' | 'items' | 'other'; // Q1
-export type StatusDialect = 'app' | 'russian';           // Q10
-export type DatetimeFormat = 'utc-z' | 'no-offset';      // Q7
+export type StatusDialect = 'app' | 'russian'; // Q10
+export type DatetimeFormat = 'utc-z' | 'no-offset'; // Q7
 export type FailMode = 'none' | 'transient' | 'permanent';
 
 export type ScenarioConfig = {
   envelope: EnvelopeShape;
   statusDialect: StatusDialect;
   datetime: DatetimeFormat;
-  pageSize: number;     // Q6: 0 = no pagination; >0 = serve only the first page
+  pageSize: number; // Q6: 0 = no pagination; >0 = serve only the first page
   malformedRate: number; // >0 appends one schema-breaking record
-  duplicates: boolean;   // repeat the first record (same externalId)
+  duplicates: boolean; // repeat the first record (same externalId)
   failMode: FailMode;
-  latencyMs: number;     // artificial delay before responding
-  pushFailRate: number;  // 0..1 chance POST /api/leads returns 500
+  latencyMs: number; // artificial delay before responding
+  pushFailRate: number; // 0..1 chance POST /api/leads returns 500
 };
 
 export const DEFAULT_SCENARIO: ScenarioConfig = {
@@ -28,7 +28,7 @@ export const DEFAULT_SCENARIO: ScenarioConfig = {
   duplicates: false,
   failMode: 'none',
   latencyMs: 0,
-  pushFailRate: 0
+  pushFailRate: 0,
 };
 
 export const ENVELOPE_VALUES: EnvelopeShape[] = ['array', 'items', 'other'];

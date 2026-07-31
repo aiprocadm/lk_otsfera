@@ -7,7 +7,10 @@ import { fmtMoney } from '@/lib/format';
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 const { upsertSalesTargetAction } = vi.hoisted(() => ({ upsertSalesTargetAction: vi.fn() }));
@@ -16,11 +19,17 @@ vi.mock('@/server-actions/leader/analytics', () => ({ upsertSalesTargetAction })
 import { MonthPicker } from '@/components/leader/analytics/month-picker';
 import { FunnelAnalyticsPanel } from '@/components/leader/analytics/funnel-analytics-panel';
 import { PlanFactTable } from '@/components/leader/analytics/plan-fact-table';
-import type { StageSnapshot, CohortStats, ManagerFunnelRow, PlanFactRow, PlanFactTotals } from '@/lib/services/leader/analytics';
+import type {
+  StageSnapshot,
+  CohortStats,
+  ManagerFunnelRow,
+  PlanFactRow,
+  PlanFactTotals,
+} from '@/lib/services/leader/analytics';
 
 describe('MonthPicker', () => {
   it('renders a GET-form month input pre-filled with the given period and a submit button', () => {
-    render(<MonthPicker month='2026-07' />);
+    render(<MonthPicker month="2026-07" />);
     const input = screen.getByLabelText('Период') as HTMLInputElement;
     expect(input.value).toBe('2026-07');
     expect(input.getAttribute('type')).toBe('month');
@@ -31,7 +40,14 @@ describe('MonthPicker', () => {
 });
 
 function makeStage(overrides: Partial<StageSnapshot> = {}): StageSnapshot {
-  return { stageId: 's1', name: 'Новый', color: null, count: 0, estimatedSum: '0.00', ...overrides };
+  return {
+    stageId: 's1',
+    name: 'Новый',
+    color: null,
+    count: 0,
+    estimatedSum: '0.00',
+    ...overrides,
+  };
 }
 
 function makeCohort(overrides: Partial<CohortStats> = {}): CohortStats {
@@ -45,12 +61,20 @@ function makeCohort(overrides: Partial<CohortStats> = {}): CohortStats {
     avgDaysToPromote: null,
     estimatedTotal: '0.00',
     promotedEstimated: '0.00',
-    ...overrides
+    ...overrides,
   };
 }
 
 function makeManagerRow(overrides: Partial<ManagerFunnelRow> = {}): ManagerFunnelRow {
-  return { managerId: 'm1', name: 'Иван Менеджеров', assigned: 0, promoted: 0, rejected: 0, conversionPct: 0, ...overrides };
+  return {
+    managerId: 'm1',
+    name: 'Иван Менеджеров',
+    assigned: 0,
+    promoted: 0,
+    rejected: 0,
+    conversionPct: 0,
+    ...overrides,
+  };
 }
 
 describe('FunnelAnalyticsPanel', () => {
@@ -60,7 +84,7 @@ describe('FunnelAnalyticsPanel', () => {
       promoted: 8,
       rejected: 4,
       conversionPct: 40,
-      avgDaysToPromote: 3.5
+      avgDaysToPromote: 3.5,
     });
     render(<FunnelAnalyticsPanel snapshot={[]} cohort={cohort} perManager={[]} />);
 
@@ -79,10 +103,14 @@ describe('FunnelAnalyticsPanel', () => {
   it('renders per-stage bars sized relative to the max count, with money via fmtMoney', () => {
     const snapshot: StageSnapshot[] = [
       makeStage({ stageId: 's1', name: 'Новый', count: 10, estimatedSum: '100000.00' }),
-      makeStage({ stageId: 's2', name: 'Квалификация', count: 5, estimatedSum: '50000.00' })
+      makeStage({ stageId: 's2', name: 'Квалификация', count: 5, estimatedSum: '50000.00' }),
     ];
     const { container } = render(
-      <FunnelAnalyticsPanel snapshot={snapshot} cohort={makeCohort({ total: 15 })} perManager={[]} />
+      <FunnelAnalyticsPanel
+        snapshot={snapshot}
+        cohort={makeCohort({ total: 15 })}
+        perManager={[]}
+      />
     );
 
     expect(screen.getByText('Новый')).toBeTruthy();
@@ -102,23 +130,48 @@ describe('FunnelAnalyticsPanel', () => {
   });
 
   it('shows "Открытых лидов нет" when every stage count is zero', () => {
-    const snapshot = [makeStage({ stageId: 's1', count: 0 }), makeStage({ stageId: 's2', count: 0 })];
+    const snapshot = [
+      makeStage({ stageId: 's1', count: 0 }),
+      makeStage({ stageId: 's2', count: 0 }),
+    ];
     render(<FunnelAnalyticsPanel snapshot={snapshot} cohort={makeCohort()} perManager={[]} />);
     expect(screen.getByText('Открытых лидов нет')).toBeTruthy();
   });
 
   it('shows "Лидов за период нет" and hides the per-manager table when cohort.total is 0', () => {
-    render(<FunnelAnalyticsPanel snapshot={[]} cohort={makeCohort({ total: 0 })} perManager={[]} />);
+    render(
+      <FunnelAnalyticsPanel snapshot={[]} cohort={makeCohort({ total: 0 })} perManager={[]} />
+    );
     expect(screen.getByText('Лидов за период нет')).toBeTruthy();
     expect(screen.queryByText('Менеджер')).toBeNull();
   });
 
   it('renders the per-manager table including a "Без менеджера" row when present', () => {
     const perManager: ManagerFunnelRow[] = [
-      makeManagerRow({ managerId: 'm1', name: 'Иван Менеджеров', assigned: 6, promoted: 3, rejected: 1, conversionPct: 50 }),
-      makeManagerRow({ managerId: null, name: 'Без менеджера', assigned: 2, promoted: 0, rejected: 0, conversionPct: 0 })
+      makeManagerRow({
+        managerId: 'm1',
+        name: 'Иван Менеджеров',
+        assigned: 6,
+        promoted: 3,
+        rejected: 1,
+        conversionPct: 50,
+      }),
+      makeManagerRow({
+        managerId: null,
+        name: 'Без менеджера',
+        assigned: 2,
+        promoted: 0,
+        rejected: 0,
+        conversionPct: 0,
+      }),
     ];
-    render(<FunnelAnalyticsPanel snapshot={[]} cohort={makeCohort({ total: 8 })} perManager={perManager} />);
+    render(
+      <FunnelAnalyticsPanel
+        snapshot={[]}
+        cohort={makeCohort({ total: 8 })}
+        perManager={perManager}
+      />
+    );
 
     expect(screen.getByText('Иван Менеджеров')).toBeTruthy();
     expect(screen.getByText('Без менеджера')).toBeTruthy();
@@ -137,11 +190,16 @@ function makePlanRow(overrides: Partial<PlanFactRow> = {}): PlanFactRow {
     wonDeals: 0,
     wonAmount: '0.00',
     executionPct: 75,
-    ...overrides
+    ...overrides,
   };
 }
 
-const TOTALS: PlanFactTotals = { target: '100000.00', fact: '75000.00', wonAmount: '0.00', executionPct: 75 };
+const TOTALS: PlanFactTotals = {
+  target: '100000.00',
+  fact: '75000.00',
+  wonAmount: '0.00',
+  executionPct: 75,
+};
 
 describe('PlanFactTable', () => {
   beforeEach(() => {
@@ -152,14 +210,21 @@ describe('PlanFactTable', () => {
   });
 
   it('shows the empty state when there are no rows for the period', () => {
-    render(<PlanFactTable year={2026} month={7} rows={[]} totals={{ target: '0.00', fact: '0.00', wonAmount: '0.00', executionPct: null }} />);
+    render(
+      <PlanFactTable
+        year={2026}
+        month={7}
+        rows={[]}
+        totals={{ target: '0.00', fact: '0.00', wonAmount: '0.00', executionPct: null }}
+      />
+    );
     expect(screen.getByText('Нет данных за выбранный период.')).toBeTruthy();
   });
 
   it('ФТ-4.5: колонка «Выиграно сделок» — счётчик · сумма; ноль → «—»; итог из totals', () => {
     const rows = [
       makePlanRow({ wonDeals: 2, wonAmount: '30000.00' }),
-      makePlanRow({ managerId: 'm2', name: 'Пётр Нулевой', email: 'p@example.com' })
+      makePlanRow({ managerId: 'm2', name: 'Пётр Нулевой', email: 'p@example.com' }),
     ];
     render(
       <PlanFactTable
@@ -177,7 +242,9 @@ describe('PlanFactTable', () => {
 
   it('renders a manager row (with email) and the totals row', () => {
     const row = makePlanRow();
-    const { container } = render(<PlanFactTable year={2026} month={7} rows={[row]} totals={TOTALS} />);
+    const { container } = render(
+      <PlanFactTable year={2026} month={7} rows={[row]} totals={TOTALS} />
+    );
 
     expect(screen.getByText('Иван Менеджеров')).toBeTruthy();
     expect(screen.getByText('ivan@example.com')).toBeTruthy();
@@ -189,7 +256,14 @@ describe('PlanFactTable', () => {
   });
 
   it('renders the "Без менеджера" row read-only (no email, no inline form, target dash)', () => {
-    const row = makePlanRow({ managerId: null, name: 'Без менеджера', email: '', target: null, executionPct: null, completedOrders: 1 });
+    const row = makePlanRow({
+      managerId: null,
+      name: 'Без менеджера',
+      email: '',
+      target: null,
+      executionPct: null,
+      completedOrders: 1,
+    });
     render(<PlanFactTable year={2026} month={7} rows={[row]} totals={TOTALS} />);
 
     expect(screen.getByText('Без менеджера')).toBeTruthy();
@@ -212,7 +286,7 @@ describe('PlanFactTable', () => {
         managerId: 'm1',
         year: 2026,
         month: 7,
-        targetAmount: '50000'
+        targetAmount: '50000',
       })
     );
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('План сохранён'));
@@ -234,7 +308,7 @@ describe('PlanFactTable', () => {
         managerId: 'm1',
         year: 2026,
         month: 7,
-        targetAmount: null
+        targetAmount: null,
       })
     );
   });
@@ -254,7 +328,7 @@ describe('PlanFactTable', () => {
         managerId: 'm1',
         year: 2026,
         month: 7,
-        targetAmount: null
+        targetAmount: null,
       })
     );
   });
@@ -286,7 +360,9 @@ describe('PlanFactTable', () => {
 
   it('renders a subtle progress bar for a non-null executionPct, clamped to [0,100]', () => {
     const row = makePlanRow({ executionPct: 140 });
-    const { container } = render(<PlanFactTable year={2026} month={7} rows={[row]} totals={TOTALS} />);
+    const { container } = render(
+      <PlanFactTable year={2026} month={7} rows={[row]} totals={TOTALS} />
+    );
 
     const bar = container.querySelector('[data-testid="execution-bar"]') as HTMLElement;
     expect(bar).toBeTruthy();

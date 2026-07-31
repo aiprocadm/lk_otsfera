@@ -15,7 +15,7 @@ const { success } = vi.hoisted(() => ({ success: vi.fn() }));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success } }));
 
 const { updateStudentPositionAction } = vi.hoisted(() => ({
-  updateStudentPositionAction: vi.fn()
+  updateStudentPositionAction: vi.fn(),
 }));
 vi.mock('@/server-actions/organization/students', () => ({ updateStudentPositionAction }));
 
@@ -31,10 +31,12 @@ beforeEach(() => {
 describe('StudentPositionForm', () => {
   it('показывает текущую должность и скрытые поля скоупа', () => {
     const { container } = render(React.createElement(StudentPositionForm, props));
-    expect((screen.getByPlaceholderText(/инженер по охране труда/i) as HTMLInputElement).value).toBe(
-      'Инженер'
+    expect(
+      (screen.getByPlaceholderText(/инженер по охране труда/i) as HTMLInputElement).value
+    ).toBe('Инженер');
+    expect(container.querySelector('input[name="organizationId"]')?.getAttribute('value')).toBe(
+      'orgA'
     );
-    expect(container.querySelector('input[name="organizationId"]')?.getAttribute('value')).toBe('orgA');
     expect(container.querySelector('input[name="studentId"]')?.getAttribute('value')).toBe('s1');
   });
 
@@ -53,7 +55,7 @@ describe('StudentPositionForm', () => {
   it('сохраняет введённое значение', async () => {
     render(React.createElement(StudentPositionForm, { ...props, initialPosition: null }));
     fireEvent.change(screen.getByPlaceholderText(/инженер по охране труда/i), {
-      target: { value: 'Главный энергетик' }
+      target: { value: 'Главный энергетик' },
     });
     fireEvent.click(screen.getByText('Сохранить'));
 
@@ -68,9 +70,7 @@ describe('StudentPositionForm', () => {
     fireEvent.click(screen.getByText('Сохранить'));
 
     await waitFor(() =>
-      expect(screen.getByRole('alert').textContent).toBe(
-        'Сотрудник не найден в вашей организации.'
-      )
+      expect(screen.getByRole('alert').textContent).toBe('Сотрудник не найден в вашей организации.')
     );
     expect(success).not.toHaveBeenCalled();
   });
@@ -88,7 +88,10 @@ describe('StudentPositionForm', () => {
   it('во время отправки кнопка блокируется и меняет подпись', async () => {
     let release: (v: { ok: true }) => void = () => {};
     updateStudentPositionAction.mockImplementation(
-      () => new Promise((resolve) => { release = resolve; })
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        })
     );
     render(React.createElement(StudentPositionForm, props));
     fireEvent.click(screen.getByText('Сохранить'));

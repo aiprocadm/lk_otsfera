@@ -16,7 +16,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
-  toastError: vi.fn()
+  toastError: vi.fn(),
 }));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
@@ -34,7 +34,7 @@ function row(over: Partial<OrderStatusDefinition> & { id: string }): OrderStatus
     isSystem: false,
     isTerminal: false,
     anchor: null,
-    ...over
+    ...over,
   } as OrderStatusDefinition;
 }
 
@@ -47,7 +47,7 @@ const SYSTEM_ROWS = [
     label: 'Оплата поступила',
     sortOrder: 3,
     isSystem: true,
-    anchor: 'paid'
+    anchor: 'paid',
   }),
   row({
     id: 's7',
@@ -55,8 +55,8 @@ const SYSTEM_ROWS = [
     label: 'Отменена',
     sortOrder: 7,
     isSystem: true,
-    isTerminal: true
-  })
+    isTerminal: true,
+  }),
 ];
 
 function openDialog(): HTMLElement {
@@ -90,7 +90,7 @@ describe('OrderStatusesAdmin — показ справочника', () => {
       <OrderStatusesAdmin
         rows={[
           row({ id: 'b', label: 'Второй', sortOrder: 2 }),
-          row({ id: 'a', label: 'Первый', sortOrder: 1 })
+          row({ id: 'a', label: 'Первый', sortOrder: 1 }),
         ]}
       />
     );
@@ -131,7 +131,7 @@ describe('OrderStatusesAdmin — показ справочника', () => {
       <OrderStatusesAdmin
         rows={[
           row({ id: 'a', label: 'Первый', sortOrder: 1 }),
-          row({ id: 'b', label: 'Второй', sortOrder: 2 })
+          row({ id: 'b', label: 'Второй', sortOrder: 2 }),
         ]}
       />
     );
@@ -153,10 +153,10 @@ describe('OrderStatusesAdmin — действия', () => {
     const dialog = openDialog();
 
     fireEvent.change(within(dialog).getByLabelText('Название'), {
-      target: { value: '  Выданы доступы  ' }
+      target: { value: '  Выданы доступы  ' },
     });
     fireEvent.change(within(dialog).getByLabelText('Ключ (латиница, a-z0-9_)'), {
-      target: { value: 'access_granted' }
+      target: { value: 'access_granted' },
     });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Создать' }));
 
@@ -166,7 +166,7 @@ describe('OrderStatusesAdmin — действия', () => {
         expect.objectContaining({
           method: 'POST',
           // максимальный sortOrder среди строк = 7 → новый 8
-          body: JSON.stringify({ key: 'access_granted', label: 'Выданы доступы', sortOrder: 8 })
+          body: JSON.stringify({ key: 'access_granted', label: 'Выданы доступы', sortOrder: 8 }),
         })
       )
     );
@@ -186,13 +186,18 @@ describe('OrderStatusesAdmin — действия', () => {
     expect((within(dialog).getByLabelText('Ключ') as HTMLInputElement).readOnly).toBe(true);
     expect(within(dialog).getByText(/связь с событием останется/)).toBeTruthy();
 
-    fireEvent.change(within(dialog).getByLabelText('Название'), { target: { value: 'Деньги пришли' } });
+    fireEvent.change(within(dialog).getByLabelText('Название'), {
+      target: { value: 'Деньги пришли' },
+    });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/admin/order-statuses/s3',
-        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ label: 'Деньги пришли' }) })
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ label: 'Деньги пришли' }),
+        })
       )
     );
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Статус переименован.'));
@@ -205,7 +210,7 @@ describe('OrderStatusesAdmin — действия', () => {
       <OrderStatusesAdmin
         rows={[
           row({ id: 'a', label: 'Первый', sortOrder: 1 }),
-          row({ id: 'b', label: 'Второй', sortOrder: 2 })
+          row({ id: 'b', label: 'Второй', sortOrder: 2 }),
         ]}
       />
     );
@@ -238,7 +243,7 @@ describe('OrderStatusesAdmin — действия', () => {
       <OrderStatusesAdmin
         rows={[
           row({ id: 'a', label: 'Первый', sortOrder: 1 }),
-          row({ id: 'b', label: 'Второй', sortOrder: 2 })
+          row({ id: 'b', label: 'Второй', sortOrder: 2 }),
         ]}
       />
     );
@@ -261,7 +266,7 @@ describe('OrderStatusesAdmin — действия', () => {
       <OrderStatusesAdmin
         rows={[
           row({ id: 'a', label: 'Первый', sortOrder: 1 }),
-          row({ id: 'b', label: 'Второй', sortOrder: 2 })
+          row({ id: 'b', label: 'Второй', sortOrder: 2 }),
         ]}
       />
     );
@@ -319,7 +324,7 @@ describe('OrderStatusesAdmin — ошибки сервера показываю�
   it.each([
     ['добавления', '+ Добавить'],
     ['удаления', 'Удалить'],
-    ['выключения', 'Выключить']
+    ['выключения', 'Выключить'],
   ])('отказ при %s', async (_name, buttonName) => {
     const fetchMock = vi
       .fn()
@@ -333,7 +338,7 @@ describe('OrderStatusesAdmin — ошибки сервера показываю�
       const dialog = openDialog();
       fireEvent.change(within(dialog).getByLabelText('Название'), { target: { value: 'X' } });
       fireEvent.change(within(dialog).getByLabelText('Ключ (латиница, a-z0-9_)'), {
-        target: { value: 'x_key' }
+        target: { value: 'x_key' },
       });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Создать' }));
     } else {
@@ -363,7 +368,7 @@ describe('OrderStatusesAdmin — ошибки сервера показываю�
       ok: false,
       json: async () => {
         throw new Error('bad json');
-      }
+      },
     });
     vi.stubGlobal('fetch', fetchMock);
     render(<OrderStatusesAdmin rows={[row({ id: 'x', label: 'Своё' })]} />);

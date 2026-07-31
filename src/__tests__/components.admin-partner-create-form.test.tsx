@@ -6,23 +6,25 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 const { push, refresh } = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }) }));
 
-const { createPartnerWithAdminAction } = vi.hoisted(() => ({ createPartnerWithAdminAction: vi.fn() }));
+const { createPartnerWithAdminAction } = vi.hoisted(() => ({
+  createPartnerWithAdminAction: vi.fn(),
+}));
 vi.mock('@/server-actions/admin/partners', () => ({ createPartnerWithAdminAction }));
 
 import { PartnerCreateForm } from '@/components/admin/partner-create-form';
 
 function fillRequiredFields() {
   fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
-    target: { value: 'Партнёр Х' }
+    target: { value: 'Партнёр Х' },
   });
   fireEvent.change(document.querySelector('input[name="slug"]') as HTMLInputElement, {
-    target: { value: 'partner-x' }
+    target: { value: 'partner-x' },
   });
   fireEvent.change(document.querySelector('input[name="adminEmail"]') as HTMLInputElement, {
-    target: { value: 'admin@x.com' }
+    target: { value: 'admin@x.com' },
   });
   fireEvent.change(document.querySelector('input[name="adminName"]') as HTMLInputElement, {
-    target: { value: 'Админ' }
+    target: { value: 'Админ' },
   });
 }
 
@@ -32,7 +34,7 @@ describe('PartnerCreateForm', () => {
     push.mockClear();
     refresh.mockClear();
     Object.assign(navigator, {
-      clipboard: { writeText: vi.fn().mockReturnValue(Promise.resolve()) }
+      clipboard: { writeText: vi.fn().mockReturnValue(Promise.resolve()) },
     });
   });
 
@@ -78,7 +80,7 @@ describe('PartnerCreateForm', () => {
       ok: true,
       partner: { id: 'p1', name: 'X', slug: 'x' },
       user: { id: 'u1', email: 'admin@x.com' },
-      inviteUrl: 'https://app/invite/p1'
+      inviteUrl: 'https://app/invite/p1',
     });
     render(React.createElement(PartnerCreateForm));
     fillRequiredFields();
@@ -89,13 +91,19 @@ describe('PartnerCreateForm', () => {
     expect(screen.queryByRole('button', { name: 'Создать партнёра' })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Скопировать' }));
-    await vi.waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://app/invite/p1'));
-    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Скопировано!' })).toBeTruthy());
+    await vi.waitFor(() =>
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://app/invite/p1')
+    );
+    await vi.waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Скопировано!' })).toBeTruthy()
+    );
 
     await act(async () => {
       vi.advanceTimersByTime(2000);
     });
-    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Скопировать' })).toBeTruthy());
+    await vi.waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Скопировать' })).toBeTruthy()
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'К списку' }));
     expect(push).toHaveBeenCalledWith('/admin/partners');
@@ -106,7 +114,7 @@ describe('PartnerCreateForm', () => {
       ok: true,
       partner: { id: 'p1', name: 'X', slug: 'x' },
       user: { id: 'u1', email: 'admin@x.com' },
-      inviteUrl: 'https://app/invite/p1'
+      inviteUrl: 'https://app/invite/p1',
     });
     render(React.createElement(PartnerCreateForm));
     fillRequiredFields();
@@ -133,21 +141,35 @@ describe('PartnerCreateForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Создать партнёра' }));
 
     await waitFor(() =>
-      expect(screen.getByRole('alert')).toHaveProperty('textContent', 'Slug занят. Выберите другой.')
+      expect(screen.getByRole('alert')).toHaveProperty(
+        'textContent',
+        'Slug занят. Выберите другой.'
+      )
     );
     expect(screen.getByRole('button', { name: 'Создать партнёра' })).toBeTruthy();
   });
 
   it('busy state shows "Создаю…" and disables the submit button', async () => {
     let resolvePromise: (v: unknown) => void = () => {};
-    createPartnerWithAdminAction.mockReturnValue(new Promise((resolve) => { resolvePromise = resolve; }));
+    createPartnerWithAdminAction.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      })
+    );
     render(React.createElement(PartnerCreateForm));
     fillRequiredFields();
     fireEvent.click(screen.getByRole('button', { name: 'Создать партнёра' }));
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Создаю…' })).toBeTruthy());
-    expect((screen.getByRole('button', { name: 'Создаю…' }) as HTMLButtonElement).disabled).toBe(true);
-    resolvePromise({ ok: true, partner: { id: 'p1', name: 'X', slug: 'x' }, user: { id: 'u1', email: 'a@x.com' }, inviteUrl: 'u' });
+    expect((screen.getByRole('button', { name: 'Создаю…' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
+    resolvePromise({
+      ok: true,
+      partner: { id: 'p1', name: 'X', slug: 'x' },
+      user: { id: 'u1', email: 'a@x.com' },
+      inviteUrl: 'u',
+    });
     await waitFor(() => expect(screen.getByRole('status')).toBeTruthy());
   });
 });

@@ -14,7 +14,7 @@ vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 
 const { canSeeOrder, getCompanyTeamVisibility } = vi.hoisted(() => ({
   canSeeOrder: vi.fn(),
-  getCompanyTeamVisibility: vi.fn()
+  getCompanyTeamVisibility: vi.fn(),
 }));
 vi.mock('@/lib/auth/managerPolicy', () => ({ canSeeOrder, getCompanyTeamVisibility }));
 
@@ -25,8 +25,10 @@ const session = { sub: 'm1', role: 'manager', companyId: 'co1' } as SessionPaylo
 function db(order: unknown) {
   const update = vi.fn().mockResolvedValue({});
   return {
-    prisma: { order: { findUnique: vi.fn().mockResolvedValue(order), update } } as unknown as PrismaClient,
-    update
+    prisma: {
+      order: { findUnique: vi.fn().mockResolvedValue(order), update },
+    } as unknown as PrismaClient,
+    update,
   };
 }
 
@@ -39,18 +41,28 @@ beforeEach(() => {
 describe('setOrderAccountingSigned', () => {
   it('несуществующая заявка → not_found', async () => {
     const { prisma } = db(null);
-    expect(await setOrderAccountingSigned(prisma, session, { orderId: 'x', signed: true })).toEqual({
-      ok: false,
-      error: 'not_found'
-    });
+    expect(await setOrderAccountingSigned(prisma, session, { orderId: 'x', signed: true })).toEqual(
+      {
+        ok: false,
+        error: 'not_found',
+      }
+    );
   });
 
   it('заявка вне скоупа → forbidden', async () => {
     canSeeOrder.mockReturnValue(false);
-    const { prisma } = db({ id: 'o1', managerId: null, organizationId: null, companyId: 'co1', accountingSignedAt: null });
-    expect(await setOrderAccountingSigned(prisma, session, { orderId: 'o1', signed: true })).toEqual({
+    const { prisma } = db({
+      id: 'o1',
+      managerId: null,
+      organizationId: null,
+      companyId: 'co1',
+      accountingSignedAt: null,
+    });
+    expect(
+      await setOrderAccountingSigned(prisma, session, { orderId: 'o1', signed: true })
+    ).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 
@@ -60,15 +72,13 @@ describe('setOrderAccountingSigned', () => {
       managerId: 'm1',
       organizationId: null,
       companyId: 'co1',
-      accountingSignedAt: null
+      accountingSignedAt: null,
     });
 
     const res = await setOrderAccountingSigned(prisma, session, { orderId: 'o1', signed: true });
 
     expect(res).toEqual({ ok: true, changed: true });
-    expect(update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'o1' } })
-    );
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'o1' } }));
     expect(update.mock.calls[0][0].data.accountingSignedAt).toBeInstanceOf(Date);
     expect(recordAudit).toHaveBeenCalledWith(
       prisma,
@@ -82,7 +92,7 @@ describe('setOrderAccountingSigned', () => {
       managerId: 'm1',
       organizationId: null,
       companyId: 'co1',
-      accountingSignedAt: new Date('2026-07-01')
+      accountingSignedAt: new Date('2026-07-01'),
     });
 
     const res = await setOrderAccountingSigned(prisma, session, { orderId: 'o1', signed: false });
@@ -97,7 +107,7 @@ describe('setOrderAccountingSigned', () => {
       managerId: 'm1',
       organizationId: null,
       companyId: 'co1',
-      accountingSignedAt: new Date('2026-07-01')
+      accountingSignedAt: new Date('2026-07-01'),
     });
 
     const res = await setOrderAccountingSigned(prisma, session, { orderId: 'o1', signed: true });

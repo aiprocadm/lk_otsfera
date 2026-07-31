@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // Mock ioredis so getRedisConnection() never really connects.
 // ---------------------------------------------------------------------------
 const { IORedisConstructorMock } = vi.hoisted(() => ({
-  IORedisConstructorMock: vi.fn().mockImplementation(() => ({ ping: vi.fn() }))
+  IORedisConstructorMock: vi.fn().mockImplementation(() => ({ ping: vi.fn() })),
 }));
 vi.mock('ioredis', () => ({ default: IORedisConstructorMock }));
 
@@ -15,7 +15,7 @@ const { closeMock, QueueConstructorMock } = vi.hoisted(() => {
   const closeMock = vi.fn().mockResolvedValue(undefined);
   const QueueConstructorMock = vi.fn().mockImplementation((name: string) => ({
     name,
-    close: closeMock
+    close: closeMock,
   }));
   return { closeMock, QueueConstructorMock };
 });
@@ -47,7 +47,7 @@ describe('Job queue registry', () => {
       'oneCSync.reconcile',
       'docs.generateCommissionPdf',
       'docs.generateCommissionXlsx',
-      'notifications.dispatch'
+      'notifications.dispatch',
     ];
     for (const name of expected) {
       expect(QUEUE_NAMES).toContain(name);
@@ -56,7 +56,7 @@ describe('Job queue registry', () => {
 
   it('QUEUE_NAMES is frozen/readonly tuple', () => {
     // Compile-time assertion: QueueName covers exactly the declared 10 queues.
-    const _check: QueueName extends typeof QUEUE_NAMES[number] ? true : false = true;
+    const _check: QueueName extends (typeof QUEUE_NAMES)[number] ? true : false = true;
     expect(_check).toBe(true);
   });
 });

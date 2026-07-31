@@ -71,7 +71,7 @@ export function validateRowsClient(rows: WizardRow[]): string[] {
 export function EnrollmentWizard({
   directions,
   organizations,
-  defaultOrganizationId
+  defaultOrganizationId,
 }: {
   directions: DirectionOption[];
   /** Партнёр/менеджер выбирают организацию; у роли организации — её активная. */
@@ -102,15 +102,19 @@ export function EnrollmentWizard({
   useEffect(() => {
     if (!organizationId) return;
     let cancelled = false;
-    fetch(`/api/enrollments/students?organizationId=${encodeURIComponent(organizationId)}`)
-      .then(async (res) => (res.ok ? ((await res.json()) as { students: StudentOption[] }).students : []))
+    void fetch(`/api/enrollments/students?organizationId=${encodeURIComponent(organizationId)}`)
+      .then(async (res) =>
+        res.ok ? ((await res.json()) as { students: StudentOption[] }).students : []
+      )
       .catch(() => [] as StudentOption[])
       .then((list) => {
         if (cancelled) return;
         setStudents(list);
         setLoadedForOrg(organizationId);
         // Смена организации делает выбранных сотрудников невалидными — снимаем их.
-        setRows((prev) => prev.filter((r) => !r.studentId || list.some((s) => s.id === r.studentId)));
+        setRows((prev) =>
+          prev.filter((r) => !r.studentId || list.some((s) => s.id === r.studentId))
+        );
       });
     return () => {
       cancelled = true;
@@ -120,7 +124,9 @@ export function EnrollmentWizard({
   const visibleStudents = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return students;
-    return students.filter((s) => s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q));
+    return students.filter(
+      (s) => s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q)
+    );
   }, [students, search]);
 
   const directionName = directions.find((d) => d.id === directionId)?.name ?? '';
@@ -136,7 +142,16 @@ export function EnrollmentWizard({
         if (prev.some((r) => r.studentId === s.id)) return prev;
         return [
           ...prev,
-          { key: nextKey(), studentId: s.id, fullName: s.name, email: s.email, position: '', snils: '', birthDate: '', extra: '' }
+          {
+            key: nextKey(),
+            studentId: s.id,
+            fullName: s.name,
+            email: s.email,
+            position: '',
+            snils: '',
+            birthDate: '',
+            extra: '',
+          },
         ];
       }
       return prev.filter((r) => r.studentId !== s.id);
@@ -146,7 +161,16 @@ export function EnrollmentWizard({
   function addManualRow() {
     setRows((prev) => [
       ...prev,
-      { key: nextKey(), studentId: null, fullName: '', email: '', position: '', snils: '', birthDate: '', extra: '' }
+      {
+        key: nextKey(),
+        studentId: null,
+        fullName: '',
+        email: '',
+        position: '',
+        snils: '',
+        birthDate: '',
+        extra: '',
+      },
     ]);
   }
 
@@ -188,7 +212,7 @@ export function EnrollmentWizard({
           position: item.position ?? '',
           snils: item.snils ?? '',
           birthDate: item.birthDate ? new Date(item.birthDate).toISOString().slice(0, 10) : '',
-          extra: item.extra ?? ''
+          extra: item.extra ?? '',
         });
       }
       if (added.length) {
@@ -229,12 +253,15 @@ export function EnrollmentWizard({
             position: r.position,
             snils: r.snils,
             birthDate: r.birthDate,
-            extra: r.extra
-          }))
-        })
+            extra: r.extra,
+          })),
+        }),
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string; messages?: string[] };
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          messages?: string[];
+        };
         if (body.messages?.length) setErrors(body.messages);
         else toast.error(`Не удалось отправить заявку: ${body.error ?? res.status}`);
         return;
@@ -257,20 +284,26 @@ export function EnrollmentWizard({
   const stepTitle = step === 1 ? 'Направление' : step === 2 ? 'Слушатели' : 'Проверка';
 
   return (
-    <section className='bg-white border border-gray-200 rounded-xl p-5 space-y-4'>
+    <section className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
       <div>
-        <h2 className='font-semibold text-[#111111]'>Подать заявку на обучение</h2>
-        <p className='text-xs text-gray-500 mt-0.5'>
+        <h2 className="font-semibold text-[#111111]">Подать заявку на обучение</h2>
+        <p className="text-xs text-gray-500 mt-0.5">
           Шаг {step} из 3 — {stepTitle}. Одной заявкой можно отправить сразу всех слушателей.
         </p>
       </div>
 
       {step === 1 && (
-        <div className='space-y-3'>
-          <label className='block'>
-            <span className='block text-sm font-medium text-gray-700 mb-1'>Направление обучения</span>
-            <select value={directionId} onChange={(e) => setDirectionId(e.target.value)} className={inputCls}>
-              <option value=''>— выберите направление —</option>
+        <div className="space-y-3">
+          <label className="block">
+            <span className="block text-sm font-medium text-gray-700 mb-1">
+              Направление обучения
+            </span>
+            <select
+              value={directionId}
+              onChange={(e) => setDirectionId(e.target.value)}
+              className={inputCls}
+            >
+              <option value="">— выберите направление —</option>
               {directions.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
@@ -279,15 +312,19 @@ export function EnrollmentWizard({
             </select>
           </label>
           {directions.length === 0 && (
-            <div className='text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2'>
+            <div className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
               Справочник направлений пуст — обратитесь к менеджеру, чтобы направления добавили.
             </div>
           )}
           {organizations && organizations.length > 0 && (
-            <label className='block'>
-              <span className='block text-sm font-medium text-gray-700 mb-1'>Организация</span>
-              <select value={organizationId} onChange={(e) => setOrganizationId(e.target.value)} className={inputCls}>
-                <option value=''>— без организации —</option>
+            <label className="block">
+              <span className="block text-sm font-medium text-gray-700 mb-1">Организация</span>
+              <select
+                value={organizationId}
+                onChange={(e) => setOrganizationId(e.target.value)}
+                className={inputCls}
+              >
+                <option value="">— без организации —</option>
                 {organizations.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.name}
@@ -296,7 +333,7 @@ export function EnrollmentWizard({
               </select>
             </label>
           )}
-          <div className='flex justify-end'>
+          <div className="flex justify-end">
             <Button onClick={() => setStep(2)} disabled={!directionId}>
               Далее: слушатели
             </Button>
@@ -305,93 +342,102 @@ export function EnrollmentWizard({
       )}
 
       {step === 2 && (
-        <div className='space-y-4'>
+        <div className="space-y-4">
           {organizationId ? (
-            <div className='space-y-2'>
-              <div className='flex items-center justify-between gap-3'>
-                <span className='text-sm font-medium text-gray-700'>Из сотрудников организации</span>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium text-gray-700">
+                  Из сотрудников организации
+                </span>
                 <input
-                  type='search'
+                  type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder='Поиск по ФИО или email'
-                  className='px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#F97316]'
+                  placeholder="Поиск по ФИО или email"
+                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#F97316]"
                 />
               </div>
               {studentsLoading ? (
-                <div className='text-sm text-gray-500'>Загружаем сотрудников…</div>
+                <div className="text-sm text-gray-500">Загружаем сотрудников…</div>
               ) : students.length === 0 ? (
-                <div className='text-sm text-gray-500'>
+                <div className="text-sm text-gray-500">
                   У организации пока нет сотрудников в системе — добавьте слушателей строками ниже.
                 </div>
               ) : (
-                <ul className='max-h-56 overflow-y-auto border border-gray-100 rounded-lg divide-y divide-gray-50'>
+                <ul className="max-h-56 overflow-y-auto border border-gray-100 rounded-lg divide-y divide-gray-50">
                   {visibleStudents.map((s) => {
                     const checked = rows.some((r) => r.studentId === s.id);
                     return (
                       <li key={s.id}>
-                        <label className='flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50'>
+                        <label className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50">
                           <input
-                            type='checkbox'
+                            type="checkbox"
                             checked={checked}
                             onChange={(e) => toggleStudent(s, e.target.checked)}
-                            className='accent-[#F97316]'
+                            className="accent-[#F97316]"
                           />
-                          <span className='text-sm text-[#111111]'>{s.name}</span>
-                          <span className='text-xs text-gray-500'>{s.email}</span>
+                          <span className="text-sm text-[#111111]">{s.name}</span>
+                          <span className="text-xs text-gray-500">{s.email}</span>
                         </label>
                       </li>
                     );
                   })}
                   {visibleStudents.length === 0 && (
-                    <li className='px-3 py-2 text-sm text-gray-500'>Никого не нашли по запросу.</li>
+                    <li className="px-3 py-2 text-sm text-gray-500">Никого не нашли по запросу.</li>
                   )}
                 </ul>
               )}
             </div>
           ) : (
-            <div className='text-xs text-gray-500'>
+            <div className="text-xs text-gray-500">
               Организация не выбрана — добавьте слушателей строками ниже.
             </div>
           )}
 
-          <div className='space-y-2 border border-gray-100 rounded-lg p-3'>
-            <div className='flex flex-wrap items-center gap-3'>
-              <span className='text-sm font-medium text-gray-700'>Импорт из Excel</span>
+          <div className="space-y-2 border border-gray-100 rounded-lg p-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm font-medium text-gray-700">Импорт из Excel</span>
               <a
-                href='/api/enrollments/import-template'
+                href="/api/enrollments/import-template"
                 download
-                className='text-sm text-[#F97316] hover:underline'
+                className="text-sm text-[#F97316] hover:underline"
               >
                 Скачать шаблон
               </a>
-              <label className='text-sm text-[#F97316] hover:underline cursor-pointer'>
+              <label className="text-sm text-[#F97316] hover:underline cursor-pointer">
                 {importBusy ? 'Обрабатываем файл…' : 'Загрузить файл'}
                 <input
                   ref={fileInputRef}
-                  type='file'
-                  accept='.xlsx'
-                  className='sr-only'
+                  type="file"
+                  accept=".xlsx"
+                  className="sr-only"
                   disabled={importBusy}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file) importFile(file);
+                    if (file) void importFile(file);
                   }}
                 />
               </label>
             </div>
-            <p className='text-xs text-gray-500'>
-              Заполните шаблон (обязательны ФИО и Email) и загрузите файл — слушатели добавятся в заявку.
+            <p className="text-xs text-gray-500">
+              Заполните шаблон (обязательны ФИО и Email) и загрузите файл — слушатели добавятся в
+              заявку.
             </p>
             {importErrors.length > 0 && (
-              <ul className='text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2 space-y-0.5' role='alert'>
+              <ul
+                className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2 space-y-0.5"
+                role="alert"
+              >
                 {importErrors.map((e) => (
                   <li key={e}>{e}</li>
                 ))}
               </ul>
             )}
             {importWarnings.length > 0 && (
-              <ul className='text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 space-y-0.5' role='status'>
+              <ul
+                className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 space-y-0.5"
+                role="status"
+              >
                 {importWarnings.map((w) => (
                   <li key={w}>{w}</li>
                 ))}
@@ -399,81 +445,83 @@ export function EnrollmentWizard({
             )}
           </div>
 
-          <div className='space-y-3'>
-            <div className='flex items-center justify-between'>
-              <span className='text-sm font-medium text-gray-700'>Слушатели в заявке: {rows.length}</span>
-              <Button size='sm' variant='secondary' onClick={addManualRow}>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">
+                Слушатели в заявке: {rows.length}
+              </span>
+              <Button size="sm" variant="secondary" onClick={addManualRow}>
                 + Добавить слушателя
               </Button>
             </div>
             {rows.length === 0 && (
-              <div className='text-sm text-gray-500 border border-dashed border-gray-200 rounded-lg px-3 py-4 text-center'>
-                Отметьте сотрудников галочками или добавьте новых слушателей строками —
-                достаточно ФИО и email, остальные поля по желанию.
+              <div className="text-sm text-gray-500 border border-dashed border-gray-200 rounded-lg px-3 py-4 text-center">
+                Отметьте сотрудников галочками или добавьте новых слушателей строками — достаточно
+                ФИО и email, остальные поля по желанию.
               </div>
             )}
             {rows.map((row, i) => (
-              <div key={row.key} className='border border-gray-100 rounded-lg p-3 space-y-2'>
-                <div className='flex items-center justify-between'>
-                  <span className='text-xs font-medium text-gray-500'>
+              <div key={row.key} className="border border-gray-100 rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">
                     Слушатель {i + 1}
-                    {row.studentId && <span className='ml-2 text-emerald-700'>из сотрудников</span>}
+                    {row.studentId && <span className="ml-2 text-emerald-700">из сотрудников</span>}
                   </span>
                   <button
-                    type='button'
+                    type="button"
                     onClick={() => removeRow(row.key)}
-                    className='text-xs text-red-600 hover:underline'
+                    className="text-xs text-red-600 hover:underline"
                   >
                     Удалить
                   </button>
                 </div>
-                <div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input
-                    type='text'
+                    type="text"
                     value={row.fullName}
                     onChange={(e) => updateRow(row.key, { fullName: e.target.value })}
-                    placeholder='ФИО *'
+                    placeholder="ФИО *"
                     disabled={!!row.studentId}
                     className={`${smallInputCls} disabled:bg-gray-50 disabled:text-gray-500`}
                   />
                   <input
-                    type='email'
+                    type="email"
                     value={row.email}
                     onChange={(e) => updateRow(row.key, { email: e.target.value })}
-                    placeholder='Email *'
+                    placeholder="Email *"
                     disabled={!!row.studentId}
                     className={`${smallInputCls} disabled:bg-gray-50 disabled:text-gray-500`}
                   />
                   <input
-                    type='text'
+                    type="text"
                     value={row.position}
                     onChange={(e) => updateRow(row.key, { position: e.target.value })}
-                    placeholder='Должность'
+                    placeholder="Должность"
                     className={smallInputCls}
                   />
                   <input
-                    type='text'
+                    type="text"
                     value={row.snils}
                     onChange={(e) => updateRow(row.key, { snils: e.target.value })}
-                    placeholder='СНИЛС (11 цифр)'
+                    placeholder="СНИЛС (11 цифр)"
                     className={smallInputCls}
                   />
-                  <label className='block'>
-                    <span className='block text-[11px] text-gray-500 mb-0.5'>Дата рождения</span>
+                  <label className="block">
+                    <span className="block text-[11px] text-gray-500 mb-0.5">Дата рождения</span>
                     <input
-                      type='date'
+                      type="date"
                       value={row.birthDate}
                       onChange={(e) => updateRow(row.key, { birthDate: e.target.value })}
                       className={smallInputCls}
                     />
                   </label>
-                  <label className='block'>
-                    <span className='block text-[11px] text-gray-500 mb-0.5'>Дополнительно</span>
+                  <label className="block">
+                    <span className="block text-[11px] text-gray-500 mb-0.5">Дополнительно</span>
                     <input
-                      type='text'
+                      type="text"
                       value={row.extra}
                       onChange={(e) => updateRow(row.key, { extra: e.target.value })}
-                      placeholder='Любая дополнительная информация'
+                      placeholder="Любая дополнительная информация"
                       className={smallInputCls}
                     />
                   </label>
@@ -483,15 +531,18 @@ export function EnrollmentWizard({
           </div>
 
           {errors.length > 0 && (
-            <ul className='text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2 space-y-0.5' role='alert'>
+            <ul
+              className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2 space-y-0.5"
+              role="alert"
+            >
               {errors.map((e) => (
                 <li key={e}>{e}</li>
               ))}
             </ul>
           )}
 
-          <div className='flex justify-between'>
-            <Button variant='secondary' onClick={() => setStep(1)}>
+          <div className="flex justify-between">
+            <Button variant="secondary" onClick={() => setStep(1)}>
               Назад
             </Button>
             <Button onClick={goToStep3} disabled={rows.length === 0}>
@@ -502,46 +553,58 @@ export function EnrollmentWizard({
       )}
 
       {step === 3 && (
-        <div className='space-y-3'>
-          <div className='text-sm text-gray-700 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 space-y-1'>
+        <div className="space-y-3">
+          <div className="text-sm text-gray-700 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 space-y-1">
             <div>
-              Направление: <span className='font-medium text-[#111111]'>{directionName}</span>
+              Направление: <span className="font-medium text-[#111111]">{directionName}</span>
             </div>
             {orgName && (
               <div>
-                Организация: <span className='font-medium text-[#111111]'>{orgName}</span>
+                Организация: <span className="font-medium text-[#111111]">{orgName}</span>
               </div>
             )}
             <div>
-              Слушателей: <span className='font-medium text-[#111111]'>{rows.length}</span>
+              Слушателей: <span className="font-medium text-[#111111]">{rows.length}</span>
             </div>
           </div>
-          <ul className='text-sm text-gray-700 border border-gray-100 rounded-lg divide-y divide-gray-50'>
+          <ul className="text-sm text-gray-700 border border-gray-100 rounded-lg divide-y divide-gray-50">
             {rows.map((r, i) => (
-              <li key={r.key} className='px-3 py-2'>
+              <li key={r.key} className="px-3 py-2">
                 {/* Без запасного «—»: валидация шага 2 не пускает на итог позицию
                     без ФИО, поэтому fallback был недостижим (Ф4 программы покрытия). */}
-                <span className='font-medium text-[#111111]'>{i + 1}. {r.fullName}</span>{' '}
-                <span className='text-xs text-gray-500'>{r.email}</span>
-                {r.position && <span className='text-xs text-gray-500'> · {r.position}</span>}
+                <span className="font-medium text-[#111111]">
+                  {i + 1}. {r.fullName}
+                </span>{' '}
+                <span className="text-xs text-gray-500">{r.email}</span>
+                {r.position && <span className="text-xs text-gray-500"> · {r.position}</span>}
               </li>
             ))}
           </ul>
-          <label className='block'>
-            <span className='block text-sm font-medium text-gray-700 mb-1'>Примечание к заявке (необязательно)</span>
-            <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className={inputCls} />
+          <label className="block">
+            <span className="block text-sm font-medium text-gray-700 mb-1">
+              Примечание к заявке (необязательно)
+            </span>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={2}
+              className={inputCls}
+            />
           </label>
 
           {errors.length > 0 && (
-            <ul className='text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2 space-y-0.5' role='alert'>
+            <ul
+              className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2 space-y-0.5"
+              role="alert"
+            >
               {errors.map((e) => (
                 <li key={e}>{e}</li>
               ))}
             </ul>
           )}
 
-          <div className='flex justify-between'>
-            <Button variant='secondary' onClick={() => setStep(2)} disabled={busy}>
+          <div className="flex justify-between">
+            <Button variant="secondary" onClick={() => setStep(2)} disabled={busy}>
               Назад
             </Button>
             <Button onClick={submit} loading={busy}>

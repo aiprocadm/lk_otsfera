@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { type NextRequest } from 'next/server';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { getObjectStorage } from '@/lib/storage';
@@ -32,10 +32,7 @@ import { isInboundMessageInScope } from '@/lib/services/inbound/scope';
 
 const SIGNED_URL_TTL_SEC = 600;
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const disabled = notFoundIfDisabled('inbound_messaging');
   if (disabled) return disabled;
 
@@ -76,9 +73,13 @@ export async function GET(
     return new Response(null, { status: 404 });
   }
 
-  const signedUrl = await getObjectStorage().createSignedUrl(msg.attachmentPath, SIGNED_URL_TTL_SEC, {
-    download: msg.attachmentName ?? 'attachment',
-  });
+  const signedUrl = await getObjectStorage().createSignedUrl(
+    msg.attachmentPath,
+    SIGNED_URL_TTL_SEC,
+    {
+      download: msg.attachmentName ?? 'attachment',
+    }
+  );
 
   return Response.redirect(signedUrl, 302);
 }

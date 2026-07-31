@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import OrganizationOrderDetailPage from '@/app/organization/orders/[id]/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { getOrgPageContext } = vi.hoisted(() => ({ getOrgPageContext: vi.fn() }));
@@ -17,14 +18,14 @@ vi.mock('@/lib/services/customFields', () => ({ getValuesForEntity }));
 
 const { commentFindMany } = vi.hoisted(() => ({ commentFindMany: vi.fn() }));
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: { comment: { findMany: commentFindMany } }
+  prisma: { comment: { findMany: commentFindMany } },
 }));
 
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -34,17 +35,20 @@ vi.mock('next/navigation', () => nav);
 
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: (props: { activeOrgName: string; children: React.ReactNode }) =>
-    React.createElement('div', { 'data-testid': 'org-app-shell' }, props.activeOrgName, props.children)
+    React.createElement(
+      'div',
+      { 'data-testid': 'org-app-shell' },
+      props.activeOrgName,
+      props.children
+    ),
 }));
-
-import OrganizationOrderDetailPage from '@/app/organization/orders/[id]/page';
 
 const CTX = {
   session: { sub: 'u1', role: 'organization' as const, email: 'org@example.com' },
   activeOrgId: 'org-1',
   activeOrgName: 'ООО Ромашка',
   memberships: [],
-  viewerRole: 'admin' as const
+  viewerRole: 'admin' as const,
 };
 
 const BASE_ORDER = {
@@ -72,7 +76,7 @@ const BASE_ORDER = {
   documents: [],
   payments: [],
   commentsCount: 0,
-  items: []
+  items: [],
 };
 
 describe('OrganizationOrderDetailPage', () => {
@@ -93,7 +97,7 @@ describe('OrganizationOrderDetailPage', () => {
       renderServerComponent(
         OrganizationOrderDetailPage({
           params: Promise.resolve({ id: 'missing' }),
-          searchParams: Promise.resolve({})
+          searchParams: Promise.resolve({}),
         })
       )
     ).rejects.toThrow('NOT_FOUND');
@@ -110,7 +114,7 @@ describe('OrganizationOrderDetailPage', () => {
       renderServerComponent(
         OrganizationOrderDetailPage({
           params: Promise.resolve({ id: 'order-1' }),
-          searchParams: Promise.resolve({})
+          searchParams: Promise.resolve({}),
         })
       )
     ).rejects.toThrow('NOT_FOUND');
@@ -130,9 +134,9 @@ describe('OrganizationOrderDetailPage', () => {
           direction: 'incoming' as const,
           signedAt: null,
           createdAt: new Date('2024-01-02'),
-          size: 1024
-        }
-      ]
+          size: 1024,
+        },
+      ],
     });
     canSeeOrder.mockReturnValue(true);
     commentFindMany.mockResolvedValue([
@@ -140,8 +144,8 @@ describe('OrganizationOrderDetailPage', () => {
         id: 'c1',
         body: 'Комментарий',
         createdAt: new Date('2024-01-01'),
-        author: { name: 'Менеджер М.' }
-      }
+        author: { name: 'Менеджер М.' },
+      },
     ]);
     getValuesForEntity.mockResolvedValue({
       ok: true,
@@ -154,17 +158,17 @@ describe('OrganizationOrderDetailPage', () => {
             fieldType: 'text',
             options: null,
             required: false,
-            sortOrder: 0
+            sortOrder: 0,
           },
-          value: 'значение'
-        }
-      ]
+          value: 'значение',
+        },
+      ],
     });
 
     const { container } = await renderServerComponent(
       OrganizationOrderDetailPage({
         params: Promise.resolve({ id: 'order-1' }),
-        searchParams: Promise.resolve({ org: 'org-1' })
+        searchParams: Promise.resolve({ org: 'org-1' }),
       })
     );
 
@@ -196,7 +200,7 @@ describe('OrganizationOrderDetailPage', () => {
     const { container } = await renderServerComponent(
       OrganizationOrderDetailPage({
         params: Promise.resolve({ id: 'order-1' }),
-        searchParams: Promise.resolve({})
+        searchParams: Promise.resolve({}),
       })
     );
 

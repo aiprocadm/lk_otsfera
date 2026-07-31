@@ -6,26 +6,22 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const {
-  notificationCount,
-  orderFindMany,
-  queryRaw,
-  requireSession,
-  requireRole
-} = vi.hoisted(() => ({
-  notificationCount: vi.fn(),
-  orderFindMany: vi.fn(),
-  queryRaw: vi.fn(),
-  requireSession: vi.fn(),
-  requireRole: vi.fn()
-}));
+const { notificationCount, orderFindMany, queryRaw, requireSession, requireRole } = vi.hoisted(
+  () => ({
+    notificationCount: vi.fn(),
+    orderFindMany: vi.fn(),
+    queryRaw: vi.fn(),
+    requireSession: vi.fn(),
+    requireRole: vi.fn(),
+  })
+);
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     notification: { count: notificationCount },
     order: { findMany: orderFindMany },
-    $queryRaw: queryRaw
-  }
+    $queryRaw: queryRaw,
+  },
 }));
 vi.mock('@/lib/auth/guard', () => ({ requireSession, requireRole }));
 
@@ -37,17 +33,17 @@ const managerSession = {
   sub: 'mgr-1',
   role: 'manager' as const,
   managedOrgIds: ['orgA'],
-  companyId: 'cmp-1'
+  companyId: 'cmp-1',
 };
 const partnerSession = {
   sub: 'u-partner',
   role: 'partner' as const,
-  partnerId: 'p1'
+  partnerId: 'p1',
 };
 const orgSession = {
   sub: 'u-org',
   role: 'organization' as const,
-  organizationId: 'org-1'
+  organizationId: 'org-1',
 };
 
 const unauthorizedResponse = Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -84,7 +80,7 @@ describe('GET /api/notifications/unread', () => {
       'admin',
       'manager',
       'partner',
-      'organization'
+      'organization',
     ]);
     expect(notificationCount).not.toHaveBeenCalled();
   });
@@ -128,7 +124,7 @@ describe('GET /api/notifications/unread', () => {
       sub: 'mgr-2',
       role: 'manager' as const,
       managedOrgIds: [] as string[],
-      companyId: 'cmp-1'
+      companyId: 'cmp-1',
     };
     requireSession.mockResolvedValue({ ok: true, value: noOrgManagerSession });
     requireRole.mockReturnValue({ ok: true, value: noOrgManagerSession });

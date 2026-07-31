@@ -17,9 +17,12 @@ export default async function OrganizationMessagesPage() {
   const threads = result.ok ? result.rows : [];
 
   return (
-    <div className='space-y-4'>
-      <h1 className='text-2xl font-semibold text-[#111111]'>Сообщения<UnreadBadge /></h1>
-      <OrderThreadInbox threads={threads} currentUserId={session.sub} variant='role' />
+    <div className="space-y-4">
+      <h1 className="text-2xl font-semibold text-[#111111]">
+        Сообщения
+        <UnreadBadge />
+      </h1>
+      <OrderThreadInbox threads={threads} currentUserId={session.sub} variant="role" />
     </div>
   );
 }

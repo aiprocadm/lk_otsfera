@@ -28,7 +28,7 @@ const inputSchema = z.object({
   // Этап 7 (ФТ-7.1): привязки к лиду и сделке.
   linkedLeadId: z.string().trim().min(1).nullish(),
   linkedDealId: z.string().trim().min(1).nullish(),
-  assigneeIds: z.array(z.string()).optional()
+  assigneeIds: z.array(z.string()).optional(),
 });
 export type TaskInput = z.input<typeof inputSchema>;
 
@@ -54,20 +54,32 @@ async function validateRefs(
   data: z.infer<typeof inputSchema>
 ): Promise<void> {
   if (data.linkedOrderId) {
-    const o = await tx.order.findUnique({ where: { id: data.linkedOrderId }, select: { companyId: true } });
+    const o = await tx.order.findUnique({
+      where: { id: data.linkedOrderId },
+      select: { companyId: true },
+    });
     if (!o || o.companyId !== companyId) throw new TaskError('validation');
   }
   if (data.linkedOrganizationId) {
-    const org = await tx.organization.findUnique({ where: { id: data.linkedOrganizationId }, select: { companyId: true } });
+    const org = await tx.organization.findUnique({
+      where: { id: data.linkedOrganizationId },
+      select: { companyId: true },
+    });
     if (!org || org.companyId !== companyId) throw new TaskError('validation');
   }
   // Лид single-tenant (без companyId — зеркало leadWhereForLevel): проверяем существование.
   if (data.linkedLeadId) {
-    const lead = await tx.lead.findUnique({ where: { id: data.linkedLeadId }, select: { id: true } });
+    const lead = await tx.lead.findUnique({
+      where: { id: data.linkedLeadId },
+      select: { id: true },
+    });
     if (!lead) throw new TaskError('validation');
   }
   if (data.linkedDealId) {
-    const deal = await tx.deal.findUnique({ where: { id: data.linkedDealId }, select: { companyId: true } });
+    const deal = await tx.deal.findUnique({
+      where: { id: data.linkedDealId },
+      select: { companyId: true },
+    });
     if (!deal || deal.companyId !== companyId) throw new TaskError('validation');
   }
   if (data.assigneeIds && data.assigneeIds.length > 0) {
@@ -88,8 +100,10 @@ async function syncAssignees(
   const existingIds = new Set(existing.map((e) => e.userId));
   const toRemove = [...existingIds].filter((id) => !desired.has(id));
   const toAdd = [...desired].filter((id) => !existingIds.has(id));
-  if (toRemove.length > 0) await tx.taskAssignee.deleteMany({ where: { taskId, userId: { in: toRemove } } });
-  if (toAdd.length > 0) await tx.taskAssignee.createMany({ data: toAdd.map((userId) => ({ taskId, userId })) });
+  if (toRemove.length > 0)
+    await tx.taskAssignee.deleteMany({ where: { taskId, userId: { in: toRemove } } });
+  if (toAdd.length > 0)
+    await tx.taskAssignee.createMany({ data: toAdd.map((userId) => ({ taskId, userId })) });
   return { added: toAdd };
 }
 
@@ -97,7 +111,7 @@ const SCOPE_SELECT = {
   companyId: true,
   createdById: true,
   linkedOrganizationId: true,
-  assignees: { select: { userId: true } }
+  assignees: { select: { userId: true } },
 } as const;
 
 type ScopeRow = {
@@ -112,7 +126,7 @@ function scopeArg(row: ScopeRow) {
     companyId: row.companyId,
     createdById: row.createdById,
     assigneeUserIds: row.assignees.map((a) => a.userId),
-    linkedOrganizationId: row.linkedOrganizationId
+    linkedOrganizationId: row.linkedOrganizationId,
   };
 }
 
@@ -150,15 +164,20 @@ export async function createTask(
           linkedOrderId: data.linkedOrderId ?? null,
           linkedOrganizationId: data.linkedOrganizationId ?? null,
           linkedLeadId: data.linkedLeadId ?? null,
-          linkedDealId: data.linkedDealId ?? null
-        }
+          linkedDealId: data.linkedDealId ?? null,
+        },
       });
       if (data.assigneeIds && data.assigneeIds.length > 0) {
-        await tx.taskAssignee.createMany({ data: [...new Set(data.assigneeIds)].map((userId) => ({ taskId: task.id, userId })) });
+        await tx.taskAssignee.createMany({
+          data: [...new Set(data.assigneeIds)].map((userId) => ({ taskId: task.id, userId })),
+        });
       }
       await recordAudit(tx, {
-        userId: session.sub, action: 'task_created', entity: 'task', entityId: task.id,
-        after: { title: task.title, status: task.status, columnId: persistColumnId }
+        userId: session.sub,
+        action: 'task_created',
+        entity: 'task',
+        entityId: task.id,
+        after: { title: task.title, status: task.status, columnId: persistColumnId },
       });
       return task;
     });
@@ -168,7 +187,7 @@ export async function createTask(
       taskTitle: created.title,
       dueDate: created.dueDate,
       actorUserId: session.sub,
-      assigneeUserIds: data.assigneeIds ?? []
+      assigneeUserIds: data.assigneeIds ?? [],
     });
     return { ok: true, id: created.id };
   } catch (e) {
@@ -193,7 +212,7 @@ export async function updateTask(
     const notifyAdded = await prisma.$transaction(async (tx) => {
       const before = await tx.task.findUnique({
         where: { id },
-        select: { ...SCOPE_SELECT, title: true, dueDate: true }
+        select: { ...SCOPE_SELECT, title: true, dueDate: true },
       });
       if (!before) throw new TaskError('not_found');
       if (!canSeeTask(session, scopeArg(before))) throw new TaskError('not_found');
@@ -212,13 +231,18 @@ export async function updateTask(
           linkedLeadId: data.linkedLeadId ?? null,
           linkedDealId: data.linkedDealId ?? null,
           // ФТ-7.2: перенос срока → джоб «скоро срок» уведомит заново.
-          ...(dueChanged ? { dueSoonNotifiedAt: null } : {})
-        }
+          ...(dueChanged ? { dueSoonNotifiedAt: null } : {}),
+        },
       });
-      const added = data.assigneeIds !== undefined ? (await syncAssignees(tx, id, data.assigneeIds)).added : [];
+      const added =
+        data.assigneeIds !== undefined ? (await syncAssignees(tx, id, data.assigneeIds)).added : [];
       await recordAudit(tx, {
-        userId: session.sub, action: 'task_updated', entity: 'task', entityId: id,
-        before: { title: before.title }, after: { title: data.title.trim() }
+        userId: session.sub,
+        action: 'task_updated',
+        entity: 'task',
+        entityId: id,
+        before: { title: before.title },
+        after: { title: data.title.trim() },
       });
       return added;
     });
@@ -227,7 +251,7 @@ export async function updateTask(
       taskTitle: data.title.trim(),
       dueDate: data.dueDate ?? null,
       actorUserId: session.sub,
-      assigneeUserIds: notifyAdded
+      assigneeUserIds: notifyAdded,
     });
     return { ok: true };
   } catch (e) {
@@ -246,13 +270,20 @@ export async function deleteTask(
 
   try {
     await prisma.$transaction(async (tx) => {
-      const before = await tx.task.findUnique({ where: { id }, select: { ...SCOPE_SELECT, title: true } });
+      const before = await tx.task.findUnique({
+        where: { id },
+        select: { ...SCOPE_SELECT, title: true },
+      });
       if (!before) throw new TaskError('not_found');
       if (!canSeeTask(session, scopeArg(before))) throw new TaskError('not_found');
       // TaskAssignee — ON DELETE CASCADE.
       await tx.task.delete({ where: { id } });
       await recordAudit(tx, {
-        userId: session.sub, action: 'task_deleted', entity: 'task', entityId: id, before: { title: before.title }
+        userId: session.sub,
+        action: 'task_deleted',
+        entity: 'task',
+        entityId: id,
+        before: { title: before.title },
       });
     });
     return { ok: true };
@@ -274,20 +305,25 @@ export async function assignTask(
     const notifyArgs = await prisma.$transaction(async (tx) => {
       const before = await tx.task.findUnique({
         where: { id: args.taskId },
-        select: { ...SCOPE_SELECT, title: true, dueDate: true }
+        select: { ...SCOPE_SELECT, title: true, dueDate: true },
       });
       if (!before) throw new TaskError('not_found');
       if (!canSeeTask(session, scopeArg(before))) throw new TaskError('not_found');
       if (args.assigneeIds.length > 0) {
         const ids = [...new Set(args.assigneeIds)];
-        const count = await tx.user.count({ where: { id: { in: ids }, companyId: before.companyId } });
+        const count = await tx.user.count({
+          where: { id: { in: ids }, companyId: before.companyId },
+        });
         if (count !== ids.length) throw new TaskError('validation');
       }
       const { added } = await syncAssignees(tx, args.taskId, args.assigneeIds);
       await recordAudit(tx, {
-        userId: session.sub, action: 'task_assigned', entity: 'task', entityId: args.taskId,
+        userId: session.sub,
+        action: 'task_assigned',
+        entity: 'task',
+        entityId: args.taskId,
         before: { assigneeUserIds: before.assignees.map((a) => a.userId) },
-        after: { assigneeUserIds: [...new Set(args.assigneeIds)] }
+        after: { assigneeUserIds: [...new Set(args.assigneeIds)] },
       });
       return { added, title: before.title, dueDate: before.dueDate };
     });
@@ -296,7 +332,7 @@ export async function assignTask(
       taskTitle: notifyArgs.title,
       dueDate: notifyArgs.dueDate,
       actorUserId: session.sub,
-      assigneeUserIds: notifyArgs.added
+      assigneeUserIds: notifyArgs.added,
     });
     return { ok: true };
   } catch (e) {

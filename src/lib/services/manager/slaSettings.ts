@@ -13,10 +13,13 @@ export const SLA_MAX_HOURS = 168; // неделя — верхняя грани�
 
 export type SlaSettings = { slaResponseHours: number; slaWarningHours: number };
 
-export async function getSlaSettings(prisma: PrismaClient, companyId: string): Promise<SlaSettings | null> {
+export async function getSlaSettings(
+  prisma: PrismaClient,
+  companyId: string
+): Promise<SlaSettings | null> {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { slaResponseHours: true, slaWarningHours: true }
+    select: { slaResponseHours: true, slaWarningHours: true },
   });
   return company ?? null;
 }
@@ -33,10 +36,18 @@ export async function setSlaSettings(
 ): Promise<SetSlaSettingsResult> {
   const messages: string[] = [];
   const { slaResponseHours, slaWarningHours } = input;
-  if (!Number.isInteger(slaResponseHours) || slaResponseHours < SLA_MIN_HOURS || slaResponseHours > SLA_MAX_HOURS) {
+  if (
+    !Number.isInteger(slaResponseHours) ||
+    slaResponseHours < SLA_MIN_HOURS ||
+    slaResponseHours > SLA_MAX_HOURS
+  ) {
     messages.push(`Порог эскалации — целое число от ${SLA_MIN_HOURS} до ${SLA_MAX_HOURS} часов`);
   }
-  if (!Number.isInteger(slaWarningHours) || slaWarningHours < SLA_MIN_HOURS || slaWarningHours > SLA_MAX_HOURS) {
+  if (
+    !Number.isInteger(slaWarningHours) ||
+    slaWarningHours < SLA_MIN_HOURS ||
+    slaWarningHours > SLA_MAX_HOURS
+  ) {
     messages.push(`Порог подсветки — целое число от ${SLA_MIN_HOURS} до ${SLA_MAX_HOURS} часов`);
   }
   if (messages.length === 0 && slaWarningHours >= slaResponseHours) {
@@ -46,16 +57,19 @@ export async function setSlaSettings(
 
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { slaResponseHours: true, slaWarningHours: true }
+    select: { slaResponseHours: true, slaWarningHours: true },
   });
   if (!company) return { ok: false, error: 'company_not_found' };
-  if (company.slaResponseHours === slaResponseHours && company.slaWarningHours === slaWarningHours) {
+  if (
+    company.slaResponseHours === slaResponseHours &&
+    company.slaWarningHours === slaWarningHours
+  ) {
     return { ok: true, changed: false };
   }
 
   await prisma.company.update({
     where: { id: companyId },
-    data: { slaResponseHours, slaWarningHours }
+    data: { slaResponseHours, slaWarningHours },
   });
   await recordAudit(prisma, {
     userId: actorUserId,
@@ -63,7 +77,7 @@ export async function setSlaSettings(
     entity: 'company',
     entityId: companyId,
     before: company,
-    after: { slaResponseHours, slaWarningHours }
+    after: { slaResponseHours, slaWarningHours },
   });
   return { ok: true, changed: true };
 }

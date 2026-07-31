@@ -4,7 +4,10 @@ import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
-import { generateOrderDocumentAction, requestRequisitesAction } from '@/server-actions/documents/generate';
+import {
+  generateOrderDocumentAction,
+  requestRequisitesAction,
+} from '@/server-actions/documents/generate';
 import type { MissingRequisite } from '@/lib/documents/requisites-check';
 
 /**
@@ -21,7 +24,7 @@ const GENERATE_ERRORS: Record<string, string> = {
   no_organization: 'К заказу не привязана организация.',
   storage: 'Хранилище файлов недоступно. Попробуйте позже.',
   not_found: 'Заказ не найден или недоступен.',
-  forbidden: 'Нет доступа.'
+  forbidden: 'Нет доступа.',
 };
 
 type DocKind = 'invoice' | 'act' | 'contract' | 'extra_agreement';
@@ -30,14 +33,14 @@ const DOC_LABEL: Record<DocKind, string> = {
   invoice: 'Счёт',
   act: 'Акт',
   contract: 'Договор',
-  extra_agreement: 'Доп. соглашение'
+  extra_agreement: 'Доп. соглашение',
 };
 
 export function GenerateDocumentsPanel({
   orderId,
   missing,
   hasInvoice,
-  hasContract = false
+  hasContract = false,
 }: {
   orderId: string;
   missing: MissingRequisite[];
@@ -79,25 +82,33 @@ export function GenerateDocumentsPanel({
   }
 
   return (
-    <div className='rounded-xl border border-gray-200 p-4'>
-      <h2 className='text-sm font-semibold text-[#111111] mb-2'>Сформировать документы</h2>
-      <div className='flex flex-wrap gap-2'>
-        <Button size='sm' disabled={!complete || busy !== null} onClick={() => void generate('invoice')}>
+    <div className="rounded-xl border border-gray-200 p-4">
+      <h2 className="text-sm font-semibold text-[#111111] mb-2">Сформировать документы</h2>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          disabled={!complete || busy !== null}
+          onClick={() => void generate('invoice')}
+        >
           {busy === 'invoice' ? 'Формирую…' : DOC_LABEL.invoice}
         </Button>
         <Button
-          size='sm'
+          size="sm"
           disabled={!complete || !hasInvoice || busy !== null}
           onClick={() => void generate('act')}
           title={hasInvoice ? undefined : 'Сначала сформируйте счёт'}
         >
           {busy === 'act' ? 'Формирую…' : DOC_LABEL.act}
         </Button>
-        <Button size='sm' disabled={!complete || busy !== null} onClick={() => void generate('contract')}>
+        <Button
+          size="sm"
+          disabled={!complete || busy !== null}
+          onClick={() => void generate('contract')}
+        >
           {busy === 'contract' ? 'Формирую…' : DOC_LABEL.contract}
         </Button>
         <Button
-          size='sm'
+          size="sm"
           disabled={!complete || !hasContract || busy !== null}
           onClick={() => void generate('extra_agreement')}
           title={hasContract ? undefined : 'Сначала сформируйте договор'}
@@ -106,26 +117,34 @@ export function GenerateDocumentsPanel({
         </Button>
       </div>
       {complete && (!hasInvoice || !hasContract) && (
-        <p className='text-xs text-gray-500 mt-2'>
+        <p className="text-xs text-gray-500 mt-2">
           {!hasInvoice && 'Акт станет доступен после формирования счёта (наследует его номер). '}
           {!hasContract && 'Доп. соглашение — после формирования договора.'}
         </p>
       )}
       {!complete && (
-        <div className='mt-3' data-testid='missing-requisites'>
-          <p className='text-sm text-gray-700'>Не хватает реквизитов:</p>
-          <ul className='text-sm text-red-600 list-disc pl-5 mt-1 space-y-0.5'>
+        <div className="mt-3" data-testid="missing-requisites">
+          <p className="text-sm text-gray-700">Не хватает реквизитов:</p>
+          <ul className="text-sm text-red-600 list-disc pl-5 mt-1 space-y-0.5">
             {missing.map((m) => (
               <li key={`${m.side}:${m.label}`}>{m.label}</li>
             ))}
           </ul>
           {missing.some((m) => m.side === 'organization') && (
-            <Button size='sm' variant='secondary' className='mt-2' disabled={busy !== null} onClick={() => void requestFromClient()}>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="mt-2"
+              disabled={busy !== null}
+              onClick={() => void requestFromClient()}
+            >
               {busy === 'request' ? 'Отправляю…' : 'Запросить у клиента'}
             </Button>
           )}
           {missing.some((m) => m.side === 'company') && (
-            <p className='text-xs text-gray-500 mt-2'>Реквизиты исполнителя заполняет администратор в настройках админки.</p>
+            <p className="text-xs text-gray-500 mt-2">
+              Реквизиты исполнителя заполняет администратор в настройках админки.
+            </p>
           )}
         </div>
       )}

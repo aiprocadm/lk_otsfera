@@ -31,15 +31,18 @@ const COMPANY_REQUIRED: Array<[keyof PartyRequisites, string]> = [
   ['corrAccount', 'к/с исполнителя'],
   ['bic', 'БИК исполнителя'],
   ['signerName', 'подписант исполнителя (ФИО)'],
-  ['signerPosition', 'должность подписанта исполнителя']
+  ['signerPosition', 'должность подписанта исполнителя'],
 ];
 
 const ORG_REQUIRED: Array<[keyof PartyRequisites, string]> = [
   ['inn', 'ИНН заказчика'],
-  ['legalAddress', 'юр. адрес заказчика']
+  ['legalAddress', 'юр. адрес заказчика'],
 ];
 
-export function listMissingRequisites(company: PartyRequisites, organization: PartyRequisites): MissingRequisite[] {
+export function listMissingRequisites(
+  company: PartyRequisites,
+  organization: PartyRequisites
+): MissingRequisite[] {
   const missing: MissingRequisite[] = [];
   for (const [key, label] of COMPANY_REQUIRED) {
     if (!company[key]?.trim()) missing.push({ side: 'company', label });

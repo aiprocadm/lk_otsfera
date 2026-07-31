@@ -7,7 +7,7 @@ const {
   organizationUserFindMany,
   queryRaw,
   requireSession,
-  requireRole
+  requireRole,
 } = vi.hoisted(() => ({
   notificationFindMany: vi.fn(),
   notificationUpdateMany: vi.fn(),
@@ -15,7 +15,7 @@ const {
   organizationUserFindMany: vi.fn(),
   queryRaw: vi.fn(),
   requireSession: vi.fn(),
-  requireRole: vi.fn()
+  requireRole: vi.fn(),
 }));
 
 vi.mock('@/lib/db/prisma', () => ({
@@ -23,8 +23,8 @@ vi.mock('@/lib/db/prisma', () => ({
     notification: { findMany: notificationFindMany, updateMany: notificationUpdateMany },
     order: { findMany: orderFindMany },
     organizationUser: { findMany: organizationUserFindMany },
-    $queryRaw: queryRaw
-  }
+    $queryRaw: queryRaw,
+  },
 }));
 vi.mock('@/lib/auth/guard', () => ({ requireSession, requireRole }));
 
@@ -34,7 +34,7 @@ import { managerOrderScopeFilter } from '@/lib/auth/managerPolicy';
 const managerSession = {
   sub: 'mgr-1',
   role: 'manager' as const,
-  managedOrgIds: ['orgA']
+  managedOrgIds: ['orgA'],
 };
 
 /** Prisma.Sql хранит подставленные значения в .values — по ним ассертим параметры. */
@@ -76,7 +76,7 @@ describe('GET /api/notifications — manager branch (Task 5b + R1.2 candidate qu
     // managerOrderScopeFilter is the where clause used to find visible orders
     expect(orderFindMany).toHaveBeenCalledWith({
       where: managerOrderScopeFilter(managerSession),
-      select: { id: true }
+      select: { id: true },
     });
 
     // R1.2: ровно один raw-запрос со ВСЕМИ in-scope order ids в параметрах —
@@ -97,11 +97,11 @@ describe('GET /api/notifications — manager branch (Task 5b + R1.2 candidate qu
   it('omits organizationId branch when manager has no managedOrgIds', async () => {
     requireSession.mockResolvedValue({
       ok: true,
-      value: { sub: 'mgr-1', role: 'manager', managedOrgIds: [] }
+      value: { sub: 'mgr-1', role: 'manager', managedOrgIds: [] },
     });
     requireRole.mockReturnValue({
       ok: true,
-      value: { sub: 'mgr-1', role: 'manager', managedOrgIds: [] }
+      value: { sub: 'mgr-1', role: 'manager', managedOrgIds: [] },
     });
     orderFindMany.mockResolvedValue([]);
 
@@ -159,7 +159,7 @@ describe('PATCH /api/notifications — manager candidate query stays bounded (R1
     return new Request('http://x/api/notifications', {
       method: 'PATCH',
       body: JSON.stringify(body),
-      headers: { 'content-type': 'application/json' }
+      headers: { 'content-type': 'application/json' },
     });
   }
 

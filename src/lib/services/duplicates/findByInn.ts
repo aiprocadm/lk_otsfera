@@ -8,8 +8,7 @@ export type InnDuplicates = {
 };
 
 export type FindByInnResult =
-  | { ok: true; duplicates: InnDuplicates }
-  | { ok: false; error: 'forbidden' | 'validation' };
+  { ok: true; duplicates: InnDuplicates } | { ok: false; error: 'forbidden' | 'validation' };
 
 /**
  * Антидубли по ИНН (этап 5 PR-2, ФТ-13.4) — ТОЛЬКО внутренняя сторона:
@@ -35,14 +34,14 @@ export async function findByInn(
     prisma.organization.findMany({
       where: { inn },
       select: { id: true, name: true },
-      take: 5
+      take: 5,
     }),
     prisma.lead.findMany({
       where: { clientInn: inn, status: { notIn: ['rejected', 'promoted_to_order'] } },
       select: { id: true, subject: true, status: true },
       orderBy: { createdAt: 'desc' },
-      take: 5
-    })
+      take: 5,
+    }),
   ]);
 
   return { ok: true, duplicates: { organizations, leads } };

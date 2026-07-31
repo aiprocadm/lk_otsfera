@@ -1,9 +1,9 @@
 import type { Deal, Lead, Order, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
+import { getInitialStatusId } from '@/lib/services/orderStatuses';
 import { dealScopeWhere } from './board';
 import { resolveDealStages } from './stages';
-import { getInitialStatusId } from '@/lib/services/orderStatuses';
 
 /**
  * Этап 6 PR-2 (ФТ-4.4) — конверсии: Лид → Сделка и Сделка → Заказ (выигрыш).
@@ -43,8 +43,8 @@ export async function convertLeadToDeal(
       assignedManagerId: true,
       promotedOrderId: true,
       promotedDealId: true,
-      organization: { select: { companyId: true } }
-    }
+      organization: { select: { companyId: true } },
+    },
   });
   if (!lead) return { ok: false, error: 'not_found' };
   if (
@@ -68,12 +68,12 @@ export async function convertLeadToDeal(
         organizationId: lead.organizationId,
         title: lead.subject,
         amount: lead.estimatedAmount,
-        managerId: lead.assignedManagerId ?? session.sub
-      }
+        managerId: lead.assignedManagerId ?? session.sub,
+      },
     });
     const updatedLead = await tx.lead.update({
       where: { id: lead.id },
-      data: { status: 'promoted_to_deal', promotedDealId: deal.id }
+      data: { status: 'promoted_to_deal', promotedDealId: deal.id },
     });
     return { deal, updatedLead };
   });
@@ -83,7 +83,7 @@ export async function convertLeadToDeal(
     action: 'lead_promoted_to_deal',
     entity: 'lead',
     entityId: lead.id,
-    after: { dealId: deal.id }
+    after: { dealId: deal.id },
   });
 
   return { ok: true, deal, lead: updatedLead };
@@ -118,8 +118,8 @@ export async function winDeal(
       companyId: true,
       organizationId: true,
       managerId: true,
-      lead: { select: { partnerId: true } }
-    }
+      lead: { select: { partnerId: true } },
+    },
   });
   if (!deal) return { ok: false, error: 'not_found' };
   if (deal.status !== 'open') return { ok: false, error: 'lifecycle_violation' };
@@ -130,7 +130,8 @@ export async function winDeal(
   if (args.toStageId) {
     const stages = await resolveDealStages(prisma, deal.companyId);
     const target = stages.find((s) => s.id === args.toStageId);
-    if (!target || target.statusAnchor !== 'won') return { ok: false, error: 'lifecycle_violation' };
+    if (!target || target.statusAnchor !== 'won')
+      return { ok: false, error: 'lifecycle_violation' };
     persistStageId = args.toStageId.startsWith('default:') ? null : args.toStageId;
   }
 
@@ -148,12 +149,12 @@ export async function winDeal(
         managerId: deal.managerId ?? session.sub,
         totalAmount: deal.amount ?? 0,
         executionStatus: 'pending',
-        financialStatus: 'not_billed'
-      }
+        financialStatus: 'not_billed',
+      },
     });
     const updatedDeal = await tx.deal.update({
       where: { id: deal.id },
-      data: { status: 'won', wonAt: new Date(), orderId: order.id, stageId: persistStageId }
+      data: { status: 'won', wonAt: new Date(), orderId: order.id, stageId: persistStageId },
     });
     return { order, updatedDeal };
   });
@@ -163,7 +164,7 @@ export async function winDeal(
     action: 'deal_won_order_created',
     entity: 'deal',
     entityId: deal.id,
-    after: { orderId: order.id, organizationId }
+    after: { orderId: order.id, organizationId },
   });
 
   return { ok: true, deal: updatedDeal, order };

@@ -24,7 +24,10 @@ describe('confirmArmed', () => {
 describe('SyncCursorDialog initial render', () => {
   it('renders the entity name and a disabled confirm button when closed-armed', () => {
     const html = renderToString(
-      React.createElement(SyncCursorDialog, { entity: 'order', currentCursor: '2026-06-05T00:00:00.000Z' }),
+      React.createElement(SyncCursorDialog, {
+        entity: 'order',
+        currentCursor: '2026-06-05T00:00:00.000Z',
+      })
     );
     expect(html).toContain('order');
   });
@@ -48,7 +51,12 @@ describe('SyncCursorDialog (interactive, jsdom)', () => {
   });
 
   it('renders the trigger and opens the dialog on click, showing the current cursor', async () => {
-    render(React.createElement(SyncCursorDialog, { entity: 'order', currentCursor: '2026-06-05T00:00:00.000Z' }));
+    render(
+      React.createElement(SyncCursorDialog, {
+        entity: 'order',
+        currentCursor: '2026-06-05T00:00:00.000Z',
+      })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Курсор…' }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
     expect(screen.getByText('2026-06-05T00:00:00.000Z')).toBeTruthy();
@@ -66,8 +74,13 @@ describe('SyncCursorDialog (interactive, jsdom)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Курсор…' }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
 
-    expect((screen.getByRole('button', { name: 'Сбросить (полный re-pull)' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Перемотать' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole('button', { name: 'Сбросить (полный re-pull)' }) as HTMLButtonElement)
+        .disabled
+    ).toBe(true);
+    expect((screen.getByRole('button', { name: 'Перемотать' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
   });
 
   it('typing the matching entity name arms "Сбросить"; "Перемотать" stays disabled without a cursor value', async () => {
@@ -78,8 +91,13 @@ describe('SyncCursorDialog (interactive, jsdom)', () => {
     const confirmInput = screen.getByRole('textbox', { name: /Для подтверждения/ });
     fireEvent.change(confirmInput, { target: { value: 'order' } });
 
-    expect((screen.getByRole('button', { name: 'Сбросить (полный re-pull)' }) as HTMLButtonElement).disabled).toBe(false);
-    expect((screen.getByRole('button', { name: 'Перемотать' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole('button', { name: 'Сбросить (полный re-pull)' }) as HTMLButtonElement)
+        .disabled
+    ).toBe(false);
+    expect((screen.getByRole('button', { name: 'Перемотать' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
   });
 
   it('filling the datetime value and confirming enables "Перемотать"', async () => {
@@ -89,9 +107,13 @@ describe('SyncCursorDialog (interactive, jsdom)', () => {
 
     const dtInput = document.querySelector('input[type="datetime-local"]') as HTMLInputElement;
     fireEvent.change(dtInput, { target: { value: '2026-07-01T10:00' } });
-    fireEvent.change(screen.getByRole('textbox', { name: /Для подтверждения/ }), { target: { value: 'order' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /Для подтверждения/ }), {
+      target: { value: 'order' },
+    });
 
-    expect((screen.getByRole('button', { name: 'Перемотать' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Перемотать' }) as HTMLButtonElement).disabled).toBe(
+      false
+    );
   });
 
   it('clearing the datetime value resets the stored cursor to an empty string', async () => {
@@ -102,10 +124,14 @@ describe('SyncCursorDialog (interactive, jsdom)', () => {
     const dtInput = document.querySelector('input[type="datetime-local"]') as HTMLInputElement;
     fireEvent.change(dtInput, { target: { value: '2026-07-01T10:00' } });
     fireEvent.change(dtInput, { target: { value: '' } });
-    fireEvent.change(screen.getByRole('textbox', { name: /Для подтверждения/ }), { target: { value: 'order' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /Для подтверждения/ }), {
+      target: { value: 'order' },
+    });
 
     // Empty cursor value keeps "Перемотать" disabled (value === '' guard).
-    expect((screen.getByRole('button', { name: 'Перемотать' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Перемотать' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
   });
 
   it('"Отмена" closes the dialog without submitting', async () => {
@@ -122,7 +148,9 @@ describe('SyncCursorDialog (interactive, jsdom)', () => {
     render(React.createElement(SyncCursorDialog, { entity: 'order', currentCursor: null }));
     fireEvent.click(screen.getByRole('button', { name: 'Курсор…' }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
-    fireEvent.change(screen.getByRole('textbox', { name: /Для подтверждения/ }), { target: { value: 'order' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /Для подтверждения/ }), {
+      target: { value: 'order' },
+    });
 
     const dialogEl = document.querySelector('dialog') as HTMLDialogElement;
     fireEvent(dialogEl, new Event('cancel', { cancelable: true }));
@@ -131,10 +159,17 @@ describe('SyncCursorDialog (interactive, jsdom)', () => {
 
   it('"Сбросить (полный re-pull)" success: submits cursor="" and entity, closes, then refreshes', async () => {
     rewindCursorAction.mockResolvedValue({ ok: true });
-    render(React.createElement(SyncCursorDialog, { entity: 'order', currentCursor: '2026-01-01T00:00:00.000Z' }));
+    render(
+      React.createElement(SyncCursorDialog, {
+        entity: 'order',
+        currentCursor: '2026-01-01T00:00:00.000Z',
+      })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Курсор…' }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
-    fireEvent.change(screen.getByRole('textbox', { name: /Для подтверждения/ }), { target: { value: 'order' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /Для подтверждения/ }), {
+      target: { value: 'order' },
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'Сбросить (полный re-pull)' }));
 
@@ -154,7 +189,9 @@ describe('SyncCursorDialog (interactive, jsdom)', () => {
 
     const dtInput = document.querySelector('input[type="datetime-local"]') as HTMLInputElement;
     fireEvent.change(dtInput, { target: { value: '2026-07-01T10:00' } });
-    fireEvent.change(screen.getByRole('textbox', { name: /Для подтверждения/ }), { target: { value: 'payments' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /Для подтверждения/ }), {
+      target: { value: 'payments' },
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'Перемотать' }));
 
@@ -171,12 +208,16 @@ describe('SyncCursorDialog (interactive, jsdom)', () => {
     render(React.createElement(SyncCursorDialog, { entity: 'order', currentCursor: null }));
     fireEvent.click(screen.getByRole('button', { name: 'Курсор…' }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
-    fireEvent.change(screen.getByRole('textbox', { name: /Для подтверждения/ }), { target: { value: 'order' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /Для подтверждения/ }), {
+      target: { value: 'order' },
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'Сбросить (полный re-pull)' }));
 
     await waitFor(() =>
-      expect(screen.getByText('Недопустимое значение курсора (в будущем или не дата).')).toBeTruthy()
+      expect(
+        screen.getByText('Недопустимое значение курсора (в будущем или не дата).')
+      ).toBeTruthy()
     );
     expect(refresh).not.toHaveBeenCalled();
     expect(close).not.toHaveBeenCalled();
@@ -187,7 +228,9 @@ describe('SyncCursorDialog (interactive, jsdom)', () => {
     render(React.createElement(SyncCursorDialog, { entity: 'order', currentCursor: null }));
     fireEvent.click(screen.getByRole('button', { name: 'Курсор…' }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
-    fireEvent.change(screen.getByRole('textbox', { name: /Для подтверждения/ }), { target: { value: 'order' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /Для подтверждения/ }), {
+      target: { value: 'order' },
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'Сбросить (полный re-pull)' }));
 
@@ -196,17 +239,28 @@ describe('SyncCursorDialog (interactive, jsdom)', () => {
 
   it('busy state disables both submit buttons while pending', async () => {
     let resolvePromise: (v: unknown) => void = () => {};
-    rewindCursorAction.mockReturnValue(new Promise((resolve) => { resolvePromise = resolve; }));
+    rewindCursorAction.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      })
+    );
     render(React.createElement(SyncCursorDialog, { entity: 'order', currentCursor: null }));
     fireEvent.click(screen.getByRole('button', { name: 'Курсор…' }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
-    fireEvent.change(screen.getByRole('textbox', { name: /Для подтверждения/ }), { target: { value: 'order' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /Для подтверждения/ }), {
+      target: { value: 'order' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Сбросить (полный re-pull)' }));
 
     await waitFor(() =>
-      expect((screen.getByRole('button', { name: 'Сбросить (полный re-pull)' }) as HTMLButtonElement).disabled).toBe(true)
+      expect(
+        (screen.getByRole('button', { name: 'Сбросить (полный re-pull)' }) as HTMLButtonElement)
+          .disabled
+      ).toBe(true)
     );
-    expect((screen.getByRole('button', { name: 'Применяем…' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Применяем…' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
 
     resolvePromise({ ok: true });
     await waitFor(() => expect(refresh).toHaveBeenCalled());
@@ -217,7 +271,9 @@ describe('SyncCursorDialog (interactive, jsdom)', () => {
     render(React.createElement(SyncCursorDialog, { entity: 'order', currentCursor: null }));
     fireEvent.click(screen.getByRole('button', { name: 'Курсор…' }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
-    fireEvent.change(screen.getByRole('textbox', { name: /Для подтверждения/ }), { target: { value: 'order' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /Для подтверждения/ }), {
+      target: { value: 'order' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Сбросить (полный re-pull)' }));
     await waitFor(() => expect(screen.getByText('Проверьте значение даты.')).toBeTruthy());
 
@@ -227,6 +283,8 @@ describe('SyncCursorDialog (interactive, jsdom)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Курсор…' }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(2));
     expect(screen.queryByText('Проверьте значение даты.')).toBeNull();
-    expect((screen.getByRole('textbox', { name: /Для подтверждения/ }) as HTMLInputElement).value).toBe('');
+    expect(
+      (screen.getByRole('textbox', { name: /Для подтверждения/ }) as HTMLInputElement).value
+    ).toBe('');
   });
 });

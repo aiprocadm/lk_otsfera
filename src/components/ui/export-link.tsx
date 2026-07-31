@@ -11,7 +11,7 @@ export function ExportLink({
   base,
   params,
   label = 'Выгрузить в Excel',
-  className = ''
+  className = '',
 }: {
   base: string;
   params?: Record<string, string | undefined>;

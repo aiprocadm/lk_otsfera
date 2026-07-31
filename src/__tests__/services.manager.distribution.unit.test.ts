@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { recordAudit } = vi.hoisted(() => ({ recordAudit: vi.fn() }));
 const { getCompanyTeamVisibility, canSeeOrder } = vi.hoisted(() => ({
   getCompanyTeamVisibility: vi.fn(),
-  canSeeOrder: vi.fn()
+  canSeeOrder: vi.fn(),
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 // isLeaderSameCompany остаётся РЕАЛЬНЫМ (чистая функция): leader-bypass в claimOrder
@@ -16,23 +16,28 @@ vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 vi.mock('@/lib/auth/managerPolicy', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/auth/managerPolicy')>()),
   getCompanyTeamVisibility,
-  canSeeOrder
+  canSeeOrder,
 }));
 
 import {
   resolveAutoManager,
   assignOrderManager,
-  claimOrder
+  claimOrder,
 } from '@/lib/services/manager/distribution';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
-const SESSION: SessionPayload = { sub: 'mgr-1', role: 'manager', managedOrgIds: [], companyId: 'co-1' };
+const SESSION: SessionPayload = {
+  sub: 'mgr-1',
+  role: 'manager',
+  managedOrgIds: [],
+  companyId: 'co-1',
+};
 const LEADER: SessionPayload = {
   sub: 'lead-1',
   role: 'manager',
   managerRole: 'leader',
   managedOrgIds: [],
-  companyId: 'co-1'
+  companyId: 'co-1',
 };
 
 beforeEach(() => {
@@ -61,7 +66,9 @@ describe('resolveAutoManager', () => {
       .mockResolvedValueOnce([]) // by org
       .mockResolvedValueOnce([{ userId: 'mgr-p' }, { userId: 'mgr-p' }]); // by partner (deduped → 1)
     const prisma = { organizationManager: { findMany } } as never;
-    expect(await resolveAutoManager(prisma, { organizationId: 'org-1', partnerId: 'p-1' })).toBe('mgr-p');
+    expect(await resolveAutoManager(prisma, { organizationId: 'org-1', partnerId: 'p-1' })).toBe(
+      'mgr-p'
+    );
   });
 
   it('returns null when partner-level attachment is ambiguous', async () => {
@@ -70,7 +77,9 @@ describe('resolveAutoManager', () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ userId: 'x' }, { userId: 'y' }]);
     const prisma = { organizationManager: { findMany } } as never;
-    expect(await resolveAutoManager(prisma, { organizationId: 'org-1', partnerId: 'p-1' })).toBeNull();
+    expect(
+      await resolveAutoManager(prisma, { organizationId: 'org-1', partnerId: 'p-1' })
+    ).toBeNull();
   });
 
   it('returns null when there is no org attachment and no partner', async () => {
@@ -82,29 +91,47 @@ describe('resolveAutoManager', () => {
 
 describe('assignOrderManager', () => {
   it('invalid_manager when the candidate is not an active manager', async () => {
-    const prisma = { user: { findUnique: vi.fn().mockResolvedValue({ role: 'organization', isActive: true, companyId: 'co-1' }) } } as never;
-    expect(await assignOrderManager(prisma, SESSION, { orderId: 'o1', managerUserId: 'u2' })).toEqual({
+    const prisma = {
+      user: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ role: 'organization', isActive: true, companyId: 'co-1' }),
+      },
+    } as never;
+    expect(
+      await assignOrderManager(prisma, SESSION, { orderId: 'o1', managerUserId: 'u2' })
+    ).toEqual({
       ok: false,
-      error: 'invalid_manager'
+      error: 'invalid_manager',
     });
   });
 
   it('invalid_manager when the candidate does not exist', async () => {
     const prisma = { user: { findUnique: vi.fn().mockResolvedValue(null) } } as never;
-    expect(await assignOrderManager(prisma, SESSION, { orderId: 'o1', managerUserId: 'ghost' })).toEqual({
+    expect(
+      await assignOrderManager(prisma, SESSION, { orderId: 'o1', managerUserId: 'ghost' })
+    ).toEqual({
       ok: false,
-      error: 'invalid_manager'
+      error: 'invalid_manager',
     });
   });
 
   it('invalid_manager when restrictToCompanyId is set and the candidate is in another company (C8)', async () => {
     const orderFindUnique = vi.fn();
     const prisma = {
-      user: { findUnique: vi.fn().mockResolvedValue({ role: 'manager', isActive: true, companyId: 'co-OTHER' }) },
-      order: { findUnique: orderFindUnique }
+      user: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ role: 'manager', isActive: true, companyId: 'co-OTHER' }),
+      },
+      order: { findUnique: orderFindUnique },
     } as never;
     expect(
-      await assignOrderManager(prisma, SESSION, { orderId: 'o1', managerUserId: 'u2', restrictToCompanyId: 'co-1' })
+      await assignOrderManager(prisma, SESSION, {
+        orderId: 'o1',
+        managerUserId: 'u2',
+        restrictToCompanyId: 'co-1',
+      })
     ).toEqual({ ok: false, error: 'invalid_manager' });
     // Rejected before the order lookup.
     expect(orderFindUnique).not.toHaveBeenCalled();
@@ -113,34 +140,54 @@ describe('assignOrderManager', () => {
   it('allows a same-company candidate when restrictToCompanyId is set', async () => {
     const update = vi.fn().mockResolvedValue({});
     const prisma = {
-      user: { findUnique: vi.fn().mockResolvedValue({ role: 'manager', isActive: true, companyId: 'co-1' }) },
-      order: { findUnique: vi.fn().mockResolvedValue({ managerId: null }), update }
+      user: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ role: 'manager', isActive: true, companyId: 'co-1' }),
+      },
+      order: { findUnique: vi.fn().mockResolvedValue({ managerId: null }), update },
     } as never;
-    const r = await assignOrderManager(prisma, SESSION, { orderId: 'o1', managerUserId: 'u2', restrictToCompanyId: 'co-1' });
+    const r = await assignOrderManager(prisma, SESSION, {
+      orderId: 'o1',
+      managerUserId: 'u2',
+      restrictToCompanyId: 'co-1',
+    });
     expect(r).toEqual({ ok: true, changed: true });
     expect(update).toHaveBeenCalledWith({ where: { id: 'o1' }, data: { managerId: 'u2' } });
   });
 
   it('order_not_found when the order is missing', async () => {
     const prisma = {
-      user: { findUnique: vi.fn().mockResolvedValue({ role: 'manager', isActive: true, companyId: 'co-1' }) },
-      order: { findUnique: vi.fn().mockResolvedValue(null) }
+      user: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ role: 'manager', isActive: true, companyId: 'co-1' }),
+      },
+      order: { findUnique: vi.fn().mockResolvedValue(null) },
     } as never;
-    expect(await assignOrderManager(prisma, SESSION, { orderId: 'x', managerUserId: 'u2' })).toEqual({
+    expect(
+      await assignOrderManager(prisma, SESSION, { orderId: 'x', managerUserId: 'u2' })
+    ).toEqual({
       ok: false,
-      error: 'order_not_found'
+      error: 'order_not_found',
     });
   });
 
   it('no-op when the manager is unchanged', async () => {
     const update = vi.fn();
     const prisma = {
-      user: { findUnique: vi.fn().mockResolvedValue({ role: 'manager', isActive: true, companyId: 'co-1' }) },
-      order: { findUnique: vi.fn().mockResolvedValue({ managerId: 'u2' }), update }
+      user: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ role: 'manager', isActive: true, companyId: 'co-1' }),
+      },
+      order: { findUnique: vi.fn().mockResolvedValue({ managerId: 'u2' }), update },
     } as never;
-    expect(await assignOrderManager(prisma, SESSION, { orderId: 'o1', managerUserId: 'u2' })).toEqual({
+    expect(
+      await assignOrderManager(prisma, SESSION, { orderId: 'o1', managerUserId: 'u2' })
+    ).toEqual({
       ok: true,
-      changed: false
+      changed: false,
     });
     expect(update).not.toHaveBeenCalled();
   });
@@ -148,15 +195,23 @@ describe('assignOrderManager', () => {
   it('assigns a manager and audits', async () => {
     const update = vi.fn().mockResolvedValue({});
     const prisma = {
-      user: { findUnique: vi.fn().mockResolvedValue({ role: 'manager', isActive: true, companyId: 'co-1' }) },
-      order: { findUnique: vi.fn().mockResolvedValue({ managerId: null }), update }
+      user: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ role: 'manager', isActive: true, companyId: 'co-1' }),
+      },
+      order: { findUnique: vi.fn().mockResolvedValue({ managerId: null }), update },
     } as never;
     const r = await assignOrderManager(prisma, SESSION, { orderId: 'o1', managerUserId: 'u2' });
     expect(r).toEqual({ ok: true, changed: true });
     expect(update).toHaveBeenCalledWith({ where: { id: 'o1' }, data: { managerId: 'u2' } });
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ action: 'order_manager_changed', before: { managerId: null }, after: { managerId: 'u2' } })
+      expect.objectContaining({
+        action: 'order_manager_changed',
+        before: { managerId: null },
+        after: { managerId: 'u2' },
+      })
     );
   });
 
@@ -165,7 +220,7 @@ describe('assignOrderManager', () => {
     const update = vi.fn().mockResolvedValue({});
     const prisma = {
       user: { findUnique: userFindUnique },
-      order: { findUnique: vi.fn().mockResolvedValue({ managerId: 'u2' }), update }
+      order: { findUnique: vi.fn().mockResolvedValue({ managerId: 'u2' }), update },
     } as never;
     const r = await assignOrderManager(prisma, SESSION, { orderId: 'o1', managerUserId: null });
     expect(r).toEqual({ ok: true, changed: true });
@@ -175,32 +230,54 @@ describe('assignOrderManager', () => {
 });
 
 describe('claimOrder', () => {
-  const scopedOrder = (managerId: string | null) => ({ managerId, organizationId: 'org-1', companyId: 'co-1' });
+  const scopedOrder = (managerId: string | null) => ({
+    managerId,
+    organizationId: 'org-1',
+    companyId: 'co-1',
+  });
 
   it('not_found when the order is missing', async () => {
     const prisma = { order: { findUnique: vi.fn().mockResolvedValue(null) } } as never;
-    expect(await claimOrder(prisma, SESSION, { orderId: 'x' })).toEqual({ ok: false, error: 'not_found' });
+    expect(await claimOrder(prisma, SESSION, { orderId: 'x' })).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
   });
 
   it('forbidden when the order is out of the manager scope (C8 IDOR guard)', async () => {
     canSeeOrder.mockReturnValue(false);
     const update = vi.fn();
-    const prisma = { order: { findUnique: vi.fn().mockResolvedValue(scopedOrder(null)), update } } as never;
-    expect(await claimOrder(prisma, SESSION, { orderId: 'o-foreign' })).toEqual({ ok: false, error: 'forbidden' });
+    const prisma = {
+      order: { findUnique: vi.fn().mockResolvedValue(scopedOrder(null)), update },
+    } as never;
+    expect(await claimOrder(prisma, SESSION, { orderId: 'o-foreign' })).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect(update).not.toHaveBeenCalled();
   });
 
   it('already_assigned when the order is claimed by another manager', async () => {
     const update = vi.fn();
-    const prisma = { order: { findUnique: vi.fn().mockResolvedValue(scopedOrder('other')), update } } as never;
-    expect(await claimOrder(prisma, SESSION, { orderId: 'o1' })).toEqual({ ok: false, error: 'already_assigned' });
+    const prisma = {
+      order: { findUnique: vi.fn().mockResolvedValue(scopedOrder('other')), update },
+    } as never;
+    expect(await claimOrder(prisma, SESSION, { orderId: 'o1' })).toEqual({
+      ok: false,
+      error: 'already_assigned',
+    });
     expect(update).not.toHaveBeenCalled();
   });
 
   it('no-op when the order is already mine', async () => {
     const update = vi.fn();
-    const prisma = { order: { findUnique: vi.fn().mockResolvedValue(scopedOrder('mgr-1')), update } } as never;
-    expect(await claimOrder(prisma, SESSION, { orderId: 'o1' })).toEqual({ ok: true, changed: false });
+    const prisma = {
+      order: { findUnique: vi.fn().mockResolvedValue(scopedOrder('mgr-1')), update },
+    } as never;
+    expect(await claimOrder(prisma, SESSION, { orderId: 'o1' })).toEqual({
+      ok: true,
+      changed: false,
+    });
     expect(update).not.toHaveBeenCalled();
   });
 
@@ -209,8 +286,13 @@ describe('claimOrder', () => {
     // должен мочь и забрать его, иначе кнопка ведёт в forbidden.
     canSeeOrder.mockReturnValue(false);
     const update = vi.fn().mockResolvedValue({});
-    const prisma = { order: { findUnique: vi.fn().mockResolvedValue(scopedOrder(null)), update } } as never;
-    expect(await claimOrder(prisma, LEADER, { orderId: 'o1' })).toEqual({ ok: true, changed: true });
+    const prisma = {
+      order: { findUnique: vi.fn().mockResolvedValue(scopedOrder(null)), update },
+    } as never;
+    expect(await claimOrder(prisma, LEADER, { orderId: 'o1' })).toEqual({
+      ok: true,
+      changed: true,
+    });
     expect(update).toHaveBeenCalledWith({ where: { id: 'o1' }, data: { managerId: 'lead-1' } });
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
@@ -221,8 +303,13 @@ describe('claimOrder', () => {
   it('обычный менеджер в той же точке (вне scope, своя компания) → forbidden', async () => {
     canSeeOrder.mockReturnValue(false);
     const update = vi.fn();
-    const prisma = { order: { findUnique: vi.fn().mockResolvedValue(scopedOrder(null)), update } } as never;
-    expect(await claimOrder(prisma, SESSION, { orderId: 'o1' })).toEqual({ ok: false, error: 'forbidden' });
+    const prisma = {
+      order: { findUnique: vi.fn().mockResolvedValue(scopedOrder(null)), update },
+    } as never;
+    expect(await claimOrder(prisma, SESSION, { orderId: 'o1' })).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect(update).not.toHaveBeenCalled();
   });
 
@@ -231,25 +318,38 @@ describe('claimOrder', () => {
     const update = vi.fn();
     const prisma = {
       order: {
-        findUnique: vi.fn().mockResolvedValue({ managerId: null, organizationId: 'org-9', companyId: 'co-OTHER' }),
-        update
-      }
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ managerId: null, organizationId: 'org-9', companyId: 'co-OTHER' }),
+        update,
+      },
     } as never;
-    expect(await claimOrder(prisma, LEADER, { orderId: 'o-foreign' })).toEqual({ ok: false, error: 'forbidden' });
+    expect(await claimOrder(prisma, LEADER, { orderId: 'o-foreign' })).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect(update).not.toHaveBeenCalled();
   });
 
   it('leader bypass НЕ обходит прекондицию already_assigned', async () => {
     canSeeOrder.mockReturnValue(false);
     const update = vi.fn();
-    const prisma = { order: { findUnique: vi.fn().mockResolvedValue(scopedOrder('other')), update } } as never;
-    expect(await claimOrder(prisma, LEADER, { orderId: 'o1' })).toEqual({ ok: false, error: 'already_assigned' });
+    const prisma = {
+      order: { findUnique: vi.fn().mockResolvedValue(scopedOrder('other')), update },
+    } as never;
+    expect(await claimOrder(prisma, LEADER, { orderId: 'o1' })).toEqual({
+      ok: false,
+      error: 'already_assigned',
+    });
     expect(update).not.toHaveBeenCalled();
   });
 
   it('claims an in-scope unassigned order and audits', async () => {
     const update = vi.fn().mockResolvedValue({});
-    const prisma = { order: { findUnique: vi.fn().mockResolvedValue(scopedOrder(null)), update }, auditLog: { create: vi.fn() } } as never;
+    const prisma = {
+      order: { findUnique: vi.fn().mockResolvedValue(scopedOrder(null)), update },
+      auditLog: { create: vi.fn() },
+    } as never;
     const r = await claimOrder(prisma, SESSION, { orderId: 'o1' });
     expect(r).toEqual({ ok: true, changed: true });
     expect(update).toHaveBeenCalledWith({ where: { id: 'o1' }, data: { managerId: 'mgr-1' } });

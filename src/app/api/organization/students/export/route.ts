@@ -32,14 +32,14 @@ export async function GET(req: Request) {
   const { rows, total } = await listOrgStudentsForExport(prisma, {
     organizationId,
     search: url.searchParams.get('search') || undefined,
-    limit: EXPORT_ROW_LIMIT
+    limit: EXPORT_ROW_LIMIT,
   });
 
   const buf = await renderOrgStudentsXlsx({ rows, total });
   return new NextResponse(Buffer.from(buf), {
     headers: {
       'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'content-disposition': 'attachment; filename="students.xlsx"'
-    }
+      'content-disposition': 'attachment; filename="students.xlsx"',
+    },
   });
 }

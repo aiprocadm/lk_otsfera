@@ -40,7 +40,10 @@ const CHANNEL_TYPE: Record<ResolveInput['channel'], ContactChannelType> = {
   email: 'email',
 };
 
-export async function resolveInboundSender(prisma: PrismaClient, input: ResolveInput): Promise<ResolveResult> {
+export async function resolveInboundSender(
+  prisma: PrismaClient,
+  input: ResolveInput
+): Promise<ResolveResult> {
   // 1) Contact-first: prefer a ContactChannel match over the legacy User exact-match.
   // An org-less contact hit does NOT short-circuit — inbound needs an org to bind, so
   // it falls through to the User path below.
@@ -62,8 +65,10 @@ export async function resolveInboundSender(prisma: PrismaClient, input: ResolveI
   const where: Record<string, unknown> = {};
   if (input.channel === 'telegram' && input.chatId) where.telegramChatId = input.chatId;
   else if (input.channel === 'max' && input.chatId) where.maxChatId = input.chatId;
-  else if (input.channel === 'whatsapp' && input.phone) where.whatsappPhone = normalizePhone(input.phone);
-  else if (input.channel === 'email' && input.email) where.email = { equals: input.email.trim(), mode: 'insensitive' };
+  else if (input.channel === 'whatsapp' && input.phone)
+    where.whatsappPhone = normalizePhone(input.phone);
+  else if (input.channel === 'email' && input.email)
+    where.email = { equals: input.email.trim(), mode: 'insensitive' };
   else return { matchType: 'unresolved' };
 
   const users = await prisma.user.findMany({
@@ -74,5 +79,11 @@ export async function resolveInboundSender(prisma: PrismaClient, input: ResolveI
   if (users.length !== 1) return { matchType: 'unresolved' };
   const u = users[0];
   if (!u.organization?.id || !u.organization.companyId) return { matchType: 'unresolved' };
-  return { matchType: 'exact', userId: u.id, orgId: u.organization.id, companyId: u.organization.companyId, contactId: undefined };
+  return {
+    matchType: 'exact',
+    userId: u.id,
+    orgId: u.organization.id,
+    companyId: u.organization.companyId,
+    contactId: undefined,
+  };
 }

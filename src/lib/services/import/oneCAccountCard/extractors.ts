@@ -78,12 +78,17 @@ export function extractInn(text: string | null | undefined): string | null {
  *  3) только ставка 'НДС N%' → вычисляем включённый НДС от amount: amount*rate/(100+rate);
  *  4) ничего → null.
  */
-export function extractVat(purpose: string | null | undefined, amount: number | null): number | null {
+export function extractVat(
+  purpose: string | null | undefined,
+  amount: number | null
+): number | null {
   if (!purpose) return null;
   if (/НДС\s+не\s+облагается/i.test(purpose) || /без\s+НДС/i.test(purpose)) return 0;
 
   // явная сумма: 'НДС' [опц. ставка (5%)/5 %] ... затем число с дефис/точка/запятая-десятичным (704-75 = 704.75)
-  const sumMatch = purpose.match(/НДС\s*(?:\(?\s*\d{1,2}\s*%\s*\)?)?[^0-9]*?(\d[\d\s]*)[.,-](\d{1,2})\b(?!\s*%)/i);
+  const sumMatch = purpose.match(
+    /НДС\s*(?:\(?\s*\d{1,2}\s*%\s*\)?)?[^0-9]*?(\d[\d\s]*)[.,-](\d{1,2})\b(?!\s*%)/i
+  );
   if (sumMatch) {
     const whole = sumMatch[1].replace(/\s/g, '');
     return Number(`${whole}.${sumMatch[2]}`);
@@ -93,10 +98,11 @@ export function extractVat(purpose: string | null | undefined, amount: number | 
   if (sumNoFrac) return parseAmount(sumNoFrac[1]);
 
   // только ставка
-  const rateMatch = purpose.match(/НДС\s*\(?\s*(\d{1,2})\s*%/i) ?? purpose.match(/(\d{1,2})\s*%\s*НДС/i);
+  const rateMatch =
+    purpose.match(/НДС\s*\(?\s*(\d{1,2})\s*%/i) ?? purpose.match(/(\d{1,2})\s*%\s*НДС/i);
   if (rateMatch && amount != null) {
     const rate = Number(rateMatch[1]);
-    if (rate > 0) return Math.round((amount * rate) / (100 + rate) * 100) / 100;
+    if (rate > 0) return Math.round(((amount * rate) / (100 + rate)) * 100) / 100;
   }
   return null;
 }

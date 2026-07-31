@@ -3,11 +3,18 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
-    React.createElement('a', { href, className }, children)
+  default: ({
+    href,
+    children,
+    className,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => React.createElement('a', { href, className }, children),
 }));
 vi.mock('@/components/partner/lead-status-badge', () => ({
-  LeadStatusBadge: ({ status }: { status: string }) => React.createElement('span', null, status)
+  LeadStatusBadge: ({ status }: { status: string }) => React.createElement('span', null, status),
 }));
 
 import { ManagerLeadsTable } from '@/components/manager/manager-leads-table';
@@ -23,7 +30,7 @@ function makeRow(overrides: Partial<ManagerLeadRow>): ManagerLeadRow {
     estimatedAmount: '5000',
     status: 'in_review',
     assignedManagerName: 'Менеджер Петров',
-    ...overrides
+    ...overrides,
   } as ManagerLeadRow;
 }
 
@@ -64,7 +71,7 @@ describe('ManagerLeadsTable', () => {
       React.createElement(ManagerLeadsTable, {
         rows,
         nextCursor: 'cur1',
-        query: { status: 'qualified', q: 'abc', assignedToMe: '1' }
+        query: { status: 'qualified', q: 'abc', assignedToMe: '1' },
       })
     );
     expect(html).toContain('Дальше');

@@ -11,12 +11,12 @@ const VARIANT: Record<Variant, string> = {
   primary: 'bg-[#F97316] text-white hover:bg-[#EA580C]',
   secondary: 'border border-gray-200 text-[#111111] hover:bg-gray-50',
   ghost: 'text-gray-700 hover:bg-gray-100',
-  danger: 'bg-red-600 text-white hover:bg-red-700'
+  danger: 'bg-red-600 text-white hover:bg-red-700',
 };
 
 const SIZE: Record<Size, string> = {
   sm: 'px-3 py-1.5 text-xs',
-  md: 'px-4 py-2 text-sm'
+  md: 'px-4 py-2 text-sm',
 };
 
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -26,7 +26,16 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'primary', size = 'md', loading = false, disabled, className, children, type = 'button', ...rest },
+  {
+    variant = 'primary',
+    size = 'md',
+    loading = false,
+    disabled,
+    className,
+    children,
+    type = 'button',
+    ...rest
+  },
   ref
 ) {
   return (

@@ -1,10 +1,10 @@
-import { Prisma, type PrismaClient } from '@prisma/client';
+import { type Prisma, type PrismaClient } from '@prisma/client';
 import { log } from '@/lib/logging';
 import { dispatchToRecipient } from './channels/dispatch';
 import {
   CHANNEL_RECIPIENT_SELECT,
   type ChannelPayload,
-  type EmailContentRef
+  type EmailContentRef,
 } from './channels/types';
 import { getAppBaseUrl, orderLabel } from './shared';
 
@@ -72,9 +72,9 @@ function partnerNotificationView(
           partnerName,
           period: input.payload.period,
           amount: input.payload.amount,
-          url
-        }
-      }
+          url,
+        },
+      },
     };
   }
 
@@ -85,9 +85,7 @@ function partnerNotificationView(
       : `${getAppBaseUrl()}/partner/portfolio`;
   const label = orderLabel(input.payload.orderNumber, input.payload.orderTitle);
   const title =
-    input.payload.orderId === null
-      ? 'Новый общий документ'
-      : `Новый документ по заказу ${label}`;
+    input.payload.orderId === null ? 'Новый общий документ' : `Новый документ по заказу ${label}`;
   const body = `Загружен документ «${input.payload.documentName}» (${input.payload.documentType}).`;
   const docPayload = input.payload;
   return {
@@ -103,9 +101,9 @@ function partnerNotificationView(
         orderTitle: docPayload.orderTitle,
         documentName: docPayload.documentName,
         documentType: docPayload.documentType,
-        orderUrl: url
-      }
-    }
+        orderUrl: url,
+      },
+    },
   };
 }
 
@@ -128,9 +126,9 @@ export async function notifyPartnerUsers(
       name: true,
       partnerUsers: {
         where: { isActive: true, user: { isActive: true } },
-        select: { user: { select: CHANNEL_RECIPIENT_SELECT } }
-      }
-    }
+        select: { user: { select: CHANNEL_RECIPIENT_SELECT } },
+      },
+    },
   });
   if (!partner) return { recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 };
 
@@ -140,7 +138,7 @@ export async function notifyPartnerUsers(
     title: view.title,
     body: view.body,
     url: view.url,
-    email: view.email
+    email: view.email,
   };
 
   let emailsSent = 0;
@@ -157,8 +155,8 @@ export async function notifyPartnerUsers(
         type: input.type,
         title: view.title,
         body: view.body,
-        meta: view.meta
-      }
+        meta: view.meta,
+      },
     });
     recipientsNotified += 1;
 
@@ -176,7 +174,7 @@ export async function notifyPartnerUsers(
     if (outcome.results.email?.status === 'failed') {
       log.warn('[notifyPartnerUsers] email dispatch failed', {
         partnerId: partner.id,
-        error: outcome.results.email.reason
+        error: outcome.results.email.reason,
       });
     }
   }
@@ -185,6 +183,6 @@ export async function notifyPartnerUsers(
     recipientsNotified,
     emailsSent,
     emailsSkipped,
-    ...(emailsQueued > 0 ? { emailsQueued } : {})
+    ...(emailsQueued > 0 ? { emailsQueued } : {}),
   };
 }

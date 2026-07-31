@@ -7,12 +7,12 @@ import type { ExecutionStatus, FinancialStatus } from '@prisma/client';
  * Переименование стадий §10 = правка только этого массива, без миграций.
  */
 export const WORKING_STAGE_LABELS = [
-  'Новая',      // index 1
-  'Договор',    // index 2
-  'Оплата',     // index 3
-  'Обучение',   // index 4
-  'Документы',  // index 5
-  'Закрыт'      // index 6
+  'Новая', // index 1
+  'Договор', // index 2
+  'Оплата', // index 3
+  'Обучение', // index 4
+  'Документы', // index 5
+  'Закрыт', // index 6
 ] as const;
 
 export type WorkingStageInput = {
@@ -102,12 +102,18 @@ export type OrderStageInput = {
  */
 export function executionStage(s: ExecutionStatus): Stage {
   switch (s) {
-    case 'pending':     return { label: 'Новый', tone: 'neutral' };
-    case 'in_progress': return { label: 'В работе', tone: 'neutral' };
-    case 'on_hold':     return { label: 'На паузе', tone: 'warning' };
-    case 'completed':   return { label: 'Завершён', tone: 'success' };
-    case 'cancelled':   return { label: 'Отменён', tone: 'danger' };
-    default:            return { label: '—', tone: 'neutral' };
+    case 'pending':
+      return { label: 'Новый', tone: 'neutral' };
+    case 'in_progress':
+      return { label: 'В работе', tone: 'neutral' };
+    case 'on_hold':
+      return { label: 'На паузе', tone: 'warning' };
+    case 'completed':
+      return { label: 'Завершён', tone: 'success' };
+    case 'cancelled':
+      return { label: 'Отменён', tone: 'danger' };
+    default:
+      return { label: '—', tone: 'neutral' };
   }
 }
 
@@ -143,7 +149,11 @@ export function paymentStage(input: PaymentStageInput): Stage {
     return { label: 'Частично оплачен', tone: 'warning' };
   }
 
-  if (financialStatus === 'billed' || financialStatus === 'paid' || financialStatus === 'partially_paid') {
+  if (
+    financialStatus === 'billed' ||
+    financialStatus === 'paid' ||
+    financialStatus === 'partially_paid'
+  ) {
     // 1С считает, что счёт был выставлен (или даже оплачен) — но платежей нет.
     return { label: 'Счёт выставлен', tone: completed ? 'warning' : 'neutral' };
   }
@@ -177,7 +187,7 @@ export function orderStage(input: OrderStageInput): Stage {
     financialStatus,
     amount: input.amount,
     paidTotal: input.paidTotal,
-    completed: executionStatus === 'completed'
+    completed: executionStatus === 'completed',
   });
 
   // Комбинированный бейдж: «Завершён, оплачен» (pay.label с маленькой буквы)

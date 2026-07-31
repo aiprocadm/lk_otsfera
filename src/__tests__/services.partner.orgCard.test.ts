@@ -14,16 +14,21 @@ beforeAll(async () => {
   const c = await prisma.company.create({ data: { name: 'OcC-' + Date.now() } });
   companyId = c.id;
   const org = await prisma.organization.create({
-    data: { name: 'OrgЦентр', partnerId, companyId: c.id, inn: '7700000099' }
+    data: { name: 'OrgЦентр', partnerId, companyId: c.id, inn: '7700000099' },
   });
   orgId = org.id;
 
   await prisma.order.create({
     data: {
-      title: 'Один', companyId, partnerId, organizationId: orgId,
-      totalAmount: 1000, paidAmount: 200,
-      executionStatus: 'in_progress', financialStatus: 'partially_paid'
-    }
+      title: 'Один',
+      companyId,
+      partnerId,
+      organizationId: orgId,
+      totalAmount: 1000,
+      paidAmount: 200,
+      executionStatus: 'in_progress',
+      financialStatus: 'partially_paid',
+    },
   });
 });
 

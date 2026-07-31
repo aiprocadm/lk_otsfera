@@ -7,7 +7,7 @@ import {
   updateAccessProfile,
   deleteAccessProfile,
   assignUserProfile,
-  type AccessProfileInput
+  type AccessProfileInput,
 } from '@/lib/services/access/profiles';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -23,11 +23,16 @@ let companyA: string, companyB: string;
 let leaderAId: string, plainMgrAId: string, targetMgrAId: string, userBId: string;
 
 const leaderA = (): SessionPayload =>
-  ({ sub: leaderAId, role: 'manager', managerRole: 'leader', companyId: companyA } as unknown as SessionPayload);
+  ({
+    sub: leaderAId,
+    role: 'manager',
+    managerRole: 'leader',
+    companyId: companyA,
+  }) as unknown as SessionPayload;
 const adminA = (): SessionPayload =>
-  ({ sub: leaderAId, role: 'admin', companyId: companyA } as unknown as SessionPayload);
+  ({ sub: leaderAId, role: 'admin', companyId: companyA }) as unknown as SessionPayload;
 const plainMgrA = (): SessionPayload =>
-  ({ sub: plainMgrAId, role: 'manager', companyId: companyA } as unknown as SessionPayload);
+  ({ sub: plainMgrAId, role: 'manager', companyId: companyA }) as unknown as SessionPayload;
 
 const input = (over: Partial<AccessProfileInput> = {}): AccessProfileInput => ({
   name: `Роль-${STAMP}`,
@@ -39,25 +44,54 @@ const input = (over: Partial<AccessProfileInput> = {}): AccessProfileInput => ({
   leads: 'own',
   tasks: 'own',
   capabilities: [],
-  ...over
+  ...over,
 });
 
 beforeAll(async () => {
   prisma = new PrismaClient();
   companyA = (await prisma.company.create({ data: { name: `apA-${STAMP}` } })).id;
   companyB = (await prisma.company.create({ data: { name: `apB-${STAMP}` } })).id;
-  leaderAId = (await prisma.user.create({
-    data: { email: `apLeader-${STAMP}@t.local`, name: 'Leader A', role: 'manager', managerRole: 'leader', companyId: companyA }
-  })).id;
-  plainMgrAId = (await prisma.user.create({
-    data: { email: `apMgr-${STAMP}@t.local`, name: 'Mgr A', role: 'manager', companyId: companyA }
-  })).id;
-  targetMgrAId = (await prisma.user.create({
-    data: { email: `apTarget-${STAMP}@t.local`, name: 'Target A', role: 'manager', companyId: companyA }
-  })).id;
-  userBId = (await prisma.user.create({
-    data: { email: `apUserB-${STAMP}@t.local`, name: 'User B', role: 'manager', companyId: companyB }
-  })).id;
+  leaderAId = (
+    await prisma.user.create({
+      data: {
+        email: `apLeader-${STAMP}@t.local`,
+        name: 'Leader A',
+        role: 'manager',
+        managerRole: 'leader',
+        companyId: companyA,
+      },
+    })
+  ).id;
+  plainMgrAId = (
+    await prisma.user.create({
+      data: {
+        email: `apMgr-${STAMP}@t.local`,
+        name: 'Mgr A',
+        role: 'manager',
+        companyId: companyA,
+      },
+    })
+  ).id;
+  targetMgrAId = (
+    await prisma.user.create({
+      data: {
+        email: `apTarget-${STAMP}@t.local`,
+        name: 'Target A',
+        role: 'manager',
+        companyId: companyA,
+      },
+    })
+  ).id;
+  userBId = (
+    await prisma.user.create({
+      data: {
+        email: `apUserB-${STAMP}@t.local`,
+        name: 'User B',
+        role: 'manager',
+        companyId: companyB,
+      },
+    })
+  ).id;
 });
 
 afterAll(async () => {
@@ -117,17 +151,28 @@ describe('updateAccessProfile', () => {
     const created = await createAccessProfile(prisma, leaderA(), input({ name: `Upd-${STAMP}` }));
     expect(created.ok).toBe(true);
     const id = created.ok ? created.id : '';
-    const res = await updateAccessProfile(prisma, leaderA(), id, input({ name: `Upd-${STAMP}`, orders: 'all', capabilities: ['see_commission'] }));
+    const res = await updateAccessProfile(
+      prisma,
+      leaderA(),
+      id,
+      input({ name: `Upd-${STAMP}`, orders: 'all', capabilities: ['see_commission'] })
+    );
     expect(res.ok).toBe(true);
     const row = await prisma.accessProfile.findUniqueOrThrow({ where: { id } });
     expect(row.ordersScope).toBe('all');
     expect(row.capabilities).toEqual(['see_commission']);
-    const audit = await prisma.auditLog.findFirst({ where: { entity: 'access_profile', entityId: id, action: 'access_profile_updated' } });
+    const audit = await prisma.auditLog.findFirst({
+      where: { entity: 'access_profile', entityId: id, action: 'access_profile_updated' },
+    });
     expect(audit).not.toBeNull();
   });
 
   it('cross-company profile → not_found (IDOR)', async () => {
-    const inB = await createAccessProfile(prisma, ({ sub: userBId, role: 'admin', companyId: companyB } as unknown as SessionPayload), input({ name: `InB-${STAMP}` }));
+    const inB = await createAccessProfile(
+      prisma,
+      { sub: userBId, role: 'admin', companyId: companyB } as unknown as SessionPayload,
+      input({ name: `InB-${STAMP}` })
+    );
     expect(inB.ok).toBe(true);
     const idB = inB.ok ? inB.id : '';
     const res = await updateAccessProfile(prisma, leaderA(), idB, input({ name: `InB-${STAMP}` }));
@@ -137,18 +182,33 @@ describe('updateAccessProfile', () => {
 
 describe('assignUserProfile', () => {
   it('assigns a company user to a profile; clears with null', async () => {
-    const created = await createAccessProfile(prisma, leaderA(), input({ name: `Assign-${STAMP}` }));
+    const created = await createAccessProfile(
+      prisma,
+      leaderA(),
+      input({ name: `Assign-${STAMP}` })
+    );
     const id = created.ok ? created.id : '';
     const res = await assignUserProfile(prisma, leaderA(), { userId: targetMgrAId, profileId: id });
     expect(res.ok).toBe(true);
-    expect((await prisma.user.findUniqueOrThrow({ where: { id: targetMgrAId } })).accessProfileId).toBe(id);
-    const cleared = await assignUserProfile(prisma, leaderA(), { userId: targetMgrAId, profileId: null });
+    expect(
+      (await prisma.user.findUniqueOrThrow({ where: { id: targetMgrAId } })).accessProfileId
+    ).toBe(id);
+    const cleared = await assignUserProfile(prisma, leaderA(), {
+      userId: targetMgrAId,
+      profileId: null,
+    });
     expect(cleared.ok).toBe(true);
-    expect((await prisma.user.findUniqueOrThrow({ where: { id: targetMgrAId } })).accessProfileId).toBeNull();
+    expect(
+      (await prisma.user.findUniqueOrThrow({ where: { id: targetMgrAId } })).accessProfileId
+    ).toBeNull();
   });
 
   it('cross-company target user → not_found (IDOR)', async () => {
-    const created = await createAccessProfile(prisma, leaderA(), input({ name: `AssignX-${STAMP}` }));
+    const created = await createAccessProfile(
+      prisma,
+      leaderA(),
+      input({ name: `AssignX-${STAMP}` })
+    );
     const id = created.ok ? created.id : '';
     const res = await assignUserProfile(prisma, leaderA(), { userId: userBId, profileId: id });
     expect(res).toEqual({ ok: false, error: 'not_found' });
@@ -163,11 +223,17 @@ describe('deleteAccessProfile', () => {
     const res = await deleteAccessProfile(prisma, leaderA(), id);
     expect(res.ok).toBe(true);
     expect(await prisma.accessProfile.findUnique({ where: { id } })).toBeNull();
-    expect((await prisma.user.findUniqueOrThrow({ where: { id: targetMgrAId } })).accessProfileId).toBeNull();
+    expect(
+      (await prisma.user.findUniqueOrThrow({ where: { id: targetMgrAId } })).accessProfileId
+    ).toBeNull();
   });
 
   it('cross-company delete → not_found', async () => {
-    const inB = await createAccessProfile(prisma, ({ sub: userBId, role: 'admin', companyId: companyB } as unknown as SessionPayload), input({ name: `DelB-${STAMP}` }));
+    const inB = await createAccessProfile(
+      prisma,
+      { sub: userBId, role: 'admin', companyId: companyB } as unknown as SessionPayload,
+      input({ name: `DelB-${STAMP}` })
+    );
     const idB = inB.ok ? inB.id : '';
     const res = await deleteAccessProfile(prisma, leaderA(), idB);
     expect(res).toEqual({ ok: false, error: 'not_found' });
@@ -181,7 +247,10 @@ describe('listAccessProfiles', () => {
     if (list.ok) {
       // все строки — компании A (в B создавались отдельные)
       const ids = list.rows.map((r) => r.id);
-      const bProfiles = await prisma.accessProfile.findMany({ where: { companyId: companyB }, select: { id: true } });
+      const bProfiles = await prisma.accessProfile.findMany({
+        where: { companyId: companyB },
+        select: { id: true },
+      });
       for (const b of bProfiles) expect(ids).not.toContain(b.id);
     }
   });

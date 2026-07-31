@@ -9,7 +9,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import {
   listCalendarItems,
   remindMinutesFrom,
-  getEventFormOptions
+  getEventFormOptions,
 } from '@/lib/services/calendar/items';
 
 const RANGE = { from: new Date('2026-07-01T00:00:00Z'), to: new Date('2026-08-01T00:00:00Z') };
@@ -28,7 +28,7 @@ function makePrisma(over: Record<string, unknown> = {}): {
   const prisma = {
     calendarEvent: { findMany: eventFindMany },
     task: { findMany: taskFindMany },
-    ...over
+    ...over,
   } as unknown as PrismaClient;
   return { prisma, eventFindMany, taskFindMany };
 }
@@ -50,7 +50,7 @@ function eventRow(over: Record<string, unknown> = {}) {
     linkedOrder: { title: 'Заявка №1' },
     linkedOrganizationId: 'org1',
     linkedOrganization: { name: 'ООО Ромашка' },
-    ...over
+    ...over,
   };
 }
 
@@ -81,9 +81,9 @@ describe('listCalendarItems — склейка и маппинг', () => {
         title: 'Позвонить',
         dueDate: new Date('2026-07-05T00:00:00Z'),
         priority: 'high',
-        completedAt: null
+        completedAt: null,
       },
-      { id: 't2', title: 'Без срока', dueDate: null, priority: 'low', completedAt: null }
+      { id: 't2', title: 'Без срока', dueDate: null, priority: 'low', completedAt: null },
     ]);
     const items = await listCalendarItems(prisma, manager, RANGE);
     expect(items.map((i) => i.id)).toEqual(['t1', 'e1']); // задача 05.07 раньше события 10.07
@@ -106,7 +106,7 @@ describe('listCalendarItems — склейка и маппинг', () => {
       linkedOrganizationId: 'org1',
       linkedOrganizationName: 'ООО Ромашка',
       priority: null,
-      completedAt: null
+      completedAt: null,
     });
     expect(items[0]).toEqual(
       expect.objectContaining({
@@ -116,7 +116,7 @@ describe('listCalendarItems — склейка и маппинг', () => {
         date: new Date('2026-07-05T00:00:00Z'),
         allDay: true,
         priority: 'high',
-        remindMinutes: null
+        remindMinutes: null,
       })
     );
   });
@@ -130,8 +130,8 @@ describe('listCalendarItems — склейка и маппинг', () => {
         linkedOrderId: null,
         linkedOrder: null,
         linkedOrganizationId: null,
-        linkedOrganization: null
-      })
+        linkedOrganization: null,
+      }),
     ]);
     const [item] = await listCalendarItems(prisma, manager, RANGE);
     expect(item).toEqual(
@@ -140,7 +140,7 @@ describe('listCalendarItems — склейка и маппинг', () => {
         attendeeIds: [],
         attendeeNames: [],
         linkedOrderTitle: null,
-        linkedOrganizationName: null
+        linkedOrganizationName: null,
       })
     );
   });
@@ -154,7 +154,7 @@ describe('listCalendarItems — scope where', () => {
     expect(eventWhere.AND[0]).toEqual({ companyId: 'c1' });
     expect(eventWhere.AND[1]).toEqual({ startsAt: { lt: RANGE.to } });
     expect(eventWhere.AND[2]).toEqual({
-      OR: [{ endsAt: null, startsAt: { gte: RANGE.from } }, { endsAt: { gt: RANGE.from } }]
+      OR: [{ endsAt: null, startsAt: { gte: RANGE.from } }, { endsAt: { gt: RANGE.from } }],
     });
     const taskWhere = taskFindMany.mock.calls[0][0].where;
     expect(taskWhere.AND[0]).toEqual({ companyId: 'c1' });
@@ -164,21 +164,21 @@ describe('listCalendarItems — scope where', () => {
   it("уровень 'own' → scope-OR (создатель ∨ участник) и для событий, и для задач", async () => {
     const s = {
       ...manager,
-      accessProfile: { tasks: 'own' }
+      accessProfile: { tasks: 'own' },
     } as unknown as SessionPayload;
     const { prisma, eventFindMany, taskFindMany } = makePrisma();
     await listCalendarItems(prisma, s, RANGE);
     expect(eventFindMany.mock.calls[0][0].where.AND[0]).toEqual({
       AND: [
         { companyId: 'c1' },
-        { OR: [{ createdById: 'm1' }, { attendees: { some: { userId: 'm1' } } }] }
-      ]
+        { OR: [{ createdById: 'm1' }, { attendees: { some: { userId: 'm1' } } }] },
+      ],
     });
     expect(taskFindMany.mock.calls[0][0].where.AND[0]).toEqual({
       AND: [
         { companyId: 'c1' },
-        { OR: [{ createdById: 'm1' }, { assignees: { some: { userId: 'm1' } } }] }
-      ]
+        { OR: [{ createdById: 'm1' }, { assignees: { some: { userId: 'm1' } } }] },
+      ],
     });
   });
 
@@ -186,15 +186,15 @@ describe('listCalendarItems — scope where', () => {
     const s = {
       ...manager,
       accessProfile: { tasks: 'assigned' },
-      managedOrgIds: ['org1']
+      managedOrgIds: ['org1'],
     } as unknown as SessionPayload;
     const { prisma, eventFindMany } = makePrisma();
     await listCalendarItems(prisma, s, RANGE);
     expect(eventFindMany.mock.calls[0][0].where.AND[0]).toEqual({
       AND: [
         { companyId: 'c1' },
-        { OR: [{ createdById: 'm1' }, { attendees: { some: { userId: 'm1' } } }] }
-      ]
+        { OR: [{ createdById: 'm1' }, { attendees: { some: { userId: 'm1' } } }] },
+      ],
     });
   });
 
@@ -235,17 +235,17 @@ describe('getEventFormOptions', () => {
     const prisma = {
       user: { findMany: userFindMany },
       organization: { findMany: orgFindMany },
-      order: { findMany: orderFindMany }
+      order: { findMany: orderFindMany },
     } as unknown as PrismaClient;
     const res = await getEventFormOptions(prisma, manager);
     expect(res).toEqual({
       users: [{ id: 'u1', name: 'Мария' }],
       organizations: [{ id: 'org1', name: 'ООО Ромашка' }],
-      orders: [{ id: 'o1', title: 'Заявка' }]
+      orders: [{ id: 'o1', title: 'Заявка' }],
     });
     expect(userFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { companyId: 'c1', role: { in: ['admin', 'manager'] }, isActive: true }
+        where: { companyId: 'c1', role: { in: ['admin', 'manager'] }, isActive: true },
       })
     );
     expect(orgFindMany).toHaveBeenCalledWith(
@@ -263,7 +263,7 @@ describe('getEventFormOptions', () => {
     const prisma = {
       user: { findMany: userFindMany },
       organization: { findMany: orgFindMany },
-      order: { findMany: orderFindMany }
+      order: { findMany: orderFindMany },
     } as unknown as PrismaClient;
     const noCompany = { sub: 'a1', role: 'admin', companyId: null } as unknown as SessionPayload;
     const res = await getEventFormOptions(prisma, noCompany);

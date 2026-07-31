@@ -24,8 +24,7 @@ import { spawn, spawnSync } from 'node:child_process';
 // compose network). A host-side runner must use localhost. dotenv (loaded by the
 // Prisma CLI) never overrides an already-set env var, so this wins over .env.
 const DB_URL =
-  process.env.GATE_DATABASE_URL ??
-  'postgresql://postgres:postgres@localhost:5432/cabinet';
+  process.env.GATE_DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/cabinet';
 const childEnv = { ...process.env, DATABASE_URL: DB_URL, DIRECT_URL: DB_URL };
 const useShell = process.platform === 'win32'; // resolve npm.cmd / docker.exe
 

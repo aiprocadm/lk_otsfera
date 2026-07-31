@@ -3,12 +3,17 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import React from 'react';
 vi.mock('@/components/intake/source-intake-actions', () => ({
-  SourceIntakeActions: (props: { kind: string; sourceId: string; leadPrefill: Record<string, string>; taskTitle: string }) =>
+  SourceIntakeActions: (props: {
+    kind: string;
+    sourceId: string;
+    leadPrefill: Record<string, string>;
+    taskTitle: string;
+  }) =>
     React.createElement(
       'div',
       { 'data-testid': 'intake-actions' },
       `${props.kind}:${props.sourceId}:${props.leadPrefill.contactPhone}:${props.taskTitle}`
-    )
+    ),
 }));
 
 import { CallsList, type CallListItem } from '@/components/manager/calls-list';
@@ -25,7 +30,7 @@ const base: CallListItem = {
   createdAt: new Date('2026-07-01T10:00:05Z'),
   resolvedOrgId: null,
   recordingScanStatus: 'none',
-  hasRecording: false
+  hasRecording: false,
 };
 
 describe('CallsList', () => {
@@ -103,19 +108,25 @@ describe('CallsList — call-triage (Task 10)', () => {
   const orgs = [{ id: 'o1', name: 'ООО Ромашка' }];
 
   it('contactsEnabled=false → без формы привязки и без колонки «Привязка», даже для нераспознанного звонка', () => {
-    const html = renderToString(<CallsList items={[unresolved]} orgs={orgs} contactsEnabled={false} />);
+    const html = renderToString(
+      <CallsList items={[unresolved]} orgs={orgs} contactsEnabled={false} />
+    );
     expect(html).not.toContain('Привязка');
     expect(html).not.toContain('Создать контакт из номера');
   });
 
   it('contactsEnabled=true + resolvedOrgId=null → рендерит CallBindForm (кнопки привязки)', () => {
-    const html = renderToString(<CallsList items={[unresolved]} orgs={orgs} contactsEnabled={true} />);
+    const html = renderToString(
+      <CallsList items={[unresolved]} orgs={orgs} contactsEnabled={true} />
+    );
     expect(html).toContain('Привязка');
     expect(html).toContain('Создать контакт из номера');
   });
 
   it('contactsEnabled=true + resolvedOrgId!=null → звонок read-only («Привязан»), без формы', () => {
-    const html = renderToString(<CallsList items={[resolved]} orgs={orgs} contactsEnabled={true} />);
+    const html = renderToString(
+      <CallsList items={[resolved]} orgs={orgs} contactsEnabled={true} />
+    );
     expect(html).toContain('Привязан');
     expect(html).not.toContain('Создать контакт из номера');
   });
@@ -132,14 +143,14 @@ describe('CallsFiltersBar', () => {
   });
 
   it('активное направление подсвечено брендовым фоном', () => {
-    const html = renderToString(<CallsFiltersBar direction='inbound' />);
+    const html = renderToString(<CallsFiltersBar direction="inbound" />);
     const inboundIdx = html.indexOf('Входящие');
     const highlighted = html.slice(0, inboundIdx).lastIndexOf('bg-[#F97316]');
     expect(highlighted).toBeGreaterThan(-1);
   });
 
   it('с orgId ссылки направлений сохраняют orgId, «Все» — тоже (только без direction)', () => {
-    const html = renderToString(<CallsFiltersBar orgId='org-1' />);
+    const html = renderToString(<CallsFiltersBar orgId="org-1" />);
     expect(html).toContain('/manager/calls?direction=inbound&amp;orgId=org-1');
     expect(html).toContain('/manager/calls?direction=outbound&amp;orgId=org-1');
     expect(html).toContain('href="/manager/calls?orgId=org-1"');
@@ -147,7 +158,7 @@ describe('CallsFiltersBar', () => {
 
   it('рендерит children — слот под дополнительные фильтры внутри бара', () => {
     const html = renderToString(
-      <CallsFiltersBar direction='inbound'>
+      <CallsFiltersBar direction="inbound">
         <div>ORG_FILTER_SLOT</div>
       </CallsFiltersBar>
     );
@@ -159,14 +170,18 @@ describe('CallsList — интейк-действия (этап 7)', () => {
   it('входящий звонок при currentUserId получает кнопки с префиллом номера', () => {
     // «Создать лид»/«Задача» прямо из журнала звонков. Номер обязан переехать
     // в префилл — менеджер не должен перепечатывать его из соседней колонки.
-    const html = renderToString(React.createElement(CallsList, { items: [base], currentUserId: 'm1' }));
+    const html = renderToString(
+      React.createElement(CallsList, { items: [base], currentUserId: 'm1' })
+    );
     expect(html).toContain('data-testid="intake-actions"');
     expect(html).toContain('call:call-1:+79990001122:Перезвонить: +79990001122');
   });
 
   it('исходящий звонок — прочерк вместо кнопок (лид создают из входящих)', () => {
     const outbound = { ...base, id: 'call-2', direction: 'outbound' as const };
-    const html = renderToString(React.createElement(CallsList, { items: [outbound], currentUserId: 'm1' }));
+    const html = renderToString(
+      React.createElement(CallsList, { items: [outbound], currentUserId: 'm1' })
+    );
     expect(html).not.toContain('data-testid="intake-actions"');
     expect(html).toContain('—');
   });

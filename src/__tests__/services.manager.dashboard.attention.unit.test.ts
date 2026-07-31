@@ -7,12 +7,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { getCompanyTeamVisibility, managerOrderScope } = vi.hoisted(() => ({
   getCompanyTeamVisibility: vi.fn(),
-  managerOrderScope: vi.fn().mockReturnValue({})
+  managerOrderScope: vi.fn().mockReturnValue({}),
 }));
 
 vi.mock('@/lib/auth/managerPolicy', () => ({
   getCompanyTeamVisibility,
-  managerOrderScope
+  managerOrderScope,
 }));
 
 import { attention } from '@/lib/services/manager/dashboard/attention';
@@ -22,7 +22,7 @@ const SESSION: SessionPayload = {
   sub: 'mgr-1',
   role: 'manager',
   managedOrgIds: ['org-1'],
-  companyId: 'co-1'
+  companyId: 'co-1',
 };
 
 function emptyPrisma(overrides: Record<string, unknown> = {}) {
@@ -30,7 +30,7 @@ function emptyPrisma(overrides: Record<string, unknown> = {}) {
     order: { findMany: vi.fn().mockResolvedValue([]) },
     comment: { findMany: vi.fn().mockResolvedValue([]) },
     document: { findMany: vi.fn().mockResolvedValue([]) },
-    ...overrides
+    ...overrides,
   } as never;
 }
 
@@ -73,7 +73,9 @@ describe('attention', () => {
 
   it('maps overdue order to urgent AttentionItem', async () => {
     const overdueOrders = [{ id: 'ord-1', orderNumber: 'O-001', title: 'Заказ первый' }];
-    const p = emptyPrisma({ order: { findMany: vi.fn().mockResolvedValueOnce(overdueOrders).mockResolvedValue([]) } });
+    const p = emptyPrisma({
+      order: { findMany: vi.fn().mockResolvedValueOnce(overdueOrders).mockResolvedValue([]) },
+    });
     const result = await attention(p, SESSION);
     const item = result.find((i) => i.kind === 'order_overdue');
     expect(item).toBeDefined();
@@ -84,17 +86,26 @@ describe('attention', () => {
 
   it('uses title when orderNumber is null in overdue order', async () => {
     const overdueOrders = [{ id: 'ord-1', orderNumber: null, title: 'Заказ без номера' }];
-    const p = emptyPrisma({ order: { findMany: vi.fn().mockResolvedValueOnce(overdueOrders).mockResolvedValue([]) } });
+    const p = emptyPrisma({
+      order: { findMany: vi.fn().mockResolvedValueOnce(overdueOrders).mockResolvedValue([]) },
+    });
     const result = await attention(p, SESSION);
     const item = result.find((i) => i.kind === 'order_overdue');
     expect(item!.message).toContain('Заказ без номера');
   });
 
   it('maps unsigned act to warn AttentionItem with order orderNumber', async () => {
-    const docs = [{ id: 'doc-1', name: 'Акт выполненных работ', orderId: 'ord-5', order: { orderNumber: 'O-500' } }];
+    const docs = [
+      {
+        id: 'doc-1',
+        name: 'Акт выполненных работ',
+        orderId: 'ord-5',
+        order: { orderNumber: 'O-500' },
+      },
+    ];
     const p = emptyPrisma({
       order: { findMany: vi.fn().mockResolvedValue([]) },
-      document: { findMany: vi.fn().mockResolvedValue(docs) }
+      document: { findMany: vi.fn().mockResolvedValue(docs) },
     });
     const result = await attention(p, SESSION);
     const item = result.find((i) => i.kind === 'act_unsigned');
@@ -108,7 +119,7 @@ describe('attention', () => {
     const docs = [{ id: 'doc-1', name: 'Акт', orderId: null, order: null }];
     const p = emptyPrisma({
       order: { findMany: vi.fn().mockResolvedValue([]) },
-      document: { findMany: vi.fn().mockResolvedValue(docs) }
+      document: { findMany: vi.fn().mockResolvedValue(docs) },
     });
     const result = await attention(p, SESSION);
     const item = result.find((i) => i.kind === 'act_unsigned');
@@ -120,7 +131,9 @@ describe('attention', () => {
     // order.findMany called: [0]=overdue, [1]=stalled; skip [2] for stalled if needed
     // Actually the Promise.all returns: [overdueOrders, recentOrgComments, unsignedActs, stalledOrders]
     // We need to simulate this properly
-    const stalledOrders = [{ id: 'ord-2', orderNumber: 'O-200', title: 'Стопор', updatedAt: new Date('2026-05-01') }];
+    const stalledOrders = [
+      { id: 'ord-2', orderNumber: 'O-200', title: 'Стопор', updatedAt: new Date('2026-05-01') },
+    ];
     let callIdx = 0;
     const orderFindMany = vi.fn().mockImplementation(() => {
       const responses = [[], stalledOrders];
@@ -139,12 +152,14 @@ describe('attention', () => {
     const orgCommentAt = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000); // 2 days ago
     const myReplyAt = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000); // 1 day ago (after org comment)
 
-    const recentOrgComments = [{
-      id: 'c-org-1',
-      createdAt: orgCommentAt,
-      orderId: 'ord-1',
-      order: { orderNumber: 'O-1', title: 'T' }
-    }];
+    const recentOrgComments = [
+      {
+        id: 'c-org-1',
+        createdAt: orgCommentAt,
+        orderId: 'ord-1',
+        order: { orderNumber: 'O-1', title: 'T' },
+      },
+    ];
     const myReplies = [{ orderId: 'ord-1', createdAt: myReplyAt }];
 
     let commentCallIdx = 0;
@@ -164,12 +179,14 @@ describe('attention', () => {
     const now = new Date();
     const orgCommentAt = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
 
-    const recentOrgComments = [{
-      id: 'c-org-2',
-      createdAt: orgCommentAt,
-      orderId: 'ord-2',
-      order: { orderNumber: 'O-2', title: 'T2' }
-    }];
+    const recentOrgComments = [
+      {
+        id: 'c-org-2',
+        createdAt: orgCommentAt,
+        orderId: 'ord-2',
+        order: { orderNumber: 'O-2', title: 'T2' },
+      },
+    ];
 
     let commentCallIdx = 0;
     const commentFindMany = vi.fn().mockImplementation(() => {
@@ -190,8 +207,18 @@ describe('attention', () => {
     const orgCommentAt = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
 
     const recentOrgComments = [
-      { id: 'c1', createdAt: orgCommentAt, orderId: 'ord-same', order: { orderNumber: 'O-S', title: 'T' } },
-      { id: 'c2', createdAt: orgCommentAt, orderId: 'ord-same', order: { orderNumber: 'O-S', title: 'T' } }
+      {
+        id: 'c1',
+        createdAt: orgCommentAt,
+        orderId: 'ord-same',
+        order: { orderNumber: 'O-S', title: 'T' },
+      },
+      {
+        id: 'c2',
+        createdAt: orgCommentAt,
+        orderId: 'ord-same',
+        order: { orderNumber: 'O-S', title: 'T' },
+      },
     ];
 
     let commentCallIdx = 0;
@@ -212,7 +239,7 @@ describe('attention', () => {
     const docs = [{ id: 'doc-1', name: 'Акт', orderId: 'ord-1', order: { orderNumber: 'O-1' } }];
     const p = emptyPrisma({
       order: { findMany: vi.fn().mockResolvedValueOnce(overdueOrders).mockResolvedValue([]) },
-      document: { findMany: vi.fn().mockResolvedValue(docs) }
+      document: { findMany: vi.fn().mockResolvedValue(docs) },
     });
     const result = await attention(p, SESSION);
     const urgentIdx = result.findIndex((i) => i.severity === 'urgent');
@@ -224,7 +251,9 @@ describe('attention', () => {
 
   it('uses orderNumber ?? title in stalled order message', async () => {
     let callIdx = 0;
-    const stalledOrders = [{ id: 'ord-s', orderNumber: null, title: 'Заказ без номера', updatedAt: new Date() }];
+    const stalledOrders = [
+      { id: 'ord-s', orderNumber: null, title: 'Заказ без номера', updatedAt: new Date() },
+    ];
     const orderFindMany = vi.fn().mockImplementation(() => {
       const responses = [[], stalledOrders];
       return Promise.resolve(responses[callIdx++] ?? []);
@@ -238,12 +267,14 @@ describe('attention', () => {
   it('noreply comment with null orderNumber falls back to order.title', async () => {
     const now = new Date();
     const orgCommentAt = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
-    const recentOrgComments = [{
-      id: 'c-no-num',
-      createdAt: orgCommentAt,
-      orderId: 'ord-3',
-      order: { orderNumber: null, title: 'Заказ без номера' }
-    }];
+    const recentOrgComments = [
+      {
+        id: 'c-no-num',
+        createdAt: orgCommentAt,
+        orderId: 'ord-3',
+        order: { orderNumber: null, title: 'Заказ без номера' },
+      },
+    ];
     let commentCallIdx = 0;
     const commentFindMany = vi.fn().mockImplementation(() => {
       const responses: unknown[][] = [recentOrgComments, []];
@@ -261,11 +292,18 @@ describe('attention', () => {
     const laterReply = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
     const earlierReply = new Date(now.getTime() - 2.5 * 24 * 60 * 60 * 1000);
 
-    const recentOrgComments = [{ id: 'c-rd', createdAt: orgCommentAt, orderId: 'ord-r', order: { orderNumber: 'O-R', title: 'T' } }];
+    const recentOrgComments = [
+      {
+        id: 'c-rd',
+        createdAt: orgCommentAt,
+        orderId: 'ord-r',
+        order: { orderNumber: 'O-R', title: 'T' },
+      },
+    ];
     // Two replies for same order: later one comes first, earlier second (exercises prev >= r.createdAt branch)
     const myReplies = [
       { orderId: 'ord-r', createdAt: laterReply },
-      { orderId: 'ord-r', createdAt: earlierReply } // earlier → prev already set to laterReply → no update
+      { orderId: 'ord-r', createdAt: earlierReply }, // earlier → prev already set to laterReply → no update
     ];
 
     let commentCallIdx = 0;
@@ -285,11 +323,11 @@ describe('attention', () => {
     // Two overdue orders (both urgent) + two stalled orders (both warn)
     const overdueOrders = [
       { id: 'od-1', orderNumber: 'O-1', title: 'T1' },
-      { id: 'od-2', orderNumber: 'O-2', title: 'T2' }
+      { id: 'od-2', orderNumber: 'O-2', title: 'T2' },
     ];
     const stalledOrders = [
       { id: 'st-1', orderNumber: 'O-S1', title: 'S1', updatedAt: new Date() },
-      { id: 'st-2', orderNumber: 'O-S2', title: 'S2', updatedAt: new Date() }
+      { id: 'st-2', orderNumber: 'O-S2', title: 'S2', updatedAt: new Date() },
     ];
     let callIdx = 0;
     const orderFindMany = vi.fn().mockImplementation(() => {
@@ -317,7 +355,7 @@ describe('attention', () => {
       id: `c-${i}`,
       createdAt: orgCommentAt,
       orderId: `ord-${i}`,
-      order: { orderNumber: `O-${i}`, title: `T${i}` }
+      order: { orderNumber: `O-${i}`, title: `T${i}` },
     }));
     let commentCallIdx = 0;
     const commentFindMany = vi.fn().mockImplementation(() => {

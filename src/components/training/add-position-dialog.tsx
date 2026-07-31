@@ -51,7 +51,7 @@ export function AddPositionDialog({ open, onClose, orderId, directions, students
       const res = await fetch(`/api/manager/orders/${orderId}/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentId, directionId, note: note.trim() || undefined })
+        body: JSON.stringify({ studentId, directionId, note: note.trim() || undefined }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

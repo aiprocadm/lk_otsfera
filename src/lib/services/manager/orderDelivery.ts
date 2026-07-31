@@ -41,9 +41,9 @@ export const READINESS_SELECT = {
       id: true,
       trainingStatus: true,
       student: { select: { name: true } },
-      certificate: { select: { documentId: true } }
-    }
-  }
+      certificate: { select: { documentId: true } },
+    },
+  },
 } as const;
 
 export type OrderForReadiness = {
@@ -73,7 +73,7 @@ async function loadScanStatuses(
   if (ids.length === 0) return new Map();
   const docs = await prisma.document.findMany({
     where: { id: { in: ids } },
-    select: { id: true, scanStatus: true }
+    select: { id: true, scanStatus: true },
   });
   return new Map(docs.map((d) => [d.id, d.scanStatus]));
 }
@@ -92,11 +92,11 @@ function toReadinessInput(order: OrderForReadiness, scanStatuses: Map<string, st
         ? {
             documentId: i.certificate.documentId,
             scanStatus: i.certificate.documentId
-              ? scanStatuses.get(i.certificate.documentId) ?? null
-              : null
+              ? (scanStatuses.get(i.certificate.documentId) ?? null)
+              : null,
           }
-        : null
-    }))
+        : null,
+    })),
   };
 }
 
@@ -153,14 +153,14 @@ export async function approveDeliverables(
   await prisma.$transaction(async (tx) => {
     await tx.order.update({
       where: { id: order.id },
-      data: { deliverablesApprovedAt: approvedAt, deliverablesApprovedById: session.sub }
+      data: { deliverablesApprovedAt: approvedAt, deliverablesApprovedById: session.sub },
     });
     await recordAudit(tx, {
       userId: session.sub,
       action: 'order_deliverables_approved',
       entity: 'order',
       entityId: order.id,
-      after: { approvedAt: approvedAt.toISOString() }
+      after: { approvedAt: approvedAt.toISOString() },
     });
   });
   return { ok: true, approvedAt };
@@ -196,14 +196,14 @@ export async function deliverOrderResult(
   await prisma.$transaction(async (tx) => {
     await tx.order.update({
       where: { id: order.id },
-      data: { resultDeliveredAt: deliveredAt, resultDeliveredById: session.sub }
+      data: { resultDeliveredAt: deliveredAt, resultDeliveredById: session.sub },
     });
     await recordAudit(tx, {
       userId: session.sub,
       action: 'order_result_delivered',
       entity: 'order',
       entityId: order.id,
-      after: { deliveredAt: deliveredAt.toISOString(), serviceType: order.serviceType }
+      after: { deliveredAt: deliveredAt.toISOString(), serviceType: order.serviceType },
     });
   });
 
@@ -216,13 +216,13 @@ export async function deliverOrderResult(
         orderId: order.id,
         orderNumber: order.orderNumber,
         orderTitle: order.title,
-        serviceType: order.serviceType
-      }
+        serviceType: order.serviceType,
+      },
     });
   } catch (err) {
     log.warn('[orderDelivery] org notify failed', {
       orderId: order.id,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 

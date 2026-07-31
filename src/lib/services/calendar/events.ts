@@ -26,15 +26,13 @@ const inputSchema = z
     startsAt: z.coerce.date(),
     endsAt: z.coerce.date().nullish(),
     allDay: z.boolean().optional(),
-    remindMinutes: z
-      .union([z.literal(15), z.literal(60), z.literal(1440)])
-      .nullish(),
+    remindMinutes: z.union([z.literal(15), z.literal(60), z.literal(1440)]).nullish(),
     linkedOrderId: z.string().trim().min(1).nullish(),
     linkedOrganizationId: z.string().trim().min(1).nullish(),
-    attendeeIds: z.array(z.string()).optional()
+    attendeeIds: z.array(z.string()).optional(),
   })
   .refine((d) => !d.endsAt || d.endsAt.getTime() > d.startsAt.getTime(), {
-    message: 'endsAt must be after startsAt'
+    message: 'endsAt must be after startsAt',
   });
 export type CalendarEventInput = z.input<typeof inputSchema>;
 
@@ -65,20 +63,23 @@ async function validateRefs(
   data: z.infer<typeof inputSchema>
 ): Promise<void> {
   if (data.linkedOrderId) {
-    const o = await tx.order.findUnique({ where: { id: data.linkedOrderId }, select: { companyId: true } });
+    const o = await tx.order.findUnique({
+      where: { id: data.linkedOrderId },
+      select: { companyId: true },
+    });
     if (!o || o.companyId !== companyId) throw new CalendarError('validation');
   }
   if (data.linkedOrganizationId) {
     const org = await tx.organization.findUnique({
       where: { id: data.linkedOrganizationId },
-      select: { companyId: true }
+      select: { companyId: true },
     });
     if (!org || org.companyId !== companyId) throw new CalendarError('validation');
   }
   if (data.attendeeIds && data.attendeeIds.length > 0) {
     const ids = [...new Set(data.attendeeIds)];
     const count = await tx.user.count({
-      where: { id: { in: ids }, companyId, role: { in: ['admin', 'manager'] } }
+      where: { id: { in: ids }, companyId, role: { in: ['admin', 'manager'] } },
     });
     if (count !== ids.length) throw new CalendarError('validation');
   }
@@ -91,20 +92,25 @@ async function syncAttendees(
   attendeeIds: string[]
 ): Promise<void> {
   const desired = new Set(attendeeIds);
-  const existing = await tx.calendarEventAttendee.findMany({ where: { eventId }, select: { userId: true } });
+  const existing = await tx.calendarEventAttendee.findMany({
+    where: { eventId },
+    select: { userId: true },
+  });
   const existingIds = new Set(existing.map((e) => e.userId));
   const toRemove = [...existingIds].filter((id) => !desired.has(id));
   const toAdd = [...desired].filter((id) => !existingIds.has(id));
   if (toRemove.length > 0)
     await tx.calendarEventAttendee.deleteMany({ where: { eventId, userId: { in: toRemove } } });
   if (toAdd.length > 0)
-    await tx.calendarEventAttendee.createMany({ data: toAdd.map((userId) => ({ eventId, userId })) });
+    await tx.calendarEventAttendee.createMany({
+      data: toAdd.map((userId) => ({ eventId, userId })),
+    });
 }
 
 const SCOPE_SELECT = {
   companyId: true,
   createdById: true,
-  attendees: { select: { userId: true } }
+  attendees: { select: { userId: true } },
 } as const;
 
 type ScopeRow = {
@@ -117,7 +123,7 @@ function scopeArg(row: ScopeRow) {
   return {
     companyId: row.companyId,
     createdById: row.createdById,
-    attendeeUserIds: row.attendees.map((a) => a.userId)
+    attendeeUserIds: row.attendees.map((a) => a.userId),
   };
 }
 
@@ -147,12 +153,12 @@ export async function createEvent(
           allDay: data.allDay ?? false,
           remindAt: remindAtFor(data.startsAt, data.remindMinutes),
           linkedOrderId: data.linkedOrderId ?? null,
-          linkedOrganizationId: data.linkedOrganizationId ?? null
-        }
+          linkedOrganizationId: data.linkedOrganizationId ?? null,
+        },
       });
       if (data.attendeeIds && data.attendeeIds.length > 0) {
         await tx.calendarEventAttendee.createMany({
-          data: [...new Set(data.attendeeIds)].map((userId) => ({ eventId: event.id, userId }))
+          data: [...new Set(data.attendeeIds)].map((userId) => ({ eventId: event.id, userId })),
         });
       }
       await recordAudit(tx, {
@@ -160,7 +166,7 @@ export async function createEvent(
         action: 'calendar_event_created',
         entity: 'calendar_event',
         entityId: event.id,
-        after: { title: event.title, startsAt: event.startsAt.toISOString() }
+        after: { title: event.title, startsAt: event.startsAt.toISOString() },
       });
       return event;
     });
@@ -187,7 +193,7 @@ export async function updateEvent(
     await prisma.$transaction(async (tx) => {
       const before = await tx.calendarEvent.findUnique({
         where: { id },
-        select: { ...SCOPE_SELECT, title: true, remindAt: true, reminderSentAt: true }
+        select: { ...SCOPE_SELECT, title: true, remindAt: true, reminderSentAt: true },
       });
       if (!before) throw new CalendarError('not_found');
       if (!canSeeEvent(session, scopeArg(before))) throw new CalendarError('not_found');
@@ -195,7 +201,9 @@ export async function updateEvent(
       const nextRemindAt = remindAtFor(data.startsAt, data.remindMinutes);
       // Напоминание пере-взводится, если новое remindAt в будущем (перенос вперёд).
       const rearm =
-        before.reminderSentAt !== null && nextRemindAt !== null && nextRemindAt.getTime() > Date.now();
+        before.reminderSentAt !== null &&
+        nextRemindAt !== null &&
+        nextRemindAt.getTime() > Date.now();
       await tx.calendarEvent.update({
         where: { id },
         data: {
@@ -208,8 +216,8 @@ export async function updateEvent(
           remindAt: nextRemindAt,
           ...(rearm ? { reminderSentAt: null } : {}),
           linkedOrderId: data.linkedOrderId ?? null,
-          linkedOrganizationId: data.linkedOrganizationId ?? null
-        }
+          linkedOrganizationId: data.linkedOrganizationId ?? null,
+        },
       });
       if (data.attendeeIds !== undefined) await syncAttendees(tx, id, data.attendeeIds);
       await recordAudit(tx, {
@@ -218,7 +226,7 @@ export async function updateEvent(
         entity: 'calendar_event',
         entityId: id,
         before: { title: before.title },
-        after: { title: data.title.trim(), startsAt: data.startsAt.toISOString() }
+        after: { title: data.title.trim(), startsAt: data.startsAt.toISOString() },
       });
     });
     return { ok: true };
@@ -240,7 +248,7 @@ export async function deleteEvent(
     await prisma.$transaction(async (tx) => {
       const before = await tx.calendarEvent.findUnique({
         where: { id },
-        select: { ...SCOPE_SELECT, title: true }
+        select: { ...SCOPE_SELECT, title: true },
       });
       if (!before) throw new CalendarError('not_found');
       if (!canSeeEvent(session, scopeArg(before))) throw new CalendarError('not_found');
@@ -251,7 +259,7 @@ export async function deleteEvent(
         action: 'calendar_event_deleted',
         entity: 'calendar_event',
         entityId: id,
-        before: { title: before.title }
+        before: { title: before.title },
       });
     });
     return { ok: true };

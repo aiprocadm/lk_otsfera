@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     sortOrder: body.sortOrder,
     helpText: body.helpText,
     visibleToRoles: body.visibleToRoles,
-    editableByRoles: body.editableByRoles
+    editableByRoles: body.editableByRoles,
   });
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: mapErr(res.error) });
   return NextResponse.json({ definition: res.definition }, { status: 201 });

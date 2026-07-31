@@ -7,7 +7,7 @@ function fmtDate(d: Date | null): string {
   return new Intl.DateTimeFormat('ru-RU', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric'
+    year: 'numeric',
   }).format(d);
 }
 
@@ -17,7 +17,7 @@ function fmtDateTime(d: Date): string {
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   }).format(d);
 }
 
@@ -27,13 +27,13 @@ const HIDDEN_ACTIONS = new Set<string>([
   'partner_commission_rate_changed',
   'partner_commission_paid',
   'partner_commission_recalculated',
-  'partner_rate_changed'
+  'partner_rate_changed',
 ]);
 
 const ACTION_LABELS: Record<string, string> = {
   order_status_changed: 'Статус изменён',
   document_uploaded: 'Документ загружен',
-  comment_posted: 'Комментарий'
+  comment_posted: 'Комментарий',
 };
 
 type AuditMetaShape = {
@@ -71,7 +71,7 @@ function summarizeAudit(entry: AuditLog): { label: string; detail: string | null
  */
 export function ManagerOrderTimeline({
   order,
-  auditEntries
+  auditEntries,
 }: {
   order: ManagerOrderDetail;
   auditEntries: AuditLog[];
@@ -82,19 +82,19 @@ export function ManagerOrderTimeline({
     { label: 'Дедлайн', date: order.deadline, tone: 'warning' },
     { label: 'Завершён', date: order.completedAt, tone: 'success' },
     { label: 'Оплачен', date: order.paidAt, tone: 'success' },
-    { label: 'Закрыт', date: order.closedAt }
+    { label: 'Закрыт', date: order.closedAt },
   ];
 
   const visibleAudit = auditEntries.filter((e) => !HIDDEN_ACTIONS.has(e.action));
 
   return (
-    <div className='bg-white border border-gray-200 rounded-xl p-5 space-y-4'>
-      <h2 className='text-sm font-semibold text-[#111111]'>Даты</h2>
-      <ul className='space-y-2'>
+    <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+      <h2 className="text-sm font-semibold text-[#111111]">Даты</h2>
+      <ul className="space-y-2">
         {milestones.map((e) => {
           const passed = e.date !== null;
           return (
-            <li key={e.label} className='flex items-center gap-3 text-sm'>
+            <li key={e.label} className="flex items-center gap-3 text-sm">
               <span
                 className={`w-2 h-2 rounded-full flex-shrink-0 ${
                   !passed
@@ -109,9 +109,7 @@ export function ManagerOrderTimeline({
               <span className={`flex-1 ${passed ? 'text-[#111111]' : 'text-gray-400'}`}>
                 {e.label}
               </span>
-              <span
-                className={`text-xs ${passed ? 'text-gray-500 font-medium' : 'text-gray-300'}`}
-              >
+              <span className={`text-xs ${passed ? 'text-gray-500 font-medium' : 'text-gray-300'}`}>
                 {fmtDate(e.date)}
               </span>
             </li>
@@ -120,21 +118,21 @@ export function ManagerOrderTimeline({
       </ul>
 
       {visibleAudit.length > 0 && (
-        <div className='pt-3 border-t border-gray-100 space-y-2'>
-          <h3 className='text-xs font-semibold text-gray-500 uppercase tracking-wider'>
+        <div className="pt-3 border-t border-gray-100 space-y-2">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
             Активность
           </h3>
-          <ul className='space-y-2'>
+          <ul className="space-y-2">
             {visibleAudit.map((entry) => {
               const { label, detail } = summarizeAudit(entry);
               return (
-                <li key={entry.id} className='text-sm flex items-start gap-3'>
-                  <span className='w-2 h-2 rounded-full bg-gray-300 flex-shrink-0 mt-1.5' />
-                  <div className='flex-1 min-w-0'>
-                    <div className='text-[#111111]'>{label}</div>
-                    {detail && <div className='text-xs text-gray-500 mt-0.5'>{detail}</div>}
+                <li key={entry.id} className="text-sm flex items-start gap-3">
+                  <span className="w-2 h-2 rounded-full bg-gray-300 flex-shrink-0 mt-1.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[#111111]">{label}</div>
+                    {detail && <div className="text-xs text-gray-500 mt-0.5">{detail}</div>}
                   </div>
-                  <span className='text-xs text-gray-400 whitespace-nowrap'>
+                  <span className="text-xs text-gray-400 whitespace-nowrap">
                     {fmtDateTime(entry.createdAt)}
                   </span>
                 </li>
@@ -145,7 +143,7 @@ export function ManagerOrderTimeline({
       )}
 
       {order.lastSyncedAt && (
-        <div className='text-[10px] text-gray-400 pt-2 border-t border-gray-100'>
+        <div className="text-[10px] text-gray-400 pt-2 border-t border-gray-100">
           Обновлено из 1С: {fmtDateTime(order.lastSyncedAt)}
         </div>
       )}

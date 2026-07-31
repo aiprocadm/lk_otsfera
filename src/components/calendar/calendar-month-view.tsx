@@ -4,9 +4,16 @@ import React, { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui';
-import { EventDialog } from './event-dialog';
-import { dayKey, isSameMonth, monthGridDays, monthLabel, nextMonth, prevMonth } from '@/lib/calendar/month';
+import {
+  dayKey,
+  isSameMonth,
+  monthGridDays,
+  monthLabel,
+  nextMonth,
+  prevMonth,
+} from '@/lib/calendar/month';
 import type { CalendarItem, EventFormOptions } from '@/lib/services/calendar/items';
+import { EventDialog } from './event-dialog';
 
 /**
  * M5 — месячная сетка staff-календаря + панель «Ближайшие» (спека §4 UI v1).
@@ -37,7 +44,7 @@ export function CalendarMonthView({
   month,
   today,
   calendarHref,
-  tasksHref
+  tasksHref,
 }: {
   items: CalendarItem[];
   options: EventFormOptions;
@@ -64,7 +71,9 @@ export function CalendarMonthView({
   const todayKey = dayKey(new Date(today));
   const nowMs = new Date(today).getTime();
   const upcoming = items
-    .filter((i) => new Date(i.date).getTime() >= nowMs && (i.kind === 'event' || i.completedAt === null))
+    .filter(
+      (i) => new Date(i.date).getTime() >= nowMs && (i.kind === 'event' || i.completedAt === null)
+    )
     .slice(0, UPCOMING_LIMIT);
 
   function closeSaved() {
@@ -83,7 +92,9 @@ export function CalendarMonthView({
           >
             ←
           </Link>
-          <h2 className="text-lg font-semibold text-[#111111] min-w-40 text-center">{monthLabel(month)}</h2>
+          <h2 className="text-lg font-semibold text-[#111111] min-w-40 text-center">
+            {monthLabel(month)}
+          </h2>
           <Link
             href={`${calendarHref}?m=${nextMonth(month)}`}
             aria-label="Следующий месяц"
@@ -91,7 +102,10 @@ export function CalendarMonthView({
           >
             →
           </Link>
-          <Link href={calendarHref} className="ml-2 text-sm text-gray-500 hover:text-gray-700 underline">
+          <Link
+            href={calendarHref}
+            className="ml-2 text-sm text-gray-500 hover:text-gray-700 underline"
+          >
             Сегодня
           </Link>
         </div>
@@ -144,7 +158,9 @@ export function CalendarMonthView({
                           className="block w-full truncate rounded bg-orange-100 text-orange-900 hover:bg-orange-200 text-left text-xs px-1 py-0.5"
                           title={item.title}
                         >
-                          {!item.allDay && <span className="font-medium">{timeLabel(new Date(item.date))} </span>}
+                          {!item.allDay && (
+                            <span className="font-medium">{timeLabel(new Date(item.date))} </span>
+                          )}
                           {item.title}
                         </button>
                       ) : (
@@ -174,7 +190,9 @@ export function CalendarMonthView({
           <ul className="space-y-1">
             {upcoming.map((item) => (
               <li key={`${item.kind}-${item.id}`} className="text-sm flex items-baseline gap-2">
-                <span className="text-gray-500 tabular-nums shrink-0">{upcomingDateLabel(new Date(item.date))}</span>
+                <span className="text-gray-500 tabular-nums shrink-0">
+                  {upcomingDateLabel(new Date(item.date))}
+                </span>
                 {item.kind === 'event' ? (
                   <button
                     type="button"
@@ -182,7 +200,9 @@ export function CalendarMonthView({
                     className="truncate text-left hover:underline"
                   >
                     {item.title}
-                    {item.location ? <span className="text-gray-400"> · {item.location}</span> : null}
+                    {item.location ? (
+                      <span className="text-gray-400"> · {item.location}</span>
+                    ) : null}
                   </button>
                 ) : (
                   <Link href={tasksHref} className="truncate hover:underline">

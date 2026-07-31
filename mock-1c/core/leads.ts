@@ -19,7 +19,11 @@ export function createLeadStore() {
   let counter = 0;
 
   return {
-    accept(body: LeadBody, pushFailRate: number, now: () => Date = () => new Date()): LeadAcceptResult {
+    accept(
+      body: LeadBody,
+      pushFailRate: number,
+      now: () => Date = () => new Date()
+    ): LeadAcceptResult {
       // Deterministic failure when rate >= 1; probabilistic otherwise (mock runtime only).
       if (pushFailRate >= 1 || (pushFailRate > 0 && Math.random() < pushFailRate)) {
         return { status: 500 };
@@ -41,7 +45,11 @@ export function createLeadStore() {
       return { status: 200, result };
     },
     state(): LeadStoreState {
-      return { uniqueLeads: byLeadId.size, partnerKeyFieldsSeen: [...partnerKeyFieldsSeen], lastBody };
-    }
+      return {
+        uniqueLeads: byLeadId.size,
+        partnerKeyFieldsSeen: [...partnerKeyFieldsSeen],
+        lastBody,
+      };
+    },
   };
 }

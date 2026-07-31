@@ -79,10 +79,14 @@ function sanitizeFilename(name: string): string {
 }
 
 /** Заявка в видимом скоупе сессии; чужая = несуществующая (NOT_FOUND). */
-async function loadRequestInScope(prisma: PrismaClient, session: SessionPayload, requestId: string) {
+async function loadRequestInScope(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  requestId: string
+) {
   return prisma.clientRequest.findFirst({
     where: { AND: [{ id: requestId }, clientRequestScopeWhere(session)] },
-    select: { id: true, status: true, submittedByUserId: true }
+    select: { id: true, status: true, submittedByUserId: true },
   });
 }
 
@@ -93,10 +97,16 @@ function assertSubmitterEditable(
 ): void {
   if (!request) throw new ClientRequestAttachmentError('NOT_FOUND', 'Обращение не найдено');
   if (request.submittedByUserId !== session.sub) {
-    throw new ClientRequestAttachmentError('FORBIDDEN', 'Вложения может менять только податель обращения');
+    throw new ClientRequestAttachmentError(
+      'FORBIDDEN',
+      'Вложения может менять только податель обращения'
+    );
   }
   if (!EDITABLE_STATUSES.includes(request.status)) {
-    throw new ClientRequestAttachmentError('REQUEST_NOT_EDITABLE', 'Обращение более не редактируется');
+    throw new ClientRequestAttachmentError(
+      'REQUEST_NOT_EDITABLE',
+      'Обращение более не редактируется'
+    );
   }
 }
 
@@ -120,11 +130,15 @@ export async function uploadClientRequestAttachment(
       throw new ClientRequestAttachmentError('FILE_TOO_LARGE', 'Файл превышает разрешённый размер');
     }
     const safeBase = sanitizeFilename(input.file.name);
-    if (!safeBase) throw new ClientRequestAttachmentError('INVALID_FILENAME', 'Некорректное имя файла');
+    if (!safeBase)
+      throw new ClientRequestAttachmentError('INVALID_FILENAME', 'Некорректное имя файла');
 
     const validation = validateMagicBytes(input.file.declaredMimeType, input.file.buffer);
     if (!validation.ok) {
-      throw new ClientRequestAttachmentError('UNSUPPORTED_MEDIA_TYPE', `MIME validation failed: ${validation.reason}`);
+      throw new ClientRequestAttachmentError(
+        'UNSUPPORTED_MEDIA_TYPE',
+        `MIME validation failed: ${validation.reason}`
+      );
     }
 
     const request = await loadRequestInScope(prisma, session, input.requestId);
@@ -143,7 +157,7 @@ export async function uploadClientRequestAttachment(
       log.error('[client-request-attachments] storage upload failed', {
         requestId: input.requestId,
         storagePath: path,
-        providerError: e instanceof Error ? e.message : String(e)
+        providerError: e instanceof Error ? e.message : String(e),
       });
       throw new ClientRequestAttachmentError('STORAGE_FAILURE', 'Не удалось загрузить файл');
     }
@@ -157,8 +171,8 @@ export async function uploadClientRequestAttachment(
             name: input.file.name,
             path,
             mimeType: validation.mime,
-            size: input.file.size
-          }
+            size: input.file.size,
+          },
         });
         await recordAudit(tx, {
           userId: session.sub,
@@ -169,8 +183,8 @@ export async function uploadClientRequestAttachment(
             requestId: input.requestId,
             name: input.file.name,
             mimeType: validation.mime,
-            size: input.file.size
-          }
+            size: input.file.size,
+          },
         });
         return created;
       });
@@ -178,12 +192,15 @@ export async function uploadClientRequestAttachment(
       // Best-effort enqueue асинхронного ClamAV-скана. Сбой оставляет
       // scanStatus='pending' (graceful §3 — backfill доскажет застрявшие).
       try {
-        const payload: ScanDocumentPayload = { kind: 'client_request_attachment', id: attachment.id };
+        const payload: ScanDocumentPayload = {
+          kind: 'client_request_attachment',
+          id: attachment.id,
+        };
         await getQueue('docs.scanDocument').add('scan', payload);
       } catch (err) {
         log.warn('[client-request-attachments] enqueue scan failed', {
           attachmentId: attachment.id,
-          error: err instanceof Error ? err.message : String(err)
+          error: err instanceof Error ? err.message : String(err),
         });
       }
 
@@ -207,8 +224,8 @@ export async function deleteClientRequestAttachment(
     const attachment = await prisma.clientRequestAttachment.findFirst({
       where: { AND: [{ id: args.attachmentId }, { request: clientRequestScopeWhere(session) }] },
       include: {
-        request: { select: { id: true, status: true, submittedByUserId: true } }
-      }
+        request: { select: { id: true, status: true, submittedByUserId: true } },
+      },
     });
     if (!attachment) throw new ClientRequestAttachmentError('NOT_FOUND', 'Вложение не найдено');
     assertSubmitterEditable(session, attachment.request);
@@ -220,7 +237,7 @@ export async function deleteClientRequestAttachment(
         action: 'client_request_attachment_deleted',
         entity: 'client_request_attachment',
         entityId: attachment.id,
-        after: { requestId: attachment.request.id, name: attachment.name }
+        after: { requestId: attachment.request.id, name: attachment.name },
       });
     });
 
@@ -246,7 +263,7 @@ export async function listClientRequestAttachments(
     const rows = await prisma.clientRequestAttachment.findMany({
       where: { requestId: request.id, ...INFECTED_HIDDEN_WHERE },
       orderBy: { createdAt: 'desc' },
-      include: { createdByUser: { select: { name: true } } }
+      include: { createdByUser: { select: { name: true } } },
     });
     return {
       ok: true,
@@ -257,8 +274,8 @@ export async function listClientRequestAttachments(
         mimeType: r.mimeType,
         createdAt: r.createdAt,
         createdByUserId: r.createdByUserId,
-        createdByUserName: r.createdByUser?.name ?? null
-      }))
+        createdByUserName: r.createdByUser?.name ?? null,
+      })),
     };
   } catch (e) {
     return toFailure(e);
@@ -269,27 +286,29 @@ export async function getClientRequestAttachmentDownloadUrl(
   prisma: PrismaClient,
   session: SessionPayload,
   args: { attachmentId: string }
-): Promise<{ ok: true; url: string; name: string; mimeType: string } | ClientRequestAttachmentFailure> {
+): Promise<
+  { ok: true; url: string; name: string; mimeType: string } | ClientRequestAttachmentFailure
+> {
   try {
     const attachment = await prisma.clientRequestAttachment.findFirst({
-      where: { AND: [{ id: args.attachmentId }, { request: clientRequestScopeWhere(session) }] }
+      where: { AND: [{ id: args.attachmentId }, { request: clientRequestScopeWhere(session) }] },
     });
     if (!attachment) throw new ClientRequestAttachmentError('NOT_FOUND', 'Вложение не найдено');
     if (attachment.scanStatus === 'infected') {
       throw new ClientRequestAttachmentError('INFECTED', 'Файл помещён в карантин антивирусом', {
-        scanReason: attachment.scanReason
+        scanReason: attachment.scanReason,
       });
     }
 
     let url: string;
     try {
       url = await getObjectStorage().createSignedUrl(attachment.path, DOWNLOAD_URL_TTL_SECONDS, {
-        download: attachment.name
+        download: attachment.name,
       });
     } catch (e) {
       log.error('[client-request-attachments] createSignedUrl failed', {
         attachmentId: attachment.id,
-        providerError: e instanceof Error ? e.message : String(e)
+        providerError: e instanceof Error ? e.message : String(e),
       });
       throw new ClientRequestAttachmentError('STORAGE_FAILURE', 'Не удалось создать ссылку');
     }
@@ -303,5 +322,5 @@ export async function getClientRequestAttachmentDownloadUrl(
 export const __testing = {
   maxFileSizeBytes,
   sanitizeFilename,
-  EDITABLE_STATUSES
+  EDITABLE_STATUSES,
 };

@@ -40,13 +40,13 @@ const ERROR_LABELS: Record<string, string> = {
   forbidden: 'Нет доступа к этой заявке.',
   backward_forbidden: 'Вернуть заявку на предыдущую стадию могут администратор и руководитель.',
   reason_required: 'Укажите причину отмены.',
-  status_inactive: 'Этот статус выключен в справочнике.'
+  status_inactive: 'Этот статус выключен в справочнике.',
 };
 
 const UNMET_RU: Record<CompletionCondition, string> = {
   documents_uploaded: 'Нет чистого документа',
   accounting_signed: 'Бухгалтерия не подписана',
-  certificates_issued: 'Не выданы удостоверения'
+  certificates_issued: 'Не выданы удостоверения',
 };
 
 function fmtWhen(value: Date | string): string {
@@ -56,7 +56,7 @@ function fmtWhen(value: Date | string): string {
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   }).format(d);
 }
 
@@ -79,7 +79,7 @@ export function OrderStatusPanel({
   forward,
   backward,
   terminal,
-  history
+  history,
 }: OrderStatusPanelProps) {
   const [pending, startTransition] = useTransition();
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -92,7 +92,7 @@ export function OrderStatusPanel({
       const res = await transitionOrderStatusAction({
         orderId,
         toId,
-        ...(transitionReason !== undefined ? { reason: transitionReason } : {})
+        ...(transitionReason !== undefined ? { reason: transitionReason } : {}),
       });
       if (res.ok) {
         setCancelOpen(false);
@@ -113,18 +113,18 @@ export function OrderStatusPanel({
   }
 
   return (
-    <div className='bg-white border border-gray-200 rounded-xl p-5 space-y-3'>
-      <div className='flex items-center justify-between gap-2'>
-        <h2 className='text-sm font-semibold text-[#111111]'>Статус заявки</h2>
+    <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-[#111111]">Статус заявки</h2>
         <Badge tone={current?.isTerminal ? 'warning' : current ? 'info' : 'neutral'}>
           {current?.label ?? 'Без статуса'}
         </Badge>
       </div>
 
       {unmet.length > 0 && (
-        <div role='alert' className='rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm'>
-          <p className='font-medium text-amber-800'>Заявку пока нельзя закрыть:</p>
-          <ul className='list-disc list-inside text-amber-700'>
+        <div role="alert" className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm">
+          <p className="font-medium text-amber-800">Заявку пока нельзя закрыть:</p>
+          <ul className="list-disc list-inside text-amber-700">
             {unmet.map((c) => (
               <li key={c}>{UNMET_RU[c]}</li>
             ))}
@@ -132,17 +132,17 @@ export function OrderStatusPanel({
         </div>
       )}
 
-      <div className='flex flex-wrap gap-2'>
+      <div className="flex flex-wrap gap-2">
         {forward.map((s) => (
-          <Button key={s.id} size='sm' disabled={pending} onClick={() => run(s.id)}>
+          <Button key={s.id} size="sm" disabled={pending} onClick={() => run(s.id)}>
             {s.label}
           </Button>
         ))}
         {backward.map((s) => (
           <Button
             key={s.id}
-            size='sm'
-            variant='secondary'
+            size="sm"
+            variant="secondary"
             disabled={pending}
             onClick={() => run(s.id)}
           >
@@ -151,8 +151,8 @@ export function OrderStatusPanel({
         ))}
         {terminal && !current?.isTerminal && (
           <Button
-            size='sm'
-            variant='danger'
+            size="sm"
+            variant="danger"
             disabled={pending}
             onClick={() => {
               setReason('');
@@ -165,15 +165,15 @@ export function OrderStatusPanel({
       </div>
 
       {forward.length === 0 && backward.length === 0 && !terminal && (
-        <p className='text-sm text-gray-500'>Доступных переходов нет.</p>
+        <p className="text-sm text-gray-500">Доступных переходов нет.</p>
       )}
 
       {history.length > 0 && (
-        <div className='space-y-1 pt-1'>
-          <h3 className='text-xs font-semibold text-gray-500'>История статусов</h3>
-          <ul className='space-y-1'>
+        <div className="space-y-1 pt-1">
+          <h3 className="text-xs font-semibold text-gray-500">История статусов</h3>
+          <ul className="space-y-1">
             {history.map((h) => (
-              <li key={h.id} className='text-xs text-gray-600'>
+              <li key={h.id} className="text-xs text-gray-600">
                 {fmtWhen(h.createdAt)} · {h.fromLabel ?? '—'} → <b>{h.toLabel}</b>
                 {h.userName ? ` · ${h.userName}` : ''}
                 {h.reason ? ` · ${h.reason}` : ''}
@@ -189,23 +189,23 @@ export function OrderStatusPanel({
         title={terminal ? terminal.label : 'Отмена заявки'}
         busy={pending}
       >
-        <form onSubmit={onCancelSubmit} className='space-y-3'>
-          <label htmlFor='cancel-reason' className='block text-xs font-medium text-gray-700'>
+        <form onSubmit={onCancelSubmit} className="space-y-3">
+          <label htmlFor="cancel-reason" className="block text-xs font-medium text-gray-700">
             Причина — обязательна
           </label>
           <Textarea
-            id='cancel-reason'
+            id="cancel-reason"
             rows={3}
             required
             value={reason}
             disabled={pending}
             onChange={(e) => setReason(e.target.value)}
           />
-          <div className='flex justify-end gap-2'>
-            <Button type='button' variant='secondary' onClick={() => setCancelOpen(false)}>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setCancelOpen(false)}>
               Не отменять
             </Button>
-            <Button type='submit' variant='danger' disabled={pending}>
+            <Button type="submit" variant="danger" disabled={pending}>
               Подтвердить
             </Button>
           </div>

@@ -30,22 +30,22 @@ beforeAll(async () => {
   const company = await prisma.company.create({ data: { name: `MgrStudC-${stamp}` } });
   companyId = company.id;
   const partner = await prisma.partner.create({
-    data: { name: `MgrStudP-${stamp}`, commissionRate: 0.1 }
+    data: { name: `MgrStudP-${stamp}`, commissionRate: 0.1 },
   });
   partnerId = partner.id;
 
   const orgA = await prisma.organization.create({
-    data: { name: `MgrStud-AAA-${stamp}`, partnerId, companyId }
+    data: { name: `MgrStud-AAA-${stamp}`, partnerId, companyId },
   });
   orgAId = orgA.id;
   const orgB = await prisma.organization.create({
-    data: { name: `MgrStud-BBB-${stamp}`, partnerId, companyId }
+    data: { name: `MgrStud-BBB-${stamp}`, partnerId, companyId },
   });
   orgBId = orgB.id;
   // orgC is *not* assigned to any test user — it's used to assert out-of-scope
   // visibility (its students must never leak into a manager-scoped query).
   const orgC = await prisma.organization.create({
-    data: { name: `MgrStud-CCC-${stamp}`, partnerId, companyId }
+    data: { name: `MgrStud-CCC-${stamp}`, partnerId, companyId },
   });
   orgCId = orgC.id;
 
@@ -54,8 +54,8 @@ beforeAll(async () => {
       email: `mgr-stud-a-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Manager A',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   userAId = userA.id;
   const userB = await prisma.user.create({
@@ -63,8 +63,8 @@ beforeAll(async () => {
       email: `mgr-stud-b-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Manager B',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   userBId = userB.id;
   const userGhost = await prisma.user.create({
@@ -72,20 +72,20 @@ beforeAll(async () => {
       email: `mgr-stud-ghost-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Ghost Manager',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   userGhostId = userGhost.id;
 
   // userA → orgA + orgB (multi-assignment manager), userB → orgB only.
   await prisma.organizationManager.create({
-    data: { organizationId: orgAId, userId: userAId, isActive: true }
+    data: { organizationId: orgAId, userId: userAId, isActive: true },
   });
   await prisma.organizationManager.create({
-    data: { organizationId: orgBId, userId: userAId, isActive: true }
+    data: { organizationId: orgBId, userId: userAId, isActive: true },
   });
   await prisma.organizationManager.create({
-    data: { organizationId: orgBId, userId: userBId, isActive: true }
+    data: { organizationId: orgBId, userId: userBId, isActive: true },
   });
 
   const stuA1 = await prisma.student.create({
@@ -93,32 +93,32 @@ beforeAll(async () => {
       email: `mgr-stud-a1-${stamp}@t.local`,
       name: 'Иванов Иван',
       organizationId: orgAId,
-      externalStudentId: `EXT-A1-${stamp}`
-    }
+      externalStudentId: `EXT-A1-${stamp}`,
+    },
   });
   stuA1Id = stuA1.id;
   const stuA2 = await prisma.student.create({
     data: {
       email: `mgr-stud-a2-${stamp}@t.local`,
       name: 'Петров Пётр',
-      organizationId: orgAId
-    }
+      organizationId: orgAId,
+    },
   });
   stuA2Id = stuA2.id;
   const stuB1 = await prisma.student.create({
     data: {
       email: `mgr-stud-b1-${stamp}@t.local`,
       name: 'Сидорова Анна',
-      organizationId: orgBId
-    }
+      organizationId: orgBId,
+    },
   });
   stuB1Id = stuB1.id;
   const stuC = await prisma.student.create({
     data: {
       email: `mgr-stud-c-${stamp}@t.local`,
       name: 'Кузнецов Семён',
-      organizationId: orgCId
-    }
+      organizationId: orgCId,
+    },
   });
   stuCId = stuC.id;
 });
@@ -199,7 +199,7 @@ describe('services/manager/students — filters & pagination', () => {
     const second = await listStudents(prisma, {
       session,
       take: 1,
-      cursor: first.nextCursor!
+      cursor: first.nextCursor!,
     });
     expect(second.rows.length).toBe(1);
     expect(second.rows[0]!.id).not.toBe(first.rows[0]!.id);
@@ -207,8 +207,6 @@ describe('services/manager/students — filters & pagination', () => {
 
   it('rejects take > 100 via zod validation', async () => {
     const session = managerSession(userAId, [orgAId, orgBId]);
-    await expect(
-      listStudents(prisma, { session, take: 9999 })
-    ).rejects.toThrow();
+    await expect(listStudents(prisma, { session, take: 9999 })).rejects.toThrow();
   });
 });

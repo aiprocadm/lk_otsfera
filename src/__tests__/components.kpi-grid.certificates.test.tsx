@@ -10,7 +10,12 @@ import { KpiGrid } from '@/components/partner/kpi-grid';
  * акцента; >0 — акцент; ссылка ведёт в реестр с фильтром expiring.
  */
 
-const ORG_KPIS = { activeOrders: 1, outstandingAmount: '0', studentsCount: 2, recentDocumentsCount: 3 };
+const ORG_KPIS = {
+  activeOrders: 1,
+  outstandingAmount: '0',
+  studentsCount: 2,
+  recentDocumentsCount: 3,
+};
 const PARTNER_KPIS = { openOrders: 1, outstanding: '0', commissionThisMonth: '0' };
 
 describe('OrgKpiGrid — карточка удостоверений', () => {

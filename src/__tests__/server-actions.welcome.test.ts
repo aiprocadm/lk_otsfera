@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { requireSession, revalidatePath, userUpdate } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   revalidatePath: vi.fn(),
-  userUpdate: vi.fn()
+  userUpdate: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
@@ -33,7 +33,7 @@ describe('dismissWelcomeAction — клиентские роли', () => {
     expect(userUpdate).toHaveBeenCalledTimes(1);
     expect(userUpdate).toHaveBeenCalledWith({
       where: { id: 'org-user-1' },
-      data: { welcomeSeenAt: expect.any(Date) }
+      data: { welcomeSeenAt: expect.any(Date) },
     });
     expect(revalidatePath).toHaveBeenCalledWith('/organization/dashboard');
   });
@@ -46,22 +46,25 @@ describe('dismissWelcomeAction — клиентские роли', () => {
     expect(res).toEqual({ ok: true });
     expect(userUpdate).toHaveBeenCalledWith({
       where: { id: 'partner-user-1' },
-      data: { welcomeSeenAt: expect.any(Date) }
+      data: { welcomeSeenAt: expect.any(Date) },
     });
     expect(revalidatePath).toHaveBeenCalledWith('/partner/dashboard');
   });
 });
 
 describe('dismissWelcomeAction — staff-роли отсечены', () => {
-  it.each(['manager', 'admin', 'student'] as const)('%s → ok:false, update не вызван', async (role) => {
-    requireSession.mockResolvedValue({ sub: 'staff-1', role });
+  it.each(['manager', 'admin', 'student'] as const)(
+    '%s → ok:false, update не вызван',
+    async (role) => {
+      requireSession.mockResolvedValue({ sub: 'staff-1', role });
 
-    const res = await dismissWelcomeAction();
+      const res = await dismissWelcomeAction();
 
-    expect(res).toEqual({ ok: false });
-    expect(userUpdate).not.toHaveBeenCalled();
-    expect(revalidatePath).not.toHaveBeenCalled();
-  });
+      expect(res).toEqual({ ok: false });
+      expect(userUpdate).not.toHaveBeenCalled();
+      expect(revalidatePath).not.toHaveBeenCalled();
+    }
+  );
 });
 
 describe('dismissWelcomeAction — сессия обязательна', () => {

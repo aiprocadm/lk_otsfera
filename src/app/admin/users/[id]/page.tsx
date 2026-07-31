@@ -20,13 +20,13 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
   const partners = await prisma.partner.findMany({
     where: { isActive: true },
     select: { id: true, name: true },
-    orderBy: { name: 'asc' }
+    orderBy: { name: 'asc' },
   });
 
   return (
     <div className="space-y-4 max-w-3xl">
       <div>
-        <BackLink href='/admin/users' label='Все пользователи' />
+        <BackLink href="/admin/users" label="Все пользователи" />
         <h1 className="text-2xl font-bold text-[#111111] mt-1">{user.name}</h1>
         <p className="text-sm text-gray-500">{user.email}</p>
       </div>

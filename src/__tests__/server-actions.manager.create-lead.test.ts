@@ -13,7 +13,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { requireSession, createLeadByStaff } = vi.hoisted(() => ({
   requireSession: vi.fn(),
-  createLeadByStaff: vi.fn()
+  createLeadByStaff: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
@@ -54,7 +54,7 @@ describe('createLeadByStaffAction', () => {
     createLeadByStaff.mockResolvedValue({
       ok: false,
       error: 'validation',
-      messages: ['Укажите телефон', 'Имя слишком короткое']
+      messages: ['Укажите телефон', 'Имя слишком короткое'],
     });
 
     const res = await createLeadByStaffAction(INPUT);
@@ -62,7 +62,7 @@ describe('createLeadByStaffAction', () => {
     expect(res).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['Укажите телефон', 'Имя слишком короткое']
+      messages: ['Укажите телефон', 'Имя слишком короткое'],
     });
   });
 

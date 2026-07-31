@@ -7,20 +7,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { getCompanyTeamVisibility, managerOrderScope } = vi.hoisted(() => ({
   getCompanyTeamVisibility: vi.fn(),
-  managerOrderScope: vi.fn()
+  managerOrderScope: vi.fn(),
 }));
 vi.mock('@/lib/auth/managerPolicy', () => ({
   getCompanyTeamVisibility,
   managerOrderScope,
   canSeeOrder: vi.fn(),
-  isLeaderSameCompany: vi.fn()
+  isLeaderSameCompany: vi.fn(),
 }));
 
 import { listOrdersForExport, ORDERS_EXPORT_LIMIT } from '@/lib/services/manager/orders';
 import { listOrgPaymentsForExport } from '@/lib/services/organization/finance';
 import {
   listOrgStudentsForExport,
-  updateOrgStudentPosition
+  updateOrgStudentPosition,
 } from '@/lib/services/organization/students';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -28,7 +28,7 @@ const SESSION: SessionPayload = {
   sub: 'mgr-1',
   role: 'manager',
   managedOrgIds: ['org-1'],
-  companyId: 'co-1'
+  companyId: 'co-1',
 };
 
 beforeEach(() => {
@@ -65,7 +65,7 @@ describe('listOrdersForExport', () => {
       financialStatus: 'billed',
       organizationId: 'org-1',
       unassigned: true,
-      search: 'Ромашка'
+      search: 'Ромашка',
     });
 
     const filters = findMany.mock.calls[0]![0].where.AND;
@@ -77,8 +77,8 @@ describe('listOrdersForExport', () => {
     expect(filters).toContainEqual({
       OR: [
         { title: { contains: 'Ромашка', mode: 'insensitive' } },
-        { orderNumber: { contains: 'Ромашка', mode: 'insensitive' } }
-      ]
+        { orderNumber: { contains: 'Ромашка', mode: 'insensitive' } },
+      ],
     });
   });
 
@@ -119,7 +119,7 @@ describe('listOrgStudentsForExport', () => {
     return {
       prisma: { student: { findMany, count }, certificate: { groupBy } } as never,
       findMany,
-      groupBy
+      groupBy,
     };
   }
 
@@ -129,7 +129,7 @@ describe('listOrgStudentsForExport', () => {
     email: 'i@x.ru',
     position: 'Инженер',
     externalStudentId: null,
-    createdAt: new Date('2026-01-01')
+    createdAt: new Date('2026-01-01'),
   };
 
   it('считает действующие удостоверения: бессрочные и не истёкшие', async () => {
@@ -139,7 +139,7 @@ describe('listOrgStudentsForExport', () => {
     const res = await listOrgStudentsForExport(prisma, {
       organizationId: 'org-1',
       limit: 100,
-      now
+      now,
     });
 
     expect(res.rows[0]).toMatchObject({ id: 's1', position: 'Инженер', activeCertificates: 4 });
@@ -160,7 +160,7 @@ describe('listOrgStudentsForExport', () => {
     const empty = fakePrisma([], [], 0);
     const res2 = await listOrgStudentsForExport(empty.prisma, {
       organizationId: 'org-1',
-      limit: 100
+      limit: 100,
     });
     expect(res2.rows).toEqual([]);
     expect(empty.groupBy).not.toHaveBeenCalled();
@@ -172,14 +172,14 @@ describe('listOrgStudentsForExport', () => {
     await listOrgStudentsForExport(prisma, {
       organizationId: 'org-1',
       search: 'Иван',
-      limit: 100
+      limit: 100,
     });
     expect(findMany.mock.calls[0]![0].where).toEqual({
       organizationId: 'org-1',
       OR: [
         { name: { contains: 'Иван', mode: 'insensitive' } },
-        { email: { contains: 'Иван', mode: 'insensitive' } }
-      ]
+        { email: { contains: 'Иван', mode: 'insensitive' } },
+      ],
     });
   });
 });
@@ -196,7 +196,7 @@ describe('updateOrgStudentPosition', () => {
     const res = await updateOrgStudentPosition(prisma, {
       organizationId: 'org-1',
       studentId: 's1',
-      position: '  Инженер  '
+      position: '  Инженер  ',
     });
     expect(res).toEqual({ ok: true, position: 'Инженер' });
     expect(update).toHaveBeenCalledWith({ where: { id: 's1' }, data: { position: 'Инженер' } });
@@ -207,7 +207,7 @@ describe('updateOrgStudentPosition', () => {
     const res = await updateOrgStudentPosition(prisma, {
       organizationId: 'org-1',
       studentId: 's1',
-      position: '   '
+      position: '   ',
     });
     expect(res).toEqual({ ok: true, position: null });
     expect(update).toHaveBeenCalledWith({ where: { id: 's1' }, data: { position: null } });
@@ -218,7 +218,7 @@ describe('updateOrgStudentPosition', () => {
     const res = await updateOrgStudentPosition(prisma, {
       organizationId: 'org-1',
       studentId: 'foreign',
-      position: 'Инженер'
+      position: 'Инженер',
     });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
     expect(update).not.toHaveBeenCalled();
@@ -229,7 +229,7 @@ describe('updateOrgStudentPosition', () => {
     const res = await updateOrgStudentPosition(prisma, {
       organizationId: 'org-1',
       studentId: 's1',
-      position: 'я'.repeat(201)
+      position: 'я'.repeat(201),
     });
     expect(res).toEqual({ ok: false, error: 'validation' });
     expect(findFirst).not.toHaveBeenCalled();

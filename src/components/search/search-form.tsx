@@ -5,17 +5,17 @@ import { Button, Input } from '@/components/ui';
 // навигацией на `${action}?q=...` (идиома фильтров списков, без клиентского JS).
 export function SearchForm({ action, initialQuery }: { action: string; initialQuery?: string }) {
   return (
-    <form method='get' action={action} className='flex gap-2' role='search'>
+    <form method="get" action={action} className="flex gap-2" role="search">
       <Input
-        type='search'
-        name='q'
+        type="search"
+        name="q"
         defaultValue={initialQuery ?? ''}
-        placeholder='Заказы, организации, заявки, задачи, документы…'
-        aria-label='Поисковый запрос'
+        placeholder="Заказы, организации, заявки, задачи, документы…"
+        aria-label="Поисковый запрос"
         autoFocus
-        className='flex-1'
+        className="flex-1"
       />
-      <Button type='submit'>Найти</Button>
+      <Button type="submit">Найти</Button>
     </form>
   );
 }

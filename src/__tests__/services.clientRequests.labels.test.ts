@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CLIENT_REQUEST_STATUS_LABEL,
-  clientRequestStatusLabel
+  clientRequestStatusLabel,
 } from '@/lib/services/clientRequests/labels';
 
 describe('CLIENT_REQUEST_STATUS_LABEL', () => {
@@ -14,7 +14,7 @@ describe('CLIENT_REQUEST_STATUS_LABEL', () => {
       submitted: 'Подана',
       in_triage: 'В работе',
       converted: 'Принята',
-      rejected: 'Отклонена'
+      rejected: 'Отклонена',
     });
   });
 });

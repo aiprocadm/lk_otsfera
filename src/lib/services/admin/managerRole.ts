@@ -2,8 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import { recordAudit } from '@/lib/auth/audit';
 
 export type SetManagerRoleResult =
-  | { ok: true; changed: boolean }
-  | { ok: false; error: 'user_not_found' | 'not_a_manager' };
+  { ok: true; changed: boolean } | { ok: false; error: 'user_not_found' | 'not_a_manager' };
 
 /**
  * Grant ('leader') or revoke (null) the manager leader sub-role. Admin-only
@@ -18,7 +17,7 @@ export async function setManagerRole(
 ): Promise<SetManagerRoleResult> {
   const user = await prisma.user.findUnique({
     where: { id: targetUserId },
-    select: { role: true, managerRole: true }
+    select: { role: true, managerRole: true },
   });
   if (!user) return { ok: false, error: 'user_not_found' };
   if (user.role !== 'manager') return { ok: false, error: 'not_a_manager' };
@@ -31,7 +30,7 @@ export async function setManagerRole(
     entity: 'user',
     entityId: targetUserId,
     before: { managerRole: user.managerRole },
-    after: { managerRole: role }
+    after: { managerRole: role },
   });
   return { ok: true, changed: true };
 }

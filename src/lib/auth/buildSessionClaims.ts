@@ -3,8 +3,7 @@ import type { OrganizationMembership, SessionPayload } from '@/lib/auth/jwt';
 import { toSessionAccessProfile, type SessionAccessProfile } from '@/lib/auth/accessProfile';
 
 export type BuildClaimsResult =
-  | { ok: true; claims: SessionPayload }
-  | { ok: false; error: 'account_deactivated' };
+  { ok: true; claims: SessionPayload } | { ok: false; error: 'account_deactivated' };
 
 /**
  * Сборка клеймов сессии из строки User — вынесена из login-роута (staff-2FA,
@@ -13,13 +12,16 @@ export type BuildClaimsResult =
  * (одна точка). Логика перенесена дословно; единственное отличие —
  * деактивированное партнёрское членство возвращает Result вместо Response.
  */
-export async function buildSessionClaims(prisma: PrismaClient, user: User): Promise<BuildClaimsResult> {
+export async function buildSessionClaims(
+  prisma: PrismaClient,
+  user: User
+): Promise<BuildClaimsResult> {
   let partnerRole: 'admin' | 'manager' | undefined;
   let assignedOrgIds: string[] | undefined;
 
   if (user.role === 'partner' && user.partnerId) {
     const membership = await prisma.partnerUser.findUnique({
-      where: { partnerId_userId: { partnerId: user.partnerId, userId: user.id } }
+      where: { partnerId_userId: { partnerId: user.partnerId, userId: user.id } },
     });
 
     if (membership) {
@@ -36,16 +38,15 @@ export async function buildSessionClaims(prisma: PrismaClient, user: User): Prom
   if (user.role === 'organization') {
     const memberships = await prisma.organizationUser.findMany({
       where: { userId: user.id, isActive: true },
-      select: { organizationId: true, roleInOrg: true, isActive: true }
+      select: { organizationId: true, roleInOrg: true, isActive: true },
     });
 
     organizationMemberships = memberships.map((m) => ({
       organizationId: m.organizationId,
       // Must preserve every role in OrgRoleInOrg — narrowing 'leader' to 'member'
       // here silently disables the leader feature for the whole token lifetime.
-      roleInOrg:
-        m.roleInOrg === 'admin' ? 'admin' : m.roleInOrg === 'leader' ? 'leader' : 'member',
-      isActive: m.isActive
+      roleInOrg: m.roleInOrg === 'admin' ? 'admin' : m.roleInOrg === 'leader' ? 'leader' : 'member',
+      isActive: m.isActive,
     }));
   }
 
@@ -62,7 +63,7 @@ export async function buildSessionClaims(prisma: PrismaClient, user: User): Prom
     const assigned = user.companyId
       ? await prisma.organizationManager.findMany({
           where: { userId: user.id, isActive: true, organization: { companyId: user.companyId } },
-          select: { organizationId: true }
+          select: { organizationId: true },
         })
       : [];
     managedOrgIds = assigned.map((a) => a.organizationId);
@@ -97,7 +98,7 @@ export async function buildSessionClaims(prisma: PrismaClient, user: User): Prom
       ...(organizationMemberships !== undefined ? { organizationMemberships } : {}),
       ...(managedOrgIds !== undefined ? { managedOrgIds } : {}),
       ...(managerRole !== undefined ? { managerRole } : {}),
-      ...(accessProfile !== undefined ? { accessProfile } : {})
-    }
+      ...(accessProfile !== undefined ? { accessProfile } : {}),
+    },
   };
 }

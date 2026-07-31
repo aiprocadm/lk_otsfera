@@ -6,7 +6,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
-const { assignOrInviteManagerAction } = vi.hoisted(() => ({ assignOrInviteManagerAction: vi.fn() }));
+const { assignOrInviteManagerAction } = vi.hoisted(() => ({
+  assignOrInviteManagerAction: vi.fn(),
+}));
 vi.mock('@/server-actions/admin/manager', () => ({ assignOrInviteManagerAction }));
 
 import { AssignOrInviteManagerForm } from '@/components/admin/assign-or-invite-manager-form';
@@ -54,7 +56,9 @@ describe('AssignOrInviteManagerForm', () => {
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
 
     fireEvent.click(screen.getByRole('tab', { name: 'Пригласить нового' }));
-    expect(screen.getByRole('tab', { name: 'Пригласить нового' }).getAttribute('aria-selected')).toBe('true');
+    expect(
+      screen.getByRole('tab', { name: 'Пригласить нового' }).getAttribute('aria-selected')
+    ).toBe('true');
     expect(screen.getByLabelText('Имя (необязательно)')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Пригласить' })).toBeTruthy();
   });
@@ -65,7 +69,9 @@ describe('AssignOrInviteManagerForm', () => {
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
 
     fireEvent.click(screen.getByRole('tab', { name: 'Существующий' }));
-    expect(screen.getByRole('tab', { name: 'Существующий' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: 'Существующий' }).getAttribute('aria-selected')).toBe(
+      'true'
+    );
     expect(screen.queryByLabelText('Имя (необязательно)')).toBeNull();
   });
 
@@ -117,7 +123,10 @@ describe('AssignOrInviteManagerForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
 
     await waitFor(() => expect(screen.getByText(/Приглашение отправлено на/)).toBeTruthy());
-    expect(screen.getByLabelText('Ссылка приглашения')).toHaveProperty('value', 'https://app/invite/mgr');
+    expect(screen.getByLabelText('Ссылка приглашения')).toHaveProperty(
+      'value',
+      'https://app/invite/mgr'
+    );
 
     fireEvent.click(screen.getByText('Скопировать'));
     await waitFor(() => expect(screen.getByText('Скопировано ✓')).toBeTruthy());
@@ -195,7 +204,9 @@ describe('AssignOrInviteManagerForm', () => {
     // Reopening should be back on the "existing" tab (state reset by openDialog too).
     fireEvent.click(screen.getByRole('button', { name: 'Назначить менеджера' }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(2));
-    expect(screen.getByRole('tab', { name: 'Существующий' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: 'Существующий' }).getAttribute('aria-selected')).toBe(
+      'true'
+    );
   });
 
   it('switching tabs calls reset() (clears a prior error)', async () => {

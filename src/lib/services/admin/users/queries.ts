@@ -79,12 +79,12 @@ export async function fetchUserDetail(
     include: {
       partner: { select: { name: true } },
       organizationUsers: {
-        include: { organization: { select: { id: true, name: true } } }
+        include: { organization: { select: { id: true, name: true } } },
       },
       managedOrganizations: {
-        include: { organization: { select: { id: true, name: true } } }
-      }
-    }
+        include: { organization: { select: { id: true, name: true } } },
+      },
+    },
   });
   if (!u) return null;
 
@@ -105,14 +105,14 @@ export async function fetchUserDetail(
       organizationId: ou.organizationId,
       organizationName: ou.organization.name,
       roleInOrg: ou.roleInOrg ?? '',
-      isActive: ou.isActive
+      isActive: ou.isActive,
     })),
     organizationManagerships: u.managedOrganizations.map((om) => ({
       organizationManagerId: om.id,
       organizationId: om.organizationId,
       organizationName: om.organization.name,
-      isActive: om.isActive
-    }))
+      isActive: om.isActive,
+    })),
   };
 }
 
@@ -143,14 +143,14 @@ export async function listUsers(
   const qOrClauses = filters.q
     ? [
         { email: { contains: filters.q, mode: 'insensitive' as const } },
-        { name: { contains: filters.q, mode: 'insensitive' as const } }
+        { name: { contains: filters.q, mode: 'insensitive' as const } },
       ]
     : null;
 
   const orgOrClauses = filters.organizationId
     ? [
         { organizationUsers: { some: { organizationId: filters.organizationId } } },
-        { managedOrganizations: { some: { organizationId: filters.organizationId } } }
+        { managedOrganizations: { some: { organizationId: filters.organizationId } } },
       ]
     : null;
 
@@ -169,18 +169,18 @@ export async function listUsers(
         partner: { select: { name: true } },
         organizationUsers: {
           where: { isActive: true },
-          include: { organization: { select: { name: true } } }
+          include: { organization: { select: { name: true } } },
         },
         managedOrganizations: {
           where: { isActive: true },
-          include: { organization: { select: { name: true } } }
-        }
+          include: { organization: { select: { name: true } } },
+        },
       },
       orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
       take,
-      skip
+      skip,
     }),
-    prisma.user.count({ where })
+    prisma.user.count({ where }),
   ]);
 
   const rows: UserRow[] = users.map((u) => ({
@@ -192,14 +192,14 @@ export async function listUsers(
     createdAt: u.createdAt,
     attachmentLabel: computeAttachmentLabel(u),
     invitePending: u.passwordHash === null,
-    lastLoginAt: u.lastLoginAt
+    lastLoginAt: u.lastLoginAt,
   }));
 
   await recordPiiAccess(prisma, {
     session,
     context: 'admin_users_list',
     subjectIds: rows.map((u) => u.id),
-    meta: { hasQuery: filters.q !== undefined }
+    meta: { hasQuery: filters.q !== undefined },
   });
 
   return { rows, total };

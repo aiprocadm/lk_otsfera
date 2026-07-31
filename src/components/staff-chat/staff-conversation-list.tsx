@@ -43,7 +43,9 @@ export function StaffConversationList({ rows, activeId, onSelect, onNewDm, colle
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ padding: '10px 12px', borderBottom: '1px solid #E5E7EB', position: 'relative' }}>
+      <div
+        style={{ padding: '10px 12px', borderBottom: '1px solid #E5E7EB', position: 'relative' }}
+      >
         <button
           onClick={() => setPickerOpen((v) => !v)}
           style={{
@@ -55,7 +57,7 @@ export function StaffConversationList({ rows, activeId, onSelect, onNewDm, colle
             color: '#C2410C',
             fontSize: '13px',
             fontWeight: 500,
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
         >
           + Новое сообщение
@@ -75,11 +77,13 @@ export function StaffConversationList({ rows, activeId, onSelect, onNewDm, colle
               borderRadius: '8px',
               boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
               maxHeight: '220px',
-              overflowY: 'auto'
+              overflowY: 'auto',
             }}
           >
             {colleagues.length === 0 ? (
-              <li style={{ padding: '10px 12px', fontSize: '13px', color: '#9CA3AF' }}>Нет доступных коллег</li>
+              <li style={{ padding: '10px 12px', fontSize: '13px', color: '#9CA3AF' }}>
+                Нет доступных коллег
+              </li>
             ) : (
               colleagues.map((c) => (
                 <li key={c.id}>
@@ -93,7 +97,7 @@ export function StaffConversationList({ rows, activeId, onSelect, onNewDm, colle
                       background: 'none',
                       cursor: 'pointer',
                       fontSize: '13px',
-                      color: '#111111'
+                      color: '#111111',
                     }}
                   >
                     {c.name}
@@ -106,7 +110,9 @@ export function StaffConversationList({ rows, activeId, onSelect, onNewDm, colle
       </div>
 
       {ordered.length === 0 ? (
-        <div style={{ padding: '24px 16px', textAlign: 'center', color: '#6B7280', fontSize: '13px' }}>
+        <div
+          style={{ padding: '24px 16px', textAlign: 'center', color: '#6B7280', fontSize: '13px' }}
+        >
           Нет бесед
         </div>
       ) : (
@@ -128,7 +134,7 @@ export function StaffConversationList({ rows, activeId, onSelect, onNewDm, colle
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '4px'
+                    gap: '4px',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -141,7 +147,7 @@ export function StaffConversationList({ rows, activeId, onSelect, onNewDm, colle
                           height: '8px',
                           borderRadius: '50%',
                           backgroundColor: '#F97316',
-                          flexShrink: 0
+                          flexShrink: 0,
                         }}
                       />
                     )}
@@ -152,7 +158,7 @@ export function StaffConversationList({ rows, activeId, onSelect, onNewDm, colle
                         color: '#111111',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {row.title}

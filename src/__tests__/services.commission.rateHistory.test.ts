@@ -15,7 +15,7 @@ beforeAll(async () => {
   prisma = new PrismaClient();
 
   const partner = await prisma.partner.create({
-    data: { name: 'RateHistoryTestPartner-' + Date.now(), commissionRate: 0.05 }
+    data: { name: 'RateHistoryTestPartner-' + Date.now(), commissionRate: 0.05 },
   });
   partnerId = partner.id;
 
@@ -24,8 +24,8 @@ beforeAll(async () => {
       email: 'rate-history-actor-' + Date.now() + '@x.local',
       passwordHash: 'h',
       name: 'Rate History Actor',
-      role: 'admin'
-    }
+      role: 'admin',
+    },
   });
   actorUserId = actor.id;
 
@@ -36,8 +36,8 @@ beforeAll(async () => {
       oldRate: null,
       newRate: new Prisma.Decimal('0.05'),
       effectiveFrom: new Date('2026-01-01T00:00:00Z'),
-      changedById: actorUserId
-    }
+      changedById: actorUserId,
+    },
   });
   await prisma.commissionRateChange.create({
     data: {
@@ -45,8 +45,8 @@ beforeAll(async () => {
       oldRate: new Prisma.Decimal('0.05'),
       newRate: new Prisma.Decimal('0.10'),
       effectiveFrom: new Date('2026-03-01T00:00:00Z'),
-      changedById: actorUserId
-    }
+      changedById: actorUserId,
+    },
   });
 });
 
@@ -82,7 +82,7 @@ describe('listRateHistory()', () => {
 
     // First row: rate change 0.05 → 0.10
     expect(result.rows[0].oldRate).toBeCloseTo(0.05);
-    expect(result.rows[0].newRate).toBeCloseTo(0.10);
+    expect(result.rows[0].newRate).toBeCloseTo(0.1);
     expect(result.rows[0].changedByName).toBe('Rate History Actor');
 
     // Second row: initial set — oldRate null
@@ -93,7 +93,7 @@ describe('listRateHistory()', () => {
 
   it('returns empty rows array when partner has no history', async () => {
     const emptyPartner = await prisma.partner.create({
-      data: { name: 'EmptyRateHistoryPartner-' + Date.now(), commissionRate: 0 }
+      data: { name: 'EmptyRateHistoryPartner-' + Date.now(), commissionRate: 0 },
     });
     try {
       const result = await listRateHistory(prisma, makeSession('admin'), emptyPartner.id);
@@ -110,8 +110,8 @@ describe('listRateHistory()', () => {
         oldRate: new Prisma.Decimal('0.10'),
         newRate: new Prisma.Decimal('0.15'),
         effectiveFrom: new Date('2026-06-01T00:00:00Z'),
-        changedById: null
-      }
+        changedById: null,
+      },
     });
     try {
       const result = await listRateHistory(prisma, makeSession('admin'), partnerId);
@@ -137,7 +137,7 @@ describe('listOrgRateHistory() (integration)', () => {
 
   beforeAll(async () => {
     const org = await prisma.organization.create({
-      data: { name: 'OrgRateHistoryTestOrg-' + Date.now() }
+      data: { name: 'OrgRateHistoryTestOrg-' + Date.now() },
     });
     organizationId = org.id;
 
@@ -148,8 +148,8 @@ describe('listOrgRateHistory() (integration)', () => {
         oldRate: null,
         newRate: new Prisma.Decimal('0.07'),
         effectiveFrom: new Date('2026-02-01T00:00:00Z'),
-        changedById: actorUserId
-      }
+        changedById: actorUserId,
+      },
     });
     // Сброс к ставке партнёра (newRate null)
     await prisma.organizationCommissionRateChange.create({
@@ -158,8 +158,8 @@ describe('listOrgRateHistory() (integration)', () => {
         oldRate: new Prisma.Decimal('0.07'),
         newRate: null,
         effectiveFrom: new Date('2026-05-01T00:00:00Z'),
-        changedById: actorUserId
-      }
+        changedById: actorUserId,
+      },
     });
   });
 
@@ -198,7 +198,7 @@ describe('listOrgRateHistory() (integration)', () => {
 
   it('returns empty rows array when organization has no history', async () => {
     const emptyOrg = await prisma.organization.create({
-      data: { name: 'EmptyOrgRateHistoryOrg-' + Date.now() }
+      data: { name: 'EmptyOrgRateHistoryOrg-' + Date.now() },
     });
     try {
       const result = await listOrgRateHistory(prisma, makeSession('admin'), emptyOrg.id);

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import LeaderSearchPage from '@/app/leader/search/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManagerLeader } = vi.hoisted(() => ({ requireManagerLeader: vi.fn() }));
@@ -17,7 +18,7 @@ vi.mock('@/lib/services/search/globalSearch', () => ({ globalSearch }));
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
-  })
+  }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -26,12 +27,15 @@ vi.mock('@/components/search/search-results', () => ({
   SearchResults: (props: Record<string, unknown>) => {
     resultsSpy(props);
     return React.createElement('div', { 'data-testid': 'search-results' });
-  }
+  },
 }));
 
-import LeaderSearchPage from '@/app/leader/search/page';
-
-const SESSION = { sub: 'l1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'l1',
+  role: 'manager' as const,
+  managerRole: 'leader' as const,
+  companyId: 'c1',
+};
 
 function pageProps(q?: string) {
   return { searchParams: Promise.resolve(q === undefined ? {} : { q }) };

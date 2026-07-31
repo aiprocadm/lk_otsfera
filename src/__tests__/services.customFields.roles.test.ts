@@ -16,17 +16,17 @@ import {
   sanitizeRoles,
   sessionFieldRole,
   canRoleSee,
-  canRoleEdit
+  canRoleEdit,
 } from '@/lib/services/customFields/roles';
 import {
   CUSTOM_FIELD_ENTITIES,
   CUSTOM_FIELD_ENTITY_LABELS,
-  isCustomFieldEntity
+  isCustomFieldEntity,
 } from '@/lib/services/customFields/entities';
 import {
   SYSTEM_FIELDS,
   isReservedKey,
-  systemFieldsFor
+  systemFieldsFor,
 } from '@/lib/services/customFields/systemFields';
 
 function session(role: string, extra: Partial<SessionPayload> = {}): SessionPayload {
@@ -124,7 +124,7 @@ describe('entities — закрытый список сущностей', () => 
       'organization',
       'partner',
       'student',
-      'document'
+      'document',
     ]);
   });
 
@@ -147,7 +147,7 @@ describe('systemFields — реестр §11', () => {
       'org_type',
       'partner',
       'assigned_manager',
-      'status'
+      'status',
     ]);
   });
 
@@ -155,7 +155,7 @@ describe('systemFields — реестр §11', () => {
     expect(systemFieldsFor('student').map((f) => f.key)).toEqual([
       'name',
       'organization',
-      'status'
+      'status',
     ]);
   });
 

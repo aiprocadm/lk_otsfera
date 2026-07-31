@@ -28,14 +28,15 @@ export type ValidatedItem = {
 };
 
 export type ItemsValidation =
-  | { ok: true; items: ValidatedItem[]; warnings: string[] }
-  | { ok: false; errors: string[] };
+  { ok: true; items: ValidatedItem[]; warnings: string[] } | { ok: false; errors: string[] };
 
 // Простая практичная проверка (как в остальном проекте): что-то@что-то.домен.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** СНИЛС: пусто — ок (поле необязательное); иначе после снятия маски ровно 11 цифр. */
-export function normalizeSnils(raw: string | null | undefined): { ok: true; value: string | null } | { ok: false } {
+export function normalizeSnils(
+  raw: string | null | undefined
+): { ok: true; value: string | null } | { ok: false } {
   const trimmed = raw?.trim();
   if (!trimmed) return { ok: true, value: null };
   const digits = trimmed.replace(/[\s-]/g, '');
@@ -44,7 +45,9 @@ export function normalizeSnils(raw: string | null | undefined): { ok: true; valu
 }
 
 /** Дата рождения: пусто — ок; иначе валидная дата не в будущем. Вход — ISO `YYYY-MM-DD` (date-инпут). */
-export function parseBirthDate(raw: string | null | undefined): { ok: true; value: Date | null } | { ok: false } {
+export function parseBirthDate(
+  raw: string | null | undefined
+): { ok: true; value: Date | null } | { ok: false } {
   const trimmed = raw?.trim();
   if (!trimmed) return { ok: true, value: null };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return { ok: false };
@@ -103,7 +106,9 @@ export function validateEnrollmentItems(
     const dedupeKey = studentId ? `id:${studentId}` : email ? `email:${email}` : null;
     if (dedupeKey) {
       if (seenEmails.has(dedupeKey)) {
-        warnings.push(`${name}: дубликат (${studentId ? 'сотрудник уже выбран' : email}) — объединён`);
+        warnings.push(
+          `${name}: дубликат (${studentId ? 'сотрудник уже выбран' : email}) — объединён`
+        );
         return;
       }
       seenEmails.add(dedupeKey);
@@ -116,7 +121,7 @@ export function validateEnrollmentItems(
       position: input.position?.trim() || null,
       snils: snils.ok ? snils.value : null,
       birthDate: birthDate.ok ? birthDate.value : null,
-      extra: input.extra?.trim() || null
+      extra: input.extra?.trim() || null,
     });
   });
 

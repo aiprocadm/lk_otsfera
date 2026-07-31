@@ -51,7 +51,7 @@ export function PartyAutocomplete({
   id,
   name,
   required,
-  maxLength
+  maxLength,
 }: PartyAutocompleteProps) {
   const reactId = useId();
   const listId = `${id ?? reactId}-listbox`;
@@ -85,6 +85,7 @@ export function PartyAutocomplete({
       closeList();
       return;
     }
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- async-колбэк setTimeout (debounce): ошибки пойманы try/catch внутри, возврат не используется
     debounceRef.current = setTimeout(async () => {
       const seq = ++requestSeqRef.current;
       try {
@@ -142,17 +143,17 @@ export function PartyAutocomplete({
   }
 
   return (
-    <div className='relative'>
+    <div className="relative">
       <input
-        type='text'
-        role='combobox'
+        type="text"
+        role="combobox"
         aria-expanded={open}
         aria-controls={listId}
-        aria-autocomplete='list'
+        aria-autocomplete="list"
         aria-activedescendant={
           open && activeIndex >= 0 ? `${listId}-opt-${activeIndex}` : undefined
         }
-        autoComplete='off'
+        autoComplete="off"
         id={id}
         name={name}
         required={required}
@@ -172,19 +173,16 @@ export function PartyAutocomplete({
       {open && suggestions.length > 0 && (
         <ul
           id={listId}
-          role='listbox'
-          className='absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg'
+          role="listbox"
+          className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg"
         >
           {suggestions.map((s, i) => (
             <li
               key={`${s.inn}-${s.kpp ?? ''}-${i}`}
               id={`${listId}-opt-${i}`}
-              role='option'
+              role="option"
               aria-selected={i === activeIndex}
-              className={cn(
-                'cursor-pointer px-3 py-2',
-                i === activeIndex && 'bg-orange-50'
-              )}
+              className={cn('cursor-pointer px-3 py-2', i === activeIndex && 'bg-orange-50')}
               onMouseDown={(e) => {
                 // preventDefault держит фокус на инпуте: blur-закрытие не съест клик.
                 e.preventDefault();
@@ -192,8 +190,8 @@ export function PartyAutocomplete({
               }}
               onMouseEnter={() => setActiveIndex(i)}
             >
-              <div className='text-sm text-[#111111]'>{s.name}</div>
-              <div className='text-xs text-gray-500'>
+              <div className="text-sm text-[#111111]">{s.name}</div>
+              <div className="text-xs text-gray-500">
                 ИНН {s.inn}
                 {s.address ? ` · ${s.address}` : ''}
               </div>

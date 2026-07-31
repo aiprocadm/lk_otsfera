@@ -1,9 +1,9 @@
 import React, { type ReactNode } from 'react';
-import { AdminSidebar } from './admin-sidebar';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { LogoutButton } from '@/components/ui';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { navItemsFor } from '@/lib/navigation/cabinet';
+import { AdminSidebar } from './admin-sidebar';
 
 export async function AdminAppShell({ children }: { children: ReactNode }) {
   const session = await requireAdmin();

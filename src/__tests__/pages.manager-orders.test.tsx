@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import ManagerOrdersPage from '@/app/manager/orders/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
@@ -9,8 +10,8 @@ const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 vi.mock('@/lib/services/orderStatuses', () => ({
   getOrderedStatuses: async () => [
     { id: 'st-1', label: 'Принято в работу', isActive: true },
-    { id: 'st-2', label: 'Выключенный', isActive: false }
-  ]
+    { id: 'st-2', label: 'Выключенный', isActive: false },
+  ],
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
@@ -25,7 +26,12 @@ vi.mock('@/lib/services/manager/organizations', () => ({ listOrganizations }));
 
 vi.mock('@/components/manager/manager-orders-filter', () => ({
   ManagerOrdersFilter: (props: { orgs: unknown[]; initial: unknown }) =>
-    React.createElement('div', { 'data-testid': 'orders-filter' }, JSON.stringify(props.orgs), JSON.stringify(props.initial))
+    React.createElement(
+      'div',
+      { 'data-testid': 'orders-filter' },
+      JSON.stringify(props.orgs),
+      JSON.stringify(props.initial)
+    ),
 }));
 
 vi.mock('@/components/manager/manager-orders-table', () => ({
@@ -36,17 +42,20 @@ vi.mock('@/components/manager/manager-orders-table', () => ({
       JSON.stringify(props.rows),
       String(props.nextCursor),
       JSON.stringify(props.searchParams)
-    )
+    ),
 }));
 
 vi.mock('@/components/manager/manager-orders-card-list', () => ({
   ManagerOrdersCardList: (props: { rows: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'orders-card-list' }, JSON.stringify(props.rows))
+    React.createElement('div', { 'data-testid': 'orders-card-list' }, JSON.stringify(props.rows)),
 }));
 
-import ManagerOrdersPage from '@/app/manager/orders/page';
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 
 describe('ManagerOrdersPage', () => {
   beforeEach(() => {
@@ -62,7 +71,7 @@ describe('ManagerOrdersPage', () => {
 
     const { container } = await renderServerComponent(
       ManagerOrdersPage({
-        searchParams: Promise.resolve({ search: 'test', executionStatus: 'in_progress' })
+        searchParams: Promise.resolve({ search: 'test', executionStatus: 'in_progress' }),
       })
     );
 
@@ -128,8 +137,8 @@ describe('ManagerOrdersPage — выгрузка в Excel', () => {
           search: 'abc',
           executionStatus: 'pending',
           organizationId: 'org1',
-          unassigned: '1'
-        })
+          unassigned: '1',
+        }),
       })
     );
     const link = container.querySelector('a[href*="/api/manager/orders/export"]');
@@ -146,8 +155,6 @@ describe('ManagerOrdersPage — выгрузка в Excel', () => {
     const { container } = await renderServerComponent(
       ManagerOrdersPage({ searchParams: Promise.resolve({}) })
     );
-    expect(
-      container.querySelector('a[href="/api/manager/orders/export"]')
-    ).toBeTruthy();
+    expect(container.querySelector('a[href="/api/manager/orders/export"]')).toBeTruthy();
   });
 });

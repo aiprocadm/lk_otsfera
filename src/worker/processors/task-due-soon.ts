@@ -31,28 +31,29 @@ export async function runTaskDueSoon(
     where: {
       dueDate: { not: null, lte: horizon },
       status: { not: 'done' },
-      dueSoonNotifiedAt: null
+      dueSoonNotifiedAt: null,
     },
     select: {
       id: true,
       title: true,
       dueDate: true,
       createdById: true,
-      assignees: { select: { userId: true } }
+      assignees: { select: { userId: true } },
     },
     orderBy: { dueDate: 'asc' },
-    take: BATCH_LIMIT
+    take: BATCH_LIMIT,
   });
 
   let notified = 0;
   for (const task of tasks) {
     const claimed = await prisma.task.updateMany({
       where: { id: task.id, dueSoonNotifiedAt: null },
-      data: { dueSoonNotifiedAt: now }
+      data: { dueSoonNotifiedAt: now },
     });
     if (claimed.count === 0) continue; // перехвачено конкурирующим прогоном
 
-    const recipients = task.assignees.length > 0 ? task.assignees.map((a) => a.userId) : [task.createdById];
+    const recipients =
+      task.assignees.length > 0 ? task.assignees.map((a) => a.userId) : [task.createdById];
     /* v8 ignore next -- defensive: where-фильтр отбирает только dueDate != null */
     const dueLabel = task.dueDate ? new Date(task.dueDate).toLocaleDateString('ru-RU') : '';
     const title = 'Скоро срок задачи';
@@ -64,7 +65,7 @@ export async function runTaskDueSoon(
         type: 'task_due_soon',
         title,
         body,
-        meta: { taskId: task.id, url: TASKS_BOARD_URL }
+        meta: { taskId: task.id, url: TASKS_BOARD_URL },
       });
       await deliverNotificationToUser({
         userId,
@@ -72,7 +73,7 @@ export async function runTaskDueSoon(
         body,
         type: 'task_due_soon',
         url: TASKS_BOARD_URL,
-        dedupKey: row.id
+        dedupKey: row.id,
       });
     }
 

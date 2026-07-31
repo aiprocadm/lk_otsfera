@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    ports: ["3000:3000"]
+    ports: ['3000:3000']
     env_file: .env
     depends_on:
       db:
@@ -14,34 +14,34 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: cabinet
-    ports: ["5432:5432"]
-    volumes: ["pgdata:/var/lib/postgresql/data"]
+    ports: ['5432:5432']
+    volumes: ['pgdata:/var/lib/postgresql/data']
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d cabinet"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d cabinet']
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 10s
   redis:
     image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes"]
-    ports: ["6379:6379"]
-    volumes: ["redisdata:/data"]
+    command: ['redis-server', '--appendonly', 'yes']
+    ports: ['6379:6379']
+    volumes: ['redisdata:/data']
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 3s
       retries: 10
   minio:
     image: minio/minio:latest
-    command: ["server", "/data", "--console-address", ":9001"]
+    command: ['server', '/data', '--console-address', ':9001']
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-    ports: ["9000:9000", "9001:9001"]
-    volumes: ["miniodata:/data"]
+    ports: ['9000:9000', '9001:9001']
+    volumes: ['miniodata:/data']
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ['CMD', 'mc', 'ready', 'local']
       interval: 5s
       timeout: 3s
       retries: 10

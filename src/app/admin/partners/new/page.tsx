@@ -10,7 +10,7 @@ export default async function NewPartnerPage() {
   return (
     <div className="space-y-4 max-w-3xl">
       <div>
-        <BackLink href='/admin/partners' label='Все партнёры' />
+        <BackLink href="/admin/partners" label="Все партнёры" />
         <h1 className="text-2xl font-bold text-[#111111] mt-1">Новый партнёр</h1>
       </div>
       <PartnerCreateForm />

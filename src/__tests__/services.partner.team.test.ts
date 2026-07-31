@@ -17,8 +17,12 @@ beforeAll(async () => {
   const p = await prisma.partner.create({ data: { name: 'TeamP-' + Date.now() } });
   partnerId = p.id;
   const c = await prisma.company.create({ data: { name: 'TeamC-' + Date.now() } });
-  const orgA = await prisma.organization.create({ data: { name: 'TA', partnerId, companyId: c.id } });
-  const orgB = await prisma.organization.create({ data: { name: 'TB', partnerId, companyId: c.id } });
+  const orgA = await prisma.organization.create({
+    data: { name: 'TA', partnerId, companyId: c.id },
+  });
+  const orgB = await prisma.organization.create({
+    data: { name: 'TB', partnerId, companyId: c.id },
+  });
   orgIds = [orgA.id, orgB.id];
 });
 
@@ -47,17 +51,29 @@ describe('team.listTeam', () => {
 
   it('returns active and inactive members', async () => {
     const u1 = await prisma.user.create({
-      data: { email: 't1@x.local', passwordHash: 'h', name: 'U1', role: 'partner', partnerId }
+      data: { email: 't1@x.local', passwordHash: 'h', name: 'U1', role: 'partner', partnerId },
     });
     // Пароль ещё не установлен (пригласили, но не приняли) → invitePending.
     const u2 = await prisma.user.create({
-      data: { email: 't2@x.local', passwordHash: null, name: 'U2', role: 'partner', partnerId }
+      data: { email: 't2@x.local', passwordHash: null, name: 'U2', role: 'partner', partnerId },
     });
     await prisma.partnerUser.create({
-      data: { partnerId, userId: u1.id, roleInPartner: 'admin', assignedOrgIds: [], isActive: true }
+      data: {
+        partnerId,
+        userId: u1.id,
+        roleInPartner: 'admin',
+        assignedOrgIds: [],
+        isActive: true,
+      },
     });
     await prisma.partnerUser.create({
-      data: { partnerId, userId: u2.id, roleInPartner: 'manager', assignedOrgIds: orgIds, isActive: false }
+      data: {
+        partnerId,
+        userId: u2.id,
+        roleInPartner: 'manager',
+        assignedOrgIds: orgIds,
+        isActive: false,
+      },
     });
 
     const team = await listTeam(prisma, partnerId);
@@ -78,7 +94,7 @@ describe('team.inviteMember', () => {
       email: 'new@x.local',
       name: 'Новый менеджер',
       roleInPartner: 'manager',
-      assignedOrgIds: [orgIds[0]]
+      assignedOrgIds: [orgIds[0]],
     });
 
     expect(result.ok).toBe(true);
@@ -92,7 +108,7 @@ describe('team.inviteMember', () => {
     expect(result.user.passwordHash).toBeNull();
     expect(result.inviteUrl).toMatch(/\/reset-password\?token=/);
     const token = await prisma.passwordResetToken.findFirst({
-      where: { userId: result.user.id, purpose: 'invite', usedAt: null }
+      where: { userId: result.user.id, purpose: 'invite', usedAt: null },
     });
     expect(token).not.toBeNull();
 
@@ -103,13 +119,16 @@ describe('team.inviteMember', () => {
 
   it('rejects duplicate email', async () => {
     await prisma.user.create({
-      data: { email: 'dup@x.local', passwordHash: 'h', name: 'D', role: 'partner', partnerId }
+      data: { email: 'dup@x.local', passwordHash: 'h', name: 'D', role: 'partner', partnerId },
     });
 
     expect(
       await inviteMember(prisma, {
-        partnerId, email: 'dup@x.local', name: 'X',
-        roleInPartner: 'manager', assignedOrgIds: []
+        partnerId,
+        email: 'dup@x.local',
+        name: 'X',
+        roleInPartner: 'manager',
+        assignedOrgIds: [],
       })
     ).toEqual({ ok: false, error: 'email_taken' });
   });
@@ -118,13 +137,16 @@ describe('team.inviteMember', () => {
     const otherPartner = await prisma.partner.create({ data: { name: 'OthP-' + Date.now() } });
     const c = await prisma.company.create({ data: { name: 'OthC-' + Date.now() } });
     const foreignOrg = await prisma.organization.create({
-      data: { name: 'Foreign', partnerId: otherPartner.id, companyId: c.id }
+      data: { name: 'Foreign', partnerId: otherPartner.id, companyId: c.id },
     });
 
     expect(
       await inviteMember(prisma, {
-        partnerId, email: 'x@x.local', name: 'X',
-        roleInPartner: 'manager', assignedOrgIds: [foreignOrg.id]
+        partnerId,
+        email: 'x@x.local',
+        name: 'X',
+        roleInPartner: 'manager',
+        assignedOrgIds: [foreignOrg.id],
       })
     ).toEqual({ ok: false, error: 'org_out_of_scope' });
 
@@ -137,10 +159,16 @@ describe('team.inviteMember', () => {
 describe('team.assignOrgs', () => {
   it('replaces assignedOrgIds for an existing member', async () => {
     const u = await prisma.user.create({
-      data: { email: 'as@x.local', passwordHash: 'h', name: 'A', role: 'partner', partnerId }
+      data: { email: 'as@x.local', passwordHash: 'h', name: 'A', role: 'partner', partnerId },
     });
     await prisma.partnerUser.create({
-      data: { partnerId, userId: u.id, roleInPartner: 'manager', assignedOrgIds: [orgIds[0]], isActive: true }
+      data: {
+        partnerId,
+        userId: u.id,
+        roleInPartner: 'manager',
+        assignedOrgIds: [orgIds[0]],
+        isActive: true,
+      },
     });
 
     const updated = await assignOrgs(prisma, { partnerId, userId: u.id, assignedOrgIds: orgIds });
@@ -150,10 +178,16 @@ describe('team.assignOrgs', () => {
 
   it('rejects orgs outside partner', async () => {
     const u = await prisma.user.create({
-      data: { email: 'as2@x.local', passwordHash: 'h', name: 'A', role: 'partner', partnerId }
+      data: { email: 'as2@x.local', passwordHash: 'h', name: 'A', role: 'partner', partnerId },
     });
     await prisma.partnerUser.create({
-      data: { partnerId, userId: u.id, roleInPartner: 'manager', assignedOrgIds: [], isActive: true }
+      data: {
+        partnerId,
+        userId: u.id,
+        roleInPartner: 'manager',
+        assignedOrgIds: [],
+        isActive: true,
+      },
     });
 
     expect(
@@ -165,10 +199,16 @@ describe('team.assignOrgs', () => {
 describe('team.deactivateMember', () => {
   it('flips isActive=false', async () => {
     const u = await prisma.user.create({
-      data: { email: 'd@x.local', passwordHash: 'h', name: 'D', role: 'partner', partnerId }
+      data: { email: 'd@x.local', passwordHash: 'h', name: 'D', role: 'partner', partnerId },
     });
     await prisma.partnerUser.create({
-      data: { partnerId, userId: u.id, roleInPartner: 'manager', assignedOrgIds: [], isActive: true }
+      data: {
+        partnerId,
+        userId: u.id,
+        roleInPartner: 'manager',
+        assignedOrgIds: [],
+        isActive: true,
+      },
     });
 
     const r = await deactivateMember(prisma, { partnerId, userId: u.id });
@@ -178,14 +218,15 @@ describe('team.deactivateMember', () => {
 
   it('refuses to deactivate the last admin', async () => {
     const u = await prisma.user.create({
-      data: { email: 'last@x.local', passwordHash: 'h', name: 'L', role: 'partner', partnerId }
+      data: { email: 'last@x.local', passwordHash: 'h', name: 'L', role: 'partner', partnerId },
     });
     await prisma.partnerUser.create({
-      data: { partnerId, userId: u.id, roleInPartner: 'admin', assignedOrgIds: [], isActive: true }
+      data: { partnerId, userId: u.id, roleInPartner: 'admin', assignedOrgIds: [], isActive: true },
     });
 
-    expect(
-      await deactivateMember(prisma, { partnerId, userId: u.id })
-    ).toEqual({ ok: false, error: 'last_admin_protected' });
+    expect(await deactivateMember(prisma, { partnerId, userId: u.id })).toEqual({
+      ok: false,
+      error: 'last_admin_protected',
+    });
   });
 });

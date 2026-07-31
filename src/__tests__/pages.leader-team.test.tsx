@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import LeaderTeamPage from '@/app/leader/team/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManagerLeader } = vi.hoisted(() => ({ requireManagerLeader: vi.fn() }));
@@ -19,23 +20,35 @@ const { getSlaSettings } = vi.hoisted(() => ({ getSlaSettings: vi.fn() }));
 vi.mock('@/lib/services/manager/slaSettings', () => ({ getSlaSettings }));
 vi.mock('@/components/manager/sla-settings-card', () => ({
   SlaSettingsCard: (props: { initial: unknown }) =>
-    React.createElement('div', { 'data-testid': 'sla-settings-card' }, JSON.stringify(props.initial))
+    React.createElement(
+      'div',
+      { 'data-testid': 'sla-settings-card' },
+      JSON.stringify(props.initial)
+    ),
 }));
 
 vi.mock('@/components/manager/team-visibility-toggle', () => ({
   TeamVisibilityToggle: (props: { initial: boolean }) =>
-    React.createElement('div', { 'data-testid': 'visibility-toggle' }, String(props.initial))
+    React.createElement('div', { 'data-testid': 'visibility-toggle' }, String(props.initial)),
 }));
 
 vi.mock('@/components/manager/manager-roster-panel', () => ({
   ManagerRosterPanel: (props: { roster: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'roster-panel' }, JSON.stringify(props.roster))
+    React.createElement('div', { 'data-testid': 'roster-panel' }, JSON.stringify(props.roster)),
 }));
 
-import LeaderTeamPage from '@/app/leader/team/page';
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
-const SESSION_NO_COMPANY = { sub: 'u2', role: 'manager' as const, managerRole: 'leader' as const, companyId: null };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'leader' as const,
+  companyId: 'c1',
+};
+const SESSION_NO_COMPANY = {
+  sub: 'u2',
+  role: 'manager' as const,
+  managerRole: 'leader' as const,
+  companyId: null,
+};
 
 describe('LeaderTeamPage', () => {
   beforeEach(() => {
@@ -59,7 +72,9 @@ describe('LeaderTeamPage', () => {
     expect(container.textContent).toContain('Менеджер');
     // Этап 7 (PR-3): карточка SLA с порогами компании.
     expect(getSlaSettings).toHaveBeenCalledWith({}, 'c1');
-    expect(container.querySelector('[data-testid="sla-settings-card"]')?.textContent).toContain('24');
+    expect(container.querySelector('[data-testid="sla-settings-card"]')?.textContent).toContain(
+      '24'
+    );
   });
 
   it('short-circuits to teamMode:false and an empty roster when session has no companyId', async () => {

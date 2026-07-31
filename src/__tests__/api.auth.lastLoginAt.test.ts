@@ -25,7 +25,7 @@ const {
   signTokenMock,
   signPendingMock,
   verifyPendingMock,
-  recordAuditMock
+  recordAuditMock,
 } = vi.hoisted(() => ({
   findUniqueMock: vi.fn(),
   updateUserMock: vi.fn(),
@@ -40,31 +40,31 @@ const {
   signTokenMock: vi.fn(),
   signPendingMock: vi.fn(),
   verifyPendingMock: vi.fn(),
-  recordAuditMock: vi.fn()
+  recordAuditMock: vi.fn(),
 }));
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     user: { findUnique: findUniqueMock, update: updateUserMock },
-    twoFactorChallenge: { delete: vi.fn().mockResolvedValue(undefined) }
-  }
+    twoFactorChallenge: { delete: vi.fn().mockResolvedValue(undefined) },
+  },
 }));
 vi.mock('bcryptjs', () => ({ default: { compare: compareMock } }));
 vi.mock('@/lib/rateLimit', () => ({ isRateLimited: isRateLimitedMock }));
 vi.mock('@/lib/featureFlags', () => ({
   isFeatureEnabled: isFeatureEnabledMock,
-  notFoundIfDisabled: notFoundIfDisabledMock
+  notFoundIfDisabled: notFoundIfDisabledMock,
 }));
 vi.mock('@/lib/services/auth/twoFactor', () => ({
   createTwoFactorChallenge: createChallengeMock,
-  verifyTwoFactorCode: verifyCodeMock
+  verifyTwoFactorCode: verifyCodeMock,
 }));
 vi.mock('@/lib/email/send', () => ({ send: sendMock }));
 vi.mock('@/lib/auth/buildSessionClaims', () => ({ buildSessionClaims: buildClaimsMock }));
 vi.mock('@/lib/auth/jwt', () => ({
   signToken: signTokenMock,
   signTwoFactorPendingToken: signPendingMock,
-  verifyTwoFactorPendingToken: verifyPendingMock
+  verifyTwoFactorPendingToken: verifyPendingMock,
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
 
@@ -81,16 +81,23 @@ const PARTNER = {
   companyId: null,
   partnerId: 'p1',
   organizationId: null,
-  externalStudentId: null
+  externalStudentId: null,
 };
 
-const MANAGER = { ...PARTNER, id: 'u-mgr', email: 'm@x.ru', role: 'manager', partnerId: null, companyId: 'c1' };
+const MANAGER = {
+  ...PARTNER,
+  id: 'u-mgr',
+  email: 'm@x.ru',
+  role: 'manager',
+  partnerId: null,
+  companyId: 'c1',
+};
 
 function loginReq(body: unknown): Request {
   return new Request('http://x/api/auth/login', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
 }
 
@@ -98,7 +105,7 @@ function verifyReq(body: unknown, cookie = '2fa_pending=t'): NextRequest {
   return new NextRequest('http://x/api/auth/2fa/verify', {
     method: 'POST',
     headers: { 'content-type': 'application/json', cookie },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
 }
 
@@ -131,7 +138,7 @@ describe('POST /api/auth/login — отметка lastLoginAt', () => {
     expect(updateUserMock).toHaveBeenCalledTimes(1);
     expect(updateUserMock).toHaveBeenCalledWith({
       where: { id: 'u-partner' },
-      data: { lastLoginAt: expect.any(Date) }
+      data: { lastLoginAt: expect.any(Date) },
     });
     // Отметка — «сейчас», а не какая-то произвольная дата
     const { lastLoginAt } = updateUserMock.mock.calls[0][0].data as { lastLoginAt: Date };
@@ -160,7 +167,7 @@ describe('POST /api/auth/login — отметка lastLoginAt', () => {
     expect(res.status).toBe(200);
     expect(updateUserMock).toHaveBeenCalledWith({
       where: { id: 'u-mgr' },
-      data: { lastLoginAt: expect.any(Date) }
+      data: { lastLoginAt: expect.any(Date) },
     });
   });
 
@@ -222,7 +229,7 @@ describe('POST /api/auth/2fa/verify — отметка lastLoginAt', () => {
     expect(updateUserMock).toHaveBeenCalledTimes(1);
     expect(updateUserMock).toHaveBeenCalledWith({
       where: { id: 'u-mgr' },
-      data: { lastLoginAt: expect.any(Date) }
+      data: { lastLoginAt: expect.any(Date) },
     });
     const { lastLoginAt } = updateUserMock.mock.calls[0][0].data as { lastLoginAt: Date };
     expect(lastLoginAt.getTime()).toBeGreaterThanOrEqual(before);
@@ -237,7 +244,7 @@ describe('POST /api/auth/2fa/verify — отметка lastLoginAt', () => {
     expect(res.status).toBe(200);
     expect(updateUserMock).toHaveBeenCalledWith({
       where: { id: 'u-mgr' },
-      data: { lastLoginAt: expect.any(Date) }
+      data: { lastLoginAt: expect.any(Date) },
     });
   });
 

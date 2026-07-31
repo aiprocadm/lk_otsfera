@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { type Prisma } from '@prisma/client';
 
 /**
  * A5 (§9.1): историческая ставка партнёра. Резолвит ставку, действовавшую на

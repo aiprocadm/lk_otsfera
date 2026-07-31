@@ -20,7 +20,7 @@ describe('EmployeesTab (async server component)', () => {
 
   it('renders each employee with name, email and role badge when roleInOrg is set', async () => {
     findMany.mockResolvedValue([
-      { id: 'ou1', roleInOrg: 'admin', user: { name: 'Анна Смирнова', email: 'anna@x.com' } }
+      { id: 'ou1', roleInOrg: 'admin', user: { name: 'Анна Смирнова', email: 'anna@x.com' } },
     ]);
     const element = await EmployeesTab({ orgId: 'org1' });
     const html = renderToString(element);
@@ -31,7 +31,7 @@ describe('EmployeesTab (async server component)', () => {
 
   it('omits the role badge when roleInOrg is null/falsy', async () => {
     findMany.mockResolvedValue([
-      { id: 'ou2', roleInOrg: null, user: { name: 'Без роли', email: 'norole@x.com' } }
+      { id: 'ou2', roleInOrg: null, user: { name: 'Без роли', email: 'norole@x.com' } },
     ]);
     const element = await EmployeesTab({ orgId: 'org1' });
     const html = renderToString(element);
@@ -45,7 +45,7 @@ describe('EmployeesTab (async server component)', () => {
     expect(findMany).toHaveBeenCalledWith({
       where: { organizationId: 'org42', isActive: true },
       include: { user: { select: { name: true, email: true } } },
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: 'asc' },
     });
   });
 });
