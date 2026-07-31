@@ -1,9 +1,9 @@
-import type { ParsedRow } from './types';
 import { classifyRow } from './classify';
 import {
   parseRusDate, parseAmount, extractDocNumber, extractAccountCandidates,
   extractCounterparty, extractInn, extractVat,
 } from './extractors';
+import type { ParsedRow } from './types';
 
 const START_MARKER = /Сальдо\s+на\s+начало/i;
 const END_MARKER = /Обороты\s+за\s+период/i;

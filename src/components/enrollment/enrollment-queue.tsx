@@ -4,10 +4,10 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { EnrollmentRow } from '@/lib/services/enrollments/list';
 import { TableShell, THead, Th, Tr, Td, EmptyState, Button } from '@/components/ui';
-import { EnrollmentStatusBadge } from './enrollment-status-badge';
 import { toast } from '@/lib/ui/toast';
 import { fmtDate } from '@/lib/format';
 import { pluralizeRu } from '@/lib/format';
+import { EnrollmentStatusBadge } from './enrollment-status-badge';
 
 /**
  * Reviewer queue: manager/leader/admin approve / reject / mark provisioned /
@@ -83,7 +83,7 @@ export function EnrollmentQueue({ rows }: { rows: EnrollmentRow[] }) {
           const toCerts = r.items.filter((i) => i.status === 'in_training').map((i) => i.id);
           const advance = (eligible: string[], action: string, ok: string) => {
             const chosen = eligible.filter((id) => selected.has(id));
-            act(r.id, { action, ...(chosen.length ? { itemIds: chosen } : {}) }, ok);
+            void act(r.id, { action, ...(chosen.length ? { itemIds: chosen } : {}) }, ok);
           };
           return (
             <React.Fragment key={r.id}>
@@ -138,7 +138,7 @@ export function EnrollmentQueue({ rows }: { rows: EnrollmentRow[] }) {
                           );
                           if (sid === null) return;
                           if (r.studentCount <= 1 && !sid.trim()) return;
-                          act(r.id, { action: 'markProvisioned', externalStudentId: sid.trim() }, 'Отмечено: зачислены');
+                          void act(r.id, { action: 'markProvisioned', externalStudentId: sid.trim() }, 'Отмечено: зачислены');
                         }}
                       >
                         Зачислены
@@ -171,7 +171,7 @@ export function EnrollmentQueue({ rows }: { rows: EnrollmentRow[] }) {
                         loading={busy}
                         onClick={() => {
                           const reason = window.prompt('Причина отклонения:');
-                          if (reason !== null) act(r.id, { action: 'reject', reason }, 'Заявка отклонена');
+                          if (reason !== null) void act(r.id, { action: 'reject', reason }, 'Заявка отклонена');
                         }}
                       >
                         Отклонить

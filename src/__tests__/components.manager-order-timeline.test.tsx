@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import React from 'react';
+import type { AuditLog } from '@prisma/client';
 import { ManagerOrderTimeline } from '@/components/manager/manager-order-timeline';
 import type { ManagerOrderDetail } from '@/lib/services/manager/orders';
-import type { AuditLog } from '@prisma/client';
 
 function makeOrder(overrides: Partial<ManagerOrderDetail>): ManagerOrderDetail {
   return {

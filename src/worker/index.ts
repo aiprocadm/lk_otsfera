@@ -11,6 +11,7 @@ import { getRedisConnection, closeRedisConnection } from '@/lib/jobs/connection'
 import { closeAllQueues, getQueue, type QueueName } from '@/lib/jobs/queues';
 import { registerSyncSchedules, registerCommissionSchedules, registerAlertSchedules, registerCertExpirySchedules, registerCalendarReminderSchedules, registerTaskDueSoonSchedules, registerSlaEscalationSchedules, loadPausedSchedulerIds } from '@/lib/jobs/scheduling';
 import { prisma } from '@/lib/db/prisma';
+import type { PushLeadJobPayload } from '@/lib/jobs/types';
 import { toBullProcessor } from './to-bull-processor';
 import { syncOrdersProcessor } from './processors/sync-orders';
 import { syncPaymentsProcessor } from './processors/sync-payments';
@@ -31,7 +32,6 @@ import { dispatchNotificationProcessor } from './processors/dispatch-notificatio
 import { pollInboundEmailProcessor } from './processors/poll-inbound-email';
 import { mangoRecordingProcessor } from './processors/mango-recording';
 import { mangoBackfillProcessor } from './processors/mango-backfill';
-import type { PushLeadJobPayload } from '@/lib/jobs/types';
 
 // No-op без DSN (локально/в тестах Sentry не шумит и не ходит в сеть).
 // beforeSend-скраббер — общий с Next-инициализацией (152-ФЗ: без ПДн/секретов).
@@ -138,6 +138,7 @@ async function main() {
     'oneCSync.pushLead',
     pushLeadProcessor as Processor
   );
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises -- BullMQ допускает async-слушатель 'failed'; ошибки обрабатываются внутри
   pushLeadWorker.on('failed', async (job, err) => {
     if (!job) return;
     if ((job.attemptsMade ?? 0) >= (job.opts?.attempts ?? 1)) {

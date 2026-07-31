@@ -1,9 +1,9 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
-import { resolveInboundSender } from './resolve';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { log } from '@/lib/logging';
+import { resolveInboundSender } from './resolve';
 
 export type InboundDto = {
   // Этап 9 (ФТ-11.1): `cabinet` — вопрос из личного кабинета клиента.

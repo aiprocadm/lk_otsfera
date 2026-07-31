@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import ManagerOrgDetailPage from '@/app/manager/organizations/[id]/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManagerForOrg } = vi.hoisted(() => ({ requireManagerForOrg: vi.fn() }));
@@ -60,7 +61,6 @@ vi.mock('@/components/manager/org-card-tabs', () => ({
   ]
 }));
 
-import ManagerOrgDetailPage from '@/app/manager/organizations/[id]/page';
 
 const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
 const CARD = { id: 'org-1', name: 'Org' };

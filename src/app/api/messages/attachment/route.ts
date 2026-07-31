@@ -1,9 +1,9 @@
+import type { ThreadSide } from '@prisma/client';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { requireSession } from '@/lib/auth/guard';
 import { prisma } from '@/lib/db/prisma';
 import { uploadChatAttachment, getChatAttachmentSignedUrl } from '@/lib/services/chat/attachments';
 import { deriveSide } from '@/lib/services/chat/policy';
-import type { ThreadSide } from '@prisma/client';
 
 /**
  * POST /api/messages/attachment

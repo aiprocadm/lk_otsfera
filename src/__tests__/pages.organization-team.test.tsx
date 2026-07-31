@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import OrganizationTeamPage from '@/app/organization/team/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { getOrgPageContext } = vi.hoisted(() => ({ getOrgPageContext: vi.fn() }));
@@ -24,7 +25,6 @@ vi.mock('@/components/organization/org-app-shell', () => ({
     React.createElement('div', { 'data-testid': 'org-app-shell' }, props.activeOrgName, props.children)
 }));
 
-import OrganizationTeamPage from '@/app/organization/team/page';
 
 function ctx(viewerRole: 'admin' | 'leader' | 'member') {
   return {

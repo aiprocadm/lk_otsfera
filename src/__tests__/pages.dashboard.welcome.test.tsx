@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { renderServerComponent } from './helpers/renderServerComponent';
 
 /**
  * Этап 4 (ФТ-10.4): одноразовый welcome-блок на дашбордах организации и
@@ -53,6 +52,7 @@ vi.mock('@/components/organization/org-app-shell', () => ({
 
 import OrganizationDashboardPage from '@/app/organization/dashboard/page';
 import PartnerDashboard from '@/app/partner/dashboard/page';
+import { renderServerComponent } from './helpers/renderServerComponent';
 
 const ORG_CTX = {
   session: { sub: 'u1', role: 'organization' as const, email: 'org@example.com' },

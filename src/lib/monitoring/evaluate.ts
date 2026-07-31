@@ -1,6 +1,6 @@
-import type { Thresholds } from './thresholds';
 import type { QueueStatsRow } from '@/lib/services/admin/queueStats';
 import type { SyncLagRow } from '@/lib/services/admin/syncHealth';
+import type { Thresholds } from './thresholds';
 
 export type Severity = 'warning' | 'critical';
 export type Breach = { key: string; severity: Severity; message: string; value: number };

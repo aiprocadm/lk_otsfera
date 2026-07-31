@@ -6,9 +6,9 @@ import { useRouter } from 'next/navigation';
 import { Badge, Button } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { claimIntakeAction, closeCallIntakeAction } from '@/server-actions/intake';
+import type { IntakeItem, IntakeSlaLevel, IntakeType } from '@/lib/services/intake/list';
 import { CreateLeadFromSourceDialog, type LeadPrefill, type LeadSourceKind } from './create-lead-from-source-dialog';
 import { QuickTaskDialog } from './quick-task-dialog';
-import type { IntakeItem, IntakeSlaLevel, IntakeType } from '@/lib/services/intake/list';
 
 /**
  * Этап 7 (ФТ-8.1/8.2) — таблица «Входящие в работу»: тип, от кого, суть,

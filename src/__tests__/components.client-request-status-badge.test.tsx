@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import React from 'react';
+import type { ClientRequestStatus } from '@prisma/client';
 import {
   ClientRequestStatusBadge,
   clientRequestStatusBadgeLabel
 } from '@/components/client-requests/client-request-status-badge';
-import type { ClientRequestStatus } from '@prisma/client';
 
 const CASES: Array<{ status: ClientRequestStatus; label: string; toneClass: string }> = [
   { status: 'submitted', label: 'Подана', toneClass: 'bg-amber-50' },

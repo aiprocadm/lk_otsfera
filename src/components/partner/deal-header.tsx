@@ -1,10 +1,10 @@
 import React from 'react';
 import Link from 'next/link';
 import type { DealDetail } from '@/lib/services/partner/dealDetail';
-import { DealStatusBadge } from './deal-status-badge';
 import { orderTypeRu } from '@/lib/i18n/labels';
 import { orderWorkingStage, WORKING_STAGE_LABELS } from '@/lib/orders/humanStage';
 import { OrderStageStepper } from '@/components/orders/order-stage-stepper';
+import { DealStatusBadge } from './deal-status-badge';
 
 export function DealHeader({ deal }: { deal: DealDetail }) {
   const workingStage = orderWorkingStage({

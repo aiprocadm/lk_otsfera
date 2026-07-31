@@ -3,8 +3,8 @@
 // (docs/integrations/1c-meeting-agenda.md). Each constant is tagged with its
 // DECISION Q#. If 1C answers "not REST" (Q1), this file + adapter-rest.ts are
 // the only throwaway code — the rest of oneCSync is transport-agnostic.
-import type { SyncCursor, OneCLeadPushPayload } from './dto';
 import { translateFinancialStatus, translateExecutionStatus } from './translate';
+import type { SyncCursor, OneCLeadPushPayload } from './dto';
 
 // DECISION Q1: REST endpoint paths (or OData / file-export).
 export const ENDPOINTS = {

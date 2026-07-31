@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import AdminHealthPage from '@/app/admin/health/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
@@ -45,7 +46,6 @@ vi.mock('@/components/admin/sync-errors-section', () => ({
     React.createElement('div', { 'data-testid': 'sync-errors-section' }, JSON.stringify(props.errors))
 }));
 
-import AdminHealthPage from '@/app/admin/health/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 

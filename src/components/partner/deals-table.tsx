@@ -1,8 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
 import type { DealRow } from '@/lib/services/partner/deals';
-import { DealStatusBadge } from './deal-status-badge';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
+import { DealStatusBadge } from './deal-status-badge';
 
 function fmtMoney(s: string): string {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Number(s)) + ' ₽';

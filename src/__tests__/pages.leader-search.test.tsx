@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import LeaderSearchPage from '@/app/leader/search/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManagerLeader } = vi.hoisted(() => ({ requireManagerLeader: vi.fn() }));
@@ -29,7 +30,6 @@ vi.mock('@/components/search/search-results', () => ({
   }
 }));
 
-import LeaderSearchPage from '@/app/leader/search/page';
 
 const SESSION = { sub: 'l1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
 

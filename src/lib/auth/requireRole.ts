@@ -1,6 +1,4 @@
 import { notFound, redirect } from 'next/navigation';
-import { getSession } from './session';
-import type { SessionPayload } from './jwt';
 import { prisma } from '@/lib/db/prisma';
 import {
   canSeeOrder,
@@ -9,6 +7,8 @@ import {
   getCompanyTeamVisibility,
   isLeaderSameCompany
 } from '@/lib/auth/managerPolicy';
+import { getSession } from './session';
+import type { SessionPayload } from './jwt';
 
 export async function requireSession(): Promise<SessionPayload> {
   const session = await getSession();

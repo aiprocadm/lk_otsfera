@@ -17,9 +17,9 @@ vi.mock('@/lib/storage', () => ({
 }));
 vi.mock('jose', () => ({ jwtVerify: vi.fn() }));
 
+import { jwtVerify } from 'jose';
 import { GET as pdfGet } from '@/app/api/partner/finance/statements/[id]/pdf/route';
 import { GET as xlsxGet } from '@/app/api/partner/finance/statements/[id]/xlsx/route';
-import { jwtVerify } from 'jose';
 import { middleware } from '@/middleware';
 
 const ORIGINAL_ENV = { ...process.env };

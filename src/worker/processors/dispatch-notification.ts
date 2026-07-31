@@ -1,5 +1,5 @@
+import { type Prisma, type PrismaClient } from '@prisma/client';
 import type { Job } from 'bullmq';
-import { Prisma, type PrismaClient } from '@prisma/client';
 import { getChannels } from '@/lib/notifications/channels/registry';
 import {
   CHANNEL_RECIPIENT_SELECT,

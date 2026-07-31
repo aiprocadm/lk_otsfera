@@ -13,12 +13,12 @@ const { isTelegramEnabled, sendTelegramMessage, sendNotificationEmail } = vi.hoi
 vi.mock('@/lib/telegram/client', () => ({ isTelegramEnabled, sendTelegramMessage }));
 vi.mock('@/lib/email/send', () => ({ sendNotificationEmail }));
 
+import type { Job } from 'bullmq';
 import {
   runDispatchNotification,
   reviveChannelPayload,
   dispatchNotificationProcessor,
 } from '@/worker/processors/dispatch-notification';
-import type { Job } from 'bullmq';
 import type { NotificationDispatchPayload } from '@/lib/jobs/types';
 
 const prisma = new PrismaClient();

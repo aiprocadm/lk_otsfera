@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import AdminOrderDetailPage from '@/app/admin/orders/[id]/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
@@ -52,7 +53,6 @@ vi.mock('@/components/orders/order-custom-fields', () => ({
     )
 }));
 
-import AdminOrderDetailPage from '@/app/admin/orders/[id]/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 

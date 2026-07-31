@@ -102,7 +102,7 @@ export function EnrollmentWizard({
   useEffect(() => {
     if (!organizationId) return;
     let cancelled = false;
-    fetch(`/api/enrollments/students?organizationId=${encodeURIComponent(organizationId)}`)
+    void fetch(`/api/enrollments/students?organizationId=${encodeURIComponent(organizationId)}`)
       .then(async (res) => (res.ok ? ((await res.json()) as { students: StudentOption[] }).students : []))
       .catch(() => [] as StudentOption[])
       .then((list) => {
@@ -375,7 +375,7 @@ export function EnrollmentWizard({
                   disabled={importBusy}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file) importFile(file);
+                    if (file) void importFile(file);
                   }}
                 />
               </label>

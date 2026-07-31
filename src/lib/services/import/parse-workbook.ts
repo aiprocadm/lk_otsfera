@@ -1,4 +1,4 @@
-import ExcelJS from 'exceljs';
+import type ExcelJS from 'exceljs';
 import { SHEET_NAMES, ORG_COLS, ORDER_COLS, PAYMENT_COLS } from './column-map';
 import { loadXlsxWorkbook } from './load-xlsx';
 

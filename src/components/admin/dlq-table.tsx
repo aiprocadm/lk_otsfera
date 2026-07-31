@@ -1,7 +1,7 @@
 import React from 'react';
 import type { DlqRow } from '@/lib/services/admin/queueStats';
-import { RetryButton } from './retry-button';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
+import { RetryButton } from './retry-button';
 
 function ageLabel(d: Date | null): string {
   if (!d) return '—';

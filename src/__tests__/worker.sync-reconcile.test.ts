@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { syncReconcileProcessor } from '@/worker/processors/sync-reconcile';
 import type { PrismaClient } from '@prisma/client';
 import type { Job } from 'bullmq';
+import { syncReconcileProcessor } from '@/worker/processors/sync-reconcile';
 
 type FindFirstQuery = { where: { entity: string } };
 

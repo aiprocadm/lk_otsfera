@@ -1,4 +1,5 @@
 import React from 'react';
+import type { TrainingDirection } from '@prisma/client';
 import { BackLink, Breadcrumbs } from '@/components/ui';
 import type { Crumb } from '@/lib/navigation/breadcrumbs';
 import { ManagerOrderHeader } from '@/components/manager/manager-order-header';
@@ -15,7 +16,6 @@ import { DealActivityThread } from '@/components/manager/deal-activity/deal-acti
 import type { ManagerOrderDetailData } from '@/lib/services/manager/orderDetail';
 import type { FieldWithValue } from '@/lib/services/customFields';
 import type { ActivityItem } from '@/lib/services/manager/dealActivity';
-import type { TrainingDirection } from '@prisma/client';
 
 type Student = { id: string; name: string; email: string };
 

@@ -125,7 +125,7 @@ export function MemberRowActions({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            saveOrgs();
+            void saveOrgs();
           }}
           className='space-y-4'
         >

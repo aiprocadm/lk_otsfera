@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import AdminCommissionStatementDetailPage from '@/app/admin/commission-statements/[id]/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
@@ -27,7 +28,6 @@ vi.mock('@/components/admin/mark-paid-form', () => ({
     React.createElement('div', { 'data-testid': 'mark-paid-form' }, props.statementId, props.status)
 }));
 
-import AdminCommissionStatementDetailPage from '@/app/admin/commission-statements/[id]/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 

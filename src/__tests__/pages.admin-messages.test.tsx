@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import AdminMessagesPage from '@/app/admin/messages/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
@@ -38,7 +39,6 @@ vi.mock('@/components/staff-chat/staff-unread-badge', () => ({
   StaffUnreadBadge: () => React.createElement('span', { 'data-testid': 'staff-unread-badge' })
 }));
 
-import AdminMessagesPage from '@/app/admin/messages/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 

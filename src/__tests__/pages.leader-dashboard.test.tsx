@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import LeaderDashboardPage from '@/app/leader/dashboard/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManagerLeader } = vi.hoisted(() => ({ requireManagerLeader: vi.fn() }));
@@ -24,7 +25,6 @@ vi.mock('@/components/manager/manager-events-feed', () => ({
     React.createElement('div', { 'data-testid': 'events-feed' }, JSON.stringify(props.events))
 }));
 
-import LeaderDashboardPage from '@/app/leader/dashboard/page';
 
 const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
 

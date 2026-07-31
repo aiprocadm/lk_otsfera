@@ -1,7 +1,7 @@
-import type { InboundEmailAdapter } from './adapter';
+import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
 import { FakeInboundEmailAdapter } from './adapter-fake';
 import { ImapInboundEmailAdapter } from './adapter-imap';
-import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
+import type { InboundEmailAdapter } from './adapter';
 
 // Синглтон кэшируется ПО ВИДУ адаптера (паттерн email/transport.ts): выбор
 // `imap.adapter` редактируется в /admin/integrations — при смене значения

@@ -1,3 +1,5 @@
+import { FAKE_ORGS } from './fixtures/orgs';
+import { FAKE_ORDERS, FAKE_PAYMENTS, FAKE_DOCUMENTS } from './fixtures/orders';
 import type { OneCAdapter } from './adapter';
 import type {
   OneCOrgDto,
@@ -8,8 +10,6 @@ import type {
   OneCLeadPushResult,
   SyncCursor
 } from './dto';
-import { FAKE_ORGS } from './fixtures/orgs';
-import { FAKE_ORDERS, FAKE_PAYMENTS, FAKE_DOCUMENTS } from './fixtures/orders';
 
 function afterCursor<T extends { updatedAt: string }>(items: T[], cursor: SyncCursor): T[] {
   if (!cursor.since) return items;

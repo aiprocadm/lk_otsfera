@@ -1,7 +1,7 @@
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
-import type { InboundEmailAdapter, InboundEmailDto, InboundEmailFetchResult } from './adapter';
 import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
+import type { InboundEmailAdapter, InboundEmailDto, InboundEmailFetchResult } from './adapter';
 
 export type ImapConfig = {
   host?: string;

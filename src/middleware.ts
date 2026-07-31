@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
+import type { NextRequest } from 'next/server';
 import { protectedPrefixes, roleHome } from '@/lib/auth/access';
 import type { Role } from '@/lib/auth/jwt';
 import { isFeatureEnabled, type FeatureFlag } from '@/lib/featureFlags';

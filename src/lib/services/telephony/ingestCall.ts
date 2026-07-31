@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { MangoEvent } from '@/lib/telephony/mango/parse';
-import { resolveCaller } from './resolveCaller';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
+import { resolveCaller } from './resolveCaller';
 
 export type IngestCallResult = { ok: true; id: string; needsRecording?: boolean } | { ok: false; error: 'storage' };
 

@@ -1,6 +1,6 @@
 import React from 'react';
-import { prisma } from '@/lib/db/prisma';
 import { redirect } from 'next/navigation';
+import { prisma } from '@/lib/db/prisma';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { TeamTable } from '@/components/organization/team-table';

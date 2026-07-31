@@ -1,6 +1,6 @@
-import type { Job } from 'bullmq';
-import type { PrismaClient } from '@prisma/client';
 import { Socket } from 'node:net';
+import type { PrismaClient } from '@prisma/client';
+import type { Job } from 'bullmq';
 import { prisma } from '@/lib/db/prisma';
 import { getObjectStorage } from '@/lib/storage';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';

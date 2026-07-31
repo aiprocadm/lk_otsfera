@@ -6,8 +6,8 @@ import type { ClientRequestRow } from '@/lib/services/clientRequests/list';
 import { TableShell, THead, Th, Tr, Td, EmptyState, Button } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { fmtDate } from '@/lib/format';
-import { ClientRequestStatusBadge } from './client-request-status-badge';
 import { InnDuplicateHint } from '@/components/party/inn-duplicate-hint';
+import { ClientRequestStatusBadge } from './client-request-status-badge';
 import {
   ClientRequestAttachmentsList,
   type ClientRequestAttachmentRowVM
@@ -165,7 +165,7 @@ export function ClientRequestQueue({ rows }: { rows: ClientRequestRow[] }) {
                         onClick={() => {
                           const reason = window.prompt('Причина отклонения:');
                           if (reason !== null) {
-                            act(r.id, { action: 'reject', reason }, 'Обращение отклонено');
+                            void act(r.id, { action: 'reject', reason }, 'Обращение отклонено');
                           }
                         }}
                       >

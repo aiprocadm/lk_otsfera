@@ -1,9 +1,9 @@
 import type { Deal, Lead, Order, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
+import { getInitialStatusId } from '@/lib/services/orderStatuses';
 import { dealScopeWhere } from './board';
 import { resolveDealStages } from './stages';
-import { getInitialStatusId } from '@/lib/services/orderStatuses';
 
 /**
  * Этап 6 PR-2 (ФТ-4.4) — конверсии: Лид → Сделка и Сделка → Заказ (выигрыш).

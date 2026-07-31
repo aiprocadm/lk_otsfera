@@ -1,9 +1,9 @@
 import type { PrismaClient, ThreadSide } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { canSeeThread } from './policy';
 import { recordAudit } from '@/lib/auth/audit';
 import { notifyManagers, notifyOrgUsers } from '@/lib/notifications';
 import { log } from '@/lib/logging';
+import { canSeeThread } from './policy';
 
 export type ListMessagesResult =
   | { ok: true; rows: Array<{ id: string; authorId: string; authorName: string; body: string; hasAttachment: boolean; createdAt: Date }> }

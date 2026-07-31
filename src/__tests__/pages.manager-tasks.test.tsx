@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import ManagerTasksPage from '@/app/manager/tasks/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
@@ -44,7 +45,6 @@ vi.mock('@/components/tasks/tasks-toolbar', () => ({
     React.createElement('div', { 'data-testid': 'tasks-toolbar' }, JSON.stringify(props.assigneeOptions))
 }));
 
-import ManagerTasksPage from '@/app/manager/tasks/page';
 
 const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
 

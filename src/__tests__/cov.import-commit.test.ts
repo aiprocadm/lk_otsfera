@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, type Prisma } from '@prisma/client';
 import ExcelJS from 'exceljs';
 
 // Best-effort side-channels of commitPaymentImport (S3 store, sync-log, audit)

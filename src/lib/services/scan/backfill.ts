@@ -1,5 +1,5 @@
-import type { PrismaClient } from '@prisma/client';
 import type { Queue } from 'bullmq';
+import type { PrismaClient } from '@prisma/client';
 import { prisma as defaultPrisma } from '@/lib/db/prisma';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload, ScanDocumentTarget } from '@/lib/jobs/types';

@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
-import { verifyToken } from './jwt';
 import { prisma } from '@/lib/db/prisma';
+import { verifyToken } from './jwt';
 
 export async function getSession() {
   const token = (await cookies()).get('session')?.value;

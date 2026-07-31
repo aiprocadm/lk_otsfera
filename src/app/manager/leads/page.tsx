@@ -1,11 +1,11 @@
 import React from 'react';
+import type { LeadStatus } from '@prisma/client';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { listManagerLeads } from '@/lib/services/manager/leads';
 import { ManagerLeadsFilter } from '@/components/manager/manager-leads-filter';
 import { ManagerLeadsTable } from '@/components/manager/manager-leads-table';
 import { LeadCreateStaffForm } from '@/components/manager/lead-create-staff-form';
-import type { LeadStatus } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 

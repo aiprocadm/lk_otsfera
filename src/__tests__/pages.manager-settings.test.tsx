@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import ManagerSettingsPage from '@/app/manager/settings/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
@@ -42,7 +43,6 @@ vi.mock('@/components/manager/settings/internal-phone-card', () => ({
     React.createElement('div', { 'data-testid': 'internal-phone-card' }, String(props.initialInternalPhone))
 }));
 
-import ManagerSettingsPage from '@/app/manager/settings/page';
 
 const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
 

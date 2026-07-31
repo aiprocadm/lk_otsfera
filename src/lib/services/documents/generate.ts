@@ -3,11 +3,11 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { listMissingRequisites, type MissingRequisite } from '@/lib/documents/requisites-check';
-import { renderOrderDocumentPdf, type OrderDocumentData, type PartyBlock } from './orderDocumentPdf';
-import { renderContractDocumentPdf, type ContractDocumentData } from './contractDocumentPdf';
 import { getObjectStorage } from '@/lib/storage';
 import { notifyOrgUsers } from '@/lib/notifications';
 import { log } from '@/lib/logging';
+import { renderContractDocumentPdf, type ContractDocumentData } from './contractDocumentPdf';
+import { renderOrderDocumentPdf, type OrderDocumentData, type PartyBlock } from './orderDocumentPdf';
 
 /**
  * Этап 8 (ФТ-9.4/9.5, PR-2) — генерация счёта/акта по заказу в 1 клик.

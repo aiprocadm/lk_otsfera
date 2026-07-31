@@ -34,8 +34,8 @@ vi.mock('@/lib/db/prisma', () => ({
   },
 }));
 
-import { POST } from '@/app/api/student/bridge/token/route';
 import type { NextRequest } from 'next/server';
+import { POST } from '@/app/api/student/bridge/token/route';
 
 // ---------------------------------------------------------------------------
 // Helpers

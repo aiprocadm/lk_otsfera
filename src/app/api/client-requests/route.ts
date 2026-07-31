@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
+import type { ClientRequestStatus } from '@prisma/client';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { submitClientRequest } from '@/lib/services/clientRequests/submit';
 import { listClientRequests } from '@/lib/services/clientRequests/list';
-import type { ClientRequestStatus } from '@prisma/client';
 
 const STATUSES = ['submitted', 'in_triage', 'converted', 'rejected'];
 

@@ -1,5 +1,5 @@
-import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
+import type { Job } from 'bullmq';
 import { prisma } from '@/lib/db/prisma';
 import { calculateStatementForPartner } from '@/lib/services/commission/statement';
 import { detectLateRefundCorrections } from '@/lib/services/commission/corrections';

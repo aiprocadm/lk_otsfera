@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PrismaClient } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 
+import type { PrismaClient } from '@prisma/client';
 import {
   listPartners,
   getPartner,

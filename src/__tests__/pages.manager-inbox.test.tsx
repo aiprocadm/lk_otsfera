@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import ManagerInboxPage from '@/app/manager/inbox/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
@@ -43,7 +44,6 @@ vi.mock('@/components/manager/inbox-list', () => ({
     )
 }));
 
-import ManagerInboxPage from '@/app/manager/inbox/page';
 
 const SESSION = { sub: 'u1', role: 'manager' as const, companyId: 'c1' };
 

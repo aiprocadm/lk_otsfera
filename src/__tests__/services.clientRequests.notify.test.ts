@@ -25,13 +25,13 @@ vi.mock('@/lib/logging', () => ({
   log: { warn: logWarn, info: vi.fn(), error: vi.fn(), debug: vi.fn() }
 }));
 
+import type { ClientRequest } from '@prisma/client';
 import { CHANNEL_RECIPIENT_SELECT } from '@/lib/notifications/channels/types';
 import {
   notifyManagersClientRequestSubmitted,
   notifySubmitterClientRequestStatus,
   submitterRequestUrl
 } from '@/lib/services/clientRequests/notify';
-import type { ClientRequest } from '@prisma/client';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 

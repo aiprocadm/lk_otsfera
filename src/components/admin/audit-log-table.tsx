@@ -1,7 +1,7 @@
 import React from 'react';
 import type { AuditRow } from '@/lib/services/admin/auditLog';
-import { AuditDetailButton } from './audit-detail-button';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
+import { AuditDetailButton } from './audit-detail-button';
 
 const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
   dateStyle: 'short',

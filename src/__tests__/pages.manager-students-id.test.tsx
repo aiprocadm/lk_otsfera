@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import ManagerStudentDetailPage from '@/app/manager/students/[id]/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
@@ -34,7 +35,6 @@ vi.mock('@/components/training/certificate-list', () => ({
     React.createElement('div', { 'data-testid': 'cert-list' }, JSON.stringify(props.certificates))
 }));
 
-import ManagerStudentDetailPage from '@/app/manager/students/[id]/page';
 
 const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
 

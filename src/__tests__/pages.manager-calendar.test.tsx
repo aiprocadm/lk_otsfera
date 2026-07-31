@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { renderServerComponent } from './helpers/renderServerComponent';
 import { monthGridRange, normalizeMonthParam } from '@/lib/calendar/month';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
@@ -39,6 +38,7 @@ vi.mock('@/components/calendar/calendar-month-view', () => ({
 }));
 
 import ManagerCalendarPage from '@/app/manager/calendar/page';
+import { renderServerComponent } from './helpers/renderServerComponent';
 
 const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
 

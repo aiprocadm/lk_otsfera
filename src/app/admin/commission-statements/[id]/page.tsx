@@ -1,6 +1,6 @@
 import React from 'react';
-import { BackLink } from '@/components/ui';
 import { notFound } from 'next/navigation';
+import { BackLink } from '@/components/ui';
 import { prisma } from '@/lib/db/prisma';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import {

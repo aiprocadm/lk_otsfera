@@ -38,7 +38,7 @@ describe('useFormAction — stateful transitions', () => {
       })
     );
     await act(async () => {
-      await result.current.formAction(new FormData());
+      result.current.formAction(new FormData());
     });
     expect(result.current.success).toBe(true);
     expect(result.current.data).toEqual({ inviteUrl: 'https://x/y' });
@@ -54,7 +54,7 @@ describe('useFormAction — stateful transitions', () => {
       })
     );
     await act(async () => {
-      await result.current.formAction(new FormData());
+      result.current.formAction(new FormData());
     });
     expect(result.current.success).toBe(false);
     expect(result.current.errorText).toBe('Не найдено.');
@@ -67,7 +67,7 @@ describe('useFormAction — stateful transitions', () => {
       useFormAction({ action: async () => ({ ok: true as const, id: '1' }) })
     );
     await act(async () => {
-      await result.current.formAction(new FormData());
+      result.current.formAction(new FormData());
     });
     expect(result.current.success).toBe(true);
     act(() => result.current.reset()); // generation !== state.generation → current becomes idle

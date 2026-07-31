@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
-import type { SyncCursor } from './dto';
 import { oneCCursorOverlapMinutes } from './config';
+import type { SyncCursor } from './dto';
 
 export type CursorEntity = 'organization' | 'order' | 'payment' | 'document';
 

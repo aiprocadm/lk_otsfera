@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { canSeeStaffConversation } from './policy';
 import { getObjectStorage } from '@/lib/storage';
 import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
 import { maxFileSizeBytes } from '@/lib/config/upload';
 import { log } from '@/lib/logging';
+import { canSeeStaffConversation } from './policy';
 
 /**
  * Staff-chat attachment upload + signed-URL download service.

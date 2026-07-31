@@ -43,6 +43,7 @@ export function InnDuplicateHint({
     const normalized = inn.replace(/[\s-]/g, '');
     if (!INN_RE.test(normalized)) return;
 
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- async-колбэк setTimeout: все ошибки пойманы try/catch внутри, возврат не используется
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(`/api/duplicates/by-inn?inn=${encodeURIComponent(normalized)}`);

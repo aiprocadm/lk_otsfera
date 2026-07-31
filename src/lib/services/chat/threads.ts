@@ -1,8 +1,8 @@
 import { Prisma } from '@prisma/client';
 import type { PrismaClient, ThreadSide, OrderThread } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { canSeeThread } from './policy';
 import { activeOrgIds } from '@/lib/auth/organizationPolicy';
+import { canSeeThread } from './policy';
 
 export type ChatError = 'forbidden' | 'order_not_found';
 

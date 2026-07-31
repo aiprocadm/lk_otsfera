@@ -2,9 +2,9 @@ import React from 'react';
 import Link from 'next/link';
 import type { EnrollmentRow } from '@/lib/services/enrollments/list';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
-import { EnrollmentStatusBadge } from './enrollment-status-badge';
 import { fmtDate } from '@/lib/format';
 import { pluralizeRu } from '@/lib/format';
+import { EnrollmentStatusBadge } from './enrollment-status-badge';
 
 /**
  * Read-only list of enrollment requests (submitter view): шапка + счётчик

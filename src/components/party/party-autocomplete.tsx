@@ -85,6 +85,7 @@ export function PartyAutocomplete({
       closeList();
       return;
     }
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- async-колбэк setTimeout (debounce): ошибки пойманы try/catch внутри, возврат не используется
     debounceRef.current = setTimeout(async () => {
       const seq = ++requestSeqRef.current;
       try {

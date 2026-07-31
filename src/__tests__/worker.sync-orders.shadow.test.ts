@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
+import type { Job } from 'bullmq';
 import { syncOrdersProcessor } from '@/worker/processors/sync-orders';
 import { resetOneCAdapter } from '@/lib/services/oneCSync';
 import type { SyncJobPayload } from '@/lib/jobs/types';

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import OrganizationEnrollmentsPage from '@/app/organization/enrollments/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
@@ -36,7 +37,6 @@ vi.mock('@/components/organization/org-app-shell', () => ({
     React.createElement('div', { 'data-testid': 'org-app-shell' }, props.activeOrgName, props.children)
 }));
 
-import OrganizationEnrollmentsPage from '@/app/organization/enrollments/page';
 
 const CTX = {
   session: { sub: 'u1', role: 'organization' as const, email: 'org@example.com' },

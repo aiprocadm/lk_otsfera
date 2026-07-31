@@ -167,7 +167,7 @@ export function StaffChatSection({ currentUserId }: { currentUserId: string }) {
         toast.error(errorMessageRu(data?.error ?? '', 'Не удалось открыть диалог.'));
         return;
       }
-      await refetchConversations();
+      refetchConversations();
       await handleSelect(data.conversationId as string);
     } catch (err) {
       clientLog.warn('[staff-chat-section] new dm error', err);

@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
 import { notFound } from 'next/navigation';
+import type { ReactNode } from 'react';
 import { requireManagerLeader } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { LeaderAppShell } from '@/components/leader/leader-app-shell';

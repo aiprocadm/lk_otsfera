@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { registerAlertSchedules, ALERT_SCHEDULES } from '@/lib/jobs/scheduling';
 import type { Queue } from 'bullmq';
+import { registerAlertSchedules, ALERT_SCHEDULES } from '@/lib/jobs/scheduling';
 
 describe('registerAlertSchedules', () => {
   it('registers the evaluate-alerts cron with Europe/Moscow tz', async () => {

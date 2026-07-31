@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { PrismaClient } from '@prisma/client';
 import { pushLeadToOneC } from '@/lib/services/oneCSync/push';
 import type { OneCAdapter } from '@/lib/services/oneCSync/adapter';
-import type { PrismaClient } from '@prisma/client';
 
 function makePrismaMock(opts: {
   lead?: {

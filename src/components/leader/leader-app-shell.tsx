@@ -1,9 +1,9 @@
 import React, { type ReactNode } from 'react';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { LeaderSidebar } from './leader-sidebar';
 import { LogoutButton } from '@/components/ui';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { navItemsFor } from '@/lib/navigation/cabinet';
+import { LeaderSidebar } from './leader-sidebar';
 
 export function LeaderAppShell(props: {
   session: SessionPayload;

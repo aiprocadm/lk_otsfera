@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
-import type { Job } from 'bullmq';
 import { PrismaClient } from '@prisma/client';
+import type { Job } from 'bullmq';
 import { pushLeadProcessor, notifyPushLeadFinalFailure } from '@/worker/processors/push-lead';
 import { resetOneCAdapter } from '@/lib/services/oneCSync';
 import type { PushLeadJobPayload } from '@/lib/jobs/types';

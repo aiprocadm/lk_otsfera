@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import LeaderSettingsPage from '@/app/leader/settings/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
@@ -40,7 +41,6 @@ vi.mock('@/components/settings/staff-backup-codes-section', () => ({
     React.createElement('div', { 'data-testid': 'backup-codes-section' }, 'BACKUP')
 }));
 
-import LeaderSettingsPage from '@/app/leader/settings/page';
 
 const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
 

@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
-import { RequisitesFields, type RequisitesDefaults } from './requisites-fields';
 import type { RequisitesActionResult } from '@/server-actions/requisites';
+import { RequisitesFields, type RequisitesDefaults } from './requisites-fields';
 
 /**
  * Этап 8 (ФТ-9.2, PR-1) — карточка «Реквизиты» с формой. Общая оболочка для

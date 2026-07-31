@@ -46,13 +46,60 @@ const NO_MOCK1C_FROM_SRC = {
   message: 'src/ must not import mock-1c (it is dev/test-only, outside the app runtime). Direction is one-way: mock-1c → src.'
 };
 
-export default [
+const config = [
   // Generated coverage reports (istanbul/v8 HTML output) are gitignored artifacts,
   // not source. They ship their own `/* eslint-disable */` banners which the flat
   // config flags as "unused directive". Never lint them, wherever they land.
-  { ignores: ['**/coverage/**'] },
+  { ignores: ['**/coverage/**', '.next/**', 'playwright-report/**', 'next-env.d.ts'] },
   ...coreWebVitals,
   ...typescript,
+  // Фаза 1 «эталонного репозитория»: typed-правила @typescript-eslint.
+  // projectService включает type-aware анализ (нужен tsconfig); правила ниже
+  // ловят реальные баги асинхронности, которые обычный линт не видит.
+  {
+    files: ['**/*.{ts,tsx}'],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname
+      }
+    }
+  },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    rules: {
+      // Потерянный промис = проглоченная ошибка/гонка. Осознанный
+      // fire-and-forget помечается `void promise` (ignoreVoid).
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/await-thenable': 'error',
+      // attributes:false — async-обработчики в JSX (`onClick={async …}`) —
+      // штатный React-паттерн (возврат игнорируется); внутри они по-прежнему
+      // под no-floating-promises. Остальные позиции проверяются полностью.
+      '@typescript-eslint/no-misused-promises': [
+        'error',
+        { checksVoidReturn: { attributes: false } }
+      ],
+      // Синхронизировано с verbatimModuleSyntax (tsconfig): типы импортируются
+      // только как типы. inline-стиль — `import { type X, y }`.
+      // disallowTypeAnnotations:false — `typeof import('…')` остаётся легальным:
+      // это штатный приём vitest (importActual) и Sentry-типов.
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        { fixStyle: 'inline-type-imports', disallowTypeAnnotations: false }
+      ],
+      '@typescript-eslint/no-explicit-any': 'error',
+      // Единый порядок импортов (autofix). Пустые строки между группами не
+      // навязываем, чтобы не раздувать диff фазы 1.
+      'import/order': [
+        'error',
+        {
+          groups: [['builtin', 'external'], 'internal', ['parent', 'sibling', 'index']],
+          pathGroups: [{ pattern: '@/**', group: 'internal' }],
+          'newlines-between': 'ignore'
+        }
+      ]
+    }
+  },
   {
     files: ['src/**/*.{ts,tsx}'],
     rules: {
@@ -86,7 +133,14 @@ export default [
       '@typescript-eslint/no-explicit-any': 'off',
       // Тесты спают/ассертят console (37 файлов graceful-degrade регрессов) —
       // запрет не для них.
-      'no-console': 'off'
+      'no-console': 'off',
+      // Тестовый идиом: импорт тестируемого модуля НАМЕРЕННО стоит после
+      // vi.mock-настройки (page-тесты helpers/renderServerComponent), а fixer
+      // не переносит импорты через не-импортные строки. В боевом коде
+      // правило действует полностью.
+      'import/order': 'off'
     }
   }
 ];
+
+export default config;

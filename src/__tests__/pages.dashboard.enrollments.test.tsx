@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { renderServerComponent } from './helpers/renderServerComponent';
 
 /**
  * PR-2 (ФТ-2.4): карточка «Заявки на обучение» на дашбордах организации и
@@ -48,6 +47,7 @@ vi.mock('@/components/organization/org-app-shell', () => ({
 
 import OrganizationDashboardPage from '@/app/organization/dashboard/page';
 import PartnerDashboard from '@/app/partner/dashboard/page';
+import { renderServerComponent } from './helpers/renderServerComponent';
 
 const ORG_CTX = {
   session: { sub: 'u1', role: 'organization' as const, email: 'org@example.com' },

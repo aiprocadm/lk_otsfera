@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import type { LeadStatus } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
 import { moveFunnelLead, type MoveFunnelLeadError } from '@/lib/services/funnel/board';
@@ -11,7 +12,6 @@ import {
   type FunnelStageInput,
   type FunnelStageErrorCode
 } from '@/lib/services/access/funnelStages';
-import type { LeadStatus } from '@prisma/client';
 
 /**
  * Трек G2.5 — server-actions воронки. Move-карточки доступен любому менеджеру:

@@ -27,7 +27,7 @@ export function PartnerCreateForm() {
     // (see the `{inviteUrl && ...}` success block below), so this guard is unreachable via the UI.
     /* v8 ignore next */
     if (!inviteUrl) return;
-    navigator.clipboard.writeText(inviteUrl).then(() => {
+    void navigator.clipboard.writeText(inviteUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });

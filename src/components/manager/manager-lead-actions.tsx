@@ -3,11 +3,11 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import type { LeadStatus } from '@prisma/client';
 import { Button, Dialog, Select } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { convertLeadToDealAction } from '@/server-actions/deals';
-import type { LeadStatus } from '@prisma/client';
 
 type Candidate = { id: string; name: string; email: string };
 
@@ -165,7 +165,7 @@ export function ManagerLeadActions({
           loading={busy}
           onClick={() => {
             const reason = window.prompt('Причина отклонения заявки:');
-            if (reason !== null) run({ action: 'reject', reason }, 'Заявка отклонена');
+            if (reason !== null) void run({ action: 'reject', reason }, 'Заявка отклонена');
           }}
         >
           Отклонить

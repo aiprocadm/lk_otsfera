@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
+import { fmtMoney } from '@/lib/format';
 import { getSyncLag } from './syncHealth';
 import { getDlq } from './queueStats';
-import { fmtMoney } from '@/lib/format';
 
 export type KpiTile = {
   label: string;

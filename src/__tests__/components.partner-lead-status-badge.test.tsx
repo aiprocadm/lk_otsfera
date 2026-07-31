@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import React from 'react';
-import { LeadStatusBadge, leadStatusLabel } from '@/components/partner/lead-status-badge';
 import type { LeadStatus } from '@prisma/client';
+import { LeadStatusBadge, leadStatusLabel } from '@/components/partner/lead-status-badge';
 
 const ALL_STATUSES: LeadStatus[] = ['new', 'in_review', 'qualified', 'promoted_to_order', 'promoted_to_deal', 'rejected'];
 

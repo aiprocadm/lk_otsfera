@@ -1,3 +1,5 @@
+import { parseWorkbook } from '@/lib/services/import/parse-workbook';
+import { translateFinancialStatus } from './translate';
 import type { OneCAdapter } from './adapter';
 import type {
   OneCOrgDto,
@@ -8,8 +10,6 @@ import type {
   OneCLeadPushResult,
   SyncCursor,
 } from './dto';
-import { parseWorkbook } from '@/lib/services/import/parse-workbook';
-import { translateFinancialStatus } from './translate';
 
 const EPOCH = new Date(0).toISOString();
 

@@ -125,5 +125,7 @@ export function useClientResource<T>(
     };
   }, [enabled, intervalMs, load]);
 
-  return { data, loading, error, refetch: load };
+  // Сигнатура refetch остаётся () => void: вызывающие не ждут промис,
+  // ошибки load обрабатывает сам (setError) — оборачиваем в void.
+  return { data, loading, error, refetch: () => void load() };
 }

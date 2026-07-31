@@ -8,8 +8,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { recordPiiAccess } = vi.hoisted(() => ({ recordPiiAccess: vi.fn() }));
 vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
 
-import { listManagerLeads, getManagerLead } from '@/lib/services/manager/leads';
 import { Decimal } from '@prisma/client/runtime/library';
+import { listManagerLeads, getManagerLead } from '@/lib/services/manager/leads';
 
 const SESSION = { sub: 'mgr-1', role: 'manager' as const, companyId: 'co-1' };
 

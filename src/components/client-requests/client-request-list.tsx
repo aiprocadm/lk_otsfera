@@ -2,8 +2,8 @@ import React from 'react';
 import Link from 'next/link';
 import type { ClientRequestRow } from '@/lib/services/clientRequests/list';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
-import { ClientRequestStatusBadge } from './client-request-status-badge';
 import { fmtDate } from '@/lib/format';
+import { ClientRequestStatusBadge } from './client-request-status-badge';
 
 /**
  * Список обращений подателя (этап 5, ФТ-1.3): тема, компания, статус (с

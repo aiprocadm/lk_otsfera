@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { getSyncSummary, listSyncErrors } from '@/lib/services/syncSummary';
 import type { PrismaClient } from '@prisma/client';
+import { getSyncSummary, listSyncErrors } from '@/lib/services/syncSummary';
 
 type CountInput = { where: { entity: string; status: string } };
 type FindFirstInput = { where: { entity: string; status: string }; orderBy?: unknown; select?: unknown };

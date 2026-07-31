@@ -1,6 +1,6 @@
+import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { Prisma } from '@prisma/client';
 import { recordAudit } from '@/lib/auth/audit';
 import { validateRequisites, type RequisitesInput, type RequisitesValues } from '@/lib/requisites/validate';
 

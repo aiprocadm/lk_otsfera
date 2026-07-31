@@ -1,4 +1,4 @@
-import { Prisma, type PrismaClient } from '@prisma/client';
+import { type Prisma, type PrismaClient } from '@prisma/client';
 import { log } from '@/lib/logging';
 import { dispatchToRecipient } from './channels/dispatch';
 import {

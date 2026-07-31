@@ -4,9 +4,9 @@ import React, { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui';
-import { EventDialog } from './event-dialog';
 import { dayKey, isSameMonth, monthGridDays, monthLabel, nextMonth, prevMonth } from '@/lib/calendar/month';
 import type { CalendarItem, EventFormOptions } from '@/lib/services/calendar/items';
+import { EventDialog } from './event-dialog';
 
 /**
  * M5 — месячная сетка staff-календаря + панель «Ближайшие» (спека §4 UI v1).

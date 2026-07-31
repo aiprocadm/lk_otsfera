@@ -1,10 +1,10 @@
 import React, { type ReactNode } from 'react';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { ManagerSidebar } from './manager-sidebar';
 import { LogoutButton } from '@/components/ui';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { navItemsFor } from '@/lib/navigation/cabinet';
 import { isManagerLeader } from '@/lib/auth/managerPolicy';
+import { ManagerSidebar } from './manager-sidebar';
 
 export function ManagerAppShell(props: {
   session: SessionPayload;

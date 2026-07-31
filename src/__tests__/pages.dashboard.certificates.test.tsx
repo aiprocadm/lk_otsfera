@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { renderServerComponent } from './helpers/renderServerComponent';
 
 /**
  * Этап 3 PR-1 (ФТ-6.4): KPI-карточка «Истекают удостоверения» на дашбордах
@@ -48,6 +47,7 @@ vi.mock('@/components/organization/org-app-shell', () => ({
 
 import OrganizationDashboardPage from '@/app/organization/dashboard/page';
 import PartnerDashboard from '@/app/partner/dashboard/page';
+import { renderServerComponent } from './helpers/renderServerComponent';
 
 const ORG_CTX = {
   session: { sub: 'u1', role: 'organization' as const, email: 'org@example.com' },

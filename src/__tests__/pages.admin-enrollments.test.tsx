@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import AdminEnrollmentsPage from '@/app/admin/enrollments/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
@@ -36,7 +37,6 @@ vi.mock('@/components/enrollment/enrollment-wizard', () => ({
   EnrollmentWizard: () => React.createElement('div', { 'data-testid': 'enrollment-request-form' })
 }));
 
-import AdminEnrollmentsPage from '@/app/admin/enrollments/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 

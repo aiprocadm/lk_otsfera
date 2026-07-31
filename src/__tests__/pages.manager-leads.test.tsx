@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import ManagerLeadsPage from '@/app/manager/leads/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
@@ -33,7 +34,6 @@ vi.mock('@/components/manager/manager-leads-table', () => ({
     )
 }));
 
-import ManagerLeadsPage from '@/app/manager/leads/page';
 
 const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
 

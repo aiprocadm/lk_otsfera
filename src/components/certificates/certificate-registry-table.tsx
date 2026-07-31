@@ -1,9 +1,9 @@
 import React from 'react';
 import Link from 'next/link';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
-import { CertificateStatusBadge } from './certificate-status-badge';
 import { CertificateDownloadButton } from '@/components/enrollment/certificate-download-button';
 import { fmtDate } from '@/lib/format';
+import { CertificateStatusBadge } from './certificate-status-badge';
 
 /**
  * Таблица клиентского реестра удостоверений (этап 3, ФТ-6.1/6.2). Shared для

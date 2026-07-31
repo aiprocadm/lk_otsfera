@@ -105,7 +105,7 @@ function BindRowDialog({ row, onClose, onResolved }: { row: QueueRow; onClose: (
   // доступного скоупа — у менеджера это весь его список, у админа — топ-N.
   useEffect(() => {
     let alive = true;
-    searchResolveOrgsAction({ q: query }).then((res) => {
+    void searchResolveOrgsAction({ q: query }).then((res) => {
       if (!alive) return;
       // Кандидат от fuzzy-match мог не попасть в выборку — подставим его явно,
       // чтобы предзаполненный выбор оставался валидной опцией.
@@ -124,7 +124,7 @@ function BindRowDialog({ row, onClose, onResolved }: { row: QueueRow; onClose: (
   useEffect(() => {
     if (!orgId) return;
     let alive = true;
-    listResolveOrdersAction({ organizationId: orgId }).then((res) => {
+    void listResolveOrdersAction({ organizationId: orgId }).then((res) => {
       if (!alive) return;
       setOrders(res as OrderOption[]);
       // Defensive: this effect only (re-)runs when orgId changes, and the sole

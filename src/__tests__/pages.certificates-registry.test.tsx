@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { renderServerComponent } from './helpers/renderServerComponent';
 
 /**
  * Этап 3 PR-1 (ФТ-6.1/6.2): страницы реестров удостоверений организации и
@@ -51,6 +50,7 @@ vi.mock('@/components/organization/org-app-shell', () => ({
 
 import OrganizationCertificatesPage from '@/app/organization/certificates/page';
 import PartnerCertificatesPage from '@/app/partner/certificates/page';
+import { renderServerComponent } from './helpers/renderServerComponent';
 
 const ORG_CTX = {
   session: { sub: 'u1', role: 'organization' as const, email: 'org@example.com' },

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import ManagerDocumentsPage from '@/app/manager/documents/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
@@ -37,7 +38,6 @@ vi.mock('@/components/manager/manager-order-less-upload-form', () => ({
     )
 }));
 
-import ManagerDocumentsPage from '@/app/manager/documents/page';
 
 const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
 

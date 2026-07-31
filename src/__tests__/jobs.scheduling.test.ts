@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { Queue } from 'bullmq';
 import {
   registerSyncSchedules,
   SYNC_SCHEDULES,
@@ -7,7 +8,6 @@ import {
   COMMISSION_SCHEDULES,
   DEFAULT_SYNC_TZ
 } from '@/lib/jobs/scheduling';
-import type { Queue } from 'bullmq';
 
 function makeFakeQueue() {
   return {

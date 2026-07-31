@@ -1,7 +1,7 @@
-import type { OneCAdapter } from './adapter';
+import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
 import { FakeOneCAdapter } from './adapter-fake';
 import { RestOneCAdapter } from './adapter-rest';
-import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
+import type { OneCAdapter } from './adapter';
 
 let cached: OneCAdapter | null = null;
 /** Ключ конфига, по которому собран `cached` — для пересборки при изменении. */

@@ -1,10 +1,10 @@
+import type { ExecutionStatus, FinancialStatus, DocumentType } from '@prisma/client';
 import type {
   OneCOrgDto,
   OneCOrderDto,
   OneCPaymentDto,
   OneCDocumentDto
 } from './dto';
-import type { ExecutionStatus, FinancialStatus, DocumentType } from '@prisma/client';
 
 export type OrgUpsertInput = {
   externalId: string;

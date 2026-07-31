@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import PartnerSettingsPage from '@/app/partner/settings/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requirePartner } = vi.hoisted(() => ({ requirePartner: vi.fn() }));
@@ -32,7 +33,6 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
 }));
 
-import PartnerSettingsPage from '@/app/partner/settings/page';
 
 const SESSION = { sub: 'u1', role: 'partner' as const, partnerId: 'p1' };
 

@@ -2,8 +2,8 @@
 
 import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import type { StatementListItem } from '@/lib/services/partner/finance';
 import type { CommissionStatementItem } from '@prisma/client';
+import type { StatementListItem } from '@/lib/services/partner/finance';
 import { THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { fmtMoney, fmtDate, pluralizeRu } from '@/lib/format';
 import { toast } from '@/lib/ui/toast';

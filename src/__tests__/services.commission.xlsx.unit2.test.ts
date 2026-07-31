@@ -4,7 +4,7 @@
  * summary format branches.
  */
 import { describe, it, expect } from 'vitest';
-import ExcelJS from 'exceljs';
+import type ExcelJS from 'exceljs';
 import { renderStatementXlsx } from '@/lib/services/commission/xlsx';
 import { loadXlsxWorkbook } from '@/lib/services/import/load-xlsx';
 

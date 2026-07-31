@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import React from 'react';
+import ForbiddenPage from '@/app/forbidden/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
-import ForbiddenPage from '@/app/forbidden/page';
 
 describe('ForbiddenPage', () => {
   it('renders the 403 message with a link back to /dashboard', async () => {

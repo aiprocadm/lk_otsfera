@@ -1,7 +1,7 @@
 import type { Queue } from 'bullmq';
+import type { PrismaClient } from '@prisma/client';
 import { getQueue, type QueueName } from './queues';
 import type { SyncJobPayload } from './types';
-import type { PrismaClient } from '@prisma/client';
 
 export type SyncScheduleQueueName = Extract<
   QueueName,

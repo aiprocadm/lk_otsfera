@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import type { DealStatus } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
 import { moveDeal, type MoveDealError } from '@/lib/services/deals/board';
@@ -16,7 +17,6 @@ import {
 import type { DealStageView } from '@/lib/services/deals/stages';
 import { convertLeadToDeal, winDeal } from '@/lib/services/deals/convert';
 import { addNoteToDeal, listDealNotes, type DealNoteRow } from '@/lib/services/deals/notes';
-import type { DealStatus } from '@prisma/client';
 
 /**
  * Этап 6 (PR-1) — server-actions канбана сделок (клон funnel/index.ts).

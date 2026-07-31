@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import AdminPartnersPage from '@/app/admin/partners/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
@@ -21,7 +22,6 @@ vi.mock('@/components/admin/partners-table', () => ({
     React.createElement('div', { 'data-testid': 'partners-table' }, JSON.stringify(props.rows))
 }));
 
-import AdminPartnersPage from '@/app/admin/partners/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 

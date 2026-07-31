@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import React from 'react';
-import { ManagerPaymentsList } from '@/components/manager/manager-payments-list';
 import type { Payment } from '@prisma/client';
+import { ManagerPaymentsList } from '@/components/manager/manager-payments-list';
 
 function makePayment(overrides: Partial<Payment>): Payment {
   return {

@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
+import type { EnrollmentStatus } from '@prisma/client';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { submitEnrollmentRequest } from '@/lib/services/enrollments/submit';
 import { listEnrollmentRequests } from '@/lib/services/enrollments/list';
 import { canSubmitEnrollments } from '@/lib/services/enrollments/policy';
-import type { EnrollmentStatus } from '@prisma/client';
 
 const STATUSES = ['pending', 'approved', 'rejected', 'provisioned', 'in_training', 'certificates_ready'];
 

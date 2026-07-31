@@ -1,9 +1,9 @@
 import React from 'react';
 import type { TeamRow } from '@/lib/services/partner/team';
-import { MemberRowActions } from './member-row-actions';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { InviteResendButtons } from '@/components/team/invite-resend-buttons';
 import { fmtLastLogin } from '@/lib/format';
+import { MemberRowActions } from './member-row-actions';
 
 export function TeamTable({
   rows,

@@ -10,7 +10,6 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireAdmin, requireManager, requirePartner } = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
@@ -68,6 +67,7 @@ import AdminDocumentPage from '@/app/admin/documents/[id]/page';
 import ManagerDocumentPage from '@/app/manager/documents/[id]/page';
 import PartnerDocumentPage from '@/app/partner/documents/[id]/page';
 import OrganizationDocumentPage from '@/app/organization/documents/[id]/page';
+import { renderServerComponent } from './helpers/renderServerComponent';
 
 const DOC = { ok: true, document: { name: 'Счёт №5' } };
 

@@ -5,8 +5,8 @@ import { getObjectStorage } from '@/lib/storage';
 import { validateMagicBytes } from '@/lib/storage/mimeValidator';
 import { maxFileSizeBytes, ALLOWED_MIME_TYPES } from '@/lib/config/upload';
 import { recordAudit } from '@/lib/auth/audit';
-import { ingestInboundMessage } from './ingest';
 import { log } from '@/lib/logging';
+import { ingestInboundMessage } from './ingest';
 
 /**
  * Этап 9 (ФТ-11.1, PR-1) — «Задать вопрос» из кабинета партнёра/организации.

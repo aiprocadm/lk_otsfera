@@ -1,10 +1,10 @@
 import React from 'react';
 import Link from 'next/link';
+import type { LeadStatus, ClientRequestStatus } from '@prisma/client';
 import { Badge, EmptyState, ExportLink, TableShell, THead, Th, Tr, Td } from '@/components/ui';
 import { CallsList } from '@/components/manager/calls-list';
 import { LeadStatusBadge } from '@/components/partner/lead-status-badge';
 import { clientRequestStatusLabel } from '@/lib/services/clientRequests/labels';
-import type { LeadStatus, ClientRequestStatus } from '@prisma/client';
 import type { OrganizationCard } from '@/lib/services/manager/organizationCard';
 
 /**

@@ -1,5 +1,5 @@
-import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
+import type { Job } from 'bullmq';
 import { prisma } from '@/lib/db/prisma';
 import { getQueueStats } from '@/lib/services/admin/queueStats';
 import { getSyncLag } from '@/lib/services/admin/syncHealth';

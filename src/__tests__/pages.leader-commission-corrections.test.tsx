@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import LeaderCommissionCorrectionsPage from '@/app/leader/commission-corrections/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManagerLeader } = vi.hoisted(() => ({ requireManagerLeader: vi.fn() }));
@@ -19,7 +20,6 @@ vi.mock('@/components/commission/corrections-queue-table', () => ({
     React.createElement('div', { 'data-testid': 'corrections-table' }, JSON.stringify(props.rows))
 }));
 
-import LeaderCommissionCorrectionsPage from '@/app/leader/commission-corrections/page';
 
 const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
 

@@ -1,6 +1,6 @@
 import type { PrismaClient, ContactChannelType } from '@prisma/client';
-import { normalizeChannelValue } from './resolveContactByChannel';
 import { log } from '@/lib/logging';
+import { normalizeChannelValue } from './resolveContactByChannel';
 
 type ChannelSeed = { type: ContactChannelType; value: string };
 

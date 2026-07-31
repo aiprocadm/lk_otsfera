@@ -1,10 +1,10 @@
 import React, { type ReactNode } from 'react';
-import { OrgSidebar, type OrgSidebarMembership } from './org-sidebar';
 import { navItemsFor } from '@/lib/navigation/cabinet';
 import { LogoutButton } from '@/components/ui';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { AskQuestionButton } from '@/components/support/ask-question-button';
+import { OrgSidebar, type OrgSidebarMembership } from './org-sidebar';
 import { OrganizationBottomTabBar } from './bottom-tab-bar';
 
 export function OrgAppShell(props: {

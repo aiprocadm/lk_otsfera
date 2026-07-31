@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import type { TaskStatus } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
 import { moveTask, listLinkedTasks, type MoveTaskError, type TaskCard } from '@/lib/services/tasks/board';
@@ -19,7 +20,6 @@ import {
   type TaskColumnInput,
   type TaskColumnErrorCode
 } from '@/lib/services/tasks/columns';
-import type { TaskStatus } from '@prisma/client';
 
 /**
  * Трек G3 — server-actions задач. Move/CRUD задач доступны любому сотруднику

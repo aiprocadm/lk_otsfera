@@ -1,5 +1,5 @@
-import type { Queue } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
+import type { Queue } from 'bullmq';
 import { getQueue, type QueueName } from '@/lib/jobs/queues';
 import { recordAudit } from '@/lib/auth/audit';
 import type { SyncJobPayload } from '@/lib/jobs/types';

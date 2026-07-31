@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import * as React from 'react';
-import { prisma } from '@/lib/db/prisma';
 import bcrypt from 'bcryptjs';
+import { prisma } from '@/lib/db/prisma';
 import { signToken, signTwoFactorPendingToken } from '@/lib/auth/jwt';
 import { buildSessionClaims } from '@/lib/auth/buildSessionClaims';
 import { isRateLimited } from '@/lib/rateLimit';

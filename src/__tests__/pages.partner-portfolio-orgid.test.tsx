@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import OrgCardPage from '@/app/partner/portfolio/[orgId]/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requirePartner } = vi.hoisted(() => ({ requirePartner: vi.fn() }));
@@ -47,7 +48,6 @@ vi.mock('@/components/partner/customer-access-section', () => ({
     React.createElement('div', { 'data-testid': 'customer-access' }, `access:${organizationId}:${String(canInvite)}`)
 }));
 
-import OrgCardPage from '@/app/partner/portfolio/[orgId]/page';
 
 const SESSION = { sub: 'u1', role: 'partner' as const, partnerId: 'p1', assignedOrgIds: ['org-1'] };
 

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import ManagerFunnelPage from '@/app/manager/funnel/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
@@ -27,7 +28,6 @@ vi.mock('@/components/funnel/funnel-board', () => ({
     React.createElement('div', { 'data-testid': 'funnel-board' }, JSON.stringify(props.board))
 }));
 
-import ManagerFunnelPage from '@/app/manager/funnel/page';
 
 const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
 

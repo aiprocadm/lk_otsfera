@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'crypto';
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { requireRole, requireSession } from '@/lib/auth/guard';
 import { recordAudit } from '@/lib/auth/audit';

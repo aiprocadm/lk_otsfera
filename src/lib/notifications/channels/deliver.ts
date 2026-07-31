@@ -5,8 +5,8 @@
  * остальные и не поднимается к вызывающему (best-effort; in-app
  * Notification-строка уже создана и остаётся источником истины).
  */
-import { getChannels } from './registry';
 import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
+import { getChannels } from './registry';
 import type { ChannelKey, ChannelPayload, ChannelRecipient, ChannelSendResult } from './types';
 
 export type DeliveryResults = Partial<Record<ChannelKey, ChannelSendResult>>;

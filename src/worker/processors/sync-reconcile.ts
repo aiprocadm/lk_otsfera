@@ -1,5 +1,5 @@
-import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
+import type { Job } from 'bullmq';
 import { prisma } from '@/lib/db/prisma';
 import type { SyncJobPayload } from '@/lib/jobs/types';
 import { writeSyncLog, type SyncLogEntity } from '@/lib/services/oneCSync/log';

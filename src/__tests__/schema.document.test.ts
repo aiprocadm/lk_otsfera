@@ -1,8 +1,8 @@
 import { describe, expect, it, expectTypeOf, beforeAll, afterAll } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Document } from '@prisma/client';
 import { PrismaClient } from '@prisma/client';
+import type { Document } from '@prisma/client';
 
 let prisma: PrismaClient;
 

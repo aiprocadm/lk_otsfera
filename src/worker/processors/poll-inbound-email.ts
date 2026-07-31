@@ -1,5 +1,5 @@
-import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
+import type { Job } from 'bullmq';
 import { prisma } from '@/lib/db/prisma';
 import { getInboundEmailAdapter } from '@/lib/inbound/email';
 import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';

@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
+import type { LeadStatus } from '@prisma/client';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { getManagerLead } from '@/lib/services/manager/leads';
 import { assignLead, setLeadStatus, promoteLead, rejectLead } from '@/lib/services/manager/leadLifecycle';
-import type { LeadStatus } from '@prisma/client';
 
 type Params = { params: Promise<{ id: string }> };
 

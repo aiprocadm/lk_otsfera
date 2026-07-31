@@ -15,6 +15,7 @@ vi.mock('@/lib/telegram/client', () => ({ isTelegramEnabled }));
 vi.mock('@/lib/max/client', () => ({ isMaxEnabled }));
 vi.mock('@/lib/whatsapp/aggregator', () => ({ isWhatsAppEnabled }));
 
+import type { PrismaClient } from '@prisma/client';
 import {
   getNotificationSettings,
   normalizePhone,
@@ -26,7 +27,6 @@ import {
   isOptionalChannelKey,
   parseChannelPrefs,
 } from '@/lib/notifications/channels/preferences';
-import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const prisma = {

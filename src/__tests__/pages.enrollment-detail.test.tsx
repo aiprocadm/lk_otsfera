@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { renderServerComponent } from './helpers/renderServerComponent';
 
 /**
  * PR-2 (ФТ-2.3): деталка заявки подателя — обе страницы [id]
@@ -49,6 +48,7 @@ vi.mock('@/components/enrollment/enrollment-detail-view', () => ({
 
 import OrganizationEnrollmentDetailPage from '@/app/organization/enrollments/[id]/page';
 import PartnerEnrollmentDetailPage from '@/app/partner/enrollments/[id]/page';
+import { renderServerComponent } from './helpers/renderServerComponent';
 
 const ORG_CTX = {
   session: { sub: 'u1', role: 'organization' as const, email: 'org@example.com' },

@@ -1,5 +1,5 @@
-import type { PrismaClient, CommissionStatement } from '@prisma/client';
 import { Prisma } from '@prisma/client';
+import type { PrismaClient, CommissionStatement } from '@prisma/client';
 import { recordAudit } from '@/lib/auth/audit';
 
 export type ApproveInput = {

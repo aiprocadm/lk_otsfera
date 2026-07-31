@@ -1,5 +1,5 @@
-import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
+import type { Job } from 'bullmq';
 import { prisma } from '@/lib/db/prisma';
 import type { PushLeadJobPayload } from '@/lib/jobs/types';
 import { pushLeadToOneC } from '@/lib/services/oneCSync/push';
