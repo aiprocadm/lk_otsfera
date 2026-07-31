@@ -22,6 +22,19 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Фаза 4: скан секретов. Работает по всей истории PR-диапазона; секретов в
+  # репозитории нет (проверено аудитом) — job охраняет от будущих утечек.
+  gitleaks:
+    name: gitleaks · скан секретов
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   checks:
     name: typecheck · lint · unit
     runs-on: ubuntu-latest
