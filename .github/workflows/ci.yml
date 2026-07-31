@@ -22,6 +22,24 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Фаза 4: скан секретов. Работает по всей истории PR-диапазона; секретов в
+  # репозитории нет (проверено аудитом) — job охраняет от будущих утечек.
+  gitleaks:
+    name: gitleaks · скан секретов
+    runs-on: ubuntu-latest
+    env:
+      GITLEAKS_VERSION: 8.24.3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Бинарь напрямую (не gitleaks-action): экшену нужны API-права
+      # (Resource not accessible by integration), бинарю — нет; локальный
+      # запуск и CI используют одну и ту же команду и .gitleaks.toml.
+      - run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar xz gitleaks
+          ./gitleaks git . --no-banner --redact --config .gitleaks.toml
+
   checks:
     name: typecheck · lint · unit
     runs-on: ubuntu-latest

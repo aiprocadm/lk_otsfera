@@ -104,16 +104,16 @@ describe('POST /api/messages', () => {
   it('missing body field → 400', async () => {
     const res = await messagesPost(jsonReq('https://app.local/api/messages', { orderId: 'ord-1' }));
     expect(res.status).toBe(400);
-    const json = (await res.json()) as { ok: boolean; error: string };
-    expect(json).toEqual({ ok: false, error: 'bad_request' });
+    const json = (await res.json()) as { error: string };
+    expect(json).toEqual({ error: 'invalid_request' });
     expect(sendMessageMock).not.toHaveBeenCalled();
   });
 
   it('missing orderId field → 400', async () => {
     const res = await messagesPost(jsonReq('https://app.local/api/messages', { body: 'hello' }));
     expect(res.status).toBe(400);
-    const json = (await res.json()) as { ok: boolean; error: string };
-    expect(json).toEqual({ ok: false, error: 'bad_request' });
+    const json = (await res.json()) as { error: string };
+    expect(json).toEqual({ error: 'invalid_request' });
     expect(sendMessageMock).not.toHaveBeenCalled();
   });
 
@@ -246,7 +246,7 @@ describe('GET /api/messages/threads', () => {
   it('returns listThreads result directly', async () => {
     const payload = { ok: true, rows: [{ id: 'thr-1', orderId: 'ord-1', side: 'org' }] };
     listThreadsMock.mockResolvedValue(payload);
-    const res = await threadsGet();
+    const res = await threadsGet(new Request('https://app.local/api/messages/threads'));
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual(payload);
@@ -254,7 +254,7 @@ describe('GET /api/messages/threads', () => {
 
   it('flag OFF → 404', async () => {
     process.env.FEATURE_CHAT = '0';
-    const res = await threadsGet();
+    const res = await threadsGet(new Request('https://app.local/api/messages/threads'));
     expect(res.status).toBe(404);
     expect(listThreadsMock).not.toHaveBeenCalled();
   });
@@ -264,7 +264,7 @@ describe('GET /api/messages/threads', () => {
       ok: false,
       response: new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }),
     });
-    const res = await threadsGet();
+    const res = await threadsGet(new Request('https://app.local/api/messages/threads'));
     expect(res.status).toBe(401);
     expect(listThreadsMock).not.toHaveBeenCalled();
   });
@@ -303,8 +303,8 @@ describe('POST /api/messages/read', () => {
   it('missing threadId → 400', async () => {
     const res = await readPost(jsonReq('https://app.local/api/messages/read', {}));
     expect(res.status).toBe(400);
-    const json = (await res.json()) as { ok: boolean; error: string };
-    expect(json).toEqual({ ok: false, error: 'bad_request' });
+    const json = (await res.json()) as { error: string };
+    expect(json).toEqual({ error: 'invalid_request' });
     expect(markReadMock).not.toHaveBeenCalled();
   });
 
@@ -349,7 +349,7 @@ describe('GET /api/messages/unread', () => {
 
   it('returns unreadCount result directly', async () => {
     unreadCountMock.mockResolvedValue({ ok: true, count: 3 });
-    const res = await unreadGet();
+    const res = await unreadGet(new Request('https://app.local/api/messages/unread'));
     expect(res.status).toBe(200);
     const json = (await res.json()) as { ok: boolean; count: number };
     expect(json).toEqual({ ok: true, count: 3 });
@@ -358,7 +358,7 @@ describe('GET /api/messages/unread', () => {
 
   it('flag OFF → 404', async () => {
     process.env.FEATURE_CHAT = '0';
-    const res = await unreadGet();
+    const res = await unreadGet(new Request('https://app.local/api/messages/unread'));
     expect(res.status).toBe(404);
     expect(unreadCountMock).not.toHaveBeenCalled();
   });
@@ -368,7 +368,7 @@ describe('GET /api/messages/unread', () => {
       ok: false,
       response: new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }),
     });
-    const res = await unreadGet();
+    const res = await unreadGet(new Request('https://app.local/api/messages/unread'));
     expect(res.status).toBe(401);
     expect(unreadCountMock).not.toHaveBeenCalled();
   });

@@ -13,7 +13,7 @@ describe('GET /api/admin/sync/summary', () => {
 
   it('401 when unauthenticated', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
-    const res = await GET();
+    const res = await GET(new Request('http://x'));
     expect(res.status).toBe(401);
   });
 
@@ -23,7 +23,7 @@ describe('GET /api/admin/sync/summary', () => {
       role: 'partner',
       partnerId: 'p1',
     } as never);
-    const res = await GET();
+    const res = await GET(new Request('http://x'));
     expect(res.status).toBe(403);
   });
 
@@ -33,7 +33,7 @@ describe('GET /api/admin/sync/summary', () => {
       role: 'organization',
       organizationId: 'o1',
     } as never);
-    const res = await GET();
+    const res = await GET(new Request('http://x'));
     expect(res.status).toBe(403);
   });
 
@@ -53,7 +53,7 @@ describe('GET /api/admin/sync/summary', () => {
       },
     ]);
 
-    const res = await GET();
+    const res = await GET(new Request('http://x'));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.rows).toHaveLength(1);

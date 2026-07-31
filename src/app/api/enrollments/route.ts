@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { EnrollmentStatus } from '@prisma/client';
+import { z } from 'zod';
+import { parseJsonBody } from '@/lib/api/http';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
@@ -39,12 +41,16 @@ export async function POST(req: Request) {
   if (!canSubmitEnrollments(session))
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
+  // Схема — только «тело — JSON-объект»: роут намеренно ничего не
+  // интерпретирует (не-строки → null, items не-массив → []) — это
+  // закреплено тестами, решение принимает валидатор сервиса.
+  const parsed = await parseJsonBody(req, z.record(z.unknown()));
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const res = await submitEnrollmentRequest(prisma, session, {
     directionId: String(body.directionId ?? ''),
-    organizationId: body.organizationId ?? null,
-    note: body.note ?? null,
+    organizationId: (body.organizationId ?? null) as string | null,
+    note: (body.note ?? null) as string | null,
     items: Array.isArray(body.items) ? body.items.map(readItem) : [],
   });
   if (!res.ok) {

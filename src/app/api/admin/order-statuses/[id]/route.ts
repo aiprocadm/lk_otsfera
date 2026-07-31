@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
-import { requireFieldsAdmin, requireSession } from '@/lib/auth/guard';
+import { z } from 'zod';
+import { jsonError } from '@/lib/api/http';
+import { withAuth } from '@/lib/api/withAuth';
+import { requireFieldsAdmin } from '@/lib/auth/guard';
 import { prisma } from '@/lib/db/prisma';
 import { updateStatusDefinition, deleteStatusDefinition } from '@/lib/services/orderStatuses';
 
@@ -9,33 +12,26 @@ function mapErr(e: string): number {
   return 400;
 }
 
-type Ctx = { params: Promise<{ id: string }> };
+/** Форма патча; доменная валидация (system_protected и т.п.) — в сервисе. */
+const patchBodySchema = z.object({
+  label: z.string().optional(),
+  sortOrder: z.number().optional(),
+  isActive: z.boolean().optional(),
+});
 
-export async function PATCH(req: Request, ctx: Ctx) {
-  const sessionResult = await requireSession();
-  if (!sessionResult.ok) return sessionResult.response;
-  const guard = requireFieldsAdmin(sessionResult.value);
-  if (!guard.ok) return guard.response;
+export const PATCH = withAuth(
+  { guard: requireFieldsAdmin, body: patchBodySchema },
+  async ({ session, body, params }) => {
+    const { id } = await params;
+    const res = await updateStatusDefinition(prisma, session, id, body);
+    if (!res.ok) return jsonError(res.error, mapErr(res.error));
+    return NextResponse.json({ definition: res.definition });
+  }
+);
 
-  const { id } = await ctx.params;
-  const body = await req.json();
-  const res = await updateStatusDefinition(prisma, guard.value, id, {
-    label: body.label,
-    sortOrder: body.sortOrder,
-    isActive: body.isActive,
-  });
-  if (!res.ok) return NextResponse.json({ error: res.error }, { status: mapErr(res.error) });
-  return NextResponse.json({ definition: res.definition });
-}
-
-export async function DELETE(_req: Request, ctx: Ctx) {
-  const sessionResult = await requireSession();
-  if (!sessionResult.ok) return sessionResult.response;
-  const guard = requireFieldsAdmin(sessionResult.value);
-  if (!guard.ok) return guard.response;
-
-  const { id } = await ctx.params;
-  const res = await deleteStatusDefinition(prisma, guard.value, id);
-  if (!res.ok) return NextResponse.json({ error: res.error }, { status: mapErr(res.error) });
+export const DELETE = withAuth({ guard: requireFieldsAdmin }, async ({ session, params }) => {
+  const { id } = await params;
+  const res = await deleteStatusDefinition(prisma, session, id);
+  if (!res.ok) return jsonError(res.error, mapErr(res.error));
   return NextResponse.json({ ok: true });
-}
+});

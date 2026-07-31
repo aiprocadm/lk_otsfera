@@ -119,7 +119,10 @@ function malformedJsonReq(url: string) {
 
 // Every (handler, args) pair, used for the blanket flag-off / auth sweeps below.
 const allHandlers: Array<{ name: string; call: () => Promise<Response> }> = [
-  { name: 'GET conversations', call: () => conversationsGet() },
+  {
+    name: 'GET conversations',
+    call: () => conversationsGet(new Request('https://app.local/api/staff-chat/conversations')),
+  },
   {
     name: 'GET messages',
     call: () =>
@@ -148,8 +151,14 @@ const allHandlers: Array<{ name: string; call: () => Promise<Response> }> = [
     name: 'POST dm',
     call: () => dmPost(jsonReq('https://app.local/api/staff-chat/dm', { targetUserId: 'u2' })),
   },
-  { name: 'GET colleagues', call: () => colleaguesGet() },
-  { name: 'GET unread', call: () => unreadGet() },
+  {
+    name: 'GET colleagues',
+    call: () => colleaguesGet(new Request('https://app.local/api/staff-chat/colleagues')),
+  },
+  {
+    name: 'GET unread',
+    call: () => unreadGet(new Request('https://app.local/api/staff-chat/unread')),
+  },
   {
     name: 'POST attachment',
     call: () => {
@@ -204,7 +213,9 @@ describe('auth gate — every /api/staff-chat/* handler', () => {
 describe('GET /api/staff-chat/conversations', () => {
   it('non-staff role → 403', async () => {
     requireRoleMock.mockReturnValue(forbiddenResult());
-    const res = await conversationsGet();
+    const res = await conversationsGet(
+      new Request('https://app.local/api/staff-chat/conversations')
+    );
     expect(res.status).toBe(403);
     expect(listConversationsMock).not.toHaveBeenCalled();
   });
@@ -221,7 +232,9 @@ describe('GET /api/staff-chat/conversations', () => {
       },
     ];
     listConversationsMock.mockResolvedValue({ ok: true, rows });
-    const res = await conversationsGet();
+    const res = await conversationsGet(
+      new Request('https://app.local/api/staff-chat/conversations')
+    );
     expect(res.status).toBe(200);
     const json = (await res.json()) as { ok: boolean; rows: unknown[] };
     expect(json.ok).toBe(true);
@@ -328,8 +341,8 @@ describe('POST /api/staff-chat/messages', () => {
   it('malformed JSON body → 400', async () => {
     const res = await messagesPost(malformedJsonReq('https://app.local/api/staff-chat/messages'));
     expect(res.status).toBe(400);
-    const json = (await res.json()) as { ok: boolean; error: string };
-    expect(json).toEqual({ ok: false, error: 'bad_request' });
+    const json = (await res.json()) as { error: string };
+    expect(json).toEqual({ error: 'invalid_request' });
     expect(sendStaffMessageMock).not.toHaveBeenCalled();
   });
 
@@ -338,8 +351,8 @@ describe('POST /api/staff-chat/messages', () => {
       jsonReq('https://app.local/api/staff-chat/messages', { body: 'hi' })
     );
     expect(res.status).toBe(400);
-    const json = (await res.json()) as { ok: boolean; error: string };
-    expect(json).toEqual({ ok: false, error: 'bad_request' });
+    const json = (await res.json()) as { error: string };
+    expect(json).toEqual({ error: 'invalid_request' });
     expect(sendStaffMessageMock).not.toHaveBeenCalled();
   });
 
@@ -452,8 +465,8 @@ describe('POST /api/staff-chat/read', () => {
   it('missing conversationId → 400', async () => {
     const res = await readPost(jsonReq('https://app.local/api/staff-chat/read', {}));
     expect(res.status).toBe(400);
-    const json = (await res.json()) as { ok: boolean; error: string };
-    expect(json).toEqual({ ok: false, error: 'bad_request' });
+    const json = (await res.json()) as { error: string };
+    expect(json).toEqual({ error: 'invalid_request' });
     expect(markStaffReadMock).not.toHaveBeenCalled();
   });
 
@@ -509,8 +522,8 @@ describe('POST /api/staff-chat/reactions', () => {
       jsonReq('https://app.local/api/staff-chat/reactions', { messageId: 'm1' })
     );
     expect(res.status).toBe(400);
-    const json = (await res.json()) as { ok: boolean; error: string };
-    expect(json).toEqual({ ok: false, error: 'bad_request' });
+    const json = (await res.json()) as { error: string };
+    expect(json).toEqual({ error: 'invalid_request' });
     expect(toggleReactionMock).not.toHaveBeenCalled();
   });
 
@@ -585,8 +598,8 @@ describe('POST /api/staff-chat/dm', () => {
   it('missing targetUserId → 400', async () => {
     const res = await dmPost(jsonReq('https://app.local/api/staff-chat/dm', {}));
     expect(res.status).toBe(400);
-    const json = (await res.json()) as { ok: boolean; error: string };
-    expect(json).toEqual({ ok: false, error: 'bad_request' });
+    const json = (await res.json()) as { error: string };
+    expect(json).toEqual({ error: 'invalid_request' });
     expect(openDmMock).not.toHaveBeenCalled();
   });
 
@@ -624,14 +637,14 @@ describe('POST /api/staff-chat/dm', () => {
 describe('GET /api/staff-chat/colleagues', () => {
   it('non-staff role → 403', async () => {
     requireRoleMock.mockReturnValue(forbiddenResult());
-    const res = await colleaguesGet();
+    const res = await colleaguesGet(new Request('https://app.local/api/staff-chat/colleagues'));
     expect(res.status).toBe(403);
     expect(listColleaguesMock).not.toHaveBeenCalled();
   });
 
   it('happy path → 200 with rows', async () => {
     listColleaguesMock.mockResolvedValue({ ok: true, rows: [{ id: 'u2', name: 'Colleague' }] });
-    const res = await colleaguesGet();
+    const res = await colleaguesGet(new Request('https://app.local/api/staff-chat/colleagues'));
     expect(res.status).toBe(200);
     const json = (await res.json()) as { ok: boolean; rows: unknown[] };
     expect(json).toEqual({ ok: true, rows: [{ id: 'u2', name: 'Colleague' }] });
@@ -645,14 +658,14 @@ describe('GET /api/staff-chat/colleagues', () => {
 describe('GET /api/staff-chat/unread', () => {
   it('non-staff role → 403', async () => {
     requireRoleMock.mockReturnValue(forbiddenResult());
-    const res = await unreadGet();
+    const res = await unreadGet(new Request('https://app.local/api/staff-chat/unread'));
     expect(res.status).toBe(403);
     expect(staffUnreadCountMock).not.toHaveBeenCalled();
   });
 
   it('happy path → 200 with count', async () => {
     staffUnreadCountMock.mockResolvedValue({ ok: true, count: 4 });
-    const res = await unreadGet();
+    const res = await unreadGet(new Request('https://app.local/api/staff-chat/unread'));
     expect(res.status).toBe(200);
     const json = (await res.json()) as { ok: boolean; count: number };
     expect(json).toEqual({ ok: true, count: 4 });

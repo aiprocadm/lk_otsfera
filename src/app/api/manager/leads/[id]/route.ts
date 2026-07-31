@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { LeadStatus } from '@prisma/client';
+import { z } from 'zod';
+import { parseJsonBody } from '@/lib/api/http';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
@@ -26,20 +28,34 @@ export async function GET(_req: Request, { params }: Params) {
   return NextResponse.json({ lead });
 }
 
+/**
+ * Схема — только ФОРМА тела. Допустимость action и статуса лида остаётся
+ * за роутом/сервисом (стабильные коды не подменяются); неизвестный action
+ * по-прежнему отвечает 400 «Invalid action…».
+ */
+const patchBodySchema = z.object({
+  action: z.string().optional(),
+  assignToUserId: z.string().optional(),
+  status: z.string().optional(),
+  reason: z.string().optional(),
+});
+
 export async function PATCH(req: Request, { params }: Params) {
   const disabled = notFoundIfDisabled('manager_cabinet');
   if (disabled) return disabled;
   const session = await requireManager();
   const { id } = await params;
-  const body = await req.json().catch(() => null);
-  const action = body?.action;
+  const parsed = await parseJsonBody(req, patchBodySchema);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
+  const action = body.action;
   const managerId = session.sub;
 
   if (action === 'assign') {
     const res = await assignLead(prisma, {
       leadId: id,
       managerId,
-      assignToUserId: body?.assignToUserId,
+      assignToUserId: body.assignToUserId,
     });
     if (!res.ok) return NextResponse.json({ error: res.error }, { status: statusFor(res.error) });
     return NextResponse.json({ lead: res.lead });
@@ -48,7 +64,7 @@ export async function PATCH(req: Request, { params }: Params) {
     const res = await setLeadStatus(prisma, {
       leadId: id,
       managerId,
-      status: body?.status as LeadStatus,
+      status: body.status as LeadStatus,
     });
     if (!res.ok) return NextResponse.json({ error: res.error }, { status: statusFor(res.error) });
     return NextResponse.json({ lead: res.lead });
@@ -62,7 +78,7 @@ export async function PATCH(req: Request, { params }: Params) {
     const res = await rejectLead(prisma, {
       leadId: id,
       managerId,
-      reason: String(body?.reason ?? ''),
+      reason: body.reason ?? '',
     });
     if (!res.ok) return NextResponse.json({ error: res.error }, { status: statusFor(res.error) });
     return NextResponse.json({ lead: res.lead });

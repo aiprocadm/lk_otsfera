@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { parseJsonBody } from '@/lib/api/http';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
@@ -36,8 +38,12 @@ export async function PATCH(req: Request, { params }: Params) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const body = await req.json().catch(() => null);
-  const action = body?.action;
+  // Схема — только «тело — JSON-объект»: проверку action и String()-коэрцию
+  // reason роут сохраняет; коды triage-сервисов не подменяются.
+  const parsed = await parseJsonBody(req, z.record(z.unknown()));
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
+  const action = body.action;
 
   if (action === 'takeInTriage') {
     const r = await takeInTriage(prisma, session, { id });
@@ -52,7 +58,7 @@ export async function PATCH(req: Request, { params }: Params) {
   if (action === 'reject') {
     const r = await rejectClientRequest(prisma, session, {
       id,
-      reason: String(body?.reason ?? ''),
+      reason: String(body.reason ?? ''),
     });
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: statusFor(r.error) });
     return NextResponse.json({ request: r.request });

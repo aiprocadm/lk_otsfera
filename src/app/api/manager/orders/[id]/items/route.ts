@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { parseJsonBody } from '@/lib/api/http';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
@@ -28,13 +30,25 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   return NextResponse.json({ items: res.items });
 }
 
+/**
+ * Схема — только ФОРМА тела (повторяет прежний TS-каст). Существование
+ * студента/направления и доменные правила проверяет сервис.
+ */
+const postBodySchema = z.object({
+  studentId: z.string(),
+  directionId: z.string(),
+  note: z.string().optional(),
+});
+
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const disabled = notFoundIfDisabled('manager_cabinet');
   if (disabled) return disabled;
 
   const session = await requireManager();
   const { id } = await params;
-  const body = (await req.json()) as { studentId: string; directionId: string; note?: string };
+  const parsed = await parseJsonBody(req, postBodySchema);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const res = await addOrderItem(prisma, session, {
     orderId: id,
     studentId: body.studentId,

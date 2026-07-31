@@ -1,16 +1,10 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
+import { withAuth } from '@/lib/api/withAuth';
 import { requireAdmin } from '@/lib/auth/guard';
+import { prisma } from '@/lib/db/prisma';
 import { getSyncSummary } from '@/lib/services/syncSummary';
 
-export async function GET() {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const adminCheck = requireAdmin(session);
-  if (!adminCheck.ok) return adminCheck.response;
-
+export const GET = withAuth({ guard: requireAdmin }, async () => {
   const rows = await getSyncSummary(prisma);
   return NextResponse.json({ rows });
-}
+});

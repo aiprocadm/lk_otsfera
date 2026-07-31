@@ -195,13 +195,13 @@ describe('§A admin/training-directions', () => {
 
   it('GET → 400 when service returns an unmapped error (mapErr default branch)', async () => {
     listDirections.mockResolvedValue({ ok: false, error: 'boom' });
-    const res = await dirGet();
+    const res = await dirGet(new Request('http://x'));
     expect(res.status).toBe(400); // covers route.ts:19 !ok + mapErr default
   });
 
   it('GET → 404 when service returns not_found (mapErr not_found branch)', async () => {
     listDirections.mockResolvedValue({ ok: false, error: 'not_found' });
-    const res = await dirGet();
+    const res = await dirGet(new Request('http://x'));
     expect(res.status).toBe(404); // covers route.ts:8 not_found true-branch
   });
 

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { ClientRequestStatus } from '@prisma/client';
+import { z } from 'zod';
+import { parseJsonBody } from '@/lib/api/http';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
@@ -15,8 +17,11 @@ export async function POST(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
+  // Схема — только «тело — JSON-объект»: не-строки → null (str) остаётся
+  // обязанностью роута (закреплено тестом), валидацию полей делает сервис.
+  const parsed = await parseJsonBody(req, z.record(z.unknown()));
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
 
   const str = (v: unknown) => (typeof v === 'string' ? v : null);
   const res = await submitClientRequest(prisma, session, {

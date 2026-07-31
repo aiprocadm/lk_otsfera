@@ -59,6 +59,7 @@ function doX(
 
 - `error` — **стабильная строка** (`'forbidden' | 'not_found' | 'too_large' | 'invalid_mime' | 'storage' | …`). Не меняй существующие коды без миграции вызовов.
 - Route-handler **только мапит** код в HTTP-статус. Никакой бизнес-логики в роуте: см. [src/app/api/manager/documents/[id]/upload/route.ts](src/app/api/manager/documents/[id]/upload/route.ts) как эталон тонкого роута.
+- **Обвязка роутов (фаза 4)** — [src/lib/api/](src/lib/api/): `withAuth` (флаг → сессия → guard → Zod-тело; эталон [api/admin/custom-fields](src/app/api/admin/custom-fields/route.ts)) и `parseJsonBody`/`jsonError` для роутов с redirect-стилевыми гардами из `requireRole.ts` (их авторизацию в withAuth не заворачивать). Zod в роуте проверяет **только форму** входа; доменная валидация и коды — за сервисом. Кривой JSON/форма → 400 `invalid_request`; необработанный throw → 500 `internal` + `x-request-id` в каждом ответе.
 - Failures должны **degrade gracefully**: queue enqueue / notification fan-out — логируем и проглатываем; они не должны блокировать основной путь.
 
 ## 4. RBAC — defense-in-depth обязателен
