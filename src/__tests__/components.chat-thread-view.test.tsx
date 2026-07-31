@@ -129,7 +129,7 @@ describe('ChatThreadView', () => {
     // but whose getTime() throws, since fmtDateTime itself never throws for
     // valid Date instances. A Date subclass with a poisoned getTime achieves this.
     class ThrowingDate extends Date {
-      getTime(): number {
+      override getTime(): number {
         throw new Error('boom');
       }
     }

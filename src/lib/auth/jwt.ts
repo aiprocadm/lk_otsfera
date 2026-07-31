@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { JWTPayload, SignJWT, jwtVerify } from 'jose';
+import { type JWTPayload, SignJWT, jwtVerify } from 'jose';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
